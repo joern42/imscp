@@ -79,7 +79,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_createPostfixMaps();
+    my $rs = $self->_setVersion();
+    $rs ||= $self->_createPostfixMaps();
     $rs ||= $self->_buildConf();
     $rs ||= $self->_buildAliasesDb();
     $rs ||= $self->_cleanup();
@@ -1155,7 +1156,7 @@ sub _buildConf
     $rs ||= $self->{'eventManager'}->trigger( 'afterPostfixBuildConf' );
 }
 
-=item _setPostfixVersion( )
+=item _setVersion( )
 
  Set Postfix version
 
@@ -1163,7 +1164,7 @@ sub _buildConf
 
 =cut
 
-sub _setPostfixVersion
+sub _setVersion
 {
     my ($self) = @_;
 
@@ -1171,12 +1172,12 @@ sub _setPostfixVersion
     debug( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
-    if ( $stdout !~ m/^([\d.]+)/ ) {
+    if ( $stdout !~ /^([\d.]+)/ ) {
         error( "Couldn't guess Postfix version" );
         return 1;
     }
 
-    $self->{'config'}->{'POSTFIX_VERSION'} = $stdout;
+    $self->{'config'}->{'POSTFIX_VERSION'} = $1;
     debug( sprintf( 'Postfix version set to: %s', $stdout ));
     0;
 }
