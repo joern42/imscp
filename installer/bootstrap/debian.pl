@@ -91,7 +91,5 @@ if ( eval "require Module::Load::Conditional; 1;" ) {
     die "[\x1b[0;31mERROR\x1b[0m] Module::Load::Conditional Perl module not available\n";
 }
 
-exit;
-
 1;
 __END__
