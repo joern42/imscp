@@ -32,7 +32,7 @@ chomp( our $ROOTDIR = `dirname @{ [ __FILE__ ]} 2>/dev/null` );
 chdir( $ROOTDIR ) or die( sprintf( "[\x1b[0;31mERROR\x1b[0m] Couldn't chdir: %s\n", $! || 'Unknown error' ));
 
 if ( !-f '/etc/imscp/imscp.conf' || !grep (/^-(?:[^-]*?[hs?][^-]*|-(?:help|skip-distro-packages))$/, @ARGV) ) {
-    my ($bootstrapDir, $bootstrapFile) = ( "$ROOTDIR/installer/bootstrap", );
+    my ($bootstrapDir, $bootstrapFile) = ( "$ROOTDIR/installer/bootstrap", undef );
 
     if ( -f '/etc/debian_version' || -f '/etc/devuan_version' ) {
         $bootstrapFile = 'debian.pl';

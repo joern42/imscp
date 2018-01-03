@@ -21,7 +21,7 @@
 #
 # Tested with:
 #  - Debian 8 - 10
-#  - Ubuntu 14.4 - 16.04
+#  - Ubuntu 14.04, 16.04
 #  - Devuan 1.0
 
 system( 'clear 2>/dev/null' );
@@ -74,21 +74,24 @@ system(
 
 if ( eval "require Module::Load::Conditional; 1;" ) {
     Module::Load::Conditional->import( 'check_install' );
-    my @perlModules;
-    my %hash = ( 'Array::Utils', 0.5, 'Data::Clone', 0.004 );
+    my %perlModules = ( 'Array::Utils', 0.5, 'Data::Clone', 0.004 );
 
-    while ( my ($module, $version) = each %hash ) {
+    while ( my ($module, $version) = each %perlModules ) {
         my $rv = check_install( module => $module, version => $version );
-        push @perlModules, $module unless $rv && $rv->{'uptodate'};
+        delete $perlModules{$module} if $rv && $rv->{'uptodate'};
     }
 
-    if ( @perlModules ) {
+    if ( %perlModules ) {
         print " [\x1b[0;34mINFO\x1b[0m] Installing Perl module(s) from CPAN ...\n";
-        system( "echo 'yes' | cpan -T @perlModules" ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't install Perl module(s) from CPAN.\n" );
+        system( "echo 'yes' | cpan -T @{ [ keys %perlModules ] }" ) == 0 or die(
+            "[\x1b[0;31mERROR\x1b[0m] Couldn't install Perl module(s) from CPAN.\n"
+        );
     }
 } else {
     die "[\x1b[0;31mERROR\x1b[0m] Module::Load::Conditional Perl module not available\n";
 }
+
+exit;
 
 1;
 __END__
