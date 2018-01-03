@@ -25,7 +25,7 @@ package iMSCP::Service;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ error getMessageByType /;
 use iMSCP::Execute;
 use iMSCP::ProgramFinder;
 use Module::Load::Conditional qw/ can_load /;
@@ -280,7 +280,7 @@ sub getInitSystem()
 
 sub isSysvinit
 {
-    $_[0]->{'init'} eq 'sysvinit';
+    $_[0]->{'init'} eq 'Sysvinit';
 }
 
 =item isUpstart( )
@@ -293,7 +293,7 @@ sub isSysvinit
 
 sub isUpstart
 {
-    $_[0]->{'init'} eq 'upstart';
+    $_[0]->{'init'} eq 'Upstart';
 }
 
 =item isSystemd( )
@@ -306,7 +306,7 @@ sub isUpstart
 
 sub isSystemd
 {
-    $_[0]->{'init'} eq 'systemd';
+    $_[0]->{'init'} eq 'Systemd';
 }
 
 =item getProvider( [ $providerName = $self->{'init'} ] )
@@ -433,16 +433,13 @@ sub _detectInit
     return $main::imscpConfig{'SYSTEM_INIT'} if exists $main::imscpConfig{'SYSTEM_INIT'} && $main::imscpConfig{'SYSTEM_INIT'} ne '';
 
     if ( -d '/run/systemd/system' ) {
-        debug( 'Systemd init system has been detected' );
         return 'Systemd';
     }
 
     if ( iMSCP::ProgramFinder::find( 'initctl' ) && execute( 'initctl version 2>/dev/null | grep -q upstart' ) == 0 ) {
-        debug( 'Upstart init system has been detected' );
         return 'Upstart';
     }
 
-    debug( 'SysVinit init system has been detected' );
     'Sysvinit'
 }
 
