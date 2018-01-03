@@ -21,70 +21,38 @@
 
 use strict;
 use warnings;
+use POSIX qw/ locale_h /;
+
+$ENV{'LANG'} = 'C.UTF-8';
+setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $< == 0 or die( "[\x1b[0;31mERROR\x1b[0m] The i-MSCP installer must be run as root user.\n" );
-system( 'clear 2>/dev/null' );
+
+chomp( our $ROOTDIR = `dirname @{ [ __FILE__ ]} 2>/dev/null` );
+chdir( $ROOTDIR ) or die( sprintf( "[\x1b[0;31mERROR\x1b[0m] Couldn't chdir: %s\n", $! || 'Unknown error' ));
 
 if ( !-f '/etc/imscp/imscp.conf' || !grep (/^-(?:[^-]*?[hs?][^-]*|-(?:help|skip-distro-packages))$/, @ARGV) ) {
-    # Debian like distributions specific routines
-    # FIXME check on apt-get isn't sufficient as some other distributions can provide it (eg. OpenSUSE)
-    if ( `which apt-get 2>/dev/null` ) {
-        local $ENV{'LANG'} = 'C.UTF-8';
+    my ($bootstrapDir, $bootstrapFile) = ( "$ROOTDIR/installer/bootstrap", );
 
-        # List of pre-required distribution packages
-        my @distPackages = qw/
-            apt-transport-https apt-utils build-essential ca-certificates debconf-utils dialog dirmngr facter libbit-vector-perl libcapture-tiny-perl
-            libcarp-always-perl libclass-autouse-perl libdata-compare-perl libdata-validate-domain-perl libfile-homedir-perl libjson-perl
-            libjson-xs-perl liblchown-perl liblist-compare-perl liblist-moreutils-perl libnet-ip-perl libnet-domain-tld-perl libscalar-defer-perl
-            libsort-versions-perl libxml-simple-perl lsb-release policyrcd-script-zg2 wget whiptail virt-what /;
-
-        print "Satisfying pre-requisites for the i-MSCP installer\n";
-        print " [\x1b[0;34mINFO\x1b[0m] Updating package index files ...\n";
-
-        system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
-        print " [\x1b[0;32mOK\x1b[0m] Package index files were successfuly updated.\n";
-
-        # Make sure that packages are up-to-date (upgrade, not dist-upgrade)
-        print " [\x1b[0;34mINFO\x1b[0m] Upgrading distribution packages (upgrade) ...\n";
-        system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgrade' ) == 0 or die(
-            "[\x1b[0;31mERROR\x1b[0m] Couldn't upgrade distribution packages.\n"
-        );
-        print " [\x1b[0;32mOK\x1b[0m] Distribution package were successfuly updated.\n";
-
-        print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required distribution packages ...\n";
-        system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', @distPackages ) == 0 or die(
-            "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
-        );
-        print " [\x1b[0;32mOK\x1b[0m] Pre-required package were successfuly installed.\n";
-
-        # Install Perl modules from CPAN if needed
-        if ( eval "require Module::Load::Conditional; 1;" ) {
-            Module::Load::Conditional->import( 'check_install' );
-            # List of pre-required Perl modules
-            # Only Perl modules that are not available as package in all distributions
-            my @perlModules;
-            my %hash = ( 'Array::Utils', 0.5, 'Data::Clone', 0.004 );
-            while ( my ($module, $version) = each %hash ) {
-                my $rv = check_install( module => $module, version => $version );
-                push @perlModules, $module unless $rv && $rv->{'uptodate'};
-            }
-
-            if ( @perlModules ) {
-                print " [\x1b[0;34mINFO\x1b[0m] Installing Perl module(s) from CPAN ...\n";
-                system( "echo 'yes' | cpan -T @perlModules" ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't install Perl module(s) from CPAN.\n" );
-                print " [\x1b[0;32mOK\x1b[0m] Perl module(s) were successfuly installed.\n";
-            }
-        } else {
-            die "Module::Load::Conditional Perl module not available\n";
-        }
-
-        system( 'clear 2>/dev/null' );
+    if ( -f '/etc/debian_version' || -f '/etc/devuan_version' ) {
+        $bootstrapFile = 'debian.pl';
+    } elsif ( -f '/etc/mageia-release' ) {
+        $bootstrapFile = 'mageia.pl';
+    } elsif ( -f '/etc/redhat-release' ) {
+        $bootstrapFile = 'redhat.pl';
+    } elsif ( -f '/etc/os-release' && `grep -q openSUSE /etc/os-release` ) {
+        $bootstrapFile = 'opensuse.pl';
+    } elsif ( -f '/etc/arch-release' || -f '/etc/manjaro-release' ) {
+        $bootstrapFile = 'archlinux.pl';
+    } elsif ( -f '/etc/gentoo-release' ) {
+        $bootstrapFile = 'gentoo.pl';
     }
+
+    defined $bootstrapFile && eval { require "$bootstrapDir/$bootstrapFile"; } or die(
+        "[\x1b[0;31mERROR\x1b[0m] Your distribution is not supported yet.\n"
+    );
 }
 
-require File::Basename;
-chdir( File::Basename::dirname( __FILE__ )) or die( sprintf( "Couldn't chdir: %s", $! || 'Unknown error' ));
-exec( '/usr/bin/perl', 'installer/installer.pl', @ARGV );
+exec( '/usr/bin/perl', "$ROOTDIR/installer/installer.pl", @ARGV );
 
-1;
 __END__

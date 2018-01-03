@@ -31,7 +31,7 @@ perl imscp-installer -d
 ### 1. Make sure to read the errata file
 
 Before upgrading, you must not forget to read the
-[errata file](https://github.com/i-MSCP/imscp/blob/<version>/docs/1.5.x_errata.md)
+[errata file](https://github.com/i-MSCP/imscp/blob/<version>/docs/1.6.x_errata.md)
 
 ### 2. Make sure to make a backup of your data
 

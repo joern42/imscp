@@ -394,7 +394,7 @@ sub _showUpdateWarning
 
 Before you continue, be sure to have read the errata file which is located at
 
-    \\Zbhttps://github.com/i-MSCP/imscp/blob/1.5.x/docs/1.5.x_errata.md\\ZB
+    \\Zbhttps://github.com/i-MSCP/imscp/blob/1.6.x/docs/1.6.x_errata.md\\ZB
 EOF
 
     } else {
@@ -406,7 +406,7 @@ We would remind you that development versions can be highly unstable and that th
 
 Before you continue, be sure to have read the errata file:
 
-    \\Zbhttps://github.com/i-MSCP/imscp/blob/1.5.x/docs/1.5.x_errata.md\\ZB
+    \\Zbhttps://github.com/i-MSCP/imscp/blob/1.6.x/docs/1.6.x_errata.md\\ZB
 EOF
     }
 
