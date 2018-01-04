@@ -189,7 +189,7 @@ sub install
     my $rs = $self->_setupAuthdaemonSqlUser();
     $rs ||= $self->_buildConf();
     $rs ||= $self->_setupSASL();
-    $rs ||= $self->_migrateFromCourier();
+    $rs ||= $self->_migrateFromDovecot();
     $rs ||= $self->_cleanup();
 }
 
@@ -705,7 +705,9 @@ sub _buildConf
         }
 
         replaceBlocByRef(
-            qr/(?:^\n)?# iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN\n/m, qr/# iMSCP::Servers::Po::Courier::Abstract::installer - ENDING\n/, '',
+            qr/(?:^\n)?# iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN\n/m,
+            qr/# iMSCP::Servers::Po::Courier::Abstract::installer - ENDING\n/,
+            '',
             $fileContentRef
         );
 
@@ -808,9 +810,7 @@ sub _buildDHparametersFile
 
     if ( -f "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem" ) {
         my $rs = execute(
-            [ 'openssl', 'dhparam', '-in', "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem", '-text', '-noout' ],
-            \ my $stdout,
-            \ my $stderr
+            [ 'openssl', 'dhparam', '-in', "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem", '-text', '-noout' ], \ my $stdout, \ my $stderr
         );
         debug( $stderr || 'Unknown error' ) if $rs;
         if ( $rs == 0 && $stdout =~ /\((\d+)\s+bit\)/ && $1 >= 2048 ) {
@@ -1005,9 +1005,7 @@ sub _cleanup
 
     # Remove postfix user from authdaemon group.
     # It is now added in mail group (since 1.5.0)
-    my $rs = iMSCP::SystemUser->new()->removeFromGroup(
-        $self->{'config'}->{'AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'POSTFIX_USER'}
-    );
+    my $rs = iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'POSTFIX_USER'} );
     return $rs if $rs;
 
     # Remove old authdaemon socket private/authdaemon mount directory.
@@ -1091,7 +1089,9 @@ sub _removeConfig
         }
 
         replaceBlocByRef(
-            qr/(?:^\n)?# iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN\n/m, qr/# iMSCP::Servers::Po::Courier::Abstract::installer - ENDING\n/, '',
+            qr/(?:^\n)?# iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN\n/m,
+            qr/# iMSCP::Servers::Po::Courier::Abstract::installer - ENDING\n/,
+            '',
             $fileContentRef
         );
 

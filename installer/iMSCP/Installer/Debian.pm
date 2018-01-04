@@ -886,10 +886,17 @@ EOF
     if ( $main::questions{'_po'} eq 'courier' ) {
         # Pre-fill debconf database for Courier
         $fileContent .= <<'EOF';
-courier-base courier-base/courier-user note
 courier-base courier-base/webadmin-configmode boolean false
-courier-ssl courier-ssl/certnotice note
+courier-base courier-base/maildirpath note
+courier-base courier-base/certnotice note
+courier-base courier-base/courier-user note
+courier-base courier-base/maildir string Maildir
 EOF
+        if ( grep( $main::imscpConfig{'DISTRO_CODENAME'} eq $_, 'jessie', 'trusty', 'xenial' ) ) {
+            # Only for the old courier-ssl package. It is a transitional
+            # package in latest Debian like distributons.
+            $fileContent .= "courier-ssl courier-ssl/certnotice note\n";
+        }
     }
 
     # Pre-fill debconf database for Dovecot
@@ -935,7 +942,7 @@ EOF
             # The debconf template is not available (the package has not been installed yet or something went wrong with the debconf database)
             # In such case, we download the package into a temporary directory, we extract the debconf template manually and we load it into the
             # debconf database. Once done, we process as usually. This is lot of work but we have not choice as question names for different SQL
-            # servers are not consistent.
+            # server vendors/versions are not consistent.
             close( $fh );
 
             my $tmpDir = File::Temp->newdir();
@@ -943,7 +950,7 @@ EOF
             if ( my $uid = ( getpwnam( '_apt' ) )[2] ) {
                 # Prevent Fix `W: Download is performed unsandboxed as root as file...' warning with newest APT versions
                 unless ( chown $uid, -1, $tmpDir ) {
-                    error( sprintf( "Couldn't change ownership for the %s directory: %s", $tmpDir, $! ));
+                    error( sprintf( "Couldn't change ownership for the %s directory: %s", $tmpDir, $! || 'Unknown error' ));
                     return 1;
                 }
             }
@@ -1243,7 +1250,7 @@ sub _getSqldInfo
         );
 
         # mysqld  Ver 10.1.26-MariaDB-0+deb9u1 for debian-linux-gnu on x86_64 (Debian 9.1)
-        if ( my ($version, $vendor) = $stdout =~ /Ver\s+(\d+.\d+).*?(mariadb|mysql|percona)/i ) {
+        if ( my ($version, $vendor) = $stdout =~ /Ver\s+(\d+.\d+).*?(mariadb|percona|mysql)/i ) {
             return ( lc $vendor, $version );
         }
     }
