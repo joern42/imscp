@@ -30,6 +30,7 @@ use File::Path qw/ mkpath remove_tree /;
 use File::Spec;
 use iMSCP::Debug qw / getLastError /;
 use iMSCP::File;
+use iMSCP::Umask;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
@@ -248,9 +249,10 @@ sub owner
  Create a directory
 
  Param hash \%options OPTIONAL Options:
-    mode:  Directory mode
-    user:  Directory owner
-    group: Directory group
+    umask : UMASK(2) for a new diretory. For instance if the given umask is 027, mode will be: 0777 & (~0027) = 0750 (in octal), default to umask()
+    mode  : Directory mode
+    user  : Directory owner
+    group : Directory group
     fixpermissions: If defined, ownership and permissions are set only if set with TRUE value
  Return int 0 on success, die on failure
 
@@ -262,6 +264,8 @@ sub make
 
     defined $self->{'dirname'} or die( '`dirname` attribute is not defined.' );
     $options = {} unless $options && ref $options eq 'HASH';
+
+    local $UMASK = $options->{'umask'} if exists $options->{'umask'};
 
     unless ( -d $self->{'dirname'} ) {
         my @createdDirs = mkpath( $self->{'dirname'}, { error => \ my $errStack } );

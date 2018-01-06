@@ -58,8 +58,8 @@ sub getPriority
 
  Create and return an i-MSCP $serverClass server instance
 
- This method is not intented to be called on concret $serverClass servers. If
- you do so, you'll get an iMSCP::Servers::Noserver instance.
+ This method is not intented to be called on concret iMSCP::Servers::Abstract
+ server classes.
 
  Param string $serverClass OPTIONAL Server class, default to selected server alternative
  Return iMSCP::Servers::Abstract, confess on failure
@@ -231,6 +231,8 @@ sub reload
 
  Build the given server configuration file
  
+ This method should be implemented by all servers relying on configuration files.
+ 
  The following events *MUST* be triggered:
   - onLoadTemplate('<SNAME>', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params )
   - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
@@ -241,6 +243,7 @@ sub reload
  Param hashref \%mdata OPTIONAL Data as provided by i-MSCP modules
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%params OPTIONAL parameters:
+  - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
   - user  : File owner (default: root)
   - group : File group (default: root
   - mode  : File mode (default: 0644)
@@ -253,7 +256,7 @@ sub buildConfFile
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the buildConfFile() method', ref $self ));
+    0;
 }
 
 =item shutdown( $priority )
