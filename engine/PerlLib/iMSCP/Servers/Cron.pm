@@ -155,7 +155,7 @@ sub _validateCronTask
 
  Param string $name Fieldname
  Param string $value Fieldvalue
- Retirn void, croak if the given field isn't valid
+ Return void, croak if the given field isn't valid
 
 =cut
 

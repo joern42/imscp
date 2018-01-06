@@ -55,7 +55,7 @@ sub install
     my ($self) = @_;
 
     my $file = iMSCP::File->new( filename => '/etc/imscp/cron/imscp' );
-    $fileContentRef = $file->getAsRef();
+    my $fileContentRef = $file->getAsRef();
     unless ( defined $fileContentRef ) {
         error( sprintf( "Couldn't read the %s file", '/etc/imscp/cron/imscp' ));
         return 1;
@@ -77,7 +77,7 @@ sub install
     );
 
     local $UMASK = 027;
-    $file->{'fileName'} = '/etc/cron.d/imscp';
+    $file->{'filename'} = '/etc/cron.d/imscp';
     $rs = $file->save();
     $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
     $rs ||= $file->mode( 0640 );
@@ -113,9 +113,9 @@ sub uninstall
 {
     my ($self) = @_;
 
-    return 0 unless -f '/etc/imscp/cron.d/imscp';
+    return 0 unless -f '/etc/cron.d/imscp';
 
-    iMSCP::File->new( filename => '/etc/imscp/cron.d/imscp' )->delFile();
+    iMSCP::File->new( filename => '/etc/cron.d/imscp' )->delFile();
 }
 
 =item setEnginePermissions( )
