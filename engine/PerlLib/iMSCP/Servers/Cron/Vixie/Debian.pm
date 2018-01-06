@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Cron::Vixie::Debian - i-MSCP (Debian) Vixie cron server abstract implementation
+ iMSCP::Servers::Cron::Vixie::Debian - i-MSCP (Debian) Vixie cron server implementation
 
 =cut
 
@@ -31,11 +31,12 @@ use iMSCP::Debug qw/ debug error /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::TemplateParser qw/ processByRef replaceBlocByRef /;
-use parent 'iMSCP::Servers::Cron::Abstract';
+use iMSCP::Umask;
+use parent 'iMSCP::Servers::Cron';
 
 =head1 DESCRIPTION
 
- i-MSCP (Debian) Vixie cron server abstract implementation.
+ i-MSCP (Debian) Vixie cron server implementation.
  
  See CRON(8) manpage.
  
@@ -43,32 +44,9 @@ use parent 'iMSCP::Servers::Cron::Abstract';
 
 =over 4
 
-=item preinstall( )
-
- Process preinstall tasks
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub preinstall
-{
-    my ($self) = @_;
-
-    eval { iMSCP::Service->getInstance()->stop( 'cron' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::install()
 
 =cut
 
@@ -76,15 +54,11 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'cron', 'imscp', \ my $cfgTpl, {} );
-    return $rs if $rs;
-
-    unless ( defined $cfgTpl ) {
-        $cfgTpl = iMSCP::File->new( filename => '/etc/imscp/cron/imscp' )->get();
-        unless ( defined $cfgTpl ) {
-            error( sprintf( "Couldn't read %s", '/etc/imscp/cron/imscp' ));
-            return 1;
-        }
+    my $file = iMSCP::File->new( filename => '/etc/imscp/cron/imscp' );
+    $fileContentRef = $file->getAsRef();
+    unless ( defined $fileContentRef ) {
+        error( sprintf( "Couldn't read the %s file", '/etc/imscp/cron/imscp' ));
+        return 1;
     }
 
     processByRef(
@@ -99,11 +73,11 @@ sub install
             CONF_DIR        => $main::imscpConfig{'CONF_DIR'},
             BACKUP_FILE_DIR => $main::imscpConfig{'BACKUP_FILE_DIR'}
         },
-        \$cfgTpl
+        $fileContentRef
     );
 
-    my $file = iMSCP::File->new( filename => '/etc/cron.d/imscp' );
-    $file->set( $cfgTpl );
+    local $UMASK = 027;
+    $file->{'fileName'} = '/etc/cron.d/imscp';
     $rs = $file->save();
     $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
     $rs ||= $file->mode( 0640 );
@@ -112,9 +86,7 @@ sub install
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::postinstall()
 
 =cut
 
@@ -128,36 +100,37 @@ sub postinstall
         return 1;
     }
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]},
-                [
-                    sub {
-                        iMSCP::Service->getInstance()->start( 'cron' );
-                        0;
-                    },
-                    'Cron'
-                ];
-            0;
-        },
-        -99
-    );
+    $self->SUPER::postinstall();
+}
+
+=item uninstall( )
+
+ See iMSCP::Servers::Abstract::uninstall()
+
+=cut
+
+sub uninstall
+{
+    my ($self) = @_;
+
+    return 0 unless -f '/etc/imscp/cron.d/imscp';
+
+    iMSCP::File->new( filename => '/etc/imscp/cron.d/imscp' )->delFile();
 }
 
 =item setEnginePermissions( )
 
- Set engine permissions
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::setEnginePermissions()
 
 =cut
 
 sub setEnginePermissions
 {
+    my ($self) = @_;
+
     return 0 unless -f '/etc/cron.d/imscp';
 
-    setRights( '/etc/cron.d//imscp',
+    setRights( '/etc/cron.d/imscp',
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_GROUP'},
@@ -166,9 +139,85 @@ sub setEnginePermissions
     );
 }
 
+=item start( )
+
+ See iMSCP::Servers::Abstract::start()
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->start( 'cron' ); };
+    if ( $@ ) {
+        die( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item stop( )
+
+ See iMSCP::Servers::Abstract::stop()
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->stop( 'cron' ); };
+    if ( $@ ) {
+        die( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Abstract::restart()
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->restart( 'cron' ); };
+    if ( $@ ) {
+        die( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Abstract::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->reload( 'cron' ); };
+    if ( $@ ) {
+        die( $@ );
+        return 1;
+    }
+
+    0;
+}
+
 =item addTask( \%data [, $filepath = '/etc/cron.d/imscp' ] )
 
- See iMSCP::Servers::Cron::Abstract::addTask()
+ See iMSCP::Servers::Cron::addTask()
 
 =cut
 
@@ -237,7 +286,7 @@ EOF
 
 =item deleteTask( \%data [, $filepath = '/etc/cron.d/imscp' ] )
 
- See iMSCP::Servers::Cron::Abstract::deleteTask()
+ See iMSCP::Servers::Cron::deleteTask()
 
 =cut
 
@@ -274,7 +323,7 @@ sub deleteTask
 
 =item enableSystemCronTask( $cronTask [, $directory = ALL ] )
 
- See iMSCP::Servers::Cron::Abstract::enableSystemCronTask()
+ See iMSCP::Servers::Cron::enableSystemCronTask()
 
 =cut
 
@@ -311,7 +360,7 @@ sub enableSystemCronTask
 
 =item disableSystemCrontask( $cronTask [, $directory = ALL ] )
 
- See iMSCP::Servers::Cron::Abstract::disableSystemCrontask()
+ See iMSCP::Servers::Cron::disableSystemCrontask()
 
 =cut
 

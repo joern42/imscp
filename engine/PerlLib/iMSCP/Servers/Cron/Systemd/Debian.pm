@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Cron::Vixie::Debian - i-MSCP (Debian) Systemd cron server abstract implementation
+ iMSCP::Servers::Cron::Vixie::Debian - i-MSCP (Debian) Systemd cron server implementation
 
 =cut
 
@@ -39,25 +39,6 @@ use parent 'iMSCP::Servers::Cron::Vixie::Debian';
 
 =over 4
 
-=item preinstall( )
-
- See iMSCP::Servers::Cron::Vixie::Debian::preinstall()
-
-=cut
-
-sub preinstall
-{
-    my ($self) = @_;
-
-    eval { iMSCP::Service->getInstance()->stop( 'cron.target' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
 =item postinstall( )
 
  See iMSCP::Servers::Cron::Vixie::Debian::Postinstall()
@@ -77,18 +58,82 @@ sub postinstall
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]},
-                [
-                    sub {
-                        iMSCP::Service->getInstance()->start( 'cron.target' );
-                        0;
-                    },
-                    'Cron'
-                ];
+            push @{$_[0]}, [ sub { $self->start() }, ref $self ];
             0;
         },
-        -99
+        $self->getPriority()
     );
+}
+
+=item start( )
+
+ See iMSCP::Servers::Abstract::start()
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->start( 'cron.target' ); };
+    if ( $@ ) {
+        die( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item stop( )
+
+ See iMSCP::Servers::Cron::Vixie::Debian::stop()
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->stop( 'cron.target' ); };
+    if ( $@ ) {
+        die( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Cron::Vixie::Debian::restart()
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->restart( 'cron.target' ); };
+    if ( $@ ) {
+        die( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Cron::Vixie::Debian::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    # Job type reload is not applicable for unit cron.target, do a restart instead
+    $self->restart();
 }
 
 =back
