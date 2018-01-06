@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Abstract - i-MSCP server abstract factory implementation
+ iMSCP::Servers::Abstract - Factory and abstract implementation for i-MSCP servers
 
 =cut
 
@@ -25,14 +25,17 @@ package iMSCP::Servers::Abstract;
 
 use strict;
 use warnings;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::EventManager;
+use Carp qw/ confess croak /;
+use parent 'iMSCP::Common::Singleton';
 
-# Server package names
-my %PACKAGES;
+# Server instances
+my %_SERVER_INSTANCES;
 
 =head1 DESCRIPTION
 
- i-MSCP server factory abstract implementation.
+ This class provides a factory and an abstract implementation for the i-MSCP servers.
 
 =head1 CLASS METHODS
 
@@ -51,77 +54,239 @@ sub getPriority
     0;
 }
 
-=item factory( [ $package = $main::imscpConfig{$class} ] )
+=item factory( [ $serverClass = $main::imscpConfig{$class} ] )
 
- Create and return a server instance
+ Create and return an i-MSCP $serverClass server instance
 
- Param string $package OPTIONAL Name of package
- Return Server instance
+ This method is not intented to be called on concret $serverClass servers. If
+ you do so, you'll get an  iMSCP::Servers::Noserver instance.
+
+ Param string $serverClass OPTIONAL Server class, default to selected server alterrnative
+ Return iMSCP::Servers::Abstract, confess on failure
 
 =cut
 
 sub factory
 {
-    my ($class, $package) = @_;
+    my ($class, $serverClass) = @_;
+    $serverClass //= $main::imscpConfig{$class} || 'iMSCP::Servers::Noserver';
 
-    unless ( $package ) {
-        return $PACKAGES{$class}->getInstance() if $PACKAGES{$class};
-        $PACKAGES{$class} = $package = $main::imscpConfig{$class} || 'iMSCP::Servers::Noserver';
-    }
+    return $_SERVER_INSTANCES{$class} if exists $_SERVER_INSTANCES{$class};
 
-    eval "require $package; 1" or die( $@ );
-    $package->getInstance( eventManager => iMSCP::EventManager->getInstance());
+    eval "require $serverClass; 1" or confess( $@ );
+    $_SERVER_INSTANCES{$class} = $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
 }
 
-=item getInstance( [ $package = $main::imscpConfig{$class} ] )
+=back
 
- See iMSCP::Servers::Abstract::factory()
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item preinstall( )
+
+ Process server pre-installation tasks
+
+ Return int 0 on success, other on failure
 
 =cut
 
-sub getInstance
+sub preinstall
 {
-    my ($class, $package) = @_;
+    my ($self) = @_;
 
-    $class->factory( $package );
+    $self->stop();
 }
 
-=item can( $method )
+=item install( )
 
- Checks if the server package implements the given method
+ Process server installation tasks
 
- Bear in mind that this method always operates on the selected alternative.
-
- Param string $method Method name
- Return subref|undef
+ Return int 0 on success, other on failure
 
 =cut
 
-sub can
+sub install
 {
-    my ($class, $method) = @_;
+    my ($self) = @_;
 
-    return $PACKAGES{$class}->can( $method ) if $PACKAGES{$class};
+    croak ( sprintf( 'The %s package must implement the install() method', ref $self ));
+}
 
-    my $package = $main::imscpConfig{$class} || 'iMSCP::Servers::Noserver';
+=item postinstall( )
 
-    eval "require $package; 1" or die( $@ );
-    $package->can( $method );
+ Process server post-installation tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub postinstall
+{
+    my ($self) = @_;
+
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupRestartServices',
+        sub {
+            push @{$_[0]}, [ sub { $self->start(); }, ref $self ];
+            0;
+        },
+        $self->getPriority()
+    );
+
+    0;
+}
+
+=item uninstall( )
+
+ Process server uninstallation tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub uninstall
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s package must implement the uninstall() method', ref $self ));
+}
+
+=item setEnginePermissions( )
+
+ Set server permissions
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub setEnginePermissions
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s package must implement the setEnginePermissions() method', ref $self ));
+}
+
+=item start( )
+
+ Start the server
+
+ Return int 0, other on failure
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s package must implement the start() method', ref $self ));
+}
+
+=item stop( )
+
+ Stop the server
+
+ Return int 0, other on failure
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s package must implement the stop() method', ref $self ));
+}
+
+=item restart( )
+
+ Restart the server
+
+ Return int 0, other on failure
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s package must implement the restart() method', ref $self ));
+}
+
+=item reload( )
+
+ Reload the server
+
+ Return int 0, other on failure
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s package must implement the reload() method', ref $self ));
+}
+
+=item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
+
+ Build the given server configuration file
+ 
+ The following events *MUST* be triggered:
+  - onLoadTemplate('<SNAME>', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params )
+  - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
+  - after<SNAME>dBuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
+
+ Param string $srcFile Absolute source filepath or source filepath relative to the i-MSCP server configuration directory
+ Param string $trgFile Target file path
+ Param hashref \%mdata OPTIONAL Data as provided by i-MSCP modules
+ Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
+ Param hashref \%params OPTIONAL parameters:
+  - user  : File owner (default: root)
+  - group : File group (default: root
+  - mode  : File mode (default: 0644)
+  - cached : Whether or not loaded file must be cached in memory
+ Return int 0 on success, other on failure
+
+=cut
+
+sub buildConfFile
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s package must implement the reload() method', ref $self ));
+}
+
+=item shutdown( $priority )
+
+ Reload or restart the server
+
+ This method is called automatically when the program exits. It *MUST* be
+ implemented by all servers that require a reload or restart when their
+ configuration has been changed.
+
+ Param int $priority Server priority
+ Return void
+
+=cut
+
+sub shutdown
+{
+    my ($self) = @_;
+
+    0;
 }
 
 =item AUTOLOAD()
 
- Implement autoloading for inexistent methods
+ Implements autoloading for inexistent methods
 
- Return mixed
+ Return int 0
 
 =cut
 
 sub AUTOLOAD
 {
-    ( my $method = our $AUTOLOAD ) =~ s/.*:://;
-
-    __PACKAGE__->factory()->$method( @_ );
+    0;
 }
 
 =item DESTROY
@@ -132,10 +297,10 @@ sub AUTOLOAD
 
 =cut
 
-DESTROY
-    {
-
-    }
+sub DESTROY
+{
+    debug( sprintf( 'Destroying %s server instance', ref $_[0] ));
+}
 
 =item END
 
@@ -146,11 +311,9 @@ DESTROY
 =cut
 
 END {
-    return if $? || !%PACKAGES || ( defined $main::execmode && $main::execmode eq 'setup' );
+    return if $? || !%_SERVER_INSTANCES || ( defined $main::execmode && $main::execmode eq 'setup' );
 
-    while ( my ( $server, $package ) = each( %PACKAGES ) ) {
-        ( $package->can( 'shutdown' ) or next )->( $package->getInstance(), $server->getPriority());
-    }
+    $_->shutdown( $_->getPriority()) for values %_SERVER_INSTANCES;
 }
 
 =back
