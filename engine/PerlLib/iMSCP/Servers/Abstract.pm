@@ -59,9 +59,9 @@ sub getPriority
  Create and return an i-MSCP $serverClass server instance
 
  This method is not intented to be called on concret $serverClass servers. If
- you do so, you'll get an  iMSCP::Servers::Noserver instance.
+ you do so, you'll get an iMSCP::Servers::Noserver instance.
 
- Param string $serverClass OPTIONAL Server class, default to selected server alterrnative
+ Param string $serverClass OPTIONAL Server class, default to selected server alternative
  Return iMSCP::Servers::Abstract, confess on failure
 
 =cut
@@ -253,7 +253,7 @@ sub buildConfFile
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the reload() method', ref $self ));
+    croak ( sprintf( 'The %s package must implement the buildConfFile() method', ref $self ));
 }
 
 =item shutdown( $priority )
