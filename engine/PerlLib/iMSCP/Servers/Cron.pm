@@ -89,10 +89,10 @@ sub deleteTask
 
 =item enableSystemCronTask( $cronTask [, $directory = ALL ] )
 
- Enable a system cron tasks
+ Enable a system cron task
 
  Param string $cronTask Cron task name
- Param string $directory OPTIONAL Directory in which cron task must be searched (e.g: cron.d,cron.hourly,cron.daily,cron.weekly,cron.monthly)
+ Param string $directory OPTIONAL Directory on which operate on (cron.d,cron.hourly,cron.daily,cron.weekly,cron.monthly), default all
  Return int 0 on success, other on failure
 
 =cut
@@ -104,21 +104,21 @@ sub enableSystemCronTask
     croak ( sprintf( 'The %s package must implement the enableSystemCronTask() method', ref $self ));
 }
 
-=item disableSystemCrontask( $cronTask [, $directory = ALL ] )
+=item disableSystemCronTask( $cronTask [, $directory = ALL ] )
 
  Disable a system cron task
  
  Param string $cronTask Cron task name
- Param string $directory OPTIONAL Directory in which cron task must be searched (e.g: cron.d,cron.hourly,cron.daily,cron.weekly,cron.monthly)
+ Param string $directory OPTIONAL Directory on which operate on (cron.d,cron.hourly,cron.daily,cron.weekly,cron.monthly), default all
  Return int 0 on success, other on failure
 
 =cut
 
-sub disableSystemCrontask
+sub disableSystemCronTask
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the disableSystemCrontask() method', ref $self ));
+    croak ( sprintf( 'The %s package must implement the disableSystemCronTask() method', ref $self ));
 }
 
 =back

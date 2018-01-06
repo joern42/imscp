@@ -32,6 +32,7 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::TemplateParser qw/ processByRef replaceBlocByRef /;
 use iMSCP::Umask;
+use version;
 use parent 'iMSCP::Servers::Cron';
 
 =head1 DESCRIPTION
@@ -358,13 +359,13 @@ sub enableSystemCronTask
     return $rs if $rs;
 }
 
-=item disableSystemCrontask( $cronTask [, $directory = ALL ] )
+=item disableSystemCronTask( $cronTask [, $directory = ALL ] )
 
  See iMSCP::Servers::Cron::disableSystemCrontask()
 
 =cut
 
-sub disableSystemCrontask
+sub disableSystemCronTask
 {
     my ($self, $crontask, $directory) = @_;
 
@@ -417,7 +418,7 @@ sub disableSystemCrontask
 
 sub _cleanup
 {
-    return 0 unless -f '/etc/imscp/cron/cron.data';
+    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' ) && -f '/etc/imscp/cron/cron.data';
 
     iMSCP::File->new( filename => '/etc/imscp/cron/cron.data' )->delFile();
 }
