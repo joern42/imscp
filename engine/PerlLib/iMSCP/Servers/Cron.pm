@@ -101,7 +101,7 @@ sub enableSystemCronTask
 
 =item disableSystemCronTask( $cronTask [, $directory = ALL ] )
 
- Disables a system cron task,that is, a cron task provided by a distribution package that has been previously disabled
+ Disables a system cron task, that is, a cron task provided by a distribution package that has been previously disabled
  
  Param string $cronTask Cron task name
  Param string $directory OPTIONAL Directory on which operate on (cron.d,cron.hourly,cron.daily,cron.weekly,cron.monthly), default all

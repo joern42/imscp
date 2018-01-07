@@ -423,7 +423,8 @@ sub beforeCronBuildConfFile
     # Return early if that event listener has not been triggered in the context of the ::addTask() or ::deleteTask() actions.
     return 0 unless exists $sdata->{'TASKID'};
 
-    # Make sure that entry is not added twice
+    # Make sure that entry is not added twice in the context of the ::addTask() action.
+    # Delete the cron task in context of the ::deleteTask() action.
     replaceBlocByRef( qr/^\s*\Q# imscp [$sdata->{'TASKID'}] entry BEGIN\E\n/m, qr/\Q# imscp [$sdata->{'TASKID'}] entry ENDING\E\n/, '', $cfgTpl );
 
     # Return early if that event listener has not been triggered in the context of the ::addTask() action.
