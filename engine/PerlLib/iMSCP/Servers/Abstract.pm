@@ -128,7 +128,7 @@ sub postinstall
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->start(); }, ref $self ];
+            push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanizedServerName() ];
             0;
         },
         $self->getPriority()
@@ -225,6 +225,21 @@ sub reload
     my ($self) = @_;
 
     croak ( sprintf( 'The %s package must implement the reload() method', ref $self ));
+}
+
+=item getHumanizedServerName( )
+
+ Get humanized server name
+
+ Return string Humanized server name
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s package must implement the getHumanizedServerName() method', ref $self ));
 }
 
 =item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )

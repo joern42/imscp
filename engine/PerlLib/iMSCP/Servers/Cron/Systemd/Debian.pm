@@ -58,7 +58,7 @@ sub postinstall
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->start() }, ref $self ];
+            push @{$_[0]}, [ sub { $self->start() }, $self->getHumanizedServerName() ];
             0;
         },
         $self->getPriority()
@@ -134,6 +134,19 @@ sub reload
 
     # Job type reload is not applicable for unit cron.target, do a restart instead
     $self->restart();
+}
+
+=item getHumanizedServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanizedServerName()
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    'Cron (Systemd)';
 }
 
 =back
