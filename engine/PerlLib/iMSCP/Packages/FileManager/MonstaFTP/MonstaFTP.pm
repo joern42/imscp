@@ -26,7 +26,7 @@ package iMSCP::Packages::FileManager::MonstaFTP::MonstaFTP;
 use strict;
 use warnings;
 use Class::Autouse qw/ :nostat iMSCP::Packages::FileManager::MonstaFTP::Installer iMSCP::Packages::FileManager::MonstaFTP::Uninstaller /;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

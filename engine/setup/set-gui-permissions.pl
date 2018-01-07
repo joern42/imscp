@@ -75,10 +75,7 @@ $bootstrapper->boot( {
 my $rs = 0;
 my @items = ();
 
-for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-    ( my $subref = $server->can( 'setGuiPermissions' ) ) or next;
-    push @items, [ $server, sub { $subref->( $server->factory()); } ];
-}
+push @items, [ $server, sub { $server->factory()->setGuiPermissions(); } ] for iMSCP::Servers->getInstance()->getListWithFullNames();
 
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setGuiPermissions' ) ) or next;

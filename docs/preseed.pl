@@ -40,6 +40,16 @@
     # Parameters below are optional. If they are not filled, default value
     # will be used.
 
+    # IPv6 support
+    #
+    # Possible values: yes, no
+    #
+    # Bear in mind that if IPv6 support is disabled on your system, setting
+    # this parameter to 'yes' will not change anything.
+    #
+    # Leave empty for autodetection
+    IPV6_SUPPORT                        => '',
+    
     # Server hostname
     #
     # Possible values: A fully qualified hostname name

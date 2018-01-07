@@ -26,12 +26,12 @@ package iMSCP::Servers::Cron::Vixie::Debian;
 use strict;
 use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
+use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Service /;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
-use iMSCP::TemplateParser qw/ processByRef replaceBlocByRef /;
-use iMSCP::Umask;
+use iMSCP::TemplateParser qw/ replaceBlocByRef /;
 use version;
 use parent 'iMSCP::Servers::Cron';
 
@@ -152,7 +152,7 @@ sub start
 
     eval { iMSCP::Service->getInstance()->start( 'cron' ); };
     if ( $@ ) {
-        die( $@ );
+        croak( $@ );
         return 1;
     }
 
@@ -171,7 +171,7 @@ sub stop
 
     eval { iMSCP::Service->getInstance()->stop( 'cron' ); };
     if ( $@ ) {
-        die( $@ );
+        croak( $@ );
         return 1;
     }
 
@@ -190,7 +190,7 @@ sub restart
 
     eval { iMSCP::Service->getInstance()->restart( 'cron' ); };
     if ( $@ ) {
-        die( $@ );
+        croak( $@ );
         return 1;
     }
 
@@ -209,7 +209,7 @@ sub reload
 
     eval { iMSCP::Service->getInstance()->reload( 'cron' ); };
     if ( $@ ) {
-        die( $@ );
+        croak( $@ );
         return 1;
     }
 
@@ -370,9 +370,9 @@ sub _init
 {
     my ($self) = @_;
 
-    # Register required event listener for processing of cron tasks
-    $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
     $self->SUPER::_init();
+    $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
+    $self;
 }
 
 =item _cleanup
@@ -404,7 +404,7 @@ sub _cleanup
  Param scalar \$cfgTpl Reference to cron file content
  Param string $filename Cron file name
  Param string $trgFile Target file path
- Param hashref \%mdata OPTIONAL Data as provided by i-MSCP modules
+ Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%sconfig Cron server configuration
  Param hashref \%params OPTIONAL parameters:

@@ -47,7 +47,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'beforeProftpdBuildConf',
+    'beforeProftpdBuildConfFile',
     sub {
         my ($tplContent, $tplName) = @_;
 

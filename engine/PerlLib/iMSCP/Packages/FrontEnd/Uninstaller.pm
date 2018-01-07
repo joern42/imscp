@@ -32,7 +32,7 @@ use iMSCP::SystemUser;
 use iMSCP::SystemGroup;
 use iMSCP::Service;
 use iMSCP::Packages::FrontEnd;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
@@ -119,9 +119,8 @@ sub _deconfigurePHP
         return 1;
     }
 
-    for ( '/etc/default/imscp_panel', '/etc/tmpfiles.d/imscp_panel.conf',
-        "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp_panel", '/usr/local/sbin/imscp_panel',
-        '/var/log/imscp_panel.log'
+    for ( '/etc/default/imscp_panel', '/etc/tmpfiles.d/imscp_panel.conf', "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp_panel",
+        '/usr/local/sbin/imscp_panel', '/var/log/imscp_panel.log'
     ) {
         next unless -f;
         my $rs = iMSCP::File->new( filename => $_ )->delFile();
@@ -157,9 +156,7 @@ sub _deconfigureHTTPD
     return $rs if $rs;
 
     if ( -f "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" ) {
-        $rs = iMSCP::File->new(
-            filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf"
-        )->delFile();
+        $rs = iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" )->delFile();
         return $rs if $rs;
     }
 
@@ -177,14 +174,14 @@ sub _deconfigureHTTPD
         # Nginx as provided by Debian
         $rs = $self->{'frontend'}->enableSites( 'default' );
         return $rs if $rs;
-    } elsif ( "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" ) {
-        # Nginx package as provided by Nginx
-        $rs = iMSCP::File->new(
-            filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled"
-        )->moveFile(
-            "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf"
-        );
-        return $rs if $rs;
+    } elsif ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' ) {
+        if ( "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" ) {
+            # Nginx package as provided by Nginx
+            $rs = iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" )->moveFile(
+                "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf"
+            );
+            return $rs if $rs;
+        }
     }
 
     0;
@@ -203,9 +200,7 @@ sub _deleteMasterWebUser
     my $rs = iMSCP::SystemUser->new( force => 'yes' )->delSystemUser(
         $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'}
     );
-    $rs ||= iMSCP::SystemGroup->getInstance()->delSystemGroup(
-        $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'}
-    );
+    $rs ||= iMSCP::SystemGroup->getInstance()->delSystemGroup( $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'} );
 }
 
 =back

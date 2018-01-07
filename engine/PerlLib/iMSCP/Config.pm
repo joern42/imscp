@@ -25,15 +25,15 @@ package iMSCP::Config;
 
 use strict;
 use warnings;
-use 5.014;
-use iMSCP::Debug;
+use Carp;
+use 5.012;
 use Fcntl 'O_RDWR', 'O_CREAT', 'O_RDONLY';
 use Tie::File;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
 
- Provides access to various i-MSCP configuration files through tied hash variable
+ Provides access to various i-MSCP configuration files through tied hash
 
 =head1 PUBLIC METHODS
 
@@ -42,16 +42,16 @@ use parent 'iMSCP::Common::Object';
 =item flush( )
 
  Write data immediately in file
- Return int 0;
 
 =cut
 
 sub flush
 {
-    my ($self) = @_;
+    my $tiedArr = tied @{$_[0]->{'_file'}};
 
-    return 0 if $self->{'readonly'} || !( $self->{'tieFileObject'}->{'defer'} || $self->{'tieFileObject'}->{'autodeferring'} );
-    $self->{'tieFileObject'}->flush();
+    return 0 if $_[0]->{'readonly'} || !( $tiedArr->{'defer'} || $tiedArr->{'autodeferring'} );
+
+    $tiedArr->flush();
 }
 
 =back
@@ -62,14 +62,15 @@ sub flush
 
 =item TIEHASH( )
 
- Constructor. Called by the tie function
+ Constructor. Called by the tie command
 
- Required arguments for tie( )
+ Required arguments for tie command
   - fileName: Configuration file path
- Optional arguments for tie( )
-  - nocreate: Do not create file if it doesn't already exist, die instead
+ Optional arguments for tie command
+  - nocreate: Do not create file if it doesn't already exist, croak instead
   - nodeferring: Writes in file immediately instead of deffering writing (Only relevant in write mode)
-  - nodie: Do not die when accessing to an non-existent configuration parameter
+  - nocroak: Do not croak when accessing to an non-existent configuration parameter
+  - nospaces: Do not add spaces around configuration parameter name/value separator
   - readonly: Sets a read-only access on the configuration file
   - temporary: Enable temporary overriding of configuration values (changes are not persistent)
 
@@ -77,90 +78,120 @@ sub flush
 
 sub TIEHASH
 {
-    ( shift )->new( @_ );
-}
+    my ($class, @argv) = @_;
 
-=item FETCH( $param )
-
- Return value of the given configuration parameter
-
- Param string param Configuration parameter name
- Return scalar|undef Configuration parameter value if defined, empty value if 'nodie' attribute is set or die
-
-=cut
-
-sub FETCH
-{
-    my ($self, $param) = @_;
-
-    $self->{'configValues'}->{$param} // ( $self->{'nodie'}
-        ? '' : die( sprintf( 'Accessing a non-existing parameter: %s in %s file from: %s (line %s)', $param, $self->{'fileName'}, ( caller )[1, 2] ))
+    my $self = bless { @argv && ref $argv[0] eq 'HASH' ? %{$argv[0]} : @argv }, $class;
+    my $mode = $self->{'nocreate'} ? ( $self->{'readonly'} ? O_RDONLY : O_RDWR ) : ( $self->{'readonly'} ? O_RDONLY : O_RDWR | O_CREAT );
+    my $tiedArr = tie @{$self->{'_file'}}, 'Tie::File', $self->{'fileName'}, memory => 10_000_000, mode => $mode or croak(
+        sprintf( "Couldn't tie %s file: %s", $self->{'fileName'}, $! )
     );
+    $tiedArr->defer unless $self->{'nodeferring'} || $self->{'readonly'};
+
+    while ( my ($recordIdx, $value) = each( @{$self->{'_file'}} ) ) {
+        next unless $value =~ /^([^#\s=]+)\s*=\s*(.*)/o;
+        $self->{'_entries'}->{$1} = $2;
+        $self->{'_records_map'}->{$1} = $recordIdx;
+    }
+
+    $self
 }
 
-=item STORE( $param, $value )
+=item STORE( )
 
  Store the given configuration parameter
-
- Param string param Configuration parameter name
- Param string $value Configuration parameter value
- Return string Stored value
 
 =cut
 
 sub STORE
 {
-    my ($self, $param, $value) = @_;
+    !$_[0]->{'readonly'} || $_[0]->{'temporary'} or croak( sprintf( "Couldn't store the `%s' parameter: tied hash is readonly", $_[1] ));
 
-    !$self->{'readonly'} || $self->{'temporary'} or die( sprintf( "Couldn't store value for the `%s' parameter: config object is readonly", $param ));
+    my $v = defined $_[2] ? $_[2] : ''; # A configuration parameter cannot be undefined.
 
-    return $self->_insertConfig( $param, $value ) unless exists $self->{'configValues'}->{$param};
-    $self->_replaceConfig( $param, $value );
+    if ( !$_[0]->{'temporary'} && exists $_[0]->{'_entries'}->{$_[1]} ) {
+        @{$_[0]->{'_file'}}[$_[0]->{'_records_map'}->{$_[1]}] = $_[0]->{'nospaces'} ? "$_[1]=$v" : "$_[1] = $v";
+    } elsif ( !$_[0]->{'temporary'} ) {
+        push @{$_[0]->{'_file'}}, $_[0]->{'nospaces'} ? "$_[1]=$v" : "$_[1] = $v";
+        $_[0]->{'_records_map'}->{$_[1]} = $#{$_[0]->{'_file'}};
+
+    }
+
+    $_[0]->{'_entries'}->{$_[1]} = $v;
 }
 
-=item FIRSTKEY( )
+=item FETCH
+
+ Fetch the given configuration parameter
+
+=cut
+
+sub FETCH
+{
+    return $_[0]->{'_entries'}->{$_[1]} if exists $_[0]->{'_entries'}->{$_[1]};
+
+    !$_[0]->{'nocroak'} or croak( sprintf( 'Accessing a non-existing parameter: %s', $_[1] ));
+    ''; # A configuration parameter cannot be undefined. 
+}
+
+=item FIRSTKEY
 
  Return the first configuration parameter
-
- Return string
 
 =cut
 
 sub FIRSTKEY
 {
-    my ($self) = @_;
-
-    $self->{'_list'} = [ sort keys %{$self->{'configValues'}} ];
-    $self->NEXTKEY;
+    scalar keys %{$_[0]->{'_entries'}}; # reset iterator
+    each( %{$_[0]->{'_entries'}} );
 }
 
 =item NEXTKEY( )
 
- Return the next configuration parameters
-
- Return string
+ Return the next configuration parameter
 
 =cut
 
 sub NEXTKEY
 {
-    shift @{$_[0]->{'_list'}};
+    each( %{$_[0]->{'_entries'}} );
 }
 
-=item EXISTS( $param )
+=item EXISTS
 
  Verify that the given configuration parameter exists
-
- Param string param configuration parameter name
- Return true if the given configuration parameter exists, false otherwise
 
 =cut
 
 sub EXISTS
 {
-    my ($self, $param) = @_;
+    exists $_[0]->{'_entries'}->{$_[1]};
+}
 
-    exists $self->{'configValues'}->{$param};
+=item DELETE
+
+ Delete the given configuration parameter
+
+=cut
+
+sub DELETE
+{
+    !$_[0]->{'readonly'} || $_[0]->{'temporary'} or croak(
+        sprintf( "Couldn't delete the `%s' parameter: tied hash is readonly", $_[1] )
+    );
+
+    unless ( $_[0]->{'temporary'} || !exists $_[0]->{'_records_map'}->{$_[1]} ) {
+        splice @{$_[0]->{'_file'}}, $_[0]->{'_records_map'}->{$_[1]}, 1;
+
+        # Rebuild records map
+        # FIXME Find a faster way to rebuild records map without having to read the file again
+        undef(%{$_[0]->{'_records_map'}});
+        while ( my ($recordIdx, $value) = each( @{$_[0]->{'_file'}} ) ) {
+            next unless $value =~ /^([^#\s=]+)\s*=\s*(.*)/o;
+            $_[0]->{'_records_map'}->{$1} = $recordIdx;
+        }
+    }
+
+    delete $_[0]->{'_entries'}->{$_[1]};
 }
 
 =item CLEAR( )
@@ -171,12 +202,20 @@ sub EXISTS
 
 sub CLEAR
 {
-    my ($self) = @_;
+    undef @{$_[0]->{'_file'}}; # Clear full content from file
+    undef %{$_[0]->{'_records_map'}}; # Clear records map
+    undef %{$_[0]->{'_entries'}}; # Clear entries
+}
 
-    @{$self->{'tiefile'}} = ();
-    $self->{'configValues'} = {};
-    $self->{'lineMap'} = {};
-    $self;
+=item SCALAR( )
+
+ Returns what evaluating the hash in scalar context yields
+
+=cut
+
+sub SCALAR
+{
+    scalar %{$_[0]->{'_entries'}};
 }
 
 =item DESTROY( )
@@ -187,102 +226,7 @@ sub CLEAR
 
 sub DESTROY
 {
-    my ($self) = @_;
-
-    undef $self->{'tieFileObject'};
-    untie( @{$self->{'tiefile'}} );
-}
-
-=item _init( )
-
- Initialization
-
- Return iMSCP::Config, die on failure
-
-=cut
-
-sub _init
-{
-    my ($self) = @_;
-
-    defined $self->{'fileName'} or die( 'fileName attribut is not defined' );
-
-    @{$self->{'tiefile'}} = ();
-    $self->{'tieFileObject'} = undef;
-    $self->{'configValues'} = {};
-    $self->{'lineMap'} = {};
-    $self->{'confFileName'} = $self->{'fileName'};
-    $self->_loadConfig();
-    $self;
-}
-
-=item _loadConfig( )
-
- Load i-MSCP configuration file
-
- Return undef or die on failure
-
-=cut
-
-sub _loadConfig
-{
-    my ($self) = @_;
-
-    my $mode = $self->{'nocreate'} ? ( $self->{'readonly'} ? O_RDONLY : O_RDWR ) : ( $self->{'readonly'} ? O_RDONLY : O_RDWR | O_CREAT );
-
-    $self->{'tieFileObject'} = tie @{$self->{'tiefile'}}, 'Tie::File', $self->{'confFileName'}, memory => 10_000_000, mode => $mode;
-    $self->{'tieFileObject'} or die( sprintf( "Couldn't tie %s file: %s", $self->{'confFileName'}, $! ));
-    $self->{'tieFileObject'}->defer unless $self->{'nodeferring'} || $self->{'readonly'};
-
-    while ( my ($lineNo, $value) = each( @{$self->{'tiefile'}} ) ) {
-        next unless $value =~ /^([^#\s=]+)\s*=\s*(.*)$/;
-        $self->{'configValues'}->{$1} = $2;
-        $self->{'lineMap'}->{$1} = $lineNo;
-    }
-
-    undef;
-}
-
-=item _insertConfig( $param, $value )
-
- Insert the given configuration parameter
-
- Param string param Configuration parameter name
- Param string $config Configuration parameter value
- Return string $value Configuration parameter value
-
-=cut
-
-sub _insertConfig
-{
-    my ($self, $param, $value) = @_;
-    $value //= '';
-
-    unless ( $self->{'temporary'} ) {
-        push @{$self->{'tiefile'}}, "$param = $value";
-        $self->{'lineMap'}->{$param} = $#{$self->{'tiefile'}};
-    }
-
-    $self->{'configValues'}->{$param} = $value;
-}
-
-=item _replaceConfig( $param, $value )
-
- Replace the given configuration parameter value
-
- Param string param Configuration parameter name
- Param string $value Configuration parameter value
- Return string Configuration parameter value
-
-=cut
-
-sub _replaceConfig
-{
-    my ($self, $param, $value) = @_;
-
-    $value //= '';
-    @{$self->{'tiefile'}}[$self->{'lineMap'}->{$param}] = "$param = $value" unless $self->{'temporary'};
-    $self->{'configValues'}->{$param} = $value;
+    untie( @{$_[0]->{'_file'}} );
 }
 
 =back

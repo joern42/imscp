@@ -30,7 +30,7 @@ use iMSCP::Dir;
 use iMSCP::Composer;
 use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
 use iMSCP::Packages::FrontEnd;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 our $VERSION = '0.2.0.*@dev';
 

@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Class::Autouse qw/ :nostat iMSCP::Packages::AntiRootkits::Rkhunter::Installer iMSCP::Packages::AntiRootkits::Rkhunter::Uninstaller /;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

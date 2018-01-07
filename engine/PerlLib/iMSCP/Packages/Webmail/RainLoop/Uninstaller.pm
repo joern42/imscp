@@ -32,7 +32,7 @@ use iMSCP::File;
 use iMSCP::Packages::FrontEnd;
 use iMSCP::Packages::Webmail::RainLoop::RainLoop;
 use iMSCP::Servers::Sqld;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

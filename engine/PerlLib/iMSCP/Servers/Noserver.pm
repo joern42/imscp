@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Noserver - i-MSCP noserver server implementation
+ iMSCP::Servers::Noserver - Factory and implementation for the i-MSCP Noserver server
 
 =cut
 
@@ -25,67 +25,11 @@ package iMSCP::Servers::Noserver;
 
 use strict;
 use warnings;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
 
- i-MSCP noserver server implementation.
-
-=head1 CLASS METHODS
-
-=over 4
-
-=item factory( )
-
- Create and return noserver server instance
-
- Return iMSCP::Servers::Noserver
-
-=cut
-
-sub factory
-{
-    my ($class) = @_;
-
-    $class->getInstance();
-}
-
-=back
-
-=head1 PRIVATE METHODS
-
-=over 4
-
-=item _init( )
-
- Initialize instance
-
- Return iMSCP::Servers::Php
-
-=cut
-
-sub _init
-{
-    my ($self) = @_;
-
-    @{$self}{qw/ start restart reload /} = ( 0, 0, 0 );
-    $self;
-}
-
-=item AUTOLOAD()
-
- Implement autoloading for inexistent methods
-
- Return void
-
-=cut
-
-sub AUTOLOAD
-{
-
-}
-
-=back
+ This class provides a factory and implementation for the i-MSCP noserver server.
 
 =head1 AUTHOR
 

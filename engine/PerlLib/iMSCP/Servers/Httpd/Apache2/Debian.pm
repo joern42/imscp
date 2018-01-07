@@ -112,6 +112,7 @@ sub install
     my ($self) = @_;
 
     my $rs = $self->SUPER::install();
+    $rs ||= $self->_setVersion();
     $rs ||= $self->_makeDirs();
     $rs ||= $self->_setupModules();
     $rs ||= $self->_configure();
@@ -489,6 +490,13 @@ sub _configure
         sub {
             my ($cfgTpl) = @_;
             ${$cfgTpl} =~ s/^NameVirtualHost[^\n]+\n//gim;
+
+            if ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ) {
+                ${$cfgTpl} =~ s/^(\s*Listen)\s+0.0.0.0:(80|443)/$1 $2\n/gim;
+            } else {
+                ${$cfgTpl} =~ s/^(\s*Listen)\s+(80|443)\n/$1 0.0.0.0:$2\n/gim;
+            }
+
             0;
         }
     );
@@ -508,6 +516,7 @@ sub _configure
         HTTPD_CUSTOM_SITES_DIR => '/etc/apache2/imscp',
         HTTPD_LOG_DIR          => '/var/log/apache2',
         HTTPD_ROOT_DIR         => '/var/www',
+        TRAFF_ROOT_DIR         => $main::imscpConfig{'TRAFF_ROOT_DIR'},
         VLOGGER_CONF           => "$self->{'cfgDir'}/vlogger.conf"
     };
 
@@ -559,6 +568,11 @@ sub _cleanup
 
     if ( -f "$self->{'cfgDir'}/apache.old.data" ) {
         $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/apache.old.data" )->delFile();
+        return $rs if $rs;
+    }
+
+    if ( -f '/usr/local/sbin/vlogger' ) {
+        $rs = iMSCP::File->new( filename => '/usr/local/sbin/vlogger' )->delFile();
         return $rs if $rs;
     }
 
@@ -672,7 +686,7 @@ sub shutdown
 {
     my ($self, $priority) = @_;
 
-    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : ( $self->{'start'} ? ' start' : undef ) );
+    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
     iMSCP::Service->getInstance()->registerDelayedAction( 'apache2', [ $action, sub { $self->$action(); } ], $priority );
 }

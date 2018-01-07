@@ -78,10 +78,8 @@ $bootstrapper->boot( {
 my $rs = 0;
 my @items = ();
 
-for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-    ( my $subref = $server->can( 'setEnginePermissions' ) ) or next;
-    push @items, [ $server, sub { $subref->( $server->factory()); } ];
-}
+
+push @items, [ $_, sub { $subref->( $_->factory()->setEnginePermissions() ); } ] for iMSCP::Servers->getInstance()->getListWithFullNames();
 
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;

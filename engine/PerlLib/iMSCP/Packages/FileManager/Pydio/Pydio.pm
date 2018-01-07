@@ -26,7 +26,7 @@ package iMSCP::Packages::FileManager::Pydio::Pydio;
 use strict;
 use warnings;
 use Class::Autouse qw/ :nostat iMSCP::Packages::FileManager::Pydio::Installer iMSCP::Packages::FileManager::Pydio::Uninstaller /;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

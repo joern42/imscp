@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Httpd - i-MSCP httpd server factory implementation
+ iMSCP::Servers::Httpd - Factory and abstract implementation for the i-MSCP httpd servers
 
 =cut
 
@@ -25,11 +25,14 @@ package iMSCP::Servers::Httpd;
 
 use strict;
 use warnings;
+use autouse 'iMSCP::Rights' => qw/ setRights /;
+use Class::Autouse qw/ :nostat iMSCP::Getopt /;
+use Carp qw/ croak /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
 
- i-MSCP httpd server factory implementation.
+ This class provides a factory and an abstract implementation for the i-MSCP httpd servers..
 
 =head1 CLASS METHODS
 
@@ -46,6 +49,401 @@ use parent 'iMSCP::Servers::Abstract';
 sub getPriority
 {
     200;
+}
+
+=back
+
+=head PUBLIC METHODS
+
+=over 4
+
+=item addUser( \%moduleData )
+
+ Process addUser tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddUser( \%moduleData )
+  - after<SNAME>AddUser( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addUser
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the addUser() method', ref $self ));
+}
+
+=item deleteUser( \%moduleData )
+
+ Process deleteUser tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeleteUser( \%moduleData )
+  - after<SNAME>DeleteUser( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteUser
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the deleteUser() method', ref $self ));
+}
+
+=item addDomain( \%moduleData )
+
+ Process addDomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddDomain( \%moduleData )
+  - after<SNAME>AddDomain( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addDomain
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
+}
+
+=item restoreDomain( \%moduleData )
+
+ Process restoreDomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>RestoreDomain( \%moduleData )
+  - after<SNAME>RestoreDomain( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Return int 0 on success, other on failure
+
+=cut
+
+sub restoreDomain
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the restoreDmn() method', ref $self ));
+}
+
+=item disableDomain( \%moduleData )
+
+ Process disableDomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DisableDomain( \%moduleData )
+  - after<SNAME>DisableDomain( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableDomain
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
+}
+
+=item deleteDomain( \%moduleData )
+
+ Process deleteDomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeleteDomain( \%moduleData )
+  - after<SNAME>DeleteDomain( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteDomain
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
+}
+
+=item addSubdomain( \%moduleData )
+
+ Process addSubdomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DisableSubdomain( \%moduleData )
+  - after<SNAME>DisableSubdomain( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addSubdomain
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
+}
+
+=item restoreSubdomain( \%moduleData )
+
+ Process restoreSubdomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>RestoreSubdomain( \%moduleData )
+  - after<SNAME>RestoreSubdomain( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Return int 0 on success, other on failure
+
+=cut
+
+sub restoreSubdomain
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the restoreSubdomain() method', ref $self ));
+}
+
+=item disableSubdomain( \%moduleData )
+
+ Process disableSubdomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DisableSubdomain( \%moduleData )
+  - after<SNAME>DisableSubdomain( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableSubdomain
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
+}
+
+=item deleteSubdomain( \%moduleData )
+
+ Process deleteSubdomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeleteSubdomain( \%moduleData )
+  - after<SNAME>DeleteSubdomain( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteSubdomain
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
+}
+
+=item addHtpasswd( \%moduleData )
+
+ Process addHtpasswd tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddHtpasswd( \%moduleData )
+  - after<SNAME>AddHtpasswd( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htpasswd module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addHtpasswd
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the addHtpasswd() method', ref $self ));
+}
+
+=item deleteHtpasswd( \%moduleData )
+
+ Process deleteHtpasswd tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeketeHtpasswd( \%moduleData )
+  - after<SNAME>DeleteHtpasswd( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htpasswd module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteHtpasswd
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the deleteHtpasswd() method', ref $self ));
+}
+
+=item addHtgroup( \%moduleData )
+
+ Process addHtgroup tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddHtgroup( \%moduleData )
+  - after<SNAME>AddHtgroup( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htgroup module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addHtgroup
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the addHtgroup() method', ref $self ));
+}
+
+=item deleteHtgroup( \%moduleData )
+
+ Process deleteHtgroup tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>deleteHtgroup( \%moduleData )
+  - after<SNAME>deleteHtgroup( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htgroup module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteHtgroup
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the deleteHtgroup() method', ref $self ));
+}
+
+=item addHtaccess( \%moduleData )
+
+ Process addHtaccess tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddHtaccess( \%moduleData )
+  - after<SNAME>AddHtaccess( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htaccess module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addHtaccess
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the addHtaccess() method', ref $self ));
+}
+
+=item deleteHtaccess( \%moduleData )
+
+ Process deleteHtaccess tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeleteHtaccess( \%moduleData )
+  - after<SNAME>DeleteHtaccess( \%moduleData )
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htaccess module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteHtaccess
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the deleteHtaccess() method', ref $self ));
+}
+
+=item getTraffic( \%trafficDb )
+
+ Get httpd traffic data
+
+ Param hashref \%trafficDb Traffic database
+ Croak on failure
+
+=cut
+
+sub getTraffic
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
+}
+
+=item getRunningUser( )
+
+ Get user name under which the httpd server is running
+
+ Return string User name under which the httpd server is running
+
+=cut
+
+sub getRunningUser
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the getRunningUser() method', ref $self ));
+}
+
+=item getRunningGroup( )
+
+ Get group name under which the httpd server is running
+
+ Return string Group name under which the httpd server is running
+
+=cut
+
+sub getRunningGroup
+{
+    my ($self) = @_;
+
+    croak( sprintf( 'The %s class must implement the getRunningGroup() method', ref $self ));
+}
+
+=back
+
+=head PRIVATE METHODS
+
+=over
+
+=item _init( )
+
+ Initialize instance
+
+ Return iMSCP::Servers::Cron::Abstract, croak on failure
+
+=cut
+
+sub _init
+{
+    my ($self) = @_;
+
+    $self->SUPER::_init();
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+    $self;
 }
 
 =back

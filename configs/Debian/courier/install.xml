@@ -4,6 +4,9 @@
     <copy_config>${SYSTEM_CONF}/courier/authmysqlrc</copy_config>
     <copy_config>${SYSTEM_CONF}/courier/courier.data.dist</copy_config>
     <copy_config>${SYSTEM_CONF}/courier/imapd.local</copy_config>
+    <copy_config>${SYSTEM_CONF}/courier/imapd-ssl.local</copy_config>
+    <copy_config>${SYSTEM_CONF}/courier/pop3d.local</copy_config>
+    <copy_config>${SYSTEM_CONF}/courier/pop3d-ssl.local</copy_config>
     <copy_config>${SYSTEM_CONF}/courier/quota-warning</copy_config>
     <copy_config>${SYSTEM_CONF}/courier/sasl</copy_config>
 </install>

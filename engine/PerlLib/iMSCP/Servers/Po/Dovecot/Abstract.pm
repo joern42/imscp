@@ -33,7 +33,7 @@ use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use autouse 'iMSCP::TemplateParser' => qw/ processByRef /;
 use Array::Utils qw/ unique /;
-use File::Temp;
+use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Database /;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
@@ -46,7 +46,7 @@ use iMSCP::Servers::Mta;
 use iMSCP::Servers::Sqld;
 use Sort::Naturally;
 use Tie::File;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Servers::Po';
 
 %main::sqlUsers = () unless %main::sqlUsers;
 
@@ -220,22 +220,48 @@ sub uninstall
     $rs ||= $self->_removeConfig();
 }
 
-=item addMail( \%data )
+=item getHumanizedServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanizedServerName()
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    'Dovecot IMAP/POP';
+}
+
+=item getVersion( )
+
+ See iMSCP::Servers::Abstract::getVersion()
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    $self->{'config'}->{'DOVECOT_VERSION'};
+}
+
+=item addMail( \%moduleData )
 
  Process addMail tasks
 
- Param hash \%data Mail data
+ Param hashref \%moduleData Mail data
  Return int 0 on success, other on failure
 
 =cut
 
 sub addMail
 {
-    my ($self, $data) = @_;
+    my ($self, $moduleData) = @_;
 
-    return 0 unless index( $data->{'MAIL_TYPE'}, '_mail' ) != -1;
+    return 0 unless index( $moduleData->{'MAIL_TYPE'}, '_mail' ) != -1;
 
-    my $mailDir = "$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$data->{'DOMAIN_NAME'}/$data->{'MAIL_ACC'}";
+    my $mailDir = "$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}";
     my $mailUidName = $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'};
     my $mailGidName = $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'};
 
@@ -284,9 +310,9 @@ sub addMail
     $rs ||= $subscriptionsFile->mode( 0640 );
     return $rs if $rs;
 
-    if ( $data->{'MAIL_QUOTA'} ) {
+    if ( $moduleData->{'MAIL_QUOTA'} ) {
         if ( $self->{'forceMailboxesQuotaRecalc'}
-            || ( defined $main::execmode && $main::execmode && $data->{'STATUS'} eq 'tochange' )
+            || ( defined $main::execmode && $main::execmode && $moduleData->{'STATUS'} eq 'tochange' )
             || !-f "$mailDir/maildirsize"
         ) {
             # TODO create maildirsize file manually (set quota definition and recalculate byte and file counts)
@@ -365,7 +391,7 @@ sub start
 {
     my ($self) = @_;
 
-    die( sprintf( 'The %s package must implement the start() method', $self ));
+    croak( sprintf( 'The %s class must implement the start() method', $self ));
 }
 
 =item stop( )
@@ -384,7 +410,7 @@ sub stop
 {
     my ($self) = @_;
 
-    die( sprintf( 'The %s package must implement the stop() method', $self ));
+    croak( sprintf( 'The %s class must implement the stop() method', $self ));
 
 }
 
@@ -404,17 +430,17 @@ sub restart
 {
     my ($self) = @_;
 
-    die( sprintf( 'The %s package must implement the restart() method', $self ));
+    croak( sprintf( 'The %s class must implement the restart() method', $self ));
 }
 
-=item getTraffic( $trafficDb [, $logFile, $trafficIndexDb ] )
+=item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
 
  Get IMAP/POP3 traffic data
 
  Param hashref \%trafficDb Traffic database
  Param string $logFile Path to SMTP log file (only when self-called)
- Param hashref $trafficIndexDb Traffic index database (only when self-called)
- Die on failure
+ Param hashref \%trafficIndexDb Traffic index database (only when self-called)
+ Return void, croak on failure
 
 =cut
 
@@ -431,12 +457,10 @@ sub getTraffic
     debug( sprintf( 'Processing IMAP/POP3 %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nodie => 1;
+    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
     my ($idx, $idxContent) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
 
-    tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die(
-        sprintf( "Couldn't tie %s file in read-only mode", $logFile )
-    );
+    tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or croak( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
 
     # Retain index of the last log (log file can continue growing)
     my $lastLogIdx = $#logs;
@@ -494,10 +518,11 @@ sub _init
 {
     my ($self) = @_;
 
-    @{$self}{qw/ restart forceMailboxesQuotaRecalc mta /} = ( 0, 0, iMSCP::Servers::Mta->factory() );
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/dovecot";
-    $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
-    $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+
+    $self->SUPER::_init();
+    @{$self}{qw/ restart forceMailboxesQuotaRecalc mta cfgDir /} = ( 0, 0, iMSCP::Servers::Mta->factory(), "$main::imscpConfig{'CONF_DIR'}/dovecot" );
+    @{$self}{qw/ bkpDir wrkDir /} = ( "$self->{'cfgDir'}/backup", "$self->{'cfgDir'}/working" );
     $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/dovecot.data.dist";
     tie %{$self->{'config'}},
         'iMSCP::Config',
@@ -511,7 +536,7 @@ sub _init
 
  Merge distribution configuration with production configuration
 
- Die on failure
+ Return void, croak on failure
 
 =cut
 
@@ -534,7 +559,7 @@ sub _mergeConfig
         untie( %oldConfig );
     }
 
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/dovecot.data.dist" )->moveFile( "$self->{'cfgDir'}/dovecot.data" ) == 0 or die(
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/dovecot.data.dist" )->moveFile( "$self->{'cfgDir'}/dovecot.data" ) == 0 or croak(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 }
@@ -678,7 +703,7 @@ sub _buildConf
     ( my $dbUser = $self->{'config'}->{'DATABASE_USER'} ) =~ s%('|"|\\)%\\$1%g;
     ( my $dbPass = $self->{'config'}->{'DATABASE_PASSWORD'} ) =~ s%('|"|\\)%\\$1%g;
 
-    my $data = {
+    my $serverData = {
         DATABASE_HOST                 => main::setupGetQuestion( 'DATABASE_HOST' ),
         DATABASE_PORT                 => main::setupGetQuestion( 'DATABASE_PORT' ),
         DATABASE_NAME                 => $dbName,
@@ -686,19 +711,19 @@ sub _buildConf
         DATABASE_PASSWORD             => $dbPass,
         HOSTNAME                      => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
         IMSCP_GROUP                   => $main::imscpConfig{'IMSCP_GROUP'},
+        LISTEN_INTERFACES             => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? '*, [::]' : '*',
         MTA_VIRTUAL_MAIL_DIR          => $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
         MTA_MAILBOX_UID_NAME          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
         MTA_MAILBOX_GID_NAME          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
         MTA_MAILBOX_UID               => ( scalar getpwnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'} ) ),
         MTA_MAILBOX_GID               => ( scalar getgrnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} ) ),
-        NETWORK_PROTOCOLS             => main::setupGetQuestion( 'IPV6_SUPPORT' ) ? '*, [::]' : '*',
         POSTFIX_SENDMAIL_PATH         => $self->{'mta'}->{'config'}->{'POSTFIX_SENDMAIL_PATH'},
         DOVECOT_CONF_DIR              => $self->{'config'}->{'DOVECOT_CONF_DIR'},
         DOVECOT_DELIVER_PATH          => $self->{'config'}->{'DOVECOT_DELIVER_PATH'},
         DOVECOT_SASL_AUTH_SOCKET_PATH => $self->{'config'}->{'DOVECOT_SASL_AUTH_SOCKET_PATH'},
         ENGINE_ROOT_DIR               => $main::imscpConfig{'ENGINE_ROOT_DIR'},
         POSTFIX_USER                  => $self->{'mta'}->{'config'}->{'POSTFIX_USER'},
-        POSTFIX_GROUP                 => $self->{'mta'}->{'config'}->{'POSTFIX_GROUP'},
+        POSTFIX_GROUP                 => $self->{'mta'}->{'config'}->{'POSTFIX_GROUP'}
     };
 
     # Transitional code (should be removed in later version)
@@ -732,7 +757,7 @@ sub _buildConf
         local $UMASK = 027; # dovecot-sql.conf file must not be created/copied world-readable
 
         for my $conffile( keys %cfgFiles ) {
-            my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'dovecot', $conffile, \ my $cfgTpl, $data );
+            my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'dovecot', $conffile, \ my $cfgTpl, $serverData );
             return $rs if $rs;
 
             unless ( defined $cfgTpl ) {
@@ -769,7 +794,7 @@ EOF
             $rs = $self->{'eventManager'}->trigger( 'beforeDovecotBuildConf', \$cfgTpl, $conffile );
             return $rs if $rs;
 
-            processByRef( $data, \$cfgTpl );
+            processByRef( $serverData, \$cfgTpl );
 
             $rs = $self->{'eventManager'}->trigger( 'afterDovecotBuildConf', \$cfgTpl, $conffile );
             return $rs if $rs;

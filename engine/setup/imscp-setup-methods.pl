@@ -90,8 +90,7 @@ sub setupBoot
 sub setupRegisterListeners
 {
     for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-        ( my $subref = $_->can( 'registerSetupListeners' ) ) or next;
-        my $rs = $subref->( $_->factory());
+        my $rs = $_->factory()->registerSetupListeners();
         return $rs if $rs;
     }
 
@@ -452,8 +451,7 @@ sub setupServersAndPackages
         my $nStep = 1;
 
         for ( @servers ) {
-            ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
-            $rs = step( sub { $subref->( $_->factory()) }, sprintf( "Executing %s %s tasks ...", $_, $lcTask ), $nSteps, $nStep );
+            $rs = step( sub { $_->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks ...", $_, $lcTask ), $nSteps, $nStep );
             last if $rs;
             $nStep++;
         }

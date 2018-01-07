@@ -25,10 +25,11 @@ package iMSCP::Servers::Php::Debian;
 
 use strict;
 use warnings;
+use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
+use Carp qw/ croak /;
+use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::ProgramFinder iMSCP::Servers::Httpd /;
 use File::Basename;
 use File::Spec;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
-use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::ProgramFinder iMSCP::Servers::Httpd /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
@@ -36,7 +37,8 @@ use iMSCP::File;
 use iMSCP::Service;
 use iMSCP::Servers::Php;
 use Scalar::Defer;
-use parent 'iMSCP::Servers::Php::Abstract';
+use version;
+use parent 'iMSCP::Servers::Php';
 
 =head1 DESCRIPTION
 
@@ -68,7 +70,7 @@ sub registerSetupListeners
             0;
         },
         # We want show these dialogs after the httpd server dialog because
-        # we rely on httpd server configuration parameters (httpd priority - 10)
+        # we rely on httpd server configuration parameters (httpd server priority - 10)
         190
     );
 }
@@ -78,7 +80,7 @@ sub registerSetupListeners
  Ask for PHP version (PHP version for customers)
 
  Param iMSCP::Dialog \%dialog
- Return int 0 to go on next question, 30 to go back to the previous question, die on failure
+ Return int 0 to go on next question, 30 to go back to the previous question, croak on failure
 
 =cut
 
@@ -86,7 +88,7 @@ sub askForPhpVersion
 {
     my ($self, $dialog) = @_;
 
-    ( my @availablePhpVersions = sort grep( /\d+.\d+/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs()) ) or die(
+    ( my @availablePhpVersions = sort grep( /\d+.\d+/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs()) ) or croak(
         "Couldn't guess list of available PHP versions"
     );
 
@@ -186,9 +188,7 @@ EOF
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Php::preinstall()
 
 =cut
 
@@ -196,17 +196,18 @@ sub preinstall
 {
     my ($self) = @_;
 
-    eval {
-        $self->SUPER::preinstall() == 0 or die ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+    my $rs = $self->SUPER::preinstall();
+    return $rs if $rs;
 
+    eval {
         my $httpd = iMSCP::Servers::Httpd->factory();
 
         # Disable i-MSCP Apache2 fcgid modules. It will be re-enabled in postinstall if needed
-        $httpd->disableModules( 'fcgid_imscp' ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $httpd->disableModules( 'fcgid_imscp' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         # Disable default Apache2 conffile for CGI programs
         # FIXME: One administrator could rely on default configuration (outside of i-MSCP)
-        $httpd->disableConfs( 'serve-cgi-bin.conf' ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $httpd->disableConfs( 'serve-cgi-bin.conf' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         my $serviceMngr = iMSCP::Service->getInstance();
 
@@ -218,24 +219,24 @@ sub preinstall
             $serviceMngr->disable( $_ );
         }
 
-        for ( split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} ) {
+        for ( @{$self->{'_available_php_versions'}} ) {
             # Tasks for apache2handler SAPI
 
             if ( $self->{'config'}->{'PHP_SAPI'} ne 'apache2handler' || $self->{'config'}->{'PHP_VERSION'} ne $_ ) {
                 # Disable Apache2 PHP module if PHP version is other than selected PHP alternative
-                $httpd->disableModules( "php$_" ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+                $httpd->disableModules( "php$_" ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             }
 
             # Tasks for cgi SAPI
 
             # Disable default Apache2 conffile
-            $httpd->disableConfs( "php$_-cgi.conf" ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $httpd->disableConfs( "php$_-cgi.conf" ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
             # Tasks for fpm SAPI
 
             if ( $serviceMngr->hasService( "php$_-fpm" ) ) {
                 # Stop PHP-FPM instance
-                $self->stop( $_ ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+                $self->stop( $_ ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
                 # Disable PHP-FPM service if selected SAPI for customer is not fpm or if PHP version
                 # is other than selected PHP alternative
@@ -243,11 +244,11 @@ sub preinstall
             }
 
             # Disable default Apache2 conffile
-            $httpd->disableConfs( "php$_-fpm.conf " ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $httpd->disableConfs( "php$_-fpm.conf " ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
             # Reset PHP-FPM pool confdir
             for ( grep !/www\.conf$/, glob "/etc/php/$_/fpm/pool.d/*.conf" ) {
-                iMSCP::File->new( filename => $_ )->delFile() == 0 or die(
+                iMSCP::File->new( filename => $_ )->delFile() == 0 or croak(
                     getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
                 );
             }
@@ -274,9 +275,7 @@ sub preinstall
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::install()
 
 =cut
 
@@ -285,19 +284,17 @@ sub install
     my ($self) = @_;
 
     eval {
-        $self->SUPER::install() == 0 or die ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-
         # Set default alternatives according PHP version for customers
         my ($stdout, $stderr);
-        execute( [ 'update-alternatives', '--set', 'php', "/usr/bin/php$self->{'config'}->{'PHP_VERSION'}" ], \$stdout, \$stderr ) == 0 or die(
+        execute( [ 'update-alternatives', '--set', 'php', "/usr/bin/php$self->{'config'}->{'PHP_VERSION'}" ], \$stdout, \$stderr ) == 0 or croak(
             $stderr || 'Unknown error'
         );
-        execute( [ 'update-alternatives', '--set', 'phar', "/usr/bin/phar$self->{'config'}->{'PHP_VERSION'}" ], \$stdout, \$stderr ) == 0 or die(
+        execute( [ 'update-alternatives', '--set', 'phar', "/usr/bin/phar$self->{'config'}->{'PHP_VERSION'}" ], \$stdout, \$stderr ) == 0 or croak(
             $stderr || 'Unknown error'
         );
         execute(
             [ 'update-alternatives', '--set', 'phar.phar', "/usr/bin/phar.phar$self->{'config'}->{'PHP_VERSION'}" ], \$stdout, \$stderr
-        ) == 0 or die(
+        ) == 0 or croak(
             $stderr || 'Unknown error'
         );
 
@@ -319,8 +316,7 @@ sub install
         };
 
         # Configure all PHP alternatives
-        for ( split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} ) {
-
+        for ( @{$self->{'_available_php_versions'}} ) {
             $serverData->{'PHP_VERSION'} = $_;
 
             # Master php.ini file for apache2handler, cli, cgi and fpm SAPIs
@@ -333,7 +329,7 @@ sub install
             my $rs = $self->buildConfFile( 'fpm/php-fpm.conf', "/etc/php/$_/fpm/php-fpm.conf", undef, $serverData );
             # Default pool conffile for fpm SAPI
             $rs ||= $self->buildConfFile( 'fpm/pool.conf.default', "/etc/php/$_/fpm/pool.d/www.conf", undef, $serverData );
-            $rs == 0 or die ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $rs == 0 or croak ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
         # Build the Apache2 Fcgid module conffile
@@ -347,18 +343,20 @@ sub install
                 PHP_FCGID_IO_TIMEOUT               => $self->{'config'}->{'PHP_FCGID_IO_TIMEOUT'} || 600,
                 PHP_FCGID_MAX_PROCESS              => $self->{'config'}->{'PHP_FCGID_MAX_PROCESS'} || 1000
             }
-        ) == 0 or die ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        ) == 0 or croak ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         my $file = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid.load" );
         my $cfgTpl = $file->getAsRef();
-        defined $cfgTpl or die( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
+        defined $cfgTpl or croak( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
 
         $file = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.load" );
         $file->set( "<IfModule !mod_fcgid.c>\n" . ${$cfgTpl} . "</IfModule>\n" );
         my $rs = $file->save();
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
         $rs ||= $file->mode( 0644 );
-        $rs == 0 or die ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+
+        $rs ||= $self->_cleanup();
+        $rs == 0 or croak ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
     };
     if ( $@ ) {
         error( $@ );
@@ -370,9 +368,7 @@ sub install
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::postinstall()
 
 =cut
 
@@ -385,34 +381,24 @@ sub postinstall
 
         if ( $self->{'config'}->{'PHP_SAPI'} eq 'apache2handler' ) {
             # Enable Apache2 PHP module for selected PHP alternative
-            $httpd->enableModules( "php$self->{'config'}->{'PHP_VERSION'}" ) == 0 or die (
+            $httpd->enableModules( "php$self->{'config'}->{'PHP_VERSION'}" ) == 0 or croak (
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'cgi' ) {
             # Enable Apache2 fcgid module
-            $httpd->enableModules( qw/ fcgid fcgid_imscp / ) == 0 or die (
+            $httpd->enableModules( qw/ fcgid fcgid_imscp / ) == 0 or croak (
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'fpm' ) {
             # Enable proxy_fcgi module
-            $httpd->enableModules( qw/ proxy_fcgi setenvif / ) == 0 or die (
+            $httpd->enableModules( qw/ proxy_fcgi setenvif / ) == 0 or croak (
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
 
             # Enable PHP-FPM service for selected PHP alternative
             iMSCP::Service->getInstance()->enable( "php$self->{'config'}->{'PHP_VERSION'}-fpm" );
-
-            # Schedule start of PHP-FPM service for selected PHP alternative
-            $self->{'eventManager'}->registerOne(
-                'beforeSetupRestartServices',
-                sub {
-                    push @{$_[0]}, [ sub { $self->start(); }, "PHP-FPM $self->{'config'}->{'PHP_VERSION'}" ];
-                    0;
-                },
-                3
-            ) == 0 or die ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
-            die( 'Unknown PHP SAPI' );
+            croak( 'Unknown PHP SAPI' );
         }
     };
     if ( $@ ) {
@@ -420,14 +406,12 @@ sub postinstall
         return 1;
     }
 
-    0;
+    $self->SUPER::postinstall();
 }
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::uninstall()
 
 =cut
 
@@ -438,18 +422,18 @@ sub uninstall
     eval {
         my $httpd = iMSCP::Servers::Httpd->factory();
 
-        $httpd->disableModules( 'fcgid_imscp' ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $httpd->disableModules( 'fcgid_imscp' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         for ( 'fcgid_imscp.conf', 'fcgid_imscp.load' ) {
             next unless -f "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_";
-            iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_" )->delFile() == 0 or die(
+            iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_" )->delFile() == 0 or croak(
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         }
 
         for ( split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} ) {
             next unless -f "/etc/init/php$_-fpm.override";
-            iMSCP::File->new( filename => "/etc/init/php$_-fpm.override" )->delFile() == 0 or die(
+            iMSCP::File->new( filename => "/etc/init/php$_-fpm.override" )->delFile() == 0 or croak(
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         }
@@ -466,7 +450,7 @@ sub uninstall
 
 =item addDomain( \%moduleData )
 
- See iMSCP::Servers::Php::Abstract::addDomain()
+ See iMSCP::Servers::Php::addDomain()
 
 =cut
 
@@ -488,7 +472,7 @@ sub addDomain
 
 =item disableDomain( \%moduleData )
 
- See iMSCP::Servers::Php::Abstract::disableDomain()
+ See iMSCP::Servers::Php::disableDomain()
 
 =cut
 
@@ -510,7 +494,7 @@ sub disableDomain
 
 =item deleteDomain( \%moduleData )
 
- See iMSCP::Servers::Php::Abstract::deleteDomain()
+ See iMSCP::Servers::Php::deleteDomain()
 
 =cut
 
@@ -532,7 +516,7 @@ sub deleteDomain
 
 =item addSubdomain( \%moduleData )
 
- See iMSCP::Servers::Php::Abstract::addSubdomain()
+ See iMSCP::Servers::Php::addSubdomain()
 
 =cut
 
@@ -554,7 +538,7 @@ sub addSubdomain
 
 =item disableSubdomain( \%moduleData )
 
- See iMSCP::Servers::Php::Abstract::disableSubdomain()
+ See iMSCP::Servers::Php::disableSubdomain()
 
 =cut
 
@@ -576,7 +560,7 @@ sub disableSubdomain
 
 =item deleteSubdomain( \%moduleData )
 
- See iMSCP::Servers::Php::Abstract::deleteSubdomain()
+ See iMSCP::Servers::Php::deleteSubdomain()
 
 =cut
 
@@ -598,7 +582,7 @@ sub deleteSubdomain
 
 =item enableModules( \@modules [, $phpVersion = $self->{'config'}->{'PHP_VERSION'} [, $phpSapi = $self->{'config'}->{'PHP_SAPI'} ] ] )
 
- See iMSCP::Servers::Php::Abstract::enableModules()
+ See iMSCP::Servers::Php::enableModules()
 
 =cut
 
@@ -609,7 +593,7 @@ sub enableModules
     $phpSapi ||= $self->{'config'}->{'PHP_SAPI'};
     $phpSapi = 'apache2' if $phpSapi eq 'apache2handler';
 
-    ref $modules eq 'ARRAY' or die( 'Invalid $module parameter. Array expected' );
+    ref $modules eq 'ARRAY' or croak( 'Invalid $module parameter. Array expected' );
 
     my $rs = execute( [ '/usr/sbin/phpenmod', '-v', $phpVersion, '-s', $phpSapi, @{$modules} ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
@@ -621,7 +605,7 @@ sub enableModules
 
 =item disableModules( \@modules [, $phpVersion = $self->{'config'}->{'PHP_VERSION'} [, $phpSapi = $self->{'config'}->{'PHP_SAPI'} ] ] )
 
- See iMSCP::Servers::Php::Abstract::disableModules()
+ See iMSCP::Servers::Php:disableModules()
 
 =cut
 
@@ -632,7 +616,7 @@ sub disableModules
     $phpSapi ||= $self->{'config'}->{'PHP_SAPI'};
     $phpSapi = 'apache2' if $phpSapi eq 'apache2handler';
 
-    ref $modules eq 'ARRAY' or die( 'Invalid $module parameter. Array expected' );
+    ref $modules eq 'ARRAY' or croak( 'Invalid $module parameter. Array expected' );
 
     my $rs = execute( [ '/usr/sbin/phpdismod', '-v', $phpVersion, '-s', $phpSapi, @{$modules} ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
@@ -644,7 +628,7 @@ sub disableModules
 
 =item start( [ $phpVersion = $self->{'config'}->{'PHP_VERSION'} ] )
 
- See iMSCP::Servers::Php::Abstract::start()
+ See iMSCP::Servers::Abstract::start()
 
 =cut
 
@@ -653,21 +637,18 @@ sub start
     my ($self, $phpVersion) = @_;
     $phpVersion ||= $self->{'config'}->{'PHP_VERSION'};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforePhpFpmStart', $phpVersion );
-    return $rs if $rs;
-
     eval { iMSCP::Service->getInstance()->start( "php$phpVersion-fpm" ); };
     if ( $@ ) {
         error( $@ );
         $rs = 1;
     }
 
-    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpFpmStart', $phpVersion );
+    0;
 }
 
 =item stop( [ $phpVersion = $self->{'config'}->{'PHP_VERSION'} ] )
 
- See iMSCP::Servers::Php::Abstract::stop()
+ See iMSCP::Servers::Abstract::stop()
 
 =cut
 
@@ -676,21 +657,18 @@ sub stop
     my ($self, $phpVersion) = @_;
     $phpVersion ||= $self->{'config'}->{'PHP_VERSION'};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforePhpFpmStop', $phpVersion );
-    return $rs if $rs;
-
     eval { iMSCP::Service->getInstance()->stop( "php$phpVersion-fpm" ); };
     if ( $@ ) {
         error( $@ );
         $rs = 1;
     }
 
-    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpFpmStop', $phpVersion );
+    0;
 }
 
 =item reload( [ $phpVersion = $self->{'config'}->{'PHP_VERSION'} ] )
 
- See iMSCP::Servers::Php::Abstract::reload()
+ See iMSCP::Servers::Abstract::reload()
 
 =cut
 
@@ -699,21 +677,18 @@ sub reload
     my ($self, $phpVersion) = @_;
     $phpVersion ||= $self->{'config'}->{'PHP_VERSION'};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforePhpFpmReload', $phpVersion );
-    return $rs if $rs;
-
     eval { iMSCP::Service->getInstance()->reload( "php$phpVersion-fpm" ); };
     if ( $@ ) {
         error( $@ );
         $rs = 1;
     }
 
-    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpFpmReload', $phpVersion );
+    0;
 }
 
 =item restart( [ $phpVersion = $self->{'config'}->{'PHP_VERSION'} ] )
 
- See iMSCP::Servers::Php::Abstract::restart()
+ See iMSCP::Servers::Abstract::restart()
 
 =cut
 
@@ -722,16 +697,39 @@ sub restart
     my ($self, $phpVersion) = @_;
     $phpVersion ||= $self->{'config'}->{'PHP_VERSION'};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforePhpFpmRestart', $phpVersion );
-    return $rs if $rs;
-
     eval { iMSCP::Service->getInstance()->restart( "php$phpVersion-fpm" ); };
     if ( $@ ) {
         error( $@ );
         $rs = 1;
     }
 
-    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpFpmRestart', $phpVersion );
+    0;
+}
+
+=item shutdown( $priority )
+
+ See iMSCP::Servers::Abstract::shutdown()
+
+=cut
+
+sub shutdown
+{
+    my ($self, $priority) = @_;
+
+    return unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
+
+    my $serviceMngr = iMSCP::Service->getInstance();
+
+    for my $action( qw/ reload restart / ) {
+        for my $phpVersion( keys %{$self->{$action}} ) {
+            # Check for actions precedence. The 'restart' action has higher precedence than the 'reload' action
+            next if $action eq 'reload' && $self->{'restart'}->{$phpVersion};
+            # Do not act if the PHP version is not enabled
+            next unless $serviceMngr->isEnabled( "php$phpVersion-fpm" );
+
+            $serviceMngr->registerDelayedAction( "php$phpVersion-fpm", [ $action, sub { $self->$action(); } ], $priority );
+        }
+    }
 }
 
 =back
@@ -752,24 +750,26 @@ sub _init
 {
     my ($self) = @_;
 
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+
+    $self->SUPER::_init();
     # Define properties that are expected by parent package
     @{$self}{qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR /} = (
-        # We are deferring evaluation because the PHP version can be
-        # overriden by 3rd-party components.
+        # We defer the evaluation because the PHP version can be overriden by 3rd-party components.
         ( defer { "/etc/php/$self->{'config'}->{'PHP_VERSION'}/fpm/pool.d" } ),
         '/run/php',
         '/usr/share/php'
     );
-
-    $self->SUPER::_init();
+    $self->{'_available_php_versions'} = lazy { [ split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} ]; };
+    $self;
 }
 
 =item _buildPhpConfig( \$moduleData )
 
  Build PHP config for a domain or subdomain
 
- Param hashref \%moduleData Data as provided by Alias|Domain|Subdomain|SubAlias modules
- Return void, die on failure
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Return void, croak on failure
 
 =cut
 
@@ -791,7 +791,6 @@ sub _buildPhpConfig
 
     if ( $self->{'config'}->{'PHP_SAPI'} eq 'fpm' ) {
         $self->_buildFpmConfig( $moduleData );
-        return;
     }
 }
 
@@ -799,9 +798,9 @@ sub _buildPhpConfig
 
  Delete PHP config for a domain or subdomain
 
- Param hashref \%moduleData Data as provided by Alias|Domain|Subdomain|SubAlias modules
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
  Param bool $checkContext Whether or not context must be checked
- Return void, die on failure
+ Return void, croak on failure
 
 =cut
 
@@ -824,9 +823,9 @@ sub _deletePhpConfig
 
  Delete CGI/FastCGI configuration for a domain or subdomain
 
- Param hashref \%module Data as provided by Alias|Domain|SubAlias|Subdomain modules
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
  Param bool $checkContext Whether or not context must be checked
- return void, die on failure
+ return void, croak on failure
 
 =cut
 
@@ -835,16 +834,32 @@ sub _deleteCgiConfig
     my ($self, $moduleData, $checkContext) = @_;
     $checkContext //= 1;
 
-    iMSCP::Dir->new( dirname => "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->remove();
+    for ( @{$self->{'_available_php_versions'}} ) {
+        if ( $checkContext
+            && ( $self->{'config'}->{'PHP_VERSION'} eq $_
+            && ( $moduleData->{'PHP_SUPPORT'} eq 'yes'
+            && ( $moduleData->{'PHP_CONFIG_LEVEL'} eq 'per_user' && $moduleData->{'DOMAIN_TYPE'} eq 'dmn' )
+            || ( $moduleData->{'PHP_CONFIG_LEVEL'} eq 'per_domain' && grep($moduleData->{'DOMAIN_TYPE'} eq $_, 'dmn', 'als') )
+            || ( $moduleData->{'PHP_CONFIG_LEVEL'} eq 'per_site' && $moduleData->{'FORWARD'} eq 'no' ) ) )
+        ) {
+            next;
+        }
+
+        debug( sprintf(
+            'Deleting the %s CGI/FastCGI configuration directory', "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'DOMAIN_NAME'}"
+        ));
+
+        iMSCP::Dir->new( dirname => "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->remove();
+    }
 }
 
 =item _deleteFpmConfig( \%moduleData [, $checkContext = TRUE ] )
 
  Delete PHP-FPM configuration for a domain or subdomain
 
- Param hashref \%module Data as provided by Alias|Domain|SubAlias|Subdomain modules
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
  Param bool $checkContext Whether or not context must be checked
- return void, die on failure
+ return void, croak on failure
 
 =cut
 
@@ -853,7 +868,7 @@ sub _deleteFpmConfig
     my ($self, $moduleData, $checkContext) = @_;
     $checkContext //= 1;
 
-    for ( split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} ) {
+    for ( @{$self->{'_available_php_versions'}} ) {
         if ( $checkContext
             && ( $self->{'config'}->{'PHP_VERSION'} eq $_
             && ( $moduleData->{'PHP_SUPPORT'} eq 'yes'
@@ -868,7 +883,7 @@ sub _deleteFpmConfig
 
         debug( sprintf( 'Deleting the %s FPM pool configuration file', "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" ));
 
-        iMSCP::File->new( filename => "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" )->delFile() == 0 or die(
+        iMSCP::File->new( filename => "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" )->delFile() == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unkown error'
         );
 
@@ -896,7 +911,7 @@ sub _setFullVersion
 {
     my ($self) = @_;
 
-    ( $self->{'config'}->{'PHP_VERSION_FULL'} ) = `/usr/bin/php -nv 2> /dev/null` =~ /^PHP\s+([\d.]+)/ or die(
+    ( $self->{'config'}->{'PHP_VERSION_FULL'} ) = `/usr/bin/php -nv 2> /dev/null` =~ /^PHP\s+([\d.]+)/ or croak(
         "Couldn't guess PHP version for the selected PHP alternative"
     );
 }
@@ -911,10 +926,16 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    $self->SUPER::_cleanup();
+    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+
+    if ( -f "$self->{'cfgDir'}/php.old.data" ) {
+        iMSCP::File->new( filename => "$self->{'cfgDir'}/php.old.data" )->delFile() == 0 or croak(
+            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+        );
+    }
 
     if ( -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" ) {
-        iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->delFile() == 0 or die(
+        iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->delFile() == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
     }
@@ -923,55 +944,16 @@ sub _cleanup
 
     my $httpd = iMSCP::Servers::Httpd->factory();
 
-    $httpd->disableModules( qw/ fastcgi_imscp php5 php5_cgi php5filter php_fpm_imscp proxy_handler / ) == 0 or die(
+    $httpd->disableModules( qw/ fastcgi_imscp php5 php5_cgi php5filter php_fpm_imscp proxy_handler / ) == 0 or croak(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 
     for ( 'fastcgi_imscp.conf', 'fastcgi_imscp.load', 'php_fpm_imscp.conf', 'php_fpm_imscp.load' ) {
         next unless -f "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_";
 
-        iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_" )->delFile() == 0 or die(
+        iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_" )->delFile() == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
-    }
-}
-
-=back
-
-=head1 SHUTDOWN TASKS
-
-=over 4
-
-=item shutdown( $priority )
-
- Restart, reload or start PHP FastCGI process manager for selected PHP alternative when needed
-
- This method is called automatically before the program exit.
-
- Param int $priority Server priority
- Return void
-
-=cut
-
-sub shutdown
-{
-    my ($self, $priority) = @_;
-
-    return unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
-
-    my $serviceMngr = iMSCP::Service->getInstance();
-
-    for my $action( qw/ start reload restart / ) {
-        for my $phpVersion( keys %{$self->{$action}} ) {
-            # Check for actions precedence. The 'reload' and 'restart' actions both have higher precedence than the 'start' action
-            next if $action eq 'start' && ( $self->{'reload'}->{$phpVersion} || $self->{'restart'}->{$phpVersion} );
-            # Check for actions precedence. The 'restart' action has higher precedence than the 'reload' action
-            next if $action eq 'reload' && $self->{'restart'}->{$phpVersion};
-            # Do not act if the PHP version is not enabled
-            next unless $serviceMngr->isEnabled( "php$phpVersion-fpm" );
-
-            $serviceMngr->registerDelayedAction( "php$phpVersion-fpm", [ $action, sub { $self->$action(); } ], $priority );
-        }
     }
 }
 

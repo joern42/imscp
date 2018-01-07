@@ -164,21 +164,24 @@ sub _execAction
 {
     my ($self, $action, $pkgType) = @_;
 
+    my $moduleData = $self->_getData();
+
     if ( $pkgType eq 'server' ) {
+        debug( sprintf( "Executing the `%s' action on i-MSCP servers...", $action ));
+
         for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-            ( my $subref = $_->can( $action ) ) or next;
-            debug( sprintf( "Executing `%s' action on %s", $action, $_ ));
-            my $rs = $subref->( $_->factory(), $self->_getData( $action ));
+            my $rs = $_->factory()->$action( $moduleData );
             return $rs if $rs;
         }
 
         return 0;
     }
 
+    debug( sprintf( "Executing the `%s' action on i-MSCP packages...", $action ));
+
     for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
         ( my $subref = $_->can( $action ) ) or next;
-        debug( sprintf( "Executing `%s' action on %s", $action, $_ ));
-        my $rs = $subref->( $_->getInstance( eventManager => $self->{'eventManager'} ), $self->_getData( $action ));
+        my $rs = $subref->( $_->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
         return $rs if $rs;
     }
 
@@ -201,19 +204,21 @@ sub _execAllActions
     my $entityType = $self->getEntityType();
 
     if ( $action =~ /^(?:add|restore)$/ ) {
-        for ( 'pre', '', 'post' ) {
-            my $rs = $self->_execAction( "$_$action$entityType", 'server' );
-            $rs ||= $self->_execAction( "$_$action$entityType", 'package' );
-            return $rs if $rs;
+        for my $actionPrefix( 'pre', '', 'post' ) {
+            for ( qw / server package / ) {
+                my $rs = $self->_execAction( "$actionPrefix$action$entityType", $_ );
+                return $rs if $rs;
+            }
         }
 
         return 0;
     }
 
-    for ( 'pre', '', 'post' ) {
-        my $rs = $self->_execAction( "$_$action$entityType", 'package' );
-        $rs ||= $self->_execAction( "$_$action$entityType", 'server' );
-        return $rs if $rs;
+    for my $actionPrefix( 'pre', '', 'post' ) {
+        for ( qw / package server / ) {
+            my $rs = $self->_execAction( "$actionPrefix$action$entityType", $_ );
+            return $rs if $rs;
+        }
     }
 
     0;

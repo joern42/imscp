@@ -113,7 +113,7 @@ sub set
 
  Save file
 
- Param int $umask OPTIONAL UMASK(2) for a new file. For instance if the given umask is 027, mode will be: 0666 & (~0027) = 0640 (in octal) 
+ Param int $umask OPTIONAL UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal) 
  Return int 0 on success, 1 on failure
 
 =cut

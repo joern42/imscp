@@ -32,6 +32,7 @@ use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use autouse 'iMSCP::TemplateParser' => qw/ processByRef /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
+use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File iMSCP::Getopt /;
 use File::Temp;
 use iMSCP::Config;
@@ -39,7 +40,7 @@ use iMSCP::Database;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Service;
 use version;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Servers::Sqld';
 
 =head1 DESCRIPTION
 
@@ -187,7 +188,9 @@ sub sqlUserHostDialog
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqld', 'servers', 'all', 'forced' ] )
         || ( $hostname ne '%'
         && !isValidHostname( $hostname )
-        && !isValidIpAddr( $hostname, qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ ) )
+        && !isValidIpAddr( $hostname,
+            ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, 'Remote' ) != -1 )
+            ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ ) )
     ) {
         my $rs = 0;
 
@@ -200,7 +203,9 @@ EOF
         } while $rs < 30
             && ( $hostname ne '%'
             && !isValidHostname( $hostname )
-            && !isValidIpAddr( $hostname, qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ )
+            && !isValidIpAddr( $hostname,
+                ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, 'Remote' ) != -1 )
+                ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ )
         );
 
         return unless $rs < 30;
@@ -405,6 +410,19 @@ sub setEnginePermissions
     );
 }
 
+=item getHumanizedServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanizedServerName()
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    sprintf( 'MySQL %s', $self->getVersion());
+}
+
 =item restart( )
 
  Restart the SQL server
@@ -436,7 +454,7 @@ sub restart
  Param $string $user SQL username
  Param string $host SQL user host
  Param $string $password SQL user password
- Return int 0 on success, die on failure
+ Return int 0 on success, croak on failure
 
 =cut
 
@@ -444,9 +462,9 @@ sub createUser
 {
     my ($self, $user, $host, $password) = @_;
 
-    defined $user or die( '$user parameter is not defined' );
-    defined $host or die( '$host parameter is not defined' );
-    defined $password or die( '$password parameter is not defined' );
+    defined $user or croak( '$user parameter is not defined' );
+    defined $host or croak( '$host parameter is not defined' );
+    defined $password or croak( '$password parameter is not defined' );
 
     eval {
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
@@ -456,7 +474,7 @@ sub createUser
             undef, $user, $host, $password
         );
     };
-    !$@ or die( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or croak( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 
@@ -466,7 +484,7 @@ sub createUser
 
  Param $string $user SQL username
  Param string $host SQL user host
- Return int 0 on success, die on failure
+ Return int 0 on success, croak on failure
 
 =cut
 
@@ -474,8 +492,8 @@ sub dropUser
 {
     my (undef, $user, $host) = @_;
 
-    defined $user or die( '$user parameter not defined' );
-    defined $host or die( '$host parameter not defined' );
+    defined $user or croak( '$user parameter not defined' );
+    defined $host or croak( '$host parameter not defined' );
 
     # Prevent deletion of system SQL users
     return 0 if grep($_ eq lc $user, 'debian-sys-maint', 'mysql.sys', 'root');
@@ -486,7 +504,7 @@ sub dropUser
         return unless $dbh->selectrow_hashref( 'SELECT 1 FROM mysql.user WHERE user = ? AND host = ?', undef, $user, $host );
         $dbh->do( 'DROP USER ?@?', undef, $user, $host );
     };
-    !$@ or die( sprintf( "Couldn't drop the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or croak( sprintf( "Couldn't drop the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 
@@ -507,9 +525,7 @@ sub getVendor
 
 =item getVersion( )
 
- Get SQL server version
-
- Return string MySQL server version
+ See iMSCP::Servers::Abstract::getVersion()
 
 =cut
 
@@ -538,6 +554,9 @@ sub _init
 {
     my ($self) = @_;
 
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+
+    $self->SUPER::_init();
     $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/mysql";
     $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/mysql.data.dist";
     tie %{$self->{'config'}},
@@ -552,7 +571,7 @@ sub _init
 
  Merge distribution configuration with production configuration
 
- Die on failure
+ Return void, croak on failure
 
 =cut
 
@@ -575,7 +594,7 @@ sub _mergeConfig
         untie( %oldConfig );
     }
 
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/mysql.data.dist" )->moveFile( "$self->{'cfgDir'}/mysql.data" ) == 0 or die(
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/mysql.data.dist" )->moveFile( "$self->{'cfgDir'}/mysql.data" ) == 0 or croak(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 }
@@ -715,7 +734,7 @@ sub _setVersion
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
 
         local $dbh->{'RaiseError'} = 1;
-        my $row = $dbh->selectrow_hashref( 'SELECT @@version' ) or die( "Could't find SQL server version" );
+        my $row = $dbh->selectrow_hashref( 'SELECT @@version' ) or croak( "Could't find SQL server version" );
         my ($version) = $row->{'@@version'} =~ /^([0-9]+(?:\.[0-9]+){1,2})/;
         unless ( defined $version ) {
             error( "Couldn't find SQL server version" );
@@ -799,7 +818,7 @@ max_allowed_packet = 500M
 sql_mode =
 EOF
 
-    $cfgTpl .= "innodb_use_native_aio = @{[ $self->_isMysqldInsideCt() ? 0 : 1 ]}\n";
+    $cfgTpl .= "innodb_use_native_aio = @{[ $main::imscpConfig{'SYSTEM_VIRTUALIZER'} ne 'physical' ? 0 : 1 ]}\n";
 
     # For backward compatibility - We will review this in later version
     if ( version->parse( "$self->{'config'}->{'SQLD_VERSION'}" ) >= version->parse( '5.7.4' ) ) {
@@ -880,26 +899,22 @@ sub _updateServerConfig
 
     # Upgrade MySQL tables if necessary.
 
-    {
-        # Need to ignore SIGHUP, as otherwise a SIGHUP can sometimes abort the upgrade
-        # process in the middle.
-        local $SIG{'HUP'} = 'IGNORE';
 
-        my $mysqlConffile = File::Temp->new();
-        print $mysqlConffile <<"EOF";
+    my $mysqlConffile = File::Temp->new();
+    print $mysqlConffile <<"EOF";
 [mysql_upgrade]
 host = @{[ main::setupGetQuestion( 'DATABASE_HOST' ) ]}
 port = @{[ main::setupGetQuestion( 'DATABASE_PORT' ) ]}
 user = "@{ [ main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr ] }"
 password = "@{ [ decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr ] }"
 EOF
-        $mysqlConffile->close();
+    $mysqlConffile->close();
 
-        my $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$mysqlConffile", \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
-        error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
-        return $rs if $rs;
-    }
+    my $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$mysqlConffile", \my $stdout, \my $stderr );
+    debug( $stdout ) if $stdout;
+    error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
+    return $rs if $rs;
+
 
     # Disable unwanted plugins
 
@@ -1025,35 +1040,11 @@ EOF
     $rs
 }
 
-=item _isMysqldInsideCt( )
-
- Does the Mysql server is run inside an OpenVZ container
-
- Return int 1 if the Mysql server is run inside an OpenVZ container, 0 otherwise
-
-=cut
-
-sub _isMysqldInsideCt
-{
-    return 0 unless -f '/proc/user_beancounters';
-
-    my $rs = execute( 'cat /proc/1/status | grep --color=never envID', \ my $stdout, \ my $stderr );
-    debug( $stdout ) if $stdout;
-    debug( $stderr ) if $rs && $stderr;
-    return $rs if $rs;
-
-    if ( $stdout =~ /envID:\s+(\d+)/ ) {
-        return ( $1 > 0 ) ? 1 : 0;
-    }
-
-    0;
-}
-
 =item _setupIsImscpDb( $dbName )
 
  Is the given database an i-MSCP database?
 
- Return bool TRUE if database exists and look like an i-MSCP database, FALSE otherwise, die on failure
+ Return bool TRUE if database exists and look like an i-MSCP database, FALSE otherwise, croak on failure
 
 =cut
 
@@ -1070,7 +1061,7 @@ sub _setupIsImscpDb
     return 0 unless $dbh->selectrow_hashref( 'SHOW DATABASES LIKE ?', undef, $dbName );
 
     my $tables = $db->getDbTables( $dbName );
-    ref $tables eq 'ARRAY' or die( $tables );
+    ref $tables eq 'ARRAY' or croak( $tables );
 
     for my $table( qw/ server_ips user_gui_props reseller_props / ) {
         return 0 unless grep( $_ eq $table, @{$tables} );
@@ -1090,10 +1081,10 @@ sub _tryDbConnect
 {
     my (undef, $host, $port, $user, $pwd) = @_;
 
-    defined $host or die( '$host parameter is not defined' );
-    defined $port or die( '$port parameter is not defined' );
-    defined $user or die( '$user parameter is not defined' );
-    defined $pwd or die( '$pwd parameter is not defined' );
+    defined $host or croak( '$host parameter is not defined' );
+    defined $port or croak( '$port parameter is not defined' );
+    defined $user or croak( '$user parameter is not defined' );
+    defined $pwd or croak( '$pwd parameter is not defined' );
 
     my $db = iMSCP::Database->getInstance();
     $db->set( 'DATABASE_HOST', idn_to_ascii( $host, 'utf-8' ) // '' );

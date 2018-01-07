@@ -184,6 +184,7 @@ my %RECONFIGURATION_ITEMS = (
     ftpd              => 'Reconfigure the FTP server',
     hostnames         => 'Reconfigure server and control panel hostnames',
     httpd             => 'Reconfigure the httpd server',
+    ipv6              => 'Reconfigure IPv6',
     mta               => 'Reconfigure the SMTP server',
     named             => 'Reconfigure the DNS server',
     panel             => 'Reconfigure the control panel',

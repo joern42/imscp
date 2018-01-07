@@ -28,7 +28,7 @@ use warnings;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::PriorityQueue;
 use Scalar::Util qw / blessed refaddr /;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
@@ -214,16 +214,19 @@ sub trigger
 
     return 0 unless exists $self->{'events'}->{$eventName};
 
-    debug( sprintf( 'Triggering %s event', $eventName ));
+    debug( sprintf( 'Triggering the %s event', $eventName ));
 
-    # The priority queue acts as a heap, which implies that as items are popped
+    # The priority queue acts as a heap which implies that as items are popped
     # they are also removed. Thus we clone it (in surface) for purposes of iteration.
     my ($rs, $priorityQueue) = ( 0, $self->{'events'}->{$eventName}->clone() );
     while ( my $listener = $priorityQueue->pop ) {
+        # Execute the event listener.
         $rs = blessed $listener ? $listener->$eventName( @params ) : $listener->( @params );
-        last if $rs;
+        return $rs if $rs; # Return early on error
 
         if ( $self->{'nonces'}->{$eventName}->{$listener} ) {
+            # Event listener has been registered to be run only once.
+            # We need to remove it from the original priority queue
             $self->{'events'}->{$eventName}->removeItem( $listener );
             delete $self->{'nonces'}->{$eventName}->{$listener} if --$self->{'nonces'}->{$eventName}->{$listener} < 1;
         }

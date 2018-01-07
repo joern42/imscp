@@ -25,6 +25,7 @@ package iMSCP::Servers::Cron::Systemd::Debian;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Service /;
 use iMSCP::Debug qw/ error /;
 use parent 'iMSCP::Servers::Cron::Vixie::Debian';
@@ -77,7 +78,7 @@ sub start
 
     eval { iMSCP::Service->getInstance()->start( 'cron.target' ); };
     if ( $@ ) {
-        die( $@ );
+        croak( $@ );
         return 1;
     }
 
@@ -96,7 +97,7 @@ sub stop
 
     eval { iMSCP::Service->getInstance()->stop( 'cron.target' ); };
     if ( $@ ) {
-        die( $@ );
+        croak( $@ );
         return 1;
     }
 
@@ -115,7 +116,7 @@ sub restart
 
     eval { iMSCP::Service->getInstance()->restart( 'cron.target' ); };
     if ( $@ ) {
-        die( $@ );
+        croak( $@ );
         return 1;
     }
 

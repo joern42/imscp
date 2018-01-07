@@ -32,7 +32,7 @@ use iMSCP::File;
 use iMSCP::Servers::Cron;
 use iMSCP::Servers::Httpd;
 use version;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
@@ -109,7 +109,9 @@ sub _init
 
 sub _disableDefaultConfig
 {
-    if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" ) {
+    return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+
+    if (-f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" ) {
         my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" )->moveFile(
             "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled"
         );

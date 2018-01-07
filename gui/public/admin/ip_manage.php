@@ -19,8 +19,8 @@
  */
 
 use iMSCP\Net as Net;
-use iMSCP_Events as Events;
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
 use Zend_Session as Session;
 
@@ -73,9 +73,7 @@ function generatePage($tpl)
     generateIpsList($tpl);
     generateDevicesList($tpl);
 
-    $ipConfigMode = isset($_POST['ip_config_mode']) && in_array($_POST['ip_config_mode'], ['auto', 'manual'])
-        ? $_POST['ip_config_mode']
-        : 'auto';
+    $ipConfigMode = isset($_POST['ip_config_mode']) && in_array($_POST['ip_config_mode'], ['auto', 'manual']) ? $_POST['ip_config_mode'] : 'auto';
 
     $tpl->assign([
         'VALUE_IP'         => isset($_POST['ip_number']) ? tohtml($_POST['ip_number']) : '',
@@ -112,20 +110,24 @@ function generateIpsList($tpl)
     }
 
     $cfg = Registry::get('config');
+    $isIPv6Allowed = $cfg['IPV6_SUPPORT'] == 'yes';
     $net = Net::getInstance();
-    $baseServerIp = ($net->getVersion($cfg['BASE_SERVER_IP']) == 6)
-        ? $net->compress($cfg['BASE_SERVER_IP'])
-        : $cfg['BASE_SERVER_IP'];
+    $baseServerIp = ($net->getVersion($cfg['BASE_SERVER_IP']) == 6) ? $net->compress($cfg['BASE_SERVER_IP']) : $cfg['BASE_SERVER_IP'];
+
 
     while ($row = $stmt->fetch()) {
-        $ipAddr = ($net->getVersion($row['ip_number']) == 6) ? $net->compress($row['ip_number']) : $row['ip_number'];
+        $ipAddrVersion = $net->getVersion($row['ip_number']) == 6;
+        if ($ipAddrVersion == 6 && !$isIPv6Allowed) {
+            continue;
+        }
+
+        $ipAddr = ($ipAddrVersion == 6) ? $net->compress($row['ip_number']) : $row['ip_number'];
 
         if ($baseServerIp === $ipAddr) {
             $actionName = $row['ip_status'] == 'ok' ? tr('Protected') : translate_dmn_status($row['ip_status']);
             $actionIpId = NULL;
         } elseif (in_array($row['ip_id'], $assignedIps)) {
-            $actionName = ($row['ip_status'] == 'ok')
-                ? tr('Assigned to at least one reseller') : translate_dmn_status($row['ip_status']);
+            $actionName = ($row['ip_status'] == 'ok') ? tr('Assigned to at least one reseller') : translate_dmn_status($row['ip_status']);
             $actionIpId = NULL;
         } elseif ($row['ip_status'] == 'ok') {
             $actionName = tr('Remove IP');
@@ -138,12 +140,8 @@ function generateIpsList($tpl)
         $tpl->assign([
             'IP'           => tohtml(($row['ip_number'] == '0.0.0.0') ? tr('Any') : $row['ip_number']),
             'IP_NETMASK'   => $net->getIpPrefixLength($net->compress($row['ip_number'])) ?: $row['ip_netmask'] ?: tr('N/A'),
-            'IP_EDITABLE'  => ($row['ip_status'] == 'ok'
-                && $baseServerIp != $ipAddr
-                && $row['ip_config_mode'] != 'manual'
-            ) ? true : false,
-            'NETWORK_CARD' => ($row['ip_card'] === NULL)
-                ? '' : (($row['ip_card'] !== 'any') ? tohtml($row['ip_card']) : tohtml(tr('Any')))
+            'IP_EDITABLE'  => ($row['ip_status'] == 'ok' && $baseServerIp != $ipAddr && $row['ip_config_mode'] != 'manual') ? true : false,
+            'NETWORK_CARD' => ($row['ip_card'] === NULL) ? '' : (($row['ip_card'] !== 'any') ? tohtml($row['ip_card']) : tohtml(tr('Any')))
         ]);
 
         if ($row['ip_status'] == 'ok' && $row['ip_card'] != 'any' && $row['ip_number'] !== '0.0.0.0') {
@@ -219,14 +217,16 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard)
     }
 
     $net = Net::getInstance();
+    $isIPv6 = $net->getVersion($ipAddr) == 6;
+    $isIPv6Allowed = Registry::get('config')['IPV6_SUPPORT'] == 'yes';
+
+    if (!$isIPv6Allowed && $isIPv6) {
+        set_page_message(tr('IPv6 support is currently disabled. You cannot add new IPv6 IP addresses.'), 'error');
+        $errFieldsStack[] = 'ip_number';
+    }
 
     // Validate IP netmask
-    $isIPv6 = $net->getVersion($ipAddr) == 6;
-    if (!ctype_digit($ipNetmask)
-        || $ipNetmask < 1
-        || ($isIPv6 && $ipNetmask > 128)
-        || (!$isIPv6 && $ipNetmask > 32)
-    ) {
+    if (!ctype_digit($ipNetmask) || $ipNetmask < 1 || ($isIPv6 && (!$isIPv6Allowed || $ipNetmask > 128)) || (!$isIPv6 && $ipNetmask > 32)) {
         set_page_message(tr('Wrong or unallowed IP netmask.'), 'error');
         $errFieldsStack[] = 'ip_netmask';
     }
@@ -278,8 +278,7 @@ function editIpAddr()
             ? clean_input($_POST['ip_netmask'])
             : ($net->getIpPrefixLength($row['ip_number']) ?: ($row['ip_netmask'] ?: ($net->getVersion() == 4 ? 24 : 64)));
         $ipCard = isset($_POST['ip_card']) ? clean_input($_POST['ip_card']) : $row['ip_card'];
-        $ipConfigMode = isset($_POST['ip_config_mode'][$ipId])
-            ? clean_input($_POST['ip_config_mode'][$ipId]) : $row['ip_config_mode'];
+        $ipConfigMode = isset($_POST['ip_config_mode'][$ipId]) ? clean_input($_POST['ip_config_mode'][$ipId]) : $row['ip_config_mode'];
 
         if (!checkIpData($row['ip_number'], $ipNetmask, $ipConfigMode, $ipCard)) {
             Session::namespaceUnset('pageMessages');
@@ -293,14 +292,9 @@ function editIpAddr()
             'ip_card'        => $ipCard,
             'ip_config_mode' => $ipConfigMode
         ]);
-        exec_query(
-            "
-                UPDATE server_ips
-                SET ip_netmask = ?, ip_card = ?, ip_config_mode = ?, ip_status = 'tochange'
-                WHERE ip_id = ?
-            ",
-            [$ipNetmask, $ipCard, $ipConfigMode, $ipId]
-        );
+        exec_query("UPDATE server_ips SET ip_netmask = ?, ip_card = ?, ip_config_mode = ?, ip_status = 'tochange' WHERE ip_id = ?", [
+            $ipNetmask, $ipCard, $ipConfigMode, $ipId
+        ]);
         send_request();
         write_log(sprintf("Configuration for the %s IP address has been updated by %s", $row['ip_number'], $_SESSION['user_logged']), E_USER_NOTICE);
         set_page_message(tr('IP address successfully scheduled for modification.'), 'success');
@@ -350,10 +344,9 @@ function addIpAddr()
         'ip_config_mode' => $ipConfigMode
     ]);
 
-    exec_query(
-        "INSERT INTO server_ips (ip_number, ip_netmask, ip_card, ip_config_mode, ip_status) VALUES (?, ?, ?, ?, 'toadd')",
-        [$ipAddr, $ipNetmask, $ipCard, $ipConfigMode]
-    );
+    exec_query("INSERT INTO server_ips (ip_number, ip_netmask, ip_card, ip_config_mode, ip_status) VALUES (?, ?, ?, ?, 'toadd')", [
+        $ipAddr, $ipNetmask, $ipCard, $ipConfigMode
+    ]);
 
     send_request();
     set_page_message(tr('IP address successfully scheduled for addition.'), 'success');

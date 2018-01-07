@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use iMSCP::File;
 use iMSCP::Servers::Cron;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
@@ -80,6 +80,8 @@ sub _restoreDebianConfig
         my $rs = $file->save();
         return $rs if $rs;
     }
+
+    return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
 
     for ( qw/ cron.daily cron.weekly / ) {
         my $rs = iMSCP::Servers::Cron->factory()->enableSystemCrontask( 'rkhunter', $_ );

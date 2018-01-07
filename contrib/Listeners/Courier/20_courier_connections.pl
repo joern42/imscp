@@ -1,6 +1,5 @@
-# i-MSCP iMSCP::Listener::ProFTPd::TLS listener file
+# i-MSCP iMSCP::Listener::Courier::Connections listener file
 # Copyright (C) 2017-2018 Laurent Declercq <l.declercq@nuxwin.com>
-# Copyright (C) 2015-2017 Rene Schuster <mail@reneschuster.de>
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -17,13 +16,12 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 #
-## Enforce TLS
-## See http://www.proftpd.org/docs/directives/linked/config_ref_TLSRequired.html
+## Allows to increase the maximum number of connections to accept from the same IP address
 #
 
-package iMSCP::Listener::ProFTPd::TLS;
+package iMSCP::Listener::Courier::Connections;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.0';
 
 use strict;
 use warnings;
@@ -31,20 +29,28 @@ use iMSCP::EventManager;
 use version;
 
 #
+## Configuration parameters
+#
+
+# Max connection per IP
+my $MAX_CONNECTION_PER_IP = 20;
+
+#
 ## Please, don't edit anything below this line
 #
 
 version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
-    sprintf( "The 10_proftpd_serverident.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
+    sprintf( "The 20_courier_connections.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterProftpdBuildConfFile',
+    'onCourierBuildLocalConf',
     sub {
-        my ($tplContent, $tplName) = @_;
+        my ($serviceName, $conffile) = @_;
 
-        return 0 unless $tplName eq 'proftpd.conf';
-        ${$tplContent} =~ s/(TLSRequired\s+)off/${1}on/im;
+        return 0 unless grep( $serviceName eq $_, 'pop3d', 'imapd' );
+
+        $conffile->{'MAXPERIP'} = $MAX_CONNECTION_PER_IP;
         0;
     }
 );

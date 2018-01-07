@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Cron - Factory and abstract implementation for i-MSCP cron servers
+ iMSCP::Servers::Cron - Factory and abstract implementation for the i-MSCP cron servers
 
 =cut
 
@@ -33,7 +33,7 @@ use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
 
- This class provides a factory and an abstract implementation for i-MSCP cron servers.
+ This class provides a factory and an abstract implementation for the i-MSCP cron servers.
 
 =head1 PUBLIC METHODS
 
@@ -43,7 +43,7 @@ use parent 'iMSCP::Servers::Abstract';
 
  Add a new cron task
 
- Param hash \%data Cron task data:
+ Param hashref \%data Cron task data:
   - TASKID :Cron task unique identifier
   - MINUTE  : OPTIONAL Minute or shortcut such as @daily, @monthly... (Default: @daily)
   - HOUR    : OPTIONAL Hour - ignored if the MINUTE field defines a shortcut (Default: *)
@@ -61,14 +61,14 @@ sub addTask
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the addTask() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the addTask() method', ref $self ));
 }
 
 =item deleteTask( \%data [, $filepath = '/path/to/default/cron/file' ] )
 
  Delete a cron task
 
- Param hash \%data Cron task data:
+ Param hashref \%data Cron task data:
   - TASKID Cron task unique identifier
  Param string $filepath OPTIONAL Cron file path (default: imscp cron file)
  Return int 0 on success, other on failure
@@ -79,7 +79,7 @@ sub deleteTask
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the deleteTask() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the deleteTask() method', ref $self ));
 }
 
 =item enableSystemCronTask( $cronTask [, $directory = ALL ] )
@@ -96,7 +96,7 @@ sub enableSystemCronTask
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the enableSystemCronTask() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the enableSystemCronTask() method', ref $self ));
 }
 
 =item disableSystemCronTask( $cronTask [, $directory = ALL ] )
@@ -113,7 +113,7 @@ sub disableSystemCronTask
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the disableSystemCronTask() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the disableSystemCronTask() method', ref $self ));
 }
 
 =item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
@@ -195,6 +195,8 @@ sub _init
 {
     my ($self) = @_;
 
+    $self->SUPER::_init();
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
     @{$self}{qw/ cfgDir _templates /} = ( "$main::imscpConfig{'CONF_DIR'}/cron", {} );
     $self;
 }

@@ -1,11 +1,5 @@
 # i-MSCP vsftpd configuration data
 
-FTPD_SNAME = vsftpd
-FTPD_CONF_FILE = /etc/vsftpd.conf
-FTPD_PAM_CONF_FILE = /etc/pam.d/vsftpd
-FTPD_USER_CONF_DIR = /etc/vsftpd/imscp
-FTPD_TRAFF_LOG_PATH = /var/log/xferlog
-
 FTPD_PASSIVE_PORT_RANGE =
 
 VSFTPD_VERSION =

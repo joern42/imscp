@@ -33,7 +33,7 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
 use iMSCP::Packages::FrontEnd;
 use version;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

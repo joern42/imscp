@@ -30,7 +30,7 @@ use iMSCP::Config;
 use iMSCP::Database;
 use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 my $dbInitialized = undef;
 

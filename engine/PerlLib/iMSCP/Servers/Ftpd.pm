@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Ftpd - i-MSCP ftp server factory implementation
+ iMSCP::Servers::Ftpd - Factory and abstract implementation for the i-MSCP ftpd servers
 
 =cut
 
@@ -25,11 +25,12 @@ package iMSCP::Servers::Ftpd;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
 
- i-MSCP ftp server factory implementation.
+ This class provides a factory and an abstract implementation for the i-MSCP ftpd servers.
 
 =head1 CLASS METHODS
 
@@ -46,6 +47,134 @@ use parent 'iMSCP::Servers::Abstract';
 sub getPriority
 {
     150;
+}
+
+=back
+
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item addUser( \%moduleData )
+
+ Process addUser tasks
+
+ The following event *MUST* be triggered:
+  - before<SNAME>AddFtpUser()
+  - after<SNAME>AddFtpUser()
+
+ Param hashref \%moduleData Data as provided by the Modules::User module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addUser
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the addUser() method', ref $self ));
+
+}
+
+=item addFtpUser( \%moduleData )
+
+ Add FTP user
+
+ The following event *MUST* be triggered:
+  - before<SNAME>AddFtpUser()
+  - after<SNAME>AddFtpUser()
+
+ Param hashref \%moduleData Data as provided by the Modules::FtpUser module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addFtpUser
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the addFtpUser() method', ref $self ));
+}
+
+=item disableFtpUser( \%moduleData )
+
+ Disable FTP user
+
+ The following event *MUST* be triggered:
+  - before<SNAME>disableFtpUser()
+  - after<SNAME>disableFtpUser()
+
+ Param hashref \%moduleData Data as provided by the Modules::FtpUser module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableFtpUser
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disableFtpUser() method', ref $self ));
+}
+
+=item deleteFtpUser( \%moduleData )
+
+ Delete FTP user
+
+ The following event *MUST* be triggered:
+  - before<SNAME>deleteFtpUser()
+  - after<SNAME>deleteFtpUser()
+
+ Param hashref \%moduleData Data as provided by the Modules::FtpUser module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteFtpUser
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the deleteFtpUser() method', ref $self ));
+}
+
+=item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
+
+ Get ftpd server traffic data
+
+ Param hashref \%trafficDb Traffic database
+ Param string $logFile Path to ftpd traffic log file (only when self-called)
+ Param hashref \%trafficIndexDb Traffic index database (only when self-called)
+ Return void, croak on failure
+
+=cut
+
+sub getTraffic
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
+}
+
+=back
+
+=head PRIVATE METHODS
+
+=over
+
+=item _init( )
+
+ Initialize instance
+
+ Return iMSCP::Servers::Cron::Abstract, croak on failure
+
+=cut
+
+sub _init
+{
+    my ($self) = @_;
+
+    $self->SUPER::_init();
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+    $self;
 }
 
 =back

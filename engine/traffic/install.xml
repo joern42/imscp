@@ -3,4 +3,5 @@
     <copy>${LOCAL_USR_SBIN}/maillogconvert.pl</copy>
     <copy>${SYSTEM_ENGINE_ROOT}/traffic/imscp-srv-traff</copy>
     <copy>${SYSTEM_ENGINE_ROOT}/traffic/imscp-vrl-traff</copy>
+    <copy mode="0750">${SYSTEM_ENGINE_ROOT}/traffic/vlogger</copy>
 </install>

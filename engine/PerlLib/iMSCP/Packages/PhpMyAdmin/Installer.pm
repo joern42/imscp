@@ -41,7 +41,7 @@ use iMSCP::Packages::PhpMyAdmin;
 use iMSCP::Servers::Sqld;
 use JSON;
 use version;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 %main::sqlUsers = () unless %main::sqlUsers;
 

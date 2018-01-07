@@ -26,6 +26,7 @@ package iMSCP::Servers::Sqld::Remote::Abstract;
 use strict;
 use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
+use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use iMSCP::Database;
 use iMSCP::Debug qw/ error /;
@@ -49,7 +50,7 @@ use parent 'iMSCP::Servers::Sqld::Mysql::Abstract';
 sub postinstall
 {
     my ($self) = @_;
-    
+
     # Nothing to do here
     0;
 }
@@ -94,6 +95,19 @@ sub setEnginePermissions
     );
 }
 
+=item getHumanizedServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanizedServerName()
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    'Remote SQL server';
+}
+
 =item createUser( $user, $host, $password )
 
  See iMSCP::Servers::Sqld::Mysql::Abstract::createUser()
@@ -104,9 +118,9 @@ sub createUser
 {
     my ($self, $user, $host, $password) = @_;
 
-    defined $user or die( '$user parameter is not defined' );
-    defined $host or die( '$host parameter is not defined' );
-    defined $password or die( '$password parameter is not defined' );
+    defined $user or croak( '$user parameter is not defined' );
+    defined $host or croak( '$host parameter is not defined' );
+    defined $password or croak( '$password parameter is not defined' );
 
     eval {
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
@@ -119,7 +133,7 @@ sub createUser
             undef, $user, $host, $password
         );
     };
-    !$@ or die( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or croak( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 

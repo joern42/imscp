@@ -32,7 +32,7 @@ use iMSCP::File;
 use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
 use JSON;
 use iMSCP::Packages::FrontEnd;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 our $VERSION = '2.1.x';
 

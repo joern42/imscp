@@ -36,9 +36,9 @@ use iMSCP::Getopt;
 use iMSCP::LockFile;
 use iMSCP::Umask;
 use POSIX qw / tzset /;
-use parent 'iMSCP::Common::SingletonClass';
-
-$SIG{'INT'} = 'IGNORE';
+# Make sure that object destructors are called on HUP, PIPE, INT and TERM signals
+use sigtrap qw/ die normal-signals /;
+use parent 'iMSCP::Common::Singleton';
 
 umask 022;
 
@@ -115,7 +115,7 @@ sub loadMainConfig
         fileName    => '/etc/imscp/imscp.conf',
         nocreate    => $options->{'nocreate'} // 1,
         nodeferring => $options->{'nodeferring'} // 0,
-        nodie       => $options->{'nodie'} // 0,
+        nocroak     => $options->{'nocroak'} // 0,
         readonly    => $options->{'config_readonly'} // 0,
         temporary   => $options->{'config_temporary'} // 0;
 }

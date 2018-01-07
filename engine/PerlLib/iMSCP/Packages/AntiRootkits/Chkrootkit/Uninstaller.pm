@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use iMSCP::File;
 use iMSCP::Servers::Cron;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

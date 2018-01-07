@@ -25,7 +25,7 @@ package iMSCP::Servers::Po::Dovecot::Debian;
 
 use strict;
 use warnings;
-use iMSCP::Service;
+use Class::Autouse qw/ :nostat iMSCP::Service /;
 use parent 'iMSCP::Servers::Po::Dovecot::Abstract';
 
 =head1 DESCRIPTION

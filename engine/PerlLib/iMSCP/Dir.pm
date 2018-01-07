@@ -249,7 +249,7 @@ sub owner
  Create a directory
 
  Param hash \%options OPTIONAL Options:
-    umask : UMASK(2) for a new diretory. For instance if the given umask is 027, mode will be: 0777 & (~0027) = 0750 (in octal), default to umask()
+    umask : UMASK(2) for a new diretory. For instance if the given umask is 0027, mode will be: 0777 & (~0027) = 0750 (in octal), default to umask()
     mode  : Directory mode
     user  : Directory owner
     group : Directory group

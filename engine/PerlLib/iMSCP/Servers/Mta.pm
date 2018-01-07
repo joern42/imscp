@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Mta - i-MSCP mta server factory implementation
+ iMSCP::Servers::Mta - Factory and abstract implementation for the i-MSCP mta servers
 
 =cut
 
@@ -29,7 +29,7 @@ use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
 
- i-MSCP mta server factory implementation.
+ This class provides a factory and an abstract implementation for the i-MSCP mta servers.
 
 =head1 CLASS METHODS
 
@@ -46,6 +46,231 @@ use parent 'iMSCP::Servers::Abstract';
 sub getPriority
 {
     100;
+}
+
+=back
+
+=head PUBLIC METHODS
+
+=over 4
+
+=item addDomain( \%moduleData )
+
+ Process addDomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddDomain( \%moduleData )
+  - after<SNAME>AddDomain( \%moduleData )
+
+ Param hashref \%moduleData
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addDomain
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
+}
+
+=item disableDomain( \%moduleData )
+
+ Process disableDomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DisableDomain( \%moduleData )
+  - after<SNAME>DisableDomain( \%moduleData )
+
+ Param hashref \%moduleData Domain data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableDomain
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
+}
+
+=item deleteDomain( \%moduleData )
+
+ Process deleteDomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeleteDomain( \%moduleData )
+  - after<SNAME>DeleteDomain( \%moduleData )
+
+ Param hashref \%moduleData Domain data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteDomain
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
+}
+
+=item addSubdomain( \%moduleData )
+
+ Process addSubdomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddSubdomain( \%moduleData )
+  - after<SNAME>AddSubdomain( \%moduleData )
+
+ Param hashref \%moduleData Subdomain data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addSubdomain
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
+}
+
+=item disableSubdomain( \%moduleData )
+
+ Process disableSubdomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DisableSubdomain( \%moduleData )
+  - after<SNAME>DisableSubdomain( \%moduleData )
+
+ Param hashref \%moduleData Subdomain data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableSubdomain
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
+}
+
+=item deleteSubdomain( \%moduleData )
+
+ Process deleteSubdomain tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeleteSubdomain( \%moduleData )
+  - after<SNAME>DeleteSubdomain( \%moduleData )
+
+ Param hashref \%moduleData Subdomain data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteSubdomain
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
+}
+
+=item addMail( \%moduleData )
+
+ Process addMail tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddMail( \%moduleData )
+  - after<SNAME>AddMail( \%moduleData )
+
+ Param hashref \%moduleData Mail data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addMail
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the addMail() method', ref $self ));
+}
+
+=item disableMail( \%moduleData )
+
+ Process disableMail tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DisableMail( \%moduleData )
+  - after<SNAME>DisableMail( \%moduleData )
+
+ Param hashref \%moduleData Mail data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableMail
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disableMail() method', ref $self ));
+}
+
+=item deleteMail( \%moduleData )
+
+ Process deleteMail tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeleteMail( \%moduleData )
+  - after<SNAME>DeleteMail( \%moduleData )
+
+ Param hashref \%moduleData Mail data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteMail
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the deleteMail() method', ref $self ));
+}
+
+=item getTraffic( \%trafficDb )
+
+ Get SMTP traffic
+
+ Param hashref \%trafficDb Traffic database
+ Return void, croak on failure
+
+=cut
+
+sub getTraffic
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
+}
+
+=back
+
+=head PRIVATE METHODS
+
+=over
+
+=item _init( )
+
+ Initialize instance
+
+ Return iMSCP::Servers::Cron::Abstract, croak on failure
+
+=cut
+
+sub _init
+{
+    my ($self) = @_;
+
+    $self->SUPER::_init();
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+    $self;
 }
 
 =back

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Common::SingletonClass - Base class implementing Singleton Design Pattern
+ iMSCP::Common::Singleton - Base class implementing Singleton Design Pattern
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Common::SingletonClass;
+package iMSCP::Common::Singleton;
 
 use strict;
 use warnings;
@@ -40,7 +40,7 @@ my %_INSTANCES = ();
 
  Return the current instance if it exists
 
- Return iMSCP::Common::SingletonClass|undef
+ Return iMSCP::Common::Singleton|undef
 
 =cut
 
@@ -62,7 +62,7 @@ sub hasInstance
  Implement singleton design pattern. Return instance of this class
 
  Param hash|hashref OPTIONAL hash representing class attributes
- Return iMSCP::Common::SingletonClass
+ Return iMSCP::Common::Singleton
 
 =cut
 
@@ -92,7 +92,7 @@ sub getInstance
 
  Called by getInstance( ). Initialize instance
 
- Return iMSCP::Common::SingletonClass
+ Return iMSCP::Common::Singleton
 
 =cut
 
@@ -111,14 +111,14 @@ sub _init
 
 =item END( )
 
- Explicitly destroy all iMSCP::Common::SingletonClass objects
+ Explicitly destroy all iMSCP::Common::Singleton objects
 
 =cut
 
-sub END
-{
-    undef( %_INSTANCES );
-}
+END
+    {
+        undef( %_INSTANCES );
+    }
 
 =back
 

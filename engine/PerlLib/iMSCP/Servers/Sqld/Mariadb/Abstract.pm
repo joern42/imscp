@@ -28,6 +28,7 @@ use warnings;
 use autouse 'iMSCP::Crypt' => qw/ decryptRijndaelCBC /;
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::TemplateParser' => qw/ processByRef /;
+use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use File::Temp;
 use iMSCP::Database;
@@ -69,6 +70,19 @@ sub postinstall
     );
 }
 
+=item getHumanizedServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanizedServerName()
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    sprintf( 'MariaDB %s', $self->getVersion());
+}
+
 =item createUser( $user, $host, $password )
 
  See iMSCP::Servers::Sqld::Mysql::Abstract::createUser()
@@ -79,16 +93,16 @@ sub createUser
 {
     my (undef, $user, $host, $password) = @_;
 
-    defined $user or die( '$user parameter is not defined' );
-    defined $host or die( '$host parameter is not defined' );
-    defined $user or die( '$password parameter is not defined' );
+    defined $user or croak( '$user parameter is not defined' );
+    defined $host or croak( '$host parameter is not defined' );
+    defined $user or croak( '$password parameter is not defined' );
 
     eval {
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
         local $dbh->{'RaiseError'} = 1;
         $dbh->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
     };
-    !$@ or die( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or croak( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 
@@ -177,7 +191,7 @@ max_allowed_packet = 500M
 sql_mode =
 EOF
 
-    $cfgTpl .= "innodb_use_native_aio = @{[ $self->_isMysqldInsideCt() ? 0 : 1 ]}\n";
+    $cfgTpl .= "innodb_use_native_aio = @{[ $main::imscpConfig{'SYSTEM_VIRTUALIZER'} ne 'physical' ? 0 : 1 ]}\n";
     $cfgTpl .= "event_scheduler = DISABLED\n";
 
     processByRef( { SQLD_SOCK_DIR => $self->{'config'}->{'SQLD_SOCK_DIR'} }, \$cfgTpl );
@@ -202,26 +216,20 @@ sub _updateServerConfig
 
     # Upgrade MySQL tables if necessary.
 
-    {
-        # Need to ignore SIGHUP, as otherwise a SIGHUP can sometimes abort the upgrade
-        # process in the middle.
-        local $SIG{'HUP'} = 'IGNORE';
-
-        my $mysqlConffile = File::Temp->new();
-        print $mysqlConffile <<"EOF";
+    my $mysqlConffile = File::Temp->new();
+    print $mysqlConffile <<"EOF";
 [mysql_upgrade]
 host = @{[ main::setupGetQuestion( 'DATABASE_HOST' ) ]}
 port = @{[ main::setupGetQuestion( 'DATABASE_PORT' ) ]}
 user = "@{ [ main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr ] }"
 password = "@{ [ decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr ] }"
 EOF
-        $mysqlConffile->close();
+    $mysqlConffile->close();
 
-        my $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$mysqlConffile", \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
-        error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
-        return $rs if $rs;
-    }
+    my $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$mysqlConffile", \my $stdout, \my $stderr );
+    debug( $stdout ) if $stdout;
+    error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
+    return $rs if $rs;
 
     # Disable unwanted plugins
 

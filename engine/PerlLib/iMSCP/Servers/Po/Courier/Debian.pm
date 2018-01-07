@@ -25,7 +25,8 @@ package iMSCP::Servers::Po::Courier::Debian;
 
 use strict;
 use warnings;
-use iMSCP::Service;
+use Class::Autouse qw/ :nostat File::Spec iMSCP::Dir iMSCP::File iMSCP::SystemUser iMSCP::Service /;
+use version;
 use parent 'iMSCP::Servers::Po::Courier::Abstract';
 
 =head1 DESCRIPTION
@@ -49,6 +50,22 @@ sub preinstall
     my ($self) = @_;
 
     $self->stop();
+}
+
+=item install( )
+
+ Process install tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub install
+{
+    my ($self) = @_;
+
+    my $rs = $self->SUPER::install();
+    $rs ||= $self->_cleanup();
 }
 
 =item postinstall( )
@@ -207,6 +224,83 @@ sub shutdown
     return unless $self->{'restart'};
 
     iMSCP::Service->getInstance()->registerDelayedAction( 'courier', [ 'restart', sub { $self->restart(); } ], $priority );
+}
+
+=back
+
+=head PRIVATE METHODS
+
+=over 4
+
+=item _cleanup( )
+
+ Processc cleanup tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _cleanup
+{
+    my ($self) = @_;
+
+    my $oldPluginApiVersion = version->parse( $main::imscpOldConfig{'PluginApi'} );
+
+    return 0 if $oldPluginApiVersion > version->parse( '1.5.2' );
+
+    for ( qw/ pop3d pop3d-ssl imapd imapd-ssl / ) {
+        next unless -f "$self->{'config'}->{'COURIER_CONF_DIR'}/$sname";
+
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'COURIER_CONF_DIR'}/$_" );
+        my $fileContentRef = $file->getAsRef();
+        unless ( defined $fileContentRef ) {
+            error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
+            return 1;
+        }
+
+        replaceBlocByRef(
+            qr/(:?^\n)?# Servers::po::courier::installer - BEGIN\n/m, qr/# Servers::po::courier::installer - ENDING\n/, '', $fileContentRef
+        );
+    }
+
+    return 0 if $oldPluginApiVersion > version->parse( '1.5.1' );
+
+    if ( -f "$self->{'cfgDir'}/courier.old.data" ) {
+        my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.old.data" )->delFile();
+        return $rs if $rs;
+    }
+
+    if ( -f "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" ) {
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" );
+        $file->set( '' );
+        my $rs = $file->save();
+        $rs ||= $file->mode( 0600 );
+        return $rs if $rs;
+
+        $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" ], \ my $stdout, \ my $stderr );
+        debug( $stdout ) if $stdout;
+        error( $stderr || 'Unknown error' ) if $rs;
+        return $rs if $rs;
+    }
+
+    # Remove postfix user from authdaemon group.
+    # It is now added in mail group (since 1.5.0)
+    my $rs = iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'POSTFIX_USER'} );
+    return $rs if $rs;
+
+    # Remove old authdaemon socket private/authdaemon mount directory.
+    # Replaced by var/run/courier/authdaemon (since 1.5.0)
+    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'POSTFIX_QUEUE_DIR'}/private/authdaemon" );
+    $rs ||= umount( $fsFile );
+    return $rs if $rs;
+
+    eval { iMSCP::Dir->new( dirname => $fsFile )->remove(); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
 }
 
 =back

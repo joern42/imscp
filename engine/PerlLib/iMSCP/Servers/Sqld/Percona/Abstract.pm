@@ -67,6 +67,19 @@ sub postinstall
     );
 }
 
+=item getHumanizedServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanizedServerName()
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    sprintf( 'Percona', $self->getVersion());
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -152,7 +165,7 @@ max_allowed_packet = 500M
 sql_mode =
 EOF
 
-    $cfgTpl .= "innodb_use_native_aio = @{[ $self->_isMysqldInsideCt() ? 0 : 1 ]}\n";
+    $cfgTpl .= "innodb_use_native_aio = @{[ $main::imscpConfig{'SYSTEM_VIRTUALIZER'} ne 'physical' ? 0 : 1 ]}\n";
 
     my $version = version->parse( "$self->{'config'}->{'SQLD_VERSION'}" );
 
@@ -185,26 +198,20 @@ sub _updateServerConfig
 
     # Upgrade MySQL tables if necessary.
 
-    {
-        # Need to ignore SIGHUP, as otherwise a SIGHUP can sometimes abort the upgrade
-        # process in the middle.
-        local $SIG{'HUP'} = 'IGNORE';
-
-        my $mysqlConffile = File::Temp->new();
-        print $mysqlConffile <<"EOF";
+    my $mysqlConffile = File::Temp->new();
+    print $mysqlConffile <<"EOF";
 [mysql_upgrade]
 host = @{[ main::setupGetQuestion( 'DATABASE_HOST' ) ]}
 port = @{[ main::setupGetQuestion( 'DATABASE_PORT' ) ]}
 user = "@{ [ main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr ] }"
 password = "@{ [ decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr ] }"
 EOF
-        $mysqlConffile->close();
+    $mysqlConffile->close();
 
-        my $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$mysqlConffile", \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
-        error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
-        return $rs if $rs;
-    }
+    my $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$mysqlConffile", \my $stdout, \my $stderr );
+    debug( $stdout ) if $stdout;
+    error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
+    return $rs if $rs;
 
     # Disable unwanted plugins
 

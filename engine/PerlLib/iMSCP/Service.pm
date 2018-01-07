@@ -29,7 +29,7 @@ use iMSCP::Debug qw/ error getMessageByType /;
 use iMSCP::Execute;
 use iMSCP::ProgramFinder;
 use Module::Load::Conditional qw/ can_load /;
-use parent qw/ iMSCP::Common::SingletonClass iMSCP::Providers::Service::Interface /;
+use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::Service::Interface /;
 
 $Module::Load::Conditional::FIND_VERSION = 0;
 $Module::Load::Conditional::VERBOSE = 0;
@@ -323,8 +323,8 @@ sub getProvider
     my ($self, $providerName) = @_;
 
     my $provider = 'iMSCP::Providers::Service::'
-        . "@{[ $main::imscpConfig{'DISTRO_FAMILY'} && $main::imscpConfig{'DISTRO_FAMILY'} ? $main::imscpConfig{'DISTRO_FAMILY'}.'::': '' ]}"
-        . "@{[$providerName // $self->{'init'}]}";
+        . "@{[ $main::imscpConfig{'DISTRO_FAMILY'} ne '' ? $main::imscpConfig{'DISTRO_FAMILY'}.'::': '' ]}"
+        . "@{[ $providerName // $self->{'init'} ]}";
 
     unless ( can_load( modules => { $provider => undef } ) ) {
         # Fallback to the base provider
@@ -507,6 +507,7 @@ sub _executeDelayedActions
 =cut
 
 END {
+    return;
     return unless exists $main::imscpConfig{'DISTRO_FAMILY'};
 
     __PACKAGE__->getInstance()->_executeDelayedActions();

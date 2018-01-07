@@ -44,7 +44,7 @@ use JSON;
 use iMSCP::Packages::FrontEnd;
 use iMSCP::Servers::Sqld;
 use version;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 our $VERSION = '~1.0.0';
 

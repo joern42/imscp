@@ -188,7 +188,10 @@ $bootstrapper->boot( {
     nolock          => 1
 } );
 
-@EXECS = ( iMSCP::ProgramFinder::find( 'iptables' ), ( $main::imscpConfig{'IPV6_SUPPORT'} ? iMSCP::ProgramFinder::find( 'ip6tables' ) : undef ) );
+@EXECS = (
+    iMSCP::ProgramFinder::find( 'iptables' ),
+    ( $main::imscpConfig{'IPV6_SUPPORT'} eq 'yes' ? iMSCP::ProgramFinder::find( 'ip6tables' ) : undef )
+);
 
 my %dispatch = (
     start => sub { stop() || start() },

@@ -29,7 +29,7 @@ use Class::Autouse qw/ :nostat iMSCP::Packages::PhpMyAdmin::Installer iMSCP::Pac
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::EventManager;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

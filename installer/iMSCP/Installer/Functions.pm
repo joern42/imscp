@@ -71,61 +71,76 @@ my $DISTRO_INSTALLER;
 sub loadConfig
 {
     # Gather system information
-    my $systemInfo = eval {
-        decode_json( `facter --json osfamily lsbdistid lsbdistrelease lsbdistcodename virtual 2> /dev/null` )
-    } or die( sprintf( "Couldn't gather system information: %s", $@ ));
+    my $sysInfo = eval { decode_json( `facter --json osfamily lsbdistid lsbdistrelease lsbdistcodename virtual 2> /dev/null` ) } or die(
+        sprintf( "Couldn't gather system information: %s", $@ )
+    );
 
     # Load the master configuration file
     tie %main::imscpConfig, 'iMSCP::Config', fileName => "$FindBin::Bin/configs/imscp.conf", readonly => 1, temporary => 1;
 
-    if ( -f "$FindBin::Bin/configs/$systemInfo->{'lsbdistid'}/imscp.conf" ) {
+    if ( -f "$FindBin::Bin/configs/$sysInfo->{'lsbdistid'}/imscp.conf" ) {
         # Override default configuration parameters by distribution specific parameters
-        tie my %distroConfig, 'iMSCP::Config', fileName => "$FindBin::Bin/configs/$systemInfo->{'lsbdistid'}/imscp.conf", readonly => 1;
-        %main::imscpConfig = ( %main::imscpConfig, %distroConfig );
-        undef( %distroConfig );
+        tie my %distroConfig, 'iMSCP::Config', fileName => "$FindBin::Bin/configs/$sysInfo->{'lsbdistid'}/imscp.conf", readonly => 1, temporary => 1;
+        @main::imscpConfig{keys %distroConfig} = values %distroConfig;
+        #untie( %distroConfig );
+        
+        delete $distroConfig{'DISTRO_FAMILY'};
+        $distroConfig{'DISTRO_FAMILY'} = 'whatever';
+        use Data::Dumper;
+        print Dumper(\%distroConfig);
     }
 
-    if ( -f "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
-        # Load recovering configuration file.
-        tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf", readonly => 1, temporary => 1;
-    } elsif ( -f "$main::imscpConfig{'CONF_DIR'}/imscp.conf" ) {
+    exit;
+    # Load old configuration
+    if ( -f "$main::imscpConfig{'CONF_DIR'}/imscp.conf" ) {
         # Load the current configuration file
         tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => 1, temporary => 1;
     } else {
-        # Frech installation case.
+        # Frech installation case
         %main::imscpOldConfig = %main::imscpConfig;
     }
 
     if ( tied( %main::imscpOldConfig ) ) {
-        # Reset volatile configuration parameters
-        for ( qw/ BuildDate Version CodeName PluginApi THEME_ASSETS_VERSION / ) {
-            $main::imscpOldConfig{$_} = '' if exists $main::imscpOldConfig{$_};
-        }
-
         debug( 'Merging old configuration with new configuration ...' );
+
+        # Parameters that we want  keep in old configuration
+        my @toKeep = @main::imscpOldConfig{ qw/ BuildDate Version CodeName PluginApi / };
+
+        # Force reset of volatile configuration parameters
+        delete @main::imscpOldConfig{ @toKeep };
+
+        exit;
+        # Fill the new configuration parameters with values from old configuration
         while ( my ($key, $value) = each( %main::imscpOldConfig ) ) {
-            next unless exists $main::imscpConfig{$key};
-            $main::imscpConfig{$key} = $value unless $value eq '';
+            $main::imscpConfig{$key} = $value if exists $main::imscpConfig{$key};
         }
 
-        # Make sure that all configuration parameters exist in hash holding old configuration
+        # Make sure that the old configuration contains all expected parameters
         while ( my ($param, $value) = each( %main::imscpConfig ) ) {
             $main::imscpOldConfig{$param} = $value unless exists $main::imscpOldConfig{$param};
         }
+
+        # Re-inject parameters that we wanted to keep in old configuration
+        @main::imscpOldConfig{ qw/ BuildDate Version CodeName PluginApi / } = @toKeep;
     }
+exit;
+    # Set distribution lsb info and system info
+    @main::imscpConfig{qw/ DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
+        $sysInfo->{'lsbdistid'},
+        $sysInfo->{'lsbdistcodename'},
+        $sysInfo->{'lsbdistrelease'},
+        iMSCP::Service->getInstance()->getInitSystem(),
+        $sysInfo->{'virtual'} || ''
+    );
 
-    # Set distribution lsb info
-    $main::imscpConfig{'DISTRO_FAMILY'} = $systemInfo->{'osfamily'} unless $main::imscpConfig{'DISTRO_FAMILY'} ne '';
-    $main::imscpConfig{'DISTRO_CODENAME'} = $systemInfo->{'lsbdistcodename'};
-    $main::imscpConfig{'DISTRO_ID'} = $systemInfo->{'lsbdistid'};
-    $main::imscpConfig{'DISTRO_RELEASE'} = $systemInfo->{'lsbdistrelease'};
-
-    # Set system info
-    $main::imscpConfig{'SYSTEM_INIT'} = iMSCP::Service->getInstance()->getInitSystem();
-    $main::imscpConfig{'SYSTEM_VIRTUALIZER'} = $systemInfo->{'virtual'} || '';
+    $main::imscpConfig{'DISTRO_FAMILY'} = $sysInfo->{'osfamily'} unless $main::imscpConfig{'DISTRO_FAMILY'} ne '';
 
     # Load listener files
     iMSCP::EventManager->getInstance();
+    
+    use Data::Dumper;
+    print Dumper(\%main::imscpConfig);
+    exit;
 }
 
 =item build( )
@@ -205,20 +220,11 @@ sub build
     $rs = iMSCP::EventManager->getInstance()->trigger( 'afterPostBuild' );
     return $rs if $rs;
 
-    my %confmap = (
-        imscp    => \%main::imscpConfig,
-        imscpOld => \%main::imscpOldConfig
-    );
-
     # Write configuration
-    while ( my ($name, $config) = each %confmap ) {
-        if ( $name eq 'imscpOld' ) {
-            local $UMASK = 027;
-            iMSCP::File->new( filename => "$main::{'SYSTEM_CONF'}/$name.conf" )->save();
-        }
-
-        tie my %config, 'iMSCP::Config', fileName => "$main::{'SYSTEM_CONF'}/$name.conf";
-        @config{ keys %{$config} } = values %{$config};
+    {
+        local $UMASK = 027;
+        tie my %config, 'iMSCP::Config', fileName => "$main::{'SYSTEM_CONF'}/imscp.conf";
+        @config{ keys %main::imscpConfig } = values %main::imscpConfig;
         untie %config;
     }
 
@@ -710,7 +716,7 @@ sub _savePersistentData
         "$destdir$main::imscpConfig{'ROOT_DIR'}/gui/data/logs", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'ROOT_DIR'}/gui/data/logs";
 
-    # Save persistent data
+    # Save GUI persistent data
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent" )->rcopy(
         "$destdir$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent";
@@ -746,6 +752,9 @@ sub _savePersistentData
 
 sub _removeObsoleteFiles
 {
+
+    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+
     for ( "$main::imscpConfig{'CACHE_DATA_DIR'}/addons",
         "$main::imscpConfig{'CONF_DIR'}/apache/backup",
         "$main::imscpConfig{'CONF_DIR'}/apache/skel/alias/phptmp",

@@ -96,7 +96,7 @@ sub run
         next unless $_->can( 'getTraffic' );
         eval {
             # Initialize intermediate traffic database
-            tie %{$trafficDb{$_}}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/$_-vrl-traff.db", nodie => 1;
+            tie %{$trafficDb{$_}}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/$_-vrl-traff.db", nocroak => 1;
             %{$trafficDb{$_}} = ( %domains, %{$trafficDb{$_}} );
             $_->factory()->getTraffic( $trafficDb{$_} );
         };

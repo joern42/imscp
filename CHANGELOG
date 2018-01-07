@@ -4,7 +4,7 @@
 Git 1.6.x
 ------------------------------------------------------------------------------------------------------------------------
 
-BACKEND
+BACKEND 
     Added: composer.phar compatibility symlink for backward compatibility with plugins
     Added: getBlocByRef(), processByRef() and replaceBlocByRef() subroutines (iMSCP::TemplateParser)
     Added: Support for .timer unit files (Systemd init provider)
@@ -46,6 +46,7 @@ CONFIG
     Added: LOGROTATE(8) configuration file for rsyslog (Ubuntu 14.04/Trusty Thar)
     Added: LOGROTATE(8) configuration file for syslog-ng (All distributions)
     Added: Missing pbuilder configuration file -- Devuan 1.0/Jessie
+    Added: Missing pop3d, popd-ssl, imapd local configuration files (courier alternative)
     Added: Support for PHP 7.2 (only for distributions that support it)
     Enhancement: Make it possible to override default config by including *.conf files from the /etc/dovecot/imscp.d directory (Dovecot)
     Enhancement: Make it possible to override most of default Apache2 Fcgid module configuration parameters (/etc/imscp/php/php.data)
@@ -114,6 +115,7 @@ INSTALLER
     Added: `create_if` attribute -- Allows to conditionally create a folder (folder xml node from install.xml files)
     Added: Missing patches for pam-mysql -- Devuan 1.0/Jessie
     Added: `pre_remove' attribute -- Allows to remove previous directory (folder xml node from install.xml files)
+    Enhancement: Make it possible to disable IPv6 support globally, regadless of its availability (Local iMSCP::Servers::Server)
     Enhancement: Make it possible to provide per distribution (codename) configuration file
     Enhancement: Make it possible to replace IP address of all client with new primary IP (iMSCP::Servers::Server::local::installer)
     Enhancement: Provide good default values for installer whenever possible

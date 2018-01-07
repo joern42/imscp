@@ -58,7 +58,7 @@ sub getPriority
 
  Create and return an i-MSCP $serverClass server instance
 
- This method is not intented to be called on concret iMSCP::Servers::Abstract
+ This method is not intented to be called on final iMSCP::Servers::Abstract
  server classes.
 
  Param string $serverClass OPTIONAL Server class, default to selected server alternative
@@ -110,7 +110,7 @@ sub install
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the install() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the install() method', ref $self ));
 }
 
 =item postinstall( )
@@ -149,7 +149,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the uninstall() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the uninstall() method', ref $self ));
 }
 
 =item setEnginePermissions( )
@@ -164,7 +164,7 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the setEnginePermissions() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the setEnginePermissions() method', ref $self ));
 }
 
 =item start( )
@@ -179,7 +179,7 @@ sub start
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the start() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the start() method', ref $self ));
 }
 
 =item stop( )
@@ -194,7 +194,7 @@ sub stop
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the stop() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the stop() method', ref $self ));
 }
 
 =item restart( )
@@ -209,7 +209,7 @@ sub restart
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the restart() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the restart() method', ref $self ));
 }
 
 =item reload( )
@@ -224,7 +224,7 @@ sub reload
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the reload() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the reload() method', ref $self ));
 }
 
 =item getHumanizedServerName( )
@@ -239,23 +239,38 @@ sub getHumanizedServerName
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s package must implement the getHumanizedServerName() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the getHumanizedServerName() method', ref $self ));
+}
+
+=item getVersion()
+
+ Get server version
+
+ Return string Server version
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
 }
 
 =item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
 
  Build the given server configuration file
  
- This method should be implemented by all servers relying on configuration files.
+ This method should be implemented by all servers relying on configuration file(s).
  
  The following events *MUST* be triggered:
   - onLoadTemplate('<SNAME>', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params )
   - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
-  - after<SNAME>dBuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
+  - after<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
 
  Param string $srcFile Absolute source filepath or source filepath relative to the i-MSCP server configuration directory
  Param string $trgFile Target file path
- Param hashref \%mdata OPTIONAL Data as provided by i-MSCP modules
+ Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%params OPTIONAL parameters:
   - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
@@ -318,6 +333,29 @@ sub AUTOLOAD
 sub DESTROY
 {
     debug( sprintf( 'Destroying %s server instance', ref $_[0] ));
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _init( )
+
+ Initialize instance
+
+ Return iMSCP::Servers::Php::Abstract, croak on failure
+
+=cut
+
+sub _init
+{
+    my ($self) = @_;
+
+    return $self unless ref $self eq __PACKAGE__;
+
+    croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 }
 
 =item END

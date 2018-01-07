@@ -30,7 +30,7 @@ use File::Spec;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Execute;
 use iMSCP::File;
-use parent qw/ iMSCP::Common::SingletonClass iMSCP::Providers::Service::Interface /;
+use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::Service::Interface /;
 
 =head1 DESCRIPTION
 

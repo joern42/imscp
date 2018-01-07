@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Server - i-MSCP server factory implementation
+ iMSCP::Servers::Server - Factory and abstract implementation for the i-MSCP server servers
 
 =cut
 
@@ -29,7 +29,7 @@ use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
 
- i-MSCP server factory implementation.
+ This class provides a factory and an abstract implementation for the i-MSCP server servers.
 
 =head1 CLASS METHODS
 
@@ -46,6 +46,29 @@ use parent 'iMSCP::Servers::Abstract';
 sub getPriority
 {
     350;
+}
+
+=back
+
+=head PRIVATE METHODS
+
+=over
+
+=item _init( )
+
+ Initialize instance
+
+ Return iMSCP::Servers::Cron::Abstract, croak on failure
+
+=cut
+
+sub _init
+{
+    my ($self) = @_;
+
+    $self->SUPER::_init();
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+    $self;
 }
 
 =back

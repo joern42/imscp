@@ -36,7 +36,7 @@ use version;
 #
 
 # Max connection per IP
-my $maxConnections = 50;
+my $MAX_CONNECTION_PER_IP = 50;
 
 #
 ## Please, don't edit anything below this line
@@ -52,7 +52,7 @@ iMSCP::EventManager->getInstance()->registerOne(
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'DOVECOT_CONF_DIR'};
         my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/20_dovecot_connection_listener.conf" );
         $file->set( <<"EOT" );
-mail_max_userip_connections = $maxConnections
+mail_max_userip_connections = $MAX_CONNECTION_PER_IP
 EOT
         $file->save();
     }

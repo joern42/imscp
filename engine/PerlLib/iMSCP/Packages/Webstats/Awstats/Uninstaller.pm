@@ -31,7 +31,7 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Servers::Cron;
 use iMSCP::Servers::Httpd;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
@@ -123,6 +123,8 @@ sub _removeVhost
 
 sub _restoreDebianConfig
 {
+    return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+
     if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" ) {
         my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" )->moveFile(
             "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf"

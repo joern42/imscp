@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use Module::Load::Conditional qw/ can_load /;
 use Scalar::Util 'blessed';
-use parent qw/ iMSCP::Common::SingletonClass iMSCP::Providers::NetworkInterface::Interface /;
+use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::NetworkInterface::Interface /;
 
 $Module::Load::Conditional::FIND_VERSION = 0;
 

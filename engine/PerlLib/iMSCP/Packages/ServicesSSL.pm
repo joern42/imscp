@@ -31,7 +31,7 @@ use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::OpenSSL;
 use Net::LibIDN qw/ idn_to_unicode /;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

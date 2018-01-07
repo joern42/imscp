@@ -48,7 +48,7 @@ use iMSCP::Packages::FrontEnd;
 use iMSCP::Servers::Mta;
 use iMSCP::Servers::Named;
 use version;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
@@ -1177,7 +1177,7 @@ sub _buildHttpdConfig
 
             return 0 unless grep($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
 
-            if ( $baseServerIpVersion eq 'ipv6' || !main::setupGetQuestion( 'IPV6_SUPPORT' ) ) {
+            if ( $baseServerIpVersion eq 'ipv6' || main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'no' ) {
                 replaceBlocByRef( '# SECTION IPv6 BEGIN.', '# SECTION IPv6 END.', '', $cfgTpl );
             }
 

@@ -25,25 +25,157 @@ package iMSCP::Servers::Mta::Postfix::Debian;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
+use File::Basename;
+use iMSCP::Debug qw/ debug error /;
+use iMSCP::Execute qw/ execute /;
+use iMSCP::File;
 use iMSCP::Service;
+use version;
 use parent 'iMSCP::Servers::Mta::Postfix::Abstract';
 
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Postfix server implementation.
 
-=head1 SHUTDOWN TASKS
+=head1 PUBLIC METHODS
 
 =over 4
 
+=item install( )
+
+ See iMSCP::Servers::Abstract::install()
+
+=cut
+
+sub install
+{
+    my ($self) = @_;
+
+    my $rs = $self->SUPER::install();
+    $rs ||= $self->_cleanup();
+}
+
+=item postinstall( )
+
+ See iMSCP::Servers::Abstract::postinstall()
+
+=cut
+
+sub postinstall
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->enable( 'postfix' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    $self->SUPER::postinstall();
+}
+
+=item uninstall( )
+
+ See iMSCP::Servers::Abstract::uninstall()
+
+=cut
+
+sub uninstall
+{
+    my ($self) = @_;
+
+    my $rs = $self->SUPER::uninstall();
+    $rs ||= $self->_restoreConffiles();
+
+    unless ( $rs || !iMSCP::Service->getInstance()->hasService( 'postfix' ) ) {
+        $self->{'restart'} ||= 1;
+    } else {
+        @{$self}{qw/ restart reload /} = ( 0, 0 );
+    }
+
+    $rs;
+}
+
+=item start( )
+
+ See iMSCP::Servers::Abstract::start()
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->start( 'postfix' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item stop( )
+
+ See iMSCP::Servers::Abstract::stop()
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->stop( 'postfix' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Abstract::restart()
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->restart( 'postfix' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Abstract::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->reload( 'postfix' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
 =item shutdown( $priority )
 
- Restart or reload the Postfix server when needed
-
- This method is called automatically before the program exit.
-
- Param int $priority Server priority
- Return void
+ See iMSCP::Servers::Abstract::shutdown()
 
 =cut
 
@@ -54,6 +186,53 @@ sub shutdown
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
     iMSCP::Service->getInstance()->registerDelayedAction( 'postfix', [ $action, sub { $self->$action(); } ], $priority );
+}
+
+=back
+
+=head PRIVATE METHODS
+
+=over 4
+
+=item _cleanup( )
+
+ Process cleanup tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _cleanup
+{
+    my ($self) = @_;
+
+    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' ) && -f "$self->{'cfgDir'}/postfix.old.data";
+
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/postfix.old.data" )->delFile();
+}
+
+=item _restoreConffiles( )
+
+ Restore configuration files
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _restoreConffiles
+{
+    return 0 unless -d '/etc/postfix';
+
+    for ( '/usr/share/postfix/main.cf.debian', '/usr/share/postfix/master.cf.dist' ) {
+        next unless -f;
+        my $rs = iMSCP::File->new( filename => $_ )->copyFile( '/etc/postfix/' . basename( $_ ), { preserve => 'no' } );
+        return $rs if $rs;
+    }
+
+    my $rs = execute( 'newaliases', \ my $stdout, \ my $stderr );
+    debug( $stdout ) if $stdout;
+    error( $stderr || 'Unknown error' ) if $rs;
+    $rs;
 }
 
 =back

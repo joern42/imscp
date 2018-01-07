@@ -30,7 +30,7 @@ use File::Temp;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw / execute escapeShell /;
 use POSIX ':signal_h';
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

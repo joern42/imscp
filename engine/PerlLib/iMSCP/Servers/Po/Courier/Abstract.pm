@@ -29,6 +29,7 @@ use Array::Utils qw/ unique /;
 use autouse Fcntl => qw/ O_RDONLY /;
 use autouse 'iMSCP::Crypt' => qw/ ALNUM randomStr /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
+use Carp qw/ croak /;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isOneOfStringsInList isStringNotInList isValidPassword isValidUsername /;
 use File::Basename;
 use File::Spec;
@@ -51,7 +52,7 @@ use iMSCP::Servers::Mta;
 use iMSCP::Servers::Sqld;
 use Sort::Naturally;
 use Tie::File;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Servers::Po';
 
 %main::sqlUsers = () unless %main::sqlUsers;
 
@@ -281,22 +282,48 @@ sub setEnginePermissions
     0;
 }
 
-=item addMail( \%data )
+=item getHumanizedServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanizedServerName()
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    'Courier IMAP/POP';
+}
+
+=item getVersion( )
+
+ See iMSCP::Servers::Abstract::getVersion()
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    'TODO';
+}
+
+=item addMail( \%moduleData )
 
  Process addMail tasks
 
- Param hash \%data Mail data
+ Param hashref \%moduleData Mail data
  Return int 0 on success, other on failure
 
 =cut
 
 sub addMail
 {
-    my ($self, $data) = @_;
+    my ($self, $moduleData) = @_;
 
-    return 0 unless index( $data->{'MAIL_TYPE'}, '_mail' ) != -1;
+    return 0 unless index( $moduleData->{'MAIL_TYPE'}, '_mail' ) != -1;
 
-    my $mailDir = "$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$data->{'DOMAIN_NAME'}/$data->{'MAIL_ACC'}";
+    my $mailDir = "$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}";
     my $mailUidName = $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'};
     my $mailGidName = $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'};
 
@@ -345,12 +372,12 @@ sub addMail
     $rs ||= $subscriptionsFile->mode( 0640 );
     return $rs if $rs;
 
-    if ( $data->{'MAIL_QUOTA'} ) {
+    if ( $moduleData->{'MAIL_QUOTA'} ) {
         if ( $self->{'forceMailboxesQuotaRecalc'}
-            || ( defined $main::execmode && $main::execmode eq 'backend' && $data->{'STATUS'} eq 'tochange' )
+            || ( defined $main::execmode && $main::execmode eq 'backend' && $moduleData->{'STATUS'} eq 'tochange' )
             || !-f "$mailDir/maildirsize"
         ) {
-            $rs = execute( [ 'maildirmake', '-q', "$data->{'MAIL_QUOTA'}S", $mailDir ], \ my $stdout, \ my $stderr );
+            $rs = execute( [ 'maildirmake', '-q', "$moduleData->{'MAIL_QUOTA'}S", $mailDir ], \ my $stdout, \ my $stderr );
             debug( $stdout ) if $stdout;
             error( $stderr || 'Unknown error' ) if $rs;
             return $rs if $rs;
@@ -388,7 +415,7 @@ sub start
 {
     my ($self) = @_;
 
-    die( sprintf( 'The %s package must implement the start() method', $self ));
+    croak( sprintf( 'The %s class must implement the start() method', $self ));
 }
 
 =item stop( )
@@ -407,7 +434,7 @@ sub stop
 {
     my ($self) = @_;
 
-    die( sprintf( 'The %s package must implement the stop() method', $self ));
+    croak( sprintf( 'The %s class must implement the stop() method', $self ));
 }
 
 =item restart( )
@@ -426,17 +453,17 @@ sub restart
 {
     my ($self) = @_;
 
-    die( sprintf( 'The %s package must implement the restart() method', $self ));
+    croak( sprintf( 'The %s class must implement the restart() method', $self ));
 }
 
-=item getTraffic( $trafficDb [, $logFile, $trafficIndexDb ] )
+=item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
 
  Get IMAP/POP3 traffic data
 
  Param hashref \%trafficDb Traffic database
  Param string $logFile Path to SMTP log file (only when self-called)
- Param hashref $trafficIndexDb Traffic index database (only when self-called)
- Return void, die on failure
+ Param hashref \%trafficIndexDb Traffic index database (only when self-called)
+ Return void, croak on failure
 
 =cut
 
@@ -453,10 +480,10 @@ sub getTraffic
     debug( sprintf( 'Processing IMAP/POP3 %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nodie => 1;
+    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
     my ($idx, $idxContent) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
 
-    tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
+    tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or croak( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
 
     # Retain index of the last log (log file can continue growing)
     my $lastLogIdx = $#logs;
@@ -516,8 +543,10 @@ sub _init
 {
     my ($self) = @_;
 
-    @{$self}{qw/ restart forceMailboxesQuotaRecalc mta /} = ( 0, 0, iMSCP::Servers::Mta->factory() );
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/courier";
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+
+    $self->SUPER::_init();
+    @{$self}{qw/ restart forceMailboxesQuotaRecalc mta cfgDir /} = ( 0, 0, iMSCP::Servers::Mta->factory(), "$main::imscpConfig{'CONF_DIR'}/courier" );
     $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/courier.data.dist";
     tie %{$self->{'config'}},
         'iMSCP::Config',
@@ -531,7 +560,7 @@ sub _init
 
  Merge distribution configuration with production configuration
 
- Die on failure
+ Return void, croak on failure
 
 =cut
 
@@ -554,7 +583,7 @@ sub _mergeConfig
         untie( %oldConfig );
     }
 
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.data.dist" )->moveFile( "$self->{'cfgDir'}/courier.data" ) == 0 or die(
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.data.dist" )->moveFile( "$self->{'cfgDir'}/courier.data" ) == 0 or croak(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 }
@@ -636,7 +665,7 @@ sub _buildConf
     $rs ||= $self->_buildSslConfFiles();
     return $rs if $rs;
 
-    my $data = {
+    my $serverData = {
         DATABASE_HOST        => main::setupGetQuestion( 'DATABASE_HOST' ),
         DATABASE_PORT        => main::setupGetQuestion( 'DATABASE_PORT' ),
         DATABASE_USER        => $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'},
@@ -667,7 +696,7 @@ sub _buildConf
         local $UMASK = 027; # authmysqlrc file must not be created/copied world-readable
 
         for my $conffile( keys %cfgFiles ) {
-            $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', $conffile, \ my $cfgTpl, $data );
+            $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', $conffile, \ my $cfgTpl, $serverData );
             return $rs if $rs;
 
             unless ( defined $cfgTpl ) {
@@ -681,7 +710,7 @@ sub _buildConf
             $rs = $self->{'eventManager'}->trigger( 'beforeCourierBuildConf', \ $cfgTpl, $conffile );
             return $rs if $rs;
 
-            processByRef( $data, \$cfgTpl );
+            processByRef( $serverData, \$cfgTpl );
 
             $rs = $self->{'eventManager'}->trigger( 'afterCourierBuildConf', \ $cfgTpl, $conffile );
             return $rs if $rs;
@@ -696,8 +725,11 @@ sub _buildConf
         }
     }
 
-    if ( -f "$self->{'cfgDir'}/imapd.local" ) {
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'COURIER_CONF_DIR'}/imapd" );
+    # Build local courier configuration files
+    for my $sname( qw/ imapd imapd-ssl pop3d pop3d-ssl / ) {
+        next unless -f "$self->{'cfgDir'}/$sname.local" && -f "$self->{'config'}->{'COURIER_CONF_DIR'}/$sname";
+
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'COURIER_CONF_DIR'}/$_" );
         my $fileContentRef = $file->getAsRef();
         unless ( defined $fileContentRef ) {
             error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
@@ -714,13 +746,31 @@ sub _buildConf
         ${$fileContentRef} .= <<"EOF";
 
 # iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN
-. $self->{'cfgDir'}/imapd.local
+. $self->{'cfgDir'}/$_.local
 # iMSCP::Servers::Po::Courier::Abstract::installer - ENDING
 EOF
         $rs = $file->save();
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
         $rs ||= $file->mode( 0644 );
         return $rs if $rs;
+
+        tie my %localConf, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$sname.local", nospaces => 1;
+
+        if ( main::setupGetQuestion( 'IPV6_SUPPORT' ) ne 'yes' ) {
+            if ( grep( $sname eq $_, 'imapd', 'pop3d' ) ) {
+                $localConf{'ADDRESS'} = '0.0.0.0';
+            } else {
+                $localConf{'SSLADDRESS'} = '0.0.0.0';
+            }
+        } else {
+            for ( qw/ ADDRESS SSLADDRESS / ) {
+                next unless exists $localConf{$_} && $localConf eq '0.0.0.0';
+                delete $localConf{$_};
+            }
+        }
+
+        $self->{'eventManager'}->trigger( 'onCourierBuildLocalConf', $sname, \%localConf );
+        untie( %localConf );
     }
 
     0;
@@ -973,55 +1023,7 @@ sub _migrateFromDovecot
     $rs;
 }
 
-=item _cleanup( )
 
- Processc cleanup tasks
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub _cleanup
-{
-    my ($self) = @_;
-
-    if ( -f "$self->{'cfgDir'}/courier.old.data" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.old.data" )->delFile();
-        return $rs if $rs;
-    }
-
-    if ( -f "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" ) {
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" );
-        $file->set( '' );
-        my $rs = $file->save();
-        $rs ||= $file->mode( 0600 );
-        return $rs if $rs;
-
-        $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" ], \ my $stdout, \ my $stderr );
-        debug( $stdout ) if $stdout;
-        error( $stderr || 'Unknown error' ) if $rs;
-        return $rs if $rs;
-    }
-
-    # Remove postfix user from authdaemon group.
-    # It is now added in mail group (since 1.5.0)
-    my $rs = iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'POSTFIX_USER'} );
-    return $rs if $rs;
-
-    # Remove old authdaemon socket private/authdaemon mount directory.
-    # Replaced by var/run/courier/authdaemon (since 1.5.0)
-    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'POSTFIX_QUEUE_DIR'}/private/authdaemon" );
-    $rs ||= umount( $fsFile );
-    return $rs if $rs;
-
-    eval { iMSCP::Dir->new( dirname => $fsFile )->remove(); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
 
 =item _dropSqlUser( )
 

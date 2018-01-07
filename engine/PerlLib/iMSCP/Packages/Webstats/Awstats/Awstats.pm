@@ -32,7 +32,7 @@ use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

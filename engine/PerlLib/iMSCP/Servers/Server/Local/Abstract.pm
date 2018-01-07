@@ -26,12 +26,13 @@ package iMSCP::Servers::Server::Local::Abstract;
 use strict;
 use warnings;
 use autouse 'iMSCP::Debug' => qw/ debug error /;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isValidIpAddr isValidHostname isValidTimezone /;
+use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList isValidIpAddr isValidHostname isValidTimezone /;
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
+use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net /;
 use LWP::Simple qw/ $ua get /;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Servers::Server';
 
 =head1 DESCRIPTION
 
@@ -53,16 +54,15 @@ sub registerSetupListeners
 {
     my ($self) = @_;
 
-    # Must be done here because installers can rely on this configuration parameter
-    main::setupSetQuestion( 'IPV6_SUPPORT', -f '/proc/net/if_inet6' ? 1 : 0 );
-
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
             push @{$_[0]},
-                sub { $self->hostnameDialog( @_ ) },
-                sub { $self->primaryIpDialog( @_ ) },
-                sub { $self->timezoneDialog( @_ ) };
+                sub { $self->hostnameDialog( @_ ); },
+                sub { $self->askIPv6Support( @_ ) },
+                sub { $self->primaryIpDialog( @_ ); },
+                sub { $self->timezoneDialog( @_ ); };
+
             0;
         },
         # We want show these dialog before the sqld server dialogs (sqld priority + 10)
@@ -88,7 +88,7 @@ sub hostnameDialog
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'system_hostname', 'hostnames', 'all', 'forced' ] )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'system_hostname', 'hostnames', 'servers', 'all', 'forced' ] )
         || !isValidHostname( $hostname )
     ) {
         my $rs = 0;
@@ -115,6 +115,44 @@ EOF
     0;
 }
 
+=item askIPv6Support(\%dialog)
+
+ Ask for IPv6 support
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 on success, other on failure
+
+=cut
+
+sub askIPv6Support
+{
+    my ($self, $dialog) = @_;
+
+    unless ( -f '/proc/net/if_inet6' ) {
+        main::setupSetQuestion( 'IPV6_SUPPORT', 'no' );
+        return 0;
+    }
+
+    my $value = main::setupGetQuestion( 'IPV6_SUPPORT', $self->{'config'}->{'IPV6_SUPPORT'} || ( iMSCP::Getopt->preseed ? 'yes' : '' ));
+    my %choices = ( 'yes', 'Yes', 'no', 'No' );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'ipv6', 'servers', 'all', 'forced' ] )
+        || !isStringInList( $value, keys %choices )
+    ) {
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'yes' );
+Do you want to enable IPv6 support?
+
+If you select the 'No' option, IPv6 support will be disabled globally. You'll not be able to add new IPv6 addresses and services will be configured to listen on IPv4 only.
+
+\\Z \\Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    main::setupSetQuestion( 'IPV6_SUPPORT', $value );
+    0;
+}
+
 =item primaryIpDialog( \%dialog )
 
  Ask for server primary IP
@@ -128,8 +166,13 @@ sub primaryIpDialog
 {
     my (undef, $dialog) = @_;
 
-    my @ipList = sort
-        grep(isValidIpAddr( $_, qr/(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)/ ), iMSCP::Net->getInstance()->getAddresses()), 'None';
+    my @ipList = ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes'
+            ? grep(isValidIpAddr( $_, qr/(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)/ ), iMSCP::Net->getInstance()->getAddresses())
+            : grep(isValidIpAddr( $_, qr/(?:PRIVATE|PUBLIC)/ ), iMSCP::Net->getInstance()->getAddresses())
+        ,
+        'None'
+    );
+    @ipList = sort @ipList;
     unless ( @ipList ) {
         error( "Couldn't get list of server IP addresses. At least one IP address must be configured." );
         return 1;
@@ -149,7 +192,9 @@ sub primaryIpDialog
         )
     );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'all', 'forced' ] ) || !grep( $_ eq $lanIP, @ipList ) ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'servers', 'all', 'forced' ] )
+        || !grep( $_ eq $lanIP, @ipList )
+    ) {
         my $rs = 0;
 
         do {
@@ -174,7 +219,9 @@ EOF
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'all', 'forced' ] ) || !isValidIpAddr( $wanIP ) ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'servers', 'all', 'forced' ] )
+        || !isValidIpAddr( $wanIP )
+    ) {
         my $rs = 0;
 
         do {
@@ -227,7 +274,9 @@ sub timezoneDialog
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'timezone', 'all', 'forced' ] ) || !isValidTimezone( $timezone ) ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'timezone', 'servers', 'all', 'forced' ] )
+        || !isValidTimezone( $timezone )
+    ) {
         my $rs = 0;
 
         do {
@@ -285,6 +334,32 @@ sub install
     $rs ||= $self->_setupPrimaryIP();
 }
 
+=item getHumanizedServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanizedServerName()
+
+=cut
+
+sub getHumanizedServerName
+{
+    my ($self) = @_;
+
+    sprintf( '%s server', $main::imscpConfig{'DISTRO_ID'} );
+}
+
+=item getVersion( )
+
+ See iMSCP::Servers::Abstract::getVersion()
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    $main::imscpConfig{'DISTRO_RELEASE'};
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -303,8 +378,9 @@ sub _init
 {
     my ($self) = @_;
 
-    return $self unless defined $main::execmode && $main::execmode eq 'setup';
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
+    $self->SUPER::_init();
     $ua->timeout( 5 );
     $ua->agent( 'i-MSCP/1.6 (+https://i-mscp.net/)' );
     $ua->ssl_opts(
@@ -396,7 +472,7 @@ sub _setupPrimaryIP
 
     eval {
         my $netCard = ( $primaryIP eq '0.0.0.0' ) ? 'any' : iMSCP::Net->getInstance()->getAddrDevice( $primaryIP );
-        defined $netCard or die( sprintf( "Couldn't find network card for the `%s' IP address", $primaryIP ));
+        defined $netCard or croak( sprintf( "Couldn't find network card for the `%s' IP address", $primaryIP ));
 
         my $db = iMSCP::Database->getInstance();
         my $oldDbName = $db->useDatabase( main::setupGetQuestion( 'DATABASE_NAME' ));

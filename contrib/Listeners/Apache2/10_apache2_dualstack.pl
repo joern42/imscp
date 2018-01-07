@@ -39,9 +39,9 @@ my @GLOBAL_IPS = (
     'IP2'
 );
 
-# Parameter that allows to add one or many IPs to the Apache2 vhost file of the specified domains
-# Please replace the entries below by your own entries
-my %PER_DMN_IPS = (
+# Parameter that allows to add one or many IPs to the Apache2 vhost file of the
+# specified domains. Please replace the entries below by your own entries
+my %PER_DOMAIN_IPS = (
     'domain1.tld' => [ 'IP1', 'IP2' ],
     'domain2.tld' => [ 'IP1', 'IP2' ]
 );
@@ -60,7 +60,7 @@ iMSCP::EventManager->getInstance()->register(
         my ($data, $domainIps) = @_;
 
         push @{$domainIps}, @GLOBAL_IPS if @GLOBAL_IPS;
-        push @{$domainIps}, @{$PER_DMN_IPS{$data->{'DOMAIN_NAME'}}} if $PER_DMN_IPS{$data->{'DOMAIN_NAME'}};
+        push @{$domainIps}, @{$PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}}} if $PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}};
         0;
     }
 );

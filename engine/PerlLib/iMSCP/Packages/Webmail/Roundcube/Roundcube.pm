@@ -29,7 +29,7 @@ use Class::Autouse qw/ :nostat iMSCP::Packages::Webmail::Roundcube::Installer iM
 use iMSCP::Config;
 use iMSCP::Database;
 use iMSCP::Debug qw/ error /;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 

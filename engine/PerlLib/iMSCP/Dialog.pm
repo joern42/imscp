@@ -29,7 +29,7 @@ use iMSCP::Debug qw/ error /;
 use iMSCP::Execute;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
-use parent 'iMSCP::Common::SingletonClass';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
@@ -310,7 +310,6 @@ sub startGauge
         $percent // 0 or die( "Couldn't start gauge" );
 
     $self->{'gauge'}->autoflush( 1 );
-    $SIG{'PIPE'} = sub { $self->endGauge(); };
     0;
 }
 
@@ -664,6 +663,17 @@ sub _textbox
     my ($ret, $output) = $self->_execute( $text, $init, $type );
     $self->{'autosize'} = $autosize;
     wantarray ? ( $ret, $output ) : $output;
+}
+
+=item DESTROY()
+
+ Destroy dialog object
+
+=cut
+
+sub DESTROY
+{
+    $_[0]->endGauge();
 }
 
 =back
