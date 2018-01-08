@@ -43,7 +43,11 @@ my %_SERVER_INSTANCES;
 
 =item getPriority( )
 
- Get server priority
+ Return the server priority
+  
+ The server priority determines the priority at which the server will be
+ treated by the installer, DB tasks processor and some other scripts. It
+ also determines the server's priority for start, restart and reload tasks.
 
  Return int Server priority
 
@@ -56,7 +60,7 @@ sub getPriority
 
 =item factory( [ $serverClass = $main::imscpConfig{$class} ] )
 
- Create and return an i-MSCP $serverClass server instance
+ Creates and returns a concrete iMSCP::Servers::Abstract ($serverClass) server instance
 
  This method is not intented to be called on final iMSCP::Servers::Abstract
  server classes.
@@ -85,7 +89,7 @@ sub factory
 
 =item preinstall( )
 
- Process server pre-installation tasks
+ Process the server pre-installation tasks
 
  Return int 0 on success, other on failure
 
@@ -100,7 +104,7 @@ sub preinstall
 
 =item install( )
 
- Process server installation tasks
+ Process the server installation tasks
 
  Return int 0 on success, other on failure
 
@@ -139,7 +143,7 @@ sub postinstall
 
 =item uninstall( )
 
- Process server uninstallation tasks
+ Process the server uninstallation tasks
 
  Return int 0 on success, other on failure
 
@@ -154,7 +158,7 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- Set server permissions
+ Sets the server permissions, that is, the permissions on server directories and files
 
  Return int 0 on success, other on failure
 
@@ -229,7 +233,7 @@ sub reload
 
 =item getHumanizedServerName( )
 
- Get humanized server name
+ Return the humanized name of this server
 
  Return string Humanized server name
 
@@ -244,7 +248,7 @@ sub getHumanizedServerName
 
 =item getVersion()
 
- Get server version
+ Return the version of this server
 
  Return string Server version
 
@@ -289,26 +293,6 @@ sub buildConfFile
     0;
 }
 
-=item shutdown( $priority )
-
- Reload or restart the server
-
- This method is called automatically when the program exits. It *MUST* be
- implemented by all servers that require a reload or restart when their
- configuration has been changed.
-
- Param int $priority Server priority
- Return void
-
-=cut
-
-sub shutdown
-{
-    my ($self) = @_;
-
-    0;
-}
-
 =item AUTOLOAD()
 
  Implements autoloading for inexistent methods
@@ -324,7 +308,7 @@ sub AUTOLOAD
 
 =item DESTROY
 
- Short-circuit AUTOLOADING
+ Destroy the server instance
  
  Return void
 
@@ -343,7 +327,7 @@ sub DESTROY
 
 =item _init( )
 
- Initialize instance
+ Initialize the server instance
 
  Return iMSCP::Servers::Php::Abstract, croak on failure
 
@@ -358,9 +342,29 @@ sub _init
     croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 }
 
+=item _shutdown( $priority )
+
+ Reload or restart the server
+
+ This method is called automatically when the program exits. It *MUST* be
+ implemented by all servers that require a reload or restart when their
+ configuration has been changed.
+
+ Param int $priority Server priority
+ Return void
+
+=cut
+
+sub _shutdown
+{
+    my ($self) = @_;
+
+    0;
+}
+
 =item END
 
- Process shutdown tasks
+ Calls the _shutdown() method on all servers that implement it
 
  Return void
 
@@ -369,7 +373,7 @@ sub _init
 END {
     return if $? || !%_SERVER_INSTANCES || ( defined $main::execmode && $main::execmode eq 'setup' );
 
-    $_->shutdown( $_->getPriority()) for values %_SERVER_INSTANCES;
+    $_->_shutdown( $_->getPriority()) for values %_SERVER_INSTANCES;
 }
 
 =back
