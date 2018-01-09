@@ -25,9 +25,11 @@ package iMSCP::Servers::Abstract;
 
 use strict;
 use warnings;
+use Carp qw/ confess croak /;
+use File::Spec;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::EventManager;
-use Carp qw/ confess croak /;
+use iMSCP::TemplateParser qw/ processByRef /;
 use parent 'iMSCP::Common::Singleton';
 
 # Server instances
@@ -87,9 +89,32 @@ sub factory
 
 =over 4
 
+=item registerSetupListeners( )
+
+ Register setup event listeners
+ 
+ This method is automatically called by the i-MSCP installer and reconfiguration script.
+ That is the place where event listeners for setup dialog should be registered.
+ 
+ Any server relying on i-MSCP setup dialog *MUST* implement this method.
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub registerSetupListeners
+{
+    my ($self) = @_;
+
+    0;
+}
+
 =item preinstall( )
 
  Process the server pre-installation tasks
+ 
+ This method is automatically called by the i-MSCP installer and reconfiguration script.
+ Any server requiring pre-installation tasks *SHOULD* implement it.
 
  Return int 0 on success, other on failure
 
@@ -106,6 +131,9 @@ sub preinstall
 
  Process the server installation tasks
 
+ This method is automatically called by the i-MSCP installer and reconfiguration script.
+ Any server requiring installation tasks *SHOULD* implement it.
+
  Return int 0 on success, other on failure
 
 =cut
@@ -114,12 +142,15 @@ sub install
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the install() method', ref $self ));
+    0;
 }
 
 =item postinstall( )
 
  Process server post-installation tasks
+
+ This method is automatically called by the i-MSCP installer and reconfiguration script.
+ Any server requiring post-installation tasks *SHOULD* implement it.
 
  Return int 0 on success, other on failure
 
@@ -132,7 +163,7 @@ sub postinstall
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanizedServerName() ];
+            push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ];
             0;
         },
         $self->getPriority()
@@ -145,6 +176,9 @@ sub postinstall
 
  Process the server uninstallation tasks
 
+ This method is automatically called by the i-MSCP uninstaller.
+ Any server requiring uninstallation tasks *SHOULD* implement it.
+
  Return int 0 on success, other on failure
 
 =cut
@@ -153,12 +187,15 @@ sub uninstall
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the uninstall() method', ref $self ));
+    0;
 }
 
 =item setEnginePermissions( )
 
  Sets the server permissions, that is, the permissions on server directories and files
+
+ This method is automatically called by the i-MSCP engine permission management script.
+ Any server relying on configuration files or scripts *SHOULD* implement it.
 
  Return int 0 on success, other on failure
 
@@ -168,7 +205,54 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the setEnginePermissions() method', ref $self ));
+    0;
+}
+
+=item getEventServerName( )
+
+ Return event server name
+
+ This name is most used in abstract classes for event names construction.
+
+ Return string server name for event names construction
+
+=cut
+
+sub getEventServerName
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the getEventServerName() method', ref $self ));
+}
+
+=item getHumanServerName( )
+
+ Return the humanized name of this server
+
+ Return string Humanized server name
+
+=cut
+
+sub getHumanServerName
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the getHumanServerName() method', ref $self ));
+}
+
+=item getVersion()
+
+ Return the version of this server
+
+ Return string Server version
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
 }
 
 =item start( )
@@ -231,46 +315,16 @@ sub reload
     croak ( sprintf( 'The %s class must implement the reload() method', ref $self ));
 }
 
-=item getHumanizedServerName( )
-
- Return the humanized name of this server
-
- Return string Humanized server name
-
-=cut
-
-sub getHumanizedServerName
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the getHumanizedServerName() method', ref $self ));
-}
-
-=item getVersion()
-
- Return the version of this server
-
- Return string Server version
-
-=cut
-
-sub getVersion
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
-}
-
 =item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
 
  Build the given server configuration file
- 
- This method should be implemented by all servers relying on configuration file(s).
  
  The following events *MUST* be triggered:
   - onLoadTemplate('<SNAME>', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params )
   - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
   - after<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
+
+  where <SNAME> is the server name as returned by the ::getEventServerName() method.
 
  Param string $srcFile Absolute source filepath or source filepath relative to the i-MSCP server configuration directory
  Param string $trgFile Target file path
@@ -278,9 +332,9 @@ sub getVersion
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%params OPTIONAL parameters:
   - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
-  - user  : File owner (default: root)
-  - group : File group (default: root
-  - mode  : File mode (default: 0644)
+  - user  : File owner, default: root
+  - group : File group, default: root
+  - mode  : File mode, default: 0666 & (~umask())
   - cached : Whether or not loaded file must be cached in memory
  Return int 0 on success, other on failure
 
@@ -288,7 +342,60 @@ sub getVersion
 
 sub buildConfFile
 {
-    my ($self) = @_;
+    my ($self, $srcFile, $trgFile, $mdata, $sdata, $params) = @_;
+    $mdata //= {};
+    $sdata //= {};
+    $params //= {};
+
+    my $sname = $self->getEventServerName();
+    my ($filename, $path) = fileparse( $srcFile );
+    my $cfgTpl;
+
+    if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
+        $cfgTpl = $self->{'_templates'}->{$srcFile};
+    } else {
+        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', $sname, $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
+        return $rs if $rs;
+
+        unless ( defined $cfgTpl ) {
+            $srcFile = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
+            $cfgTpl = iMSCP::File->new( filename => $srcFile )->get();
+            unless ( defined $cfgTpl ) {
+                error( sprintf( "Couldn't read the %s file", $srcFile ));
+                return 1;
+            }
+        }
+
+        $self->{'_templates'}->{$srcFile} = $cfgTpl if $params->{'cached'};
+    }
+
+    my $rs = $self->{'eventManager'}->trigger(
+        "before${sname}BuildConfFile", \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+    );
+    return $rs if $rs;
+
+    processByRef( $sdata, \$cfgTpl ) if %{$sdata};
+    processByRef( $mdata, \$cfgTpl ) if %{$mdata};
+
+    $rs = $self->{'eventManager'}->trigger(
+        "after${sname}dBuildConfFile", \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+    );
+    return $rs if $rs;
+
+    my $fh = iMSCP::File->new( filename => $trgFile );
+    $fh->set( $cfgTpl );
+    $rs ||= $fh->save( $params->{'umask'} // undef );
+    return $rs if $rs;
+
+    if ( exists $params->{'user'} || exists $params->{'group'} ) {
+        $rs = $fh->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} );
+        return $rs if $rs;
+    }
+
+    if ( exists $params->{'mode'} ) {
+        $rs = $fh->mode( $params->{'mode'} );
+        return $rs if $rs;
+    }
 
     0;
 }
@@ -316,7 +423,9 @@ sub AUTOLOAD
 
 sub DESTROY
 {
-    debug( sprintf( 'Destroying %s server instance', ref $_[0] ));
+    my ($self) = @_;
+
+    debug( sprintf( '%s server instance', ref $self ));
 }
 
 =back

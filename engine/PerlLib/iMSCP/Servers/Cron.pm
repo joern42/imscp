@@ -25,10 +25,11 @@ package iMSCP::Servers::Cron;
 
 use strict;
 use warnings;
+use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
-use File::Basename;
-use File::Spec;
+use iMSCP::Debug qw/ error /;
 use iMSCP::File;
+use iMSCP::TemplateParser qw/ replaceBlocByRef /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
@@ -39,7 +40,99 @@ use parent 'iMSCP::Servers::Abstract';
 
 =over 4
 
-=item addTask( \%data [, $filepath = '/path/to/default/cron/file' ] )
+=item install( )
+
+ See iMSCP::Servers::Abstract::install()
+
+=cut
+
+sub install
+{
+    my ($self) = @_;
+
+    my $rs = $self->_setVersion();
+    $rs ||= $self->buildConfFile( 'imscp', "$main::imscpConfig{'CRON_D_DIR'}/imscp", undef,
+        {
+            QUOTA_ROOT_DIR  => $main::imscpConfig{'QUOTA_ROOT_DIR'},
+            LOG_DIR         => $main::imscpConfig{'LOG_DIR'},
+            TRAFF_ROOT_DIR  => $main::imscpConfig{'TRAFF_ROOT_DIR'},
+            TOOLS_ROOT_DIR  => $main::imscpConfig{'TOOLS_ROOT_DIR'},
+            BACKUP_MINUTE   => $main::imscpConfig{'BACKUP_MINUTE'},
+            BACKUP_HOUR     => $main::imscpConfig{'BACKUP_HOUR'},
+            BACKUP_ROOT_DIR => $main::imscpConfig{'BACKUP_ROOT_DIR'},
+            CONF_DIR        => $main::imscpConfig{'CONF_DIR'},
+            BACKUP_FILE_DIR => $main::imscpConfig{'BACKUP_FILE_DIR'}
+        },
+        {
+            umask => 0027,
+            mode  => 0640
+        }
+    );
+}
+
+=item uninstall( )
+
+ See iMSCP::Servers::Abstract::uninstall()
+
+=cut
+
+sub uninstall
+{
+    my ($self) = @_;
+
+    return 0 unless -f "$main::imscpConfig{'CRON_D_DIR'}/imscp";
+
+    iMSCP::File->new( filename => "$main::imscpConfig{'CRON_D_DIR'}/imscp" )->delFile();
+}
+
+=item setEnginePermissions( )
+
+ See iMSCP::Servers::Abstract::setEnginePermissions()
+
+=cut
+
+sub setEnginePermissions
+{
+    my ($self) = @_;
+
+    return 0 unless -f "$main::imscpConfig{'CRON_D_DIR'}/imscp";
+
+    setRights( "$main::imscpConfig{'CRON_D_DIR'}/imscp",
+        {
+            user  => $main::imscpConfig{'ROOT_USER'},
+            group => $main::imscpConfig{'ROOT_GROUP'},
+            mode  => '0640'
+        }
+    );
+}
+
+=item getEventServerName( )
+
+ See iMSCP::Servers::Abstract::getEventServerName()
+
+=cut
+
+sub getEventServerName
+{
+    my ($self) = @_;
+
+    'Cron';
+}
+
+=item getVersion( )
+
+ See iMSCP::Servers::Abstract::getVersion()
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    $self->{'config'}->{'CRON_VERSION'};
+}
+
+=item addTask( \%data [, $filepath = $main::imscpConfig{'CRON_D_DIR'} ] )
 
  Add a new cron task
 
@@ -52,16 +145,36 @@ use parent 'iMSCP::Servers::Abstract';
   - DWEEK   : OPTIONAL Day of week - ignored if the MINUTE field defines a shortcut - (Default: *)
   - USER    : OPTIONAL Use under which the command must be run (default: root)
   - COMMAND : Command to run
-  Param string $filepath OPTIONAL Cron file path (default: i-MSCP master cron file path). If provided, $filepath must exist.
+  Param string $filepath OPTIONAL Cron file path (default should be i-MSCP cron file). If provided, $filepath must exist.
   Return int 0 on success, other on failure
 
 =cut
 
 sub addTask
 {
-    my ($self) = @_;
+    my ($self, $data, $filepath) = @_;
+    $data = {} unless ref $data eq 'HASH';
+    $filepath //= "$main::imscpConfig{'CRON_D_DIR'}/imscp";
 
-    croak ( sprintf( 'The %s class must implement the addTask() method', ref $self ));
+    unless ( exists $data->{'COMMAND'} && exists $data->{'TASKID'} ) {
+        error( 'Missing COMMAND or TASKID data' );
+        return 1;
+    }
+
+    $data->{'MINUTE'} //= '@daily';
+    $data->{'HOUR'} //= '*';
+    $data->{'DAY'} //= '*';
+    $data->{'MONTH'} //= '*';
+    $data->{'DWEEK'} //= '*';
+    $data->{'USER'} //= $main::imscpConfig{'ROOT_USER'};
+
+    eval { $self->_validateCronTask( $data ); };
+    if ( $@ ) {
+        error( sprintf( 'Invalid cron tasks: %s', $@ ));
+        return 1;
+    }
+
+    $self->buildConfFile( $filepath, $filepath, undef, $data );
 }
 
 =item deleteTask( \%data [, $filepath = '/path/to/default/cron/file' ] )
@@ -70,16 +183,23 @@ sub addTask
 
  Param hashref \%data Cron task data:
   - TASKID Cron task unique identifier
- Param string $filepath OPTIONAL Cron file path (default: imscp cron file)
+ Param string $filepath OPTIONAL Cron file path (default should be i-MSCP cron file)
  Return int 0 on success, other on failure
 
 =cut
 
 sub deleteTask
 {
-    my ($self) = @_;
+    my ($self, $data, $filepath) = @_;
+    $data = {} unless ref $data eq 'HASH';
+    $filepath //= "$main::imscpConfig{'CRON_D_DIR'}/imscp";
 
-    croak ( sprintf( 'The %s class must implement the deleteTask() method', ref $self ));
+    unless ( exists $data->{'TASKID'} ) {
+        error( 'Missing TASKID data' );
+        return 1;
+    }
+
+    $self->buildConfFile( $filepath, $filepath, undef, $data );
 }
 
 =item enableSystemCronTask( $cronTask [, $directory = ALL ] )
@@ -116,67 +236,6 @@ sub disableSystemCronTask
     croak ( sprintf( 'The %s class must implement the disableSystemCronTask() method', ref $self ));
 }
 
-=item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
-
- See iMSCP::Servers::Abstract::buildConfFile()
-
-=cut
-
-sub buildConfFile
-{
-    my ($self, $srcFile, $trgFile, $mdata, $sdata, $params) = @_;
-    $mdata //= {};
-    $sdata //= {};
-    $params //= {};
-
-    my ($filename, $path) = fileparse( $srcFile );
-    my $cfgTpl;
-
-    if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
-        $cfgTpl = $self->{'_templates'}->{$srcFile};
-    } else {
-        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'cron', $filename, \$cfgTpl, $mdata, $sdata, {}, $params );
-        return $rs if $rs;
-
-        unless ( defined $cfgTpl ) {
-            $srcFile = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
-            $cfgTpl = iMSCP::File->new( filename => $srcFile )->get();
-            unless ( defined $cfgTpl ) {
-                error( sprintf( "Couldn't read the %s file", $srcFile ));
-                return 1;
-            }
-        }
-
-        $self->{'_templates'}->{$srcFile} = $cfgTpl if $params->{'cached'};
-    }
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforeCronBuildConfFile', \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, {}, $params );
-    return $rs if $rs;
-
-    processByRef( $sdata, \$cfgTpl ) if %{$sdata};
-    processByRef( $mdata, \$cfgTpl ) if %{$mdata};
-
-    $rs = $self->{'eventManager'}->trigger( 'afterCronBuildConfFile', \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, {}, $params );
-    return $rs if $rs;
-
-    my $fh = iMSCP::File->new( filename => $trgFile );
-    $fh->set( $cfgTpl );
-    $rs ||= $fh->save( $params->{'umask'} // undef );
-    return $rs if $rs;
-
-    if ( exists $params->{'user'} || exists $params->{'group'} ) {
-        $rs = $fh->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} );
-        return $rs if $rs;
-    }
-
-    if ( exists $params->{'mode'} ) {
-        $rs = $fh->mode( $params->{'mode'} );
-        return $rs if $rs;
-    }
-
-    0;
-}
-
 =back
 
 =head1 PRIVATE METHODS
@@ -195,10 +254,64 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+
     @{$self}{qw/ cfgDir _templates /} = ( "$main::imscpConfig{'CONF_DIR'}/cron", {} );
-    $self;
+    $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/cron.data.dist";
+    tie %{$self->{'config'}},
+        'iMSCP::Config',
+        fileName    => "$self->{'cfgDir'}/cron.data",
+        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
+        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+    $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
+    $self->SUPER::_init();
+}
+
+=item _mergeConfig()
+
+ Merge distribution configuration with production configuration
+
+ Croak on failure
+
+=cut
+
+sub _mergeConfig
+{
+    my ($self) = @_;
+
+    if ( -f "$self->{'cfgDir'}/cron.data" ) {
+        tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/cron.data.dist";
+        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/cron.data", readonly => 1;
+
+        debug( 'Merging old configuration with new configuration ...' );
+
+        while ( my ($key, $value) = each( %oldConfig ) ) {
+            next unless exists $newConfig{$key};
+            $newConfig{$key} = $value;
+        }
+
+        untie( %newConfig );
+        untie( %oldConfig );
+    }
+
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/cron.data.dist" )->moveFile( "$self->{'cfgDir'}/cron.data" ) == 0 or croak(
+        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+    );
+}
+
+=item _setVersion( )
+
+ Set Cron version
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _setVersion
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
 }
 
 =item _validateCronTask( )
@@ -287,6 +400,55 @@ sub _validateField
             croak( sprintf( "Invalid value '%s' given for the '%s' cron task field", $value, $name ));
         }
     }
+}
+
+=back
+
+=head1 EVENT LISTENERS
+
+=over 4
+
+=item beforeCronBuildConfFile( $cronServer, \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $sconfig, $params )
+
+ Event listener that listen on the beforeCronBuildConfFile to process cron tasks
+
+ Param iMSCP::Servers::Cron::Vixie::Debian $cronServer Cron server instance
+ Param scalar \$cfgTpl Reference to cron file content
+ Param string $filename Cron file name
+ Param string $trgFile Target file path
+ Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules
+ Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
+ Param hashref \%sconfig Cron server configuration
+ Param hashref \%params OPTIONAL parameters:
+  - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
+  - user  : File owner (default: root)
+  - group : File group (default: root
+  - mode  : File mode (default: 0644)
+  - cached : Whether or not loaded file must be cached in memory
+
+=cut
+
+sub beforeCronBuildConfFile
+{
+    my ($cronServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params) = @_;
+
+    # Return early if that event listener has not been triggered in the context of the ::addTask() or ::deleteTask() actions.
+    return 0 unless exists $sdata->{'TASKID'};
+
+    # Make sure that entry is not added twice in the context of the ::addTask() action.
+    # Delete the cron task in context of the ::deleteTask() action.
+    replaceBlocByRef( qr/^\s*\Q# imscp [$sdata->{'TASKID'}] entry BEGIN\E\n/m, qr/\Q# imscp [$sdata->{'TASKID'}] entry ENDING\E\n/, '', $cfgTpl );
+
+    # Return early if that event listener has not been triggered in the context of the ::addTask() action.
+    return 0 unless exists $sdata->{'COMMAND'};
+
+    ( ${$cfgTpl} .= <<"EOF" ) =~ s/^(\@[^\s]+)\s+/$1 /gm;
+
+# imscp [$sdata->{'TASKID'}] entry BEGIN
+$sdata->{'MINUTE'} $sdata->{'HOUR'} $sdata->{'DAY'} $sdata->{'MONTH'} $sdata->{'DWEEK'} $sdata->{'USER'} $sdata->{'COMMAND'}
+# imscp [$sdata->{'TASKID'}] entry ENDING
+EOF
+    0;
 }
 
 =back

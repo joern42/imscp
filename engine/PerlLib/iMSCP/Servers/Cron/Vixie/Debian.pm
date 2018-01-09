@@ -25,14 +25,10 @@ package iMSCP::Servers::Cron::Vixie::Debian;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Service /;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Execute qw/ execute /;
-use iMSCP::File;
-use iMSCP::TemplateParser qw/ replaceBlocByRef /;
-use version;
+use iMSCP::Service;
 use parent 'iMSCP::Servers::Cron';
 
 =head1 DESCRIPTION
@@ -44,33 +40,6 @@ use parent 'iMSCP::Servers::Cron';
 =head1 PUBLIC METHODS
 
 =over 4
-
-=item install( )
-
- See iMSCP::Servers::Abstract::install()
-
-=cut
-
-sub install
-{
-    my ($self) = @_;
-
-    my $rs = $self->buildConfFile( 'imscp', '/etc/cron.d/imscp', {},
-        {
-            QUOTA_ROOT_DIR  => $main::imscpConfig{'QUOTA_ROOT_DIR'},
-            LOG_DIR         => $main::imscpConfig{'LOG_DIR'},
-            TRAFF_ROOT_DIR  => $main::imscpConfig{'TRAFF_ROOT_DIR'},
-            TOOLS_ROOT_DIR  => $main::imscpConfig{'TOOLS_ROOT_DIR'},
-            BACKUP_MINUTE   => $main::imscpConfig{'BACKUP_MINUTE'},
-            BACKUP_HOUR     => $main::imscpConfig{'BACKUP_HOUR'},
-            BACKUP_ROOT_DIR => $main::imscpConfig{'BACKUP_ROOT_DIR'},
-            CONF_DIR        => $main::imscpConfig{'CONF_DIR'},
-            BACKUP_FILE_DIR => $main::imscpConfig{'BACKUP_FILE_DIR'}
-        },
-        { umask => 0027, mode => 0640 }
-    );
-    $rs ||= $self->_cleanup();
-}
 
 =item postinstall( )
 
@@ -91,53 +60,17 @@ sub postinstall
     $self->SUPER::postinstall();
 }
 
-=item uninstall( )
+=item getHumanServerName( )
 
- See iMSCP::Servers::Abstract::uninstall()
-
-=cut
-
-sub uninstall
-{
-    my ($self) = @_;
-
-    return 0 unless -f '/etc/cron.d/imscp';
-
-    iMSCP::File->new( filename => '/etc/cron.d/imscp' )->delFile();
-}
-
-=item setEnginePermissions( )
-
- See iMSCP::Servers::Abstract::setEnginePermissions()
+ See iMSCP::Servers::Abstract::getHumanServerName()
 
 =cut
 
-sub setEnginePermissions
+sub getHumanServerName
 {
     my ($self) = @_;
 
-    return 0 unless -f '/etc/cron.d/imscp';
-
-    setRights( '/etc/cron.d/imscp',
-        {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => '0640'
-        }
-    );
-}
-
-=item getHumanizedServerName( )
-
- See iMSCP::Servers::Abstract::getHumanizedServerName()
-
-=cut
-
-sub getHumanizedServerName
-{
-    my ($self) = @_;
-
-    'Cron (Vixie)';
+    sprintf( 'Cron (Vixie) %s', $self->getVersion());
 }
 
 =item start( )
@@ -216,58 +149,6 @@ sub reload
     0;
 }
 
-=item addTask( \%data [, $filepath = '/etc/cron.d/imscp' ] )
-
- See iMSCP::Servers::Cron::addTask()
-
-=cut
-
-sub addTask
-{
-    my ($self, $data, $filepath) = @_;
-    $data = {} unless ref $data eq 'HASH';
-    $filepath ||= '/etc/cron.d/imscp';
-
-    unless ( exists $data->{'COMMAND'} && exists $data->{'TASKID'} ) {
-        error( 'Missing COMMAND or TASKID data' );
-        return 1;
-    }
-
-    $data->{'MINUTE'} //= '@daily';
-    $data->{'HOUR'} //= '*';
-    $data->{'DAY'} //= '*';
-    $data->{'MONTH'} //= '*';
-    $data->{'DWEEK'} //= '*';
-    $data->{'USER'} //= $main::imscpConfig{'ROOT_USER'};
-
-    eval { $self->_validateCronTask( $data ); };
-    if ( $@ ) {
-        error( sprintf( 'Invalid cron tasks: %s', $@ ));
-        return 1;
-    }
-
-    $self->buildConfFile( $filepath, $filepath, {}, $data );
-}
-
-=item deleteTask( \%data [, $filepath = '/etc/cron.d/imscp' ] )
-
- See iMSCP::Servers::Cron::deleteTask()
-
-=cut
-
-sub deleteTask
-{
-    my ($self, $data, $filepath) = @_;
-    $data = {} unless ref $data eq 'HASH';
-    $filepath ||= '/etc/cron.d/imscp';
-
-    unless ( exists $data->{'TASKID'} ) {
-        error( 'Missing TASKID data' );
-        return 1;
-    }
-
-    $self->buildConfFile( $filepath, $filepath, {}, $data );
-}
 
 =item enableSystemCronTask( $cronTask [, $directory = ALL ] )
 
@@ -354,88 +235,31 @@ sub disableSystemCronTask
 
 =back
 
-=head1 PRIVATE METHODS
+=head PRIVATE METHODS
 
 =over 4
 
-=item _init()
+=item _setVersion( )
 
- Initialize instance
-
- Return iMSCP::Servers::Cron::Vixie::Debian
+ See iMSCP::Servers::Cron::_setVersion()
 
 =cut
 
-sub _init
+sub _setVersion
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
-    $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
-    $self;
-}
+    my $rs = execute( '/usr/bin/dpkg -s cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
+    error( $stderr || 'Unknown error' ) if $rs;
+    return $rs if $rs;
 
-=item _cleanup
+    if ( $stdout !~ /version:\s+([\d.]+)/i ) {
+        error( "Couldn't guess Cron (Vixie) version from the `/usr/bin/dpkg -s cron | grep -i '^version'` command output" );
+        return 1;
+    }
 
- Process cleanup tasks
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub _cleanup
-{
-    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' ) && -f '/etc/imscp/cron/cron.data';
-
-    iMSCP::File->new( filename => '/etc/imscp/cron/cron.data' )->delFile();
-}
-
-=back
-
-=head1 EVENT LISTENERS
-
-=over 4
-
-=item beforeCronBuildConfFile( $cronServer, \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $sconfig, $params )
-
- Event listener that listen on the beforeCronBuildConfFile to process cron tasks
-
- Param iMSCP::Servers::Cron::Vixie::Debian $cronServer Cron server instance
- Param scalar \$cfgTpl Reference to cron file content
- Param string $filename Cron file name
- Param string $trgFile Target file path
- Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules
- Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
- Param hashref \%sconfig Cron server configuration
- Param hashref \%params OPTIONAL parameters:
-  - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
-  - user  : File owner (default: root)
-  - group : File group (default: root
-  - mode  : File mode (default: 0644)
-  - cached : Whether or not loaded file must be cached in memory
-
-=cut
-
-sub beforeCronBuildConfFile
-{
-    my ($cronServer, \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $sconfig, $params) = @_;
-
-    # Return early if that event listener has not been triggered in the context of the ::addTask() or ::deleteTask() actions.
-    return 0 unless exists $sdata->{'TASKID'};
-
-    # Make sure that entry is not added twice in the context of the ::addTask() action.
-    # Delete the cron task in context of the ::deleteTask() action.
-    replaceBlocByRef( qr/^\s*\Q# imscp [$sdata->{'TASKID'}] entry BEGIN\E\n/m, qr/\Q# imscp [$sdata->{'TASKID'}] entry ENDING\E\n/, '', $cfgTpl );
-
-    # Return early if that event listener has not been triggered in the context of the ::addTask() action.
-    return 0 unless exists $sdata->{'COMMAND'};
-
-    ( ${$cfgTpl} .= <<"EOF" ) =~ s/^(\@[^\s]+)\s+/$1 /gm;
-
-# imscp [$data->{'TASKID'}] entry BEGIN
-$sdata->{'MINUTE'} $sdata->{'HOUR'} $sdata->{'DAY'} $data->{'MONTH'} $sdata->{'DWEEK'} $sdata->{'USER'} $sdata->{'COMMAND'}
-# imscp [$sdata->{'TASKID'}] entry ENDING
-EOF
+    $self->{'config'}->{'CRON_VERSION'} = $1;
+    debug( sprintf( 'Cron (Vixie) version set to: %s', $1 ));
     0;
 }
 

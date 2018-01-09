@@ -26,8 +26,9 @@ package iMSCP::Servers::Cron::Systemd::Debian;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Service /;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug qw/ debug error /;
+use iMSCP::Execute qw/ execute /;
+use iMSCP::Service;
 use parent 'iMSCP::Servers::Cron::Vixie::Debian';
 
 =head1 DESCRIPTION
@@ -56,19 +57,25 @@ sub postinstall
         return 1;
     }
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]}, [ sub { $self->start() }, $self->getHumanizedServerName() ];
-            0;
-        },
-        $self->getPriority()
-    );
+    $self->iMSCP::Servers::Cron::postinstall();
+}
+
+=item getHumanServerName( )
+
+ See iMSCP::Servers::Cron::Vixie::Debian::getHumanServerName()
+
+=cut
+
+sub getHumanServerName
+{
+    my ($self) = @_;
+
+    sprintf( 'Cron (Systemd) %s', $self->getVersion());
 }
 
 =item start( )
 
- See iMSCP::Servers::Abstract::start()
+ See iMSCP::Servers::Cron::Vixie::Debian::start()
 
 =cut
 
@@ -137,17 +144,34 @@ sub reload
     $self->restart();
 }
 
-=item getHumanizedServerName( )
+=back
 
- See iMSCP::Servers::Abstract::getHumanizedServerName()
+=head PRIVATE METHODS
+
+=over 4
+
+=item _setVersion( )
+
+ See iMSCP::Servers::Cron::Vixie::Debian::_setVersion()
 
 =cut
 
-sub getHumanizedServerName
+sub _setVersion
 {
     my ($self) = @_;
 
-    'Cron (Systemd)';
+    my $rs = execute( '/usr/bin/dpkg -s systemd-cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
+    error( $stderr || 'Unknown error' ) if $rs;
+    return $rs if $rs;
+
+    if ( $stdout !~ /version:\s+([\d.]+)/i ) {
+        error( "Couldn't guess Cron (Systemd) version from the `/usr/bin/dpkg -s systemd-cron | grep -i '^version'` command output" );
+        return 1;
+    }
+
+    $self->{'config'}->{'CRON_VERSION'} = $1;
+    debug( sprintf( 'Cron (Systemd) version set to: %s', $1 ));
+    0;
 }
 
 =back
