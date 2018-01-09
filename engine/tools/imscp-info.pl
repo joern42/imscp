@@ -2,11 +2,11 @@
 
 =head1 NAME
 
- imscp-info - Display information about i-MSCP installation
+ imscp-info.pl - Display information about current i-MSCP instance
 
 =head1 SYNOPSIS
 
- imscp-mountall [options]... start|stop
+ perl imscp-info.pl
 
 =cut
 
