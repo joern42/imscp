@@ -145,7 +145,7 @@ sub getVersion
   - DWEEK   : OPTIONAL Day of week - ignored if the MINUTE field defines a shortcut - (Default: *)
   - USER    : OPTIONAL Use under which the command must be run (default: root)
   - COMMAND : Command to run
-  Param string $filepath OPTIONAL Cron file path (default should be i-MSCP cron file). If provided, $filepath must exist.
+  Param string $filepath OPTIONAL Cron file path, default to i-MSCP master cron file. If provided, $filepath must exist.
   Return int 0 on success, other on failure
 
 =cut
@@ -183,7 +183,7 @@ sub addTask
 
  Param hashref \%data Cron task data:
   - TASKID Cron task unique identifier
- Param string $filepath OPTIONAL Cron file path (default should be i-MSCP cron file)
+ Param string $filepath OPTIONAL Cron file path, default to i-MSCP master cron file.
  Return int 0 on success, other on failure
 
 =cut
@@ -421,9 +421,9 @@ sub _validateField
  Param hashref \%sconfig Cron server configuration
  Param hashref \%params OPTIONAL parameters:
   - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
-  - user  : File owner (default: root)
-  - group : File group (default: root
-  - mode  : File mode (default: 0644)
+  - user  : File owner, default: root
+  - group : File group, default: root
+  - mode  : File mode, default: 0666 & (~umask())
   - cached : Whether or not loaded file must be cached in memory
 
 =cut
