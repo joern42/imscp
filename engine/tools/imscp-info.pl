@@ -49,7 +49,7 @@ iMSCP::Getopt->verbose( 1 );
 print <<'EOF';
 
 #################################################################
-###                    iMSCP Version Info                     ###
+###                    i-MSCP Version Info                    ###
 #################################################################
 
 EOF
@@ -62,18 +62,20 @@ print output "Plugin API                            : $main::imscpConfig{'Plugin
 print <<'EOF';
 
 #################################################################
-###                    iMSCP Servers Info                     ###
+###                    i-MSCP Servers Info                    ###
 #################################################################
 
 EOF
 
 for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+    my $srvInstance = $_->factory();
+
     print output "Server abstract implementation        : $_", 'info';
-    print output "Server croncrete implementation       : @{[ref $_->factory() ]}", 'info';
-    print output "Server implementation version         : @{[ $_->factory()->getImplVersion() ]}", 'info';
-    print output "Server name for event names construct : @{[ $_->factory()->getEventServerName() ]}", 'info';
-    print output "Server human name                     : @{[ $_->factory()->getHumanServerName() ]}", 'info';
-    print output "Server priority                       : @{[ $_->factory()->getPriority() ]}", 'info';
+    print output "Server croncrete implementation       : @{ [ ref $srvInstance ] }", 'info';
+    print output "Server implementation version         : @{ [ $srvInstance->getImplVersion() ] }", 'info';
+    print output "Server name for event names construct : @{ [ $srvInstance->getEventServerName() ] }", 'info';
+    print output "Server human name                     : @{ [ $srvInstance->getHumanServerName() ] }", 'info';
+    print output "Server priority                       : @{ [ $srvInstance->getPriority() ] }", 'info';
     print "\n";
 }
 
