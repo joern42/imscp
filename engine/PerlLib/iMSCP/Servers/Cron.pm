@@ -132,7 +132,7 @@ sub getVersion
     $self->{'config'}->{'CRON_VERSION'};
 }
 
-=item addTask( \%data [, $filepath = $main::imscpConfig{'CRON_D_DIR'} ] )
+=item addTask( \%data [, $filepath = "$main::imscpConfig{'CRON_D_DIR'}/imscp" ] )
 
  Add a new cron task
 
@@ -177,7 +177,7 @@ sub addTask
     $self->buildConfFile( $filepath, $filepath, undef, $data );
 }
 
-=item deleteTask( \%data [, $filepath = '/path/to/default/cron/file' ] )
+=item deleteTask( \%data [, $filepath = "$main::imscpConfig{'CRON_D_DIR'}/imscp" ] )
 
  Delete a cron task
 
@@ -314,10 +314,11 @@ sub _setVersion
     croak ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
 }
 
-=item _validateCronTask( )
+=item _validateCronTask( \%data )
 
  Validate cron task fields
 
+ Param hashref \%data Cron data
  Return void, croak if a field isn't valid
 
 =cut
@@ -331,16 +332,14 @@ sub _validateCronTask
         return;
     }
 
-    for ( qw/ minute hour day month dweek / ) {
-        $self->_validateField( $_, $data->{ uc( $_ ) } );
-    }
+    $self->_validateField( $_, $data->{ $_ } ) for qw/ MINUTE HOUR DAY MONTH DWEEK /;
 }
 
-=item _validateField( )
+=item _validateField( $name, $value )
 
  Validate the given cron task field
 
- Param string $name Fieldname
+ Param string $name Fieldname (uppercase)
  Param string $value Fieldvalue
  Return void, croak if the given field isn't valid
 
@@ -361,16 +360,16 @@ sub _validateField
     my @namesArr = ();
     my $pattern;
 
-    if ( $name eq 'minute' ) {
+    if ( $name eq 'MINUTE' ) {
         $pattern = '[ ]*(\b[0-5]?[0-9]\b)[ ]*';
-    } elsif ( $name eq 'hour' ) {
+    } elsif ( $name eq 'HOUR' ) {
         $pattern = '[ ]*(\b[01]?[0-9]\b|\b2[0-3]\b)[ ]*';
-    } elsif ( $name eq 'day' ) {
+    } elsif ( $name eq 'DAY' ) {
         $pattern = '[ ]*(\b[01]?[1-9]\b|\b2[0-9]\b|\b3[01]\b)[ ]*';
-    } elsif ( $name eq 'month' ) {
+    } elsif ( $name eq 'MONTH' ) {
         @namesArr = split '|', $months;
         $pattern = "([ ]*(\b[0-1]?[0-9]\b)[ ]*)|([ ]*($months)[ ]*)";
-    } elsif ( $name eq 'dweek' ) {
+    } elsif ( $name eq 'DWEEK' ) {
         @namesArr = split '|', $days;
         $pattern = "([ ]*(\b[0]?[0-7]\b)[ ]*)|([ ]*($days)[ ]*)";
     }
