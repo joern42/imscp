@@ -4,7 +4,7 @@
 Git 1.6.x
 ------------------------------------------------------------------------------------------------------------------------
 
-BACKEND 
+BACKEND
     Added: composer.phar compatibility symlink for backward compatibility with plugins
     Added: getBlocByRef(), processByRef() and replaceBlocByRef() subroutines (iMSCP::TemplateParser)
     Added: Support for .timer unit files (Systemd init provider)
@@ -25,7 +25,7 @@ BACKEND
     Fixed: Existence of network devices must be checked before operating on them (iMSCP::Net)
     Fixed: Make distinction between install and update commands (iMSCP::Composer)
     Fixed: Make sure to work with a well-known composer version (iMSCP::Composer)
-    Fixed: Make use of the INADDR_ANY address, regadless of domain IP address when primary server IP is set with `None` option
+    Fixed: Make use of the INADDR_ANY address, regardless of domain IP address when primary server IP is set with `None` option
     Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::Dir::rcopy)
     Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::File::copyFile)
     Fixed: Unexpected permissions set on folders in recursive mode, and when dirmode parameter is not involved (iMSCP::Rights)
@@ -200,6 +200,9 @@ SERVERS
     Rewritten: iMSCP::Servers::Ftpd::Postfix::getTraffic() routine: Avoid IO operations (AMAP), Reduce memory consumption
     Rewritten: iMSCP::Servers::Ftpd::Proftpd::getTraffic() routine: Avoid IO operations (AMAP); Reduce memory consumption
     Rewritten: iMSCP::Servers::Ftpd::vsftpd::getTraffic() routine: Avoid IO operations (AMAP); Reduce memory consumption
+
+TOOLS
+    Added: imscp-info.pl script to display information about i-MSCP instance
 
 VAGRANT
     Enhancement: Make users able to choice between many distributions
