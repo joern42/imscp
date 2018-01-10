@@ -41,6 +41,8 @@ use iMSCP::Umask;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Ftpd::Vsftpd::Abstract';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Vsftpd server implementation.
@@ -51,9 +53,7 @@ use parent 'iMSCP::Servers::Ftpd::Vsftpd::Abstract';
 
 =item registerSetupListeners( )
 
- Register setup event listeners
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::RegisterSetupListeners()
 
 =cut
 
@@ -282,14 +282,15 @@ sub uninstall
     }
 
     my $rs = $self->_dropSqlUser();
+    return $rs if $rs;
 
-    unless ( $rs || !iMSCP::Service->getInstance()->hasService( 'vsftpd' ) ) {
-        $self->{'restart'} ||= 1;
-    } else {
-        @{$self}{ qw/ start restart reload / } = ( 0, 0, 0 );
+    eval { $self->restart() if iMSCP::Service->getInstance()->hasService( 'vsftpd' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
     }
 
-    $rs ||= $self->{'eventManager'}->trigger( 'afterVsftpdUninstall' );
+    0;
 }
 
 =item setEnginePermissions( )
@@ -463,26 +464,6 @@ sub getTraffic
     $trafficIndexDb->{'vsftpd_lineContent'} = $logs[$lastLogIdx];
 }
 
-=item shutdown( $priority )
-
- Restart, reload or start the Vsftpd server when needed
-
- This method is called automatically before the program exit.
-
- Param int $priority Server priority
- Return void
-
-=cut
-
-sub shutdown
-{
-    my ($self, $priority) = @_;
-
-    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
-
-    iMSCP::Service->getInstance()->registerDelayedAction( 'vsftpd', [ $action, sub { $self->$action(); } ], $priority );
-}
-
 =back
 
 =head1 PRIVATE METHODS
@@ -500,13 +481,13 @@ sub _setVersion
     my ($self) = @_;
 
     # Version is print through STDIN (see: strace vsftpd -v)
-    my $rs = execute( 'vsftpd -v 0>&1', \ my $stdout, \ my $stderr );
+    my $rs = execute( '/usr/sbin/vsftpd -v 0>&1', \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ /([\d.]+)/ ) {
-        error( "Couldn't find VsFTPd version from `vsftpd -v 0>&1` command output." );
+        error( "Couldn't find VsFTPd version from the `/usr/sbin/vsftpd -v 0>&1` command output" );
         return 1;
     }
 
@@ -644,6 +625,21 @@ sub _cleanup
     return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' ) && -f "$self->{'cfgDir'}/vsftpd.old.data";
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/vsftpd.old.data" )->delFile();
+}
+
+=item _shutdown( $priority )
+
+ See iMSCP::Servers::Abstract::_shutdown()
+
+=cut
+
+sub _shutdown
+{
+    my ($self, $priority) = @_;
+
+    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
+
+    iMSCP::Service->getInstance()->registerDelayedAction( 'vsftpd', [ $action, sub { $self->$action(); } ], $priority );
 }
 
 =back

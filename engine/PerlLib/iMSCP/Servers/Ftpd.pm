@@ -60,8 +60,10 @@ sub getPriority
  Process addUser tasks
 
  The following event *MUST* be triggered:
-  - before<SNAME>AddFtpUser()
-  - after<SNAME>AddFtpUser()
+  - before<SNAME>AddFtpUser( \%moduleData )
+  - after<SNAME>AddFtpUser( \%moduleData )
+
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the Modules::User module
  Return int 0 on success, other on failure
@@ -81,8 +83,10 @@ sub addUser
  Add FTP user
 
  The following event *MUST* be triggered:
-  - before<SNAME>AddFtpUser()
-  - after<SNAME>AddFtpUser()
+  - before<SNAME>AddFtpUser( \%moduleData )
+  - after<SNAME>AddFtpUser( \%moduleData )
+
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the Modules::FtpUser module
  Return int 0 on success, other on failure
@@ -101,8 +105,10 @@ sub addFtpUser
  Disable FTP user
 
  The following event *MUST* be triggered:
-  - before<SNAME>disableFtpUser()
-  - after<SNAME>disableFtpUser()
+  - before<SNAME>disableFtpUser( \%moduleData )
+  - after<SNAME>disableFtpUser( \%moduleData )
+
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the Modules::FtpUser module
  Return int 0 on success, other on failure
@@ -121,8 +127,10 @@ sub disableFtpUser
  Delete FTP user
 
  The following event *MUST* be triggered:
-  - before<SNAME>deleteFtpUser()
-  - after<SNAME>deleteFtpUser()
+  - before<SNAME>deleteFtpUser( \%moduleData )
+  - after<SNAME>deleteFtpUser( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the Modules::FtpUser module
  Return int 0 on success, other on failure
@@ -156,7 +164,7 @@ sub getTraffic
 
 =back
 
-=head PRIVATE METHODS
+=head1 PRIVATE METHODS
 
 =over
 
@@ -172,9 +180,9 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-    $self;
+
+    $self->SUPER::_init();
 }
 
 =back

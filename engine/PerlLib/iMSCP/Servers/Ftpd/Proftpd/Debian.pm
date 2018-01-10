@@ -41,6 +41,8 @@ use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Ftpd::Proftpd::Abstract';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Proftpd server implementation.
@@ -51,9 +53,7 @@ use parent 'iMSCP::Servers::Ftpd::Proftpd::Abstract';
 
 =item registerSetupListeners( )
 
- Register setup event listeners
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::RegisterSetupListeners()
 
 =cut
 
@@ -262,14 +262,15 @@ sub uninstall
     }
 
     my $rs = $self->_dropSqlUser();
+    return $rs if $rs;
 
-    unless ( $rs || !iMSCP::Service->getInstance()->hasService( 'proftpd' ) ) {
-        $self->{'restart'} ||= 1;
-    } else {
-        @{$self}{ qw/ start restart reload / } = ( 0, 0, 0 );
+    eval { $self->restart() if iMSCP::Service->getInstance()->hasService( 'proftpd' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
     }
 
-    $rs;
+    0;
 }
 
 =item setEnginePermissions( )
@@ -424,20 +425,11 @@ sub getTraffic
     $trafficIndexDb->{'proftpd_lineContent'} = $logs[$lastLogIdx];
 }
 
-=item shutdown( $priority )
+=back
 
- See iMSCP::Servers::Abstract::shutdown()
+=head1 PRIVATE METHODS
 
-=cut
-
-sub shutdown
-{
-    my ($self, $priority) = @_;
-
-    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
-
-    iMSCP::Service->getInstance()->registerDelayedAction( 'proftpd', [ $action, sub { $self->$action(); } ], $priority );
-}
+=over 4
 
 =item _setVersion
 
@@ -449,13 +441,13 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( 'proftpd -v', \ my $stdout, \ my $stderr );
+    my $rs = execute( [ '/usr/sbin/proftpd', '-v' ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
-    if ( $stdout !~ m%([\d.]+)% ) {
-        error( "Couldn't find ProFTPD version from `proftpd -v` command output." );
+    if ( $stdout !~ /([\d.]+)/ ) {
+        error( "Couldn't find ProFTPD version from the `/usr/sbin/proftpd -v` command output" );
         return 1;
     }
 
@@ -564,7 +556,6 @@ EOF
     $rs;
 }
 
-
 =item _cleanup( )
 
  Process cleanup tasks
@@ -580,6 +571,21 @@ sub _cleanup
     return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' ) && -f "$self->{'cfgDir'}/proftpd.old.data";
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/proftpd.old.data" )->delFile();
+}
+
+=item _shutdown( $priority )
+
+ See iMSCP::Servers::Abstract::_shutdown()
+
+=cut
+
+sub _shutdown
+{
+    my ($self, $priority) = @_;
+
+    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
+
+    iMSCP::Service->getInstance()->registerDelayedAction( 'proftpd', [ $action, sub { $self->$action(); } ], $priority );
 }
 
 =back

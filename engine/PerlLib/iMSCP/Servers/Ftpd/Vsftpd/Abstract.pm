@@ -59,17 +59,43 @@ sub install
     $rs ||= $self->_buildConfigFile();
 }
 
-=item getHumanizedServerName( )
+=item getEventServerName( )
 
- See iMSCP::Servers::Abstract::getHumanizedServerName()
+ See iMSCP::Servers::Abstract::getEventServerName()
 
 =cut
 
-sub getHumanizedServerName
+sub getEventServerName
+{
+    my ($self) = @_;
+
+    'Vsftpd';
+}
+
+=item getHumanServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanServerName()
+
+=cut
+
+sub getHumanServerName
 {
     my ($self) = @_;
 
     sprintf( 'VsFTPDd %s', $self->getVersion());
+}
+
+=item getVersion( )
+
+ See iMSCP::Servers::Abstract::getVersion()
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    $self->{'config'}->{'VSFTPD_VERSION'};
 }
 
 =item addUser( \%moduleData )
@@ -153,69 +179,6 @@ sub deleteFtpUser
     $rs ||= $self->{'eventManager'}->trigger( 'afterVsftpdDeleteFtpUser', $moduleData );
 }
 
-=item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
-
- See iMSCP::Servers::Abstract::buildConfFile()
-
-=cut
-
-sub buildConfFile
-{
-    my ($self, $srcFile, $trgFile, $mdata, $sdata, $params) = @_;
-    $mdata //= {};
-    $sdata //= {};
-    $params //= {};
-
-    my ($filename, $path) = fileparse( $srcFile );
-    my $cfgTpl;
-
-    if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
-        $cfgTpl = $self->{'_templates'}->{$srcFile};
-    } else {
-        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'vsftpd', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
-        return $rs if $rs;
-
-        unless ( defined $cfgTpl ) {
-            $srcFile = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
-            $cfgTpl = iMSCP::File->new( filename => $srcFile )->get();
-            unless ( defined $cfgTpl ) {
-                error( sprintf( "Couldn't read the %s file", $srcFile ));
-                return 1;
-            }
-        }
-
-        $self->{'_templates'}->{$srcFile} = $cfgTpl if $params->{'cached'};
-    }
-
-    my $rs = $self->{'eventManager'}->trigger(
-        'beforeVsftpddBuildConfFile', \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
-    );
-    return $rs if $rs;
-
-    processByRef( $sdata, \$cfgTpl ) if %{$sdata};
-    processByRef( $mdata, \$cfgTpl ) if %{$mdata};
-
-    $rs = $self->{'eventManager'}->trigger( 'afterVsftpdBuildConfFile', \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params );
-    return $rs if $rs;
-
-    my $fh = iMSCP::File->new( filename => $trgFile );
-    $fh->set( $cfgTpl );
-    $rs ||= $fh->save( $params->{'umask'} // undef );
-    return $rs if $rs;
-
-    if ( exists $params->{'user'} || exists $params->{'group'} ) {
-        $rs = $fh->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} );
-        return $rs if $rs;
-    }
-
-    if ( exists $params->{'mode'} ) {
-        $rs = $fh->mode( $params->{'mode'} );
-        return $rs if $rs;
-    }
-
-    0;
-}
-
 =back
 
 =head1 PRIVATE METHODS
@@ -236,7 +199,6 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    $self->SUPER::_init();
     @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$main::imscpConfig{'CONF_DIR'}/vsftpd" );
     $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/vsftpd.data.dist";
     tie %{$self->{'config'}},
@@ -244,7 +206,7 @@ sub _init
         fileName    => "$self->{'cfgDir'}/vsftpd.data",
         readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
         nodeferring => defined $main::execmode && $main::execmode eq 'setup';
-    $self;
+    $self->SUPER::_init();
 }
 
 =item _mergeConfig( )
@@ -281,7 +243,7 @@ sub _mergeConfig
 
 =item _setVersion
 
- Set version
+ Set VsFTPd version
 
  Return int 0 on success, other on failure
 
