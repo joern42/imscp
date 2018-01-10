@@ -50,7 +50,7 @@ sub getPriority
 
 =back
 
-=head PUBLIC METHODS
+=head1 PUBLIC METHODS
 
 =over 4
 
@@ -61,6 +61,8 @@ sub getPriority
  The following events *MUST* be triggered:
   - before<SNAME>AddDomain( \%moduleData )
   - after<SNAME>AddDomain( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData
  Return int 0 on success, other on failure
@@ -82,6 +84,8 @@ sub addDomain
   - before<SNAME>DisableDomain( \%moduleData )
   - after<SNAME>DisableDomain( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
 
@@ -101,6 +105,8 @@ sub disableDomain
  The following events *MUST* be triggered:
   - before<SNAME>DeleteDomain( \%moduleData )
   - after<SNAME>DeleteDomain( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
@@ -122,6 +128,8 @@ sub deleteDomain
   - before<SNAME>AddSubdomain( \%moduleData )
   - after<SNAME>AddSubdomain( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Subdomain data
  Return int 0 on success, other on failure
 
@@ -141,6 +149,8 @@ sub addSubdomain
  The following events *MUST* be triggered:
   - before<SNAME>DisableSubdomain( \%moduleData )
   - after<SNAME>DisableSubdomain( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Subdomain data
  Return int 0 on success, other on failure
@@ -162,6 +172,8 @@ sub disableSubdomain
   - before<SNAME>DeleteSubdomain( \%moduleData )
   - after<SNAME>DeleteSubdomain( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Subdomain data
  Return int 0 on success, other on failure
 
@@ -181,6 +193,8 @@ sub deleteSubdomain
  The following events *MUST* be triggered:
   - before<SNAME>AddMail( \%moduleData )
   - after<SNAME>AddMail( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Mail data
  Return int 0 on success, other on failure
@@ -202,6 +216,8 @@ sub addMail
   - before<SNAME>DisableMail( \%moduleData )
   - after<SNAME>DisableMail( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Mail data
  Return int 0 on success, other on failure
 
@@ -221,6 +237,8 @@ sub disableMail
  The following events *MUST* be triggered:
   - before<SNAME>DeleteMail( \%moduleData )
   - after<SNAME>DeleteMail( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Mail data
  Return int 0 on success, other on failure
@@ -252,7 +270,7 @@ sub getTraffic
 
 =back
 
-=head PRIVATE METHODS
+=head1 PRIVATE METHODS
 
 =over
 
@@ -268,9 +286,9 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-    $self;
+
+    $self->SUPER::_init();
 }
 
 =back

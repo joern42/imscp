@@ -34,6 +34,8 @@ use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Mta::Postfix::Abstract';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Postfix server implementation.
@@ -77,7 +79,7 @@ sub postinstall
 
 =item uninstall( )
 
- See iMSCP::Servers::Abstract::uninstall()
+ See iMSCP::Servers::Mta::Postfix::uninstall()
 
 =cut
 
@@ -87,14 +89,15 @@ sub uninstall
 
     my $rs = $self->SUPER::uninstall();
     $rs ||= $self->_restoreConffiles();
+    return $rs if $rs;
 
-    unless ( $rs || !iMSCP::Service->getInstance()->hasService( 'postfix' ) ) {
-        $self->{'restart'} ||= 1;
-    } else {
-        @{$self}{qw/ restart reload /} = ( 0, 0 );
+    eval { $self->restart() if iMSCP::Service->getInstance()->hasService( 'postfix' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
     }
 
-    $rs;
+    0;
 }
 
 =item start( )
@@ -173,24 +176,9 @@ sub reload
     0;
 }
 
-=item shutdown( $priority )
-
- See iMSCP::Servers::Abstract::shutdown()
-
-=cut
-
-sub shutdown
-{
-    my ($self, $priority) = @_;
-
-    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
-
-    iMSCP::Service->getInstance()->registerDelayedAction( 'postfix', [ $action, sub { $self->$action(); } ], $priority );
-}
-
 =back
 
-=head PRIVATE METHODS
+=head1 PRIVATE METHODS
 
 =over 4
 
@@ -233,6 +221,21 @@ sub _restoreConffiles
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     $rs;
+}
+
+=item _shutdown( $priority )
+
+ See iMSCP::Servers::Abstract::_shutdown()
+
+=cut
+
+sub _shutdown
+{
+    my ($self, $priority) = @_;
+
+    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
+
+    iMSCP::Service->getInstance()->registerDelayedAction( 'postfix', [ $action, sub { $self->$action(); } ], $priority );
 }
 
 =back

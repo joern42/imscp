@@ -199,13 +199,26 @@ sub setEnginePermissions
     );
 }
 
-=item getHumanizedServerName( )
+=item getGenericServerName( )
 
- See iMSCP::Servers::Abstract::getHumanizedServerName()
+ See iMSCP::Servers::Abstract::getEventServerName()
 
 =cut
 
-sub getHumanizedServerName
+sub getEventServerName
+{
+    my ($self) = @_;
+
+    'Postfix';
+}
+
+=item getHumanServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanServerName()
+
+=cut
+
+sub getHumanServerName
 {
     my ($self) = @_;
 
@@ -222,7 +235,7 @@ sub getVersion
 {
     my ($self) = @_;
 
-    $self->{'config'}->{'MTA_VERSION'};
+    $self->{'config'}->{'POSTFIX_VERSION'};
 }
 
 =item addDomain( \%moduleData )
@@ -863,7 +876,6 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    $self->SUPER::_init();
     @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$main::imscpConfig{'CONF_DIR'}/postfix" );
     $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/postfix.data.dist";
     tie %{$self->{'config'}},
@@ -872,7 +884,7 @@ sub _init
         readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
         nodeferring => defined $main::execmode && $main::execmode eq 'setup';
     $self->{'_maps'} = {};
-    $self;
+    $self->SUPER::_init();
 }
 
 =item _mergeConfig( )
@@ -1042,12 +1054,12 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( [ 'postconf', '-d', '-h', 'mail_version' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ '/usr/sbin/postconf', '-d', '-h', 'mail_version' ], \ my $stdout, \ my $stderr );
     debug( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ /^([\d.]+)/ ) {
-        error( "Couldn't guess Postfix version" );
+        error( "Couldn't guess Postfix version from the `/usr/sbin/postconf -d -h mail_version` command output" );
         return 1;
     }
 
@@ -1075,7 +1087,7 @@ sub _createPostfixMaps
     );
 
     for ( @lookupTables ) {
-        $rs = $self->addMapEntry( $_ );
+        my $rs = $self->addMapEntry( $_ );
         return $rs if $rs;
     }
 
@@ -1189,7 +1201,7 @@ sub _buildMainCfFile
         MTA_SMTP_BIND_ADDRESS6   => ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '',
         MTA_HOSTNAME             => $hostname,
         MTA_LOCAL_DOMAIN         => "$hostname.local",
-        MTA_VERSION              => $main::imscpConfig{'Version'},
+        MTA_VERSION              => $main::imscpConfig{'Version'}, # Fake data expected
         MTA_TRANSPORT_HASH       => $self->{'config'}->{'MTA_TRANSPORT_HASH'},
         MTA_LOCAL_MAIL_DIR       => $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'},
         MTA_LOCAL_ALIAS_HASH     => $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'},
