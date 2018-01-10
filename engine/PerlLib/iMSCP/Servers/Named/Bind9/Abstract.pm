@@ -194,7 +194,7 @@ sub postaddDomain
             DOMAIN_NAME             => $moduleData->{'ALIAS'} . '.' . $main::imscpConfig{'BASE_SERVER_VHOST'},
             MAIL_ENABLED            => 0,
             DOMAIN_IP               => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
-            # Listeners probably want to know thge type of the entry being added (since 1.6.0)
+            # Listeners probably want to know the type of the entry being added (since 1.6.0)
             DOMAIN_TYPE             => 'sub',
             BASE_SERVER_PUBLIC_IP   => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
             OPTIONAL_ENTRIES        => 0,
