@@ -75,12 +75,23 @@ sub getPriority
 sub factory
 {
     my ($class, $serverClass) = @_;
+
+    # Prevent call of the factory on known iMSCP::Servers::* abstract classes
+    $class =~ tr/:// < 5 or croak( sprintf( 'The factory() method cannot be called on the %s server class', $class ));
+
     $serverClass //= $main::imscpConfig{$class} || 'iMSCP::Servers::Noserver';
 
     return $_SERVER_INSTANCES{$class} if exists $_SERVER_INSTANCES{$class};
 
     eval "require $serverClass; 1" or confess( $@ );
-    $_SERVER_INSTANCES{$class} = $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
+
+    if ( $serverClass ne $main::imscpConfig{$class} ) {
+        # We don't keep trace of server instances that were asked explicitly as
+        # this would prevent load of those which are implicit
+        return $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());;
+    }
+
+    return $_SERVER_INSTANCES{$class} = $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
 }
 
 =back
@@ -172,11 +183,29 @@ sub postinstall
     0;
 }
 
+=item preuninstall( )
+
+ Process the server pre-uninstallation tasks
+
+ This method is automatically called by the i-MSCP installer/uninstaller.
+ Any server requiring pre-uninstallation tasks *SHOULD* implement it.
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub preuninstall
+{
+    my ($self) = @_;
+
+    0;
+}
+
 =item uninstall( )
 
  Process the server uninstallation tasks
 
- This method is automatically called by the i-MSCP uninstaller.
+ This method is automatically called by the i-MSCP installer/uninstaller.
  Any server requiring uninstallation tasks *SHOULD* implement it.
 
  Return int 0 on success, other on failure
@@ -184,6 +213,24 @@ sub postinstall
 =cut
 
 sub uninstall
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item postuninstall( )
+
+ Process the server post-uninstallation tasks
+
+ This method is automatically called by the i-MSCP installer/uninstaller.
+ Any server requiring post-uninstallation tasks *SHOULD* implement it.
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub postuninstall
 {
     my ($self) = @_;
 
