@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Noserver - Factory and implementation for the i-MSCP Noserver server
+ iMSCP::Servers::Noserver - Factory and implementation for the i-MSCP Noserver (BlackHole) server
 
 =cut
 
@@ -27,9 +27,150 @@ use strict;
 use warnings;
 use parent 'iMSCP::Servers::Abstract';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
- This class provides a factory and implementation for the i-MSCP noserver server.
+ This class provides a factory and implementation for the i-MSCP Noserver (BlackHole) server.
+ 
+ The intent of this server is to be used as a black hole when one administrator want fully disable
+ a specific service.
+
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item preinstall( )
+
+ See iMSCP::Servers::Abstract::preinstall()
+
+=cut
+
+sub preinstall
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item postinstall( )
+
+ See iMSCP::Servers::Abstract::postinstall()
+
+=cut
+
+sub postinstall
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item getEventServerName( )
+
+ See iMSCP::Servers::Abstract::getEventServerName()
+
+=cut
+
+sub getEventServerName
+{
+    my ($self) = @_;
+
+    'Noserver';
+}
+
+=item getHumanServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanServerName()
+
+=cut
+
+sub getHumanServerName
+{
+    my ($self) = @_;
+
+    'Noserver (BlackHole) 1.0.0';
+}
+
+=item getVersion()
+
+ See iMSCP::Servers::Abstract::getVersion()
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    '1.0.0';
+}
+
+=item start( )
+
+ See iMSCP::Servers::Abstract::start()
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item stop( )
+
+ See iMSCP::Servers::Abstract::stop()
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Abstract::restart()
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Abstract::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item buildConfFile( )
+
+ See iMSCP::Servers::Abstract::buildConfFile()
+
+=cut
+
+sub buildConfFile
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=back
 
 =head1 AUTHOR
 
