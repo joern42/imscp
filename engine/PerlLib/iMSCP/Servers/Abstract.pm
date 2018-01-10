@@ -240,6 +240,22 @@ sub getHumanServerName
     croak ( sprintf( 'The %s class must implement the getHumanServerName() method', ref $self ));
 }
 
+=item getImplVersion()
+
+ Return the implementation version of this server
+
+ Return string Server version
+
+=cut
+
+sub getImplVersion
+{
+    my ($self) = @_;
+
+    no strict 'refs';
+    ${"@{[ ref $self ]}::VERSION"} // '1.0.0';
+}
+
 =item getVersion()
 
  Return the version of this server
@@ -347,14 +363,13 @@ sub buildConfFile
     $sdata //= {};
     $params //= {};
 
-    my $sname = $self->getEventServerName();
+    my ($sname, $cfgTpl) = ( $self->getEventServerName(), undef );
     my ($filename, $path) = fileparse( $srcFile );
-    my $cfgTpl;
 
     if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
         $cfgTpl = $self->{'_templates'}->{$srcFile};
     } else {
-        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', $sname, $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
+        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $sname, $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
         return $rs if $rs;
 
         unless ( defined $cfgTpl ) {

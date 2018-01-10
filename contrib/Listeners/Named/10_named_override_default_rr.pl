@@ -38,66 +38,74 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
     sprintf( "The 10_named_override_default_rr.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-# Listener that is responsible to replace following default DNS records:
-# - @   IN {IP_TYPE} {DOMAIN_IP}
-# - www IN CNAME     @
-iMSCP::EventManager->getInstance()->register(
-    'beforeBind9AddCustomDNS',
-    sub {
-        my ($wrkDbFileContent, $data) = @_;
+if ( index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1 ) {
 
-        return 0 unless @{$data->{'DNS_RECORDS'}};
+    # Listener that is responsible to replace following default DNS records:
+    # - @   IN {IP_TYPE} {DOMAIN_IP}
+    # - www IN CNAME     @
+    iMSCP::EventManager->getInstance()->register(
+        'beforeBind9AddCustomDNS',
+        sub {
+            my ($wrkDbFileContent, $data) = @_;
 
-        my $domainIP = iMSCP::Net->getInstance()->isRoutableAddr( $data->{'DOMAIN_IP'} ) ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
+            return 0 unless @{$data->{'DNS_RECORDS'}};
 
-        for ( @{$data->{'DNS_RECORDS'}} ) {
-            my ($name, $class, $type, $rdata) = @{$_};
-            if ( $name =~ /^\Q$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?/ && $class eq 'IN' && ( $type eq 'A' || $type eq 'AAAA' ) && $rdata ne $domainIP ) {
-                # Remove default A or AAAA record for $data->{'DOMAIN_NAME'}
-                ${$wrkDbFileContent} =~ s/
-                    ^(?:\@|\Q$data->{'DOMAIN_NAME'}.\E)(?:\s+\d+)?\s+IN\s+$type\s+\Q$domainIP\E\n
-                    //gmx;
+            my $domainIP = iMSCP::Net->getInstance()->isRoutableAddr( $data->{'DOMAIN_IP'} )
+                ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
 
-                next;
-            };
+            for ( @{$data->{'DNS_RECORDS'}} ) {
+                my ($name, $class, $type, $rdata) = @{$_};
+                if ( $name =~ /^\Q$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?/ && $class eq 'IN' && ( $type eq 'A' || $type eq 'AAAA' )
+                    && $rdata ne $domainIP
+                ) {
+                    # Remove default A or AAAA record for $data->{'DOMAIN_NAME'}
+                    ${$wrkDbFileContent} =~ s/
+                        ^(?:\@|\Q$data->{'DOMAIN_NAME'}.\E)(?:\s+\d+)?\s+IN\s+$type\s+\Q$domainIP\E\n
+                        //gmx;
 
-            if ( $name =~ /^www\Q.$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?/ && $class eq 'IN' && $type eq 'CNAME' && $rdata ne $data->{'DOMAIN_NAME'} ) {
-                # Delete default www CNAME record for $data->{'DOMAIN_NAME'}
-                ${$wrkDbFileContent} =~ s/
-                    ^www(?:\Q.$data->{'DOMAIN_NAME'}.\E)?\s+IN\s+CNAME\s+(?:\@|\Q$data->{'DOMAIN_NAME'}.\E)\n
-                    //gmx;
+                    next;
+                };
+
+                if ( $name =~ /^www\Q.$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?/ && $class eq 'IN' && $type eq 'CNAME'
+                    && $rdata ne $data->{'DOMAIN_NAME'}
+                ) {
+                    # Delete default www CNAME record for $data->{'DOMAIN_NAME'}
+                    ${$wrkDbFileContent} =~ s/
+                        ^www(?:\Q.$data->{'DOMAIN_NAME'}.\E)?\s+IN\s+CNAME\s+(?:\@|\Q$data->{'DOMAIN_NAME'}.\E)\n
+                        //gmx;
+                }
             }
+
+            0;
         }
+    );
 
-        0;
-    }
-);
+    # Listener that is responsible to re-add the default DNS records when needed.
+    # i-MSCP Bind9 server impl. will not do it unless the domain is being fully
+    # reconfigured
+    iMSCP::EventManager->getInstance()->register(
+        'afterBind9AddCustomDNS',
+        sub {
+            my ($wrkDbFileContent, $data) = @_;
 
-# Listener that is responsible to re-add the default DNS records when needed.
-# i-MSCP Bind9 server impl. will not do it unless the domain is being fully
-# reconfigured
-iMSCP::EventManager->getInstance()->register(
-    'afterBind9AddCustomDNS',
-    sub {
-        my ($wrkDbFileContent, $data) = @_;
+            my $net = iMSCP::Net->getInstance();
+            my $domainIP = $net->isRoutableAddr( $data->{'DOMAIN_IP'} ) ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
+            my $rrType = $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA';
 
-        my $net = iMSCP::Net->getInstance();
-        my $domainIP = $net->isRoutableAddr( $data->{'DOMAIN_IP'} ) ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
-        my $rrType = $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA';
+            # Re-add default A or AAAA record for $data->{'DOMAIN_NAME'}
+            if ( ${$wrkDbFileContent} !~ /^\Q$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?\s+IN\s+$rrType\s+/m ) {
+                ${$wrkDbFileContent} .= "$data->{'DOMAIN_NAME'}.\t\tIN\t$rrType\t$domainIP\n";
+            }
 
-        # Re-add default A or AAAA record for $data->{'DOMAIN_NAME'}
-        if ( ${$wrkDbFileContent} !~ /^\Q$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?\s+IN\s+$rrType\s+/m ) {
-            ${$wrkDbFileContent} .= "$data->{'DOMAIN_NAME'}.\t\tIN\t$rrType\t$domainIP\n";
+            # Re-add default www CNAME record for $data->{'DOMAIN_NAME'}
+            if ( ${$wrkDbFileContent} !~ /^www\Q.$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?\s+IN\s+CNAME\s+/m ) {
+                ${$wrkDbFileContent} .= "www.$data->{'DOMAIN_NAME'}.\t\tIN\tCNAME\t$data->{'DOMAIN_NAME'}.\n";
+            }
+
+            0;
         }
-
-        # Re-add default www CNAME record for $data->{'DOMAIN_NAME'}
-        if ( ${$wrkDbFileContent} !~ /^www\Q.$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?\s+IN\s+CNAME\s+/m ) {
-            ${$wrkDbFileContent} .= "www.$data->{'DOMAIN_NAME'}.\t\tIN\tCNAME\t$data->{'DOMAIN_NAME'}.\n";
-        }
-
-        0;
-    }
-);
+    );
+}
 
 1;
 __END__

@@ -25,7 +25,9 @@ our $VERSION = '1.0.1';
 
 use strict;
 use warnings;
+use File::Basename;
 use iMSCP::EventManager;
+use iMSCP::Servers::Named;
 use version;
 
 #
@@ -37,16 +39,16 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterBind9BuildConf',
+    'afterBind9BuildConfFile',
     sub {
-        my ($tplContent, $tplName) = @_;
+        my ($cfgTpl, $cfgTplName) = @_;
 
-        return 0 unless $tplName eq 'named.conf.options';
+        return 0 unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
 
-        ${$tplContent} =~ s/^(\s*allow-(?:recursion|query-cache|transfer)).*$/$1 { localnets; };/gm;
+        ${$cfgTpl} =~ s/^(\s*allow-(?:recursion|query-cache|transfer)).*$/$1 { localnets; };/gm;
         0;
     }
-);
+) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
 
 1;
 __END__

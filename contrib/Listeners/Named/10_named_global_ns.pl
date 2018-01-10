@@ -111,7 +111,7 @@ iMSCP::EventManager->getInstance()->register(
         replaceBlocByRef( "; dmn NS GLUE RECORD entry BEGIN\n", "; dmn NS GLUE RECORD entry ENDING\n", $glueRecords, $tpl );
         0;
     }
-);
+) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
 
 1;
 __END__

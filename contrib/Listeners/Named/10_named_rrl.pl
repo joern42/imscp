@@ -50,20 +50,20 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterBind9BuildConf',
+    'afterBind9BuildConfFile',
     sub {
-        my ($tplContent, $tplName) = @_;
+        my ($cfgTpl, $cfgTplName) = @_;
 
-        return 0 unless $tplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
+        return 0 unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
 
-        replaceBlocByRef( "// imscp [{ENTRY_ID}] entry BEGIN\n", "// imscp [{ENTRY_ID}] entry ENDING\n", <<"EOF", $tplContent, 'preserveTags' );
+        replaceBlocByRef( "// imscp [{ENTRY_ID}] entry BEGIN\n", "// imscp [{ENTRY_ID}] entry ENDING\n", <<"EOF", $cfgTpl, 'preserveTags' );
     rate-limit {
         responses-per-second $responsesPerSecond;
     };
 EOF
         0;
     }
-);
+) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
 
 1;
 __END__
