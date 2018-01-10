@@ -91,7 +91,7 @@ sub factory
         return $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());;
     }
 
-    return $_SERVER_INSTANCES{$class} = $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
+    $_SERVER_INSTANCES{$class} = $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
 }
 
 =back
