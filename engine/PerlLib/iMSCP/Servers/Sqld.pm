@@ -25,6 +25,7 @@ package iMSCP::Servers::Sqld;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
@@ -50,7 +51,98 @@ sub getPriority
 
 =back
 
-=head PRIVATE METHODS
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item postinstall( )
+
+ See iMSCP::Servers::Abstract::postinstall()
+
+=cut
+
+sub postinstall
+{
+    my ($self) = @_;
+
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupRestartServices',
+        sub {
+            push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ];
+            0;
+        },
+        $self->getPriority()
+    );
+
+    0;
+}
+
+=item getVendor( )
+
+ Get SQL server vendor
+
+ Return string MySQL server vendor
+
+=cut
+
+sub getVendor
+{
+    my ($self) = @_;
+
+    $self->{'config'}->{'SQLD_VENDOR'};
+}
+
+=item getVersion( )
+
+ See iMSCP::Servers::Abstract::getVersion()
+
+=cut
+
+sub getVersion
+{
+    my ($self) = @_;
+
+    $self->{'config'}->{'SQLD_VERSION'};
+}
+
+=item createUser( $user, $host, $password )
+
+ Create the given SQL user
+
+ Param $string $user SQL username
+ Param string $host SQL user host
+ Param $string $password SQL user password
+ Return int 0 on success, croak on failure
+
+=cut
+
+sub createUser
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the createUser() method', ref $self ));
+}
+
+=item dropUser( $user, $host )
+
+ Drop the given SQL user if exists
+
+ Param $string $user SQL username
+ Param string $host SQL user host
+ Return int 0 on success, croak on failure
+
+=cut
+
+sub dropUser
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the dropUser() method', ref $self ));
+}
+
+=back
+
+=head1 PRIVATE METHODS
 
 =over
 
@@ -66,9 +158,9 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-    $self;
+
+    $self->SUPER::_init();
 }
 
 =back

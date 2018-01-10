@@ -25,11 +25,266 @@ package iMSCP::Servers::Sqld::Remote::Debian;
 
 use strict;
 use warnings;
-use parent 'iMSCP::Servers::Sqld::Remote::Abstract';
+use Carp qw/ croak /;
+use Class::Autouse qw/ :nostat iMSCP::Dir /;
+use iMSCP::Database;
+use iMSCP::Debug qw/ error /;
+use version;
+use parent 'iMSCP::Servers::Sqld::Mysql::Debian';
+
+our $VERSION = '1.0.0';
 
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Remote SQL server implementation.
+
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item postinstall( )
+
+ See iMSCP::Servers::Sqld::Mysql::Debian::Postinstall()
+
+=cut
+
+sub postinstall
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item getHumanServerName( )
+
+ See iMSCP::Servers::Sqld::Mysql::Abstract::getHumanServerName()
+
+=cut
+
+sub getHumanServerName
+{
+    my ($self) = @_;
+
+    sprintf( 'Remote %s %s', $self->getVendor(), $self->getVersion());
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Sqld::Mysql::Debian::start()
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item stop( )
+
+ See iMSCP::Servers::Sqld::Mysql::Debian::stop()
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Sqld::Mysql::Debian::restart()
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Sqld::Mysql::Debian::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item createUser( $user, $host, $password )
+
+ See iMSCP::Servers::Sqld::Mysql::Abstract::createUser()
+
+=cut
+
+sub createUser
+{
+    my ($self, $user, $host, $password) = @_;
+
+    defined $user or croak( '$user parameter is not defined' );
+    defined $host or croak( '$host parameter is not defined' );
+    defined $password or croak( '$password parameter is not defined' );
+
+    eval {
+        my $dbh = iMSCP::Database->getInstance()->getRawDb();
+        local $dbh->{'RaiseError'} = 1;
+        $dbh->do(
+            'CREATE USER ?@? IDENTIFIED BY ?'
+                . ( ( $self->getVendor() ne 'MariaDB' && version->parse( $self->getVersion()) >= version->parse( '5.7.6' ) )
+                ? ' PASSWORD EXPIRE NEVER' : ''
+            ),
+            undef, $user, $host, $password
+        );
+    };
+    !$@ or croak( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
+    0;
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _setVendor( )
+
+ Set SQL server vendor
+
+ Return 0 on success, other on failure
+
+=cut
+
+sub _setVendor
+{
+    my ($self) = @_;
+
+    local $@;
+    eval {
+        my $dbh = iMSCP::Database->factory()->getRawDb();
+
+        local $dbh->{'RaiseError'} = 1;
+        my $row = $dbh->selectrow_hashref( 'SELECT @@version, @@version_comment' ) or die( "Could't find SQL server vendor" );
+        my $vendor = 'MySQL';
+
+        if ( index( lc $row->{'@@version'}, 'mariadb' ) != -1 ) {
+            $vendor = 'MariaDB';
+        } elsif ( index( lc $row->{'@@version_comment'}, 'percona' ) != -1 ) {
+            $vendor = 'Percona';
+        }
+
+        debug( sprintf( 'SQL server vendor set to: %s', $vendor ));
+        $self->{'config'}->{'SQLD_VENDOR'} = $vendor;
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item _buildConf( )
+
+ See iMSCP::Servers::Sqld::Mysql::Abstract::_buildConf()
+
+=cut
+
+sub _buildConf
+{
+    my ($self) = @_;
+
+    eval {
+        # Make sure that the conf.d directory exists
+        iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
+            user  => $main::imscpConfig{'ROOT_USER'},
+            group => $main::imscpConfig{'ROOT_GROUP'},
+            mode  => 0755
+        } );
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    # Build the /etc/mysql/my.cnf file
+
+    my $conffile = "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf";
+    unless ( -f $conffile ) {
+        $conffile = File::Temp->new();
+        $conffile->close();
+    }
+
+    my $rs = $self->{'eventManager'}->registerOne(
+        'beforeMysqlBuildConfFile',
+        sub {
+            unless ( defined ${$_[0]} ) {
+                ${$_[0]} = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            } elsif ( ${$_[0]} !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
+                ${$_[0]} .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            }
+
+            0;
+        }
+    );
+    $rs ||= $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" );
+
+    # Build the /etc/mysql/conf.d/imscp.cnf file
+
+    $rs ||= $self->{'eventManager'}->registerOne(
+        'beforeMysqlBuildConfFile',
+        sub {
+            ${$_[0]} .= <<"EOF";
+[mysql]
+max_allowed_packet = {MAX_ALLOWED_PACKET}
+EOF
+            $_[4]->{'MAX_ALLOWED_PACKET'} = '500M';
+
+            0;
+        }
+    );
+    $rs ||= $self->buildConfFile( 'imscp.cnf', "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf" );
+}
+
+=item _updateServerConfig( )
+
+ See iMSCP::Servers::Sqld::Mysql::Abstract::_updateServerConfig()
+
+=cut
+
+sub _updateServerConfig
+{
+    my ($self) = @_;
+
+    return 0 if ( $self->getVendor() eq 'MariaDB' && version->parse( $self->getVersion()) < version->parse( '10.0' ) )
+        || version->parse( $self->getVersion()) < version->parse( '5.6.6' );
+
+    eval {
+        my $dbh = iMSCP::Database->getInstance()->getRawDb();
+        local $dbh->{'RaiseError'};
+
+        # Disable unwanted plugins (bc reasons)
+        for ( qw/ cracklib_password_check simple_password_check validate_password / ) {
+            $dbh->do( "UNINSTALL PLUGIN $_" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$_'" );
+        }
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=back
 
 =head1 AUTHOR
 
