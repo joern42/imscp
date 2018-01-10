@@ -27,6 +27,8 @@ use strict;
 use warnings;
 use parent 'iMSCP::Servers::Server::Local::Abstract';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Local server implementation.

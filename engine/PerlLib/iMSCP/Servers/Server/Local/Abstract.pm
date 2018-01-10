@@ -44,9 +44,7 @@ use parent 'iMSCP::Servers::Server';
 
 =item registerSetupListeners( )
 
- Register setup event listeners
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::RegisterSetupListeners()
 
 =cut
 
@@ -334,17 +332,17 @@ sub install
     $rs ||= $self->_setupPrimaryIP();
 }
 
-=item getHumanizedServerName( )
+=item getHumanServerName( )
 
- See iMSCP::Servers::Abstract::getHumanizedServerName()
+ See iMSCP::Servers::Abstract::getHumanServerName()
 
 =cut
 
-sub getHumanizedServerName
+sub getHumanServerName
 {
     my ($self) = @_;
 
-    sprintf( '%s server', $main::imscpConfig{'DISTRO_ID'} );
+    sprintf( '%s %s', $main::imscpConfig{'DISTRO_ID'}, $main::imscpConfig{'DISTRO_RELEASE'} );
 }
 
 =item getVersion( )
@@ -380,14 +378,13 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    $self->SUPER::_init();
     $ua->timeout( 5 );
     $ua->agent( 'i-MSCP/1.6 (+https://i-mscp.net/)' );
     $ua->ssl_opts(
         verify_hostname => 0,
         SSL_verify_mode => 0x00
     );
-    $self;
+    $self->SUPER::_init();
 }
 
 =item _setupHostname( )

@@ -50,7 +50,26 @@ sub getPriority
 
 =back
 
-=head PRIVATE METHODS
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item getEventServerName( )
+
+ See iMSCP::Servers::Abstract::getEventServerName()
+
+=cut
+
+sub getEventServerName
+{
+    my ($self) = @_;
+
+    $main::imscpConfig{'DISTRO_ID'};
+}
+
+=back
+
+=head1 PRIVATE METHODS
 
 =over
 
@@ -66,9 +85,9 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-    $self;
+
+    $self->SUPER::_init();
 }
 
 =back
