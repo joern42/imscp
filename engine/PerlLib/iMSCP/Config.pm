@@ -129,7 +129,7 @@ sub FETCH
 {
     return $_[0]->{'_entries'}->{$_[1]} if exists $_[0]->{'_entries'}->{$_[1]};
 
-    !$_[0]->{'nocroak'} or croak( sprintf( 'Accessing a non-existing parameter: %s', $_[1] ));
+    $_[0]->{'nocroak'} or croak( sprintf( 'Accessing a non-existing parameter: %s', $_[1] ));
     ''; # A configuration parameter cannot be undefined. 
 }
 
