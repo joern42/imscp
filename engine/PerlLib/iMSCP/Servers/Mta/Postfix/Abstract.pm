@@ -199,7 +199,7 @@ sub setEnginePermissions
     );
 }
 
-=item getGenericServerName( )
+=item getEventServerName( )
 
  See iMSCP::Servers::Abstract::getEventServerName()
 
