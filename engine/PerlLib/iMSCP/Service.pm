@@ -440,7 +440,7 @@ sub _detectInit
         return 'Upstart';
     }
 
-    'Sysvinit'
+    'Sysvinit';
 }
 
 =item _getLastError( )
@@ -492,6 +492,8 @@ sub _executeDelayedActions
             return $ret || 1;
         }
     }
+
+    0;
 }
 
 =back
@@ -507,10 +509,9 @@ sub _executeDelayedActions
 =cut
 
 END {
-    return;
-    return unless exists $main::imscpConfig{'DISTRO_FAMILY'};
+    return unless $? || exists $main::imscpConfig{'DISTRO_FAMILY'};
 
-    __PACKAGE__->getInstance()->_executeDelayedActions();
+    $? = __PACKAGE__->getInstance()->_executeDelayedActions();
 }
 
 =back

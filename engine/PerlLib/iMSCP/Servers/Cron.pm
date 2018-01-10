@@ -263,7 +263,10 @@ sub _init
         fileName    => "$self->{'cfgDir'}/cron.data",
         readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
         nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+
+    # Register event listener for processing of cront tasks
     $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
+
     $self->SUPER::_init();
 }
 

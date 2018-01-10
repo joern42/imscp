@@ -31,6 +31,8 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Cron';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Vixie cron server implementation.
@@ -235,7 +237,7 @@ sub disableSystemCronTask
 
 =back
 
-=head PRIVATE METHODS
+=head1 PRIVATE METHODS
 
 =over 4
 

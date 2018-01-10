@@ -267,9 +267,7 @@ function addSqlUser($sqldId)
     // See https://dev.mysql.com/doc/refman/5.7/en/implicit-commit.html for more details
 
     if ($needUserCreate && isset($password)) {
-        if ($mysqlConfig['SQLD_VENDOR'] == 'mariadb'
-            || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')
-        ) {
+        if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
             exec_query('CREATE USER ?@? IDENTIFIED BY ?', [$user, $host, $password]);
         } else {
             exec_query('CREATE USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', [$user, $host, $password]);

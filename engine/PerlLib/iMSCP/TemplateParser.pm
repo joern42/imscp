@@ -25,14 +25,15 @@ package iMSCP::TemplateParser;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent 'Exporter';
 
 our @EXPORT = qw/ process processByRef getBloc getBlocByRef replaceBloc replaceBlocByRef /;
 
 =head1 DESCRIPTION
 
- The template parser allow to parse pseudo-variables within i-MSCP template
- files. It can parse simple variables or variable tag pairs
+ The template parser allow to parse pseudo-variables within i-MSCP template files.
+ It can parse simple variables or variable tag pairs
 
 =head1 PUBLIC METHODS
 
@@ -42,12 +43,9 @@ our @EXPORT = qw/ process processByRef getBloc getBlocByRef replaceBloc replaceB
 
  Replace placeholders in the given template
 
- Param hashref \%data A hash of data where the keys are the pseudo-variable
-                      names (composed of a-zA-Z0-9_ characters) and the values,
-                      the replacement
- values
+ Param hashref \%data Hash where the keys are the pseudo-variable names (composed of a-zA-Z0-9_ characters) and the values, the replacement values 
  Param scalaref \$template Reference to template content
- Return void
+ Return void, croak on failure
 
 =cut
 
@@ -55,8 +53,8 @@ sub processByRef( $$ )
 {
     my ($data, $template) = @_;
 
-    ref $data eq 'HASH' or die( 'Invalid $data parameter. Hash reference expected.' );
-    ref $template eq 'SCALAR' or die( 'Invalid $template parameter. Scalar reference expected.' );
+    ref $data eq 'HASH' or croak( 'Invalid $data parameter. Hash reference expected.' );
+    ref $template eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar reference expected.' );
 
     # Process twice to cover cases where there are placeholders defining other placeholder(s)
     ${$template} =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // "{$1}"#ge for 0 .. 1;
@@ -66,8 +64,7 @@ sub processByRef( $$ )
 
  Replace placeholders in the given template
 
- Param hashref \%data A hash of data where the keys are the pseudo-variable
-                      names and the values, the replacement values
+ Param hashref \%data A hash of data where the keys are the pseudo-variable names and the values, the replacement values
  Param string $template Template content
  Return string Processed template content
 
@@ -88,9 +85,8 @@ sub process( $$ )
  Param string $beginTag Bloc begin tag
  Param string $endingTag Bloc ending tag
  param string \$template Reference to template content
- Param bool $includeTags OPTIONAL Whether or not begin and ending tag should be
-                         included in result
- Return string Bloc content, including or not the begin and ending tags
+ Param bool $includeTags OPTIONAL Whether or not begin and ending tag should be included in result
+ Return string Bloc content, including or not the begin and ending tags, croak on failure
 
 =cut
 
@@ -98,7 +94,7 @@ sub getBlocByRef( $$$;$ )
 {
     my ($beginTag, $endingTag, $template, $includeTags) = @_;
 
-    ref $template eq 'SCALAR' or die( 'Invalid $template parameter. Scalar reference expected.' );
+    ref $template eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar reference expected.' );
 
     $beginTag = "\Q$beginTag\E" unless ref $beginTag eq 'Regexp';
     $endingTag = "\Q$endingTag\E" unless ref $endingTag eq 'Regexp';
@@ -113,8 +109,7 @@ sub getBlocByRef( $$$;$ )
  Param string $beginTag Bloc begin tag
  Param string $endingTag Bloc ending tag
  param string $template Template content
- Param bool $includeTags OPTIONAL Whether or not begin and ending tag should be
-                         included in result
+ Param bool $includeTags OPTIONAL Whether or not begin and ending tag should be included in result
  Return string Bloc content, including or not the begin and ending tags
 
 =cut
@@ -138,9 +133,8 @@ sub getBloc( $$$;$ )
  Param string|Regexp $endingTag Bloc ending tag
  Param string $repl Bloc replacement string
  param scalaref $template Reference to template content
- Param bool $preserveTags OPTIONAL Whether or not begin and ending tags must be
-                          preverved
- Return void
+ Param bool $preserveTags OPTIONAL Whether or not begin and ending tags must be preverved
+ Return void, croak on failure
 
 =cut
 
@@ -148,7 +142,7 @@ sub replaceBlocByRef( $$$$;$ )
 {
     my ($beginTag, $endingTag, $repl, $template, $preserveTags) = @_;
 
-    ref $template eq 'SCALAR' or die( 'Invalid $template parameter. Scalar expected.' );
+    ref $template eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar expected.' );
 
     if ( $preserveTags ) {
         $beginTag = "(\Q$beginTag\E)" unless ref $beginTag eq 'Regexp';
@@ -174,8 +168,7 @@ sub replaceBlocByRef( $$$$;$ )
  Param string|Regexp $endingTag Bloc ending tag
  Param string $repl Bloc replacement string
  param string $template Template content
- Param bool $preserveTags OPTIONAL Whether or not begin and ending tags must be
-                          preverved
+ Param bool $preserveTags OPTIONAL Whether or not begin and ending tags must be preverved
  Return string Template content
 
 =cut

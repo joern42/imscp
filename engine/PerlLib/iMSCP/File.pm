@@ -29,6 +29,7 @@ use File::Basename qw/ basename /;
 use File::Copy qw/ copy mv /;
 use File::Spec;
 use iMSCP::Debug qw/ error /;
+use iMSCP::Umask;
 use Lchown qw/ lchown /;
 use parent 'iMSCP::Common::Object';
 

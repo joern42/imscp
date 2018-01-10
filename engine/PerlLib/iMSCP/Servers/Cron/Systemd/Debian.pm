@@ -31,6 +31,8 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Cron::Vixie::Debian';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
  i-MSCP (Debian) systemd cron server implementation.
@@ -146,7 +148,7 @@ sub reload
 
 =back
 
-=head PRIVATE METHODS
+=head1 PRIVATE METHODS
 
 =over 4
 

@@ -35,7 +35,7 @@ use parent 'iMSCP::Common::Singleton';
  The i-MSCP event manager is the central point of the event system.
 
  Event listeners are registered on the event manager and events are triggered through the event manager. Event
- listeners are references to subroutines that listen to particular event(s).
+ listeners are references to subroutines or objects that listen to particular event(s).
 
 =head1 PUBLIC METHODS
 

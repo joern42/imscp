@@ -40,6 +40,8 @@ use Scalar::Defer;
 use version;
 use parent 'iMSCP::Servers::Php';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
  i-MSCP (Debian) PHP server implementation.
@@ -50,9 +52,7 @@ use parent 'iMSCP::Servers::Php';
 
 =item registerSetupListeners()
 
- Register setup event listeners
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::RegisterSetupListeners()
 
 =cut
 
@@ -640,7 +640,7 @@ sub start
     eval { iMSCP::Service->getInstance()->start( "php$phpVersion-fpm" ); };
     if ( $@ ) {
         error( $@ );
-        $rs = 1;
+        return 1;
     }
 
     0;
@@ -660,7 +660,7 @@ sub stop
     eval { iMSCP::Service->getInstance()->stop( "php$phpVersion-fpm" ); };
     if ( $@ ) {
         error( $@ );
-        $rs = 1;
+        return 1;
     }
 
     0;
@@ -680,7 +680,7 @@ sub reload
     eval { iMSCP::Service->getInstance()->reload( "php$phpVersion-fpm" ); };
     if ( $@ ) {
         error( $@ );
-        $rs = 1;
+        return 1;
     }
 
     0;
@@ -700,36 +700,10 @@ sub restart
     eval { iMSCP::Service->getInstance()->restart( "php$phpVersion-fpm" ); };
     if ( $@ ) {
         error( $@ );
-        $rs = 1;
+        return 1;
     }
 
     0;
-}
-
-=item shutdown( $priority )
-
- See iMSCP::Servers::Abstract::shutdown()
-
-=cut
-
-sub shutdown
-{
-    my ($self, $priority) = @_;
-
-    return unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
-
-    my $serviceMngr = iMSCP::Service->getInstance();
-
-    for my $action( qw/ reload restart / ) {
-        for my $phpVersion( keys %{$self->{$action}} ) {
-            # Check for actions precedence. The 'restart' action has higher precedence than the 'reload' action
-            next if $action eq 'reload' && $self->{'restart'}->{$phpVersion};
-            # Do not act if the PHP version is not enabled
-            next unless $serviceMngr->isEnabled( "php$phpVersion-fpm" );
-
-            $serviceMngr->registerDelayedAction( "php$phpVersion-fpm", [ $action, sub { $self->$action(); } ], $priority );
-        }
-    }
 }
 
 =back
@@ -750,9 +724,6 @@ sub _init
 {
     my ($self) = @_;
 
-    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-
-    $self->SUPER::_init();
     # Define properties that are expected by parent package
     @{$self}{qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR /} = (
         # We defer the evaluation because the PHP version can be overriden by 3rd-party components.
@@ -761,7 +732,7 @@ sub _init
         '/usr/share/php'
     );
     $self->{'_available_php_versions'} = lazy { [ split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} ]; };
-    $self;
+    $self->SUPER::_init();
 }
 
 =item _buildPhpConfig( \$moduleData )
@@ -954,6 +925,32 @@ sub _cleanup
         iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_" )->delFile() == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
+    }
+}
+
+=item _shutdown( $priority )
+
+ See iMSCP::Servers::Abstract::_shutdown()
+
+=cut
+
+sub _shutdown
+{
+    my ($self, $priority) = @_;
+
+    return unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
+
+    my $serviceMngr = iMSCP::Service->getInstance();
+
+    for my $action( qw/ reload restart / ) {
+        for my $phpVersion( keys %{$self->{$action}} ) {
+            # Check for actions precedence. The 'restart' action has higher precedence than the 'reload' action
+            next if $action eq 'reload' && $self->{'restart'}->{$phpVersion};
+            # Do not act if the PHP version is not enabled
+            next unless $serviceMngr->isEnabled( "php$phpVersion-fpm" );
+
+            $serviceMngr->registerDelayedAction( "php$phpVersion-fpm", [ $action, sub { $self->$action(); } ], $priority );
+        }
     }
 }
 

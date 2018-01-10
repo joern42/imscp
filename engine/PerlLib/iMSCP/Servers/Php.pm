@@ -67,7 +67,7 @@ sub getPriority
 
 =back
 
-=head PUBLIC METHODS
+=head1 PUBLIC METHODS
 
 =over 4
 
@@ -111,17 +111,30 @@ sub setEnginePermissions
     );
 }
 
-=item getHumanizedServerName( )
+=item getEventServerName( )
 
- See iMSCP::Servers::Abstract::getHumanizedServerName()
+ See iMSCP::Servers::Abstract::getEventServerName()
 
 =cut
 
-sub getHumanizedServerName
+sub getEventServerName
 {
     my ($self) = @_;
 
-    sprintf( 'PHP-FPM %s', $self->{'config'}->{'PHP_VERSION'} );
+    'Php';
+}
+
+=item getHumanServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanServerName()
+
+=cut
+
+sub getHumanServerName
+{
+    my ($self) = @_;
+
+    sprintf( 'PHP %s', $self->{'config'}->{'PHP_VERSION'} );
 }
 
 =item getVersion( )
@@ -257,67 +270,6 @@ sub deleteSubdomain
     croak( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
 }
 
-=item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
-
- See iMSCP::Servers::Abstract::buildConfFile()
-
-=cut
-
-sub buildConfFile
-{
-    my ($self, $srcFile, $trgFile, $mdata, $sdata, $params) = @_;
-    $mdata //= {};
-    $sdata //= {};
-    $params //= {};
-
-    my ($filename, $path) = fileparse( $srcFile );
-    my $cfgTpl;
-
-    if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
-        $cfgTpl = $self->{'_templates'}->{$srcFile};
-    } else {
-        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'php', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
-        return $rs if $rs;
-
-        unless ( defined $cfgTpl ) {
-            $srcFile = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
-            $cfgTpl = iMSCP::File->new( filename => $srcFile )->get();
-            unless ( defined $cfgTpl ) {
-                error( sprintf( "Couldn't read the %s file", $srcFile ));
-                return 1;
-            }
-        }
-
-        $self->{'_templates'}->{$srcFile} = $cfgTpl if $params->{'cached'};
-    }
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforePhpBuildConfFile', \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params );
-    return $rs if $rs;
-
-    processByRef( $sdata, \$cfgTpl ) if %{$sdata};
-    processByRef( $mdata, \$cfgTpl ) if %{$mdata};
-
-    $rs = $self->{'eventManager'}->trigger( 'afterPhpdBuildConfFile', \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params );
-    return $rs if $rs;
-
-    my $fh = iMSCP::File->new( filename => $trgFile );
-    $fh->set( $cfgTpl );
-    $rs ||= $fh->save( $params->{'umask'} // undef );
-    return $rs if $rs;
-
-    if ( exists $params->{'user'} || exists $params->{'group'} ) {
-        $rs = $fh->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} );
-        return $rs if $rs;
-    }
-
-    if ( exists $params->{'mode'} ) {
-        $rs = $fh->mode( $params->{'mode'} );
-        return $rs if $rs;
-    }
-
-    0;
-}
-
 =item enableModules( \@modules [, $phpVersion = $self->{'config'}->{'PHP_VERSION'} [, $phpSapi = $self->{'config'}->{'PHP_SAPI'} ] ] )
 
  Enable the given PHP modules
@@ -372,12 +324,11 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     # Check for properties that must be defined in concret server implementations
     for ( qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR / ) {
-        defined $self->{$_ } or croak( sprintf( 'The %s package must define the %s property', ref $self ));
+        defined $self->{$_ } or croak( sprintf( 'The %s package must define the %s property', ref $self, $_ ));
     }
 
     @{$self}{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$main::imscpConfig{'CONF_DIR'}/php" );
@@ -388,7 +339,7 @@ sub _init
         readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
         nodeferring => defined $main::execmode && $main::execmode eq 'setup';
     $self->{'eventManager'}->register( [ qw/ beforeApache2BuildConfFile afterApache2AddFiles / ], $self, 100 );
-    $self;
+    $self->SUPER::_init();
 }
 
 =item _mergeConfig()
@@ -598,21 +549,6 @@ sub _buildFpmConfig
     $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 }
 
-=item _setFullVersion()
-
- Set full version for selected PHP version
-
- return void, croak on failure
-
-=cut
-
-sub _setFullVersion
-{
-    my ($self) = @_;
-
-    croak( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
-}
-
 =back
 
 =head1 EVENT LISTENERS
@@ -799,7 +735,9 @@ EOF
         return 1;
     }
 
-    $self->{'eventManager'}->trigger( 'afterPhpApache2BuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params );
+    $phpServer->{'eventManager'}->trigger(
+        'afterPhpApache2BuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
+    );
 }
 
 =item afterApache2AddFiles( \%moduleData )
