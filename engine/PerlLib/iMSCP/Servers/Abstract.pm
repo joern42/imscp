@@ -253,7 +253,7 @@ sub getImplVersion
     my ($self) = @_;
 
     no strict 'refs';
-    ${"@{[ ref $self ]}::VERSION"} // '1.0.0';
+    ${"@{[ ref $self ]}::VERSION"} // '0.0.0';
 }
 
 =item getVersion()
