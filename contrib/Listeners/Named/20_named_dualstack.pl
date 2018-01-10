@@ -183,7 +183,7 @@ EOF
         0;
     },
     -99
-) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;;
+) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
 
 1;
 __END__
