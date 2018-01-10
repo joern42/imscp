@@ -35,6 +35,8 @@ use iMSCP::File;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Httpd::Apache2::Abstract';
 
+our $VERSION = '1.0.0';
+
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Apache2 server implementation.
@@ -45,9 +47,7 @@ use parent 'iMSCP::Servers::Httpd::Apache2::Abstract';
 
 =item registerSetupListeners()
 
- Register setup event listeners
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::RegisterSetupListeners()
 
 =cut
 
@@ -68,7 +68,7 @@ sub registerSetupListeners
 
 =item askForApache2MPM( \%dialog )
 
- Ask for Apache2 FPM
+ Ask for Apache2 MPM
 
  Param iMSCP::Dialog \%dialog
  Return int 0 to go on next question, 30 to go back to the previous question
@@ -103,7 +103,7 @@ EOF
 
 =item install( )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract
+ See iMSCP::Servers::Httpd::Apache2::Abstract::install()
 
 =cut
 
@@ -112,7 +112,6 @@ sub install
     my ($self) = @_;
 
     my $rs = $self->SUPER::install();
-    $rs ||= $self->_setVersion();
     $rs ||= $self->_makeDirs();
     $rs ||= $self->_setupModules();
     $rs ||= $self->_configure();
@@ -122,9 +121,7 @@ sub install
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::postinstall()
 
 =cut
 
@@ -150,9 +147,7 @@ sub postinstall
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Httpd::Apache2::Abstract::uninstall()
 
 =cut
 
@@ -165,9 +160,85 @@ sub uninstall
     $rs ||= $self->SUPER::uninstall();
 }
 
+=item start( )
+
+ See iMSCP::Servers::Abstract::start()
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->start( 'apache2' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item stop( )
+
+ See iMSCP::Servers::Abstract::stop()
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->stop( 'apache2' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Abstract::restart()
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->restart( 'apache2' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Abstract::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->reload( 'apache2' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
 =item enableSites( @sites )
 
- See iMSCP::Servers::Httpd::Interface::enableSites()
+ See iMSCP::Servers::Httpd::Apache2::Abstract::enableSites()
 
 =cut
 
@@ -179,14 +250,13 @@ sub enableSites
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
-
     $self->{'reload'} ||= 1;
     0;
 }
 
 =item disableSites( @sites )
 
- See iMSCP::Servers::Httpd::Interface::disableSites()
+ See iMSCP::Servers::Httpd::Apache2::Abstract::disableSites()
 
 =cut
 
@@ -197,14 +267,13 @@ sub disableSites
     execute( [ '/usr/sbin/a2dissite', @sites ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     debug( $stderr ) if $stderr;
-
     $self->{'reload'} ||= 1;
     0;
 }
 
 =item enableModules( @modules )
 
- See iMSCP::Servers::Httpd::Interface::enableModules()
+ See iMSCP::Servers::Httpd::Apache2::Abstract::enableModules()
 
 =cut
 
@@ -227,7 +296,7 @@ sub enableModules
 
 =item disableModules( @modules )
 
- See iMSCP::Servers::Httpd::Interface::disableModules()
+ See iMSCP::Servers::Httpd::Apache2::Abstract::disableModules()
 
 =cut
 
@@ -238,14 +307,13 @@ sub disableModules
     execute( [ '/usr/sbin/a2dismod', @modules ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     debug( $stderr ) if $stderr;
-
     $self->{'restart'} ||= 1;
     0;
 }
 
 =item enableConfs( @conffiles )
 
- See iMSCP::Servers::Httpd::Interface::enableConfs()
+ See iMSCP::Servers::Httpd::Apache2::Abstract::enableConfs()
 
 =cut
 
@@ -257,14 +325,13 @@ sub enableConfs
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
-
     $self->{'reload'} ||= 1;
     0;
 }
 
 =item disableConfs( @conffiles )
 
- See iMSCP::Servers::Httpd::Interface::disableConfs()
+ See iMSCP::Servers::Httpd::Apache2::Abstract::disableConfs()
 
 =cut
 
@@ -275,97 +342,8 @@ sub disableConfs
     execute( [ '/usr/sbin/a2disconf', @conffiles ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     debug( $stderr ) if $stderr;
-
     $self->{'reload'} ||= 1;
     0;
-}
-
-=item start( )
-
- See iMSCP::Servers::Httpd::Interface::start()
-
-=cut
-
-sub start
-{
-    my ($self) = @_;
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApache2Start' );
-    return $rs if $rs;
-
-    eval { iMSCP::Service->getInstance()->start( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $self->{'eventManager'}->trigger( 'afterApache2Start' );
-}
-
-=item stop( )
-
- See iMSCP::Servers::Httpd::Interface::stop()
-
-=cut
-
-sub stop
-{
-    my ($self) = @_;
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApache2Stop' );
-    return $rs if $rs;
-
-    eval { iMSCP::Service->getInstance()->stop( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $self->{'eventManager'}->trigger( 'afterApache2Stop' );
-}
-
-=item restart( )
-
- See iMSCP::Servers::Httpd::Interface::restart()
-
-=cut
-
-sub restart
-{
-    my ($self) = @_;
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApache2Restart' );
-    return $rs if $rs;
-
-    eval { iMSCP::Service->getInstance()->restart( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $self->{'eventManager'}->trigger( 'afterApache2Restart' );
-}
-
-=item reload( )
-
- See iMSCP::Servers::Httpd::Interface::reload()
-
-=cut
-
-sub reload
-{
-    my ($self) = @_;
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApache2Reload' );
-    return $rs if $rs;
-
-    eval { iMSCP::Service->getInstance()->reload( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $self->{'eventManager'}->trigger( 'afterApache2Reload' );
 }
 
 =back
@@ -376,7 +354,7 @@ sub reload
 
 =item _setVersion( )
 
- See iMSCP::Servers::Httpd::Interface
+ See iMSCP::Servers::Httpd::Apache2::Abstract::_setVersion()
 
 =cut
 
@@ -388,8 +366,8 @@ sub _setVersion
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
-    if ( $stdout !~ m%Apache/([\d.]+)% ) {
-        error( "Couldnt' guess Apache2 version" );
+    if ( $stdout !~ /apache\/([\d.]+)/i ) {
+        error( "Couldn't guess Apache2 version from the `/usr/sbin/apache2ctl -v 0>&1` command output" );
         return 1;
     }
 
@@ -539,10 +517,7 @@ sub _installLogrotate
 {
     my ($self) = @_;
 
-    $self->buildConfFile(
-        'logrotate.conf',
-        '/etc/logrotate.d/apache2',
-        undef,
+    $self->buildConfFile( 'logrotate.conf', '/etc/logrotate.d/apache2', undef,
         {
             ROOT_USER     => $main::imscpConfig{'ROOT_USER'},
             ADM_GROUP     => $main::imscpConfig{'ADM_GROUP'},
@@ -664,25 +639,13 @@ sub _restoreDefaultConfig
 
     0;
 }
+=item _shutdown( $priority )
 
-=back
-
-=head1 SHUTDOWN TASKS
-
-=over 4
-
-=item shutdown( $priority )
-
- Restart, reload or start Apache2 server wheen needed
-
- This method is called automatically before the program exit.
-
- Param int $priority Server priority
- Return void
+ See iMSCP::Servers::Abstract::_shutdown()
 
 =cut
 
-sub shutdown
+sub _shutdown
 {
     my ($self, $priority) = @_;
 

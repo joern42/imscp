@@ -45,14 +45,12 @@ use iMSCP::Net;
 use iMSCP::Rights;
 use iMSCP::SystemUser;
 use iMSCP::TemplateParser qw/ processByRef replaceBlocByRef /;
-use iMSCP::Umask;
 use Scalar::Defer;
 use parent qw/ iMSCP::Servers::Httpd /;
 
 my $TMPFS = lazy
     {
-        local $UMASK = 027;
-        my $tmpfs = iMSCP::Dir->new( dirname => "$main::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache2_tmpfs" )->make();
+        my $tmpfs = iMSCP::Dir->new( dirname => "$main::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache2_tmpfs" )->make( { umask => 0027 } );
         return $tmpfs if isMountpoint( $tmpfs );
 
         mount(
@@ -86,7 +84,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_copyDomainDisablePages();
+    my $rs = $self->_setVersion();
+    $rs ||= $self->_copyDomainDisablePages();
     $rs ||= $self->_setupVlogger();
 }
 
@@ -101,14 +100,15 @@ sub uninstall
     my ($self) = @_;
 
     my $rs = $self->_removeVloggerSqlUser();
+    return $rs if $rs;
 
-    unless ( $rs || !iMSCP::Service->getInstance()->hasService( 'apache2' ) ) {
-        $self->{'restart'} ||= 1;
-    } else {
-        @{$self}{qw/ restart reload /} = ( 0, 0 );
+    eval { $self->restart() if iMSCP::Service->getInstance()->hasService( 'apache2' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
     }
 
-    $rs;
+    0;
 }
 
 =item setEnginePermissions( )
@@ -121,14 +121,14 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    #my $rs ||= setRights( '/usr/local/sbin/vlogger',
-    #    {
-    #        user  => $main::imscpConfig{'ROOT_USER'},
-    #        group => $main::imscpConfig{'ROOT_GROUP'},
-    #        mode  => '0750'
-    #    }
-    #);
-    my $rs = setRights( $self->{'config'}->{'HTTPD_LOG_DIR'},
+    my $rs ||= setRights( "$main::imscpConfig{'TRAFF_ROOT_DIR'}/vlogger",
+        {
+            user  => $main::imscpConfig{'ROOT_USER'},
+            group => $main::imscpConfig{'ROOT_GROUP'},
+            mode  => '0750'
+        }
+    );
+    $rs = setRights( $self->{'config'}->{'HTTPD_LOG_DIR'},
         {
             user      => $main::imscpConfig{'ROOT_USER'},
             group     => $main::imscpConfig{'ADM_GROUP'},
@@ -148,17 +148,30 @@ sub setEnginePermissions
     );
 }
 
-=item getHumanizedServerName( )
+=item getEventServerName( )
 
- See iMSCP::Servers::Abstract::getHumanizedServerName()
+ See iMSCP::Servers::Abstract::getEventServerName()
 
 =cut
 
-sub getHumanizedServerName
+sub getEventServerName
 {
     my ($self) = @_;
 
-    sprintf( "Apache2 %s (MPM %s)", $self->getVersion(), uc $self->{'CONFIG'}->{'APACHE2_MPM'} );
+    'Apache2';
+}
+
+=item getHumanServerName( )
+
+ See iMSCP::Servers::Abstract::getHumanServerName()
+
+=cut
+
+sub getHumanServerName
+{
+    my ($self) = @_;
+
+    sprintf( "Apache2 %s (MPM %s)", $self->getVersion(), ucfirst $self->{'config'}->{'APACHE2_MPM'} );
 }
 
 =item getVersion( )
@@ -187,7 +200,7 @@ sub addUser
     return 0 if $moduleData->{'STATUS'} eq 'tochangepwd';
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeApache2AddUser', $moduleData );
-    $rs ||= iMSCP::SystemUser->new( username => $self->{'config'}->{'HTTPD_USER'} )->addToGroup( $moduleData->{'GROUP'} );
+    $rs ||= iMSCP::SystemUser->new( username => $self->getRunningUser() )->addToGroup( $moduleData->{'GROUP'} );
     $rs ||= $self->{'eventManager'}->trigger( 'afterApache2AddUser', $moduleData );
 }
 
@@ -202,7 +215,7 @@ sub deleteUser
     my ($self, $moduleData) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeApache2DeleteUser', $moduleData );
-    $rs ||= iMSCP::SystemUser->new( username => $self->{'config'}->{'HTTPD_USER'} )->removeFromGroup( $moduleData->{'GROUP'} );
+    $rs ||= iMSCP::SystemUser->new( username => $self->getRunningUser() )->removeFromGroup( $moduleData->{'GROUP'} );
     $rs ||= $self->{'eventManager'}->trigger( 'afterApache2DeleteUser', $moduleData );
 }
 
@@ -355,8 +368,7 @@ sub addHtpasswd
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
-        local $UMASK = 027;
-        my $rs = $file->save();
+        my $rs = $file->save( 0027 );
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
         $rs ||= $file->mode( 0640 );
         $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
@@ -447,8 +459,7 @@ sub addHtgroup
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
-        local $UMASK = 027;
-        my $rs = $file->save();
+        my $rs = $file->save( 0027 );
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
         $rs ||= $file->mode( 0640 );
         $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
@@ -563,8 +574,7 @@ EOF
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
-        local $UMASK = 027;
-        my $rs = $file->save();
+        my $rs = $file->save( 0027 );
         $rs ||= $file->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} );
         $rs ||= $file->mode( 0640 );
         $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
@@ -778,6 +788,102 @@ sub getRunningGroup
     $self->{'config'}->{'HTTPD_GROUP'};
 }
 
+=item enableSites( @sites )
+
+ Enable the given sites
+ 
+ Param list @sites List of sites to enable
+ Return int 0 on success, other on failure
+
+=cut
+
+sub enableSites
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the enableSites() method', ref $self ));
+}
+
+=item disableSites( @sites )
+
+ Disable the given sites
+ 
+ Param list @sites List of sites to disable
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableSites
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disableSites() method', ref $self ));
+}
+
+=item enableModules( @modules )
+
+ Enable the given modules
+ 
+ Param list @modules List of modules to enable
+ Return int 0 on success, other on failure
+
+=cut
+
+sub enableModules
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
+}
+
+=item disableModules( @modules )
+
+ Disable the given modules
+ 
+ Param list @modules List of modules to disable
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableModules
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
+}
+
+=item enableConfs( @conffiles )
+
+ Enable the given configuration files
+ 
+ Param list @conffiles List of configuration files to enable
+ Return int 0 on success, other on failure
+
+=cut
+
+sub enableConfs
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the enableConfs() method', ref $self ));
+}
+
+=item disableConfs( @conffiles )
+
+ Disable the given configuration files
+ 
+ Param list @conffiles List of configuration files to disable
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableConfs
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disableConfs() method', ref $self ));
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -798,8 +904,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    $self->SUPER::_init();
-    @{$self}{qw/ restart reload _templates cfgDir _web_folder_skeleton /} = ( 0, 0, 0, {}, "$main::imscpConfig{'CONF_DIR'}/apache", undef );
+    @{$self}{qw/ restart reload _templates cfgDir _web_folder_skeleton /} = ( 0, 0, {}, "$main::imscpConfig{'CONF_DIR'}/apache", undef );
     $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/apache.data.dist";
     tie %{$self->{'config'}},
         'iMSCP::Config',
@@ -807,7 +912,7 @@ sub _init
         readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
         nodeferring => defined $main::execmode && $main::execmode eq 'setup';
     $self->{'eventManager'}->register( 'afterApache2BuildConfFile', $self, -999 );
-    $self;
+    $self->SUPER::_init();
 }
 
 =item _mergeConfig()
@@ -840,6 +945,21 @@ sub _mergeConfig
     iMSCP::File->new( filename => "$self->{'cfgDir'}/apache.data.dist" )->moveFile( "$self->{'cfgDir'}/apache.data" ) == 0 or croak(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
+}
+
+=item _setVersion( )
+
+ Set Apache2 version
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _setVersion
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
 }
 
 =item _deleteDomain( \%moduleData )
@@ -1632,9 +1752,13 @@ sub afterApache2BuildConfFile
 
 sub DESTROY
 {
+    my ($self) = @_;
+
     my $tmpfs = "$main::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache2_tmpfs";
     umount( $tmpfs ) if isMountpoint( $tmpfs );
     iMSCP::Dir->new( dirname => $tmpfs )->remove();
+
+    $self->SUPER::DESTROY();
 }
 
 =back

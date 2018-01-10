@@ -53,7 +53,7 @@ sub getPriority
 
 =back
 
-=head PUBLIC METHODS
+=head1 PUBLIC METHODS
 
 =over 4
 
@@ -64,6 +64,8 @@ sub getPriority
  The following events *MUST* be triggered:
   - before<SNAME>AddUser( \%moduleData )
   - after<SNAME>AddUser( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
  Return int 0 on success, other on failure
@@ -85,6 +87,8 @@ sub addUser
   - before<SNAME>DeleteUser( \%moduleData )
   - after<SNAME>DeleteUser( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
  Return int 0 on success, other on failure
 
@@ -104,6 +108,8 @@ sub deleteUser
  The following events *MUST* be triggered:
   - before<SNAME>AddDomain( \%moduleData )
   - after<SNAME>AddDomain( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
  Return int 0 on success, other on failure
@@ -125,6 +131,8 @@ sub addDomain
   - before<SNAME>RestoreDomain( \%moduleData )
   - after<SNAME>RestoreDomain( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
  Return int 0 on success, other on failure
 
@@ -144,6 +152,8 @@ sub restoreDomain
  The following events *MUST* be triggered:
   - before<SNAME>DisableDomain( \%moduleData )
   - after<SNAME>DisableDomain( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
  Return int 0 on success, other on failure
@@ -165,6 +175,8 @@ sub disableDomain
   - before<SNAME>DeleteDomain( \%moduleData )
   - after<SNAME>DeleteDomain( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
  Return int 0 on success, other on failure
 
@@ -184,6 +196,8 @@ sub deleteDomain
  The following events *MUST* be triggered:
   - before<SNAME>DisableSubdomain( \%moduleData )
   - after<SNAME>DisableSubdomain( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
  Return int 0 on success, other on failure
@@ -205,6 +219,8 @@ sub addSubdomain
   - before<SNAME>RestoreSubdomain( \%moduleData )
   - after<SNAME>RestoreSubdomain( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
  Return int 0 on success, other on failure
 
@@ -224,6 +240,8 @@ sub restoreSubdomain
  The following events *MUST* be triggered:
   - before<SNAME>DisableSubdomain( \%moduleData )
   - after<SNAME>DisableSubdomain( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
  Return int 0 on success, other on failure
@@ -245,6 +263,8 @@ sub disableSubdomain
   - before<SNAME>DeleteSubdomain( \%moduleData )
   - after<SNAME>DeleteSubdomain( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
  Return int 0 on success, other on failure
 
@@ -264,6 +284,8 @@ sub deleteSubdomain
  The following events *MUST* be triggered:
   - before<SNAME>AddHtpasswd( \%moduleData )
   - after<SNAME>AddHtpasswd( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htpasswd module
  Return int 0 on success, other on failure
@@ -285,6 +307,8 @@ sub addHtpasswd
   - before<SNAME>DeketeHtpasswd( \%moduleData )
   - after<SNAME>DeleteHtpasswd( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htpasswd module
  Return int 0 on success, other on failure
 
@@ -304,6 +328,8 @@ sub deleteHtpasswd
  The following events *MUST* be triggered:
   - before<SNAME>AddHtgroup( \%moduleData )
   - after<SNAME>AddHtgroup( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htgroup module
  Return int 0 on success, other on failure
@@ -325,6 +351,8 @@ sub addHtgroup
   - before<SNAME>deleteHtgroup( \%moduleData )
   - after<SNAME>deleteHtgroup( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htgroup module
  Return int 0 on success, other on failure
 
@@ -345,6 +373,8 @@ sub deleteHtgroup
   - before<SNAME>AddHtaccess( \%moduleData )
   - after<SNAME>AddHtaccess( \%moduleData )
 
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htaccess module
  Return int 0 on success, other on failure
 
@@ -364,6 +394,8 @@ sub addHtaccess
  The following events *MUST* be triggered:
   - before<SNAME>DeleteHtaccess( \%moduleData )
   - after<SNAME>DeleteHtaccess( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htaccess module
  Return int 0 on success, other on failure
@@ -425,7 +457,7 @@ sub getRunningGroup
 
 =back
 
-=head PRIVATE METHODS
+=head1 PRIVATE METHODS
 
 =over
 
@@ -441,9 +473,9 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-    $self;
+
+    $self->SUPER::_init();
 }
 
 =back
