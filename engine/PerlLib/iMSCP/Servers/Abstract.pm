@@ -399,7 +399,7 @@ sub reload
   - group   : File group, default: root
   - mode    : File mode, default: 0666 & (~umask())
   - cached  : Whether or not loaded file must be cached in memory
-  - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile point to tmpfile
+  - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
  Return int 0 on success, other on failure
 
 =cut
