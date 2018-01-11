@@ -418,16 +418,16 @@ sub _validateField
  Param scalar \$cfgTpl Reference to cron file content
  Param string $filename Cron file name
  Param string $trgFile Target file path
- Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules
+ Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules, none if called outside of an i-MSCP module context
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%sconfig Cron server configuration
  Param hashref \%params OPTIONAL parameters:
-  - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
-  - user  : File owner, default: root
-  - group : File group, default: root
-  - mode  : File mode, default: 0666 & (~umask())
-  - cached : Whether or not loaded file must be cached in memory
-
+  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to UMASK(2)
+  - user    : File owner (default: $> (EUID) for a new file, no change for existent file)
+  - group   : File group (default: $) (EGID) for a new file, no change for existent file)
+  - mode    : File mode (default: 0666 & (~UMASK()2) for a new file, no change for existent file )
+  - cached  : Whether or not loaded file must be cached in memory
+  - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
 =cut
 
 sub beforeCronBuildConfFile

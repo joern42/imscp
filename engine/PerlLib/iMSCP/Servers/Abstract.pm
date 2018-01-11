@@ -387,17 +387,17 @@ sub reload
   - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
   - after<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
 
-  where <SNAME> is the server name as returned by the ::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
  Param string $srcFile Absolute source filepath or source filepath relative to the i-MSCP server configuration directory
  Param string $trgFile Target file path
- Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules
+ Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules, none if outside of an i-MSCP module context
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%params OPTIONAL parameters:
-  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
-  - user    : File owner, default: root
-  - group   : File group, default: root
-  - mode    : File mode, default: 0666 & (~umask())
+  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to UMASK(2)
+  - user    : File owner (default: $> (EUID) for a new file, no change for existent file)
+  - group   : File group (default: $) (EGID) for a new file, no change for existent file)
+  - mode    : File mode (default: 0666 & (~UMASK()2) for a new file, no change for existent file )
   - cached  : Whether or not loaded file must be cached in memory
   - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
  Return int 0 on success, other on failure
@@ -453,12 +453,12 @@ sub buildConfFile
     $rs ||= $fh->save( $params->{'umask'} // undef );
     return $rs if $rs;
 
-    if ( exists $params->{'user'} || exists $params->{'group'} ) {
+    if ( defined $params->{'user'} || defined $params->{'group'} ) {
         $rs = $fh->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} );
         return $rs if $rs;
     }
 
-    if ( exists $params->{'mode'} ) {
+    if ( defined $params->{'mode'} ) {
         $rs = $fh->mode( $params->{'mode'} );
         return $rs if $rs;
     }

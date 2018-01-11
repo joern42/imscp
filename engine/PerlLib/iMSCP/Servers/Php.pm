@@ -566,12 +566,13 @@ sub _buildFpmConfig
  Param hashref \%mdata Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
  Param hashref \%sconfig Apache2 server data
  Param hashref \%sconfig Apache2 server data
- Param hashref \%params OPTIONAL Parameters:
-  - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
-  - user  : File owner (default: root)
-  - group : File group (default: root
-  - mode  : File mode (default: 0644)
-  - cached : Whether or not loaded file must be cached in memory
+ Param hashref \%params OPTIONAL parameters:
+  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to UMASK(2)
+  - user    : File owner (default: $> for a new file, no change for existent file)
+  - group   : File group (default: $) for a new file, no change for existent file)
+  - mode    : File mode (default: 0666 & (~UMASK()2) for a new file, no change for existent file )
+  - cached  : Whether or not loaded file must be cached in memory
+  - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
  Return int 0 on success, other on failure
 
 =cut
