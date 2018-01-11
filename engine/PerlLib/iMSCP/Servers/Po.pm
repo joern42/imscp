@@ -25,6 +25,7 @@ package iMSCP::Servers::Po;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
@@ -50,7 +51,53 @@ sub getPriority
 
 =back
 
-=head PRIVATE METHODS
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item addMail( \%moduleData )
+
+ Process addMail tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>addMail( \%moduleData )
+  - after<SNAME>addMail( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
+ Param hashref \%moduleData Mail data
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addMail
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
+}
+
+=item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
+
+ Get IMAP/POP3 traffic data
+
+ Param hashref \%trafficDb Traffic database
+ Param string $logFile Path to SMTP log file (only when self-called)
+ Param hashref \%trafficIndexDb Traffic index database (only when self-called)
+ Return void, croak on failure
+
+=cut
+
+sub getTraffic
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
+}
+
+=back
+
+=head1 PRIVATE METHODS
 
 =over
 
@@ -66,9 +113,9 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->SUPER::_init();
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-    $self;
+
+    $self->SUPER::_init();
 }
 
 =back
