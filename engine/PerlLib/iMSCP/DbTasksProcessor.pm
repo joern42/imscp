@@ -72,9 +72,9 @@ sub processDbTasks
         'per_item_log_file'
     );
 
-    # Process server IP addresses
+    # Process IP addresses
     $self->_processModuleDbTasks(
-        'iMSCP::Modules::ServerIP', "SELECT ip_id AS id, ip_number AS name FROM server_ips WHERE ip_status IN( 'toadd', 'tochange', 'todelete' )"
+        'iMSCP::Modules::IpAddr', "SELECT ip_id AS id, ip_number AS name FROM server_ips WHERE ip_status IN( 'toadd', 'tochange', 'todelete' )"
     );
 
     # Process SSL certificate toadd|tochange SSL certificates tasks
