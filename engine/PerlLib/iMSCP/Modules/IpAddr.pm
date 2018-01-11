@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::ServerIP - i-MSCP ServerIP module
+ iMSCP::Modules::IpAddr - i-MSCP IpAddr module
 
 =cut
 
@@ -21,13 +21,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-package iMSCP::Modules::ServerIP;
+package iMSCP::Modules::IpAddr;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error getLastError getMessageByType warning /;
-use iMSCP::Net;
-use iMSCP::Providers::NetworkInterface;
+use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
@@ -48,7 +46,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    'ServerIP';
+    'IpAddr';
 }
 
 =item process( $ipId )
@@ -91,76 +89,6 @@ sub process
     }
 
     $rs;
-}
-
-=item add( )
-
- Add (or update) a server IP address
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub add
-{
-    my ($self) = @_;
-
-    eval {
-        $self->{'eventManager'}->trigger( 'beforeAddIpAddr', $self->{'_data'} ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
-        if ( $self->{'_data'}->{'ip_card'} ne 'any' && $self->{'_data'}->{'ip_address'} ne '0.0.0.0' ) {
-            iMSCP::Providers::NetworkInterface->getInstance()->addIpAddr( $self->{'_data'} );
-            iMSCP::Net->getInstance()->resetInstance();
-        }
-
-        $self->SUPER::add() == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-        $self->{'eventManager'}->trigger( 'afterAddIpAddr', $self->{'_data'} ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
-=item delete( )
-
- Delete a server IP address
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub delete
-{
-    my ($self) = @_;
-
-    eval {
-        $self->{'eventManager'}->trigger( 'beforeRemoveIpAddr', $self->{'_data'} ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
-        if ( $self->{'_data'}->{'ip_card'} ne 'any' && $self->{'_data'}->{'ip_address'} ne '0.0.0.0' ) {
-            iMSCP::Providers::NetworkInterface->getInstance()->removeIpAddr( $self->{'_data'} );
-            iMSCP::Net->getInstance()->resetInstance();
-        }
-
-        $self->SUPER::delete() == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-        $self->{'eventManager'}->trigger( 'afterRemoveIpAddr', $self->{'_data'} ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
 }
 
 =back

@@ -50,6 +50,56 @@ sub getPriority
 
 =back
 
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item addIP( \%moduleData )
+
+ Process addIP tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>AddIpAddr( \%moduleData )
+  - after<SNAME>AddIpAddr( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::IpAddr module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub addIpAddr
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
+}
+
+=item deleteIpAddr( \%moduleData )
+
+ Process deleteIpAddr tasks
+
+ The following events *MUST* be triggered:
+  - before<SNAME>DeleteIpAddr( \%moduleData )
+  - after<SNAME>DeleteIpAddr( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::IpAddr module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub deleteIpAddr
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the deleteIpAddr() method', ref $self ));
+}
+
+=back
+
 =head1 PRIVATE METHODS
 
 =over

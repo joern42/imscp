@@ -30,7 +30,8 @@ use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStrin
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Servers::Sqld /;
+use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Providers::NetworkInterface
+    iMSCP::Servers::Sqld /;
 use File::Temp;
 use LWP::Simple qw/ $ua get /;
 use parent 'iMSCP::Servers::Server';
@@ -380,6 +381,61 @@ sub getVersion
     $main::imscpConfig{'DISTRO_RELEASE'};
 }
 
+=item addIpAddr( \%moduleData )
+
+ See iMSCP::Servers::Server::addIpAddr()
+
+=cut
+
+sub addIpAddr
+{
+    my ($self, $moduleData) = @_;
+
+    my $rs = $self->{'eventManager'}->trigger( 'beforeAddIpAddr', $moduleData );
+    return $rs if $rs;
+
+    if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
+        eval {
+
+            iMSCP::Providers::NetworkInterface->getInstance()->addIpAddr( $moduleData );
+            iMSCP::Net->getInstance()->resetInstance();
+        };
+        if ( $@ ) {
+            error( $@ );
+            return 1;
+        }
+    }
+
+    $self->{'eventManager'}->trigger( 'afterAddIpAddr', $moduleData );
+}
+
+=item deleteIpAddr( \%moduleData )
+
+ See iMSCP::Servers::Server::deleteIpAddr()
+
+=cut
+
+sub deleteIpAddr
+{
+    my ($self, $moduleData) = @_;
+
+    my $rs = $self->{'eventManager'}->trigger( 'beforeDeleteIpAddr', $moduleData );
+    return $rs if $rs;
+
+    if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
+        eval {
+            iMSCP::Providers::NetworkInterface->getInstance()->removeIpAddr( $moduleData );
+            iMSCP::Net->getInstance()->resetInstance();
+        };
+        if ( $@ ) {
+            error( $@ );
+            return 1;
+        }
+    }
+
+    $self->{'eventManager'}->trigger( 'afterDeleteIpAddr', $moduleData );
+}
+
 =item start( )
 
  See iMSCP::Servers::Abstract::start()
@@ -627,8 +683,6 @@ sub _setupPrimaryIP
  Laurent Declercq <l.declercq@nuxwin.com>
 
 =cut
-
-
 
 1;
 __END__
