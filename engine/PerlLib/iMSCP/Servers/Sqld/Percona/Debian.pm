@@ -134,7 +134,7 @@ default_password_lifetime = {DEFAULT_PASSWORD_LIFETIME}
 event_scheduler = {EVENT_SCHEDULER}
 innodb_use_native_aio = {INNODB_USE_NATIVE_AIO}
 max_connections = {MAX_CONNECTIONS}
-max_allowed_packet = MAX_ALLOWED_PACKET}
+max_allowed_packet = {MAX_ALLOWED_PACKET}
 performance_schema = {PERFORMANCE_SCHEMA}
 sql_mode = {SQL_MODE}
 EOF
@@ -152,18 +152,18 @@ EOF
 
             # Fix For: The 'INFORMATION_SCHEMA.SESSION_VARIABLES' feature is disabled; see the documentation for
             # 'show_compatibility_56' (3167) - Occurs when executing mysqldump with Percona server 5.7.x
-            ${$_[0]} .= "show_compatibility_56 = 1\n" if $version >= version->parse( '5.7.6' );
+            ${$_[0]} .= "show_compatibility_56 = ON\n" if $version >= version->parse( '5.7.6' );
             0;
         }
     );
     $rs ||= $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
         {
             EVENT_SCHEDULER       => 'DISABLED',
-            INNODB_USE_NATIVE_AIO => $main::imscpConfig{'SYSTEM_VIRTUALIZER'} ne 'physical' ? 0 : 1,
-            MAX_CONNECTIONS       => 500,
+            INNODB_USE_NATIVE_AIO => $main::imscpConfig{'SYSTEM_VIRTUALIZER'} eq 'physical' ? 'ON' : 'OFF',
+            MAX_CONNECTIONS       => '500',
             MAX_ALLOWED_PACKET    => '500M',
-            PERFORMANCE_SCHEMA    => 0,
-            SQL_MODE              => 0,
+            PERFORMANCE_SCHEMA    => 'OFF',
+            SQL_MODE              => '',
             SQLD_SOCK_DIR         => $self->{'config'}->{'SQLD_SOCK_DIR'}
         },
         {

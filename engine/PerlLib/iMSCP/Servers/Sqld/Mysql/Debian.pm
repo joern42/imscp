@@ -625,7 +625,7 @@ max_allowed_packet = {MAX_ALLOWED_PACKET}
 event_scheduler = {EVENT_SCHEDULER}
 innodb_use_native_aio = {INNODB_USE_NATIVE_AIO}
 max_connections = {MAX_CONNECTIONS}
-max_allowed_packet = MAX_ALLOWED_PACKET}
+max_allowed_packet = {MAX_ALLOWED_PACKET}
 performance_schema = {PERFORMANCE_SCHEMA}
 sql_mode = {SQL_MODE}
 EOF
@@ -644,11 +644,11 @@ EOF
     $rs ||= $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
         {
             EVENT_SCHEDULER       => 'DISABLED',
-            INNODB_USE_NATIVE_AIO => $main::imscpConfig{'SYSTEM_VIRTUALIZER'} ne 'physical' ? 0 : 1,
-            MAX_CONNECTIONS       => 500,
+            INNODB_USE_NATIVE_AIO => $main::imscpConfig{'SYSTEM_VIRTUALIZER'} eq 'physical' ? 'ON' : 'OFF',
+            MAX_CONNECTIONS       => '500',
             MAX_ALLOWED_PACKET    => '500M',
-            PERFORMANCE_SCHEMA    => 0,
-            SQL_MODE              => 0,
+            PERFORMANCE_SCHEMA    => 'OFF',
+            SQL_MODE              => '',
             SQLD_SOCK_DIR         => $self->{'config'}->{'SQLD_SOCK_DIR'}
         },
         {
@@ -832,7 +832,7 @@ sub _setupDatbase
         my $rs = $self->buildConfFile( "$main::imscpConfig{'CONF_DIR'}/database/database.sql", $dbSchemaFile, undef, { DATABASE_NAME => $dbName } );
         return $rs if $rs;
 
-        # Build MySQL temporary conffile
+        # Build default extra file
         my $defaultExtraFile = File::Temp->new();
         print $defaultExtraFile <<'EOF';
 [mysql]
