@@ -25,6 +25,7 @@ package iMSCP::Servers::Server::Local::Debian;
 
 use strict;
 use warnings;
+use Class::Autouse qw/ :nostat iMSCP::File /;
 use parent 'iMSCP::Servers::Server::Local::Abstract';
 
 our $VERSION = '1.0.0';
@@ -32,6 +33,50 @@ our $VERSION = '1.0.0';
 =head1 DESCRIPTION
 
  i-MSCP (Debian) Local server implementation.
+
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item install( )
+
+ See iMSCP::Servers::Local::Abstract::install()
+
+=cut
+
+sub install
+{
+    my ($self) = @_;
+
+    my $rs = $self->SUPER::install();
+    $rs ||= $self->_cleanup();
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _cleanup( )
+
+ Process cleanup tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _cleanup
+{
+    my ($self) = @_;
+
+    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' )
+        && -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp";
+
+    iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp" )->delFile();
+}
+
+=back
 
 =head1 AUTHOR
 

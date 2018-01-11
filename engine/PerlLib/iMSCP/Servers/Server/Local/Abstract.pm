@@ -31,6 +31,7 @@ use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Servers::Sqld /;
+use File::Temp;
 use LWP::Simple qw/ $ua get /;
 use parent 'iMSCP::Servers::Server';
 
@@ -297,30 +298,9 @@ EOF
     0;
 }
 
-=item preinstall( )
-
- Process preinstall tasks
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub preinstall
-{
-    if ( -f "$main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf" ) {
-        # Don't catch any error here to avoid permission denied error on some
-        # vps due to restrictions set by provider
-        execute( "$main::imscpConfig{'CMD_SYSCTL'} -p $main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf", \ my $stdout, \ my $stderr );
-        debug( $stdout ) if $stdout;
-        debug( $stderr ) if $stderr;
-    }
-}
-
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::install()
 
 =cut
 
@@ -329,7 +309,49 @@ sub install
     my ($self) = @_;
 
     my $rs = $self->_setupHostname();
+    $rs ||= $self->_setupSysctl();
     $rs ||= $self->_setupPrimaryIP();
+}
+
+=item postinstall( )
+
+ See iMSCP::Servers::Abstract::postinstall()
+
+=cut
+
+sub postinstall
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item install( )
+
+ See iMSCP::Servers::Abstract::install()
+
+=cut
+
+sub uninstall
+{
+    my ($self) = @_;
+
+    return 0 unless -f "$main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf";
+
+    iMSCP::File->new( filename => "$main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf" )->delFile();
+}
+
+=item getEventServerName( )
+
+ See iMSCP::Servers::Abstract::getEventServerName()
+
+=cut
+
+sub getEventServerName
+{
+    my ($self) = @_;
+
+    'LocalServer';
 }
 
 =item getHumanServerName( )
@@ -358,6 +380,58 @@ sub getVersion
     $main::imscpConfig{'DISTRO_RELEASE'};
 }
 
+=item start( )
+
+ See iMSCP::Servers::Abstract::start()
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item stop( )
+
+ See iMSCP::Servers::Abstract::stop()
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Abstract::restart()
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Abstract::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    0;
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -366,9 +440,7 @@ sub getVersion
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Servers::Server::Local::Abstract
+ See iMSCP::Servers::Server::_init()
 
 =cut
 
@@ -402,18 +474,13 @@ sub _setupHostname
     my $hostname = main::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $lanIP = main::setupGetQuestion( 'BASE_SERVER_IP' );
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerSetupHostname', \$hostname, \$lanIP );
-    return $rs if $rs;
-
     my @labels = split /\./, $hostname;
     my $host = shift @labels;
     my $hostnameLocal = "$hostname.local";
 
-    my $file = iMSCP::File->new( filename => '/etc/hosts' );
-    $rs = $file->copyFile( '/etc/hosts.bkp' ) unless -f '/etc/hosts.bkp';
-    return $rs if $rs;
-
-    my $content = <<"EOF";
+    # Build hosts configuration file
+    my $conffile = File::Temp->new();
+    print $conffile <<"EOF";
 127.0.0.1   $hostnameLocal   localhost
 $lanIP  $hostname   $host
 
@@ -425,30 +492,71 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 ff02::3 ip6-allhosts
 EOF
-    $file->set( $content );
-    $rs = $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
-    $rs ||= $file->mode( 0644 );
+    $conffile->close();
+    my $rs = $self->buildConfFile( $conffile, '/etc/hosts', undef, undef, { srcname => 'hosts' } );
     return $rs if $rs;
 
-    $file = iMSCP::File->new( filename => '/etc/hostname' );
-    $file->set( $host );
-    $rs = $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
-    $rs ||= $file->mode( 0644 );
+    # Build hostname configuration file
+    $conffile = File::Temp->new();
+    print $conffile <<"EOF";
+$host
+EOF
+    $conffile->close();
+    $rs = $self->buildConfFile( $conffile, '/etc/hostname', undef, undef, { srcname => 'hostname' } );
     return $rs if $rs;
 
-    $file = iMSCP::File->new( filename => '/etc/mailname' );
-    $file->set( $hostname );
-    $rs = $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
-    $rs ||= $file->mode( 0644 );
+    # Build mailname configuration file
+    $conffile = File::Temp->new();
+    print $conffile <<"EOF";
+$hostname
+EOF
+    $conffile->close();
+    $rs = $self->buildConfFile( $conffile, '/etc/mailname', undef, undef, { srcname => 'mailname' } );
     return $rs if $rs;
+    undef $conffile;
 
-    $rs = execute( 'hostname -F /etc/hostname', \ my $stdout, \ my $stderr );
+    # Make new hostname effective
+    $rs = execute( 'hostname --file /etc/hostname', \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || "Couldn't set server hostname" ) if $rs;
-    $rs ||= $self->{'eventManager'}->trigger( 'afterLocalServerSetupHostname' );
+    $rs;
+}
+
+=item _setupSysctl()
+
+ Setup SYSCTL(8)
+
+ return int 0 on success, other on failure
+
+=cut
+
+sub _setupSysctl
+{
+    my ($self) = @_;
+
+    # FIXME: Should we operate differently for vps? Some don't allow overriding of default SYSCTL(8) parameters
+    my $sysctlFile = File::Temp->new();
+    print $sysctlFile <<'EOF';
+# SYSCTL(8) configuration file - auto-generated by i-MSCP
+#     DO NOT EDIT THIS FILE BY HAND -- YOUR CHANGES WILL BE OVERWRITTEN
+
+# Promote secondaries IPs when primary is removed
+net.ipv4.conf.all.promote_secondaries=1
+
+# Set swappiness to lower value than default (60)
+# for better memory management
+vm.swappiness=10
+EOF
+    $sysctlFile->close();
+    my $rs = $self->buildConfFile(
+        $sysctlFile, "$main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf", undef, undef, { srcname => 'sysctl_imscp.conf' }
+    );
+    return $rs if $rs;
+
+    # Don't catch any error here to avoid permission denied error on some vps due to restrictions set by provider
+    execute( "$main::imscpConfig{'CMD_SYSCTL'} -p $main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf", \ my $stdout, \ my $stderr );
+    debug( $stdout ) if $stdout;
+    debug( $stderr ) if $stderr;
 }
 
 =item _setupPrimaryIP( )
