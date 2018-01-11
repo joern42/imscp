@@ -325,15 +325,14 @@ sub dumpdb
 
         debug( sprintf( 'Dump `%s` database into %s', $dbName, $dbDumpTargetDir . '/' . $encodedDbName . '.sql' ));
 
-        unless ( $self->{'_default_mysql_conffile'} ) {
-            $self->{'_default_mysql_conffile'} = File::Temp->new( UNLINK => 1 );
-            print { $self->{'_default_mysql_conffile'} } <<"EOF";
+        unless ( $self->{'_sql_default_extra_file'} ) {
+            $self->{'_sql_default_extra_file'} = File::Temp->new( UNLINK => 1 );
+            print { $self->{'_sql_default_extra_file'} } <<"EOF";
 [mysqldump]
 host = $self->{'db'}->{'DATABASE_HOST'}
 port = $self->{'db'}->{'DATABASE_PORT'}
 user = "@{ [ $self->{'db'}->{'DATABASE_USER'} =~ s/"/\\"/gr ] }"
 password = "@{ [ $self->{'db'}->{'DATABASE_PASSWORD'} =~ s/"/\\"/gr ] }"
-socket = /var/run/mysqld/mysqld.sock
 max_allowed_packet = 500M
 add-drop-table = false
 add-locks = true
@@ -349,7 +348,7 @@ quote-names = true
 complete-insert = true
 skip-comments = true
 EOF
-            $self->{'_default_mysql_conffile'}->close();
+            $self->{'_sql_default_extra_file'}->close();
         }
 
         my $dbh = $self->getRawDb();
@@ -360,11 +359,11 @@ EOF
 
         my $stderr;
         execute(
-            "/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_default_mysql_conffile'}"
+            "/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'}"
                 # Void tables locking whenever possible
                 . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '']}"
                 # Compress all information sent between the client and the server (only if remote SQL server).
-                . "@{[ index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, 'Remote' ) != -1 ? ' --compress' : '']}"
+                . "@{[ index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '']}"
                 . " --databases @{[ escapeShell($dbName) ]}"
                 . ' > ' . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
             undef,
@@ -452,7 +451,7 @@ sub _init
     $self->{'_dsn'} = '';
     $self->{'_currentUser'} = '';
     $self->{'_currentPassword'} = '';
-    $self->{'_default_mysql_conffile'} = undef;
+    $self->{'_sql_default_extra_file'} = undef;
     $self;
 }
 
