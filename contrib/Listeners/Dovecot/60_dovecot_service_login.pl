@@ -69,7 +69,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->registerOne(
-    'afterDovecotBuildConf',
+    'afterDovecotBuildConfFile',
     sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'DOVECOT_CONF_DIR'};
         my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/60_dovecot_service_login_listener.conf" );
@@ -106,7 +106,7 @@ service pop3-login {
 EOT
         $file->save();
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 
 1;
 __END__

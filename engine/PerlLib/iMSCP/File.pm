@@ -110,7 +110,7 @@ sub set
     0;
 }
 
-=item save( [ $umask = umask() ])
+=item save( [ $umask = UMASK(2) ])
 
  Save file
 

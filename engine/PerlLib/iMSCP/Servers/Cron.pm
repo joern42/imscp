@@ -425,7 +425,7 @@ sub _validateField
   - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to UMASK(2)
   - user    : File owner (default: $> (EUID) for a new file, no change for existent file)
   - group   : File group (default: $) (EGID) for a new file, no change for existent file)
-  - mode    : File mode (default: 0666 & (~UMASK()2) for a new file, no change for existent file )
+  - mode    : File mode (default: 0666 & (~UMASK(2)) for a new file, no change for existent file )
   - cached  : Whether or not loaded file must be cached in memory
   - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
 =cut

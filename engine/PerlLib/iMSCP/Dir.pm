@@ -253,7 +253,7 @@ sub owner
   - umask          : UMASK(2) for a new diretory. For instance if the given umask is 0027, mode will be: 0777 & (~0027) = 0750 (in octal), default to UMASK(2)
   - user           : File owner (default: $> (EUID) for a new file, no change for existent file)
   - group          : File group (default: $) (EGID) for a new file, no change for existent file)
-  - mode           : File mode (default: 0666 & (~UMASK()2) for a new file, no change for existent file )
+  - mode           : File mode (default: 0666 & (~UMASK(2)) for a new file, no change for existent file )
   - fixpermissions : If defined, ownership and permissions are set only if set with TRUE value
  Return int 0 on success, croak on failure
 

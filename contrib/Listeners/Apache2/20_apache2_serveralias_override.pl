@@ -57,7 +57,7 @@ iMSCP::EventManager->getInstance()->register(
         ${$tplContent} =~ s/^(\s+ServerAlias.*)/$1 $serverAliases{$moduleData->{'DOMAIN_NAME'}}/m;
         0;
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 
 1;
 __END__

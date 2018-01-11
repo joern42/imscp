@@ -67,8 +67,7 @@ sub registerSetupListeners
             push @{$_[0]}, sub { $self->sqlUserDialog( @_ ) }, sub { $self->passivePortRangeDialog( @_ ) };
             0;
         },
-        # Same priority as the factory
-        150
+        $self->getPriority()
     );
 }
 
@@ -275,16 +274,13 @@ sub uninstall
 {
     my ($self) = @_;
 
-    # In setup context, processing must be delayed, else we won't be able to connect to SQL server
-    # FIXME change event as this one is not longer triggered
-    if ( $main::execmode eq 'setup' ) {
-        return iMSCP::EventManager->getInstance()->register( 'afterSqldPreinstall', sub { $self->_dropSqlUser(); } );
-    }
-
     my $rs = $self->_dropSqlUser();
     return $rs if $rs;
 
-    eval { $self->restart() if iMSCP::Service->getInstance()->hasService( 'vsftpd' ); };
+    eval {
+        my $serviceMngr = iMSCP::Service->getInstance();
+        $serviceMngr->restart( 'vsftpd' ) if $serviceMngr->hasService( 'vsftpd' ) && $serviceMngr->isRunning( 'vsftpd' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;

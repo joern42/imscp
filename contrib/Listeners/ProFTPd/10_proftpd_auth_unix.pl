@@ -49,7 +49,7 @@ iMSCP::EventManager->getInstance()->register(
         ${$tplContent} =~ s/(<\/Global>)/\n  PersistentPasswd         off\n$1/im;
         0;
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
 
 1;
 __END__

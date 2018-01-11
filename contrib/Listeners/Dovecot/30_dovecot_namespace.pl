@@ -41,7 +41,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->registerOne(
-    'afterDovecotBuildConf',
+    'afterDovecotBuildConfFile',
     sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'DOVECOT_CONF_DIR'};
         my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/30_dovecot_namespace_listener.conf" );
@@ -62,7 +62,7 @@ namespace compat {
 EOT
         $file->save();
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 
 1;
 __END__

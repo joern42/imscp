@@ -53,7 +53,7 @@ iMSCP::EventManager->getInstance()->register(
         $conffile->{'MAXPERIP'} = $MAX_CONNECTION_PER_IP;
         0;
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Courier::' ) != -1;;
 
 1;
 __END__

@@ -71,7 +71,7 @@ sub registerSetupListeners
         },
         # We want show these dialogs after the httpd server dialog because
         # we rely on httpd server configuration parameters (httpd server priority - 10)
-        190
+        iMSCP::Servers::Httpd->getPriority()-10
     );
 }
 

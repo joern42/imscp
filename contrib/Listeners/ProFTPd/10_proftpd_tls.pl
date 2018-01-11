@@ -47,7 +47,7 @@ iMSCP::EventManager->getInstance()->register(
         ${$tplContent} =~ s/(TLSRequired\s+)off/${1}on/im;
         0;
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
 
 1;
 __END__

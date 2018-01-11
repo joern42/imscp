@@ -40,7 +40,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->registerOne(
-    'afterDovecotBuildConf',
+    'afterDovecotBuildConfFile',
     sub {
 
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'DOVECOT_CONF_DIR'};
@@ -50,7 +50,7 @@ disable_plaintext_auth = yes
 EOT
         $file->save();
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 
 1;
 __END__

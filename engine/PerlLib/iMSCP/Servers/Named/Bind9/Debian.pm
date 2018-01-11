@@ -66,8 +66,7 @@ sub registerSetupListeners
                 sub { $self->askLocalDnsResolver( @_ ) };
             0;
         },
-        # Same priority as the factory
-        300
+        $self->getPriority()
     );
 }
 
@@ -325,7 +324,10 @@ sub uninstall
     my $rs = $self->_removeConfig();
     return $rs if $rs;
 
-    eval { $self->restart() if iMSCP::Service->getInstance()->hasService( 'bind9' ); };
+    eval {
+        my $serviceMngr = iMSCP::Service->getInstance();
+        $serviceMngr->restart( 'bind9' ) if $serviceMngr->hasService( 'bind9' ) && $serviceMngr->isRunning( 'bind9' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;

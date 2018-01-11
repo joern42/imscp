@@ -65,7 +65,7 @@ unless ( $STORAGE_ROOT_PATH eq '' ) {
     iMSCP::EventManager->getInstance()->register(
         'onBoot',
         sub {
-            
+
             # Make sure that the current script is run by root user, else we
             # can end with permissions error.
             # See #IP-1770

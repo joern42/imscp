@@ -85,7 +85,7 @@ EOF
 EOF
         0;
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 
 1;
 __END__

@@ -59,7 +59,7 @@ iMSCP::EventManager->getInstance()->register(
         );
     },
     -99
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

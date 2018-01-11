@@ -60,38 +60,41 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
     sprintf( "The 10_postfix_tuning.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixBuildConf',
-    sub {
-        my %params = ();
-        while ( my ($param, $value) = each( %mainCfParameters ) ) {
-            $params{$param} = {
-                action => 'replace',
-                values => [ split /,\s+/, $value ]
-            };
+if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 )) {
+
+    iMSCP::EventManager->getInstance()->register(
+        'afterPostfixBuildConf',
+        sub {
+            my %params = ();
+            while ( my ($param, $value) = each( %mainCfParameters ) ) {
+                $params{$param} = {
+                    action => 'replace',
+                    values => [ split /,\s+/, $value ]
+                };
+            }
+
+            if ( %params ) {
+                my $rs = iMSCP::Servers::Mta->factory()->postconf( %params );
+                return $rs if $rs;
+            }
+
+            0;
+        },
+        -99
+    );
+
+    iMSCP::EventManager->getInstance()->register(
+        'afterPostfixBuildMasterCfFile',
+        sub {
+            my $cfgTpl = shift;
+
+            return 0 unless @masterCfParameters;
+
+            ${$cfgTpl} .= join( "\n", @masterCfParameters ) . "\n";
+            0;
         }
-
-        if ( %params ) {
-            my $rs = iMSCP::Servers::Mta->factory()->postconf( %params );
-            return $rs if $rs;
-        }
-
-        0;
-    },
-    -99
-);
-
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixBuildMasterCfFile',
-    sub {
-        my $cfgTpl = shift;
-
-        return 0 unless @masterCfParameters;
-
-        ${$cfgTpl} .= join( "\n", @masterCfParameters ) . "\n";
-        0;
-    }
-);
+    );
+};
 
 1;
 __END__

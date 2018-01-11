@@ -214,7 +214,7 @@ function generatePage($tpl)
         $permissionsBlock = true;
     }
 
-    if (strpos(Registry::get('config')['Servers:httpd'], 'apache2') !== false) {
+    if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
         $apache2Config = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache2/apache.data'));
         $isApache2Itk = $apache2Config['APACHE2_MPM'] == 'itk';
     } else {

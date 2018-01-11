@@ -331,7 +331,7 @@ function generateFeaturesForm(TemplateEngine $tpl)
         $translations['core']['error_field_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
     });
 
-    if (strpos(Registry::get('config')['Servers:httpd'], 'apache2') !== false) {
+    if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
         $apache2Config = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache2/apache.data'));
         $isApache2Itk = $apache2Config['APACHE2_MPM'] == 'itk';
     } else {

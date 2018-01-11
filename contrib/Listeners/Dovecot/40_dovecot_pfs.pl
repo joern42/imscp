@@ -36,7 +36,7 @@ use version;
 #
 
 iMSCP::EventManager->getInstance()->registerOne(
-    'afterDovecotBuildConf',
+    'afterDovecotBuildConfFile',
     sub {
         version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
             sprintf( "The 40_dovecot_pfs.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
@@ -49,7 +49,7 @@ login_log_format_elements = user=<%u> method=%m rip=%r lip=%l mpid=%e %c %k sess
 EOT
         $file->save();
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 
 1;
 __END__

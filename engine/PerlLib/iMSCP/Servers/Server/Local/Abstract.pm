@@ -30,7 +30,7 @@ use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStrin
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net /;
+use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Servers::Sqld /;
 use LWP::Simple qw/ $ua get /;
 use parent 'iMSCP::Servers::Server';
 
@@ -64,7 +64,7 @@ sub registerSetupListeners
             0;
         },
         # We want show these dialog before the sqld server dialogs (sqld priority + 10)
-        410
+        iMSCP::Servers::Sqld->getPriority()+10
     );
 }
 

@@ -57,7 +57,7 @@ iMSCP::EventManager->getInstance()->register(
         processByRef( { SERVER_IDENT_MESSAGE => qq/"$SERVER_IDENT_MESSAGE"/ }, $tplContent );
         0;
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
 
 1;
 __END__

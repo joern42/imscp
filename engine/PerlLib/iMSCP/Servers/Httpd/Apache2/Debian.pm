@@ -61,8 +61,7 @@ sub registerSetupListeners
             push @{$_[0]}, sub { $self->askForApache2MPM( @_ ) };
             0;
         },
-        # Same priority as the factory
-        200
+        $self->getPriority()
     );
 }
 

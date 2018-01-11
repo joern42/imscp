@@ -91,7 +91,10 @@ sub uninstall
     $rs ||= $self->_restoreConffiles();
     return $rs if $rs;
 
-    eval { $self->restart() if iMSCP::Service->getInstance()->hasService( 'postfix' ); };
+    eval {
+        my $serviceMngr = iMSCP::Service->getInstance();
+        $serviceMngr->restart( 'postfix' ) if $serviceMngr->hasService( 'postfix' ) && $serviceMngr->isRunning( 'postfix' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;

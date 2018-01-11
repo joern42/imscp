@@ -200,7 +200,7 @@ sub addUser
     return 0 if $moduleData->{'STATUS'} eq 'tochangepwd';
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeApache2AddUser', $moduleData );
-    $rs ||= iMSCP::SystemUser->new( username => $self->getRunningUser() )->addToGroup( $moduleData->{'GROUP'} );
+    $rs ||= iMSCP::SystemUser->new( username => $self->getRunningUser())->addToGroup( $moduleData->{'GROUP'} );
     $rs ||= $self->{'eventManager'}->trigger( 'afterApache2AddUser', $moduleData );
 }
 
@@ -215,7 +215,7 @@ sub deleteUser
     my ($self, $moduleData) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeApache2DeleteUser', $moduleData );
-    $rs ||= iMSCP::SystemUser->new( username => $self->getRunningUser() )->removeFromGroup( $moduleData->{'GROUP'} );
+    $rs ||= iMSCP::SystemUser->new( username => $self->getRunningUser())->removeFromGroup( $moduleData->{'GROUP'} );
     $rs ||= $self->{'eventManager'}->trigger( 'afterApache2DeleteUser', $moduleData );
 }
 
