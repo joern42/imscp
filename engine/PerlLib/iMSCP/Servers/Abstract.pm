@@ -394,11 +394,12 @@ sub reload
  Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%params OPTIONAL parameters:
-  - umask : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
-  - user  : File owner, default: root
-  - group : File group, default: root
-  - mode  : File mode, default: 0666 & (~umask())
-  - cached : Whether or not loaded file must be cached in memory
+  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to umask()
+  - user    : File owner, default: root
+  - group   : File group, default: root
+  - mode    : File mode, default: 0666 & (~umask())
+  - cached  : Whether or not loaded file must be cached in memory
+  - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile point to tmpfile
  Return int 0 on success, other on failure
 
 =cut
@@ -416,7 +417,9 @@ sub buildConfFile
     if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
         $cfgTpl = $self->{'_templates'}->{$srcFile};
     } else {
-        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $sname, $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
+        my $rs = $self->{'eventManager'}->trigger(
+            'onLoadTemplate', lc $sname, $params->{'srcname'} // $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params
+        );
         return $rs if $rs;
 
         unless ( defined $cfgTpl ) {
@@ -432,7 +435,7 @@ sub buildConfFile
     }
 
     my $rs = $self->{'eventManager'}->trigger(
-        "before${sname}BuildConfFile", \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+        "before${sname}BuildConfFile", \$cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
     );
     return $rs if $rs;
 
@@ -440,7 +443,7 @@ sub buildConfFile
     processByRef( $mdata, \$cfgTpl ) if %{$mdata};
 
     $rs = $self->{'eventManager'}->trigger(
-        "after${sname}dBuildConfFile", \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+        "after${sname}dBuildConfFile", \$cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
     );
     return $rs if $rs;
 
