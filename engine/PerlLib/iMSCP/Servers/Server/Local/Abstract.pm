@@ -326,9 +326,9 @@ sub postinstall
     0;
 }
 
-=item install( )
+=item uninstall( )
 
- See iMSCP::Servers::Abstract::install()
+ See iMSCP::Servers::Abstract::uninstall()
 
 =cut
 
@@ -557,6 +557,7 @@ EOF
     execute( "$main::imscpConfig{'CMD_SYSCTL'} -p $main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf", \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     debug( $stderr ) if $stderr;
+    0;
 }
 
 =item _setupPrimaryIP( )

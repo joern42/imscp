@@ -314,9 +314,7 @@ sub disableModules
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Servers::Php::Abstract, croak on failure
+ See iMSCP::Servers::Abstract::_init()
 
 =cut
 

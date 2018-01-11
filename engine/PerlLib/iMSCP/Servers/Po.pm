@@ -103,9 +103,7 @@ sub getTraffic
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Servers::Cron::Abstract, croak on failure
+ See iMSCP::Servers::Abstract::_init()
 
 =cut
 
