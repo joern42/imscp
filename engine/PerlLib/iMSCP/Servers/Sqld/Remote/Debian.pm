@@ -253,6 +253,7 @@ EOF
             MAX_ALLOWED_PACKET => '500M',
         },
         {
+            mode    => 0644,
             srcname => 'imscp.cnf'
         }
     );

@@ -163,10 +163,10 @@ EOF
             MAX_CONNECTIONS       => '500',
             MAX_ALLOWED_PACKET    => '500M',
             PERFORMANCE_SCHEMA    => 'OFF',
-            SQL_MODE              => '',
-            SQLD_SOCK_DIR         => $self->{'config'}->{'SQLD_SOCK_DIR'}
+            SQL_MODE              => ''
         },
         {
+            mode    => 0644,
             srcname => 'imscp.cnf'
         }
     );

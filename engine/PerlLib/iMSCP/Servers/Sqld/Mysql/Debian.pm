@@ -648,10 +648,10 @@ EOF
             MAX_CONNECTIONS       => '500',
             MAX_ALLOWED_PACKET    => '500M',
             PERFORMANCE_SCHEMA    => 'OFF',
-            SQL_MODE              => '',
-            SQLD_SOCK_DIR         => $self->{'config'}->{'SQLD_SOCK_DIR'}
+            SQL_MODE              => ''
         },
         {
+            mode    => 0644,
             srcname => 'imscp.cnf'
         }
     );
@@ -688,7 +688,7 @@ sub _setupMasterSqlUser
     # Create user
     $self->createUser( $user, $userHost, $pwd );
 
-    # Grant all privileges to that user (including GRANT otpion)
+    # Grant all privileges to that user, including GRANT OPTION
     eval {
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
         local $dbh->{'RaiseError'};
@@ -728,7 +728,7 @@ user = {USER}
 password = {PASSWORD}
 EOF
     $defaultExtraFile->close();
-    $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
+    my $rs = $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
         {
             HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
             PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
@@ -841,7 +841,7 @@ port = {PORT}
 user = {USER}
 password = {PASSWORD}
 EOF
-        $conffile->close();
+        $defaultExtraFile->close();
         $rs ||= $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
             {
                 HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),

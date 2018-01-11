@@ -81,8 +81,8 @@ sub setEnginePermissions
     $rs ||= setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
-            group => $self->{'config'}->{'SQLD_GROUP'},
-            mode  => '0640'
+            group => $self->{'config'}->{'ROOT_GROUP'},
+            mode  => '0644'
         }
     );
 }

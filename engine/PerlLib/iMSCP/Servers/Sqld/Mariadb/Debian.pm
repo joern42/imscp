@@ -173,10 +173,10 @@ EOF
             MAX_CONNECTIONS       => '500',
             MAX_ALLOWED_PACKET    => '500M',
             PERFORMANCE_SCHEMA    => 'OFF',
-            SQL_MODE              => '',
-            SQLD_SOCK_DIR         => $self->{'config'}->{'SQLD_SOCK_DIR'}
+            SQL_MODE              => ''
         },
         {
+            mode    => 0644,
             srcname => 'imscp.cnf'
         }
     );
@@ -203,7 +203,7 @@ user = {USER}
 password = {PASSWORD}
 EOF
     $defaultExtraFile->close();
-    $rs ||= $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
+    my $rs = $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
         {
             HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
             PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
