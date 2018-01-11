@@ -413,12 +413,13 @@ sub buildConfFile
 
     my ($sname, $cfgTpl) = ( $self->getEventServerName(), undef );
     my ($filename, $path) = fileparse( $srcFile );
+    $params->{'srcname'} //= $filename;
 
     if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
         $cfgTpl = $self->{'_templates'}->{$srcFile};
     } else {
         my $rs = $self->{'eventManager'}->trigger(
-            'onLoadTemplate', lc $sname, $params->{'srcname'} // $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params
+            'onLoadTemplate', lc $sname, $params->{'srcname'}, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params
         );
         return $rs if $rs;
 
