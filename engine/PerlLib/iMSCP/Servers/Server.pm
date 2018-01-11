@@ -50,34 +50,13 @@ sub getPriority
 
 =back
 
-=head1 PUBLIC METHODS
-
-=over 4
-
-=item getEventServerName( )
-
- See iMSCP::Servers::Abstract::getEventServerName()
-
-=cut
-
-sub getEventServerName
-{
-    my ($self) = @_;
-
-    $main::imscpConfig{'DISTRO_ID'};
-}
-
-=back
-
 =head1 PRIVATE METHODS
 
 =over
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Servers::Cron::Abstract, croak on failure
+ See iMSCP::Servers::Abstract::_init()
 
 =cut
 

@@ -25,7 +25,7 @@ package iMSCP::Dir;
 
 use strict;
 use warnings;
-use carp qw/ croak /;
+use Carp qw/ croak /;
 use File::Copy qw/ mv /;
 use File::Path qw/ mkpath remove_tree /;
 use File::Spec;

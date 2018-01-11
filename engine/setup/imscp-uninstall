@@ -95,9 +95,6 @@ EOF
         [ \&_uninstallPackages, 'Uninstalling i-MSCP packages' ],
         [ \&_uninstallServers, 'Uninstalling i-MSCP servers' ],
         [ \&_uninstallServices, 'Uninstalling i-MSCP services' ],
-        [ \&_removeCrontabFile, 'Removing i-MSCP crontab file' ],
-        [ \&_removeLogrotateFile, 'Removing i-MSCP logrotate file' ],
-        [ \&_removeSysctlFile, 'Removing i-MSCP sysctl file' ],
         [ \&_removeSqlData, 'Removing i-MSCP SQL data' ],
         [ \&_removeiMSCPSystemUser, 'Removing i-MSCP system user' ],
         [ \&_removeFiles, 'Removing i-MSCP files' ],
@@ -201,7 +198,8 @@ sub _uninstallPackages
 {
     startDetail();
 
-    my @packages = iMSCP::Packages->getInstance()->getListWithFullNames();
+    # For uninstallation, we reverse package priorities
+    my @packages = reverse iMSCP::Packages->getInstance()->getListWithFullNames();
     my $nbSteps = @packages;
     my ($step, $rs) = ( 1, 0 );
 
@@ -222,22 +220,21 @@ sub _uninstallPackages
 
 sub _uninstallServers
 {
-    startDetail();
-
+    # For uninstallation, we reverse servers priorities
     my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
     my $nbSteps = @servers;
     my ($step, $rs) = ( 1, 0 );
 
-    for my $server( @servers ) {
-        ( my $subref = $server->can( 'uninstall' ) ) or $step++ && next;
-        $rs = step(
-            sub { $subref->( $server->factory()) },
-            sprintf( 'Executing %s uninstall tasks ...', $server ),
-            $nbSteps,
-            $step
-        );
+    startDetail();
+    
+    for my $task( qw/ preuninstall uninstall postuninstall / ) {
+        for my $server( @servers ) {
+            $rs = step( sub { $server->factory()->$task() }, sprintf( 'Executing %s uninstall tasks ...', $server ), $nbSteps, $step );
+            last if $rs;
+            $step++;
+        }
+
         last if $rs;
-        $step++;
     }
 
     endDetail();
@@ -246,9 +243,14 @@ sub _uninstallServers
 
 sub _uninstallServices
 {
+    # FIXME: Should be done by specific packages, eg:
+    # iMSCP::Packages::Daemon
+    # iMSCP::Packages::Traffic
+    # iMSCP::Package::Mounts
     my $serviceMngr = iMSCP::Service->getInstance();
     $serviceMngr->remove( $_ ) for 'imscp_daemon', 'imscp_traffic', 'imscp_mountall';
 
+    # FIXME: Should be done by the Bind9 server implementation...
     for my $service( 'bind9', 'bind9-resolvconf' ) {
         $serviceMngr->disable( $service ) if $serviceMngr->isSystemd();
 
@@ -265,27 +267,7 @@ sub _uninstallServices
     0;
 }
 
-sub _removeCrontabFile
-{
-    return 0 unless -f '/etc/cron.d/imscp';
-
-    iMSCP::File->new( filename => '/etc/cron.d/imscp' )->delFile();
-}
-
-sub _removeLogrotateFile
-{
-    return 0 unless -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp";
-
-    iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp" )->delFile();
-}
-
-sub _removeSysctlFile
-{
-    return 0 unless -f '/etc/sysctl.d/imscp.conf';
-
-    iMSCP::File->new( filename => '/etc/sysctl.d/imscp.conf' )->delFile();
-}
-
+# FIXME: Should be done by the Sqld server implementation
 sub _removeSqlData
 {
     eval {
@@ -314,11 +296,13 @@ sub _removeSqlData
     0;
 }
 
+# FIXME: Should be done by the Local server implementation
 sub _removeiMSCPSystemUser
 {
     iMSCP::SystemUser->new( force => 1 )->delSystemUser( $main::imscpConfig{'IMSCP_USER'} );
 }
 
+# FIXME: Should be done by the Local server implementation
 sub _removeFiles
 {
     chdir( '/' );

@@ -92,7 +92,7 @@ sub getInstance
 
  Called by getInstance( ). Initialize instance
 
- Return iMSCP::Common::Singleton
+ Return iMSCP::Common::Singleton, croak or die on failure
 
 =cut
 

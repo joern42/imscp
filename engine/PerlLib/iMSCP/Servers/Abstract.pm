@@ -502,9 +502,7 @@ sub DESTROY
 
 =item _init( )
 
- Initialize the server instance
-
- Return iMSCP::Servers::Php::Abstract, croak on failure
+ See iMSCP::Common::Singleton::_init()
 
 =cut
 

@@ -21,21 +21,16 @@
 
 package iMSCP::Listener::System::Hosts;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
 use iMSCP::Debug;
 use iMSCP::EventManager;
-use iMSCP::File;
 
 #
 ## Configuration variables
 #
-
-# Path to system hosts file
-my $hostsFilePath = '/etc/hosts';
-
 # Parameter which allow to add one or many host entries in the system hosts file
 # Please replace the entries below by your own entries
 my @hostsFileEntries = (
@@ -53,22 +48,16 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 
 # Listener responsible to add host entries in the system hosts file, once it was built by i-MSCP
 iMSCP::EventManager->getInstance()->register(
-    'afterLocalServerSetupHostname',
+    'afterLocalServerBuildConfFile',
     sub {
-        return 0 unless -f $hostsFilePath;
+        my ($cfgTpl, $cfgTplName) = @_;
 
-        my $file = iMSCP::File->new( filename => $hostsFilePath );
-        my $fileContentRef = $file->getAsRef();
-        unless ( defined $fileContentRef ) {
-            error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
-            return 1;
-        }
+        return unless $cfgTplName eq 'hosts';
 
-        ${$fileContentRef} .= join( "\n", @hostsFileEntries ) . "\n";
-
-        $file->save();
+        ${$cfgTpl} .= join( "\n", @hostsFileEntries ) . "\n";
+        0;
     }
-);
+) if index( $main::imscpConfig{'iMSCP::Servers::Server'}, '::Local::' ) != -1;
 
 1;
 __END__
