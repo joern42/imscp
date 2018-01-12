@@ -131,7 +131,7 @@ EOF
 
                 ( $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass );
 $iMSCP::Dialog::InputValidation::lastValidationError
-Please enter a password for the ProFTPD SQL user (leave empty for autogeneration):
+Please enter a password for the ProFTPd SQL user (leave empty for autogeneration):
 \\Z \\Zn
 EOF
             } while $rs < 30 && !isValidPassword( $dbPass );
@@ -485,11 +485,11 @@ sub getTraffic
     $logFile ||= $self->{'config'}->{'FTPD_TRAFFIC_LOG_FILE'};
 
     unless ( -f $logFile ) {
-        debug( sprintf( "ProFTPD traffic %s log file doesn't exist. Skipping ...", $logFile ));
+        debug( sprintf( "ProFTPd traffic %s log file doesn't exist. Skipping ...", $logFile ));
         return;
     }
 
-    debug( sprintf( 'Processing ProFTPD traffic %s log file', $logFile ));
+    debug( sprintf( 'Processing ProFTPd traffic %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
     $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
@@ -501,7 +501,7 @@ sub getTraffic
     my $lastLogIdx = $#logs;
 
     if ( exists $logs[$idx] && $logs[$idx] eq $idxContent ) {
-        debug( sprintf( 'Skipping ProFTPD traffic logs that were already processed (lines %d to %d)', 1, ++$idx ));
+        debug( sprintf( 'Skipping ProFTPd traffic logs that were already processed (lines %d to %d)', 1, ++$idx ));
     } elsif ( $idxContent ne '' && substr( $logFile, -2 ) ne '.1' ) {
         debug( 'Log rotation has been detected. Processing last rotated log file first' );
         $self->getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
@@ -509,11 +509,11 @@ sub getTraffic
     }
 
     if ( $lastLogIdx < $idx ) {
-        debug( 'No new ProFTPD traffic logs found for processing' );
+        debug( 'No new ProFTPd traffic logs found for processing' );
         return;
     }
 
-    debug( sprintf( 'Processing ProFTPD traffic logs (lines %d to %d)', $idx+1, $lastLogIdx+1 ));
+    debug( sprintf( 'Processing ProFTPd traffic logs (lines %d to %d)', $idx+1, $lastLogIdx+1 ));
 
     my $regexp = qr/^(?:[^\s]+\s){7}(?<bytes>\d+)\s(?:[^\s]+\s){5}[^\s]+\@(?<domain>[^\s]+)/;
 
