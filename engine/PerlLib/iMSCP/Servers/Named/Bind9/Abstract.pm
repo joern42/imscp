@@ -28,7 +28,6 @@ use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
 use File::Basename;
-use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
@@ -69,7 +68,7 @@ sub install
 
     my $rs = $self->_setVersion();
     $rs ||= $self->_makeDirs();
-    $rs ||= $self->_buildConf();
+    $rs ||= $self->_configure();
 }
 
 =item setEnginePermissions( )
@@ -613,7 +612,7 @@ sub addCustomDNS
 
  Initialize instance
 
- Return iMSCP::Servers::Named::Bind9::Abstract
+ See iMSCP::Servers::Named::_init()
 
 =cut
 
@@ -625,45 +624,8 @@ sub _init
 
     @{$self}{qw/ restart reload serials seen_zones cfgDir /} = ( 0, 0, {}, {}, "$main::imscpConfig{'CONF_DIR'}/bind" );
     @{$self}{qw/ bkpDir wrkDir tplDir /} = ( "$self->{'cfgDir'}/backup", "$self->{'cfgDir'}/working", "$self->{'cfgDir'}/parts" );
-    $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/bind.data.dist";
-    tie %{$self->{'config'}},
-        'iMSCP::Config',
-        fileName    => "$self->{'cfgDir'}/bind.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+    $self->_loadConfig( 'bind.data' );
     $self->SUPER::_init();
-}
-
-=item _mergeConfig( )
-
- Merge distribution configuration with production configuration
-
- Return void croak on failure
-
-=cut
-
-sub _mergeConfig
-{
-    my ($self) = @_;
-
-    if ( -f "$self->{'cfgDir'}/bind.data" ) {
-        tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/bind.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/bind.data", readonly => 1;
-
-        debug( 'Merging old configuration with new configuration ...' );
-
-        while ( my ($key, $value) = each( %oldConfig ) ) {
-            next unless exists $newConfig{$key};
-            $newConfig{$key} = $value;
-        }
-
-        untie( %newConfig );
-        untie( %oldConfig );
-    }
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/bind.data.dist" )->moveFile( "$self->{'cfgDir'}/bind.data" ) == 0 or croak(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
 }
 
 =item _setVersion( )
@@ -1062,17 +1024,20 @@ sub _makeDirs
     0;
 }
 
-=item _buildConf( )
+=item _configure( )
 
- Build configuration file
+ Configure Bind9
 
  Return int 0 on success, other on failure
 
 =cut
 
-sub _buildConf
+sub _configure
 {
     my ($self) = @_;
+
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9Configure' );
+    return $rs if $rs;
 
     # default conffile (Debian/Ubuntu specific)
     if ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && exists $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} ) {
@@ -1093,7 +1058,7 @@ sub _buildConf
         );
 
         my $tplName = basename( $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} );
-        my $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName" );
+        $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName" );
         $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} );
         return $rs if $rs;
 
@@ -1129,7 +1094,7 @@ sub _buildConf
         );
 
         my $tplName = basename( $self->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
-        my $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
+        $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
@@ -1152,7 +1117,7 @@ sub _buildConf
         );
 
         my $tplName = basename( $self->{'config'}->{'BIND_CONF_FILE'} );
-        my $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
+        $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
@@ -1166,7 +1131,7 @@ sub _buildConf
     # local configuration file
     if ( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} ) {
         my $tplName = basename( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} );
-        my $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
+        $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
@@ -1177,7 +1142,7 @@ sub _buildConf
         return $rs if $rs;
     }
 
-    0;
+    $self->{'eventManager'}->trigger( 'afterBind9Configure' );
 }
 
 =item _checkIps(@ips)

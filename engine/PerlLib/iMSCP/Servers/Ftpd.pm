@@ -105,8 +105,8 @@ sub addFtpUser
  Disable FTP user
 
  The following event *MUST* be triggered:
-  - before<SNAME>disableFtpUser( \%moduleData )
-  - after<SNAME>disableFtpUser( \%moduleData )
+  - before<SNAME>DisableFtpUser( \%moduleData )
+  - after<SNAME>DisableFtpUser( \%moduleData )
 
   where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
@@ -127,8 +127,8 @@ sub disableFtpUser
  Delete FTP user
 
  The following event *MUST* be triggered:
-  - before<SNAME>deleteFtpUser( \%moduleData )
-  - after<SNAME>deleteFtpUser( \%moduleData )
+  - before<SNAME>DeleteFtpUser( \%moduleData )
+  - after<SNAME>DeleteFtpUser( \%moduleData )
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 

@@ -33,7 +33,6 @@ use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Servers::Sqld /;
 use File::Basename;
 use File::Spec;
 use File::Temp;
-use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
@@ -892,9 +891,7 @@ sub disableConfs
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Servers::Httpd::Apache2::Abstract
+ See iMSCP::Servers::Httpd::_init()
 
 =cut
 
@@ -905,46 +902,9 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{$self}{qw/ restart reload _templates cfgDir _web_folder_skeleton /} = ( 0, 0, {}, "$main::imscpConfig{'CONF_DIR'}/apache", undef );
-    $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/apache.data.dist";
-    tie %{$self->{'config'}},
-        'iMSCP::Config',
-        fileName    => "$self->{'cfgDir'}/apache.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+    $self->_loadConfig( 'apache.data' );
     $self->{'eventManager'}->register( 'afterApache2BuildConfFile', $self, -999 );
     $self->SUPER::_init();
-}
-
-=item _mergeConfig()
-
- Merge distribution configuration with production configuration
-
- croak on failure
-
-=cut
-
-sub _mergeConfig
-{
-    my ($self) = @_;
-
-    if ( -f "$self->{'cfgDir'}/apache.data" ) {
-        tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/apache.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/apache.data", readonly => 1;
-
-        debug( 'Merging old configuration with new configuration ...' );
-
-        while ( my ($key, $value) = each( %oldConfig ) ) {
-            next unless exists $newConfig{$key};
-            $newConfig{$key} = $value;
-        }
-
-        untie( %newConfig );
-        untie( %oldConfig );
-    }
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/apache.data.dist" )->moveFile( "$self->{'cfgDir'}/apache.data" ) == 0 or croak(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
 }
 
 =item _setVersion( )

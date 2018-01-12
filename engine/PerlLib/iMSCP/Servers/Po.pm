@@ -60,12 +60,12 @@ sub getPriority
  Process addMail tasks
 
  The following events *MUST* be triggered:
-  - before<SNAME>addMail( \%moduleData )
-  - after<SNAME>addMail( \%moduleData )
+  - before<SNAME>AddMail( \%moduleData )
+  - after<SNAME>AddMail( \%moduleData )
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
 
- Param hashref \%moduleData Mail data
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Mail module
  Return int 0 on success, other on failure
 
 =cut

@@ -28,10 +28,8 @@ use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::File /;
-use iMSCP::Config;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug error /;
 use version;
 use parent 'iMSCP::Servers::Sqld';
 
@@ -165,8 +163,6 @@ sub dropUser
     0;
 }
 
-
-
 =back
 
 =head1 PRIVATE METHODS
@@ -175,9 +171,7 @@ sub dropUser
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Servers::Sqld::Mysql::Abstract
+ See iMSCP::Servers::Sqld::_init()
 
 =cut
 
@@ -188,45 +182,8 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/mysql";
-    $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/mysql.data.dist";
-    tie %{$self->{'config'}},
-        'iMSCP::Config',
-        fileName    => "$self->{'cfgDir'}/mysql.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+    $self->_loadConfig( 'mysql.data' );
     $self->SUPER::_init();
-}
-
-=item _mergeConfig( )
-
- Merge distribution configuration with production configuration
-
- Return void, croak on failure
-
-=cut
-
-sub _mergeConfig
-{
-    my ($self) = @_;
-
-    if ( -f "$self->{'cfgDir'}/mysql.data" ) {
-        tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/mysql.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/mysql.data", readonly => 1;
-
-        debug( 'Merging old configuration with new configuration ...' );
-
-        while ( my ($key, $value) = each( %oldConfig ) ) {
-            next unless exists $newConfig{$key};
-            $newConfig{$key} = $value;
-        }
-
-        untie( %newConfig );
-        untie( %oldConfig );
-    }
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/mysql.data.dist" )->moveFile( "$self->{'cfgDir'}/mysql.data" ) == 0 or croak(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
 }
 
 =item _setVendor( )

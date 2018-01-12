@@ -27,8 +27,10 @@ use strict;
 use warnings;
 use Carp qw/ confess croak /;
 use File::Spec;
-use iMSCP::Debug qw/ debug /;
+use iMSCP::Config;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::EventManager;
+use iMSCP::File;
 use iMSCP::TemplateParser qw/ processByRef /;
 use parent 'iMSCP::Common::Singleton';
 
@@ -513,6 +515,69 @@ sub _init
     return $self unless ref $self eq __PACKAGE__;
 
     croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+}
+
+=item _loadConfig( $filename )
+
+ Load the i-MSCP server configuration
+ 
+ Also merge the old configuration with the new configuration in setup context.
+
+ Param string $filename i-MSCP server configuration filename
+ Croak on failure
+
+=cut
+
+sub _loadConfig
+{
+    my ($self, $filename) = @_;
+
+    defined $filename or croak( 'Missing $filename parameter' );
+    defined $self->{'cfgDir'} or croak( sprintf( "The %s class must define the `cfgDir' propertie", ref $self ));
+
+    if ( defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/$filename.dist" ) {
+        if ( -f "$self->{'cfgDir'}/$filename" ) {
+            debug( 'Merging old configuration with new configuration ...' );
+
+            tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename", readonly => 1;
+
+            # Sometime, configuratin parameters get renamed. In such case the developers should set the new parameter
+            # value with the old parameter name as a placeholder. For instance:
+            #
+            # Old parameter: DATABASE_USER
+            # New parameter: FTP_SQL_USER
+            #
+            # The value of the new parameter should be set as follows: FTP_SQL_USER = {DATABASE_USER}
+            # By doing this, the value of the old DATABASE_USER parameter value will be automatically used as value
+            # for the new FTP_SQL_USER parameter.
+            my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
+            processByRef( \%oldConfig, $file->getAsRef(), 'empty_unknown' );
+            $file->save() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            undef( $file );
+
+            tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename.dist";
+
+            while ( my ($key, $value) = each( %oldConfig ) ) {
+                next unless exists $newConfig{$key};
+                $newConfig{$key} = $value;
+            }
+
+            untie( %newConfig );
+            untie( %oldConfig );
+
+            iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.data" )->delFile();
+        }
+
+        iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" )->moveFile( "$self->{'cfgDir'}/$filename" ) == 0 or croak(
+            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+        );
+    }
+
+    tie %{$self->{'config'}},
+        'iMSCP::Config',
+        fileName    => "$self->{'cfgDir'}/$filename",
+        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
+        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
 }
 
 =item _shutdown( $priority )

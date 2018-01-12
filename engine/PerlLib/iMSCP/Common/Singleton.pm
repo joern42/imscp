@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Common::Singleton - Base class implementing Singleton Design Pattern
+ iMSCP::Common::Singleton - Base class for singleton classes
 
 =cut
 
@@ -46,7 +46,7 @@ my %_INSTANCES = ();
 
 sub hasInstance
 {
-    my $class = shift;
+    my ($class) = @_;
 
     $_INSTANCES{ref $class || $class};
 }

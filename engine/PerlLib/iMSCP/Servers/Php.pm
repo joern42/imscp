@@ -29,7 +29,6 @@ use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
 use File::Basename;
 use File::Spec;
-use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::File;
@@ -175,7 +174,7 @@ sub addDomain
  Process disableDomain tasks
  
   The following events *MUST* be triggered:
-  - beforePhpdDisableDomain( \%moduleData )
+  - beforePhpDisableDomain( \%moduleData )
   - afterPhpDisableDomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the AliasiMSCP::Modules::|iMSCP::Modules::Domain modules
@@ -196,7 +195,7 @@ sub disableDomain
  
   The following events *MUST* be triggered:
   - beforePhpDeleteDomain( \%moduleData )
-  - afterPhpdDeleteDomain( \%moduleData )
+  - afterPhpDeleteDomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
  Return int 0 on success, other on failure
@@ -236,7 +235,7 @@ sub addSubdomain
  
   The following events *MUST* be triggered:
   - beforePhpDisableSubdomain( \%moduleData )
-  - afterPhpdDisableSubdomain( \%moduleData )
+  - afterPhpDisableSubdomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
  Return int 0 on success, other on failure
@@ -330,46 +329,8 @@ sub _init
     }
 
     @{$self}{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$main::imscpConfig{'CONF_DIR'}/php" );
-    $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/php.data.dist";
-    tie %{$self->{'config'}},
-        'iMSCP::Config',
-        fileName    => "$self->{'cfgDir'}/php.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
-    $self->{'eventManager'}->register( [ qw/ beforeApache2BuildConfFile afterApache2AddFiles / ], $self, 100 );
+    $self->_loadConfig( 'php.data' );
     $self->SUPER::_init();
-}
-
-=item _mergeConfig()
-
- Merge distribution configuration with production configuration
-
- Croak on failure
-
-=cut
-
-sub _mergeConfig
-{
-    my ($self) = @_;
-
-    if ( -f "$self->{'cfgDir'}/php.data" ) {
-        tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/php.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/php.data", readonly => 1;
-
-        debug( 'Merging old configuration with new configuration ...' );
-
-        while ( my ($key, $value) = each( %oldConfig ) ) {
-            next unless exists $newConfig{$key};
-            $newConfig{$key} = $value;
-        }
-
-        untie( %newConfig );
-        untie( %oldConfig );
-    }
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/php.data.dist" )->moveFile( "$self->{'cfgDir'}/php.data" ) == 0 or croak(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
 }
 
 =item _setFullVersion()

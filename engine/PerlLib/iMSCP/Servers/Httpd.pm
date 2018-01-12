@@ -304,7 +304,7 @@ sub addHtpasswd
  Process deleteHtpasswd tasks
 
  The following events *MUST* be triggered:
-  - before<SNAME>DeketeHtpasswd( \%moduleData )
+  - before<SNAME>DeleteHtpasswd( \%moduleData )
   - after<SNAME>DeleteHtpasswd( \%moduleData )
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
