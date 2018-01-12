@@ -524,7 +524,7 @@ sub _init
  Also merge the old configuration with the new configuration in setup context.
 
  Param string $filename i-MSCP server configuration filename
- Croak on failure
+ Return void, croak on failure
 
 =cut
 
@@ -548,8 +548,8 @@ sub _loadConfig
             # New parameter: FTP_SQL_USER
             #
             # The value of the new parameter should be set as follows: FTP_SQL_USER = {DATABASE_USER}
-            # By doing this, the value of the old DATABASE_USER parameter value will be automatically used as value
-            # for the new FTP_SQL_USER parameter.
+            # By doing this, the value of the old DATABASE_USER parameter will be automatically used as value for the
+            # new FTP_SQL_USER parameter.
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
             processByRef( \%oldConfig, $file->getAsRef(), 'empty_unknown' );
             $file->save() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
@@ -565,7 +565,9 @@ sub _loadConfig
             untie( %newConfig );
             untie( %oldConfig );
 
-            iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.data" )->delFile();
+            iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename" )->delFile() == 0 or croak(
+                getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+            );
         }
 
         iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" )->moveFile( "$self->{'cfgDir'}/$filename" ) == 0 or croak(
