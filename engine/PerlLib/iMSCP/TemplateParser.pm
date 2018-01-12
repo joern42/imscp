@@ -39,7 +39,7 @@ our @EXPORT = qw/ process processByRef getBloc getBlocByRef replaceBloc replaceB
 
 =over 4
 
-=item processByRef( \%data, \$template [, $emptyUnknowns = FALSE ] )
+=item processByRef( \%data, \$template [, $emptyUnknown = FALSE ] )
 
  Replace placeholders in the given template
 
@@ -61,7 +61,7 @@ sub processByRef( $$;$ )
     ${$template} =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // ( $emptyUnknown ? '' : "{$1}" )#ge for 0 .. 1;
 }
 
-=item process( \%data, $template [, $emptyUnknowns = FALSE ] )
+=item process( \%data, $template [, $emptyUnknown = FALSE ] )
 
  Replace placeholders in the given template
 
