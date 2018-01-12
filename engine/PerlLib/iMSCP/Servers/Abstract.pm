@@ -533,7 +533,7 @@ sub _loadConfig
     my ($self, $filename) = @_;
 
     defined $filename or croak( 'Missing $filename parameter' );
-    defined $self->{'cfgDir'} or croak( sprintf( "The %s class must define the `cfgDir' propertie", ref $self ));
+    defined $self->{'cfgDir'} or croak( sprintf( "The %s class must define the `cfgDir' property", ref $self ));
 
     if ( defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/$filename.dist" ) {
         if ( -f "$self->{'cfgDir'}/$filename" ) {
