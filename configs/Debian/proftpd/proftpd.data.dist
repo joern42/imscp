@@ -1,19 +1,14 @@
-PROFTPD_VERSION =
-
-FTPD_PASSIVE_PORT_RANGE =
-
-MIN_UID = 1001
-MIN_GID = 1001
-
-DATABASE_USER =
-DATABASE_PASSWORD =
-
-#
-## You can edit the parameters bellow
-#
-
-# See http://www.proftpd.org/docs/directives/linked/config_ref_MaxInstances.html
-MAX_INSTANCES = 100
-
+FTPD_VERSION = {PROFTPD_VERSION}
+FTPD_BANNER = i-MSCP FTPd server
+FTPD_CONF_DIR = /etc/proftpd.conf
 # See http://www.proftpd.org/docs/directives/linked/config_ref_MaxClientsPerHost.html
-MAX_CLIENT_PER_HOST = none
+FTPD_MAX_CLIENTS_PER_HOST = {MAX_CLIENT_PER_HOST}
+# See http://www.proftpd.org/docs/directives/linked/config_ref_MaxInstances.html
+FTPD_MAX_INSTANCES = {MAX_INSTANCES}
+FTPD_MIN_GID = 1001
+FTPD_MIN_UID = 1001
+FTPD_PASSIVE_PORT_RANGE =
+FTPD_TRAFFIC_LOG_FILE = /var/log/proftpd/xferlog
+FTPD_SSL_LOG_FILE = /var/log/proftpd/ftp_ssl.log
+FTPD_SQL_PASSWORD = {DATABASE_PASSWORD}
+FTPD_SQL_USER = {DATABASE_USER}
