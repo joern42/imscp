@@ -1,6 +1,6 @@
 FTPD_VERSION = {PROFTPD_VERSION}
 FTPD_BANNER = i-MSCP FTPd server
-FTPD_CONF_DIR = /etc/proftpd.conf
+FTPD_CONF_DIR = /etc/proftpd
 # See http://www.proftpd.org/docs/directives/linked/config_ref_MaxClientsPerHost.html
 FTPD_MAX_CLIENTS_PER_HOST = {MAX_CLIENT_PER_HOST}
 # See http://www.proftpd.org/docs/directives/linked/config_ref_MaxInstances.html
