@@ -39,42 +39,44 @@ our @EXPORT = qw/ process processByRef getBloc getBlocByRef replaceBloc replaceB
 
 =over 4
 
-=item processByRef( \%data, \$template )
+=item processByRef( \%data, \$template [, $emptyUnknowns = FALSE ] )
 
  Replace placeholders in the given template
 
  Param hashref \%data Hash where the keys are the pseudo-variable names (composed of a-zA-Z0-9_ characters) and the values, the replacement values 
  Param scalaref \$template Reference to template content
+ Param boolean $emptyUnknown Flag indicating whether or not unknown pseudo-variables must be emptied
  Return void, croak on failure
 
 =cut
 
-sub processByRef( $$ )
+sub processByRef( $$;$ )
 {
-    my ($data, $template) = @_;
+    my ($data, $template, $emptyUnknown) = @_;
 
     ref $data eq 'HASH' or croak( 'Invalid $data parameter. Hash reference expected.' );
     ref $template eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar reference expected.' );
 
     # Process twice to cover cases where there are placeholders defining other placeholder(s)
-    ${$template} =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // "{$1}"#ge for 0 .. 1;
+    ${$template} =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // ( $emptyUnknown ? '' : "{$1}" )#ge for 0 .. 1;
 }
 
-=item process( \%data, $template )
+=item process( \%data, $template [, $emptyUnknowns = FALSE ] )
 
  Replace placeholders in the given template
 
  Param hashref \%data A hash of data where the keys are the pseudo-variable names and the values, the replacement values
  Param string $template Template content
+ Param boolean $emptyUnknown Flag indicating whether or not unknown pseudo-variables must be emptied
  Return string Processed template content
 
 =cut
 
-sub process( $$ )
+sub process( $$;$ )
 {
-    my ($data, $template) = @_;
+    my ($data, $template, $emptyUnknown) = @_;
 
-    processByRef( $data, \$template );
+    processByRef( $data, \$template, $emptyUnknown );
     $template;
 }
 

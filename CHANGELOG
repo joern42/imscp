@@ -12,6 +12,7 @@ BACKEND
     Enhancement: Make it possible to define placeholders in placeholders (iMSCP::TemplateParser)
     Enhancement: Make it possible to delay execution of the 'start', 'restart' and 'reload' actions (iMSCP::Service)
     Enhancement: Make it possible to discard files/directories when clearing a directory (iMSCP::Dir::clear)
+    Enhancement: Make it possible to empty unknown pseudo-variables in templates (iMSCP::TemplateParser)
     Enhancement: Make it possible to install Composer anywhere (iMSCP::Composer)
     Enhancement: Make it possible to override default composer.json (iMSCP::Composer)
     Enhancement: Make it possible to reconfigure many items at once by passing comma separated list of items (iMSCP::Getopt)
