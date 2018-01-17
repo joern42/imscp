@@ -25,15 +25,14 @@ package iMSCP::Getopt;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Basename;
 use Text::Wrap qw/ wrap /;
-use fields qw / clearPackageCache debug fixPermissions listener noprompt
-    preseed reconfigure skipPackageUpdate verbose /;
 
 $Text::Wrap::columns = 80;
 $Text::Wrap::break = qr/[\s\n\|]/;
 
-my $options = fields::new( 'iMSCP::Getopt' );
+my $options = {};
 my $OPTION_HELP = '';
 my $SHOW_USAGE;
 
@@ -80,8 +79,7 @@ $usage
  -c,    --clean-package-cache     Clear i-MSCP composer package cache.
  -d,    --debug                   Enable debug mode.
  -h,-?  --help                    Show this help.
- -l,    --listener <file>         Path to listener file.
- -n,    --noprompt                Switch to non-interactive mode.
+ -n,    --noprompt                Run in non-interactive mode.
  -p,    --preseed <file>          Path to preseed file.
  -r,    --reconfigure [item,...]  Type `help` for list of allowed items.
  -v,    --verbose                 Enable verbose mode.
@@ -106,7 +104,6 @@ EOF
         'debug|d', sub { $options->{'debug'} = 1 },
         'help|?|h', sub { $class->showUsage() },
         'fix-permissions|x', sub { $options->{'fixPermissions'} = 1 },
-        'listener|l=s', sub { $class->listener( $_[1] ) },
         'noprompt|n', sub { $options->{'noprompt'} = 1 },
         'preseed|p=s', sub { $class->preseed( $_[1] ) },
         'reconfigure|r:s', sub { $class->reconfigure( $_[1] ) },
@@ -162,13 +159,13 @@ EOF
  Show usage
 
  Param int $exitCode OPTIONAL Exit code
- Return void
+ Return void, croak on failure
 
 =cut
 
 sub showUsage
 {
-    ref $SHOW_USAGE eq 'CODE' or die( 'showUsage( ) is not defined.' );
+    ref $SHOW_USAGE eq 'CODE' or croak( 'showUsage( ) is not defined.' );
     $SHOW_USAGE->();
     exit 1;
 }
@@ -273,23 +270,29 @@ sub preseed
     $options->{'preseed'} = $file;
 }
 
-=item listener( [ $file = undef ] )
+=item context( [ $context = 'backend' ])
 
- Accessor/Mutator for the listener command line option
+ Accessor/Mutator for the execution context
 
- Param string $file OPTIONAL Listener file path
- Return string Path to listener file or undef
+ Param string $context Execution context (installer, uninstaller, backend)
+ Return string Execution context
 
 =cut
 
-sub listener
+sub context
 {
-    my (undef, $file) = @_;
+    my (undef, $context) = @_;
 
-    return $options->{'listener'} unless defined $file;
+    return $options->{'context'} // 'backend' unless defined $context;
 
-    -f $file or die( sprintf( 'Listener file not found: %s', $file ));
-    $options->{'listener'} = $file;
+    grep($context eq $_, ( 'installer', 'uninstaller', 'backend' )) or croak( 'Unknown execution context' );
+
+    if ( grep($context eq $_, 'installler', 'uninstaller') ) {
+        # Needed to make sub processes aware of i-MSCP setup context
+        $ENV{'IMSCP_SETUP'} = 1;
+    }
+
+    $options->{'context'} = $context;
 }
 
 =back
