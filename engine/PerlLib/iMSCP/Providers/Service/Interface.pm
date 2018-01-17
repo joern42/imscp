@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::Service::Interface - Interface for service providers
+ iMSCP::Providers::Service::Interface - Interface for service (Systemd, SysVinit, Upstart...) providers
 
 =cut
 
@@ -25,10 +25,11 @@ package iMSCP::Providers::Service::Interface;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 
 =head1 DESCRIPTION
 
- Interface for service providers
+ Interface for service (Systemd, SysVinit, Upstart...) providers.
 
 =head1 PUBLIC METHODS
 
@@ -36,57 +37,72 @@ use warnings;
 
 =item isEnabled( $service )
 
- Does the given service is enabled?
+ is the given service is enabled?
 
+ Param string $service Service name
  Return TRUE if the given service is enabled, FALSE otherwise
 
 =cut
 
 sub isEnabled
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the isEnabled() method', ref $self ));
 }
 
 =item enable( $service )
 
  Enable the given service
 
+ If $service is already enabled, no failure must be reported.
+
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
 sub enable
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the enable() method', ref $self ));
 }
 
 =item disable( $service )
 
  Disable the given service
 
+ If $service is already disabled, no failure must be reported.
+
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
 sub disable
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the disable() method', ref $self ));
 }
 
 =item remove( $service )
 
  Remove the given service
 
+ If $service doesn't exist, no failure must be reported.
+
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
 sub remove
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the remove() method', ref $self ));
 }
 
 =item start( $service )
@@ -94,57 +110,71 @@ sub remove
  Start the given service
 
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
 sub start
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the start() method', ref $self ));
 }
 
 =item stop( $service )
 
  Stop the given service
 
+ If $service is not running, no failure must be reported.
+
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
 sub stop
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the stop() method', ref $self ));
 }
 
 =item restart( $service )
 
  Restart the given service
 
+ If $ervice is not running, it must be started.
+
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
 sub restart
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the restart() method', ref $self ));
 }
 
 =item reload( $service )
 
  Reload the given service
 
+ If $service doesn't support reload, it must be restarted.
+ If $service is not running, it must be started.
+
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
 sub reload
 {
-    die 'not implemented';
-}
+    my ($self) = @_;
 
+    croak ( sprintf( 'The %s class must implement the reload() method', ref $self ));
+}
 
 =item isRunning( $service )
 
@@ -157,20 +187,25 @@ sub reload
 
 sub isRunning
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the isRunning() method', ref $self ));
 }
 
 =item hasService( $service )
 
  Does the given service exists?
 
+ Param string $service Service name
  Return bool TRUE if the given service exits, FALSE otherwise
 
 =cut
 
 sub hasService
 {
-    die 'not implemented';
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the hasService() method', ref $self ));
 }
 
 =back
