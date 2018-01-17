@@ -37,7 +37,7 @@ use Carp qw/ croak /;
 
 =item isEnabled( $service )
 
- is the given service is enabled?
+ Is the given service is enabled?
 
  Param string $service Service name
  Return TRUE if the given service is enabled, FALSE otherwise
@@ -55,7 +55,7 @@ sub isEnabled
 
  Enable the given service
 
- If $service is already enabled, no failure must be reported.
+ If $service is already enabled, no failure *MUST* be reported.
 
  Param string $service Service name
  Return bool TRUE on success, croak on failure
@@ -73,7 +73,7 @@ sub enable
 
  Disable the given service
 
- If $service is already disabled, no failure must be reported.
+ If $service is already disabled, no failure *MUST* be reported.
 
  Param string $service Service name
  Return bool TRUE on success, croak on failure
@@ -91,7 +91,9 @@ sub disable
 
  Remove the given service
 
- If $service doesn't exist, no failure must be reported.
+ If $service doesn't exist, no failure *MUST* be reported.
+ If the iMSCP::Providers::Service::Interface provider provide a compatibility
+ layer for SysVinit scripts, those *SHOULD* be also removed.
 
  Param string $service Service name
  Return bool TRUE on success, croak on failure
@@ -125,7 +127,7 @@ sub start
 
  Stop the given service
 
- If $service is not running, no failure must be reported.
+ If $service is not running, no failure *MUST* be reported.
 
  Param string $service Service name
  Return bool TRUE on success, croak on failure
@@ -143,7 +145,7 @@ sub stop
 
  Restart the given service
 
- If $ervice is not running, it must be started.
+ If $ervice is not running, it *MUST* be started.
 
  Param string $service Service name
  Return bool TRUE on success, croak on failure
@@ -161,8 +163,8 @@ sub restart
 
  Reload the given service
 
- If $service doesn't support reload, it must be restarted.
- If $service is not running, it must be started.
+ If $service doesn't support reload, it *SHOULD* be restarted.
+ If $service is not running, it *MUST* be started.
 
  Param string $service Service name
  Return bool TRUE on success, croak on failure
