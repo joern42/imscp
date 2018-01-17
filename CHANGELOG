@@ -25,8 +25,10 @@ BACKEND
     Fixed: Couldn't restore uncompressed databases
     Fixed: Existence of network devices must be checked before operating on them (iMSCP::Net)
     Fixed: Make distinction between install and update commands (iMSCP::Composer)
+    Fixed: Make sure that units are not masked when enabling them (Systemd service provider)
     Fixed: Make sure to work with a well-known composer version (iMSCP::Composer)
     Fixed: Make use of the INADDR_ANY address, regardless of domain IP address when primary server IP is set with `None` option
+    Fixed: Resolve units before acting on them due to https://github.com/systemd/systemd/issues/7875 (Systemd service provider)
     Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::Dir::rcopy)
     Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::File::copyFile)
     Fixed: Unexpected permissions set on folders in recursive mode, and when dirmode parameter is not involved (iMSCP::Rights)

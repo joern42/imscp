@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::Service::Sysvinit - Base service provider for `sysvinit' scripts
+ iMSCP::Providers::Service::Sysvinit - SysVinit base service provider implementation
 
 =cut
 
@@ -25,59 +25,22 @@ package iMSCP::Providers::Service::Sysvinit;
 
 use strict;
 use warnings;
-use Carp;
+use Carp qw/ croak /;
 use File::Spec;
 use iMSCP::Debug qw/ debug error /;
-use iMSCP::Execute;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::Service::Interface /;
 
+my $EXEC_OUTPUT;
+
 =head1 DESCRIPTION
 
- Base service provider for `sysvinit' scripts.
+ SysVinit base service provider implementation.
 
 =head1 PUBLIC METHODS
 
 =over 4
-
-=item isEnabled( $service )
-
- See iMSCP::Providers::Service::Interface
- 
- Note: NOOP for base provider
-
-=cut
-
-sub isEnabled
-{
-    shift;
-}
-
-=item enable( $service )
-
- See iMSCP::Providers::Service::Interface
- 
- Note: NOOP for base provider
-
-=cut
-
-sub enable
-{
-    shift;
-}
-
-=item disable( $service )
-
- See iMSCP::Providers::Service::Interface
-
- Note: NOOP for base provider
- 
-=cut
-
-sub disable
-{
-    shift;
-}
 
 =item remove( $service )
 
@@ -89,10 +52,9 @@ sub remove
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
-    my $initScriptPath = eval { $self->getInitScriptPath( $service ); };
-    if ( defined $initScriptPath ) {
+    if ( my $initScriptPath = eval { $self->getInitScriptPath( $service, 'nocache' ); } ) {
         return 0 if iMSCP::File->new( filename => $initScriptPath )->delFile();
     }
 
@@ -109,9 +71,11 @@ sub start
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
     return 1 if $self->isRunning( $service );
-    $self->_exec( $self->getInitScriptPath( $service ), 'start' ) == 0;
+
+    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] ) == 0;
 }
 
 =item stop( $service )
@@ -124,9 +88,11 @@ sub stop
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    return 1 unless $self->_isSysvinit( $service ) && $self->isRunning( $service );
-    $self->_exec( $self->getInitScriptPath( $service ), 'stop' ) == 0;
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    return 1 unless $self->isRunning( $service );
+
+    $self->_exec( [ $self->getInitScriptPath( $service ), 'stop' ] ) == 0;
 }
 
 =item restart( $service )
@@ -139,9 +105,11 @@ sub restart
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    return $self->_exec( $self->getInitScriptPath( $service ), 'restart' ) == 0 if $self->isRunning( $service );
-    $self->_exec( $self->getInitScriptPath( $service ), 'start' ) == 0;
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    return $self->_exec( [ $self->getInitScriptPath( $service ), 'restart' ] ) == 0 if $self->isRunning( $service );
+
+    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] ) == 0;
 }
 
 =item reload( $service )
@@ -154,9 +122,16 @@ sub reload
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    return $self->_exec( $self->getInitScriptPath( $service ), 'reload' ) == 0 if $self->isRunning( $service );
-    $self->_exec( $self->getInitScriptPath( $service ), 'start' ) == 0;
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    if ( $self->isRunning( $service ) ) {
+        # We need catch STDERR here as we do do want report it as error
+        my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'reload' ], undef, \ my $stderr ) == 0;
+        return $self->restart( $service ) unless $ret; # Reload failed. Try a restart instead.
+        return $ret;
+    }
+
+    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] ) == 0;
 }
 
 =item isRunning( $service )
@@ -169,11 +144,9 @@ sub isRunning
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
-    unless ( defined $self->{'_pid_pattern'} ) {
-        return $self->_exec( $self->getInitScriptPath( $service ), 'status' ) == 0;
-    }
+    return $self->_exec( [ $self->getInitScriptPath( $service ), 'status' ] ) == 0 unless defined $self->{'_pid_pattern'};
 
     my $ret = $self->_getPid( $self->{'_pid_pattern'} );
     $self->{'_pid_pattern'} = undef;
@@ -190,25 +163,28 @@ sub hasService
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    $self->_isSysvinit( $service );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    eval { $self->_searchInitScript( $service ); };
 }
 
-=item getInitScriptPath( $service )
+=item getInitScriptPath( $service, [ $nocache =  FALSE ] )
 
- Get full path of init script which belongs to the given service
+ Get full path of the SysVinit script that belongs to the given service
 
  Param string $service Service name
- Return string Init script path on success, die on failure
+ Param bool $nocache OPTIONAL If true, no cache will be used
+ Return string Init script path on success, croak on failure
 
 =cut
 
 sub getInitScriptPath
 {
-    my ($self, $service) = @_;
+    my ($self, $service, $nocache) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    $self->_searchInitScript( $service );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    $self->_searchInitScript( $service, $nocache );
 }
 
 =item setPidPattern( $pattern )
@@ -224,8 +200,9 @@ sub setPidPattern
 {
     my ($self, $pattern) = @_;
 
-    defined $pattern or die( '$pattern parameter is not defined' );
-    $self->{'_pid_pattern'} = ( ref $pattern eq 'Regexp' ) ? $pattern : qr/$pattern/;
+    defined $pattern or croak( 'Missing or undefined $pattern parameter' );
+
+    $self->{'_pid_pattern'} = ref $pattern eq 'Regexp' ? $pattern : qr/$pattern/;
     0;
 }
 
@@ -239,7 +216,7 @@ sub setPidPattern
 
  Initialize instance
 
- Return iMSCP::Providers::Service::Sysvinit, die on failure
+ Return iMSCP::Providers::Service::Sysvinit, croak on failure
 
 =cut
 
@@ -247,7 +224,7 @@ sub _init
 {
     my ($self) = @_;
 
-    exists $main::imscpConfig{'DISTRO_FAMILY'} or die( sprintf( 'You must first bootstrap the i-MSCP backend' ));
+    exists $main::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
 
     if ( $main::imscpConfig{'DISTRO_FAMILY'} =~ /^(?:FreeBSD|DragonFly)$/ ) {
         $self->{'sysvinitscriptpaths'} = [ '/etc/rc.d', '/usr/local/etc/rc.d' ];
@@ -264,10 +241,10 @@ sub _init
 
 =item _isSysvinit( $service )
 
- Does the given service is managed by a sysvinit script?
+ Does the given service is managed by a SysVinit script?
 
  Param string $service Service name
- Return bool TRUE if the given service is managed by a sysvinit script, FALSE otherwise
+ Return bool TRUE if the given service is managed by a SysVinit script, FALSE otherwise
 
 =cut
 
@@ -278,47 +255,88 @@ sub _isSysvinit
     eval { $self->_searchInitScript( $service ); };
 }
 
-=item searchInitScript( $service )
+=item searchInitScript( $service, [ $nocache =  FALSE ] )
 
- Search the init script which belongs to the given service in all available paths
+ Search the SysVinit script that belongs to the given service in all available paths
 
  Param string $service Service name
- Return string Init script path on success, die on failure
+ Param bool $nocache OPTIONAL If true, no cache will be used
+ Return string Init script path on success, croak on failure
 
 =cut
 
 sub _searchInitScript
 {
-    my ($self, $service) = @_;
+    my ($self, $service, $nocache) = @_;
+
+    # Make sure that init scrips are searched once
+    CORE::state %initScripts;
+
+    if ( $nocache ) {
+        delete $initScripts{$service};
+    } elsif ( exists $initScripts{$service} ) {
+        defined $initScript{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
+        return $initScripts{$service};
+    }
 
     for ( @{$self->{'sysvinitscriptpaths'}} ) {
         my $initScriptPath = File::Spec->join( $_, $service );
-        return $initScriptPath if -f $initScriptPath;
+        $initScripts{$service} = $initScriptPath if -f $initScriptPath;
+        last if $initScripts{$service};
 
         $initScriptPath .= '.sh';
-        return $initScriptPath if -f $initScriptPath;
+        $initScripts{$service} = $initScriptPath if -f $initScriptPath;
     }
 
-    die( sprintf( "Couldn't find sysvinit script for the `%s' service", $service ));
+    unless ( $nocache || $initScripts{$service} ) {
+        $initScripts{$service} = undef;
+    }
+
+    $initScripts{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
+    $nocache ? delete $initScripts{$service} : $initScripts{$service};
 }
 
-=item _exec( $command )
+=item _exec( \@command, [ \$stdout [, \$stderr ]] )
 
  Execute the given command
 
+ It is possible to capture both STDOUT and STDERR output by providing scalar
+ references. STDERR output is used for error reporting when the command status
+ is other than 0 and if no scalar reference has been provided for its capture.
+
+ Param array_ref \@command Command to execute
+ Param scalar_ref \$stdout OPTIONAL Scalar reference for STDOUT capture
+ Param scalar_ref \$stderr OPTIONAL Scalar reference for STDERR capture
  Return int Command exit status
 
 =cut
 
 sub _exec
 {
-    my (undef, @command) = @_;
+    my (undef, $command, $stdout, $stderr) = @_;
 
-    my $ret = execute( [ @command ], \ my $stdout, \ my $stderr );
-    debug( $stdout ) if $stdout;
-    debug( $stderr ) unless $ret || !$stderr;
-    error( $stderr ) if $ret && $stderr;
+    my $ret = execute( $command, ref $stdout eq 'SCALAR' ? $stdout : \$stdout, ref $stderr eq 'SCALAR' ? $stderr : \ $stderr );
+    ref $stdout ? ${$stdout} eq '' || debug( ${$stdout} ) : $stdout eq '' || debug( $stdout );
+    #ref $stderr ? ${$stderr} eq '' || debug( ${$stderr} ) : $stderr eq '' || debug( $stderr ) unless $ret;
+    ref $stderr ? ${$stderr} eq '' || error( ${$stderr} ) : $stderr eq '' || error( $stderr ) if $ret && ref $stderr ne 'SCALAR';
+
+    $EXEC_OUTPUT = \ ( ref $stdout ? ${$stdout} : $stdout );
     $ret;
+}
+
+=item _getLastExecOutput()
+
+ Get output of last exec command
+
+ return string Command STDOUT
+
+=cut
+
+sub _getLastExecOutput
+{
+    my ($self) = @_;
+
+    ${$EXEC_OUTPUT};
 }
 
 =item _getPs( )
@@ -331,10 +349,9 @@ sub _exec
 
 sub _getPs
 {
-    # Fixme: iMSCP::LsbRelease is Linux specific. We must rewrite it to support all platforms below.
     if ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'OpenWrt' ) {
         'ps www';
-    } elsif ( $main::imscpConfig{'DISTRO_FAMILY'} =~ /^(?:FreeBSD|NetBSD|OpenBSD|Darwin|DragonFly)$/ ) {
+    } elsif ( grep( $main::imscpConfig{'DISTRO_FAMILY'} eq $_, qw/ FreeBSD NetBSD OpenBSD Darwin DragonFly / ) ) {
         'ps auxwww';
     } else {
         'ps -ef'
@@ -354,14 +371,13 @@ sub _getPid
 {
     my ($self, $pattern) = @_;
 
-    defined $pattern or die( '$pattern parameter is not defined' );
+    defined $pattern or croak( 'Missing or undefined $pattern parameter' );
 
     my $ps = $self->_getPs();
-    open my $fh, '-|', $ps or die( sprintf( "Couldn't pipe to %s: %s", $ps, $! ));
+    open my $fh, '-|', $ps or croak( sprintf( "Couldn't pipe to %s: %s", $ps, $! ));
 
     while ( <$fh> ) {
         next unless /$pattern/;
-        debug( sprintf( 'Process matched line: %s', $_ ));
         return ( split /\s+/, s/^\s+//r )[1];
     }
 

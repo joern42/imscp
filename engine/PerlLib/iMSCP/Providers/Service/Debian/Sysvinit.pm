@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::Service::Sysvinit - Service provider for Debian `sysvinit' scripts
+ iMSCP::Providers::Service::Sysvinit - SysVinit service provider for Debian like distributions
 
 =cut
 
@@ -25,20 +25,22 @@ package iMSCP::Providers::Service::Debian::Sysvinit;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent 'iMSCP::Providers::Service::Sysvinit';
 
 # Commands used in that package
-our %COMMANDS = (
-    'invoke-rc.d' => '/usr/sbin/invoke-rc.d',
+my %COMMANDS = (
     'update-rc.d' => '/usr/sbin/update-rc.d'
 );
 
 =head1 DESCRIPTION
 
- Service provider for Debian `sysvinit' scripts.
+ SysVinit service provider for Debian like distributions.
 
- The only differences with the base sysvinit provider are support for enabling, disabling and removing services
- via `update-rc.d' and the ability to determine enabled status via `invoke-rc.d'.
+ Differences with the base sysvinit provider are support for enabling,
+ disabling and removing services via `update-rc.d' and the ability to determine
+ enabled status.
+
 
 =head1 PUBLIC METHODS
 
@@ -46,7 +48,7 @@ our %COMMANDS = (
 
 =item isEnabled( $service )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::isEnabled()
 
 =cut
 
@@ -54,31 +56,16 @@ sub isEnabled
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    my $ret = $self->_exec( $COMMANDS{'invoke-rc.d'}, '--quiet', '--query', $service, 'start' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
-    # 104 is the exit status when you query start an enabled service.
-    # 106 is the exit status when the policy layer supplies a fallback action
-    if ( $ret =~ /^10(?:4|6)$/ ) {
-        return 1;
-    }
-
-    if ( $ret =~ /^10(?:1|5)$/ ) {
-        # 101 is action not allowed, which means we have to do the check manually.
-        # 105 is unknown, which generally means the iniscript does not support query
-        # The debian policy states that the initscript should support methods of query
-        # For those that do not, peform the checks manually
-        # http://www.debian.org/doc/debian-policy/ch-opersys.html
-        my @count = glob( "/etc/rc*.d/S??$service" );
-        return @count >= 4;
-    }
+    return 1 if scalar glob "/etc/rc[S5].d/S??$service";
 
     0;
 }
 
 =item enable( $service )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::enable()
 
 =cut
 
@@ -86,15 +73,14 @@ sub enable
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
-    return $self->_exec( $COMMANDS{'update-rc.d'}, '-f', $service, 'remove' ) == 0
-        && $self->_exec( $COMMANDS{'update-rc.d'}, $service, 'defaults' ) == 0;
+    $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'defaults' ] ) == 0 && $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'enable' ] ) == 0;
 }
 
 =item disable( $service )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::disable()
 
 =cut
 
@@ -102,14 +88,14 @@ sub disable
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
-    $self->_exec( $COMMANDS{'update-rc.d'}, $service, 'disable' ) == 0;
+    $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'defaults' ] ) == 0 && $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'disable' ] ) == 0;
 }
 
 =item remove( $service )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::remove()
 
 =cut
 
@@ -117,8 +103,11 @@ sub remove
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    $self->stop( $service ) && $self->_exec( $COMMANDS{'update-rc.d'}, '-f', $service, 'remove' ) == 0 && $self->SUPER::remove( $service );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    return 1 unless $self->_isSysvinit( $service );
+
+    $self->stop( $service ) && $self->_exec( [ $COMMANDS{'update-rc.d'}, '-f', $service, 'remove' ] ) == 0 && $self->SUPER::remove( $service );
 }
 
 =back

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::Service::Debian::Systemd - Service provider for Debian `systemd' service/socket units
+ iMSCP::Providers::Service::Debian::Systemd - Systemd service provider for Debian like distributions
 
 =cut
 
@@ -30,10 +30,11 @@ use parent qw/ iMSCP::Providers::Service::Systemd iMSCP::Providers::Service::Deb
 
 =head1 DESCRIPTION
 
- Service provider for Debian `systemd' service/socket units.
-
- The only differences with the base `systemd' provider are support for enabling, disabling and removing underlying
- sysvinit scripts. This provider also provides backware compatibility mode for older Debian systemd package versions.
+ Systemd service provider for Debian like distributions.
+ 
+ Difference with the iMSCP::Providers::Service::Systemd base provider is the
+ support for the 'is-enabled' API call that is not available till Systemd
+ version 220-1 (Debian package) and support for SysVinit script removal.
 
  See:
   https://wiki.debian.org/systemd
@@ -46,7 +47,7 @@ use parent qw/ iMSCP::Providers::Service::Systemd iMSCP::Providers::Service::Deb
 
 =item isEnabled( $unit )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Systemd::isEnabled()
 
 =cut
 
@@ -54,58 +55,30 @@ sub isEnabled
 {
     my ($self, $unit) = @_;
 
-    return $self->SUPER::isEnabled( $unit ) if $self->_isSystemd( $unit );
+    # We need to catch STDERR here as we do not want report it as error
+    my $ret = $self->_exec(
+        [ $iMSCP::Providers::Service::Systemd::COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \ my $stdout, \ my $stderr
+    );
 
-    # is-enabled API call is not available for sysvinit scripts. We must invoke the Debian sysvinit provider
-    # to known whether or not the sysvinit script is enabled.
-    $self->iMSCP::Providers::Service::Debian::Sysvinit::isEnabled( $self->_getShortUnitName( $unit ));
-}
+    # The indirect state indicates that the unit is not enabled.
+    return 0 if $stdout eq 'indirect';
 
-=item enable( $unit )
-
- See iMSCP::Providers::Service::Interface
-
-=cut
-
-sub enable
-{
-    my ($self, $unit) = @_;
-
-    
-    if ( $self->_isSystemd( $unit ) ) {
-        my $unitFilePath = $self->getUnitFilePath( $unit );
-        $unit = readlink( $unitFilePath ) if -l $unitFilePath;
+    # The 'is-enabled' API call is not implemented till the Systemd version 220-1
+    # (Debian package), that is, under the following distributions (main repository):
+    # - Debian < 9 (Stretch)
+    # - Ubuntu < 18.04 (Bionic Beaver)
+    if ( $ret > 0 && $self->_getLastExecOutput() eq '' ) {
+        # For the SysVinit scripts, we want operate only on services
+        ( $unit, undef, my $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
+        return $self->iMSCP::Providers::Service::Debian::Sysvinit::isEnabled( $unit ) if grep( $suffix eq $_, '', '.service' );
     }
 
-    # Note: Will automatically call update-rc.d in case of a sysvinit script
-    $self->SUPER::enable( $unit );
-}
-
-=item disable( $unit )
-
- See iMSCP::Providers::Service::Interface
-
-=cut
-
-sub disable
-{
-    my ($self, $unit) = @_;
-
-    defined $unit or die( 'parameter $unit is not defined' );
-
-    my $realUnit = $unit;
-    if ( $self->_isSystemd( $unit ) ) {
-        my $unitFilePath = $self->getUnitFilePath( $unit );
-        $realUnit = readlink( $unitFilePath ) if -l $unitFilePath;
-    }
-
-    # Note: Will automatically call update-rc.d in case of a sysvinit script
-    $self->SUPER::disable( $self->_getShortUnitName( $realUnit ));
+    $ret == 0;
 }
 
 =item remove( $unit )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::remove()
 
 =cut
 
@@ -115,59 +88,11 @@ sub remove
 
     defined $unit or die( 'parameter $unit is not defined' );
 
-    if ( $self->_isSystemd( $unit ) ) {
-        return 0 unless $self->SUPER::remove( $unit );
-    }
-
-    # Remove the underlying sysvinit script if any and make systemd aware of changes
-    $unit = $self->_getShortUnitName( $unit );
-    if ( $self->_isSysvinit( $unit ) ) {
-        return $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $unit )
-            && $self->_exec( $iMSCP::Providers::Service::Systemd::COMMANDS{'systemctl'}, '--system', 'daemon-reload' ) == 0;
-    }
-
-    1;
-}
-
-=item hasService( $unit )
-
- See iMSCP::Providers::Service::Interface
-
-=cut
-
-sub hasService
-{
-    my ($self, $unit) = @_;
-
-    defined $unit or die( 'parameter $unit is not defined' );
-
-    return 1 if $self->SUPER::hasService( $unit );
-
-    $self->iMSCP::Providers::Service::Debian::Sysvinit::hasService( $self->_getShortUnitName( $unit ));
-}
-
-=back
-
-=head1 PRIVATE METHODS
-
-=over 4
-
-=item _getShortUnitName( $unit )
-
- Get full unit name, without path
- 
- Param string $unit Unit name
- Return string Unit fullname without path
-
-=cut
-
-sub _getShortUnitName
-{
-    my (undef, $unit) = @_;
-
-    defined $unit or die( 'parameter $unit is not defined' );
-
-    basename( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
+    # For the SysVinit scripts, we want operate only on services
+    my $ret = 0;
+    my ( $init, undef, $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
+    $ret = $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $init ) if grep( $suffix eq $_, '', '.service' );
+    $ret && $self->SUPER::remove( $unit );
 }
 
 =back

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::Service::Debian::Upstart - Service provider for Debian `upstart' jobs.
+ iMSCP::Providers::Service::Debian::Upstart - Upstart service provider for Debian like distributions.
 
 =cut
 
@@ -25,14 +25,15 @@ package iMSCP::Providers::Service::Debian::Upstart;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent qw/ iMSCP::Providers::Service::Upstart iMSCP::Providers::Service::Debian::Sysvinit /;
 
 =head1 DESCRIPTION
 
- Service provider for Debian `upstart' jobs.
-
- The only differences with the base `upstart' provider are support for enabling, disabling and removing underlying
- sysvinit scripts if any.
+ Upstart service provider for Debian like distributions.
+ 
+ Difference with the iMSCP::Providers::Service::Upstart is the support for the
+ SysVinit scripts.
 
  See: https://wiki.debian.org/Upstart
 
@@ -42,7 +43,7 @@ use parent qw/ iMSCP::Providers::Service::Upstart iMSCP::Providers::Service::Deb
 
 =item isEnabled( $job )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::isEnabled()
 
 =cut
 
@@ -50,14 +51,16 @@ sub isEnabled
 {
     my ($self, $job) = @_;
 
-    defined $job or die( 'parameter $job is not defined' );
+    defined $job or croak( 'parameter $job is not defined' );
+
     return $self->SUPER::isEnabled( $job ) if $self->_isUpstart( $job );
+
     $self->iMSCP::Providers::Service::Debian::Sysvinit::isEnabled( $job );
 }
 
 =item enable( $job )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::enable()
 
 =cut
 
@@ -65,27 +68,21 @@ sub enable
 {
     my ($self, $job) = @_;
 
-    defined $job or die( 'parameter $job is not defined' );
+    defined $job or croak( 'parameter $job is not defined' );
 
     if ( $self->_isUpstart( $job ) ) {
-        # Ensure that sysvinit script if any is not enabled
-        # FIXME: Should we really disable underlying sysvinit script?
-        #my $ret = $self->_isSysvinit( $job ) ? $self->iMSCP::Providers::Service::Debian::Sysvinit::disable( $job ) : 1;
-        #return $ret && $self->SUPER::enable( $job );
         return 0 unless $self->SUPER::enable( $job );
     }
 
-    # Also enable the underlying sysvinit script if any
-    if ( $self->_isSysvinit( $job ) ) {
-        return $self->iMSCP::Providers::Service::Debian::Sysvinit::enable( $job );
-    }
+    # Enable the underlying SysVinit script if any
+    return $self->iMSCP::Providers::Service::Debian::Sysvinit::enable( $job ) if $self->_isSysvinit( $job );
 
     1;
 }
 
 =item disable( $job )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::disable()
 
 =cut
 
@@ -93,23 +90,21 @@ sub disable
 {
     my ($self, $job) = @_;
 
-    defined $job or die( 'parameter $job is not defined' );
+    defined $job or croak( 'parameter $job is not defined' );
 
     if ( $self->_isUpstart( $job ) ) {
         return 0 unless $self->SUPER::disable( $job );
     }
 
-    # Also disable the underlying sysvinit script if any
-    if ( $self->_isSysvinit( $job ) ) {
-        return $self->iMSCP::Providers::Service::Debian::Sysvinit::disable( $job );
-    }
+    # Disable the underlying SysVinit script if any
+    return $self->iMSCP::Providers::Service::Debian::Sysvinit::disable( $job ) if $self->_isSysvinit( $job );
 
     1;
 }
 
 =item remove( $job )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::remove()
 
 =cut
 
@@ -117,30 +112,31 @@ sub remove
 {
     my ($self, $job) = @_;
 
-    defined $job or die( 'parameter $job is not defined' );
+    defined $job or croak( 'parameter $job is not defined' );
 
     if ( $self->_isUpstart( $job ) ) {
         return 0 unless $self->SUPER::remove( $job );
     }
 
-    # Remove the sysvinit script if any
-    return $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $job ) if $self->_isSysvinit( $job );
+    # Remove the underlying SysVinit script if any
+    return $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $job );
+
     1;
 }
 
 =item hasService( $service )
 
- See iMSCP::Providers::Service::Interface
+ See iMSCP::Providers::Service::Interface::hasService()
 
 =cut
 
 sub hasService
 {
-    my ($self, $service) = @_;
+    my ($self, $job) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $job or croak( 'parameter $service is not defined' );
 
-    $self->SUPER::hasService( $service ) || $self->iMSCP::Providers::Service::Debian::Sysvinit::hasService( $service );
+    $self->SUPER::hasService( $job ) || $self->iMSCP::Providers::Service::Debian::Sysvinit::hasService( $job );
 }
 
 =back
