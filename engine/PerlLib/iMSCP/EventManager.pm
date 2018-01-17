@@ -25,6 +25,7 @@ package iMSCP::EventManager;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::PriorityQueue;
 use Scalar::Util qw / blessed refaddr /;
@@ -47,7 +48,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Param string $eventName Event name on which $listener listen on
  Param coderef $listener A CODE reference
- Return bool TRUE if the given event has the given listener, FALSE otherwise, die on failure
+ Return bool TRUE if the given event has the given listener, FALSE otherwise, croak on failure
 
 =cut
 
@@ -55,8 +56,8 @@ sub hasListener
 {
     my ($self, $eventName, $listener) = @_;
 
-    defined $eventName or die 'Missing $eventName parameter';
-    ref $listener eq 'CODE' or die 'Missing or invalid $listener parameter';
+    defined $eventName or croak 'Missing $eventName parameter';
+    ref $listener eq 'CODE' or croak 'Missing or invalid $listener parameter';
 
     exists $self->{'events'}->{$eventName} && $self->{'events'}->{$eventName}->hasItem( $listener );
 }
@@ -78,11 +79,11 @@ sub register
     my ($self, $eventNames, $listener, $priority, $once) = @_;
 
     eval {
-        defined $eventNames or die 'Missing $eventNames parameter';
+        defined $eventNames or croak 'Missing $eventNames parameter';
 
         if ( ref $eventNames eq 'ARRAY' ) {
             for ( @{$eventNames} ) {
-                $self->register( $_, $listener, $priority, $once ) == 0 or die(
+                $self->register( $_, $listener, $priority, $once ) == 0 or croak(
                     getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
                 );
             }
@@ -90,7 +91,7 @@ sub register
             return;
         }
 
-        ( ref $listener eq 'CODE' || blessed $listener ) or die(
+        ( ref $listener eq 'CODE' || blessed $listener ) or croak(
             'Invalid $listener parameter. Expects an object or code reference.'
         );
 
@@ -140,7 +141,7 @@ sub unregister
     my ($self, $listener, $eventName) = @_;
 
     eval {
-        ref $listener eq 'CODE' or die 'Missing or invalid $listener parameter';
+        ref $listener eq 'CODE' or croak 'Missing or invalid $listener parameter';
 
         if ( defined $eventName ) {
             return unless exists $self->{'events'}->{$eventName};

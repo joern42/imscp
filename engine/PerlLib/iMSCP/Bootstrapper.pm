@@ -27,9 +27,10 @@ use strict;
 use warnings;
 use autouse 'Data::Dumper' => qw/ Dumper /;
 use autouse 'iMSCP::Crypt' => qw/ decryptRijndaelCBC randomStr /;
+use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Requirements /;
 use File::Spec;
-use iMSCP::Debug qw/ debug getMessageByType setDebug /;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::Config;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
@@ -42,7 +43,7 @@ use parent 'iMSCP::Common::Singleton';
 
 umask 022;
 
-$ENV{'HOME'} = ( getpwuid $> )[7] or die( "Couldn't find running user homedir" );
+$ENV{'HOME'} = ( getpwuid $> )[7] or croak( "Couldn't find running user homedir" );
 
 =head1 DESCRIPTION
 
@@ -65,32 +66,29 @@ sub boot
 {
     my ($self, $options) = @_;
 
-    my $debug = iMSCP::Getopt->debug;
-    setDebug( 1 ); # Set debug mode for booting time
+    debug( sprintf( 'Booting %s ...', iMSCP::Getopt->context()));
 
-    my $mode = $options->{'mode'} || 'backend';
-    debug( sprintf( 'Booting %s ...', $mode ));
-
-    $self->lock() unless $options->{'nolock'};
     $self->loadMainConfig( $options );
 
-    # Set timezone unless we are in setup or uninstall modes (needed to show current local timezone in setup dialog)
-    unless ( grep($mode eq $_, ( 'setup', 'uninstall' ) ) ) {
+    iMSCP::Getopt->debug( 1 ) if $main::imscpConfig{'DEBUG'};
+
+    $self->lock() unless $options->{'nolock'};
+
+    # Set timezone unless we are in setup or uninstaller execution context (needed to show current local timezone in setup dialog)
+    unless ( iMSCP::Getopt->context() =~ /^(?:un)?installer$/ ) {
         $ENV{'TZ'} = $main::imscpConfig{'TIMEZONE'} || 'UTC';
         tzset;
     }
 
-    setDebug( $main::imscpConfig{'DEBUG'} || $debug ); # Set debug mode
-
     unless ( $options->{'norequirements'} ) {
-        my $test = ( $mode eq 'setup' ) ? 'all' : 'user';
+        my $test = ( iMSCP::Getopt->context() eq 'installer' ) ? 'all' : 'user';
         iMSCP::Requirements->new()->$test();
     }
 
     $self->_genKeys() unless $options->{'nokeys'};
     $self->_setDbSettings() unless $options->{'nodatabase'};
 
-    iMSCP::EventManager->getInstance()->trigger( 'onBoot', $mode ) == 0 or die(
+    iMSCP::EventManager->getInstance()->trigger( 'onBoot', iMSCP::Getopt->context()) == 0 or croak(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self;
@@ -101,7 +99,7 @@ sub boot
  Load main configuration file using given options
 
  Param hashref \%options Options for iMSCP::Config object
- Return int 0 on success, die on failure
+ Return int 0 on success, croak on failure
 
 =cut
 
@@ -120,20 +118,19 @@ sub loadMainConfig
         temporary   => $options->{'config_temporary'} // 0;
 }
 
-=item lock( [ $lockFile = '/var/lock/imscp.lock [, $nowait = FALSE ] ] )
+=item lock( [ $lockFile = $main::imscpConfig{'LOCK_DIR'}/imscp.lock [, $nowait = FALSE ] ] )
 
  Lock a file
 
  Param bool $nowait OPTIONAL Whether or not to wait for lock (Default: FALSE)
- Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (nowait case)
- die on failure
+ Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (nowait case), croak on failure
 
 =cut
 
 sub lock
 {
     my ($self, $lockFile, $nowait) = @_;
-    $lockFile = File::Spec->canonpath( $lockFile ||= '/var/lock/imscp.lock' );
+    $lockFile = File::Spec->canonpath( $lockFile ||= "$main::imscpConfig{'LOCK_DIR'}/imscp.lock" );
 
     return 1 if exists $self->{'locks'}->{$lockFile};
 
@@ -143,7 +140,7 @@ sub lock
     $ret;
 }
 
-=item unlock( [ $lockFile = '/var/lock/imscp.lock' ] )
+=item unlock( [ $lockFile = "$main::imscpConfig{'LOCK_DIR'}/imscp.lock" ] )
 
  Unlock file
 
@@ -155,7 +152,7 @@ sub lock
 sub unlock
 {
     my ($self, $lockFile) = @_;
-    $lockFile = File::Spec->canonpath( $lockFile ||= '/var/lock/imscp.lock' );
+    $lockFile = File::Spec->canonpath( $lockFile ||= "$main::imscpConfig{'LOCK_DIR'}/imscp.lock" );
 
     return $self unless exists $self->{'locks'}->{$lockFile};
 
@@ -174,7 +171,7 @@ sub unlock
 
  Generates encryption key and initialization vector
 
- Return void
+ Return void, croak on failure
 
 =cut
 
@@ -188,10 +185,10 @@ sub _genKeys
     if ( $@
         || $main::imscpKEY eq '{KEY}' || length( $main::imscpKEY ) != 32
         || $main::imscpIV eq '{IV}' || length( $main::imscpIV ) != 16
-        || ( defined $main::execmode && $main::execmode eq 'setup' && !-f "$main::imscpConfig{'CONF_DIR'}/imscp-db-keys.php" )
+        || ( iMSCP::Getopt->context() eq 'installer' && !-f "$main::imscpConfig{'CONF_DIR'}/imscp-db-keys.php" )
     ) {
         debug( 'Missing or invalid i-MSCP key files. Generating a new key files ...' );
-        -d $main::imscpConfig{'CONF_DIR'} or die( sprintf( "%s doesn't exist or is not a directory", $main::imscpConfig{'CONF_DIR'} ));
+        -d $main::imscpConfig{'CONF_DIR'} or croak( sprintf( "%s doesn't exist or is not a directory", $main::imscpConfig{'CONF_DIR'} ));
 
         local $UMASK = 027;
         local $Data::Dumper::Indent = 0;
@@ -199,7 +196,7 @@ sub _genKeys
         ( $main::imscpKEY, $main::imscpIV ) = ( randomStr( 32 ), randomStr( 16 ) );
 
         for ( qw/ imscp-db-keys.pl imscp-db-keys.php / ) {
-            open my $fh, '>', "$main::imscpConfig{'CONF_DIR'}/$_" or die(
+            open my $fh, '>', "$main::imscpConfig{'CONF_DIR'}/$_" or croak(
                 sprintf( "Couldn't open %s file for writing: %s", "$main::imscpConfig{'CONF_DIR'}/$_", $! )
             );
             print $fh <<"EOF";
@@ -223,7 +220,7 @@ EOF
 
  Set database connection settings
 
- Return int 0 on success, die on failure
+ Return int 0 on success, croak on failure
 
 =cut
 

@@ -25,6 +25,7 @@ package iMSCP::Log;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Params::Check qw[ check ];
 
 local $Params::Check::VERBOSE = 1;
@@ -43,7 +44,7 @@ local $Params::Check::VERBOSE = 1;
 
  Create new iMSCP::Log object
 
- Return iMSCP::Log
+ Return iMSCP::Log, croak on failure
 
 =cut
 
@@ -63,10 +64,7 @@ sub new
         }
     };
 
-    my $args = check( $tmpl, \%hash ) or die(
-        sprintf( "Couldn't create a new iMSCP::Log object: %s1", Params::Check->last_error )
-    );
-
+    my $args = check( $tmpl, \%hash ) or croak( sprintf( "Couldn't create a new iMSCP::Log object: %s1", Params::Check->last_error ));
     bless $args, $class
 }
 
@@ -218,7 +216,7 @@ sub retrieve
     my $args = check( $tmpl, \%hash ) or ( warn( sprintf( "Couldn't parse input: %s", Params::Check->last_error )), return );
 
     my @list = ();
-    for( @{$self->{'stack'}} ) {
+    for ( @{$self->{'stack'}} ) {
         if ( $_->{'tag'} =~ /$args->{'tag'}/ && $_->{'message'} =~ /$args->{'message'}/ ) {
             push @list, $_;
             undef $_ if $args->{'remove'};

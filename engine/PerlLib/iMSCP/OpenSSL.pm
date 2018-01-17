@@ -25,6 +25,7 @@ package iMSCP::OpenSSL;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Temp;
 use Date::Parse;
 use iMSCP::Debug qw/ error debug /;
@@ -66,7 +67,7 @@ sub validatePrivateKey
     my $passphraseFile;
     if ( $self->{'private_key_passphrase'} ) {
         # Write SSL private key passphrase into temporary file, which is only readable by root
-        $passphraseFile = File::Temp->new( UNLINK => 1 );
+        $passphraseFile = File::Temp->new();
         print $passphraseFile $self->{'private_key_passphrase'};
         $passphraseFile->close();
     }
@@ -175,7 +176,7 @@ sub importPrivateKey
     my $passphraseFile;
     if ( $self->{'private_key_passphrase'} ) {
         # Write SSL private key passphrase into temporary file, which is only readable by root
-        $passphraseFile = File::Temp->new( UNLINK => 1 );
+        $passphraseFile = File::Temp->new();
         print $passphraseFile $self->{'private_key_passphrase'};
         $passphraseFile->close();
     }
@@ -272,7 +273,7 @@ sub importCaBundle
 
  Param hash \%data Certificate data (common_name, email, wildcard = false)
  Param bool $wildcardSSL OPTIONAL Does a wildcard SSL certificate must be generated (default FALSE)
- Return int 0 on success, other on failure
+ Return int 0 on success, other or croak on failure
 
 =cut
 
@@ -280,9 +281,9 @@ sub createSelfSignedCertificate
 {
     my ($self, $data) = @_;
 
-    ref $data eq 'HASH' or die( 'Wrong $data parameter. Hash expected' );
-    $data->{'common_name'} or die( 'Missing common_name parameter' );
-    $data->{'email'} or die( 'Missing email parameter' );
+    ref $data eq 'HASH' or croak( 'Wrong $data parameter. Hash expected' );
+    $data->{'common_name'} or croak( 'Missing common_name parameter' );
+    $data->{'email'} or croak( 'Missing email parameter' );
 
     my $openSSLConffileTpl = "$main::imscpConfig{'CONF_DIR'}/openssl/openssl.cnf.tpl";
     my $commonName = $data->{'wildcard'} ? '*.' . $data->{'common_name'} : $data->{'common_name'};
@@ -295,7 +296,7 @@ sub createSelfSignedCertificate
     }
 
     # Write openssl configuration file into temporary file
-    my $openSSLConffile = File::Temp->new( UNLINK => 1 );
+    my $openSSLConffile = File::Temp->new();
     print $openSSLConffile process(
         {
             COMMON_NAME   => $commonName,

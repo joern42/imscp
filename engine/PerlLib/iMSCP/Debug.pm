@@ -31,18 +31,15 @@ use iMSCP::Getopt;
 use parent 'Exporter';
 
 our @EXPORT = qw/
-    debug warning error fatal newDebug endDebug getMessage getLastError getMessageByType debugRegisterCallBack
-    setVerbose setDebug output silent /;
+    debug warning error fatal newDebug endDebug getMessage getLastError getMessageByType debugRegisterCallBack output /;
 
 BEGIN {
     $SIG{'__DIE__'} = sub { fatal( @_, ( caller( 1 ) )[3] || 'main' ) if defined $^S && !$^S };
-    $SIG{'__WARN__'} = sub { warning( @_, ( caller( 1 ) )[3] || 'main' ); };
+    $SIG{'__WARN__'} = sub { fatal( @_, ( caller( 1 ) )[3] || 'main' ); };
 }
 
 my $self;
 $self = {
-    debug           => sub { iMSCP::Getopt->debug },
-    verbose         => sub { ( ( !defined $main::execmode || $main::execmode ne 'setup' ) || iMSCP::Getopt->noprompt ) && iMSCP::Getopt->verbose },
     debug_callbacks => [],
     loggers         => [ iMSCP::Log->new( id => 'default' ) ],
     logger          => sub { $self->{'loggers'}->[$#{$self->{'loggers'}}] }
@@ -55,51 +52,6 @@ $self = {
 =head1 CLASS METHODS
 
 =over 4
-
-=item setDebug( [ $debug = false ] )
-
- Enable/disable debug mode
-
- Param bool $debug Flag indicating whether or not verbose mode must be enabled
- Return void
-
-=cut
-
-sub setDebug
-{
-    return if iMSCP::Getopt->debug( $_[0] // 0 );
-
-    # Remove all debug messages from all loggers
-    $_->retrieve( tag => 'debug', remove => 1 ) for @{$self->{'loggers'}};
-}
-
-=item setVerbose( [ $verbose = false ] )
-
- Enable/disable verbose mode
-
- Param bool $verbose Flag indicating whether or not verbose mode must be enabled
- Return void
-
-=cut
-
-sub setVerbose
-{
-    return if iMSCP::Getopt->noprompt && $_[0];
-    iMSCP::Getopt->verbose( $_[0] // 0 );
-}
-
-=item silent( )
-
- Method kept for backward compatibility with plugins
-
- Return void
-
-=cut
-
-sub silent
-{
-
-}
 
 =item newDebug( $logfileId )
 
@@ -175,8 +127,8 @@ sub debug
     my ($message, $caller) = @_;
 
     $caller //= ( caller( 1 ) )[3] || 'main';
-    $self->{'logger'}()->store( message => "$caller: $message", tag => 'debug' ) if $self->{'debug'}();
-    print STDOUT output( "$caller: $message", 'debug' ) if $self->{'verbose'}();
+    $self->{'logger'}()->store( message => "$caller: $message", tag => 'debug' ) if iMSCP::Getopt->debug;
+    print STDOUT output( "$caller: $message", 'debug' ) if iMSCP::Getopt->verbose;
 }
 
 =item warning( $message [, $caller ] )

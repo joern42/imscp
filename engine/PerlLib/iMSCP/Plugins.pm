@@ -25,6 +25,7 @@ package iMSCP::Plugins;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Basename;
 use parent 'iMSCP::Common::Singleton';
 
@@ -56,7 +57,7 @@ sub getList
  This will also load the plugin class if not already done.
 
  Param string $pluginName Plugin name
- Return string Plugin name or die if the plugin is not available
+ Return string Plugin name or croak if the plugin is not available
 =cut
 
 sub getClass
@@ -64,7 +65,7 @@ sub getClass
     my ($self, $pluginName) = @_;
 
     unless ( $self->{'loaded_plugins'}->{$pluginName} ) {
-        grep( $_ eq $pluginName, @{$self->{'availables_plugins'}} ) or die ( sprintf( "Plugin %s isn't available", $pluginName ));
+        grep( $_ eq $pluginName, @{$self->{'availables_plugins'}} ) or croak ( sprintf( "Plugin %s isn't available", $pluginName ));
         require "$main::imscpConfig{'PLUGINS_DIR'}/$pluginName/backend/$pluginName.pm";
         $self->{'loaded_plugins'}->{$pluginName} = 1;
     }

@@ -25,7 +25,7 @@ package iMSCP::Config;
 
 use strict;
 use warnings;
-use Carp;
+use Carp qw / croak /;
 use 5.012;
 use Fcntl 'O_RDWR', 'O_CREAT', 'O_RDONLY';
 use Tie::File;
@@ -184,7 +184,7 @@ sub DELETE
 
         # Rebuild records map
         # FIXME Find a faster way to rebuild records map without having to read the file again
-        undef(%{$_[0]->{'_records_map'}});
+        undef( %{$_[0]->{'_records_map'}} );
         while ( my ($recordIdx, $value) = each( @{$_[0]->{'_file'}} ) ) {
             next unless $value =~ /^([^#\s=]+)\s*=\s*(.*)/o;
             $_[0]->{'_records_map'}->{$1} = $recordIdx;

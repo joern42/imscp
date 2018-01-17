@@ -25,6 +25,7 @@ package iMSCP::Installer::Functions;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Basename;
 use File::Find qw/ find /;
 use iMSCP::Bootstrapper;
@@ -71,7 +72,7 @@ my $DISTRO_INSTALLER;
 sub loadConfig
 {
     # Gather system information
-    my $sysInfo = eval { decode_json( `facter --json osfamily lsbdistid lsbdistrelease lsbdistcodename virtual 2> /dev/null` ) } or die(
+    my $sysInfo = eval { decode_json( `facter --json osfamily lsbdistid lsbdistrelease lsbdistcodename virtual 2> /dev/null` ) } or croak(
         sprintf( "Couldn't gather system information: %s", $@ )
     );
 
@@ -82,17 +83,13 @@ sub loadConfig
         # Override default configuration parameters by distribution specific parameters
         tie my %distroConfig, 'iMSCP::Config', fileName => "$FindBin::Bin/configs/$sysInfo->{'lsbdistid'}/imscp.conf", readonly => 1, temporary => 1;
         @main::imscpConfig{keys %distroConfig} = values %distroConfig;
-        #untie( %distroConfig );
-        
-        delete $distroConfig{'DISTRO_FAMILY'};
-        $distroConfig{'DISTRO_FAMILY'} = 'whatever';
-        use Data::Dumper;
-        print Dumper(\%distroConfig);
+        untie( %distroConfig );
     }
 
-    exit;
     # Load old configuration
-    if ( -f "$main::imscpConfig{'CONF_DIR'}/imscp.conf" ) {
+    if ( -f "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
+        tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf", readonly => 1, temporary => 1;
+    } elsif ( -f "$main::imscpConfig{'CONF_DIR'}/imscp.conf" ) {
         # Load the current configuration file
         tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => 1, temporary => 1;
     } else {
@@ -103,44 +100,33 @@ sub loadConfig
     if ( tied( %main::imscpOldConfig ) ) {
         debug( 'Merging old configuration with new configuration ...' );
 
-        # Parameters that we want  keep in old configuration
-        my @toKeep = @main::imscpOldConfig{ qw/ BuildDate Version CodeName PluginApi / };
+        # Parameters that we want keep in %main::imscpConfig
+        my @toKeepFromNew = @main::imscpConfig{ qw/ BuildDate Version CodeName PluginApi THEME_ASSETS_VERSION / };
 
-        # Force reset of volatile configuration parameters
-        delete @main::imscpOldConfig{ @toKeep };
-
-        exit;
-        # Fill the new configuration parameters with values from old configuration
+        # Fill the new configuration parameters with values from %main::imscpOldConfig
         while ( my ($key, $value) = each( %main::imscpOldConfig ) ) {
             $main::imscpConfig{$key} = $value if exists $main::imscpConfig{$key};
         }
+
+        # Re-inject parameters that we wanted to keep in new configuration
+        @main::imscpConfig{ qw/ BuildDate Version CodeName PluginApi THEME_ASSETS_VERSION / } = @toKeepFromNew;
+        undef( @toKeepFromNew );
+
+        # Set distribution lsb info and system info
+        @main::imscpConfig{qw/ DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
+            $sysInfo->{'lsbdistid'}, $sysInfo->{'lsbdistcodename'}, $sysInfo->{'lsbdistrelease'}, iMSCP::Service->getInstance()->getInitSystem(),
+            $sysInfo->{'virtual'} || ''
+        );
+        $main::imscpConfig{'DISTRO_FAMILY'} = $sysInfo->{'osfamily'} unless $main::imscpConfig{'DISTRO_FAMILY'} ne '';
 
         # Make sure that the old configuration contains all expected parameters
         while ( my ($param, $value) = each( %main::imscpConfig ) ) {
             $main::imscpOldConfig{$param} = $value unless exists $main::imscpOldConfig{$param};
         }
-
-        # Re-inject parameters that we wanted to keep in old configuration
-        @main::imscpOldConfig{ qw/ BuildDate Version CodeName PluginApi / } = @toKeep;
     }
-exit;
-    # Set distribution lsb info and system info
-    @main::imscpConfig{qw/ DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
-        $sysInfo->{'lsbdistid'},
-        $sysInfo->{'lsbdistcodename'},
-        $sysInfo->{'lsbdistrelease'},
-        iMSCP::Service->getInstance()->getInitSystem(),
-        $sysInfo->{'virtual'} || ''
-    );
-
-    $main::imscpConfig{'DISTRO_FAMILY'} = $sysInfo->{'osfamily'} unless $main::imscpConfig{'DISTRO_FAMILY'} ne '';
 
     # Load listener files
     iMSCP::EventManager->getInstance();
-    
-    use Data::Dumper;
-    print Dumper(\%main::imscpConfig);
-    exit;
 }
 
 =item build( )
@@ -159,7 +145,7 @@ sub build
         || $main::imscpConfig{'iMSCP::Servers::Po'} eq '' || $main::imscpConfig{'iMSCP::Servers::Sqld'} eq ''
     ) {
         iMSCP::Getopt->noprompt( 0 ) unless iMSCP::Getopt->preseed;
-        $main::skippackages = 0;
+        iMSCP::Getopt->skippackages( 0 );
     }
 
     my $dialog = iMSCP::Dialog->getInstance();
@@ -178,12 +164,13 @@ sub build
     }
 
     my $rs = 0;
-    $rs = _askInstallerMode( $dialog ) unless iMSCP::Getopt->noprompt || $main::buildonly || !isStringInList( 'none', @{iMSCP::Getopt->reconfigure} );
+    $rs = _askInstallerMode( $dialog ) unless iMSCP::Getopt->noprompt || iMSCP::Getopt->buildonly
+        || !isStringInList( 'none', @{iMSCP::Getopt->reconfigure} );
     return $rs if $rs;
 
     my @steps = (
         [ \&_buildDistributionFiles, 'Building distribution files' ],
-        ( $main::skippackages ? () : [ \&_installDistributionPackages, 'Installing distribution packages' ] ),
+        ( iMSCP::Getopt->skippackages ? () : [ \&_installDistributionPackages, 'Installing distribution packages' ] ),
         [ \&_checkRequirements, 'Checking for requirements' ],
         [ \&_compileDaemon, 'Compiling daemon' ],
         [ \&_removeObsoleteFiles, 'Removing obsolete files' ],
@@ -212,7 +199,7 @@ sub build
     find(
         sub {
             return unless $_ eq '.gitkeep';
-            unlink or die( sprintf( "Couldn't remove %s file: %s", $File::Find::name, $! ));
+            unlink or croak( sprintf( "Couldn't remove %s file: %s", $File::Find::name, $! ));
         },
         $main::{'INST_PREF'}
     );
@@ -220,13 +207,23 @@ sub build
     $rs = iMSCP::EventManager->getInstance()->trigger( 'afterPostBuild' );
     return $rs if $rs;
 
+    my %confmap = (
+        imscp    => \ %main::imscpConfig,
+        imscpOld => \ %main::imscpOldConfig
+    );
+
     # Write configuration
-    {
-        local $UMASK = 027;
-        tie my %config, 'iMSCP::Config', fileName => "$main::{'SYSTEM_CONF'}/imscp.conf";
-        @config{ keys %main::imscpConfig } = values %main::imscpConfig;
+    while ( my ($name, $config) = each %confmap ) {
+        if ( $name eq 'imscpOld' ) {
+            local $UMASK = 027;
+            iMSCP::File->new( filename => "$main::{'SYSTEM_CONF'}/$name.conf" )->save();
+        }
+
+        tie my %config, 'iMSCP::Config', fileName => "$main::{'SYSTEM_CONF'}/$name.conf";
+        @config{ keys %{$config} } = values %{$config};
         untie %config;
     }
+    undef( %confmap );
 
     0;
 }
@@ -259,7 +256,7 @@ sub install
     for ( 'imscp-backup-all', 'imscp-backup-imscp', 'imscp-dsk-quota', 'imscp-srv-traff', 'imscp-vrl-traff',
         'awstats_updateall.pl', 'imscp-disable-accounts', 'imscp'
     ) {
-        next if $bootstrapper->lock( "/var/lock/$_.lock", 'nowait' );
+        next if $bootstrapper->lock( "$main::imscpConfig{'LOCK_DIR'}/$_.lock", 'nowait' );
         push @runningJobs, $_,
     }
 
@@ -520,7 +517,7 @@ EOF
 
     return 50 if $rs;
 
-    $main::buildonly = $value eq 'manual';
+    iMSCP::Getopt->buildonly( $value eq 'manual' );
     $dialog->set( 'cancel-label', 'Back' );
     0;
 }
@@ -916,7 +913,7 @@ sub _expandVars
   mode: Target directory mode
 
  Param hashref \%node Node
- Return int 0 on success, other or die on failure
+ Return int 0 on success, other or croak on failure
 
 =cut
 
@@ -940,15 +937,14 @@ sub _processFolderNode
  Process the givencopy_config node
 
  Node attributes:
-  copy_if: Copy the file or directory only if the condition is met, delete it
-           otherwise, unless the keep_if_exists attribute is TRUE
-  keep_if_exist If the file or directory, never delete it
-  user: Target file or directory owner
-  group: Target file or directory group
-  mode: Target file or directory mode
+  copy_if       : Copy the file or directory only if the condition is met, delete it otherwise, unless the keep_if_exists attribute is TRUE
+  keep_if_exist : If the file or directory, never delete it
+  user          : Target file or directory owner
+  group         : Target file or directory group
+  mode          : Target file or directory mode
 
  Param hashref \%node Node
- Return int 0 on success, other or die on failure
+ Return int 0 on success, other or croak on failure
 
 =cut
 
@@ -1004,18 +1000,28 @@ sub _processCopyConfigNode
  Process the given copy node
 
  Node attributes:
-  user: Target file or directory owner
-  group: Target file or directory group
-  mode: Target file or directory mode
+  copy_if       : Copy the file or directory only if the condition is met, delete it otherwise, unless the keep_if_exists attribute is TRUE
+  keep_if_exist : If the file or directory, never delete it
+  user          : Target file or directory owner
+  group         : Target file or directory group
+  mode          : Target file or directory mode
 
  Param hashref \%node Node
- Return int 0 on success, other or die on failure
+ Return int 0 on success, other or croak on failure
 
 =cut
 
 sub _processCopyNode
 {
     my ($node) = @_;
+
+    if ( defined $node->{'copy_if'} && !eval _expandVars( $node->{'copy_if'} ) ) {
+        return 0 if $node->{'keep_if_exist'};
+        ( my $syspath = $node->{'content'} ) =~ s/^$main::{'INST_PREF'}//;
+        return 0 unless $syspath ne '/' && -e $syspath;
+        return iMSCP::Dir->new( dirname => $syspath )->remove() if -d _;
+        return iMSCP::File->new( filename => $syspath )->delFile();
+    }
 
     my ($filename, $dirs) = fileparse( $node->{'content'} );
     my $target = File::Spec->canonpath( "$dirs/$filename" );
@@ -1045,7 +1051,7 @@ sub _processCopyNode
 
  Returns i-MSCP installer instance for the current distribution
 
- Return iMSCP::Installer::Abstract, die on failure
+ Return iMSCP::Installer::Abstract, croak on failure
 
 =cut
 
@@ -1054,7 +1060,7 @@ sub _getInstaller
     return $DISTRO_INSTALLER if $DISTRO_INSTALLER;
 
     $DISTRO_INSTALLER = "iMSCP::Installer::${main::imscpConfig{'DISTRO_FAMILY'}}";
-    eval "require $DISTRO_INSTALLER; 1" or die( $@ );
+    eval "require $DISTRO_INSTALLER; 1" or croak( $@ );
     $DISTRO_INSTALLER = $DISTRO_INSTALLER->new();
 }
 

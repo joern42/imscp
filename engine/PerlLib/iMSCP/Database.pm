@@ -25,6 +25,7 @@ package iMSCP::Database;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use DBI;
 use File::Temp;
 use iMSCP::Debug qw/ debug /;
@@ -105,7 +106,7 @@ sub connect
 
     # Set connection timeout to 5 seconds
     my $mask = POSIX::SigSet->new( SIGALRM );
-    my $action = POSIX::SigAction->new( sub { die "SQL database connection timeout\n" }, $mask );
+    my $action = POSIX::SigAction->new( sub { croak "SQL database connection timeout\n" }, $mask );
     my $oldaction = POSIX::SigAction->new();
     sigaction( SIGALRM, $action, $oldaction );
 
@@ -135,7 +136,7 @@ sub connect
  Change database for the current connection
 
  Param string $dbName Database name
- Return string Old database on success, die on failure
+ Return string Old database on success, croak on failure
 
 =cut
 
@@ -143,7 +144,7 @@ sub useDatabase
 {
     my ($self, $dbName) = @_;
 
-    defined $dbName && $dbName ne '' or die( '$dbName parameter is not defined or invalid' );
+    defined $dbName && $dbName ne '' or croak( '$dbName parameter is not defined or invalid' );
 
     my $oldDbName = $self->{'db'}->{'DATABASE_NAME'};
     return $oldDbName if $dbName eq $oldDbName;
@@ -207,7 +208,7 @@ sub endTransaction
 
  Get raw DBI instance
 
- Return DBI instance, die on failure
+ Return DBI instance, croak on failure
 =cut
 
 sub getRawDb
@@ -217,7 +218,7 @@ sub getRawDb
     return $self->{'connection'} if $self->{'connection'};
 
     my $rs = $self->connect();
-    !$rs or die( sprintf( "Couldn't connect to SQL server: %s", $rs ));
+    !$rs or croak( sprintf( "Couldn't connect to SQL server: %s", $rs ));
     $self->{'connection'};
 }
 
@@ -240,11 +241,11 @@ sub doQuery
     my ($self, $key, $query, @bindValues) = @_;
 
     my $qrs = eval {
-        defined $query or die 'No query provided';
+        defined $query or croak 'No query provided';
         my $dbh = $self->getRawDb();
         local $dbh->{'RaiseError'} = 0;
-        my $sth = $dbh->prepare( $query ) or die $DBI::errstr;
-        $sth->execute( @bindValues ) or die $DBI::errstr;
+        my $sth = $dbh->prepare( $query ) or croak $DBI::errstr;
+        $sth->execute( @bindValues ) or croak $DBI::errstr;
         $sth->fetchall_hashref( $key ) || {};
     };
 
@@ -310,7 +311,7 @@ sub getTableColumns
 
  Param string $dbName Database name
  Param string $dbDumpTargetDir Database dump target directory
- Return void, die on failure
+ Return void, croak on failure
 
 =cut
 
@@ -326,7 +327,7 @@ sub dumpdb
         debug( sprintf( 'Dump `%s` database into %s', $dbName, $dbDumpTargetDir . '/' . $encodedDbName . '.sql' ));
 
         unless ( $self->{'_sql_default_extra_file'} ) {
-            $self->{'_sql_default_extra_file'} = File::Temp->new( UNLINK => 1 );
+            $self->{'_sql_default_extra_file'} = File::Temp->new();
             print { $self->{'_sql_default_extra_file'} } <<"EOF";
 [mysqldump]
 host = $self->{'db'}->{'DATABASE_HOST'}
@@ -368,10 +369,10 @@ EOF
                 . ' > ' . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
             undef,
             \ $stderr
-        ) == 0 or die( $stderr || 'Unknown error' );
+        ) == 0 or croak( $stderr || 'Unknown error' );
     };
     if ( $@ ) {
-        die( sprintf( "Couldn't dump the `%s` database: %s", $dbName, $@ ));
+        croak( sprintf( "Couldn't dump the `%s` database: %s", $dbName, $@ ));
     }
 }
 

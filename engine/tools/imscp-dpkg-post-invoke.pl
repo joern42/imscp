@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- imscp-dpkg-post-invoke.pl - Process dpkg post invoke tasks
+ imscp-dpkg-post-invoke.pl [ OPTIONS ... ] - Process dpkg post invoke tasks
 
 =head1 SYNOPSIS
 
@@ -58,21 +58,22 @@ OPTIONS:
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-dpkg-post-invoke.lock', 'nowait' );
+# Set execution context
+# We need the installer context as some dpkgPostInvokeTasks() could want
+# update configuration parameters. In backend mode, configuration file are
+# opened readonly.
+iMSCP::Getopt->context( 'installer' );
 
-$bootstrapper->getInstance()->boot( {
+exit unless iMSCP::Bootstrapper->getInstance()->getInstance()->boot( {
     config_readonly => 1,
-    mode            => 'backend',
     nolock          => 1
-} );
+} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-dpkg-post-invoke.lock", 'nowait' );
 
 my $rs = 0;
 
+debug( 'Executing server dpkg(1) post-invoke tasks');
 for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-    next unless my $sub = $_->can( 'dpkgPostInvokeTasks' );
-    debug( sprintf( 'Executing %s dpkg post-invoke tasks', $_ ));
-    $rs |= $sub->( $_->factory());
+    $_->factory()->dpkgPostInvokeTasks();
 }
 
 for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {

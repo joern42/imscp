@@ -19,6 +19,7 @@
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Spec;
 use iMSCP::Bootstrapper;
 use iMSCP::Composer;
@@ -46,9 +47,13 @@ sub setupInstallFiles
     my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupInstallFiles', $main::{'INST_PREF'} );
     return $rs if $rs;
 
+    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Daemon
     # i-MSCP daemon must be stopped before changing any file on the files system
     iMSCP::Service->getInstance()->stop( 'imscp_daemon' );
 
+    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Daemon
+    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::FrontEnd
+    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Backend
     eval {
         # Process cleanup to avoid any security risks and conflicts
         for ( qw/ daemon engine gui / ) {
@@ -68,13 +73,15 @@ sub setupInstallFiles
 sub setupBoot
 {
     iMSCP::Bootstrapper->getInstance()->boot( {
-        mode            => 'setup', # Backend mode
         config_readonly => 1, # We do not allow writing in conffile at this time
         nodatabase      => 1 # We do not establish connection to the database at this time
     } );
 
+    # FIXME: Should be done through the bootstrapper
+
     untie( %main::imscpOldConfig ) if %main::imscpOldConfig;
 
+    # If we are not in installer context, we need first create the imscpOld.conf file if it doesn't't already exist
     unless ( -f "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
         local $UMASK = 027;
         my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp.conf" )->copyFile(
@@ -83,6 +90,8 @@ sub setupBoot
         return $rs if $rs;
     }
 
+    # We open the imscpOld.conf file in write mode. This is needed because some servers will update it after processing tasks
+    # that must be done once, such as uninstallation tasks (older server alternatives)
     tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf";
     0;
 }
@@ -206,6 +215,7 @@ sub setupSaveConfig
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupSaveConfig' );
 }
 
+# FIXME: Should be done by a the Local server
 sub setupCreateMasterUser
 {
     my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupCreateMasterUser' );
@@ -238,11 +248,16 @@ sub setupCreateMasterUser
 
 sub setupCoreServices
 {
+    # FIXME: Should be done by a specific package, eg:
+    # iMSCP::Packages::Daemon
+    # iMSCP::Packages::Traffic
+    # iMSCP::Packages::Mounts
     my $serviceMngr = iMSCP::Service->getInstance();
     $serviceMngr->enable( $_ ) for 'imscp_daemon', 'imscp_traffic', 'imscp_mountall';
     0;
 }
 
+# Should be through by the iMSCP::Composer class
 sub setupComposer
 {
     my $composer = iMSCP::Composer->new();
@@ -268,7 +283,7 @@ EOT
 
     # Create composer.phar compatibility symlink for backward compatibility with plugins
     if ( -l "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) {
-        unlink ( "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) or die(
+        unlink ( "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) or croak(
             sprintf( "Couldn't delete %s symlink: %s", "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar", $! )
         );
     }
@@ -294,7 +309,7 @@ sub setupSetPermissions
         startDetail();
 
         my @options = (
-            '--setup',
+            '--installer',
             ( iMSCP::Getopt->debug ? '--debug' : '' ),
             ( $script eq 'set-engine-permissions.pl' && iMSCP::Getopt->fixPermissions ? '--fix-permissions' : '' )
         );
@@ -323,6 +338,7 @@ sub setupSetPermissions
     $rs |= iMSCP::EventManager->getInstance()->trigger( 'afterSetupSetPermissions' );
 }
 
+# Should be done through the iMSCP::DbTasksProcessor, even status changes
 sub setupDbTasks
 {
     my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDbTasks' );
@@ -438,8 +454,44 @@ sub setupServersAndPackages
     my $eventManager = iMSCP::EventManager->getInstance();
     my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
     my @packages = iMSCP::Packages->getInstance()->getListWithFullNames();
-    my $nSteps = @servers+@packages;
+    my $nSteps = @servers;
     my $rs = 0;
+
+    # First, we need to uninstall older servers  (switch to another alternative)
+    for my $task( qw/ PreUninstall Uninstall PostUninstall / ) {
+        my $lcTask = lc( $task );
+
+        $rs = $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
+        last if $rs;
+
+        startDetail();
+
+        my $nStep = 1;
+        # For uninstallation, we reverse server priorities
+        for my $server( reverse @servers ) {
+            next unless grep( $main::imscpOdlConfig{$server} ne $_, '', $main::imscpConfig{$server});
+
+            $rs = step(
+                sub { $server->factory( $main::imscpOdlConfig{$server} )->$lcTask(); },
+                sprintf( "Executing %s %s tasks ...", $_, $lcTask ),
+                $nSteps,
+                $nStep
+            );
+            last if $rs;
+
+            $main::imscpOdlConfig{$server} = $main::imscpConfig{$server};
+            $nStep++;
+        }
+
+        endDetail();
+
+        $rs ||= $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
+        last if $rs;
+    }
+
+    return $rs if $rs;
+
+    $nSteps = @servers+@packages;
 
     for my $task( qw/ PreInstall Install PostInstall / ) {
         my $lcTask = lc( $task );
@@ -448,32 +500,31 @@ sub setupServersAndPackages
         return $rs if $rs;
 
         startDetail();
-        my $nStep = 1;
 
+        my $nStep = 1;
         for ( @servers ) {
             $rs = step( sub { $_->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks ...", $_, $lcTask ), $nSteps, $nStep );
             last if $rs;
             $nStep++;
         }
 
-        unless ( $rs ) {
-            $rs = $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
-            $rs ||= $eventManager->trigger( 'beforeSetup' . $task . 'Packages' );
+        $rs ||= $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
+        $rs ||= $eventManager->trigger( 'beforeSetup' . $task . 'Packages' );
 
-            unless ( $rs ) {
-                for ( @packages ) {
-                    ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
-                    $rs = step(
-                        sub { $subref->( $_->getInstance( eventManager => $eventManager )) },
-                        sprintf( "Executing %s %s tasks ...", $_, $lcTask ), $nSteps, $nStep
-                    );
-                    last if $rs;
-                    $nStep++;
-                }
+        unless ( $rs ) {
+            for ( @packages ) {
+                ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
+                $rs = step(
+                    sub { $subref->( $_->getInstance( eventManager => $eventManager )) },
+                    sprintf( "Executing %s %s tasks ...", $_, $lcTask ), $nSteps, $nStep
+                );
+                last if $rs;
+                $nStep++;
             }
         }
 
         endDetail();
+
         $rs ||= $eventManager->trigger( 'afterSetup' . $task . 'Packages' );
         last if $rs;
     }
@@ -541,7 +592,6 @@ sub setupRestartServices
 
     my $nbSteps = @services;
     my $step = 1;
-
     for ( @services ) {
         $rs = step( $_->[0], sprintf( 'Starting/Restarting %s service ...', $_->[1] ), $nbSteps, $step );
         last if $rs;
@@ -562,15 +612,14 @@ sub setupRemoveOldConfig
 sub setupGetQuestion
 {
     my ($qname, $default) = @_;
-    $default //= '';
 
     if ( iMSCP::Getopt->preseed ) {
-        return exists $main::questions{$qname} && $main::questions{$qname} ne '' ? $main::questions{$qname} : $default;
+        return exists $main::questions{$qname} && $main::questions{$qname} ne '' ? $main::questions{$qname} : $default // '';
     }
 
-    exists $main::questions{$qname}
-        ? $main::questions{$qname}
-        : ( exists $main::imscpConfig{$qname} && $main::imscpConfig{$qname} ne '' ? $main::imscpConfig{$qname} : $default );
+    return $main::questions{$qname} if exists $main::questions{$qname};
+
+    exists $main::imscpConfig{$qname} && $main::imscpConfig{$qname} ne '' ? $main::imscpConfig{$qname} : $default // '';
 }
 
 sub setupSetQuestion

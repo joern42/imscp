@@ -25,6 +25,7 @@ package iMSCP::Packages;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Basename;
 use parent 'iMSCP::Common::Singleton';
 
@@ -85,7 +86,7 @@ sub _init
     # Load all package classes
     for ( @{$self->{'packages'}} ) {
         my $package = "iMSCP::Packages::${_}";
-        eval "require $package" or die( sprintf( "Couldn't load %s package class: %s", $package, $@ ));
+        eval "require $package" or croak( sprintf( "Couldn't load %s package class: %s", $package, $@ ));
     }
 
     # Sort packages by priority (descending order)

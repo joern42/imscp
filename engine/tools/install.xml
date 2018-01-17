@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <copy mode="0750">${LOCAL_USR_SBIN}/imscp-dpkg-post-invoke.pl</copy>
+    <copy mode="0750" copy_if="'${DISTRO_FAMILY}' eq 'Debian'">${LOCAL_USR_SBIN}/imscp-dpkg-post-invoke.pl</copy>
     <copy>${SYSTEM_ENGINE_ROOT}/tools/imscp-disable-accounts</copy>
     <copy>${SYSTEM_ENGINE_ROOT}/tools/imscp-info.pl</copy>
     <copy>${SYSTEM_ENGINE_ROOT}/tools/imscp-mountall</copy>

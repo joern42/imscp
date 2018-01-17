@@ -1694,7 +1694,7 @@ function getRequestBaseUrl()
  */
 function write_log($msg, $logLevel = E_USER_WARNING)
 {
-    if (defined('IMSCP_SETUP')) {
+    if (getenv('IMSCP_SETUP')) {
         return;
     }
 

@@ -145,14 +145,10 @@ OPTIONS:
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-srv-traff.lock', 'nowait' );
-
-$bootstrapper->boot( {
+exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
-    mode            => 'backend',
     nolock          => 1
-} );
+} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-srv-traff.lock", 'nowait' );
 
 @EXECS = (
     iMSCP::ProgramFinder::find( 'iptables' ),

@@ -55,14 +55,14 @@ setlocale( LC_MESSAGES, "C.UTF-8" );
 $ENV{'LANG'} = 'C.UTF-8';
 $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
-# Set backend mode
-$main::execmode = 'uninstall' unless defined $main::execmode;
+# Set execution context
+iMSCP::Getopt->context( 'uninstaller' );
 
 newDebug( 'imscp-uninstall.log' );
 
 sub startUp
 {
-    iMSCP::Getopt->debug( 1 ); # Enforce debug mode (logs)
+    iMSCP::Getopt->debug( 1 ); # Force debug mode (logs)
     iMSCP::Bootstrapper->getInstance()->boot();
     0;
 }
@@ -226,7 +226,7 @@ sub _uninstallServers
     my ($step, $rs) = ( 1, 0 );
 
     startDetail();
-    
+
     for my $task( qw/ preuninstall uninstall postuninstall / ) {
         for my $server( @servers ) {
             $rs = step( sub { $server->factory()->$task() }, sprintf( 'Executing %s uninstall tasks ...', $server ), $nbSteps, $step );

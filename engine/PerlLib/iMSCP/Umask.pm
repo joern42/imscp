@@ -19,13 +19,14 @@
 
 package iMSCP::Umask;
 
+use Carp qw/ croak /;
 use Exporter qw/ import /;
 
 our $UMASK;
 
 our @EXPORT = qw/ $UMASK /;
 
-tie $UMASK, 'iMSCP::Umask::SCALAR' or die "Can't tie \$UMASK";
+tie $UMASK, 'iMSCP::Umask::SCALAR' or croak "Can't tie \$UMASK";
 
 {
     package iMSCP::Umask::SCALAR;

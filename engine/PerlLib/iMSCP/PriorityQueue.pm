@@ -25,6 +25,7 @@ package iMSCP::PriorityQueue;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Data::Clone qw/ clone /;
 use Data::Compare;
 use List::Util qw/ max /;
@@ -86,7 +87,7 @@ sub hasItem
 
  Param mixed $item Item to add
  Param number $priority OPTIONAL Item priority (Highest values have highest priority)
- Return iiMSCP::PriorityQueue, die on failure
+ Return iiMSCP::PriorityQueue, croak on failure
  
 =cut
 
@@ -95,7 +96,7 @@ sub addItem
     my ($self, $item, $priority) = @_;
     $priority //= 0;
 
-    looks_like_number $priority or die( 'Invalid priority. Expects a number.' );
+    looks_like_number $priority or croak( 'Invalid priority. Expects a number.' );
 
     push @{$self->{'queue'}->{$priority}}, $item;
     $self->{'count_items'}++;

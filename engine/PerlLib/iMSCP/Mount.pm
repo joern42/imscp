@@ -25,6 +25,7 @@ package iMSCP::Mount;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Errno qw / EINVAL ENOENT /;
 use File::Spec;
 use File::stat ();
@@ -132,8 +133,8 @@ my %PROPAGATION_FLAGS = (
 # Lazy-load mount entries
 my $MOUNTS = lazy
     {
-        -f '/proc/self/mounts' or die( "Couldn't load mount entries. File /proc/self/mounts not found." );
-        open my $fh, '<', '/proc/self/mounts' or die( sprintf( "Couldn't read /proc/self/mounts file: %s", $! ));
+        -f '/proc/self/mounts' or croak( "Couldn't load mount entries. File /proc/self/mounts not found." );
+        open my $fh, '<', '/proc/self/mounts' or croak( sprintf( "Couldn't read /proc/self/mounts file: %s", $! ));
         my $entries;
         while ( my $entry = <$fh> ) {
             my $fsFile = ( split /\s+/, $entry )[1];
@@ -189,7 +190,7 @@ sub mount( $ )
     my ($fields) = @_;
     $fields = {} unless defined $fields && ref $fields eq 'HASH';
 
-    for( qw/ fs_spec fs_file fs_vfstype fs_mntops / ) {
+    for ( qw/ fs_spec fs_file fs_vfstype fs_mntops / ) {
         next if defined $fields->{$_};
         error( sprintf( "`%s' field is not defined", $_ ));
         return 1;
@@ -227,7 +228,7 @@ sub mount( $ )
     push @mountArgv, [ 'none', $fsFile, 0, $pflags, 0 ] if $pflags;
 
     # Process the mount(2) calls
-    for( @mountArgv ) {
+    for ( @mountArgv ) {
         unless ( syscall( &iMSCP::Syscall::SYS_mount, @{$_} ) == 0 || $fields->{'ignore_failures'} ) {
             error( sprintf( 'Error while executing mount(%s): %s', join( ', ', @{$_} ), $! || 'Unknown error' ));
             return 1;
@@ -282,7 +283,7 @@ sub umount( $;$ )
         return 0;
     }
 
-    for( reverse sort keys %{$MOUNTS} ) {
+    for ( reverse sort keys %{$MOUNTS} ) {
         next unless /^\Q$fsFile\E(\/|$)/;
 
         do {

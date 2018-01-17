@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- imscp-info.pl - Display information about current i-MSCP instance
+ imscp-info.pl [ OPTIONS ... ] - Display information about current i-MSCP instance
 
 =head1 SYNOPSIS
 
@@ -30,23 +30,41 @@
 use strict;
 use warnings;
 use FindBin;
+use File::Basename;
 use lib "$FindBin::Bin/../PerlLib";
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ output /;
-use iMSCP::Servers;
 use iMSCP::Getopt;
+use iMSCP::Servers;
+use Carp::Always;
+
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+
+Show i-MSCP version and servers info.
+
+OPTIONS:
+ -v,    --version-only  Show i-MSCP version info only.
+ -s,    --server-only   Show i-MSCP servers info only.},
+    'version-only|v'   => \my $versionOnly,
+    'server-only|s'   => \my $serverOnly,
+);
 
 iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
-    mode            => 'backend',
     nodatabase      => 1,
     nokeys          => 1,
     nolock          => 1
 } );
 
-iMSCP::Getopt->verbose( 1 );
+iMSCP::Getopt->debug( 0 );
 
-print <<'EOF';
+if($versionOnly && $serverOnly) {
+    print "\nThe --version-only and --server-only options are mutually exclusive\n";
+    iMSCP::Getopt->showUsage();
+}
+
+unless($serverOnly) {
+    print <<'EOF';
 
 #################################################################
 ###                    i-MSCP Version Info                    ###
@@ -54,10 +72,14 @@ print <<'EOF';
 
 EOF
 
-print output "Build date                            : @{ [ $main::imscpConfig{'BuildDate'} || 'Unreleased' ] }", 'info';
-print output "Version                               : $main::imscpConfig{'Version'}", 'info';
-print output "Codename                              : $main::imscpConfig{'CodeName'}", 'info';
-print output "Plugin API                            : $main::imscpConfig{'PluginApi'}", 'info';
+    print output "Build date                            : @{ [ $main::imscpConfig{'BuildDate'} || 'Unreleased' ] }", 'info';
+    print output "Version                               : $main::imscpConfig{'Version'}", 'info';
+    print output "Codename                              : $main::imscpConfig{'CodeName'}", 'info';
+    print output "Plugin API                            : $main::imscpConfig{'PluginApi'}", 'info';
+
+}
+
+exit if $versionOnly;
 
 print <<'EOF';
 
@@ -78,8 +100,6 @@ for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     print output "Server priority                       : @{ [ $srvInstance->getPriority() ] }", 'info';
     print "\n";
 }
-
-iMSCP::Getopt->verbose( 0 );
 
 =head1 AUTHOR
 

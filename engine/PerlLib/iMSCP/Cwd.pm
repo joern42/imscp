@@ -21,13 +21,14 @@ package iMSCP::Cwd;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Exporter qw/ import /;
 
 our $CWD;
 
 our @EXPORT = qw/ $CWD /;
 
-tie $CWD, 'iMSCP::Cwd::SCALAR' or die "Can't tie \$CWD";
+tie $CWD, 'iMSCP::Cwd::SCALAR' or croak "Can't tie \$CWD";
 
 {
     package iMSCP::Cwd::SCALAR;
@@ -47,7 +48,7 @@ tie $CWD, 'iMSCP::Cwd::SCALAR' or die "Can't tie \$CWD";
     sub STORE
     {
         return unless defined $_[1];
-        chdir( $_[1] ) or die( sprintf( "Couldn't change directory to %s: %s:", $_[1], $! ));
+        chdir( $_[1] ) or croak( sprintf( "Couldn't change directory to %s: %s:", $_[1], $! ));
     }
 }
 

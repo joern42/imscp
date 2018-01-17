@@ -25,6 +25,7 @@ package iMSCP::Execute;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Capture::Tiny qw/ capture capture_stdout capture_stderr /;
 use Errno qw/ EINTR /;
 use iMSCP::Debug qw/ debug error /;
@@ -50,7 +51,7 @@ our @EXPORT = qw/ execute executeNoWait escapeShell getExitCode /;
  Param string|array $command Command to execute
  Param string \$stdout OPTIONAL Variable for capture of STDOUT
  Param string \$stderr OPTIONAL Variable for capture of STDERR
- Return int Command exit code or die on failure
+ Return int Command exit code or croak on failure
 
 =cut
 
@@ -58,32 +59,32 @@ sub execute( $;$$ )
 {
     my ($command, $stdout, $stderr) = @_;
 
-    defined( $command ) or die( 'Missing $command parameter' );
+    defined( $command ) or croak( 'Missing $command parameter' );
 
-    if ( $stdout ) {
-        ref $stdout eq 'SCALAR' or die( "Expects a scalar reference as second parameter for capture of STDOUT" );
+    if ( defined $stdout ) {
+        ref $stdout eq 'SCALAR' or croak( "Expects a scalar reference as second parameter for capture of STDOUT" );
         ${$stdout} = '';
     }
 
-    if ( $stderr ) {
-        ref $stderr eq 'SCALAR' or die( "Expects a scalar reference as third parameter for capture of STDERR" );
+    if ( defined $stderr ) {
+        ref $stderr eq 'SCALAR' or croak( "Expects a scalar reference as third parameter for capture of STDERR" );
         ${$stderr} = '';
     }
 
     my $list = ref $command eq 'ARRAY';
     debug( $list ? "@{$command}" : $command );
 
-    if ( $stdout && $stderr ) {
+    if ( defined $stdout && defined $stderr ) {
         ( ${$stdout}, ${$stderr} ) = capture sub { system( $list ? @{$command} : $command ); };
         chomp( ${$stdout}, ${$stderr} );
-    } elsif ( $stdout ) {
+    } elsif ( defined $stdout ) {
         ${$stdout} = capture_stdout sub { system( $list ? @{$command} : $command ); };
         chomp( ${$stdout} );
-    } elsif ( $stderr ) {
+    } elsif ( defined $stderr ) {
         ${$stderr} = capture_stderr sub { system( $list ? @{$command} : $command ); };
         chomp( $stderr );
     } else {
-        system( $list ? @{$command} : $command ) != -1 or die( sprintf( "Couldn't execute command: %s", $! ));
+        system( $list ? @{$command} : $command ) != -1 or croak( sprintf( "Couldn't execute command: %s", $! ));
     }
 
     getExitCode();
@@ -96,7 +97,7 @@ sub execute( $;$$ )
  Param string|array $command Command to execute
  Param CODE $subStdout OPTIONAL routine for processing of command STDOUT line by line
  Param CODE $subStderr OPTIONAL routine for processing of command STDERR line by line
- Return int Command exit code or die on failure
+ Return int Command exit code or croak on failure
 
 =cut
 
@@ -105,10 +106,10 @@ sub executeNoWait( $;$$ )
     my ($command, $subStdout, $subStderr) = @_;
 
     $subStdout ||= sub { print STDOUT @_ };
-    ref $subStdout eq 'CODE' or die( 'Expects CODE as second parameter for STDOUT processing' );
+    ref $subStdout eq 'CODE' or croak( 'Expects CODE as second parameter for STDOUT processing' );
 
     $subStderr ||= sub { print STDERR @_ };
-    ref $subStderr eq 'CODE' or die( 'Expects CODE as third parameter for STDERR processing' );
+    ref $subStderr eq 'CODE' or croak( 'Expects CODE as third parameter for STDERR processing' );
 
     my $list = ref $command eq 'ARRAY';
     debug( $list ? "@{$command}" : $command );
@@ -124,7 +125,7 @@ sub executeNoWait( $;$$ )
             # Read 1 byte at a time to avoid ending with multiple lines
             my $ret = sysread( $fh, my $nextbyte, 1 );
             next if $!{'EINTR'}; # Ignore signal interrupt
-            defined $ret or die( $! ); # Something is going wrong; Best is to abort early
+            defined $ret or croak( $! ); # Something is going wrong; Best is to abort early
 
             if ( $ret == 0 ) {
                 # EOL
@@ -170,7 +171,7 @@ sub escapeShell( $ )
  Return human exit code
 
  Param int $ret Raw exit code
- Return int exit code or die on failure
+ Return int exit code
 
 =cut
 

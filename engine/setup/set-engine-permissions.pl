@@ -48,38 +48,32 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 newDebug( 'imscp-set-engine-permissions.log' );
 
-$main::execmode = 'backend';
 iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
 
 Set i-MSCP engine permissions.
 
 OPTIONS:
- -s,    --setup           Setup mode.
+ -i,    --installer       Set installer context.
  -d,    --debug           Enable debug mode.
  -v,    --verbose         Enable verbose mode.
  -x,    --fix-permissions Fix permissions recursively.},
-    'setup|s'           => sub { $main::execmode = 'setup'; },
+    'installer|i'       => sub { iMSCP::Getopt->context( 'installer' ); },
     'debug|d'           => \&iMSCP::Getopt::debug,
     'verbose|v'         => \&iMSCP::Getopt::verbose,
     'fix-permissions|x' => \&iMSCP::Getopt::fixPermissions
 );
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-set-engine-permissions.lock', 'nowait' );
-
-$bootstrapper->boot( {
-    mode            => $main::execmode,
-    nolock          => 1,
+exit unless iMSCP::Bootstrapper->getInstance()->boot( {
+    config_readonly => 1,
     nodatabase      => 1,
     nokeys          => 1,
-    config_readonly => 1
-} );
+    nolock          => 1
+} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 
 my $rs = 0;
 my @items = ();
 
-
-push @items, [ $_, sub { $subref->( $_->factory()->setEnginePermissions() ); } ] for iMSCP::Servers->getInstance()->getListWithFullNames();
+push @items, [ $_, sub { $subref->( $_->factory()->setEnginePermissions()); } ] for iMSCP::Servers->getInstance()->getListWithFullNames();
 
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;
@@ -90,46 +84,40 @@ my $totalItems = @items+1;
 my $count = 1;
 
 debug( 'Setting base (engine) permissions' );
-printf( "Setting base (engine) permissions\t%s\t%s\n", $totalItems, $count ) if $main::execmode eq 'setup';
-
-my $rootUName = $main::imscpConfig{'ROOT_USER'};
-my $rootGName = $main::imscpConfig{'ROOT_GROUP'};
-my $imscpGName = $main::imscpConfig{'IMSCP_GROUP'};
-my $confDir = $main::imscpConfig{'CONF_DIR'};
-my $rootDir = $main::imscpConfig{'ROOT_DIR'};
+printf( "Setting base (engine) permissions\t%s\t%s\n", $totalItems, $count ) if iMSCP::Getopt->context() eq 'installer';
 
 # e.g: /etc/imscp
-$rs = setRights( $confDir,
+$rs = setRights( $main::imscpConfig{'CONF_DIR'},
     {
-        user      => $rootUName,
-        group     => $imscpGName,
+        user      => $main::imscpConfig{'ROOT_USER'},
+        group     => $main::imscpConfig{'IMSCP_GROUP'},
         dirmode   => '0750',
         filemode  => '0640',
         recursive => 1
     }
 );
 # e.g: /var/www/imscp
-$rs |= setRights( $rootDir,
+$rs |= setRights( $main::imscpConfig{'ROOT_DIR'},
     {
-        user  => $rootUName,
-        group => $rootGName,
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $main::imscpConfig{'ROOT_GROUP'},
         mode  => '0755'
     }
 );
 # e.g: /var/www/imscp/daemon
-$rs |= setRights( "$rootDir/daemon",
+$rs |= setRights( "$main::imscpConfig{'ROOT_DIR'}/daemon",
     {
-        user      => $rootUName,
-        group     => $imscpGName,
+        user      => $main::imscpConfig{'ROOT_USER'},
+        group     => $main::imscpConfig{'IMSCP_GROUP'},
         mode      => '0750',
         recursive => 1
     }
 );
 # e.g: /var/www/imscp/engine
-$rs |= setRights( "$rootDir/engine",
+$rs |= setRights( "$main::imscpConfig{'ROOT_DIR'}/engine",
     {
-        user      => $rootUName,
-        group     => $imscpGName,
+        user      => $main::imscpConfig{'ROOT_USER'},
+        group     => $main::imscpConfig{'IMSCP_GROUP'},
         mode      => '0750',
         recursive => 1
     }
@@ -137,16 +125,16 @@ $rs |= setRights( "$rootDir/engine",
 # e.g: /var/www/virtual
 $rs |= setRights( $main::imscpConfig{'USER_WEB_DIR'},
     {
-        user  => $rootUName,
-        group => $rootGName,
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $main::imscpConfig{'ROOT_GROUP'},
         mode  => '0755'
     }
 );
 # e.g: /var/log/imscp
 $rs |= setRights( $main::imscpConfig{'LOG_DIR'},
     {
-        user  => $rootUName,
-        group => $imscpGName,
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $main::imscpConfig{'IMSCP_GROUP'},
         mode  => '0750'
     }
 );
@@ -155,7 +143,7 @@ $count++;
 
 for ( @items ) {
     debug( sprintf( 'Setting %s engine permissions', $_->[0] ));
-    printf( "Setting %s engine permissions\t%s\t%s\n", $_->[0], $totalItems, $count ) if $main::execmode eq 'setup';
+    printf( "Setting %s engine permissions\t%s\t%s\n", $_->[0], $totalItems, $count ) if iMSCP::Getopt->context() eq 'installer';
     $rs |= $_->[1]->();
     $count++;
 }

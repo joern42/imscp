@@ -118,13 +118,9 @@ OPTIONS:
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-disable-accounts.lock', 'nowait' );
-
-$bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    mode            => 'backend'
-} );
+exit unless iMSCP::Bootstrapper->getInstance()->getInstance()->boot( {
+    config_readonly => 1
+} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-disable-accounts.lock', 'nowait" );
 
 exit run();
 

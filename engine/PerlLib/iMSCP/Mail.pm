@@ -25,6 +25,7 @@ package iMSCP::Mail;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Encode;
 use iMSCP::Debug;
 use iMSCP::ProgramFinder;
@@ -49,7 +50,7 @@ $Text::Wrap::break = qr/[\s\n\|]/;
  Send an error message to system administrator
 
  Param string Error message to be sent
- Return int 0 on success, other on failure
+ Return int 0 on success, other or croak on failure
  
 =cut
 
@@ -57,7 +58,7 @@ sub errmsg
 {
     my ($self, $message) = @_;
 
-    defined $message or die( "$message parameter is not defined" );
+    defined $message or croak( "$message parameter is not defined" );
 
     my $functionName = ( caller( 1 ) )[3] || 'main';
     $self->_sendMail( 'i-MSCP - An error has been raised', <<"EOF", 'error' );
@@ -73,7 +74,7 @@ EOF
  Send a warning message to system administrator
 
  Param string $message Warning message to be sent
- Return int 0 on success, other on failure
+ Return int 0 on success, other or croak failure
  
 =cut
 
@@ -81,7 +82,7 @@ sub warnMsg
 {
     my ($self, $message) = @_;
 
-    defined $message or die( "$message parameter is not defined" );
+    defined $message or croak( "$message parameter is not defined" );
 
     my $functionName = ( caller( 1 ) )[3] || 'main';
     $self->_sendMail( 'i-MSCP - A warning has been raised', <<"EOF", 'warning' );
@@ -105,7 +106,7 @@ EOF
  Param string $subject Message subject
  Param string $message Message to be sent
  Param string $severity Message severity
- Return int 0 on success, other on failure
+ Return int 0 on success, other or croak on failure
  
 =cut
 
@@ -113,7 +114,7 @@ sub _sendMail
 {
     my (undef, $subject, $message, $severity) = @_;
 
-    my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or die( "Couldn't find sendmail executable" );
+    my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or croak( "Couldn't find sendmail executable" );
     my $host = $main::imscpConfig{'BASE_SERVER_VHOST'};
     my $out = MIME::Entity->new()->build(
         From       => "i-MSCP ($host) <noreply\@$host>",

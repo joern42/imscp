@@ -178,15 +178,12 @@ OPTIONS:
 my $action = shift;
 $action && $action =~ /^(?:start|stop)$/ or iMSCP::Getopt->showUsage();
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-net-traffic-logger.lock', 'nowait' );
-
-$bootstrapper->boot( {
+exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
     nodatabase      => 1,
     nokeys          => 1,
     nolock          => 1
-} );
+} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-net-traffic-logger.lock", 'nowait' );
 
 @EXECS = (
     iMSCP::ProgramFinder::find( 'iptables' ),

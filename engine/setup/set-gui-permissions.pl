@@ -47,30 +47,28 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 newDebug( 'imscp-set-gui-permissions.log' );
 
-$main::execmode = 'backend';
 iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
 
 Set i-MSCP gui permissions.
 
 OPTIONS
- -s,    --setup         Setup mode.
- -d,    --debug         Enable debug mode.
- -v,    --verbose       Enable verbose mode},
-    'setup|s'   => sub { $main::execmode = 'setup'; },
-    'debug|d'   => \&iMSCP::Getopt::debug,
-    'verbose|v' => \&iMSCP::Getopt::verbose
+ -i,    --installer       Set installer context.
+ -d,    --debug           Enable debug mode.
+ -v,    --verbose         Enable verbose mode.
+ -x,    --fix-permissions Fix permissions recursively.},
+    'installer|i'       => sub { iMSCP::Getopt->context( 'installer' ); },
+    'debug|d'           => \&iMSCP::Getopt::debug,
+    'verbose|v'         => \&iMSCP::Getopt::verbose,
+    'fix-permissions|x' => \&iMSCP::Getopt::fixPermissions
 );
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-set-engine-permissions.lock', 'nowait' );
-
-$bootstrapper->boot( {
-    mode            => $main::execmode,
-    nolock          => 1,
+exit unless iMSCP::Bootstrapper->getInstance()->boot( {
+    config_readonly => 1,
     nodatabase      => 1,
     nokeys          => 1,
-    config_readonly => 1
-} );
+    nolock          => 1
+    
+} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 
 my $rs = 0;
 my @items = ();
@@ -88,7 +86,7 @@ my $totalItems = @items;
 my $count = 1;
 for ( @items ) {
     debug( sprintf( 'Setting %s frontEnd permissions', $_->[0] ));
-    printf( "Setting %s frontEnd permissions\t%s\t%s\n", $_->[0], $totalItems, $count ) if $main::execmode eq 'setup';
+    printf( "Setting %s frontEnd permissions\t%s\t%s\n", $_->[0], $totalItems, $count ) if iMSCP::Getopt->context() eq 'installer';
     $rs |= $_->[1]->();
     $count++;
 }

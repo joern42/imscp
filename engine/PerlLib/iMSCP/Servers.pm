@@ -25,6 +25,7 @@ package iMSCP::Servers;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Basename;
 use parent 'iMSCP::Common::Singleton';
 
@@ -72,7 +73,7 @@ sub getListWithFullNames
 
  Initialize instance
 
- Return iMSCP::Servers
+ Return iMSCP::Servers, croak on failure
 
 =cut
 
@@ -85,7 +86,7 @@ sub _init
     # Load all server classes
     for ( @{$self->{'servers'}} ) {
         my $server = "iMSCP::Servers::${_}";
-        eval "require $server; 1" or die( sprintf( "Couldn't load %s server class: %s", $server, $@ ));
+        eval "require $server; 1" or croak( sprintf( "Couldn't load %s server class: %s", $server, $@ ));
     }
 
     # Sort servers by priority (descending order)

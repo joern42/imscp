@@ -340,13 +340,10 @@ OPTIONS:
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-backup-all.lock', 'nowait' );
-
-$bootstrapper->boot( {
+exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
     nolock          => 1
-} );
+} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-backup-all.lock", 'nowait' );
 
 backupAll();
 

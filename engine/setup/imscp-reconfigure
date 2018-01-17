@@ -43,22 +43,19 @@ setlocale( LC_MESSAGES, "C.UTF-8" );
 
 $ENV{'LANG'} = 'C.UTF-8';
 $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
-# Needed to make any sub-process aware of i-MSCP setup process
-$ENV{'IMSCP_SETUP'} = 1;
 
 newDebug( 'imscp-setup.log' );
 
-# Set backend mode
-$main::execmode = 'setup' unless defined $main::execmode;
+# Set execution context
+iMSCP::Getopt->context( 'installer' );
+
 # Init variable that holds questions
 %main::questions = () unless %main::questions;
-# Initialize command line options
-$main::skippackages = 0;
 
 # Parse command line options
 iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
  -s,    --skip-distro-packages  Do not install/update distro packages.},
-    'skip-distro-packages|s' => \$main::skippackages
+    'skip-distro-packages|s' => \&iMSCP::Getopt::skippackages
 );
 
 # Handle preseed option
@@ -69,8 +66,8 @@ if ( iMSCP::Getopt->preseed ) {
     iMSCP::Getopt->noprompt( 1 );
 }
 
-# Handle the listener option
-require iMSCP::Getopt->listener if iMSCP::Getopt->listener;
+# Inhibit verbose mode if we are not in non-interactive mode
+iMSCP::Getopt->verbose( 0 ) unless iMSCP::Getopt->noprompt;
 
 system( 'clear 2>/dev/null' );
 

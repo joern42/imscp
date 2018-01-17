@@ -25,6 +25,7 @@ package iMSCP::Service;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Debug qw/ error getMessageByType /;
 use iMSCP::Execute;
 use iMSCP::ProgramFinder;
@@ -49,7 +50,7 @@ my %DELAYED_ACTIONS;
 
  Does the given service is enabled?
 
- Return TRUE if the given service is enabled, FALSE otherwise
+ Return TRUE if the given service is enabled, FALSE otherwise, croak on failure
 
 =cut
 
@@ -57,8 +58,10 @@ sub isEnabled
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    $self->{'provider'}->isEnabled( $service );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    my $ret = $self->{'provider'}->isEnabled( $service );
+    $ret;
 }
 
 =item enable( $service )
@@ -66,7 +69,7 @@ sub isEnabled
  Enable the given service
 
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
@@ -74,9 +77,10 @@ sub enable
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
     my $ret = eval { $self->{'provider'}->enable( $service ) };
-    $ret && !$@ or die( sprintf( "Couldn't enable the `%s' service: %s", $service, $@ || $self->_getLastError()));
+    $ret && !$@ or croak( sprintf( "Couldn't enable the `%s' service: %s", $service, $@ || $self->_getLastError()));
     $ret;
 }
 
@@ -85,7 +89,7 @@ sub enable
  Disable the given service
 
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
@@ -93,9 +97,10 @@ sub disable
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
     my $ret = eval { $self->{'provider'}->disable( $service ) };
-    $ret && !$@ or die( sprintf( "Couldn't disable the `%s' service: %s", $service, $@ || $self->_getLastError()));
+    $ret && !$@ or croak( sprintf( "Couldn't disable the `%s' service: %s", $service, $@ || $self->_getLastError()));
     $ret;
 }
 
@@ -104,7 +109,7 @@ sub disable
  Remove the given service
 
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
@@ -112,35 +117,34 @@ sub remove
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
     eval {
-        $self->{'provider'}->remove( $service ) or die( $self->_getLastError());
+        $self->{'provider'}->remove( $service ) or croak( $self->_getLastError());
 
-        unless ( $self->{'init'} eq 'Sysvinit' ) {
-            my $provider = $self->getProvider( $self->{'init'} eq 'Upstart' ? 'Systemd' : 'Upstart' );
+        unless ( $self->{'init'} eq 'Systemd' ) {
+            my $provider = $self->getProvider( 'Systemd' );
+            my $unitFilePath = eval { $provider->resolveUnit( $service, 'withpath', 'flushcache' ); };
 
-            if ( $self->{'init'} eq 'Upstart' ) {
-                my $basename = basename( $service, qw / .service .socket .target .timer / );
+            if ( defined $unitFilePath
+                # We do not want remove units that are shipped by distribution packages
+                && index( $unitFilePath, '/etc/' ) != 0
+            ) {
+                iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or croak( $self->_getLastError());
+            }
+        }
 
-                for ( qw / service socket target timer / ) {
-                    # FIXME protect distribution package units files. Those should not be removed by us
-                    my $unitFilePath = eval { $provider->getUnitFilePath( "$basename.$_" ); };
-                    if ( defined $unitFilePath ) {
-                        iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or die( $self->_getLastError());
-                    }
-                }
-            } else {
-                for ( qw / conf override / ) {
-                    my $jobfilePath = eval { $provider->getJobFilePath( $service, $_ ); };
-                    if ( defined $jobfilePath ) {
-                        iMSCP::File->new( filename => $jobfilePath )->delFile() == 0 or die( $self->_getLastError());
-                    }
+        unless ( $self->{'init'} eq 'Upstart' ) {
+            my $provider = $self->getProvider( 'Upstart' );
+            for ( qw / conf override / ) {
+                my $jobfilePath = eval { $provider->getJobFilePath( $service, $_ ); };
+                if ( defined $jobfilePath ) {
+                    iMSCP::File->new( filename => $jobfilePath )->delFile() == 0 or croak( $self->_getLastError());
                 }
             }
         }
     };
-    !$@ or die( sprintf( "Couldn't remove the `%s' service: %s", $service, $@ ));
+    !$@ or croak( sprintf( "Couldn't remove the `%s' service: %s", $service, $@ ));
     1;
 }
 
@@ -149,7 +153,7 @@ sub remove
  Start the given service
 
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
@@ -157,10 +161,10 @@ sub start
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
     my $ret = eval { $self->{'provider'}->start( $service ) };
-    $ret && !$@ or die( sprintf( "Couldn't start the `%s' service: %s", $service, $@ || $self->_getLastError()));
+    $ret && !$@ or croak( sprintf( "Couldn't start the `%s' service: %s", $service, $@ || $self->_getLastError()));
     $ret;
 }
 
@@ -169,7 +173,7 @@ sub start
  Stop the given service
 
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
@@ -177,10 +181,10 @@ sub stop
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
     my $ret = eval { $self->{'provider'}->stop( $service ) };
-    $ret && !$@ or die( sprintf( "Couldn't stop the `%s' service: %s", $service, $@ || $self->_getLastError()));
+    $ret && !$@ or croak( sprintf( "Couldn't stop the `%s' service: %s", $service, $@ || $self->_getLastError()));
     $ret;
 }
 
@@ -189,7 +193,7 @@ sub stop
  Restart the given service
 
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
@@ -197,10 +201,10 @@ sub restart
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
     my $ret = eval { $self->{'provider'}->restart( $service ); };
-    $ret && !$@ or die( sprintf( "Couldn't restart the `%s' service: %s", $service, $@ || $self->_getLastError()));
+    $ret && !$@ or croak( sprintf( "Couldn't restart the `%s' service: %s", $service, $@ || $self->_getLastError()));
     $ret;
 }
 
@@ -209,7 +213,7 @@ sub restart
  Reload the given service
 
  Param string $service Service name
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
@@ -217,10 +221,10 @@ sub reload
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'parameter $service is not defined' );
 
     my $ret = eval { $self->{'provider'}->reload( $service ); };
-    $ret && !$@ or die( sprintf( "Couldn't reload the `%s' service: %s", $service, $@ || $self->_getLastError()));
+    $ret && !$@ or croak( sprintf( "Couldn't reload the `%s' service: %s", $service, $@ || $self->_getLastError()));
     $ret;
 }
 
@@ -237,7 +241,8 @@ sub isRunning
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
     eval { $self->{'provider'}->isRunning( $service ); };
 }
 
@@ -253,7 +258,8 @@ sub hasService
 {
     my ($self, $service) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
     $self->{'provider'}->hasService( $service );
 }
 
@@ -313,8 +319,8 @@ sub isSystemd
 
  Get service provider instance
 
- Param string $providerName OPTIONAL Provider name (Sysvinit|Upstart|Systemd)
- Return iMSCP::Providers::Service::Sysvinit
+ Param string $providerName OPTIONAL Provider name (Systemd|Sysvinit|Upstart)
+ Return iMSCP::Providers::Service::Sysvinit, croak on failure
 
 =cut
 
@@ -328,8 +334,8 @@ sub getProvider
 
     unless ( can_load( modules => { $provider => undef } ) ) {
         # Fallback to the base provider
-        $provider = "iMSCP::Providers::Service::${providerName}";
-        can_load( modules => { $provider => undef } ) or die(
+        $provider = "iMSCP::Providers::Service::@{ [ $providerName // $self->{'init'} ] }";
+        can_load( modules => { $provider => undef } ) or croak(
             sprintf( "Couldn't load the `%s' service provider: %s", $provider, $Module::Load::Conditional::ERROR )
         );
     }
@@ -349,7 +355,7 @@ sub getProvider
  
  Param string $service Service name for which action must be executed
  Param coderef|array $action Action name or an array containing action name and coderef representing action logic
- Param int $priority Priority. Default (0) stands for 'no priority'.
+ Param int $priority Priority. Default (0) stands for 'no priority', croak on failure
  Return void
 
 =cut
@@ -359,16 +365,17 @@ sub registerDelayedAction
     my (undef, $service, $action, $priority) = @_;
     $priority //= 0;
 
-    defined $service or die ( 'Missing $service parameter' );
-    defined $action or die( 'Missing $action parameter.' );
-    $priority =~ /^\d+$/ or die( 'Invalid $priority parameter.' );
+    defined $service or croak( 'Missing or undefined $service parameter' );
+    defined $action or croak( 'Missing or undefined $action parameter' );
+
+    $priority =~ /^\d+$/ or croak( 'Invalid $priority parameter.' );
 
     if ( ref $action eq 'ARRAY' ) {
-        @{$action} == 2 or die( 'When defined as array, $action must contains both the action name and coderef for action logic.' );
-        grep($action->[0], 'restart', 'reload', 'start') or die( 'Unexpected action name. Only start, restart and reload actions can be delayed' );
-        ref $action->[1] eq 'CODE' or die( 'Unexpected action coderef.' );
+        @{$action} == 2 or croak( 'When defined as array, $action must contains both the action name and coderef for action logic.' );
+        grep($action->[0], 'restart', 'reload', 'start') or croak( 'Unexpected action name. Only start, restart and reload actions can be delayed' );
+        ref $action->[1] eq 'CODE' or croak( 'Unexpected action coderef.' );
     } else {
-        grep($action eq $_, 'restart', 'reload', 'start') or die( 'Unexpected action. Only start, restart and reload actions can be delayed' );
+        grep($action eq $_, 'restart', 'reload', 'start') or croak( 'Unexpected action. Only start, restart and reload actions can be delayed' );
     }
 
     unless ( $DELAYED_ACTIONS{$service} ) {
@@ -407,7 +414,7 @@ sub registerDelayedAction
 
  Initialize instance
 
- Return iMSCP::Service, die on failure
+ Return iMSCP::Service, croak on failure
 
 =cut
 
@@ -415,8 +422,9 @@ sub _init
 {
     my ($self) = @_;
 
-    exists $main::imscpConfig{'DISTRO_FAMILY'} or die( sprintf( 'You must first bootstrap the i-MSCP backend' ));
-    $self->{'provider'} = $self->getProvider( $self->{'init'} = _detectInit());
+    exists $main::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
+    $self->{'init'} = _detectInit();
+    $self->{'provider'} = $self->getProvider();
     $self;
 }
 
@@ -431,15 +439,8 @@ sub _init
 sub _detectInit
 {
     return $main::imscpConfig{'SYSTEM_INIT'} if exists $main::imscpConfig{'SYSTEM_INIT'} && $main::imscpConfig{'SYSTEM_INIT'} ne '';
-
-    if ( -d '/run/systemd/system' ) {
-        return 'Systemd';
-    }
-
-    if ( iMSCP::ProgramFinder::find( 'initctl' ) && execute( 'initctl version 2>/dev/null | grep -q upstart' ) == 0 ) {
-        return 'Upstart';
-    }
-
+    return 'Systemd' if -d '/run/systemd/system';
+    return 'Upstart' if iMSCP::ProgramFinder::find( 'initctl' ) && execute( 'initctl version 2>/dev/null | grep -q upstart' ) == 0;
     'Sysvinit';
 }
 
@@ -509,7 +510,7 @@ sub _executeDelayedActions
 =cut
 
 END {
-    return unless $? || exists $main::imscpConfig{'DISTRO_FAMILY'};
+    return unless $? == 0 && exists $main::imscpConfig{'DISTRO_FAMILY'};
 
     $? = __PACKAGE__->getInstance()->_executeDelayedActions();
 }

@@ -25,7 +25,7 @@ package iMSCP::Crypt;
 
 use strict;
 use warnings;
-use Carp;
+use Carp qw/ croak /;
 use Crypt::CBC;
 use Crypt::Eksblowfish::Bcrypt ();
 use Digest::SHA ();
@@ -43,7 +43,7 @@ our @EXPORT_OK = qw/
     md5 sha256 sha512 bcrypt apr1MD5 htpasswd
     verify hashEqual
     encryptBlowfishCBC decryptBlowfishCBC
-    encryptRijndaelCBC decryptRijndaelCBC 
+    encryptRijndaelCBC decryptRijndaelCBC
     /;
 
 =head1 DESCRIPTION

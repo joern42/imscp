@@ -25,6 +25,7 @@ package iMSCP::DbTasksProcessor;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Encode qw / encode_utf8 /;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug error getMessageByType newDebug endDebug /;
@@ -34,9 +35,6 @@ use iMSCP::Stepper qw/ step /;
 use JSON;
 use MIME::Base64 qw/ encode_base64 /;
 use parent 'iMSCP::Common::Singleton';
-
-# Ensure backward compatibility with plugins
-BEGIN { *process = \&processDbTasks; }
 
 =head1 DESCRIPTION
 
@@ -50,7 +48,7 @@ BEGIN { *process = \&processDbTasks; }
 
  Process all db tasks
 
- Die on failure
+ Returnv void croak on failure
 
 =cut
 
@@ -349,11 +347,11 @@ sub processDbTasks
             );
 
             my ($stdout, $stderr);
-            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or die(
+            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or croak(
                 $stderr || 'Unknown error'
             );
             debug( $stdout ) if $stdout;
-            execute( "rm -fR /tmp/sw-$_->{'domain_id'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
+            execute( "rm -fR /tmp/sw-$_->{'domain_id'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or croak( $stderr || 'Unknown error' );
             debug( $stdout ) if $stdout;
         }
 
@@ -384,11 +382,11 @@ sub processDbTasks
             );
 
             my ($stdout, $stderr);
-            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or die(
+            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or croak(
                 $stderr || 'Unknown error'
             );
             debug( $stdout ) if $stdout;
-            execute( "rm -fR /tmp/sw-$_->{'software_archive'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
+            execute( "rm -fR /tmp/sw-$_->{'software_archive'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or croak( $stderr || 'Unknown error' );
             debug( $stdout ) if $stdout;
         }
 
@@ -406,7 +404,7 @@ sub processDbTasks
 
  Initialize instance
 
- Return iMSCP::DbTasksProcessor or die on failure
+ Return iMSCP::DbTasksProcessor or croak on failure
 
 =cut
 
@@ -414,7 +412,7 @@ sub _init
 {
     my ($self) = @_;
 
-    defined $self->{'mode'} or die( 'mode attribute is not defined' );
+    defined $self->{'mode'} or croak( 'mode attribute is not defined' );
     $self->{'_dbh'} = iMSCP::Database->getInstance()->getRawDb();
     $self;
 }
@@ -426,7 +424,7 @@ sub _init
  Param string $module Module name to process
  Param string $sql SQL statement for retrieval of list of items to process by the given module
  Param bool $perItemLogFile Enable per item log file (default is per module log file)
- Return int 1 if at least one item has been processed, 0 if no item has been processed, die on failure
+ Return int 1 if at least one item has been processed, 0 if no item has been processed, croak on failure
 
 =cut
 
@@ -449,7 +447,7 @@ sub _processModuleDbTasks
             return 0;
         }
 
-        eval "require $module; 1" or die;
+        eval "require $module; 1" or croak;
 
         my ($nStep, $rs) = ( 0, 0 );
         my $needStepper = !iMSCP::Getopt->noprompt && grep( $self->{'mode'} eq $_, ( 'setup', 'uninstall' ) );
@@ -471,7 +469,7 @@ sub _processModuleDbTasks
                 $rs = $self->_processModuleTasks( $module, $row->{'id'} );
             }
 
-            $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             endDebug();
         }
     };
@@ -489,7 +487,7 @@ sub _processModuleDbTasks
 
  Param string $module Module name
  Param int $dbItemId Database item unique identifier
- Return int 0 on success, other or die on failure
+ Return int 0 on success, other or croak on failure
 
 =cut
 
