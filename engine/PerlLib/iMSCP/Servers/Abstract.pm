@@ -31,6 +31,7 @@ use iMSCP::Config;
 use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::EventManager;
 use iMSCP::File;
+use iMSCP::Getopt;
 use iMSCP::TemplateParser qw/ processByRef /;
 use parent 'iMSCP::Common::Singleton';
 
@@ -320,6 +321,27 @@ sub getVersion
     croak ( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
 }
 
+=item dpkgPostInvokeTasks()
+
+ Process dpkg(1) post-invoke tasks
+
+ This method is automatically called after each dpkg(1) invocation.
+ This make it possible to perform some maintenance tasks such as updating
+ server versions.
+ 
+ Only Debian server implementations *SHOULD* implement that method.
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub dpkgPostInvokeTasks
+{
+    my ($self) = @_;
+
+    0;
+}
+
 =item start( )
 
  Start the server
@@ -535,21 +557,31 @@ sub _loadConfig
     defined $filename or croak( 'Missing $filename parameter' );
     defined $self->{'cfgDir'} or croak( sprintf( "The %s class must define the `cfgDir' property", ref $self ));
 
-    if ( defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/$filename.dist" ) {
+    if ( iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/$filename.dist" ) {
         if ( -f "$self->{'cfgDir'}/$filename" ) {
             debug( 'Merging old configuration with new configuration ...' );
 
-            tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename", readonly => 1;
+            tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename", readonly => 1,
+                # We do not want croak when accessing non-existing parameters
+                # in old configuration file. The new configuration file can
+                # refers to old parameters for new parameter values but in case
+                # the parameter doesn't exist in old conffile, we want simply
+                # an empty value. 
+                nocroak                                  => 1;
 
-            # Sometime, configuratin parameters get renamed. In such case the developers should set the new parameter
-            # value with the old parameter name as a placeholder. For instance:
+            # Sometime, a configuration parameter get renamed. In such case the
+            # developer could want set the new parameter value with the old
+            # parameter name as a placeholder. For instance:
             #
             # Old parameter: DATABASE_USER
             # New parameter: FTP_SQL_USER
             #
-            # The value of the new parameter should be set as follows: FTP_SQL_USER = {DATABASE_USER}
-            # By doing this, the value of the old DATABASE_USER parameter will be automatically used as value for the
-            # new FTP_SQL_USER parameter.
+            # The value of the new parameter should be set as follows:
+            #
+            #   FTP_SQL_USER = {DATABASE_USER}
+            #
+            # By doing this, the value of the old DATABASE_USER parameter will
+            # be automatically used as value for the new FTP_SQL_USER parameter.
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
             processByRef( \%oldConfig, $file->getAsRef(), 'empty_unknown' );
             $file->save() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
@@ -558,8 +590,7 @@ sub _loadConfig
             tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename.dist";
 
             while ( my ($key, $value) = each( %oldConfig ) ) {
-                next unless exists $newConfig{$key};
-                $newConfig{$key} = $value;
+                $newConfig{$key} = $value if exists $newConfig{$key};
             }
 
             untie( %newConfig );
@@ -568,6 +599,11 @@ sub _loadConfig
             iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename" )->delFile() == 0 or croak(
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
+        } else {
+            my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
+            processByRef( {}, $file->getAsRef(), 'empty_unknown' );
+            $file->save() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            undef( $file );
         }
 
         iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" )->moveFile( "$self->{'cfgDir'}/$filename" ) == 0 or croak(
@@ -578,8 +614,8 @@ sub _loadConfig
     tie %{$self->{'config'}},
         'iMSCP::Config',
         fileName    => "$self->{'cfgDir'}/$filename",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer';
 }
 
 =item _shutdown( $priority )
@@ -611,7 +647,7 @@ sub _shutdown
 =cut
 
 END {
-    return if $? || !%_SERVER_INSTANCES || ( defined $main::execmode && $main::execmode eq 'setup' );
+    return if $? || !%_SERVER_INSTANCES || iMSCP::Getopt->context() eq 'installer';
 
     $_->_shutdown( $_->getPriority()) for values %_SERVER_INSTANCES;
 }
