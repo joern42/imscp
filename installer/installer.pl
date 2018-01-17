@@ -45,31 +45,26 @@ setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
 $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
-# Needed to make any sub-process aware of i-MSCP setup process
-$ENV{'IMSCP_SETUP'} = 1;
 
 # Ensure that this script is run by root user
 iMSCP::Requirements->new()->user();
 
 newDebug( 'imscp-installer.log' );
 
-# Set backend mode
-$main::execmode = 'setup' unless defined $main::execmode;
+# Set execution context
+iMSCP::Getopt->context( 'installer' );
+
 # Init variable that holds questions
 %main::questions = () unless %main::questions;
-# Initialize command line options
-$main::buildonly = 0;
-$main::forcereinstall = 0;
-$main::skippackages = 0;
 
 # Parse installer options
 iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
  -b,    --build-only              Process build steps only.
  -f,    --force-reinstall         Reinstall distribution packages.
  -s,    --skip-distro-packages    Do not install/update distribution packages.},
-    'build-only|b'           => \$main::buildonly,
-    'force-reinstall|f'      => \$main::forcereinstall,
-    'skip-distro-packages|s' => \$main::skippackages
+    'build-only|b'           => \&iMSCP::Getopt::buildonly,
+    'force-reinstall|f'      => \&iMSCP::Getopt::forcereinstall,
+    'skip-distro-packages|s' => \&iMSCP::Getopt::skippackages
 );
 
 # Handle preseed option
@@ -80,13 +75,13 @@ if ( iMSCP::Getopt->preseed ) {
     iMSCP::Getopt->noprompt( 1 );
 }
 
+# Inhibit verbose mode if we are not in non-interactive mode
+iMSCP::Getopt->verbose( 0 ) unless iMSCP::Getopt->noprompt;
+
 loadConfig();
 
-# Handle the listener option
-require iMSCP::Getopt->listener if iMSCP::Getopt->listener;
-
 if ( iMSCP::Getopt->noprompt ) {
-    if ( $main::buildonly ) {
+    if ( iMSCP::Getopt->buildonly ) {
         print STDOUT output( 'Build steps in progress ... Please wait.', 'info' )
     } else {
         print STDOUT output( 'Installation in progress ... Please wait.', 'info' );
@@ -95,7 +90,7 @@ if ( iMSCP::Getopt->noprompt ) {
 
 my $ret = build();
 exit $ret if $ret;
-exit install() unless $main::buildonly;
+exit install() unless iMSCP::Getopt->buildonly;
 
 iMSCP::Dialog->getInstance()->msgbox( <<"EOF" );
 \\Z4\\ZuBuild Steps Successful\\Zn
@@ -124,7 +119,7 @@ END {
 
     return if $?;
 
-    unless ( $main::buildonly ) {
+    unless ( iMSCP::Getopt->buildonly ) {
         print STDOUT output( 'i-MSCP has been successfully installed/updated.', 'ok' );
         return;
     }
