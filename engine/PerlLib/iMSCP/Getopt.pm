@@ -287,7 +287,7 @@ sub context
 
     grep($context eq $_, ( 'installer', 'uninstaller', 'backend' )) or croak( 'Unknown execution context' );
 
-    if ( grep($context eq $_, 'installler', 'uninstaller') ) {
+    if ( grep($context eq $_, 'installer', 'uninstaller') ) {
         # Needed to make sub processes aware of i-MSCP setup context
         $ENV{'IMSCP_SETUP'} = 1;
     }
