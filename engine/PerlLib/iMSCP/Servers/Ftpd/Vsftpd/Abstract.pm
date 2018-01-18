@@ -173,10 +173,10 @@ sub passivePortRangeDialog
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
+        || !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange )
         || !isNumberInRange( $startOfRange, 32768, 60999 )
         || !isNumberInRange( $endOfRange, $startOfRange, 60999 )
-        || isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
     ) {
         my $rs = 0;
 
@@ -222,9 +222,7 @@ sub maxClientsDialog
 {
     my ($self, $dialog) = @_;
 
-    my $maxClients = main::setupGetQuestion(
-        'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} || ( iMSCP::Getopt->preseed ? 100 : '' )
-    );
+    my $maxClients = main::setupGetQuestion( 'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} // ( iMSCP::Getopt->preseed ? 100 : '' ) );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
@@ -243,12 +241,12 @@ sub maxClientsDialog
 $iMSCP::Dialog::InputValidation::lastValidationError
 \\Z4\\Zb\\ZuVsFTPd max clients\\Zn
 
-Please set maximum number of VsFTPd clients (leave empty for default).
+Please set the maximum number of VsFTPd clients (leave empty for default).
 
 Allowed value: A number in range 0..1000, 0 for no limit.
 \\Z \\Zn
 EOF
-        } while $rs < 30 || !isNumberInRange( $maxClients, 0, 1000 );
+        } while $rs < 30 && !isNumberInRange( $maxClients, 0, 1000 );
 
         return $rs unless $rs < 30;
     }
@@ -272,7 +270,7 @@ sub maxCLientsPerIpDialog
     my ($self, $dialog) = @_;
 
     my $maxClientsPerIp = main::setupGetQuestion(
-        'FTPD_MAX_CLIENTS_PER_IP', $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} || ( iMSCP::Getopt->preseed ? 5 : '' )
+        'FTPD_MAX_CLIENTS_PER_IP', $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} // ( iMSCP::Getopt->preseed ? 5 : '' )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -297,7 +295,7 @@ Please set the maximum number of clients allowed to connect to VsFTPd per IP (le
 Allowed value: A number in range 0..1000, 0 for no limit.
 \\Z \\Zn
 EOF
-        } while $rs < 30 || !isNumberInRange( $maxClientsPerIp, 0, 1000 );
+        } while $rs < 30 && !isNumberInRange( $maxClientsPerIp, 0, 1000 );
 
         return $rs unless $rs < 30;
     }
@@ -663,17 +661,17 @@ EOF
 
     $rs = $self->buildConfFile( 'vsftpd.conf', "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf", undef,
         {
-            FTPD_BANNER           => $self->{'config'}->{'FTPD_BANNER'},
-            FTPD_GUEST_USERNAME   => $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'},
-            FTPD_IPV4_ONLY        => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'NO' : 'YES',
-            FTPD_IPV6_SUPPORT     => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'YES' : 'NO',
-            FTPD_LOCAL_ROOT       => $main::imscpConfig{'USER_WEB_DIR'},
-            FTPD_PASSV_MIN_PORT   => $passvMinPort,
-            FTPD_PASSV_MAX_PORT   => $passvMaxPort,
-            FTPD_MAX_CLIENTS      => $self->{'config'}->{'FTPD_MAX_CLIENTS'},
-            FTPD_MAX_PER_IP       => $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'},
-            FTPD_PAM_SERVICE_NAME => $self->{'config'}->{'FTPD_PAM_SERVICE_NAME'},
-            FTPD_USER_CONF_DIR    => $self->{'config'}->{'FTPD_USER_CONF_DIR'}
+            FTPD_BANNER             => $self->{'config'}->{'FTPD_BANNER'},
+            FTPD_GUEST_USERNAME     => $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'},
+            FTPD_IPV4_ONLY          => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'NO' : 'YES',
+            FTPD_IPV6_SUPPORT       => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'YES' : 'NO',
+            FTPD_LOCAL_ROOT         => $main::imscpConfig{'USER_WEB_DIR'},
+            FTPD_PASSV_MIN_PORT     => $passvMinPort,
+            FTPD_PASSV_MAX_PORT     => $passvMaxPort,
+            FTPD_MAX_CLIENTS        => $self->{'config'}->{'FTPD_MAX_CLIENTS'},
+            FTPD_MAX_CLIENTS_PER_IP => $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'},
+            FTPD_PAM_SERVICE_NAME   => $self->{'config'}->{'FTPD_PAM_SERVICE_NAME'},
+            FTPD_USER_CONF_DIR      => $self->{'config'}->{'FTPD_USER_CONF_DIR'}
         },
         {
             umask => 0027,

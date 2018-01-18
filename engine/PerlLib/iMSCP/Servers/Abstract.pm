@@ -436,8 +436,8 @@ sub buildConfFile
     $sdata //= {};
     $params //= {};
     
-    #defined $srcFile or confess( 'Missing or undefined $srcFile parameter' );
-    #defined $trgFile or confess( 'Missing or undefined $trgFile parameter' );
+    defined $srcFile or confess( 'Missing or undefined $srcFile parameter' );
+    defined $trgFile or confess( 'Missing or undefined $trgFile parameter' );
 
     my ($sname, $cfgTpl) = ( $self->getEventServerName(), undef );
     my ($filename, $path) = fileparse( $srcFile );

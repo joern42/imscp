@@ -377,8 +377,7 @@ sub isNumberInRange( $$$ )
     defined $end or croak( 'Missing $end parameter' );
 
     $lastValidationError = '';
-    no warnings;
-    return 1 if defined $number && $number >= $start && $number <= $end;
+    return 1 if $number =~ /^[\x30-\x39]+$/ && $number >= $start && $number <= $end;
 
     $lastValidationError = <<"EOF";
 \\Z1Invalid number.\\Zn

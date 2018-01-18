@@ -497,6 +497,11 @@ sub _cleanup
 
     return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
+    if ( -f "$self->{'cfgDir'}/vlogger.conf" ) {
+        my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/vlogger.conf" )->delFile();
+        return $rs if $rs;
+    }
+
     my $rs = $self->disableSites( 'imscp.conf', '00_modcband.conf', '00_master.conf', '00_master_ssl.conf' );
     return $rs if $rs;
 
