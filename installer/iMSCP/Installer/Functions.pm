@@ -594,7 +594,6 @@ sub _buildConfigFiles
         return $rs if $rs;
     }
 
-
     # Process folder xml install file
     for ( iMSCP::Dir->new( dirname => $masterConfDir )->getDirs() ) {
         $installFilePath = $distConfdir ne $masterConfDir && -f "$distConfdir/$_/install.xml"
@@ -605,8 +604,9 @@ sub _buildConfigFiles
         $rs = _processXmlInstallFile( $installFilePath );
         return $rs if $rs;
     }
-
-    0;
+    
+    # Copy database schema
+    _processXmlInstallFile( "$FindBin::Bin/database/install.xml" );
 }
 
 =item _buildEngineFiles( )

@@ -1,8 +1,10 @@
-# i-MSCP installation on Debian
+# i-MSCP installation on Debian like distributions
 
-## Supported Debian versions
+## Supported distribution and versions
 
-Any released version ≥ Debian 8/Jessie
+- Any released Debian version:     ≥ **8/Jessie**
+- Any released Devuan version:     ≥ **1.0/Jessie**
+- Any released Ubuntu LTS version: ≥ **14.04/Trusty Thar**
 
 ## Installation
 
@@ -38,10 +40,8 @@ Before upgrading, you must not forget to read the
 Before any upgrade attempt it is highly recommended to make a backup of the
 following directories:
 
-```
-/var/www/virtual
-/var/mail/virtual
-```
+- /var/www/virtual
+- /var/mail/virtual
 
 These directories hold the data of your customers and it is really important to
 backup them for an easy recovering in case something goes wrong during upgrade

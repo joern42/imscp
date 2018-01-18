@@ -12,13 +12,11 @@ Service Providers (ISPs) and IT professionals.
 
 * [i-MSCP Site](https://i-mscp.net/)
 * [i-MSCP Forums](https://i-mscp.net/index.php/BoardList/)
-* [i-MSCP Documentation](https://wiki.i-mscp.net/doku.php)
+* [i-MSCP Documentation](https://wiki.i-mscp.net/)
 
 ### Installation Instructions
 
-* [Debian](./docs/Debian/INSTALL.md)
-* [Devuan](./docs/Devuan/INSTALL.md)
-* [Ubuntu](./docs/Ubuntu/INSTALL.md)
+* [Debian like distributions](./docs/Debian/INSTALL.md)
 
 ### License
 
