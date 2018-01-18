@@ -128,8 +128,8 @@ sub remove
 
             # Remove drop-in files if any
             my $dropInDir = '/etc/systemd/system/';
-            ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
-            $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
+            ( undef, undef, my $suffix ) = fileparse( $service, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
+            $dropInDir .= $service . ( $suffix ? '' : '.service' ) . '.d';
             iMSCP::Dir->new( dirname => $dropInDir )->remove() if -d $dropInDir;
 
             my $unitFilePath = eval { $provider->resolveUnit( $service, 'withpath', 'flushcache' ); };
