@@ -241,8 +241,8 @@ sub yesno
 sub inputbox
 {
     my ($self, $text, $init) = @_;
-
     $init //= '';
+
     $self->_textbox( $text, 'inputbox', escapeShell( $init ));
 }
 
@@ -259,8 +259,8 @@ sub inputbox
 sub passwordbox
 {
     my ($self, $text, $init) = @_;
-
     $init //= '';
+
     $self->{'_opts'}->{'insecure'} = '';
     $self->_textbox( $text, 'passwordbox', escapeShell( $init ));
 }
@@ -600,6 +600,7 @@ sub _restoreDefaults
 sub _execute
 {
     my ($self, $text, $init, $type) = @_;
+    $init //= '';
 
     $self->endGauge(); # Ensure that no gauge is currently running...
 
@@ -613,13 +614,11 @@ sub _execute
     }
 
     $text = $self->_stripFormats( $text ) unless defined $self->{'_opts'}->{'colors'};
+    $text = escapeShell( $text );
+
     $self->{'_opts'}->{'separate-output'} = '' if $type eq 'checklist';
 
     my $command = $self->_buildCommonCommandOptions();
-
-    $text = escapeShell( $text );
-    $init = $init ? $init : '';
-
     my $height = ( $self->{'autosize'} ) ? 0 : $self->{'lines'};
     my $width = ( $self->{'autosize'} ) ? 0 : $self->{'columns'};
 
@@ -641,7 +640,7 @@ sub _execute
     wantarray ? ( $ret, $output ) : $output;
 }
 
-=item _textbox( $text, $type [, $init = 0 ])
+=item _textbox( $text, $type [, $init = '' ])
 
  Wrap execution of several dialog box
 
@@ -656,7 +655,6 @@ sub _textbox
 {
     my ($self, $text, $type, $init) = @_;
 
-    $init //= 0;
     my $autosize = $self->{'autosize'};
     $self->{'autosize'} = undef;
     my ($ret, $output) = $self->_execute( $text, $init, $type );
