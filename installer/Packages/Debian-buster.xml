@@ -83,10 +83,7 @@
         <courier description="Courier IMAP/POP3 servers" class="iMSCP::Servers::Po::Courier::Debian">
             <package>courier-authlib-mysql</package>
             <package>courier-imap</package>
-            <package>courier-imap-ssl</package>
             <package>courier-pop</package>
-            <package>courier-pop-ssl</package>
-            <package>libgamin0</package>
             <package>libsasl2-modules</package>
             <package>maildrop</package>
             <package_conflict>libsasl2-modules-sql</package_conflict>
@@ -111,7 +108,7 @@
         </postfix>
     </mta>
     <ftpd class="iMSCP::Servers::Ftpd" description="FTP server">
-        <proftpd default="1" description="ProFTPD server" class="iMSCP::Servers::Ftpd::Proftpd::Debian">
+        <proftpd default="1" description="ProFTPd server" class="iMSCP::Servers::Ftpd::Proftpd::Debian">
             <package>proftpd-basic</package>
             <package>proftpd-mod-mysql</package>
             <package_conflict>vsftpd</package_conflict>

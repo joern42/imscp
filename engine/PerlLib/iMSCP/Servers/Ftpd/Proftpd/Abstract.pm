@@ -29,6 +29,7 @@ use autouse Fcntl => qw/ O_RDONLY /;
 use autouse 'iMSCP::Crypt' => qw/ ALNUM randomStr /;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isNumberInRange isOneOfStringsInList isStringNotInList isValidNumberRange
         isValidPassword isValidUsername /;
+use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use autouse 'iMSCP::TemplateParser' => qw/ processByRef /;
 use Carp qw/ croak /;
@@ -294,12 +295,12 @@ Please set the maximum number of clients allowed to connect to ProFTPd per IP (l
 Allowed value: A number in range 0..1000, 0 for no limit.
 \\Z \\Zn
 EOF
-        } while $rs < 30 && !isNumberInRange( $maxClientsPerIp, 1, 1000 );
+        } while $rs < 30 && !isNumberInRange( $maxClientsPerIp, 0, 1000 );
 
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'FTPD_MAX_CLIENTS_PER_IP', ${$maxClientsPerIp} );
+    main::setupSetQuestion( 'FTPD_MAX_CLIENTS_PER_IP', $maxClientsPerIp );
     $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} = $maxClientsPerIp;
     0;
 }
@@ -566,12 +567,12 @@ sub _setVersion
     return $rs if $rs;
 
     if ( $stdout !~ /([\d.]+)/ ) {
-        error( "Couldn't find ProFTPD version from the `$self->{'config'}->{'FTPD_BIN'} -v` command output" );
+        error( "Couldn't find ProFTPd version from the `$self->{'config'}->{'FTPD_BIN'} -v` command output" );
         return 1;
     }
 
     $self->{'config'}->{'FTPD_VERSION'} = $1;
-    debug( "ProFTPD version set to: $1" );
+    debug( "ProFTPd version set to: $1" );
     0;
 }
 
@@ -626,9 +627,9 @@ EOF
 # Server behind NAT - Advertise public IP address
 MasqueradeAddress $baseServerPublicIp
 
- VirtualHost for local access (No IP masquerading)
+# VirtualHost for local access (No IP masquerading)
 <VirtualHost @virtualHostIps>
-    ServerName "{HOSTNAME}.local"
+    ServerName "{FTPD_HOSTNAME}.local"
 </VirtualHost>
 EOF
             }
@@ -645,12 +646,12 @@ EOF
             FTPD_DATABASE_PORT      => main::setupGetQuestion( 'DATABASE_PORT' ),
             FTPD_HOSTNAME           => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
             FTPD_IPV6_SUPPORT       => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'on' : 'off',
-            FTPD_MAX_CLIENTS        => $self->{'config'}->{'FTPD_MAX_CLIENTS'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS'} : 'none',
-            FTPD_MAX_CLIENTS_PER_IP => $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} : 'none',
+            FTPD_MAX_CLIENTS        => $self->{'config'}->{'FTPD_MAX_CLIENTS'} || 'none',
+            FTPD_MAX_CLIENTS_PER_IP => $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} || 'none',
             FTPD_MIN_UID            => $self->{'config'}->{'FTPD_MIN_UID'},
             FTPD_MIN_GID            => $self->{'config'}->{'FTPD_MIN_GID'},
             FTPD_PASSIVE_PORT_RANGE => $self->{'config'}->{'FTPD_PASSIVE_PORT_RANGE'},
-            FTPD_SSL_LOG_FILE       => $self->{'config'}->{'FTP_SSL_LOG_FILE'},
+            FTPD_SSL_LOG_FILE       => $self->{'config'}->{'FTPD_SSL_LOG_FILE'},
             # Escape any double-quotes and backslash (see #IP-1330)
             FTPD_SQL_PASSWORD       => '"' . $self->{'config'}->{'FTPD_SQL_PASSWORD'} =~ s%("|\\)%\\$1%gr . '"',
             # Escape any double-quotes and backslash (see #IP-1330)
@@ -724,7 +725,7 @@ sub _setupSqlUser
         # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
         my $quotedDbName = $dbh->quote_identifier( $dbName );
 
-        $dbh->do( "GRANT SELECT ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw / ftp_user ftp_group /;
+        $dbh->do( "GRANT SELECT ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw / ftp_users ftp_group /;
         $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw/ quotalimits quotatallies /;
 
     };
