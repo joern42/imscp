@@ -29,6 +29,7 @@ use Carp qw/ croak /;
 use File::Basename;
 use File::Spec;
 use iMSCP::File;
+use iMSCP::Dir;
 use parent 'iMSCP::Providers::Service::Sysvinit';
 
 # Commands used in that package
@@ -172,16 +173,21 @@ sub remove
 
     return 0 unless $self->stop( $unit ) && $self->unmask( $unit ) && $self->disable( $unit );
 
+    # Remove drop-in files if any
+    my $dropInDir = '/etc/systemd/system/';
+    ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
+    $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
+    iMSCP::Dir->new( dirname => "/etc/systemd/system/$unit.d" )->remove() if -d $dropInDir;
+
     my $unitFilePath = eval { $self->resolveUnit( $unit, 'withpath', 'nocache' ); };
     if ( defined $unitFilePath
         # We do not want remove units that are shipped by distribution packages
         && index( $unitFilePath, '/etc/systemd/system/' ) != 0
     ) {
         return 0 unless iMSCP::File->new( filename => $unitFilePath )->delFile() == 0;
-        return $self->_exec( [ $COMMANDS{'systemctl'}, 'daemon-reload' ] ) == 0;
     }
 
-    1;
+    $self->_exec( [ $COMMANDS{'systemctl'}, 'daemon-reload' ] ) == 0;
 }
 
 =item start( $unit )

@@ -26,6 +26,7 @@ package iMSCP::Service;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use File::Basename;
 use iMSCP::Debug qw/ error getMessageByType /;
 use iMSCP::Execute;
 use iMSCP::ProgramFinder;
@@ -124,11 +125,17 @@ sub remove
 
         unless ( $self->{'init'} eq 'Systemd' ) {
             my $provider = $self->getProvider( 'Systemd' );
-            my $unitFilePath = eval { $provider->resolveUnit( $service, 'withpath', 'flushcache' ); };
 
+            # Remove drop-in files if any
+            my $dropInDir = '/etc/systemd/system/';
+            ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
+            $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
+            iMSCP::Dir->new( dirname => "/etc/systemd/system/$unit.d" )->remove() if -d $dropInDir;
+
+            my $unitFilePath = eval { $provider->resolveUnit( $service, 'withpath', 'flushcache' ); };
             if ( defined $unitFilePath
                 # We do not want remove units that are shipped by distribution packages
-                && index( $unitFilePath, '/etc/' ) != 0
+                && index( $unitFilePath, '/etc/systemd/system/' ) != 0
             ) {
                 iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or croak( $self->_getLastError());
             }
