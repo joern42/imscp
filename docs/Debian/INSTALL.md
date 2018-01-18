@@ -1,6 +1,6 @@
 # i-MSCP installation on Debian like distributions
 
-## Supported distribution and versions
+## Supported distributions and versions
 
 - Any released Debian version:     ≥ **8/Jessie**
 - Any released Devuan version:     ≥ **1.0/Jessie**
