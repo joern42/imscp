@@ -1,10 +1,9 @@
 FTPD_VERSION = {PROFTPD_VERSION}
 FTPD_BANNER = i-MSCP FTPd server
+FTPD_BIN = /usr/sbin/proftpd
 FTPD_CONF_DIR = /etc/proftpd
-# See http://www.proftpd.org/docs/directives/linked/config_ref_MaxClientsPerHost.html
-FTPD_MAX_CLIENTS_PER_HOST = {MAX_CLIENT_PER_HOST}
-# See http://www.proftpd.org/docs/directives/linked/config_ref_MaxInstances.html
-FTPD_MAX_INSTANCES = {MAX_INSTANCES}
+FTPD_MAX_CLIENTS =
+FTPD_MAX_CLIENTS_PER_IP =
 FTPD_MIN_GID = 1001
 FTPD_MIN_UID = 1001
 FTPD_PASSIVE_PORT_RANGE =

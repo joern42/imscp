@@ -25,6 +25,7 @@ package iMSCP::Modules::Domain;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Basename;
 use File::Spec;
 use File::Temp;
@@ -213,7 +214,7 @@ sub restore
 
             my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
             debug( $stdout ) if $stdout;
-            $rs == 0 or die( $stderr || 'Unknown error' );
+            $rs == 0 or croak( $stderr || 'Unknown error' );
 
             eval {
                 $self->{'_dbh'}->begin_work();
@@ -289,7 +290,7 @@ sub _loadData
             ",
             undef, $domainId
         );
-        $row or die( sprintf( 'Data not found for domain (ID %d)', $domainId ));
+        $row or croak( sprintf( 'Data not found for domain (ID %d)', $domainId ));
         %{$self} = ( %{$self}, %{$row} );
     };
     if ( $@ ) {
@@ -305,7 +306,7 @@ sub _loadData
  Data provider method for servers and packages
 
  Param string $action Action
- Return hashref Reference to a hash containing data, die on failure
+ Return hashref Reference to a hash containing data, croak on failure
 
 =cut
 
@@ -368,7 +369,8 @@ sub _getData
         FORWARD                 => $self->{'url_forward'} || 'no',
         FORWARD_TYPE            => $self->{'type_forward'} || '',
         FORWARD_PRESERVE_HOST   => $self->{'host_forward'} || 'Off',
-        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'} || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
+        DISABLE_FUNCTIONS       =>
+        $phpini->{'disable_functions'} || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
         MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
         MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,
@@ -389,7 +391,7 @@ sub _getData
  
  Param string $dbName Database name
  Param string $dbDumpFilePath Path to database dump file
- die on failure
+ Return void, croak on failure
 
 =cut
 
@@ -432,7 +434,7 @@ EOF
     );
     my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    $rs == 0 or die( error( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' )));
+    $rs == 0 or croak( error( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' )));
     0;
 }
 

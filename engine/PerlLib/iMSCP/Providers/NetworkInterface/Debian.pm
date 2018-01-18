@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::NetworkInterface::Debian - Debian network interface provider
+ iMSCP::Providers::NetworkInterface::Debian - Network interface provider implementation for Debian like distributions
 
 =cut
 
@@ -25,6 +25,7 @@ package iMSCP::Providers::NetworkInterface::Debian;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Net;
@@ -44,7 +45,7 @@ my $IFUP_STATE_DIR = '/run/network';
 
 =head1 DESCRIPTION
 
- Debian network interface provider.
+ Network interface provider implementation for Debian like distributions
 
 =head1 PUBLIC METHODS
 
@@ -60,23 +61,23 @@ sub addIpAddr
 {
     my ($self, $data) = @_;
 
-    defined $data && ref $data eq 'HASH' or die( '$data parameter is not defined or not a hashref' );
+    defined $data && ref $data eq 'HASH' or croak( '$data parameter is not defined or not a hashref' );
 
     for ( qw/ ip_id ip_card ip_address ip_config_mode / ) {
-        defined $data->{$_} or die( sprintf( "The `%s' parameter is not defined", $_ ));
+        defined $data->{$_} or croak( sprintf( "The `%s' parameter is not defined", $_ ));
     }
 
-    $data->{'ip_id'} =~ /^\d+$/ or die( 'ip_id parameter must be an integer' );
+    $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
     $data->{'ip_id'} += 1000;
 
-    $self->{'net'}->isKnownDevice( $data->{'ip_card'} ) or die( sprintf( "The '%s` network interface is unknown", $data->{'ip_card'} ));
-    $self->{'net'}->isValidAddr( $data->{'ip_address'} ) or die( sprintf( "The `%s' IP address is not valid", $data->{'ip_address'} ));
+    $self->{'net'}->isKnownDevice( $data->{'ip_card'} ) or croak( sprintf( "The '%s` network interface is unknown", $data->{'ip_card'} ));
+    $self->{'net'}->isValidAddr( $data->{'ip_address'} ) or croak( sprintf( "The `%s' IP address is not valid", $data->{'ip_address'} ));
 
     my $addrVersion = $self->{'net'}->getAddrVersion( $data->{'ip_address'} );
 
     $data->{'ip_netmask'} ||= ( $addrVersion eq 'ipv4' ) ? 24 : 64;
 
-    $self->_updateInterfacesFile( 'add', $data ) == 0 or die( "Couldn't update interfaces file" );
+    $self->_updateInterfacesFile( 'add', $data ) == 0 or croak( "Couldn't update interfaces file" );
 
     return 0 unless $data->{'ip_config_mode'} eq 'auto';
 
@@ -93,7 +94,7 @@ sub addIpAddr
             ? "$data->{'ip_card'}:$data->{'ip_id'}" : $data->{'ip_card'};
 
         my ($stdout, $stderr);
-        execute( [ $COMMANDS{'ifup'}, '--force', $netCard ], \$stdout, \$stderr ) == 0 or die(
+        execute( [ $COMMANDS{'ifup'}, '--force', $netCard ], \$stdout, \$stderr ) == 0 or croak(
             sprintf( "Couldn't bring up the `%s' network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
         );
         return $self;
@@ -114,13 +115,13 @@ sub removeIpAddr
 {
     my ($self, $data) = @_;
 
-    defined $data && ref $data eq 'HASH' or die( '$data parameter is not defined or not a hashref' );
+    defined $data && ref $data eq 'HASH' or croak( '$data parameter is not defined or not a hashref' );
 
     for ( qw/ ip_id ip_card ip_address ip_config_mode / ) {
-        defined $data->{$_} or die( sprintf( "The `%s' parameter is not defined", $_ ));
+        defined $data->{$_} or croak( sprintf( "The `%s' parameter is not defined", $_ ));
     }
 
-    $data->{'ip_id'} =~ /^\d+$/ or die( 'ip_id parameter must be an integer' );
+    $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
     $data->{'ip_id'} += 1000;
 
     if ( $data->{'ip_config_mode'} eq 'auto'
@@ -128,13 +129,13 @@ sub removeIpAddr
         && $self->_isDefinedInterface( "$data->{'ip_card'}:$data->{'ip_id'}" )
     ) {
         my ($stdout, $stderr);
-        execute( "$COMMANDS{'ifdown'} --force $data->{'ip_card'}:$data->{'ip_id'}", \$stdout, \$stderr ) == 0 or die(
+        execute( "$COMMANDS{'ifdown'} --force $data->{'ip_card'}:$data->{'ip_id'}", \$stdout, \$stderr ) == 0 or croak(
             sprintf( "Couldn't bring down the `%s' network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
         );
 
         my $ifupStateFile = $IFUP_STATE_DIR . "/ifup.$data->{'ip_card'}:$data->{'ip_id'}";
         if ( -f $ifupStateFile ) {
-            iMSCP::File->new( filename => $ifupStateFile )->delFile == 0 or die( sprintf( "Couldn't remove `%s' ifup state file", $ifupStateFile ));
+            iMSCP::File->new( filename => $ifupStateFile )->delFile == 0 or croak( sprintf( "Couldn't remove `%s' ifup state file", $ifupStateFile ));
         }
     } elsif ( $data->{'ip_config_mode'} eq 'auto' ) {
         # Cover not aliased interface (IPv6) case
@@ -142,7 +143,7 @@ sub removeIpAddr
         $self->{'net'}->delAddr( $data->{'ip_address'} );
     }
 
-    $self->_updateInterfacesFile( 'remove', $data ) == 0 or die( "Couldn't update interfaces file" );
+    $self->_updateInterfacesFile( 'remove', $data ) == 0 or croak( "Couldn't update interfaces file" );
     $self;
 }
 

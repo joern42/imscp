@@ -25,6 +25,7 @@ package iMSCP::Modules::IpAddr;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
@@ -102,7 +103,7 @@ sub process
  Load data
 
  Param int $ipId Server IP unique identifier
- Return data on success, die on failure
+ Return data on success, croak on failure
 
 =cut
 
@@ -115,7 +116,7 @@ sub _loadData
         $self->{'_data'} = $self->{'_dbh'}->selectrow_hashref(
             'SELECT ip_id, ip_card, ip_number AS ip_address, ip_netmask, ip_config_mode, ip_status FROM server_ips WHERE ip_id = ?', undef, $ipId
         );
-        $self->{'_data'} or die( sprintf( 'Data not found for server IP address (ID %d)', $ipId ));
+        $self->{'_data'} or croak( sprintf( 'Data not found for server IP address (ID %d)', $ipId ));
     };
     if ( $@ ) {
         error( $@ );

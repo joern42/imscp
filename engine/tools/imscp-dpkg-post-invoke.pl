@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- imscp-dpkg-post-invoke.pl [ OPTIONS ... ] - Process dpkg post invoke tasks
+ imscp-dpkg-post-invoke.pl [OPTION]... - Process dpkg post invoke tasks
 
 =head1 SYNOPSIS
 
@@ -60,7 +60,7 @@ OPTIONS:
 
 # Set execution context
 # We need the installer context as some dpkgPostInvokeTasks() could want
-# update configuration parameters. In backend mode, configuration file are
+# update configuration parameters. In backend mode, configuration files are
 # opened readonly.
 iMSCP::Getopt->context( 'installer' );
 

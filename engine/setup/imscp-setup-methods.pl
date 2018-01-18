@@ -81,7 +81,7 @@ sub setupBoot
 
     untie( %main::imscpOldConfig ) if %main::imscpOldConfig;
 
-    # If we are not in installer context, we need first create the imscpOld.conf file if it doesn't't already exist
+    # If we are not in installer context, we need first create the imscpOld.conf file if it doesn't already exist
     unless ( -f "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
         local $UMASK = 027;
         my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp.conf" )->copyFile(
@@ -469,11 +469,11 @@ sub setupServersAndPackages
         my $nStep = 1;
         # For uninstallation, we reverse server priorities
         for my $server( reverse @servers ) {
-            next unless grep( $main::imscpOdlConfig{$server} ne $_, '', $main::imscpConfig{$server});
+            next if $main::imscpOldConfig{$server} eq $main::imscpConfig{$server} || $main::imscpOldConfig{$server} eq '';
 
             $rs = step(
                 sub { $server->factory( $main::imscpOdlConfig{$server} )->$lcTask(); },
-                sprintf( "Executing %s %s tasks ...", $_, $lcTask ),
+                sprintf( "Executing %s %s tasks ...", $server, $lcTask ),
                 $nSteps,
                 $nStep
             );

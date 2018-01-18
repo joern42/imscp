@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Postfix::Sender::Generic::Map;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -45,7 +45,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterPostfixBuildConf',
+    'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
         my $rs = $mta->addMapEntry( $postfixSmtpGenericMap );

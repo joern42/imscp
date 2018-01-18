@@ -137,15 +137,25 @@ sub createUser
     eval {
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
         local $dbh->{'RaiseError'} = 1;
-        $dbh->do(
-            'CREATE USER ?@? IDENTIFIED BY ?'
-                . ( ( $self->getVendor() ne 'MariaDB' && version->parse( $self->getVersion()) >= version->parse( '5.7.6' ) )
-                ? ' PASSWORD EXPIRE NEVER' : ''
-            ),
-            undef, $user, $host, $password
-        );
+        unless ( $dbh->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
+            # User doesn't already exist. We create it
+            $dbh->do(
+                'CREATE USER ?@? IDENTIFIED BY ?'
+                    . ( ( $self->getVendor() ne 'MariaDB' && version->parse( $self->getVersion()) >= version->parse( '5.7.6' ) )
+                    ? ' PASSWORD EXPIRE NEVER' : ''
+                ),
+                undef, $user, $host, $password
+            );
+        } else {
+            # User does already exists. We update his password
+            if ( $self->getVendor() eq 'MariaDB' || version->parse( $self->getVersion()) < version->parse( '5.7.6' ) ) {
+                $dbh->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
+            } else {
+                $dbh->do( 'ALTER USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', undef, $user, $host, $password )
+            }
+        }
     };
-    !$@ or croak( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or croak( sprintf( "Couldn't create/update the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 
@@ -230,12 +240,7 @@ sub _buildConf
     );
     $rs ||= $self->buildConfFile(
         ( -f "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" ? "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" : File::Temp->new() ),
-        "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf",
-        undef,
-        undef,
-        {
-            srcname => 'my.cnf'
-        }
+        "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf", undef, undef, { srcname => 'my.cnf' }
     );
     return $rs if $rs;
 
@@ -248,10 +253,7 @@ sub _buildConf
 max_allowed_packet = {MAX_ALLOWED_PACKET}
 EOF
     $conffile->close();
-    $rs ||= $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
-        {
-            MAX_ALLOWED_PACKET => '500M',
-        },
+    $rs ||= $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef, { MAX_ALLOWED_PACKET => '500M' },
         {
             mode    => 0644,
             srcname => 'imscp.cnf'

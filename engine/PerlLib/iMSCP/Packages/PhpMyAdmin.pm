@@ -29,6 +29,7 @@ use Class::Autouse qw/ :nostat iMSCP::Packages::PhpMyAdmin::Installer iMSCP::Pac
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::EventManager;
+use iMSCP::Getopt;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -162,16 +163,16 @@ sub _init
     $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/pma";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
-    $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/phpmyadmin.data.dist";
+    $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/phpmyadmin.data.dist";
     eval {
         tie %{$self->{'config'}},
             'iMSCP::Config',
             fileName    => "$self->{'cfgDir'}/phpmyadmin.data",
-            readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-            nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+            readonly    => iMSCP::Getopt->context() ne 'installer',
+            nodeferring => iMSCP::Getopt->context() eq 'installer';
     };
     if ( $@ ) {
-        die unless defined $main::execmode && $main::execmode eq 'uninstall';
+        die unless iMSCP::Getopt->context() eq 'uninstaller';
         $self->{'skip_uninstall'} = 1;
     }
     $self;

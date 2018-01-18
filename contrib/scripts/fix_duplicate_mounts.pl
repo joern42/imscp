@@ -19,21 +19,20 @@ use strict;
 use warnings;
 use lib '/var/www/imscp/engine/PerlLib';
 use iMSCP::Bootstrapper;
+use iMSCP::Getopt;
 use iMSCP::Debug;
 use iMSCP::Mount qw/ umount /;
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-mountall.lock', 'nowait' );
+iMSCP::Getopt->context( 'backend' );
+iMSCP::Getopt->debug( 0 );
+iMSCP::Getopt->verbose( 1 );
 
-$bootstrapper->boot( {
-    mode            => 'backend',
-    nokeys          => 1,
+exit unless iMSCP::Bootstrapper->getInstance()->boot( {
+    config_readonly => 1,
     nodatabase      => 1,
-    config_readonly => 1
-} );
+    nokeys          => 1
+} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-mountall.lock", 'nowait' );
 
-setDebug( 0 );
-setVerbose( 1 );
 umount( $main::imscpConfig{'USER_WEB_DIR'} );
 
 1;

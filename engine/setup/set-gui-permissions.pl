@@ -73,7 +73,9 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
 my $rs = 0;
 my @items = ();
 
-push @items, [ $server, sub { $server->factory()->setGuiPermissions(); } ] for iMSCP::Servers->getInstance()->getListWithFullNames();
+for my $server(iMSCP::Servers->getInstance()->getListWithFullNames()) {
+    push @items, [ $server, sub { $server->factory()->setGuiPermissions(); } ];
+}
 
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setGuiPermissions' ) ) or next;

@@ -28,6 +28,7 @@ use warnings;
 use Array::Utils qw/ unique /;
 use autouse 'Date::Format' => qw/ time2str /;
 use autouse 'iMSCP::Crypt' => qw/ ALNUM decryptRijndaelCBC randomStr /;
+use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Servers::Sqld /;
 use File::Basename;
@@ -72,6 +73,62 @@ my $TMPFS = lazy
 =head1 PUBLIC METHODS
 
 =over 4
+
+=item registerSetupListeners()
+
+ See iMSCP::Servers::Abstract::RegisterSetupListeners()
+
+=cut
+
+sub registerSetupListeners
+{
+    my ($self) = @_;
+
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupDialog',
+        sub {
+            push @{$_[0]}, sub { $self->askForApache2MPM( @_ ) };
+            0;
+        },
+        $self->getPriority()
+    );
+}
+
+=item askForApache2MPM( \%dialog )
+
+ Ask for Apache2 MPM
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 to go on next question, 30 to go back to the previous question
+
+=cut
+
+sub askForApache2MPM
+{
+    my ($self, $dialog) = @_;
+
+    my $value = main::setupGetQuestion( 'APACHE2_MPM', $self->{'config'}->{'APACHE2_MPM'} || ( iMSCP::Getopt->preseed ? 'event' : '' ));
+    my %choices = (
+        'event', 'Apache2 Event MPM',
+        'itk', 'Apache2 ITK MPM',
+        'prefork', 'Apache2 Prefork MPM',
+        'worker', 'Apache2 Worker MPM'
+    );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'event' );
+\\Z4\\Zb\\ZuApache2 MPM\\Zn
+
+Please choose the Apache2 MPM you want use:
+\\Z \\Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    main::setupSetQuestion( 'APACHE2_MPM', $value );
+    $self->{'config'}->{'APACHE2_MPM'} = $value;
+    0;
+}
 
 =item install( )
 
@@ -354,7 +411,14 @@ sub addHtpasswd
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_USERS_FILENAME'}" );
-        my $fileContentRef = -f $file->{'filename'} ? $file->getAsRef() : \'';
+        my $fileContentRef;
+        if ( -f $file->{'filename'} ) {
+            $fileContentRef = $file->getAsRef();
+            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        } else {
+            my $stamp = '';
+            $fileContentRef = \$stamp;
+        }
 
         $self->{'eventManager'}->trigger( 'beforeApache2AddHtpasswd', $fileContentRef, $moduleData ) == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
@@ -401,7 +465,14 @@ sub deleteHtpasswd
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_USERS_FILENAME'}" );
-        my $fileContentRef = $file->getAsRef() // \'';
+        my $fileContentRef;
+        if ( -f $file->{'filename'} ) {
+            $fileContentRef = $file->getAsRef();
+            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        } else {
+            my $stamp = '';
+            $fileContentRef = \$stamp;
+        }
 
         $self->{'eventManager'}->trigger( 'beforeApache2DeleteHtpasswd', $fileContentRef, $moduleData ) == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
@@ -445,7 +516,14 @@ sub addHtgroup
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_GROUPS_FILENAME'}" );
-        my $fileContentRef = -f $file->{'filename'} ? $file->getAsRef() : \'';
+        my $fileContentRef;
+        if ( -f $file->{'filename'} ) {
+            $fileContentRef = $file->getAsRef();
+            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        } else {
+            my $stamp = '';
+            $fileContentRef = \$stamp;
+        }
 
         $self->{'eventManager'}->trigger( 'beforeApache2AddHtgroup', $fileContentRef, $moduleData ) == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
@@ -492,7 +570,14 @@ sub deleteHtgroup
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_GROUPS_FILENAME'}" );
-        my $fileContentRef = $file->getAsRef() // \'';
+        my $fileContentRef;
+        if ( -f $file->{'filename'} ) {
+            $fileContentRef = $file->getAsRef();
+            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        } else {
+            my $stamp = '';
+            $fileContentRef = \$stamp;
+        }
 
         $self->{'eventManager'}->trigger( 'beforeApache2DeleteHtgroup', $fileContentRef, $moduleData ) == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
@@ -540,7 +625,14 @@ sub addHtaccess
         clearImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'AUTH_PATH'}/.htaccess" );
-        my $fileContentRef = -f $file->{'filename'} ? $file->getAsRef() : \'';
+        my $fileContentRef;
+        if ( -f $file->{'filename'} ) {
+            $fileContentRef = $file->getAsRef();
+            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        } else {
+            my $stamp = '';
+            $fileContentRef = \$stamp;
+        }
 
         $self->{'eventManager'}->trigger( 'beforeApache2AddHtaccess', $fileContentRef, $moduleData ) == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
@@ -609,7 +701,16 @@ sub deleteHtaccess
         clearImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'AUTH_PATH'}/.htaccess" );
-        my $fileContentRef = $file->getAsRef() // \'';
+        my $fileExist = -f $file->{'filename'};
+        my $fileContentRef;
+
+        if ( $fileExist ) {
+            $fileContentRef = $file->getAsRef();
+            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        } else {
+            my $stamp = '';
+            $fileContentRef = \$stamp;
+        }
 
         $self->{'eventManager'}->trigger( 'beforeApache2DeleteHtaccess', $fileContentRef, $moduleData ) == 0 or croak(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
@@ -626,7 +727,7 @@ sub deleteHtaccess
             $rs ||= $file->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} );
             $rs ||= $file->mode( 0640 );
             $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-        } else {
+        } elsif ( $fileExist ) {
             $file->delFile() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
@@ -1114,12 +1215,8 @@ sub _disableDomain
         $serverData->{'VHOST_TYPE'} = 'domain_disabled';
     }
 
-    $rs = $self->buildConfFile(
-        "parts/domain_disabled.tpl",
-        "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
-        $moduleData,
-        $serverData,
-        { cached => 1 }
+    $rs = $self->buildConfFile( 'parts/domain_disabled.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
+        $moduleData, $serverData, { cached => 1 }
     );
 
     $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}.conf" );
@@ -1135,12 +1232,8 @@ sub _disableDomain
             'domain_disabled_ssl'
         );
 
-        $rs = $self->buildConfFile(
-            "parts/domain_disabled.tpl",
-            "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf",
-            $moduleData,
-            $serverData,
-            { cached => 1 }
+        $rs = $self->buildConfFile( 'parts/domain_disabled.tpl',
+            "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf", $moduleData, $serverData, { cached => 1 }
         );
         $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl.conf" );
         return $rs if $rs;
@@ -1160,12 +1253,8 @@ sub _disableDomain
     # Make sure that custom httpd conffile exists (cover case where file has been removed for any reasons)
     unless ( -f "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf" ) {
         $serverData->{'SKIP_TEMPLATE_CLEANER'} = 1;
-        $rs = $self->buildConfFile(
-            "parts/custom.conf.tpl",
-            "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
-            $moduleData,
-            $serverData,
-            { cached => 1 }
+        $rs = $self->buildConfFile( 'parts/custom.conf.tpl', "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
+            $moduleData, $serverData, { cached => 1 }
         );
         return $rs if $rs;
     }
@@ -1233,12 +1322,8 @@ sub _addCfg
         $serverData->{'VHOST_TYPE'} = 'domain';
     }
 
-    $rs = $self->buildConfFile(
-        "parts/domain.tpl",
-        "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
-        $moduleData,
-        $serverData,
-        { cached => 1 }
+    $rs = $self->buildConfFile( 'parts/domain.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf", $moduleData,
+        $serverData, { cached => 1 }
     );
 
     $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}.conf" );
@@ -1259,12 +1344,8 @@ sub _addCfg
             $serverData->{'VHOST_TYPE'} = 'domain_ssl';
         }
 
-        $rs = $self->buildConfFile(
-            "parts/domain.tpl",
-            "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf",
-            $moduleData,
-            $serverData,
-            { cached => 1 }
+        $rs = $self->buildConfFile( 'parts/domain.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf",
+            $moduleData, $serverData, { cached => 1 }
         );
         $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl.conf" );
         return $rs if $rs;
@@ -1283,12 +1364,8 @@ sub _addCfg
 
     unless ( -f "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf" ) {
         $serverData->{'SKIP_TEMPLATE_CLEANER'} = 1;
-        $rs = $self->buildConfFile(
-            "parts/custom.conf.tpl",
-            "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
-            $moduleData,
-            $serverData,
-            { cached => 1 }
+        $rs = $self->buildConfFile( 'parts/custom.conf.tpl', "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
+            $moduleData, $serverData, { cached => 1 }
         );
     }
 
@@ -1541,9 +1618,9 @@ sub _setupVlogger
     my ($self) = @_;
 
     {
-        my $vloggerDbSchemaFile = File::Temp->new();
-        print $vloggerDbSchemaFile <<"EOF";
-USE `@{ [ main::setupGetQuestion( 'DATABASE_NAME' ) ] }`;
+        my $dbSchemaFile = File::Temp->new();
+        print $dbSchemaFile <<"EOF";
+USE `{DATABASE_NAME}`;
 
 CREATE TABLE IF NOT EXISTS httpd_vlogger (
   vhost varchar(255) NOT NULL,
@@ -1552,67 +1629,93 @@ CREATE TABLE IF NOT EXISTS httpd_vlogger (
   PRIMARY KEY(vhost,ldate)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 EOF
-        $vloggerDbSchemaFile->close();
+        $dbSchemaFile->close();
+        my $rs = $self->buildConfFile( $dbSchemaFile, $dbSchemaFile, undef, { DATABASE_NAME => main::setupGetQuestion( 'DATABASE_NAME' ) },
+            { srcname => 'vlogger.sql' }
+        );
+        return $rs if $rs;
 
-        my $mysqlConffile = File::Temp->new();
-        print $mysqlConffile <<"EOF";
-[mysql]
-host = @{[ main::setupGetQuestion( 'DATABASE_HOST' ) ]}
-port = @{[ main::setupGetQuestion( 'DATABASE_PORT' ) ]}
-user = "@{ [ main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr ] }"
-password = "@{ [ decryptRijndaelCBC($main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr ] }"
+        my $defaultExtrafile = File::Temp->new();
+        print $defaultExtrafile <<"EOF";
+[mysql_upgrade]
+host = {HOST}
+port = {PORT}
+user = "{USER}"
+password = "{PASSWORD}"
 EOF
-        $mysqlConffile->close();
+        $defaultExtrafile->close();
+        $rs = $self->buildConfFile( $defaultExtrafile, $defaultExtrafile, undef,
+            {
+                HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
+                PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
+                USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
+                PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
+            },
+            { srcname => 'default-extra-file' }
+        );
+        return $rs if $rs;
 
-        my $rs = execute( "cat $vloggerDbSchemaFile | /usr/bin/mysql --defaults-extra-file=$mysqlConffile", \ my $stdout, \ my $stderr );
+        $rs = execute( "cat $dbSchemaFile | /usr/bin/mysql --defaults-extra-file=$defaultExtrafile", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
     }
 
-    my $host = main::setupGetQuestion( 'DATABASE_HOST' );
-    $host = '127.0.0.1' if $host eq 'localhost';
-    my $port = main::setupGetQuestion( 'DATABASE_PORT' );
+    my $dbHost = main::setupGetQuestion( 'DATABASE_HOST' );
+    $dbHost = '127.0.0.1' if $dbHost eq 'localhost';
+    my $dbPort = main::setupGetQuestion( 'DATABASE_PORT' );
     my $dbName = main::setupGetQuestion( 'DATABASE_NAME' );
-    my $user = 'vlogger_user';
-    my $userHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    $userHost = '127.0.0.1' if $userHost eq 'localhost';
+    my $dbUser = 'vlogger_user';
+    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
+    $dbUserHost = '127.0.0.1' if $dbUserHost eq 'localhost';
     my $oldUserHost = $main::imscpOldConfig{'DATABASE_USER_HOST'};
-    my $pass = randomStr( 16, ALNUM );
+    my $dbPass = randomStr( 16, ALNUM );
 
     eval {
         my $sqlServer = iMSCP::Servers::Sqld->factory();
 
-        for ( $userHost, $oldUserHost, 'localhost' ) {
+        for ( $dbUserHost, $oldUserHost, 'localhost' ) {
             next unless $_;
-            $sqlServer->dropUser( $user, $_ );
+            $sqlServer->dropUser( $dbUser, $_ );
         }
 
-        $sqlServer->createUser( $user, $userHost, $pass );
+        $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
 
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
         local $dbh->{'RaiseError'} = 1;
 
         # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
         my $qDbName = $dbh->quote_identifier( $dbName );
-        $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $qDbName.httpd_vlogger TO ?\@?", undef, $user, $userHost );
+        $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $qDbName.httpd_vlogger TO ?\@?", undef, $dbUser, $dbUserHost );
     };
     if ( $@ ) {
         error( $@ );
         return 1;
     }
 
-    $self->buildConfFile(
-        "vlogger.conf.tpl",
-        "$self->{'cfgDir'}/vlogger.conf",
-        undef,
+    my $conffile = File::Temp->new();
+    print $conffile <<'EOF';
+# vlogger configuration file - auto-generated by i-MSCP
+#     DO NOT EDIT THIS FILE BY HAND -- YOUR CHANGES WILL BE OVERWRITTEN
+dsn    dbi:mysql:database={DATABASE_NAME};host={DATABASE_HOST};port={DATABASE_PORT}
+user   {DATABASE_USER}
+pass   {DATABASE_PASSWORD}
+dump   30
+EOF
+    $conffile->close();
+    $self->buildConfFile( $conffile, "$self->{'config'}->{'HTTPD_CONF_DIR'}/vlogger.conf", undef,
         {
             DATABASE_NAME         => $dbName,
-            DATABASE_HOST         => $host,
-            DATABASE_PORT         => $port,
-            DATABASE_USER         => $user,
-            DATABASE_PASSWORD     => $pass,
+            DATABASE_HOST         => $dbHost,
+            DATABASE_PORT         => $dbPort,
+            DATABASE_USER         => $dbUser,
+            DATABASE_PASSWORD     => $dbPass,
             SKIP_TEMPLATE_CLEANER => 1
+        },
+        {
+            umask   => 0027,
+            mode    => 0640,
+            srcname => 'vlogger.conf'
         }
     );
 }

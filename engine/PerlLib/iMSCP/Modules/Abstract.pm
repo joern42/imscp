@@ -25,6 +25,7 @@ package iMSCP::Modules::Abstract;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::EventManager;
@@ -50,7 +51,7 @@ use parent 'iMSCP::Common::Object';
 
 sub getEntityType
 {
-    die( ref( $_[0] ) . ' module must implements the getEntityType( ) method' );
+    croak( ref( $_[0] ) . ' module must implements the getEntityType( ) method' );
 }
 
 =item process( )
@@ -63,7 +64,7 @@ sub getEntityType
 
 sub process
 {
-    die( ref( $_[0] ) . ' module must implements the process( ) method' );
+    croak( ref( $_[0] ) . ' module must implements the process( ) method' );
 }
 
 =item add( )
@@ -229,7 +230,7 @@ sub _execAllActions
  Data provider method for i-MSCP servers and packages
 
  Param string $action Action being executed (<pre|post><action><entityType>) on servers, packages
- Return hashref Reference to a hash containing data, die on failure
+ Return hashref Reference to a hash containing data, croak on failure
 
 =cut
 

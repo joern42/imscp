@@ -73,7 +73,9 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
 my $rs = 0;
 my @items = ();
 
-push @items, [ $_, sub { $subref->( $_->factory()->setEnginePermissions()); } ] for iMSCP::Servers->getInstance()->getListWithFullNames();
+for my $server(iMSCP::Servers->getInstance()->getListWithFullNames()) {
+    push @items, [ $server, sub { $server->factory()->setEnginePermissions(); } ];
+}
 
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;

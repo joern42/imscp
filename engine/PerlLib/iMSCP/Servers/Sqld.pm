@@ -107,7 +107,7 @@ sub getVersion
 
 =item createUser( $user, $host, $password )
 
- Create the given SQL user
+ Create the given SQL user if it doesn't already exist, update it password otherwise
 
  Param $string $user SQL username
  Param string $host SQL user host

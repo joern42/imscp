@@ -32,6 +32,7 @@ use File::Basename;
 use File::Spec;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Getopt;
 use iMSCP::Service;
 use iMSCP::SystemUser;
 use iMSCP::TemplateParser qw/ processByRef /;
@@ -772,12 +773,12 @@ sub _init
     $self->{'reload'} = 0;
     $self->{'restart'} = 0;
     $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/frontend";
-    $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/frontend.data.dist";
+    $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/frontend.data.dist";
     tie %{$self->{'config'}},
         'iMSCP::Config',
         fileName    => "$self->{'cfgDir'}/frontend.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer';
     $self;
 }
 
@@ -845,7 +846,7 @@ sub _buildConf
 
 END
     {
-        return if $? || ( defined $main::execmode && $main::execmode eq 'setup' );
+        return if $? || iMSCP::Getopt->context() eq 'installer';
 
         my $instance = __PACKAGE__->hasInstance();
 

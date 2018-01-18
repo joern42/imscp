@@ -23,11 +23,12 @@ use lib '/var/www/imscp/engine/PerlLib';
 use iMSCP::Bootstrapper;
 use iMSCP::Crypt qw/ decryptRijndaelCBC /;
 use iMSCP::Debug qw/ output /;
+use iMSCP::Getopt;
 
 iMSCP::Bootstrapper->getInstance()->boot( {
-    mode            => 'backend',
+    config_readonly => 1,
     nodatabase      => 1,
-    config_readonly => 1
+    nolock          => 1
 } );
 
 my $passwd = decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, $main::imscpConfig{'DATABASE_PASSWORD'} );

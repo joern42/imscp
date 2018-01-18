@@ -93,7 +93,7 @@ OPTIONS:
 my $action = shift;
 defined $action && $action =~ /^(?:start|stop)$/ or iMSCP::Getopt->showUsage();
 
-exit unless MSCP::Bootstrapper->getInstance()->boot( {
+exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
     nodatabase      => 1,
     nokeys          => 1,

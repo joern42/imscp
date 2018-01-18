@@ -1,17 +1,12 @@
-# i-MSCP vsftpd configuration data
-
+FTPD_VERSION = {VSFTPD_VERSION}
+FTPD_BANNER = i-MSCP FTPd server
+FTPD_BIN = /usr/sbin/vsftpd
+FTPD_CONF_DIR = /etc
+FTPD_MAX_CLIENTS =
+FTPD_MAX_CLIENTS_PER_IP =
 FTPD_PASSIVE_PORT_RANGE =
-
-VSFTPD_VERSION =
-DATABASE_USER =
-DATABASE_PASSWORD =
-
-#
-## You can edit the parameters bellow (See vsftpd.conf(5))
-#
-
-FTPD_BANNER = Welcome to i-MSCP FTP server
-PASSV_ENABLE = YES
-FTP_MAX_CLIENTS = 100
-MAX_PER_IP = 0
-LOCAL_MAX_RATE = 0
+FTPD_PAM_CONF_DIR = /etc/pam.d
+FTPD_PAM_SERVICE_NAME = vsftpd
+FTPD_SQL_USER = {DATABASE_USER}
+FTPD_SQL_PASSWORD = {DATABASE_PASSWORD}
+FTPD_USER_CONF_DIR = /etc/vsftpd/imscp

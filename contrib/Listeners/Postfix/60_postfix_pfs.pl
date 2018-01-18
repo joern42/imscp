@@ -30,7 +30,7 @@
 
 package iMSCP::Listener::Postfix::PFS;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -46,7 +46,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterPostfixBuildConf',
+    'afterPostfixConfigure',
     sub {
         return 0 unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
 

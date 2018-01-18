@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::NetworkInterface::Interface - Interface for network interface providers
+ iMSCP::Providers::NetworkInterface::Interface - Interface for distribution network interface providers
 
 =cut
 
@@ -25,7 +25,7 @@ package iMSCP::Providers::NetworkInterface::Interface;
 
 use strict;
 use warnings;
-use Carp;
+use Carp qw/ croak /;
 
 =head1 DESCRIPTION
 
@@ -40,13 +40,13 @@ use Carp;
  Add a network card
 
  Param hash \%data Network card data
- Return iMSCP::Providers::NetworkInterface::Interface, die on failure
+ Return iMSCP::Providers::NetworkInterface::Interface, croak on failure
 
 =cut
 
 sub addNetworkCard
 {
-    confess 'not implemented';
+    croak 'not implemented';
 }
 
 =item removeNetworkCard( \%data )
@@ -54,13 +54,13 @@ sub addNetworkCard
  Remove a network card
 
  Param hash \%data Network card data
- Return iMSCP::Providers::NetworkInterface::Interface, die on failure
+ Return iMSCP::Providers::NetworkInterface::Interface, croak on failure
 
 =cut
 
 sub removeNetworkCard
 {
-    confess 'not implemented';
+    croak 'not implemented';
 }
 
 =item addIpAddr( \%data )
@@ -73,13 +73,13 @@ sub removeNetworkCard
    ip_address     : Either an IPv4 or IPv6 address
    ip_netmask     : OPTIONAL Netmask (default: 32 for IPv4, 128 for IPv6)
    ip_config_mode : IP configuration mode (auto|manual)
- Return iMSCP::Providers::NetworkInterface::Interface, die on failure
+ Return iMSCP::Providers::NetworkInterface::Interface, croak on failure
 
 =cut
 
 sub addIpAddr
 {
-    confess 'not implemented';
+    croak 'not implemented';
 }
 
 =item removeIpAddr( \%data )
@@ -92,13 +92,13 @@ sub addIpAddr
    ip_address     : Either an IPv4 or IPv6 address
    ip_netmask     : OPTIONAL Netmask (default: 32 for IPv4, 128 for IPv6)
    ip_config_mode : IP configuration mode (auto|manual)
- Return iMSCP::Providers::NetworkInterface::Interface, die on failure
+ Return iMSCP::Providers::NetworkInterface::Interface, croak on failure
 
 =cut
 
 sub removeIpAddr
 {
-    confess 'not implemented';
+    croak 'not implemented';
 }
 
 =back

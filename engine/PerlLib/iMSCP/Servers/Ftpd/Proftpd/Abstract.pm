@@ -61,7 +61,7 @@ sub registerSetupListeners
         'beforeSetupDialog',
         sub {
             push @{$_[0]}, sub { $self->sqlUserDialog( @_ ); }, sub { $self->passivePortRangeDialog( @_ ); },
-                sub { $self->maxInstancesDialog( @_ ); }, sub { $self->maxCLientsPerHostDialog( @_ ); };
+                sub { $self->maxClientsDialog( @_ ); }, sub { $self->maxCLientsPerIpDialog( @_ ); };
             0;
         },
         $self->getPriority()
@@ -203,109 +203,106 @@ EOF
         return $rs unless $rs < 30;
     }
 
+    main::setupSetQuestion( 'FTPD_PASSIVE_PORT_RANGE', $passivePortRange );
     $self->{'config'}->{'FTPD_PASSIVE_PORT_RANGE'} = $passivePortRange;
     0;
 }
 
-=item maxInstancesDialog( \%dialog )
+=item maxClientsDialog( \%dialog )
 
- Ask for ProFTPd max instances
-
- Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
-
-=cut
-
-sub maxInstancesDialog
-{
-    my ($self, $dialog) = @_;
-
-    my $maxInstances = main::setupGetQuestion(
-        'FTPD_MAX_INSTANCES', $self->{'config'}->{'FTPD_MAX_INSTANCES'} || ( iMSCP::Getopt->preseed ? '100' : '' )
-    );
-
-    $iMSCP::Dialog::InputValidation::lastValidationError = '';
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
-        || ( $maxInstances ne 'none' && !isNumberInRange( $maxInstances, 1, 1000 ) )
-    ) {
-        my $rs = 0;
-
-        do {
-            if ( $maxInstances eq '' ) {
-                $iMSCP::Dialog::InputValidation::lastValidationError = '';
-                $maxInstances = 100;
-            }
-
-            ( $rs, $maxInstances ) = $dialog->inputbox( <<"EOF", $maxInstances );
-$iMSCP::Dialog::InputValidation::lastValidationError
-\\Z4\\Zb\\ZuProFTPd max instances\\Zn
-
-Please set maximum number of ProFTPd child processes to be spawned (leave empty for default).
-
-Allowed value: 'none' or a number in range 1..1000
-The 'none' value means no limit.
-
-See http://www.proftpd.org/docs/directives/linked/config_ref_MaxInstances.html for more details.
-\\Z \\Zn
-EOF
-        } while $rs < 30 || ( $maxInstances ne 'none' && !isNumberInRange( $maxInstances, 1, 1000 ) );
-
-        return $rs unless $rs < 30;
-    }
-
-    $self->{'config'}->{'FTPD_MAX_INSTANCES'} = $maxInstances;
-    0;
-}
-
-=item maxClientPerHostDialog( \%dialog )
-
- Ask for ProFTPd max clients per host
+ Ask for ProFTPd max clients
 
  Param iMSCP::Dialog \%dialog
  Return int 0 on success, other on failure
 
 =cut
 
-sub maxClientPerHostDialog
+sub maxClientsDialog
 {
     my ($self, $dialog) = @_;
 
     my $maxClients = main::setupGetQuestion(
-        'FTPD_MAX_CLIENTS_PER_HOST', $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_HOST'} || ( iMSCP::Getopt->preseed ? '20' : '' )
+        'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} || ( iMSCP::Getopt->preseed ? 100 : '' )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
-        || ( $maxClients ne 'none' && !isNumberInRange( $maxClients, 1, 1000 ) )
+        || !isNumberInRange( $maxClients, 0, 1000 )
     ) {
         my $rs = 0;
 
         do {
             if ( $maxClients eq '' ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
-                $maxClients = 20;
+                $maxClients = 100;
             }
 
             ( $rs, $maxClients ) = $dialog->inputbox( <<"EOF", $maxClients );
 $iMSCP::Dialog::InputValidation::lastValidationError
-\\Z4\\Zb\\ZuProFTPd max client per host\\Zn
+\\Z4\\Zb\\ZuProFTPd max clients\\Zn
 
-Please set the maximum number of clients allowed to connect to ProFTPd per host (leave empty for default).
+Please set maximum number of ProFTPd clients (leave empty for default).
 
-Allowed value: none or a number in range 1..1000
-The 'none' value means no limit.
-
-http://www.proftpd.org/docs/directives/linked/config_ref_MaxClientsPerHost.html
+Allowed value: A number in range 0..1000, 0 for no limit.
 \\Z \\Zn
 EOF
-        } while $rs < 30 || ( $maxClients ne 'none' && !isNumberInRange( $maxClients, 1, 1000 ) );
+        } while $rs < 30 || !isNumberInRange( $maxClients, 0, 1000 );
 
         return $rs unless $rs < 30;
     }
 
-    $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_HOST'} = $maxClients;
+    main::setupSetQuestion( 'FTPD_MAX_CLIENTS', $maxClients );
+    $self->{'config'}->{'FTPD_MAX_CLIENTS'} = $maxClients;
+    0;
+}
+
+=item maxCLientsPerIpDialog( \%dialog )
+
+ Ask for ProFTPd max clients per IP
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 on success, other on failure
+
+=cut
+
+sub maxCLientsPerIpDialog
+{
+    my ($self, $dialog) = @_;
+
+    my $maxClientsPerIp = main::setupGetQuestion(
+        'FTPD_MAX_CLIENTS_PER_IP', $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} || ( iMSCP::Getopt->preseed ? 5 : '' )
+    );
+
+    $iMSCP::Dialog::InputValidation::lastValidationError = '';
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
+        || !isNumberInRange( $maxClientsPerIp, 0, 1000 )
+    ) {
+        my $rs = 0;
+
+        do {
+            if ( $maxClientsPerIp eq '' ) {
+                $iMSCP::Dialog::InputValidation::lastValidationError = '';
+                $maxClientsPerIp = 5;
+            }
+
+            ( $rs, $maxClientsPerIp ) = $dialog->inputbox( <<"EOF", $maxClientsPerIp );
+$iMSCP::Dialog::InputValidation::lastValidationError
+\\Z4\\Zb\\ZuProFTPd max client per IP\\Zn
+
+Please set the maximum number of clients allowed to connect to ProFTPd per IP (leave empty for default).
+
+Allowed value: A number in range 0..1000, 0 for no limit.
+\\Z \\Zn
+EOF
+        } while $rs < 30 || !isNumberInRange( $maxClientsPerIp, 1, 1000 );
+
+        return $rs unless $rs < 30;
+    }
+
+    main::setupSetQuestion( 'FTPD_MAX_CLIENTS_PER_IP', ${$maxClientsPerIp} );
+    $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} = $maxClientsPerIp;
     0;
 }
 
@@ -378,7 +375,7 @@ sub getHumanServerName
 {
     my ($self) = @_;
 
-    sprintf( 'ProFTPDd %s', $self->getVersion());
+    sprintf( 'ProFTPd %s', $self->getVersion());
 }
 
 =item getVersion( )
@@ -565,7 +562,19 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
+    my $rs = execute( [ $self->{'config'}->{'FTPD_BIN'}, '-v' ], \ my $stdout, \ my $stderr );
+    debug( $stdout ) if $stdout;
+    error( $stderr || 'Unknown error' ) if $rs;
+    return $rs if $rs;
+
+    if ( $stdout !~ /([\d.]+)/ ) {
+        error( "Couldn't find ProFTPD version from the `$self->{'config'}->{'FTPD_BIN'} -v` command output" );
+        return 1;
+    }
+
+    $self->{'config'}->{'FTPD_VERSION'} = $1;
+    debug( "ProFTPD version set to: $1" );
+    0;
 }
 
 =item _configure( )
@@ -581,7 +590,7 @@ sub _configure
     my ($self) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeProftpdConfigure' );
-    $rs ||= $self->_setupDatabase();
+    $rs ||= $self->_setupSqlUser();
     $rs ||= $self->{'eventManager'}->registerOne(
         'beforeProftpdBuildConfFile',
         sub {
@@ -631,24 +640,24 @@ EOF
     );
     $rs ||= $self->buildConfFile( 'proftpd.conf', "$self->{'config'}->{'FTPD_CONF_DIR'}/proftpd.conf", undef,
         {
-            FTPD_CERTIFICATE          => "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem",
-            FTPD_DATABASE_HOST        => main::setupGetQuestion( 'DATABASE_HOST' ),
-            FTPD_DATABASE_NAME        => main::setupGetQuestion( 'DATABASE_NAME' ),
-            FTPD_DATABASE_PORT        => main::setupGetQuestion( 'DATABASE_PORT' ),
-            FTPD_HOSTNAME             => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
-            FTPD_IPV6_SUPPORT         => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'on' : 'off',
-            FTPD_MAX_INSTANCES        => $self->{'config'}->{'FTPD_MAX_INSTANCES'},
-            FTPD_MAX_CLIENTS_PER_HOST => $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_HOST'},
-            FTPD_MIN_UID              => $self->{'config'}->{'FTPD_MIN_UID'},
-            FTPD_MIN_GID              => $self->{'config'}->{'FTPD_MIN_GID'},
-            FTPD_PASSIVE_PORT_RANGE   => $self->{'config'}->{'FTPD_PASSIVE_PORT_RANGE'},
-            FTPD_BANNER               => $self->{'config'}->{'FTPD_BANNER'},
-            FTPD_SSL_LOG_FILE         => $self->{'config'}->{'FTP_SSL_LOG_FILE'},
+            FTPD_BANNER             => $self->{'config'}->{'FTPD_BANNER'},
+            FTPD_CERTIFICATE        => "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem",
+            FTPD_DATABASE_HOST      => main::setupGetQuestion( 'DATABASE_HOST' ),
+            FTPD_DATABASE_NAME      => main::setupGetQuestion( 'DATABASE_NAME' ),
+            FTPD_DATABASE_PORT      => main::setupGetQuestion( 'DATABASE_PORT' ),
+            FTPD_HOSTNAME           => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
+            FTPD_IPV6_SUPPORT       => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'on' : 'off',
+            FTPD_MAX_CLIENTS        => $self->{'config'}->{'FTPD_MAX_CLIENTS'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS'} : 'none',
+            FTPD_MAX_CLIENTS_PER_IP => $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} : 'none',
+            FTPD_MIN_UID            => $self->{'config'}->{'FTPD_MIN_UID'},
+            FTPD_MIN_GID            => $self->{'config'}->{'FTPD_MIN_GID'},
+            FTPD_PASSIVE_PORT_RANGE => $self->{'config'}->{'FTPD_PASSIVE_PORT_RANGE'},
+            FTPD_SSL_LOG_FILE       => $self->{'config'}->{'FTP_SSL_LOG_FILE'},
             # Escape any double-quotes and backslash (see #IP-1330)
-            FTPD_SQL_PASSWORD         => '"' . $self->{'config'}->{'FTPD_SQL_PASSWORD'} =~ s%("|\\)%\\$1%gr . '"',
+            FTPD_SQL_PASSWORD       => '"' . $self->{'config'}->{'FTPD_SQL_PASSWORD'} =~ s%("|\\)%\\$1%gr . '"',
             # Escape any double-quotes and backslash (see #IP-1330)
-            FTPD_SQL_USER             => '"' . $self->{'config'}->{'FTPD_SQL_USER'} =~ s%("|\\)%\\$1%gr . '"',
-            FTPD_TLSOPTIONS           => 'NoCertRequest NoSessionReuseRequired'
+            FTPD_SQL_USER           => '"' . $self->{'config'}->{'FTPD_SQL_USER'} =~ s%("|\\)%\\$1%gr . '"',
+            FTPD_TLSOPTIONS         => 'NoCertRequest NoSessionReuseRequired'
         },
         {
             umask => 0027,
@@ -665,14 +674,8 @@ EOF
                 0;
             }
         );
-        $rs = $self->buildConfFile(
-            "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf",
-            "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf",
-            undef,
-            undef,
-            {
-                mode => 0644
-            }
+        $rs = $self->buildConfFile( "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", undef,
+            undef, { mode => 0644 }
         );
         return $rs if $rs;
     }
@@ -680,15 +683,15 @@ EOF
     $self->{'eventManager'}->trigger( 'afterProftpdConfigure' );
 }
 
-=item _setupDatabase( )
+=item _setupSqlUser( )
 
- Setup database
+ Setup SQL user for ProFTPd
 
  Return int 0 on success, other on failure
 
 =cut
 
-sub _setupDatabase
+sub _setupSqlUser
 {
     my ($self) = @_;
 
@@ -701,18 +704,17 @@ sub _setupDatabase
         my $sqlServer = iMSCP::Servers::Sqld->factory();
 
         # Drop old SQL user if required
-        for my $sqlUser ( $self->{'config'}->{'FTPD_SQL_USER'}, $dbUser ) {
-            next unless $sqlUser;
-
-            for my $host( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-                next if !$host || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
-                $sqlServer->dropUser( $sqlUser, $host );
+        if ( ( $self->{'config'}->{'FTPD_SQL_USER'} ne '' && $self->{'config'}->{'FTPD_SQL_USER'} ne $dbUser )
+            || ( $main::imscpOldConfig{'DATABASE_USER_HOST'} ne '' && $main::imscpOldConfig{'DATABASE_USER_HOST'} ne $dbUserHost )
+        ) {
+            for ( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+                next if $_ eq '' || exists $main::sqlUsers{$self->{'config'}->{'FTPD_SQL_USER'} . '@' . $_};
+                $sqlServer->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $_ );
             }
         }
 
-        # Create SQL user if required
+        # Create/update SQL user if needed
         if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-            debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
             $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
             $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
         }
@@ -720,7 +722,7 @@ sub _setupDatabase
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
         local $dbh->{'RaiseError'} = 1;
 
-        # Give required privileges to this SQL user
+        # GRANT privileges to the SQL user
         # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
         my $quotedDbName = $dbh->quote_identifier( $dbName );
 
@@ -751,7 +753,8 @@ sub _dropSqlUser
     my ($self) = @_;
 
     # In setup context, take value from old conffile, else take value from current conffile
-    my $dbUserHost = ( $main::execmode eq 'setup' ) ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
+    my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
+        ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
 
     return 0 unless $self->{'config'}->{'FTPD_SQL_USER'} && $dbUserHost;
 

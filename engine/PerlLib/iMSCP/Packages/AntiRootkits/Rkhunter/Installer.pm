@@ -100,7 +100,7 @@ sub _disableDebianConfig
     }
 
     return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
-    
+
     for ( qw/ cron.daily cron.weekly / ) {
         my $rs = iMSCP::Servers::Cron->factory()->disableSystemCrontask( 'rkhunter', $_ );
         return $rs if $rs;

@@ -35,13 +35,13 @@ use version;
 ## Please, don't edit anything below this line
 #
 
-iMSCP::EventManager->getInstance()->registerOne(
-    'afterDovecotBuildConfFile',
-    sub {
-        version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
-            sprintf( "The 40_dovecot_pfs.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
-        );
+version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+    sprintf( "The 40_dovecot_pfs.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
+);
 
+iMSCP::EventManager->getInstance()->registerOne(
+    'afterDovecotConfigure',
+    sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'DOVECOT_CONF_DIR'};
         my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/40_dovecot_pfs_listener.conf" );
         $file->set( <<'EOT' );

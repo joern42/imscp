@@ -33,6 +33,7 @@ use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use File::Temp;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug error /;
+use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Sqld::Mysql::Debian';
 
@@ -45,6 +46,135 @@ our $VERSION = '1.0.0';
 =head1 PUBLIC METHODS
 
 =over 4
+
+=item postinstall( )
+
+ See iMSCP::Servers::Sqld::postinstall()
+
+=cut
+
+sub postinstall
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->enable( 'mariadb' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupRestartServices',
+        sub {
+            push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ];
+            0;
+        },
+        $self->getPriority()
+    );
+}
+
+=item uninstall( )
+
+ Process uninstall tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub uninstall
+{
+    my ($self) = @_;
+
+    my $rs = $self->_removeConfig();
+    return $rs if $rs;
+
+    eval {
+        my $serviceMngr = iMSCP::Service->getInstance();
+        $serviceMngr->restart( 'mariadb' ) if $serviceMngr->hasService( 'mariadb' ) && $serviceMngr->isRunning( 'mariadb' );
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item start( )
+
+ See iMSCP::Servers::Abstract::start()
+
+=cut
+
+sub start
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->start( 'mariadb' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item stop( )
+
+ See iMSCP::Servers::Abstract::stop()
+
+=cut
+
+sub stop
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->stop( 'mariadb' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item restart( )
+
+ See iMSCP::Servers::Abstract::restart()
+
+=cut
+
+sub restart
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->restart( 'mariadb' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Abstract::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->reload( 'mariadb' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
 
 =item getHumanServerName( )
 
@@ -71,14 +201,20 @@ sub createUser
 
     defined $user or croak( '$user parameter is not defined' );
     defined $host or croak( '$host parameter is not defined' );
-    defined $user or croak( '$password parameter is not defined' );
+    defined $password or croak( '$password parameter is not defined' );
 
     eval {
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
         local $dbh->{'RaiseError'} = 1;
-        $dbh->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
+
+        unless ( $dbh->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
+            # User doesn't already exist. We create it
+            $dbh->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
+        } else {
+            $dbh->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
+        }
     };
-    !$@ or croak( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or croak( sprintf( "Couldn't create/update the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 
@@ -141,12 +277,7 @@ sub _buildConf
     );
     $rs ||= $self->buildConfFile(
         ( -f "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" ? "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" : File::Temp->new() ),
-        "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf",
-        undef,
-        undef,
-        {
-            srcname => 'my.cnf'
-        }
+        "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf", undef, undef, { srcname => 'my.cnf' }
     );
     return $rs if $rs;
 
@@ -194,32 +325,32 @@ sub _updateServerConfig
 
     # Upgrade MySQL tables if necessary
 
-    my $defaultExtraFile = File::Temp->new();
-    print $defaultExtraFile <<'EOF';
+    {
+        my $defaultExtraFile = File::Temp->new();
+        print $defaultExtraFile <<'EOF';
 [mysql_upgrade]
 host = {HOST}
 port = {PORT}
-user = {USER}
-password = {PASSWORD}
+user = "{USER}"
+password = "{PASSWORD}"
 EOF
-    $defaultExtraFile->close();
-    my $rs = $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
-        {
-            HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
-            PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
-            USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
-            PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
-        },
-        {
-            srcname => 'default-extra-file'
-        }
-    );
-    return $rs if $rs;
+        $defaultExtraFile->close();
+        my $rs = $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
+            {
+                HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
+                PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
+                USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
+                PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
+            },
+            { srcname => 'default-extra-file' }
+        );
+        return $rs if $rs;
 
-    $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$defaultExtraFile", \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
-    error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
-    return $rs if $rs;
+        $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$defaultExtraFile", \my $stdout, \my $stderr );
+        debug( $stdout ) if $stdout;
+        error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
+        return $rs if $rs;
+    }
 
     # Disable unwanted plugins
 

@@ -56,7 +56,7 @@ sub get
     return $self->{'fileContent'} if defined $self->{'fileContent'};
 
     unless ( defined $self->{'filename'} ) {
-        error( "Attribut `filename' is not set." );
+        croak( "Attribut `filename' is not set." );
         return undef;
     }
 
@@ -125,7 +125,7 @@ sub save
 
     unless ( defined $self->{'filename'} ) {
         error( "Attribut `filename' is not set." );
-        return undef;
+        return 1;
     }
 
     local $UMASK = $umask if defined $umask;

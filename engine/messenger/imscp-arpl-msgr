@@ -25,14 +25,11 @@ use Mail::Address;
 use MIME::Parser;
 use MIME::Entity;
 
-iMSCP::Bootstrapper->getInstance()->boot(
-    {
-        mode            => 'backend',
-        nolock          => 1,
-        norequirements  => 1,
-        config_readonly => 1
-    }
-);
+iMSCP::Bootstrapper->getInstance()->boot( {
+    config_readonly => 1,
+    nolock          => 1,
+    norequirements  => 1
+} );
 
 eval {
     my $dbh = iMSCP::Database->getInstance()->getRawDb();

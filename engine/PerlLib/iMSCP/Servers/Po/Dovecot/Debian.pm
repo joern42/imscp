@@ -25,8 +25,29 @@ package iMSCP::Servers::Po::Dovecot::Debian;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat iMSCP::Service /;
+use autouse Fcntl => qw/ O_RDONLY /;
+use autouse 'File::Basename' => qw/ fileparse /;
+use autouse 'iMSCP::Execute' => qw/ execute /;
+use autouse 'iMSCP::Rights' => qw/ setRights /;
+use autouse 'iMSCP::TemplateParser' => qw/ processByRef /;
+use Array::Utils qw/ unique /;
+use Carp qw/ croak /;
+use Class::Autouse qw/ :nostat iMSCP::Database /;
+use iMSCP::Config;
+use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Dir;
+use iMSCP::File;
+use iMSCP::Getopt;
+use iMSCP::Service;
+use iMSCP::Umask;
+use iMSCP::Servers::Mta;
+use iMSCP::Servers::Sqld;
+use Sort::Naturally;
+use Tie::File;
+use iMSCP::Service;
 use parent 'iMSCP::Servers::Po::Dovecot::Abstract';
+
+our $VERSION = '1.0.0';
 
 =head1 DESCRIPTION
 
@@ -35,6 +56,22 @@ use parent 'iMSCP::Servers::Po::Dovecot::Abstract';
 =head1 PUBLIC METHODS
 
 =over 4
+
+=item install( )
+
+ Process install tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub install
+{
+    my ($self) = @_;
+
+    my $rs = $self->SUPER::install();
+    $rs ||= $self->_cleanup();
+}
 
 =item preinstall( )
 
@@ -58,15 +95,13 @@ sub preinstall
             $serviceMngr->stop( 'dovecot.socket' );
             $serviceMngr->disable( 'dovecot.socket' );
         }
-
-        $self->stop();
     };
     if ( $@ ) {
         error( $@ );
         return 1;
     }
 
-    0;
+    $self->SUPER::preinstall();
 }
 
 =item postinstall( )
@@ -87,14 +122,7 @@ sub postinstall
         return 1;
     }
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]}, [ sub { $self->start(); }, 'Dovecot' ];
-            0;
-        },
-        5
-    );
+    $self->SUPER::postinstall();
 }
 
 =item uninstall( )
@@ -108,19 +136,38 @@ sub uninstall
     my ($self) = @_;
 
     my $rs = $self->SUPER::uninstall();
+    return $rs if $rs;
 
-    unless ( $rs || !iMSCP::Service->getInstance()->hasService( 'dovecot' ) ) {
-        $self->{'restart'} ||= 1;
-    } else {
-        $self->{'restart'} ||= 0;
+    eval {
+        my $serviceMngr = iMSCP::Service->getInstance();
+        $serviceMngr->restart( 'dovecot' ) if $serviceMngr->hasService( 'dovecot' ) && $serviceMngr->isRunning( 'dovecot' );
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
     }
 
-    $rs;
+    0;
+}
+
+=item dpkgPostInvokeTasks()
+
+ See iMSCP::Servers::Abstract::dpkgPostInvokeTasks()
+
+=cut
+
+sub dpkgPostInvokeTasks
+{
+    my ($self) = @_;
+
+    return 0 unless -x '/usr/sbin/dovecot';
+
+    $self->_setVersion();
 }
 
 =item start( )
 
- See iMSCP::Servers::Po::Dovecot::Abstract::start()
+ See iMSCP::Servers::Abstract::start()
 
 =cut
 
@@ -128,21 +175,18 @@ sub start
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeDovecotStart' );
-    return $rs if $rs;
-
     eval { iMSCP::Service->getInstance()->start( 'dovecot' ); };
     if ( $@ ) {
         error( $@ );
         return 1;
     }
 
-    $self->{'eventManager'}->trigger( 'afterDovecotStart' );
+    0;
 }
 
 =item stop( )
 
- See iMSCP::Servers::Po::Dovecot::Abstract::stop()
+ See iMSCP::Servers::Abstract::stop()
 
 =cut
 
@@ -150,21 +194,18 @@ sub stop
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeDovecotStop' );
-    return $rs if $rs;
-
     eval { iMSCP::Service->getInstance()->stop( 'dovecot' ); };
     if ( $@ ) {
         error( $@ );
         return 1;
     }
 
-    $self->{'eventManager'}->trigger( 'afterDovecotStop' );
+    0;
 }
 
 =item restart( )
 
- See iMSCP::Servers::Po::Dovecot::Abstract::restart()
+ See iMSCP::Servers::Abstract::restart()
 
 =cut
 
@@ -172,42 +213,107 @@ sub restart
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeDovecotRestart' );
-    return $rs if $rs;
-
     eval { iMSCP::Service->getInstance()->restart( 'dovecot' ); };
     if ( $@ ) {
         error( $@ );
         return 1;
     }
 
-    $self->{'eventManager'}->trigger( 'afterDovecotRestart' );
+    0;
+}
+
+=item reload( )
+
+ See iMSCP::Servers::Abstract::reload()
+
+=cut
+
+sub reload
+{
+    my ($self) = @_;
+
+    eval { iMSCP::Service->getInstance()->reload( 'dovecot' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
 }
 
 =back
 
-=head1 SHUTDOWN TASKS
+=head1 PRIVATE METHOD
 
 =over 4
 
-=item shutdown( $priority )
+=item _setVersion( )
 
- Restart the Dovecot IMAP/POP server when needed
-
- This method is called automatically before the program exit.
-
- Param int $priority Server priority
- Return void
+ See iMSCP::Servers::Dovecot::Abstract::_setVersion()
 
 =cut
 
-sub shutdown
+sub _setVersion
+{
+    my ($self) = @_;
+
+    my $rs = execute( [ '/usr/sbin/dovecot', '--version' ], \ my $stdout, \ my $stderr );
+    error( $stderr || 'Unknown error' ) if $rs;
+    return $rs if $rs;
+
+    if ( $stdout !~ m/^([\d.]+)/ ) {
+        error( "Couldn't guess Dovecot version from the `/usr/sbin/dovecot --version` command output" );
+        return 1;
+    }
+
+    $self->{'config'}->{'DOVECOT_VERSION'} = $1;
+    debug( sprintf( 'Dovecot version set to: %s', $1 ));
+    0;
+}
+
+=item _cleanup( )
+
+ Process cleanup tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _cleanup
+{
+    my ($self) = @_;
+
+    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+
+    if ( -f "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-dict-sql.conf" ) {
+        my $rs = iMSCP::File->new( filename => "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-dict-sql.conf" )->delFile();
+        return $rs if $rs;
+    }
+
+    eval { iMSCP::Dir->new( dirname => "$self->{'cfgDir'}/$_" ) for qw/ backup working /; };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    return 0 unless -f "$self->{'cfgDir'}/dovecot.old.data";
+
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/dovecot.old.data" )->delFile();
+}
+
+=item _shutdown( $priority )
+
+ See iMSCP::Servers::Abstract::_shutdown()
+
+=cut
+
+sub _shutdown
 {
     my ($self, $priority) = @_;
 
-    return unless $self->{'restart'};
+    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
-    iMSCP::Service->getInstance()->registerDelayedAction( 'courier', [ 'restart', sub { $self->restart(); } ], $priority );
+    iMSCP::Service->getInstance()->registerDelayedAction( 'dovecot', [ $action, sub { $self->$action(); } ], $priority );
 }
 
 =back

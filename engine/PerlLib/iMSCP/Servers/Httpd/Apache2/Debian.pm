@@ -25,9 +25,7 @@ package iMSCP::Servers::Httpd::Apache2::Debian;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
 use autouse 'iMSCP::Mount' => qw/ umount /;
-use Class::Autouse qw/ :nostat iMSCP::Getopt /;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
@@ -44,61 +42,6 @@ our $VERSION = '1.0.0';
 =head1 PUBLIC METHODS
 
 =over 4
-
-=item registerSetupListeners()
-
- See iMSCP::Servers::Abstract::RegisterSetupListeners()
-
-=cut
-
-sub registerSetupListeners
-{
-    my ($self) = @_;
-
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog',
-        sub {
-            push @{$_[0]}, sub { $self->askForApache2MPM( @_ ) };
-            0;
-        },
-        $self->getPriority()
-    );
-}
-
-=item askForApache2MPM( \%dialog )
-
- Ask for Apache2 MPM
-
- Param iMSCP::Dialog \%dialog
- Return int 0 to go on next question, 30 to go back to the previous question
-
-=cut
-
-sub askForApache2MPM
-{
-    my ($self, $dialog) = @_;
-
-    my $value = main::setupGetQuestion( 'APACHE2_MPM', $self->{'config'}->{'APACHE2_MPM'} || ( iMSCP::Getopt->preseed ? 'event' : '' ));
-    my %choices = (
-        'event', 'Apache2 Event MPM',
-        'itk', 'Apache2 ITK MPM',
-        'prefork', 'Apache2 Prefork MPM',
-        'worker', 'Apache2 Worker MPM'
-    );
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'event' );
-\\Z4\\Zb\\ZuApache2 MPM\\Zn
-
-Please choose the Apache2 MPM you want use:
-\\Z \\Zn
-EOF
-        return $rs unless $rs < 30;
-    }
-
-    $self->{'config'}->{'APACHE2_MPM'} = $value;
-    0;
-}
 
 =item install( )
 
@@ -157,6 +100,21 @@ sub uninstall
     my $rs = $self->_removeDirs();
     $rs ||= $self->_restoreDefaultConfig();
     $rs ||= $self->SUPER::uninstall();
+}
+
+=item dpkgPostInvokeTasks()
+
+ See iMSCP::Servers::Abstract::dpkgPostInvokeTasks()
+
+=cut
+
+sub dpkgPostInvokeTasks
+{
+    my ($self) = @_;
+
+    return 0 unless -x '/usr/sbin/apache2ctl';
+
+    $self->_setVersion();
 }
 
 =item start( )
@@ -477,7 +435,7 @@ sub _configure
             0;
         }
     );
-    $rs ||= $self->buildConfFile( "/etc/apache2/ports.conf", "/etc/apache2//ports.conf" );
+    $rs ||= $self->buildConfFile( '/etc/apache2/ports.conf', '/etc/apache2/ports.conf' );
 
     # Turn off default access log provided by Debian package
     $rs = $self->disableConfs( 'other-vhosts-access-log.conf' );
@@ -494,12 +452,12 @@ sub _configure
         HTTPD_LOG_DIR          => '/var/log/apache2',
         HTTPD_ROOT_DIR         => '/var/www',
         TRAFF_ROOT_DIR         => $main::imscpConfig{'TRAFF_ROOT_DIR'},
-        VLOGGER_CONF           => "$self->{'cfgDir'}/vlogger.conf"
+        VLOGGER_CONF_PATH      => "/etc/apache2/vlogger.conf"
     };
 
-    $rs = $self->buildConfFile( '00_nameserver.conf', "/etc/apache2/sites-available/00_nameserver.conf", undef, $serverData );
+    $rs = $self->buildConfFile( '00_nameserver.conf', '/etc/apache2/sites-available/00_nameserver.conf', undef, $serverData );
     $rs ||= $self->enableSites( '00_nameserver.conf' );
-    $rs ||= $self->buildConfFile( '00_imscp.conf', "/etc/apache2/conf-available/00_imscp.conf", undef, $serverData );
+    $rs ||= $self->buildConfFile( '00_imscp.conf', '/etc/apache2/conf-available/00_imscp.conf', undef, $serverData );
     $rs ||= $self->enableConfs( '00_imscp.conf' );
     $rs ||= $self->disableSites( 'default', 'default-ssl', '000-default.conf', 'default-ssl.conf' );
 }
@@ -537,16 +495,14 @@ sub _cleanup
 {
     my ($self) = @_;
 
+    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+
     my $rs = $self->disableSites( 'imscp.conf', '00_modcband.conf', '00_master.conf', '00_master_ssl.conf' );
     return $rs if $rs;
 
-    if ( -f "$self->{'cfgDir'}/apache.old.data" ) {
-        $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/apache.old.data" )->delFile();
-        return $rs if $rs;
-    }
-
-    if ( -f '/usr/local/sbin/vlogger' ) {
-        $rs = iMSCP::File->new( filename => '/usr/local/sbin/vlogger' )->delFile();
+    for ( "$self->{'cfgDir'}/apache.old.data", "$self->{'cfgDir'}/vlogger.conf.tpl", "$self->{'cfgDir'}/vlogger.conf", '/usr/local/sbin/vlogger' ) {
+        next unless -f;
+        $rs = iMSCP::File->new( filename => $_ )->delFile();
         return $rs if $rs;
     }
 
@@ -603,6 +559,11 @@ sub _removeDirs
 sub _restoreDefaultConfig
 {
     my ($self) = @_;
+
+    if ( -f '/etc/apache2/vlogger.conf' ) {
+        my $rs = iMSCP::File->new( filename => "'/etc/apache2/vlogger.conf'" )->delFile();
+        return $rs if $rs;
+    }
 
     if ( -f "/etc/apache2/sites-available/00_nameserver.conf" ) {
         my $rs = $self->disableSites( '00_nameserver.conf' );

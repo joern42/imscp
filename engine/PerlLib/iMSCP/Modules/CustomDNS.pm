@@ -25,6 +25,7 @@ package iMSCP::Modules::CustomDNS;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Debug qw/ error getMessageByType /;
 use Text::Balanced qw/ extract_multiple extract_delimited /;
 use parent 'iMSCP::Modules::Abstract';
@@ -144,7 +145,7 @@ sub _init
 
  Param int $domainId Domain unique identifier
  Param int $aliasId Domain alias unique identifier, 0 if DNS records group doesn't belong to a domai alias
- Return void, die on failure
+ Return void, croak on failure
 
 =cut
 
@@ -165,7 +166,7 @@ sub _loadData
         undef,
         ( $aliasId eq '0' ? $domainId : $aliasId )
     );
-    %{$row} or die( sprintf( 'Data not found for custom DNS records group (%d;%d)', $domainId, $aliasId ));
+    %{$row} or croak( sprintf( 'Data not found for custom DNS records group (%d;%d)', $domainId, $aliasId ));
     @{$self}{qw/ domain_name domain_ip /} = ( $row->{'domain_name'}, $row->{'ip_number'} );
     undef $row;
 

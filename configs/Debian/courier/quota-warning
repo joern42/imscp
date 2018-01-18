@@ -1,5 +1,5 @@
-From: Mail Delivery System <postmaster@{HOST_NAME}>
-Reply-To: postmaster@{HOST_NAME}
+From: Mail Delivery System <postmaster@{HOSTNAME}>
+Reply-To: postmaster@{HOSTNAME}
 To: Valued Customer:;
 Subject: i-MSCP - Mail quota warning
 Mime-Version: 1.0

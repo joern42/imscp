@@ -26,6 +26,7 @@ package iMSCP::Servers::Abstract;
 use strict;
 use warnings;
 use Carp qw/ confess croak /;
+use File::Basename;
 use File::Spec;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug getMessageByType /;
@@ -434,6 +435,9 @@ sub buildConfFile
     $mdata //= {};
     $sdata //= {};
     $params //= {};
+    
+    #defined $srcFile or confess( 'Missing or undefined $srcFile parameter' );
+    #defined $trgFile or confess( 'Missing or undefined $trgFile parameter' );
 
     my ($sname, $cfgTpl) = ( $self->getEventServerName(), undef );
     my ($filename, $path) = fileparse( $srcFile );
@@ -559,7 +563,7 @@ sub _loadConfig
 
     if ( iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/$filename.dist" ) {
         if ( -f "$self->{'cfgDir'}/$filename" ) {
-            debug( 'Merging old configuration with new configuration ...' );
+            debug( sprintf( 'Merging old %s configuration with new %s configuration ...', $filename, "$filename.dist" ) );
 
             tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename", readonly => 1,
                 # We do not want croak when accessing non-existing parameters

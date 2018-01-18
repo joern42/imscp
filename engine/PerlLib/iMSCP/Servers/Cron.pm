@@ -29,6 +29,7 @@ use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
 use iMSCP::Debug qw/ error /;
 use iMSCP::File;
+use iMSCP::Getopt;
 use iMSCP::TemplateParser qw/ replaceBlocByRef /;
 use parent 'iMSCP::Servers::Abstract';
 
@@ -51,7 +52,7 @@ sub install
     my ($self) = @_;
 
     my $rs = $self->_setVersion();
-    $rs ||= $self->buildConfFile( 'imscp', "$main::imscpConfig{'CRON_D_DIR'}/imscp", undef,
+    $rs ||= $self->buildConfFile( 'imscp', "$self->{'config'}->{'CRON_D_DIR'}/imscp", undef,
         {
             QUOTA_ROOT_DIR  => $main::imscpConfig{'QUOTA_ROOT_DIR'},
             LOG_DIR         => $main::imscpConfig{'LOG_DIR'},
@@ -80,9 +81,9 @@ sub uninstall
 {
     my ($self) = @_;
 
-    return 0 unless -f "$main::imscpConfig{'CRON_D_DIR'}/imscp";
+    return 0 unless -f "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
-    iMSCP::File->new( filename => "$main::imscpConfig{'CRON_D_DIR'}/imscp" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'CRON_D_DIR'}/imscp" )->delFile();
 }
 
 =item setEnginePermissions( )
@@ -95,9 +96,9 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    return 0 unless -f "$main::imscpConfig{'CRON_D_DIR'}/imscp";
+    return 0 unless -f "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
-    setRights( "$main::imscpConfig{'CRON_D_DIR'}/imscp",
+    setRights( "$self->{'config'}->{'CRON_D_DIR'}/imscp",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_GROUP'},
@@ -132,7 +133,7 @@ sub getVersion
     $self->{'config'}->{'CRON_VERSION'};
 }
 
-=item addTask( \%data [, $filepath = "$main::imscpConfig{'CRON_D_DIR'}/imscp" ] )
+=item addTask( \%data [, $filepath = "$self->{'config'}->{'CRON_D_DIR'}/imscp" ] )
 
  Add a new cron task
 
@@ -154,7 +155,7 @@ sub addTask
 {
     my ($self, $data, $filepath) = @_;
     $data = {} unless ref $data eq 'HASH';
-    $filepath //= "$main::imscpConfig{'CRON_D_DIR'}/imscp";
+    $filepath //= "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
     unless ( exists $data->{'COMMAND'} && exists $data->{'TASKID'} ) {
         error( 'Missing COMMAND or TASKID data' );
@@ -177,7 +178,7 @@ sub addTask
     $self->buildConfFile( $filepath, $filepath, undef, $data );
 }
 
-=item deleteTask( \%data [, $filepath = "$main::imscpConfig{'CRON_D_DIR'}/imscp" ] )
+=item deleteTask( \%data [, $filepath = "$self->{'config'}->{'CRON_D_DIR'}/imscp" ] )
 
  Delete a cron task
 
@@ -192,7 +193,7 @@ sub deleteTask
 {
     my ($self, $data, $filepath) = @_;
     $data = {} unless ref $data eq 'HASH';
-    $filepath //= "$main::imscpConfig{'CRON_D_DIR'}/imscp";
+    $filepath //= "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
     unless ( exists $data->{'TASKID'} ) {
         error( 'Missing TASKID data' );
@@ -255,49 +256,13 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{$self}{qw/ cfgDir _templates /} = ( "$main::imscpConfig{'CONF_DIR'}/cron", {} );
-    $self->_mergeConfig() if defined $main::execmode && $main::execmode eq 'setup' && -f "$self->{'cfgDir'}/cron.data.dist";
-    tie %{$self->{'config'}},
-        'iMSCP::Config',
-        fileName    => "$self->{'cfgDir'}/cron.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => defined $main::execmode && $main::execmode eq 'setup';
+
+    $self->_loadConfig( 'cron.data' );
 
     # Register event listener for processing of cront tasks
     $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
 
     $self->SUPER::_init();
-}
-
-=item _mergeConfig()
-
- Merge distribution configuration with production configuration
-
- Croak on failure
-
-=cut
-
-sub _mergeConfig
-{
-    my ($self) = @_;
-
-    if ( -f "$self->{'cfgDir'}/cron.data" ) {
-        tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/cron.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/cron.data", readonly => 1;
-
-        debug( 'Merging old configuration with new configuration ...' );
-
-        while ( my ($key, $value) = each( %oldConfig ) ) {
-            next unless exists $newConfig{$key};
-            $newConfig{$key} = $value;
-        }
-
-        untie( %newConfig );
-        untie( %oldConfig );
-    }
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/cron.data.dist" )->moveFile( "$self->{'cfgDir'}/cron.data" ) == 0 or croak(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
 }
 
 =item _setVersion( )

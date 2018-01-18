@@ -102,6 +102,21 @@ sub uninstall
     0;
 }
 
+=item dpkgPostInvokeTasks()
+
+ See iMSCP::Servers::Abstract::dpkgPostInvokeTasks()
+
+=cut
+
+sub dpkgPostInvokeTasks
+{
+    my ($self) = @_;
+
+    return 0 unless -x $self->{'config'}->{'FTPD_BIN'};
+
+    $self->_setVersion();
+}
+
 =item start( )
 
  See iMSCP::Servers::Abstract::start()
@@ -183,31 +198,6 @@ sub reload
 =head1 PRIVATE METHODS
 
 =over 4
-
-=item _setVersion
-
- See iMSCP::Servers::Ftpd::Proftpd::Abstract::_setVersion()
-
-=cut
-
-sub _setVersion
-{
-    my ($self) = @_;
-
-    my $rs = execute( [ '/usr/sbin/proftpd', '-v' ], \ my $stdout, \ my $stderr );
-    debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    if ( $stdout !~ /([\d.]+)/ ) {
-        error( "Couldn't find ProFTPD version from the `/usr/sbin/proftpd -v` command output" );
-        return 1;
-    }
-
-    $self->{'config'}->{'FTPD_VERSION'} = $1;
-    debug( "ProFTPD version set to: $1" );
-    0;
-}
 
 =item _cleanup( )
 

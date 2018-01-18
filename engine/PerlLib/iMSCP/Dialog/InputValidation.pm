@@ -25,6 +25,7 @@ package iMSCP::Dialog::InputValidation;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Data::Validate::Domain qw/ is_domain is_hostname /;
 use DateTime::TimeZone;
 use Email::Valid;
@@ -54,7 +55,7 @@ our $lastValidationError = '';
  Is the given username valid?
 
  Param string $username Username
- Return bool TRUE if the given username is valid, FALSE otherwise
+ Return bool TRUE if the given username is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -62,7 +63,7 @@ sub isValidUsername( $ )
 {
     my ($username) = @_;
 
-    defined $username or die( 'Missing $username parameter' );
+    defined $username or croak( 'Missing $username parameter' );
     my $length = length $username;
 
     $lastValidationError = '';
@@ -83,7 +84,7 @@ EOF
  Is the given password valid?
  
  Param string $password Password
- Return bool TRUE if the given password is valid, FALSE otherwise
+ Return bool TRUE if the given password is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -91,7 +92,7 @@ sub isValidPassword( $ )
 {
     my ($password) = @_;
 
-    defined $password or die( 'Missing $password parameter' );
+    defined $password or croak( 'Missing $password parameter' );
     my $length = length $password;
 
     $lastValidationError = '';
@@ -112,7 +113,7 @@ EOF
  Is the given email valid?
 
  Param string $email Email
- Return bool TRUE if the given email is valid, FALSE otherwise
+ Return bool TRUE if the given email is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -120,7 +121,7 @@ sub isValidEmail( $ )
 {
     my ($email) = @_;
 
-    defined $email or die( 'Missing $email parameter' );
+    defined $email or croak( 'Missing $email parameter' );
 
     $lastValidationError = '';
     return 1 if Email::Valid->address( $email );
@@ -137,7 +138,7 @@ EOF
  Is the given hostname valid?
  
  Param string $hostname Hostname
- Return bool TRUE if the given hostname is valid, FALSE otherwise
+ Return bool TRUE if the given hostname is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -145,7 +146,7 @@ sub isValidHostname( $ )
 {
     my ($hostname) = @_;
 
-    defined $hostname or die( 'Missing $hostname parameter' );
+    defined $hostname or croak( 'Missing $hostname parameter' );
 
     $lastValidationError = '';
     return 1 if $hostname !~ /\.$/ && ( $hostname =~ tr/.// ) >= 2 && is_hostname( idn_to_ascii( $hostname, 'utf-8' ));
@@ -165,7 +166,7 @@ EOF
  Is the given domain name valid?
 
  Param string $domain Domain name
- Return bool TRUE if the given domain name is valid, FALSE otherwise
+ Return bool TRUE if the given domain name is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -173,7 +174,7 @@ sub isValidDomain( $ )
 {
     my ($domainName) = @_;
 
-    defined $domainName or die( 'Missing $domainName parameter' );
+    defined $domainName or croak( 'Missing $domainName parameter' );
 
     $lastValidationError = '';
     return 1 if $domainName !~ /\.$/ && is_domain(
@@ -198,7 +199,7 @@ EOF
 
  Param string $ipAddr IP address
  Param regexp|undef typeReg Regexp defining allowed IP type
- Return bool TRUE if the given IP address is valid, FALSE otherwise
+ Return bool TRUE if the given IP address is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -206,7 +207,7 @@ sub isValidIpAddr( $;$ )
 {
     my ($ipAddr, $typeReg) = @_;
 
-    defined $ipAddr or die( 'Missing $ipAddr parameter' );
+    defined $ipAddr or croak( 'Missing $ipAddr parameter' );
 
     $lastValidationError = '';
     my $net = iMSCP::Net->getInstance();
@@ -224,7 +225,7 @@ EOF
  Is the given IP address valid and routable?
 
  Param string $ipAddr IP address
- Return bool TRUE if the given IP address is valid and routable, FALSE otherwise
+ Return bool TRUE if the given IP address is valid and routable, FALSE otherwise, croak on failure
 
 =cut
 
@@ -232,7 +233,7 @@ sub isRoutableIpAddr( $ )
 {
     my ($ipAddr) = @_;
 
-    defined $ipAddr or die( 'Missing $ipAddr parameter' );
+    defined $ipAddr or croak( 'Missing $ipAddr parameter' );
 
     $lastValidationError = '';
     return iMSCP::Net->getInstance()->isRoutableAddr( $ipAddr );
@@ -249,7 +250,7 @@ EOF
  Is the given database name valid?
 
  Param string $email Email
- Return bool TRUE if the given email is valid, FALSE otherwise
+ Return bool TRUE if the given email is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -257,7 +258,7 @@ sub isValidDbName( $ )
 {
     my ($dbName) = @_;
 
-    defined $dbName or die( 'Missing $dbName parameter' );
+    defined $dbName or croak( 'Missing $dbName parameter' );
     my $length = length $dbName;
 
     $lastValidationError = '';
@@ -278,7 +279,7 @@ EOF
  Is the given timzone name valid?
 
  Param string timezone Timezone
- Return bool TRUE if the given timezone is valid, FALSE otherwise
+ Return bool TRUE if the given timezone is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -286,7 +287,7 @@ sub isValidTimezone( $ )
 {
     my ($timezone) = @_;
 
-    defined $timezone or die( 'Missing $timezone parameter' );
+    defined $timezone or croak( 'Missing $timezone parameter' );
 
     $lastValidationError = '';
     return 1 if DateTime::TimeZone->is_valid_name( $timezone );
@@ -305,7 +306,7 @@ EOF
  Is the given number valid?
 
  Param int $number Number
- Return bool TRUE if the given number is valid, FALSE otherwise
+ Return bool TRUE if the given number is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -313,7 +314,7 @@ sub isNumber( $ )
 {
     my ($number) = @_;
 
-    defined $number or die( 'Missing $timezone parameter' );
+    defined $number or croak( 'Missing $timezone parameter' );
 
     $lastValidationError = '';
     return 1 if $number =~ /^[\x30-\x39]+$/;
@@ -332,7 +333,7 @@ EOF
  Param string $numberRange Number range
  Param scalarref \$n1 First number in range
  Param scalarref \$n2 Last number in range
- Return bool TRUE if the given number range is valid, FALSE otherwise
+ Return bool TRUE if the given number range is valid, FALSE otherwise, croak on failure
 
 =cut
 
@@ -340,9 +341,9 @@ sub isValidNumberRange( $$$ )
 {
     my ($numberRange, $n1, $n2) = @_;
 
-    defined $numberRange or die( 'Missing $numberRange parameter' );
-    defined $n1 or die( 'Missing $n1 parameter' );
-    defined $n2 or die( 'Missing $n2 parameter' );
+    defined $numberRange or croak( 'Missing $numberRange parameter' );
+    defined $n1 or croak( 'Missing $n1 parameter' );
+    defined $n2 or croak( 'Missing $n2 parameter' );
 
     $lastValidationError = '';
     return 1 if ( ${$n1}, ${$n2} ) = $numberRange =~ /^([\x30-\x39]+)\s+([\x30-\x39]+)$/;
@@ -363,7 +364,7 @@ EOF
  Param int $number Number
  Param int $start Start of range
  Param int $end End of range
- Return bool TRUE if the given number is under the given range, FALSE otherwise
+ Return bool TRUE if the given number is under the given range, FALSE otherwise, croak on failure
 
 =cut
 
@@ -371,9 +372,9 @@ sub isNumberInRange( $$$ )
 {
     my ($number, $start, $end) = @_;
 
-    defined $number or die( 'Missing $number parameter' );
-    defined $start or die( 'Missing $start parameter' );
-    defined $end or die( 'Missing $end parameter' );
+    defined $number or croak( 'Missing $number parameter' );
+    defined $start or croak( 'Missing $start parameter' );
+    defined $end or croak( 'Missing $end parameter' );
 
     $lastValidationError = '';
     no warnings;
@@ -396,7 +397,7 @@ EOF
 
  Param string string String
  Param list @stringList String list
- Return bool TRUE if the given string is the given list, FALSE otherwise
+ Return bool TRUE if the given string is the given list, FALSE otherwise, croak on failure
 
 =cut
 
@@ -404,7 +405,7 @@ sub isStringInList( $@ )
 {
     my ($string, @stringList) = @_;
 
-    defined $string or die( 'Missing $string parameter' );
+    defined $string or croak( 'Missing $string parameter' );
 
     $lastValidationError = '';
     return 1 if grep { $string eq $_ } @stringList;
@@ -427,7 +428,7 @@ EOF
 
  Param string string String
  Param list @stringList String list
- Return bool TRUE if the given string is the given list, FALSE otherwise
+ Return bool TRUE if the given string is the given list, FALSE otherwise, croak on failure
 
 =cut
 
@@ -435,7 +436,7 @@ sub isStringNotInList( $@ )
 {
     my ($string, @stringList) = @_;
 
-    defined $string or die( 'Missing $string parameter' );
+    defined $string or croak( 'Missing $string parameter' );
 
     $lastValidationError = '';
     return 1 unless grep { $string eq $_ } @stringList;
@@ -474,7 +475,7 @@ sub isOneOfStringsInList
  Is the given string not an empty string?
 
  Param string $string String
- Return bool TRUE if the given string is not empty, FALSE otherwise
+ Return bool TRUE if the given string is not empty, FALSE otherwise, croak on failure
 
 =cut
 
@@ -482,7 +483,7 @@ sub isNotEmpty( $ )
 {
     my ($string) = @_;
 
-    defined $string or die( 'Missing $string parameter' );
+    defined $string or croak( 'Missing $string parameter' );
 
     $lastValidationError = '';
     return 1 if length $string && $string =~ /[^\s]/;
@@ -501,7 +502,7 @@ EOF
  This routine make sure that the given SQL user is not already used by a customer.
 
  Param string $username SQL username
- Return bool TRUE if the given SQL user is available, FALSE otherwise
+ Return bool TRUE if the given SQL user is available, FALSE otherwise, croak on failure
 
 =cut
 
@@ -509,7 +510,7 @@ sub isAvailableSqlUser ( $ )
 {
     my ($username) = @_;
 
-    defined $username or die( 'Missing $username parameter' );
+    defined $username or croak( 'Missing $username parameter' );
 
     $lastValidationError = '';
 

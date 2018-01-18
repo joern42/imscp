@@ -111,7 +111,7 @@ sub _disableDefaultConfig
 {
     return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
 
-    if (-f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" ) {
+    if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" ) {
         my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" )->moveFile(
             "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled"
         );

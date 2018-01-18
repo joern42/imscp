@@ -1251,6 +1251,7 @@ sub _addDnsZone
         PARENT_DOMAIN_NAME    => main::setupGetQuestion( 'BASE_SERVER_VHOST' ), # (since 1.6.0)
         DOMAIN_NAME           => main::setupGetQuestion( 'BASE_SERVER_VHOST' ),
         DOMAIN_IP             => main::setupGetQuestion( 'BASE_SERVER_IP' ),
+        EXTERNAL_MAIL         => 'off', # (since 1.6.0)
         MAIL_ENABLED          => 1,
         STATUS                => 'toadd' # (since 1.6.0)
     } );

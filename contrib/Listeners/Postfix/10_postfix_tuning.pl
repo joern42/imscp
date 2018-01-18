@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::Postfix::Tuning;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -61,9 +61,8 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 )) {
-
     iMSCP::EventManager->getInstance()->register(
-        'afterPostfixBuildConf',
+        'afterPostfixConfigure',
         sub {
             my %params = ();
             while ( my ($param, $value) = each( %mainCfParameters ) ) {
@@ -84,11 +83,11 @@ if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 )) 
     );
 
     iMSCP::EventManager->getInstance()->register(
-        'afterPostfixBuildMasterCfFile',
+        'afterPostfixBuildConfFile',
         sub {
-            my $cfgTpl = shift;
+            my ($cfgTpl, $cfgTplName) = @_;
 
-            return 0 unless @masterCfParameters;
+            return 0 unless $cfgTplName eq 'master.cf' && @masterCfParameters;
 
             ${$cfgTpl} .= join( "\n", @masterCfParameters ) . "\n";
             0;

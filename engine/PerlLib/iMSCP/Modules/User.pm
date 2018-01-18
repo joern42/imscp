@@ -25,6 +25,7 @@ package iMSCP::Modules::User;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Debug qw/ error getLastError warning /;
 use iMSCP::SystemGroup;
 use iMSCP::SystemUser;
@@ -189,7 +190,7 @@ sub _loadData
             ',
             undef, $userId
         );
-        $row or die( sprintf( 'User (ID %d) has not been found', $userId ));
+        $row or croak( sprintf( 'User (ID %d) has not been found', $userId ));
         %{$self} = ( %{$self}, %{$row} );
     };
     if ( $@ ) {

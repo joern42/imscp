@@ -275,7 +275,7 @@ sub _searchInitScript
     if ( $nocache ) {
         delete $initScripts{$service};
     } elsif ( exists $initScripts{$service} ) {
-        defined $initScript{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
+        defined $initScripts{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
         return $initScripts{$service};
     }
 

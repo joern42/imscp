@@ -6,7 +6,7 @@
     <copy_config mode="0755">${ROOT_CONF}/init.d/imscp_mountall</copy_config>
     <copy_config mode="0755">${ROOT_CONF}/init.d/imscp_panel</copy_config>
     <copy_config mode="0755">${ROOT_CONF}/init.d/imscp_traffic</copy_config>
-    <copy_config copy_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::' != -1" keep_if_exist="1" mode="0755">
+    <copy_config copy_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1" keep_if_exist="1" mode="0755">
         ${ROOT_CONF}/init.d/proftpd
     </copy_config>
 </install>

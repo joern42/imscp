@@ -369,7 +369,7 @@ sub _installPackages
 {
     my (undef, @packages) = @_;
 
-    return 0 unless @packages && ( !defined $main::skippackages || !$main::skippackages );
+    return 0 unless @packages && !iMSCP::Getopt->skippackages;
 
     iMSCP::Dialog->getInstance->endGauge() unless iMSCP::Getopt->noprompt;
 
@@ -383,7 +383,7 @@ sub _installPackages
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
             'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew', '--option',
             'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
-            ( $main::forcereinstall ? '--reinstall' : () ), '--auto-remove', '--purge', '--no-install-recommends',
+            ( iMSCP::Getopt->forcereinstall ? '--reinstall' : () ), '--auto-remove', '--purge', '--no-install-recommends',
             ( version->parse( `apt-get --version 2>/dev/null` =~ /^apt\s+(\d\.\d)/ ) < version->parse( '1.1' )
                 ? '--force-yes' : '--allow-downgrades' ),
             'install', @packages
@@ -408,7 +408,7 @@ sub _removePackages
 {
     my (undef, @packages) = @_;
 
-    return 0 unless @packages && ( !defined $main::skippackages || !$main::skippackages );
+    return 0 unless @packages && !iMSCP::Getopt->skippackages;
 
     # Do not try to remove packages that are not available
     my $rs = execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \ my $stdout );

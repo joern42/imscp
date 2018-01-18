@@ -31,7 +31,7 @@ use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Providers::NetworkInterface
-    iMSCP::Servers::Sqld /;
+iMSCP::Servers::Sqld /;
 use File::Temp;
 use LWP::Simple qw/ $ua get /;
 use parent 'iMSCP::Servers::Server';
@@ -133,7 +133,7 @@ sub askIPv6Support
         return 0;
     }
 
-    my $value = main::setupGetQuestion( 'IPV6_SUPPORT', $self->{'config'}->{'IPV6_SUPPORT'} || ( iMSCP::Getopt->preseed ? 'yes' : '' ));
+    my $value = main::setupGetQuestion( 'IPV6_SUPPORT', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'ipv6', 'servers', 'all', 'forced' ] )

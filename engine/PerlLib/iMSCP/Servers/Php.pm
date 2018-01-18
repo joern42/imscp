@@ -25,8 +25,10 @@ package iMSCP::Servers::Php;
 
 use strict;
 use warnings;
+use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
+use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::Servers::Httpd /;
 use File::Basename;
 use File::Spec;
 use iMSCP::Debug qw/ debug error getMessageByType /;
@@ -69,6 +71,146 @@ sub getPriority
 =head1 PUBLIC METHODS
 
 =over 4
+
+=item registerSetupListeners()
+
+ See iMSCP::Servers::Abstract::RegisterSetupListeners()
+
+=cut
+
+sub registerSetupListeners
+{
+    my ($self) = @_;
+
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupDialog',
+        sub {
+            push @{$_[0]},
+                sub { $self->askForPhpVersion( @_ ) },
+                sub { $self->askForPhpSapi( @_ ) },
+                sub { $self->askForFastCGIconnectionType( @_ ) };
+            0;
+        },
+        # We want show these dialogs after the httpd server dialog because
+        # we rely on httpd server configuration parameters (httpd server priority - 10)
+        iMSCP::Servers::Httpd->getPriority()-10
+    );
+}
+
+=item askForPhpVersion( \%dialog )
+
+ Ask for PHP version (PHP version for customers)
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 to go on next question, 30 to go back to the previous question, croak on failure
+
+=cut
+
+sub askForPhpVersion
+{
+    my ($self, $dialog) = @_;
+
+    ( my @availablePhpVersions = sort grep( /\d+.\d+/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs()) ) or croak(
+        "Couldn't guess list of available PHP versions"
+    );
+
+    my %choices;
+    @{choices}{@availablePhpVersions} = map { "PHP $_" } @availablePhpVersions;
+
+    my $value = main::setupGetQuestion( 'PHP_VERSION', $self->{'config'}->{'PHP_VERSION'} || ( iMSCP::Getopt->preseed ? ( keys %choices )[0] : '' ));
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep( $value eq $_, keys %choices ) )[0] || ( keys %choices )[0] );
+\Z4\Zb\ZuPHP version for customers\Zn
+
+Please choose the PHP version for the customers:
+\Z \Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} = "@availablePhpVersions";
+
+    main::setupSetQuestion( 'PHP_VERSION', $value );
+    $self->{'config'}->{'PHP_VERSION'} = $value;
+    0;
+}
+
+=item askForPhpSapi( \%dialog )
+
+ Ask for PHP SAPI
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 to go on next question, 30 to go back to the previous question
+
+=cut
+
+sub askForPhpSapi
+{
+    my ($self, $dialog) = @_;
+
+    my $value = main::setupGetQuestion( 'PHP_SAPI', $self->{'config'}->{'PHP_SAPI'} || ( iMSCP::Getopt->preseed ? 'fpm' : '' ));
+    my %choices = ( 'fpm', 'PHP through PHP FastCGI Process Manager (fpm SAPI)' );
+
+    my $httpd = iMSCP::Servers::Httpd->factory();
+    if ( $httpd->{'config'}->{'APACHE2_MPM'} eq 'itk' ) {
+        # Apache2 PHP module only works with Apache's prefork based MPM
+        # We allow it only with the Apache's ITK MPM because the Apache's prefork MPM
+        # doesn't allow to constrain each individual vhost to a particular system user/group.
+        $choices{'apache2handler'} = 'PHP through Apache2 PHP module (apache2handler SAPI)';
+    } else {
+        # Apache2 Fcgid module doesn't work with Apache's ITK MPM
+        # https://lists.debian.org/debian-apache/2013/07/msg00147.html
+        $choices{'cgi'} = 'PHP through Apache2 Fcgid module (cgi SAPI)';
+    }
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'fpm' );
+\Z4\Zb\ZuPHP SAPI for customers\Zn
+
+Please choose the PHP SAPI for the customers:
+\Z \Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    main::setupSetQuestion( 'PHP_SAPI', $value );
+    $self->{'config'}->{'PHP_SAPI'} = $value;
+    0;
+}
+
+=item askForFastCGIconnectionType( )
+
+ Ask for FastCGI connection type (PHP-FPM)
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 to go on next question, 30 to go back to the previous question
+
+=cut
+
+sub askForFastCGIconnectionType
+{
+    my ($self, $dialog) = @_;
+
+    return 0 unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
+
+    my $value = main::setupGetQuestion( 'PHP_FPM_LISTEN_MODE', $self->{'config'}->{'PHP_FPM_LISTEN_MODE'} || ( iMSCP::Getopt->preseed ? 'uds' : '' ));
+    my %choices = ( 'tcp', 'TCP sockets over the loopback interface', 'uds', 'Unix Domain Sockets (recommended)' );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'uds' );
+\Z4\Zb\ZuPHP-FPM - FastCGI connection type\Zn
+
+Please choose the FastCGI connection type that you want use:
+\Z \Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    main::setupSetQuestion( 'PHP_FPM_LISTEN_MODE', $value );
+    $self->{'config'}->{'PHP_FPM_LISTEN_MODE'} = $value;
+    0;
+}
 
 =item preinstall( )
 

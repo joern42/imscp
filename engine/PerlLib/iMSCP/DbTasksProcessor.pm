@@ -48,7 +48,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process all db tasks
 
- Returnv void croak on failure
+ Return void croak on failure
 
 =cut
 

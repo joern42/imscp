@@ -25,6 +25,7 @@ package iMSCP::Modules::SSLcertificate;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Temp;
 use iMSCP::Debug qw/ error getLastError getMessageByType warning /;
 use iMSCP::Dir;
@@ -214,7 +215,7 @@ sub _loadData
     eval {
         local $self->{'_dbh'}->{'RaiseError'} = 1;
         my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ssl_certs WHERE cert_id = ?', undef, $certificateId );
-        $row or die( sprintf( 'Data not found for SSL certificate (ID %d)', $certificateId ));
+        $row or croak( sprintf( 'Data not found for SSL certificate (ID %d)', $certificateId ));
         %{$self} = ( %{$self}, %{$row} );
 
         if ( $self->{'domain_type'} eq 'dmn' ) {

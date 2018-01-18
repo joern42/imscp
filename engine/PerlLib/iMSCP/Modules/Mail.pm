@@ -25,6 +25,7 @@ package iMSCP::Modules::Mail;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
@@ -125,7 +126,7 @@ sub _loadData
             ',
             undef, $mailId
         );
-        $row or die( sprintf( 'Data not found for mail user (ID %d)', $mailId ));
+        $row or croak( sprintf( 'Data not found for mail user (ID %d)', $mailId ));
         %{$self} = ( %{$self}, %{$row} );
     };
     if ( $@ ) {

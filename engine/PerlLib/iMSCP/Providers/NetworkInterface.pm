@@ -25,6 +25,7 @@ package iMSCP::Providers::NetworkInterface;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Module::Load::Conditional qw/ can_load /;
 use Scalar::Util 'blessed';
 use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::NetworkInterface::Interface /;
@@ -71,7 +72,7 @@ sub removeIpAddr
 
  Get network interface provider
 
- Return iMSCP::Providers::NetworkInterface, die on failure
+ Return iMSCP::Providers::NetworkInterface, croak on failure
 
 =cut
 
@@ -79,11 +80,11 @@ sub getProvider
 {
     my ($self) = @_;
 
-    exists $main::imscpConfig{'DISTRO_FAMILY'} or die( sprintf( 'You must first bootstrap the i-MSCP backend' ));
+    exists $main::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
 
     $self->{'_provider'} ||= do {
         my $provider = __PACKAGE__ . '::' . $main::imscpConfig{'DISTRO_FAMILY'};
-        can_load( modules => { $provider => undef } ) or die(
+        can_load( modules => { $provider => undef } ) or croak(
             sprintf( "Couldn't load `%s' network interface provider: %s", $provider, $Module::Load::Conditional::ERROR )
         );
         $provider = $provider->new();
@@ -97,7 +98,7 @@ sub getProvider
  Set network interface provider
 
  Param iMSCP::Providers::NetworkInterface::Interface $provider
- Return iMSCP::Providers::NetworkInterface, die on failure
+ Return iMSCP::Providers::NetworkInterface, croak on failure
 
 =cut
 
@@ -105,7 +106,7 @@ sub setProvider
 {
     my ($self, $provider) = @_;
 
-    blessed( $provider ) && $provider->isa( 'iMSCP::Providers::NetworkInterface::Interface' ) or die(
+    blessed( $provider ) && $provider->isa( 'iMSCP::Providers::NetworkInterface::Interface' ) or croak(
         '$provider parameter is either not defined or not an iMSCP::Providers::NetworkInterface::Interface object'
     );
     $self->{'_provider'} = $provider;

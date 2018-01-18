@@ -151,7 +151,6 @@ sub reload
     0;
 }
 
-
 =item enableSystemCronTask( $cronTask [, $directory = ALL ] )
 
  See iMSCP::Servers::Cron::enableSystemCronTask()

@@ -113,12 +113,7 @@ sub _buildConf
     );
     $rs ||= $self->buildConfFile(
         ( -f "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" ? "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" : File::Temp->new() ),
-        "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf",
-        undef,
-        undef,
-        {
-            srcname => 'my.cnf'
-        }
+        "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf", undef, undef, { srcname => 'my.cnf' }
     );
     return $rs if $rs;
 

@@ -324,9 +324,8 @@ sub resolveUnit
         ( $unit, undef, my $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
         if ( grep( $suffix eq $_, '', '.service') ) {
             local $@;
-            $unitFilePath = eval { $self->_searchInitScript( $unit ) };
 
-            if ( defined $unitFilePath ) {
+            if ( $unitFilePath = eval { $self->_searchInitScript( $unit ) } ) {
                 $resolved{$unit} = [ $unitFilePath, $unit ];
                 goto &{resolveUnit};
             }

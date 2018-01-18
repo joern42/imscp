@@ -25,6 +25,7 @@ package iMSCP::Modules::FtpUser;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
@@ -118,7 +119,7 @@ sub _loadData
     eval {
         local $self->{'_dbh'}->{'RaiseError'} = 1;
         my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ftp_users WHERE userid = ?', undef, $ftpUserId );
-        $row or die( sprintf( 'Data not found for ftp user (ID %d)', $ftpUserId ));
+        $row or croak( sprintf( 'Data not found for ftp user (ID %d)', $ftpUserId ));
         %{$self} = ( %{$self}, %{$row} );
     };
     if ( $@ ) {

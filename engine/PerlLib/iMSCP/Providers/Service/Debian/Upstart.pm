@@ -119,9 +119,7 @@ sub remove
     }
 
     # Remove the underlying SysVinit script if any
-    return $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $job );
-
-    1;
+    $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $job );
 }
 
 =item hasService( $service )

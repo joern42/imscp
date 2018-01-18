@@ -25,6 +25,7 @@ package iMSCP::Modules::Htgroup;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
@@ -135,7 +136,7 @@ sub _loadData
             ",
             undef, $htgroupId, $htgroupId
         );
-        $row or die( sprintf( 'Data not found for htgroup (ID %d)', $htgroupId ));
+        $row or croak( sprintf( 'Data not found for htgroup (ID %d)', $htgroupId ));
         %{$self} = ( %{$self}, %{$row} );
     };
     if ( $@ ) {

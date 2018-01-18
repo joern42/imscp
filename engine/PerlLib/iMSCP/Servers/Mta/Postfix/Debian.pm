@@ -103,6 +103,21 @@ sub uninstall
     0;
 }
 
+=item dpkgPostInvokeTasks()
+
+ See iMSCP::Servers::Abstract::dpkgPostInvokeTasks()
+
+=cut
+
+sub dpkgPostInvokeTasks
+{
+    my ($self) = @_;
+
+    return 0 unless -x '/usr/sbin/postconf';
+
+    $self->_setVersion();
+}
+
 =item start( )
 
  See iMSCP::Servers::Abstract::start()

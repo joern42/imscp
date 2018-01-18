@@ -25,6 +25,7 @@ package iMSCP::Modules::Htaccess;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Encode qw/ encode_utf8 /;
 use File::Spec;
 use iMSCP::Debug qw/ error getLastError warning /;
@@ -144,7 +145,7 @@ sub _loadData
             ",
             undef, $htaccessId, $htaccessId, $htaccessId
         );
-        $row or die( sprintf( 'Data not found for htaccess (ID %d)', $htaccessId ));
+        $row or croak( sprintf( 'Data not found for htaccess (ID %d)', $htaccessId ));
         %{$self} = ( %{$self}, %{$row} );
     };
     if ( $@ ) {

@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::Postfix::Smarthost;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -57,7 +57,7 @@ iMSCP::EventManager->getInstance()->register(
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterPostfixBuildConf',
+    'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
         my $rs = $mta->addMapEntry( $saslPasswdMapsPath, "$relayhost:$relayport\t$saslAuthUser:$saslAuthPasswd" );

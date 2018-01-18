@@ -25,9 +25,18 @@ package iMSCP::Servers::Po::Courier::Debian;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat File::Spec iMSCP::Dir iMSCP::File iMSCP::SystemUser iMSCP::Service /;
+use Carp qw/ croak /;
+use iMSCP::Debug qw/ debug error /;
+use iMSCP::Execute qw/ execute /;
+use iMSCP::Getopt;
+use iMSCP::Mount qw/ umount /;
+use iMSCP::TemplateParser qw/ replaceBlocByRef /;
+use Class::Autouse qw/ :nostat File::Spec iMSCP::Dir iMSCP::File iMSCP::SystemUser /;
+use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Po::Courier::Abstract';
+
+our $VERSION = '1.0.0';
 
 =head1 DESCRIPTION
 
@@ -37,26 +46,9 @@ use parent 'iMSCP::Servers::Po::Courier::Abstract';
 
 =over 4
 
-=item preinstall( )
-
- Process preinstall tasks
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub preinstall
-{
-    my ($self) = @_;
-
-    $self->stop();
-}
-
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ iMSCP::Servers::Po::Courier::Abstract()
 
 =cut
 
@@ -70,9 +62,7 @@ sub install
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::postinstall()
 
 =cut
 
@@ -103,28 +93,60 @@ sub postinstall
         return 1;
     }
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]}, [ sub { $self->start(); }, 'Courier IMAP/POP, Courier Authdaemon' ];
-            0;
-        },
-        5
-    );
+    $self->SUPER::postinstall();
+}
+
+=item uninstall( )
+
+ See iMSCP::Servers::Po::Courier::Abstract::uninstall()
+
+=cut
+
+sub uninstall
+{
+    my ($self) = @_;
+
+    my $rs = $self->SUPER::uninstall();
+    return $rs if $rs;
+
+    eval {
+        my $serviceMngr = iMSCP::Service->getInstance();
+        for ( 'courier-authdaemon', 'courier-pop', 'courier-pop-ssl', 'courier-imap', 'courier-imap-ssl' ) {
+            $serviceMngr->restart( $_ ) if $serviceMngr->hasService( $_ ) && $serviceMngr->isRunning( $_ );
+        };
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item dpkgPostInvokeTasks()
+
+ See iMSCP::Servers::Abstract::dpkgPostInvokeTasks()
+
+=cut
+
+sub dpkgPostInvokeTasks
+{
+    my ($self) = @_;
+
+    return 0 unless -x '';
+
+    $self->_setVersion();
 }
 
 =item start( )
 
- See iMSCP::Servers::Po::Courier::abstract::start()
+ See iMSCP::Servers::Abstract::start()
 
 =cut
 
 sub start
 {
     my ($self) = @_;
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforeCourierStart' );
-    return $rs if $rs;
 
     eval {
         my $serviceMngr = iMSCP::Service->getInstance();
@@ -139,21 +161,18 @@ sub start
         return 1;
     }
 
-    $self->{'eventManager'}->trigger( 'afterCourierStart' );
+    0;
 }
 
 =item stop( )
 
- See iMSCP::Servers::Po::Courier::abstract::stop()
+ See iMSCP::Servers::Abstract::stop()
 
 =cut
 
 sub stop
 {
     my ($self) = @_;
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforeCourierStop' );
-    return $rs if $rs;
 
     eval {
         my $serviceMngr = iMSCP::Service->getInstance();
@@ -168,21 +187,18 @@ sub stop
         return 1;
     }
 
-    $self->{'eventManager'}->trigger( 'afterCourierStop' );
+    0;
 }
 
 =item restart( )
 
- See iMSCP::Servers::Po::Courier::abstract::restart()
+ See iMSCP::Servers::Abstract::restart()
 
 =cut
 
 sub restart
 {
     my ($self) = @_;
-
-    my $rs = $self->{'eventManager'}->trigger( 'beforeCourierRestart' );
-    return $rs if $rs;
 
     eval {
         my $serviceMngr = iMSCP::Service->getInstance();
@@ -197,40 +213,64 @@ sub restart
         return 1;
     }
 
-    $self->{'eventManager'}->trigger( 'afterCourierRestart' );
+    0;
 }
 
-=back
+=item reload( )
 
-=head1 SHUTDOWN TASKS
-
-=over 4
-
-=item shutdown( $priority )
-
- Restart the Courier IMAP/POP servers when needed
-
- This method is called automatically before the program exit.
-
- Param int $priority Server priority
- Return void
+ See iMSCP::Servers::Abstract::reload()
 
 =cut
 
-sub shutdown
+sub reload
 {
-    my ($self, $priority) = @_;
+    my ($self) = @_;
 
-    return unless $self->{'restart'};
+    eval {
+        my $serviceMngr = iMSCP::Service->getInstance();
+        $serviceMngr->reload( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
-    iMSCP::Service->getInstance()->registerDelayedAction( 'courier', [ 'restart', sub { $self->restart(); } ], $priority );
+        if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+            $serviceMngr->reload( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
+        }
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
 }
 
 =back
 
-=head PRIVATE METHODS
+=head1 PRIVATE METHODS
 
 =over 4
+
+=item _setVersion( )
+
+ See iMSCP::Servers::Po::Courier::Abstract::_setVersion()
+
+=cut
+
+sub _setVersion
+{
+    my ($self) = @_;
+
+    my $rs = execute( '/usr/bin/dpkg -s courier-base | grep -i \'^version\'', \ my $stdout, \ my $stderr );
+    error( $stderr || 'Unknown error' ) if $rs;
+    return $rs if $rs;
+
+    if ( $stdout !~ /version:\s+([\d.]+)/i ) {
+        error( "Couldn't guess Courier version from the `/usr/bin/dpkg -s courier-base | grep -i '^version'` command output" );
+        return 1;
+    }
+
+    $self->{'config'}->{'COURIER_VERSION'} = $1;
+    debug( sprintf( 'Courier version set to: %s', $1 ));
+    0;
+}
 
 =item _cleanup( )
 
@@ -246,10 +286,10 @@ sub _cleanup
 
     my $oldPluginApiVersion = version->parse( $main::imscpOldConfig{'PluginApi'} );
 
-    return 0 if $oldPluginApiVersion > version->parse( '1.5.2' );
+    return unless $oldPluginApiVersion < version->parse( '1.5.2' );
 
     for ( qw/ pop3d pop3d-ssl imapd imapd-ssl / ) {
-        next unless -f "$self->{'config'}->{'COURIER_CONF_DIR'}/$sname";
+        next unless -f "$self->{'config'}->{'COURIER_CONF_DIR'}/$_";
 
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'COURIER_CONF_DIR'}/$_" );
         my $fileContentRef = $file->getAsRef();
@@ -263,7 +303,7 @@ sub _cleanup
         );
     }
 
-    return 0 if $oldPluginApiVersion > version->parse( '1.5.1' );
+    return unless $oldPluginApiVersion < version->parse( '1.5.1' );
 
     if ( -f "$self->{'cfgDir'}/courier.old.data" ) {
         my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.old.data" )->delFile();
@@ -301,6 +341,21 @@ sub _cleanup
     }
 
     0;
+}
+
+=item _shutdown( $priority )
+
+ See iMSCP::Servers::Abstract::_shutdown()
+
+=cut
+
+sub _shutdown
+{
+    my ($self, $priority) = @_;
+
+    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
+
+    iMSCP::Service->getInstance()->registerDelayedAction( 'courier', [ $action, sub { $self->$action(); } ], $priority );
 }
 
 =back

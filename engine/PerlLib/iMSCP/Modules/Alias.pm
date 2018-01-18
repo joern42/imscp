@@ -24,6 +24,7 @@ package iMSCP::Modules::Alias;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use File::Spec;
 use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
@@ -178,7 +179,7 @@ sub _loadData
             ",
             undef, $aliasId
         );
-        $row or die( sprintf( 'Data not found for domain alias (ID %d)', $aliasId ));
+        $row or croak( sprintf( 'Data not found for domain alias (ID %d)', $aliasId ));
         %{$self} = ( %{$self}, %{$row} );
     };
     if ( $@ ) {
@@ -194,7 +195,7 @@ sub _loadData
  Data provider method for servers and packages
 
  Param string $action Action
- Return hashref Reference to a hash containing data, die on failure
+ Return hashref Reference to a hash containing data, croak on failure
 
 =cut
 
@@ -261,7 +262,8 @@ sub _getData
         FORWARD                 => $self->{'url_forward'} || 'no',
         FORWARD_TYPE            => $self->{'type_forward'} || '',
         FORWARD_PRESERVE_HOST   => $self->{'host_forward'} || 'Off',
-        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'} || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
+        DISABLE_FUNCTIONS       =>
+        $phpini->{'disable_functions'} || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
         MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
         MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,
@@ -280,7 +282,7 @@ sub _getData
 
  Does this domain alias share mount point with another domain?
 
- Return bool, die on failure
+ Return bool, croak on failure
 
 =cut
 

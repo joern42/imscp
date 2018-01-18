@@ -25,7 +25,11 @@ package iMSCP::Servers::Server::Local::Debian;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat iMSCP::File /;
+use autouse 'iMSCP::Debug' => qw/ debug /;
+use Carp qw/ croak /;
+use Class::Autouse qw/ :nostat iMSCP::Bootstrapper iMSCP::File /;
+use iMSCP::Service;
+use JSON qw/ decode_json /;
 use parent 'iMSCP::Servers::Server::Local::Abstract';
 
 our $VERSION = '1.0.0';
@@ -50,6 +54,40 @@ sub install
 
     my $rs = $self->SUPER::install();
     $rs ||= $self->_cleanup();
+}
+
+=item dpkgPostInvokeTasks()
+
+ See iMSCP::Servers::Abstract::dpkgPostInvokeTasks()
+
+=cut
+
+sub dpkgPostInvokeTasks
+{
+    my ($self) = @_;
+
+    # Gather system information
+    my $sysInfo = eval { decode_json( `facter --json osfamily lsbdistid lsbdistrelease lsbdistcodename 2> /dev/null` ) } or croak(
+        sprintf( "Couldn't gather system information: %s", $@ )
+    );
+
+    # Reload config in writing mode
+    iMSCP::Bootstrapper->getInstance()->loadMainConfig( { nodeferring => 1 } );
+
+    $main::imscpConfig{'DISTRO_ID'} = $sysInfo->{'lsbdistid'};
+    debug( sprintf( 'Distribution ID set to: %s', $main::imscpConfig{'DISTRO_ID'} ));
+
+    $main::imscpConfig{'DISTRO_CODENAME'} = $sysInfo->{'lsbdistcodename'};
+    debug( sprintf( 'Distribution codename set to: %s', $main::imscpConfig{'DISTRO_CODENAME'} ));
+
+    $main::imscpConfig{'DISTRO_RELEASE'} = $sysInfo->{'lsbdistrelease'};
+    debug( sprintf( 'Distribution release set to: %s', $$main::imscpConfig{'DISTRO_RELEASE'} ));
+
+    $main::imscpConfig{'SYSTEM_INIT'} = iMSCP::Service->getInstance()->getInitSystem();
+    debug( sprintf( 'System init set to: %s', $main::imscpConfig{'SYSTEM_INIT'} ));
+
+    iMSCP::Bootstrapper->getInstance()->loadMainConfig( { config_readonly => 1 } );
+    0;
 }
 
 =back

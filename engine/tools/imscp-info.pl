@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- imscp-info.pl [ OPTIONS ... ] - Display information about current i-MSCP instance
+ imscp-info.pl [OPTION]... - Display information about current i-MSCP instance
 
 =head1 SYNOPSIS
 

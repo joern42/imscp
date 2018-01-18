@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Postfix::Submission::TLS;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -38,41 +38,45 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
     sprintf( "The 70_postfix_submission_tls.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixBuildMasterCfFile',
-    sub {
-        my $content = shift;
+if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 ) {
+    iMSCP::EventManager->getInstance()->register(
+        'afterPostfixBuildConfFile',
+        sub {
+            my ($cfgTpl, $cfgTplName) = @_;
 
-        # Redefine submission service
-        # According MASTER(5)), when multiple lines specify the same service
-        # name and type, only the last one is remembered.
-        ${$content} .= <<'EOF';
+            return 0 unless $cfgTplName eq 'master.cf';
+
+            # Redefine submission service
+            # According MASTER(5)), when multiple lines specify the same service
+            # name and type, only the last one is remembered.
+            ${$cfgTpl} .= <<'EOF';
 # Redefines submission service to enforce TLS
 submission inet n       -       y       -       -       smtpd
  -o smtpd_tls_security_level=encrypt
  -o smtpd_sasl_auth_enable=yes
  -o smtpd_client_restrictions=permit_sasl_authenticated,reject
 EOF
-        0;
-    }
-);
+            0;
+        }
+    );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixBuildConf',
-    sub {
-        # smtpd_tls_security_level=encrypt means mandatory.
-        # Make sure to disable vulnerable SSL versions
-        iMSCP::Servers::Mta->factory()->postconf(
-            (
-                smtpd_tls_mandatory_protocols => {
-                    action => 'replace',
-                    values => [ '!SSLv2', '!SSLv3' ]
-                }
-            )
-        );
-    },
-    -99
-) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+    iMSCP::EventManager->getInstance()->register(
+        'afterPostfixConfigure',
+        sub {
+            # smtpd_tls_security_level=encrypt means mandatory.
+            # Make sure to disable vulnerable SSL versions
+            iMSCP::Servers::Mta->factory()->postconf(
+                (
+                    smtpd_tls_mandatory_protocols => {
+                        action => 'replace',
+                        values => [ '!SSLv2', '!SSLv3' ]
+                    }
+                )
+            );
+        },
+        -99
+    );
+}
 
 1;
 __END__

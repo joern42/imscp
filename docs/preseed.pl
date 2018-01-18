@@ -49,7 +49,7 @@
     #
     # Leave empty for autodetection
     IPV6_SUPPORT                        => '',
-    
+
     # Server hostname
     #
     # Possible values: A fully qualified hostname name
@@ -292,7 +292,7 @@
     #
     # Leave empty for default: yes
     LOCAL_DNS_RESOLVER                  => '',
-    
+
     # Cron server implementation
     #
     # Possible values, depending on your distribution:
@@ -302,7 +302,7 @@
     #
     # Leave empty for default: iMSCP::Servers::Cron::Vixie::Debian
     'iMSCP::Servers::Cron'              => '',
-    
+
     # HTTPd server implementation
     #
     # Possible values:
@@ -317,8 +317,8 @@
     # Possibles values: event, itk, prefork, worker
     #
     # Leave empty for default: event
-    'APACHE2_MPM'                       => '',
-    
+    APACHE2_MPM                         => '',
+
     # PHP version for customers
     #
     # Possible values:
@@ -329,8 +329,8 @@
     #   - 7.2 
     #
     # Leave empty for default: 5.6
-    'PHP_VERSION'                       => '',
-    
+    PHP_VERSION                         => '',
+
     # PHP SAPI for customers
     #
     # Possible values: apache2handler, cgi, fpm
@@ -361,6 +361,24 @@
     #
     # Leave empty for default: iMSCP::Servers::Ftpd::Proftpd::Debian 
     'iMSCP::Servers::Ftpd'              => '',
+
+    # FTPd maximum client
+    #
+    # Possible values: 'none' for no limit, a number in range 1..1000
+    #
+    # See http://www.proftpd.org/docs/directives/linked/config_ref_MaxInstances.html
+    #
+    # Leave empty for default: 100
+    FTPD_MAX_CLIENTS                  => '',
+
+    # FTPd maximum number of clients allowed to connect per IP
+    #
+    # Possible values: 'none' for no limit, a number in range 1..1000
+    #
+    # http://www.proftpd.org/docs/directives/linked/config_ref_MaxClientsPerHost.html
+    #
+    # Leave empty for default: 20
+    FTPD_MAX_CLIENTS_PER_IP           => '',
 
     # FTP SQL user
     #
