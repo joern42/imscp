@@ -177,7 +177,7 @@ sub remove
     my $dropInDir = '/etc/systemd/system/';
     ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
     $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
-    iMSCP::Dir->new( dirname => "/etc/systemd/system/$unit.d" )->remove() if -d $dropInDir;
+    iMSCP::Dir->new( dirname => $dropInDir )->remove() if -d $dropInDir;
 
     my $unitFilePath = eval { $self->resolveUnit( $unit, 'withpath', 'nocache' ); };
     if ( defined $unitFilePath
