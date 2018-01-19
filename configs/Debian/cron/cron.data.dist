@@ -1,2 +1,2 @@
 CRON_VERSION =
-CRON_D_DIR = '/etc/cron.d'
+CRON_D_DIR   = /etc/cron.d
