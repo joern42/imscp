@@ -72,7 +72,7 @@ sub registerSetupListeners
 
 sub imscpBackupDialog
 {
-    my (undef, $dialog) = @_;
+    my ($self, $dialog) = @_;
 
     my $value = main::setupGetQuestion( 'BACKUP_IMSCP', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
@@ -81,7 +81,7 @@ sub imscpBackupDialog
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'yes' );
 \\Z4\\Zb\\Zui-MSCP Backup Feature\\Zn
 
-Do you want to activate the backup feature for i-MSCP?
+Do you want to activate the backup feature for i-MSCP (config files and database)?
 \\Z \\Zn
 EOF
         return $rs if $rs >= 30;
@@ -102,7 +102,7 @@ EOF
 
 sub customersBackupDialog
 {
-    my (undef, $dialog) = @_;
+    my ($self, $dialog) = @_;
 
     my $value = main::setupGetQuestion( 'BACKUP_DOMAINS', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
@@ -131,10 +131,12 @@ EOF
 
 sub getPriority
 {
-    0;
+    my ($self) = @_;
+
+    200;
 }
 
-=item install
+=item install( )
 
  Process installation tasks
 
@@ -144,7 +146,7 @@ sub getPriority
 
 sub install
 {
-    my ($self) = ( $@ );
+    my ($self) = @_;
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
@@ -170,7 +172,7 @@ sub install
     0;
 }
 
-=item uninstallation
+=item uninstall( )
 
  Process uninstallation tasks
 
@@ -180,7 +182,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = ( $@ );
+    my ($self) = @_;
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 

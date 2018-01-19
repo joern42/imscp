@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Setup::Backup - Setup i-MSCP Daemon for processing of backend requests
+ iMSCP::Packages::Setup::Daemon - Setup i-MSCP Daemon for processing of backend requests
 
 =cut
 
@@ -210,21 +210,14 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    return 0 unless -f "$main::imscpConfig{'ROOT_DIR'}/daemon/imscp_daemon";
+    return 0 unless -d "$main::imscpConfig{'ROOT_DIR'}/daemon";
 
-    my $rs = setRights( "$main::imscpConfig{'ROOT_DIR'}/daemon",
+    setRights( "$main::imscpConfig{'ROOT_DIR'}/daemon",
         {
             user      => $main::imscpConfig{'ROOT_USER'},
             group     => $main::imscpConfig{'IMSCP_GROUP'},
             mode      => '0750',
             recursive => 1
-        }
-    );
-    $rs ||= setRights( "$main::imscpConfig{'ROOT_DIR'}/daemon/imscp_daemon",
-        {
-            user  => $main::imscpConfig{'ROOT_GROUP'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => '0750'
         }
     );
 }
