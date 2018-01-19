@@ -146,30 +146,24 @@ sub install
 {
     my ($self) = ( $@ );
 
-    my $cron = iMSCP::Servers::Cron->factory();
+    my $cronServer = iMSCP::Servers::Cron->factory();
 
     if ( main::setupGetQuestion( 'BACKUP_IMSCP' ) eq 'yes' ) {
-        my $rs = $cron->addTask(
-            {
-                TASKID  => __PACKAGE__ . '::iMSCP',
-                MINUTE  => '@daily',
-                COMMAND => "/usr/bin/perl $main::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-imscp > "
-                    . "$main::imscpConfig{'LOG_DIR'}/imscp-backup-imscp-mngr.log 2>&1"
-            }
-        );
+        my $rs = $cronServer->addTask( {
+            TASKID  => __PACKAGE__ . '::iMSCP',
+            MINUTE  => '@daily',
+            COMMAND => "perl $main::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-imscp > $main::imscpConfig{'LOG_DIR'}/imscp-backup-imscp.log 2>&1"
+        } );
         return $rs if $rs;
     }
 
     if ( main::setupGetQuestion( 'BACKUP_DOMAINS' ) eq 'yes' ) {
-        my $rs = $cron->addTask(
-            {
-                TASKID  => __PACKAGE__ . '::Customers',
-                MINUTE  => $main::imscpConfig{'BACKUP_MINUTE'} ne '' ? $main::imscpConfig{'BACKUP_MINUTE'} : 40,
-                HOUR    => $main::imscpConfig{'BACKUP_HOUR'} ne '' ? $main::imscpConfig{'BACKUP_HOUR'} : 23,
-                COMMAND => "/usr/bin/perl $main::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-imscp > "
-                    . "$main::imscpConfig{'LOG_DIR'}/imscp-backup-imscp-mngr.log 2>&1"
-            }
-        );
+        my $rs = $cronServer->addTask( {
+            TASKID  => __PACKAGE__ . '::Customers',
+            MINUTE  => $main::imscpConfig{'BACKUP_MINUTE'} ne '' ? $main::imscpConfig{'BACKUP_MINUTE'} : 40,
+            HOUR    => $main::imscpConfig{'BACKUP_HOUR'} ne '' ? $main::imscpConfig{'BACKUP_HOUR'} : 23,
+            COMMAND => "perl $main::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-all > $main::imscpConfig{'LOG_DIR'}/imscp-backup-all.log 2>&1"
+        } );
         return $rs if $rs;
     }
 
@@ -188,11 +182,12 @@ sub uninstall
 {
     my ($self) = ( $@ );
 
-    my $cron = iMSCP::Servers::Cron->factory();
-    my $rs = $cron->deleteTasks( {
+    my $cronServer = iMSCP::Servers::Cron->factory();
+
+    my $rs = $cronServer->deleteTasks( {
         TASKID => __PACKAGE__ . '::iMSCP'
     } );
-    $rs ||= $cron->addTask( {
+    $rs ||= $cronServer->addTask( {
         TASKID => __PACKAGE__ . '::Customers'
     } )
 }
