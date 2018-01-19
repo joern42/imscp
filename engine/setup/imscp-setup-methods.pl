@@ -48,15 +48,11 @@ sub setupInstallFiles
     return $rs if $rs;
 
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Daemon
-    # i-MSCP daemon must be stopped before changing any file on the files system
-    iMSCP::Service->getInstance()->stop( 'imscp_daemon' );
-
-    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Daemon
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::FrontEnd
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Backend
     eval {
         # Process cleanup to avoid any security risks and conflicts
-        for ( qw/ daemon engine gui / ) {
+        for ( qw/ engine gui / ) {
             iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/$_" )->remove();
         }
 
@@ -253,7 +249,7 @@ sub setupCoreServices
     # iMSCP::Packages::Traffic
     # iMSCP::Packages::Mounts
     my $serviceMngr = iMSCP::Service->getInstance();
-    $serviceMngr->enable( $_ ) for 'imscp_daemon', 'imscp_traffic', 'imscp_mountall';
+    $serviceMngr->enable( $_ ) for 'imscp_traffic', 'imscp_mountall';
     0;
 }
 
@@ -565,21 +561,6 @@ sub setupRestartServices
                         0;
                     },
                     'i-MSCP Traffic Logger'
-                ];
-            0;
-        },
-        99
-    );
-    $rs ||= $eventManager->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]},
-                [
-                    sub {
-                        iMSCP::Service->getInstance()->start( 'imscp_daemon' );
-                        0;
-                    },
-                    'i-MSCP Daemon'
                 ];
             0;
         },

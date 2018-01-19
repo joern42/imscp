@@ -113,7 +113,6 @@ EOF
 
 sub shutDown
 {
-
     iMSCP::Dialog->getInstance()->infobox( <<'EOF' );
 
 \Z1Congratulations\Zn
@@ -243,12 +242,11 @@ sub _uninstallServers
 
 sub _uninstallServices
 {
-    # FIXME: Should be done by specific packages, eg:
-    # iMSCP::Packages::Daemon
-    # iMSCP::Packages::Traffic
-    # iMSCP::Package::Mounts
+    # FIXME: Should be done by specific setup packages, eg:
+    # iMSCP::Packages::Setup::Traffic
+    # iMSCP::Package::Setup::Mounts
     my $serviceMngr = iMSCP::Service->getInstance();
-    $serviceMngr->remove( $_ ) for 'imscp_daemon', 'imscp_traffic', 'imscp_mountall';
+    $serviceMngr->remove( $_ ) for 'imscp_traffic', 'imscp_mountall';
 
     # FIXME: Should be done by the Bind9 server implementation...
     for my $service( 'bind9', 'bind9-resolvconf' ) {

@@ -172,7 +172,6 @@ sub build
         [ \&_buildDistributionFiles, 'Building distribution files' ],
         ( iMSCP::Getopt->skippackages ? () : [ \&_installDistributionPackages, 'Installing distribution packages' ] ),
         [ \&_checkRequirements, 'Checking for requirements' ],
-        [ \&_compileDaemon, 'Compiling daemon' ],
         [ \&_removeObsoleteFiles, 'Removing obsolete files' ],
         [ \&_savePersistentData, 'Saving persistent data' ]
     );
@@ -604,7 +603,7 @@ sub _buildConfigFiles
         $rs = _processXmlInstallFile( $installFilePath );
         return $rs if $rs;
     }
-    
+
     # Copy database schema
     _processXmlInstallFile( "$FindBin::Bin/database/install.xml" );
 }
@@ -642,34 +641,6 @@ sub _buildEngineFiles
 sub _buildFrontendFiles
 {
     iMSCP::Dir->new( dirname => "$FindBin::Bin/gui" )->rcopy( "$main::{'SYSTEM_ROOT'}/gui", { preserve => 'no' } );
-}
-
-=item _compileDaemon( )
-
- Compile daemon
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub _compileDaemon
-{
-    local $CWD = "$FindBin::Bin/daemon";
-
-    my $rs = execute( 'make clean imscp_daemon', \ my $stdout, \ my $stderr );
-    debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    iMSCP::Dir->new( dirname => "$main::{'SYSTEM_ROOT'}/daemon" )->make();
-    $rs = iMSCP::File->new( filename => 'imscp_daemon' )->copyFile( "$main::{'SYSTEM_ROOT'}/daemon", { preserve => 'no' } );
-    $rs ||= setRights( "$main::{'SYSTEM_ROOT'}/daemon/imscp_daemon",
-        {
-            user  => $main::imscpConfig{'ROOT_GROUP'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => '0750'
-        }
-    )
 }
 
 =item _savePersistentData( )
@@ -838,11 +809,8 @@ sub _processXmlInstallFile
         return 1;
     }
 
-    # Jump in parent directory
     local $CWD = dirname( $installFilePath );
-
-    # Permissions hardening
-    local $UMASK = 027;
+    local $UMASK = defined $node->{'umask'} ? oct( $node->{'umask'} ) : 0027;
 
     # Process 'folder' nodes if any
     if ( $node->{'folder'} ) {
@@ -906,12 +874,12 @@ sub _expandVars
 
  Process the given folder node
 
- Node attributes:
-  create_if: Create the folder only if the condition is met
-  user: Target directory owner
-  group: Target directory group
-  mode: Target directory mode
-
+ OPTIONAL node attributes:
+  create_if : Create the folder only if the condition is met
+  umas :    : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal)
+  user      : Target directory owner
+  group     : Target directory group
+  mode      : Target directory mode
  Param hashref \%node Node
  Return int 0 on success, other or croak on failure
 
@@ -922,6 +890,8 @@ sub _processFolderNode
     my ($node) = @_;
 
     return 0 if defined $node->{'create_if'} && !eval _expandVars( $node->{'create_if'} );
+
+    local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
 
     my $dir = iMSCP::Dir->new( dirname => $node->{'content'} );
     $dir->remove() if $node->{'pre_remove'};
@@ -936,13 +906,13 @@ sub _processFolderNode
 
  Process the givencopy_config node
 
- Node attributes:
+ OPTIONAL node attributes:
   copy_if       : Copy the file or directory only if the condition is met, delete it otherwise, unless the keep_if_exists attribute is TRUE
-  keep_if_exist : If the file or directory, never delete it
+  keep_if_exist : Don't delete the file or directory if it exists
+  umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal)
   user          : Target file or directory owner
   group         : Target file or directory group
   mode          : Target file or directory mode
-
  Param hashref \%node Node
  Return int 0 on success, other or croak on failure
 
@@ -974,6 +944,8 @@ sub _processCopyConfigNode
 
     my $target = File::Spec->canonpath( "$dirs/$filename" );
 
+    local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
+
     if ( -d $source ) {
         iMSCP::Dir->new( dirname => $source )->rcopy( $target, { preserve => 'no' } );
     } else {
@@ -999,13 +971,13 @@ sub _processCopyConfigNode
 
  Process the given copy node
 
- Node attributes:
+ OPTIONAL node attributes:
   copy_if       : Copy the file or directory only if the condition is met, delete it otherwise, unless the keep_if_exists attribute is TRUE
-  keep_if_exist : If the file or directory, never delete it
+  keep_if_exist : Don't delete the file or directory if it exists
+  umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal)
   user          : Target file or directory owner
   group         : Target file or directory group
   mode          : Target file or directory mode
-
  Param hashref \%node Node
  Return int 0 on success, other or croak on failure
 
@@ -1025,6 +997,8 @@ sub _processCopyNode
 
     my ($filename, $dirs) = fileparse( $node->{'content'} );
     my $target = File::Spec->canonpath( "$dirs/$filename" );
+
+    local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
 
     if ( -d $filename ) {
         iMSCP::Dir->new( dirname => $filename )->rcopy( $target, { preserve => 'no' } );

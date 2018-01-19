@@ -106,15 +106,6 @@ $rs |= setRights( $main::imscpConfig{'ROOT_DIR'},
         mode  => '0755'
     }
 );
-# e.g: /var/www/imscp/daemon
-$rs |= setRights( "$main::imscpConfig{'ROOT_DIR'}/daemon",
-    {
-        user      => $main::imscpConfig{'ROOT_USER'},
-        group     => $main::imscpConfig{'IMSCP_GROUP'},
-        mode      => '0750',
-        recursive => 1
-    }
-);
 # e.g: /var/www/imscp/engine
 $rs |= setRights( "$main::imscpConfig{'ROOT_DIR'}/engine",
     {

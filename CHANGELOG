@@ -68,6 +68,9 @@ DATABASE
     Fixed: Can't DROP 'domain_id'; check that column/key exists (Database update r267; fixed/repeated in r271)
     Fixed: Deprecated columns not removed while updating from some older versions (r270)
 
+DAEMON
+    Enhancement: Make it possible to process i-MSCP's backend requests through CRON(8) (alternative to historical i-MSCP daemon)
+
 DISTRIBUTIONS
     Added: `libfile-chmod-perl` distribution package (all distributions -- Required by 3rd-party softwares)
     Added: `unzip` distribution package (all distributions -- required for correct symlinks handling (Composer))
@@ -160,6 +163,7 @@ LISTENERS
     Updated: 60_dovecot_service_login.pl: Make use of /etc/dovecot/imscp.d directory to store configuration
 
 PACKAGES
+    Added: iMSCP::Packages::Setup::Daemon package for setup of i-MSCP daemon
     Fixed: Distribution packages not installed in `build' mode (iMSCP::Packages::AntiRootkits, iMSCP::Packages::Webstats)
     Fixed: Limit number of Nginx worker processes in auto mode (iMSCP::Packages::FrontEnd::Installer)
     Fixed: Logs must be preserved when upgrading/reconfiguring i-MSCP (iMSCP::Packages::Webmail::Roundcube::Installer)

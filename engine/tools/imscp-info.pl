@@ -44,7 +44,7 @@ Show i-MSCP version and servers info.
 
 OPTIONS:
  -v,    --version-only  Show i-MSCP version info only.
- -s,    --server-only   Show i-MSCP servers info only.},
+ -s,    --system-only   Show i-MSCP system info only.},
     'version-only|v'   => \my $versionOnly,
     'server-only|s'   => \my $serverOnly,
 );
@@ -59,7 +59,7 @@ iMSCP::Bootstrapper->getInstance()->boot( {
 iMSCP::Getopt->debug( 0 );
 
 if($versionOnly && $serverOnly) {
-    print "\nThe --version-only and --server-only options are mutually exclusive\n";
+    print "\nThe --version-only and --system-only options are mutually exclusive\n";
     iMSCP::Getopt->showUsage();
 }
 
@@ -84,10 +84,13 @@ exit if $versionOnly;
 print <<'EOF';
 
 #################################################################
-###                    i-MSCP Servers Info                    ###
+###                    i-MSCP System Info                     ###
 #################################################################
 
 EOF
+
+print output "Daemon type for backend requests      : $main::imscpConfig{'DAEMON_TYPE'}", 'info';
+print "\n";
 
 for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     my $srvInstance = $_->factory();
@@ -100,6 +103,8 @@ for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     print output "Server priority                       : @{ [ $srvInstance->getPriority() ] }", 'info';
     print "\n";
 }
+
+
 
 =head1 AUTHOR
 

@@ -2100,6 +2100,10 @@ function send_request()
         return true;
     }
 
+    if (Registry::get('config')['DAEMON_TYPE'] != 'daemon') {
+        return $isAlreadySent = true;
+    }
+
     if (false === ($socket = @socket_create(AF_INET, SOCK_STREAM, SOL_TCP))
         || false === @socket_connect($socket, '127.0.0.1', 9876)
     ) {

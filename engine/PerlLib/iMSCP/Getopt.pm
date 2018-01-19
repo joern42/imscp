@@ -176,7 +176,8 @@ my %RECONFIGURATION_ITEMS = (
     admin_email       => 'Reconfigure the email for the master administrator',
     alt_urls          => 'Reconfigure the alternative URL feature',
     antirootkits      => 'Reconfigure the anti-rootkits',
-    backup            => 'Reconfigure backup options',
+    backup            => 'Reconfigure the backup feature',
+    daemon            => 'Reconfigure the daemon type for processing of backend requests',
     filemanagers      => 'Reconfigure the file managers',
     ftpd              => 'Reconfigure the FTP server',
     hostnames         => 'Reconfigure server and control panel hostnames',
@@ -226,7 +227,7 @@ Reconfiguration option usage:
 
 Without any argument, this option make it possible to reconfigure all items. You can reconfigure many items at once by providing a list of comma separated items as follows
 
- perl @{[ basename( $0 ) ]} --reconfigure http,php,po
+ perl @{[ basename( $0 ) ]} --reconfigure httpd,php,po
 
 Bear in mind that even when only one item is reconfigured, all i-MSCP configuration files are regenerated, even those that don't belong to the item being reconfigured.
 
