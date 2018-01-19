@@ -186,12 +186,8 @@ sub uninstall
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
-    my $rs = $cronServer->deleteTasks( {
-        TASKID => __PACKAGE__ . '::iMSCP'
-    } );
-    $rs ||= $cronServer->addTask( {
-        TASKID => __PACKAGE__ . '::Customers'
-    } )
+    my $rs = $cronServer->deleteTasks( { TASKID => __PACKAGE__ . '::iMSCP' } );
+    $rs ||= $cronServer->deleteTasks( { TASKID => __PACKAGE__ . '::Customers' } );
 }
 
 =back

@@ -174,17 +174,19 @@ sub uninstall
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
-    my $rs = $cronServer->deleteTasks( {
-        TASKID => __PACKAGE__
-    } );
+    my $rs = $cronServer->deleteTasks( { TASKID => __PACKAGE__ } );
     return $rs if $rs;
 
     eval {
         # Make sure that the daemon is not running
         my $srvMngr = iMSCP::Service->getInstance();
         if ( $srvMngr->hasService( 'imscp_daemon' ) ) {
-            $srvMngr->stop( 'imscp_daemon' );
-            $srvMngr->disable( 'imscp_daemon' );
+            if ( iMSCP::Getopt->context() eq 'installer' ) {
+                $srvMngr->stop( 'imscp_daemon' );
+                $srvMngr->disable( 'imscp_daemon' );
+            } else {
+                $srvMngr->remove( 'imscp_daemon' );
+            }
         }
 
         # Remove daemon directory
