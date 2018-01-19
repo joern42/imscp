@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::ServicesSSL - i-MSCP services SSL
+ iMSCP::Packages::Setup::ServicesSSL - Setup SSL certificates for various services (FTP, SMTP, IMAP/POP)
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::ServicesSSL;
+package iMSCP::Packages::Setup::ServicesSSL;
 
 use strict;
 use warnings;
@@ -35,7 +35,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- i-MSCP services SSL.
+ Setup SSL certificates for various services (FTP, SMTP, IMAP/POP)
 
 =head1 PUBLIC METHODS
 

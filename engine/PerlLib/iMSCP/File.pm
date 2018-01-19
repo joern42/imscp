@@ -318,7 +318,7 @@ sub copyFile
     0;
 }
 
-=item moveFile( $$destination )
+=item moveFile( $destination )
 
  Move file to the given destination
 

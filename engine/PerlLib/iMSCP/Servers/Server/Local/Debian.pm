@@ -81,7 +81,7 @@ sub dpkgPostInvokeTasks
     debug( sprintf( 'Distribution codename set to: %s', $main::imscpConfig{'DISTRO_CODENAME'} ));
 
     $main::imscpConfig{'DISTRO_RELEASE'} = $sysInfo->{'lsbdistrelease'};
-    debug( sprintf( 'Distribution release set to: %s', $$main::imscpConfig{'DISTRO_RELEASE'} ));
+    debug( sprintf( 'Distribution release set to: %s', $main::imscpConfig{'DISTRO_RELEASE'} ));
 
     $main::imscpConfig{'SYSTEM_INIT'} = iMSCP::Service->getInstance()->getInitSystem();
     debug( sprintf( 'System init set to: %s', $main::imscpConfig{'SYSTEM_INIT'} ));

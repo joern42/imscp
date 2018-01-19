@@ -80,13 +80,21 @@ sub getListWithFullNames
 sub _init
 {
     my ($self) = @_;
+    
+    my $packageRootDir = dirname( __FILE__ );
+    
+    $_ = basename( $_, '.pm' ) for @{$self->{'packages'}} = glob ( "$packageRootDir/Packages/*.pm" );
 
-    $_ = basename( $_, '.pm' ) for @{$self->{'packages'}} = glob ( dirname( __FILE__ ) . '/Packages/*.pm' );
+    # In installer/uninstaller contexts, we also load setup packages
+    if( grep( iMSCP::Getopt->context() eq $_, 'installer', 'uninstaller' ) ) {
+        $_ = 'Setup::' .basename( $_, '.pm' ) for my @setupPackages = glob ( "$packageRootDir/Packages/Setup/*.pm" );
+        push @{$self->{'packages'}}, @setupPackages;
+    }
 
     # Load all package classes
     for ( @{$self->{'packages'}} ) {
         my $package = "iMSCP::Packages::${_}";
-        eval "require $package" or croak( sprintf( "Couldn't load %s package class: %s", $package, $@ ));
+        eval "require $package; 1" or croak( sprintf( "Couldn't load %s package class: %s", $package, $@ ));
     }
 
     # Sort packages by priority (descending order)

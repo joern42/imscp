@@ -58,9 +58,6 @@ sub install
             LOG_DIR         => $main::imscpConfig{'LOG_DIR'},
             TRAFF_ROOT_DIR  => $main::imscpConfig{'TRAFF_ROOT_DIR'},
             TOOLS_ROOT_DIR  => $main::imscpConfig{'TOOLS_ROOT_DIR'},
-            BACKUP_MINUTE   => $main::imscpConfig{'BACKUP_MINUTE'},
-            BACKUP_HOUR     => $main::imscpConfig{'BACKUP_HOUR'},
-            BACKUP_ROOT_DIR => $main::imscpConfig{'BACKUP_ROOT_DIR'},
             CONF_DIR        => $main::imscpConfig{'CONF_DIR'},
             BACKUP_FILE_DIR => $main::imscpConfig{'BACKUP_FILE_DIR'}
         },

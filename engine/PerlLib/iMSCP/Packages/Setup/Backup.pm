@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Backup - i-MSCP backup
+ iMSCP::Packages::Setup::Backup - i-MSCP backup
 
 =cut
 
@@ -21,17 +21,18 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::Backup;
+package iMSCP::Packages::Setup::Backup;
 
 use strict;
 use warnings;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
+use Class::Autouse qw/ :nostats iMSCP::Servers::Cron /;
 use iMSCP::Getopt;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- i-MSCP backup.
+ Package responsible to setup the i-MSCP backup feature.
 
 =head1 PUBLIC METHODS
 
@@ -54,7 +55,7 @@ sub registerSetupListeners
         sub {
             push @{$_[0]},
                 sub { $self->imscpBackupDialog( @_ ) },
-                sub { $self->customerBackupDialog( @_ ) };
+                sub { $self->customersBackupDialog( @_ ) };
             0;
         }
     );
@@ -90,16 +91,16 @@ EOF
     0;
 }
 
-=item customerBackupDialog( \%dialog )
+=item customersBackupDialog( \%dialog )
 
- Ask for customer backup
+ Ask for customers backup
 
  Param iMSCP::Dialog \%dialog
  Return int 0 or 30
 
 =cut
 
-sub customerBackupDialog
+sub customersBackupDialog
 {
     my (undef, $dialog) = @_;
 
@@ -131,6 +132,69 @@ EOF
 sub getPriority
 {
     0;
+}
+
+=item install
+
+ Process installation tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub install
+{
+    my ($self) = ( $@ );
+
+    my $cron = iMSCP::Servers::Cron->factory();
+
+    if ( main::setupGetQuestion( 'BACKUP_IMSCP' ) eq 'yes' ) {
+        my $rs = $cron->addTask(
+            {
+                TASKID  => __PACKAGE__ . '::iMSCP',
+                MINUTE  => '@daily',
+                COMMAND => "/usr/bin/perl $main::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-imscp > "
+                    . "$main::imscpConfig{'LOG_DIR'}/imscp-backup-imscp-mngr.log 2>&1"
+            }
+        );
+        return $rs if $rs;
+    }
+
+    if ( main::setupGetQuestion( 'BACKUP_DOMAINS' ) eq 'yes' ) {
+        my $rs = $cron->addTask(
+            {
+                TASKID  => __PACKAGE__ . '::Customers',
+                MINUTE  => $main::imscpConfig{'BACKUP_MINUTE'} ne '' ? $main::imscpConfig{'BACKUP_MINUTE'} : 40,
+                HOUR    => $main::imscpConfig{'BACKUP_HOUR'} ne '' ? $main::imscpConfig{'BACKUP_HOUR'} : 23,
+                COMMAND => "/usr/bin/perl $main::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-imscp > "
+                    . "$main::imscpConfig{'LOG_DIR'}/imscp-backup-imscp-mngr.log 2>&1"
+            }
+        );
+        return $rs if $rs;
+    }
+
+    0;
+}
+
+=item uninstallation
+
+ Process uninstallation tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub uninstall
+{
+    my ($self) = ( $@ );
+
+    my $cron = iMSCP::Servers::Cron->factory();
+    my $rs = $cron->deleteTasks( {
+        TASKID => __PACKAGE__ . '::iMSCP'
+    } );
+    $rs ||= $cron->addTask( {
+        TASKID => __PACKAGE__ . '::Customers'
+    } )
 }
 
 =back
