@@ -153,7 +153,7 @@ sub askForPhpSapi
     my %choices = ( 'fpm', 'PHP through PHP FastCGI Process Manager (fpm SAPI)' );
 
     my $httpd = iMSCP::Servers::Httpd->factory();
-    if ( $httpd->{'config'}->{'APACHE2_MPM'} eq 'itk' ) {
+    if ( $httpd->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
         # Apache2 PHP module only works with Apache's prefork based MPM
         # We allow it only with the Apache's ITK MPM because the Apache's prefork MPM
         # doesn't allow to constrain each individual vhost to a particular system user/group.

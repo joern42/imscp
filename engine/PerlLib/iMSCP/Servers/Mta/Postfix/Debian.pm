@@ -25,7 +25,6 @@ package iMSCP::Servers::Mta::Postfix::Debian;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Basename;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Execute qw/ execute /;
@@ -231,7 +230,7 @@ sub _restoreConffiles
 
     for ( '/usr/share/postfix/main.cf.debian', '/usr/share/postfix/master.cf.dist' ) {
         next unless -f;
-        my $rs = iMSCP::File->new( filename => $_ )->copyFile( '/etc/postfix/' . basename( $_ ), { preserve => 'no' } );
+        my $rs = iMSCP::File->new( filename => $_ )->copyFile( '/etc/postfix/' . basename( $_, '.debian', '.dist' ), { preserve => 'no' } );
         return $rs if $rs;
     }
 
@@ -239,21 +238,6 @@ sub _restoreConffiles
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     $rs;
-}
-
-=item _shutdown( $priority )
-
- See iMSCP::Servers::Abstract::_shutdown()
-
-=cut
-
-sub _shutdown
-{
-    my ($self, $priority) = @_;
-
-    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
-
-    iMSCP::Service->getInstance()->registerDelayedAction( 'postfix', [ $action, sub { $self->$action(); } ], $priority );
 }
 
 =back

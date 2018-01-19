@@ -69,7 +69,30 @@ sub install
     my ($self) = @_;
 
     my $rs = $self->SUPER::install();
-    $rs ||= $self->_cleanup();
+    return $rs if $rs;
+
+    # Update /etc/default/bind9 file (only if exist)
+    if ( -f '/etc/default/bind9' ) {
+        $rs = $self->{'eventManager'}->registerOne(
+            'beforeBind9BuildConfFile',
+            sub {
+                # Enable/disable local DNS resolver
+                ${$_[0]} =~ s/RESOLVCONF=(?:no|yes)/RESOLVCONF=$self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'}/i;
+
+                return 0 unless ${$_[0]} =~ /OPTIONS="(.*)"/;
+
+                # Enable/disable IPV6 support
+                ( my $options = $1 ) =~ s/\s*-[46]\s*//g;
+                $options = '-4 ' . $options unless $self->{'config'}->{'NAMED_IPV6_SUPPORT'} eq 'yes';
+                ${$_[0]} =~ s/OPTIONS=".*"/OPTIONS="$options"/;
+                0;
+            }
+        );
+        $rs ||= $self->buildConfFile( '/etc/default/bind9', '/etc/default/bind9' );
+        return $rs if $rs;
+    }
+
+    $self->_cleanup();
 }
 
 =item postinstall( )
@@ -82,13 +105,35 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->enable( 'bind9' ); };
+    eval {
+        my $serviceMngr = iMSCP::Service->getInstance();
+
+        # Fix for #IP-1333
+        # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=744304
+        if ( $self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'} eq 'yes' ) {
+            # Service will be started automatically when Bind9 will be restarted
+            $serviceMngr->enable( 'bind9-resolvconf' );
+        } else {
+            $serviceMngr->stop( 'bind9-resolvconf' );
+            $serviceMngr->disable( 'bind9-resolvconf' );
+        }
+
+        $serviceMngr->enable( 'bind9' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;
     }
 
-    $self->SUPER::postinstall();
+    # We need restart the service since it is already started
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupRestartServices',
+        sub {
+            push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ];
+            0;
+        },
+        $self->getPriority()
+    );
 }
 
 =item uninstall( )
@@ -230,7 +275,7 @@ sub _setVersion
         return 1;
     }
 
-    $self->{'config'}->{'BIND_VERSION'} = $1;
+    $self->{'config'}->{'NAMED_VERSION'} = $1;
     debug( sprintf( 'Bind9 version set to: %s', $1 ));
     0;
 }
@@ -255,13 +300,13 @@ sub _cleanup
     }
 
     if ( iMSCP::ProgramFinder::find( 'resolvconf' ) ) {
-        my $rs = execute( "resolvconf -d lo.imscp", \ my $stdout, \ my $stderr );
+        my $rs = execute( 'resolvconf -d lo.imscp', \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
     }
 
-    eval { iMSCP::Dir->new( dirname => $self->{'config'}->{'BIND_DB_ROOT_DIR'} )->clear( undef, qr/\.db$/ ); };
+    eval { iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_ROOT_DIR'} )->clear( undef, qr/\.db$/ ); };
     if ( $@ ) {
         error( $@ );
         return 1;

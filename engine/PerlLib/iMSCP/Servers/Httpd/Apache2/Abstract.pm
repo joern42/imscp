@@ -107,7 +107,7 @@ sub askForApache2MPM
 {
     my ($self, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'APACHE2_MPM', $self->{'config'}->{'APACHE2_MPM'} || ( iMSCP::Getopt->preseed ? 'event' : '' ));
+    my $value = main::setupGetQuestion( 'HTTPD_MPM', $self->{'config'}->{'HTTPD_MPM'} || ( iMSCP::Getopt->preseed ? 'event' : '' ));
     my %choices = (
         'event', 'Apache2 Event MPM',
         'itk', 'Apache2 ITK MPM',
@@ -125,8 +125,8 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'APACHE2_MPM', $value );
-    $self->{'config'}->{'APACHE2_MPM'} = $value;
+    main::setupSetQuestion( 'HTTPD_MPM', $value );
+    $self->{'config'}->{'HTTPD_MPM'} = $value;
     0;
 }
 
@@ -227,7 +227,7 @@ sub getHumanServerName
 {
     my ($self) = @_;
 
-    sprintf( "Apache2 %s (MPM %s)", $self->getVersion(), ucfirst $self->{'config'}->{'APACHE2_MPM'} );
+    sprintf( "Apache2 %s (MPM %s)", $self->getVersion(), ucfirst $self->{'config'}->{'HTTPD_MPM'} );
 }
 
 =item getVersion( )
@@ -410,7 +410,7 @@ sub addHtpasswd
     eval {
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
-        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_USERS_FILENAME'}" );
+        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}" );
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
@@ -460,11 +460,11 @@ sub deleteHtpasswd
     my ($self, $moduleData) = @_;
 
     eval {
-        return unless -f "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_USERS_FILENAME'}";
+        return unless -f "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}";
 
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
-        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_USERS_FILENAME'}" );
+        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}" );
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
@@ -515,7 +515,7 @@ sub addHtgroup
     eval {
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
-        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_GROUPS_FILENAME'}" );
+        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}" );
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
@@ -565,11 +565,11 @@ sub deleteHtgroup
     my ($self, $moduleData) = @_;
 
     eval {
-        return 0 unless -f "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_GROUPS_FILENAME'}";
+        return 0 unless -f "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}";
 
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
-        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTACCESS_GROUPS_FILENAME'}" );
+        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}" );
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
@@ -644,12 +644,12 @@ sub addHtaccess
 AuthType $moduleData->{'AUTH_TYPE'}
 AuthName "$moduleData->{'AUTH_NAME'}"
 AuthBasicProvider file
-AuthUserFile $moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTACCESS_USERS_FILENAME'}
+AuthUserFile $moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}
 EOF
 
         if ( $moduleData->{'HTUSERS'} eq '' ) {
             $tagContent .= <<"EOF";
-AuthGroupFile $moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTACCESS_GROUPS_FILENAME'}
+AuthGroupFile $moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}
 Require group $moduleData->{'HTGROUPS'}
 EOF
         } else {
@@ -1471,7 +1471,7 @@ sub _addFiles
         if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
             $self->_umountLogsFolder( $moduleData ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
-            if ( $self->{'config'}->{'MOUNT_CUSTOMER_LOGS'} ne 'yes' ) {
+            if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} ne 'yes' ) {
                 iMSCP::Dir->new( dirname => "$moduleData->{'WEB_DIR'}/logs" )->remove();
                 iMSCP::Dir->new( dirname => "$workingWebFolder/logs" )->remove();
             }
@@ -1524,7 +1524,7 @@ sub _addFiles
             }
 
             # Set ownership for logs directory
-            if ( $self->{'config'}->{'MOUNT_CUSTOMER_LOGS'} eq 'yes' ) {
+            if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} eq 'yes' ) {
                 setRights( "$moduleData->{'WEB_DIR'}/logs",
                     {
                         user      => $main::imscpConfig{'ROOT_USER'},
@@ -1547,7 +1547,7 @@ sub _addFiles
             ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
-        if ( $self->{'config'}->{'MOUNT_CUSTOMER_LOGS'} eq 'yes' ) {
+        if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} eq 'yes' ) {
             $self->_mountLogsFolder( $moduleData ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
@@ -1771,7 +1771,7 @@ sub afterApache2BuildConfFile
 
     if ( $filename eq 'domain.tpl' ) {
         if ( index( $apache2ServerData->{'VHOST_TYPE'}, 'fwd' ) == -1 ) {
-            if ( $self->{'config'}->{'APACHE2_MPM'} eq 'itk' ) {
+            if ( $self->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
                 replaceBlocByRef( "# SECTION suexec BEGIN.\n", "# SECTION suexec END.\n", '', $cfgTpl );
             } else {
                 replaceBlocByRef( "# SECTION itk BEGIN.\n", "# SECTION itk END.\n", '', $cfgTpl );

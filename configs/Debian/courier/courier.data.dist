@@ -1,26 +1,22 @@
-# Courier authdaemon
-AUTHDAEMON_USER = daemon
-AUTHDAEMON_GROUP = daemon
-AUTHLIB_CONF_DIR = /etc/courier
-AUTHLIB_SOCKET_DIR = /var/run/courier/authdaemon
-AUTHDAEMON_SNAME = courier-authdaemon
-AUTHDAEMON_DATABASE_USER =
-AUTHDAEMON_DATABASE_PASSWORD =
-
-# Courier IMAP/POP3
-COURIER_VERSION =
-COURIER_CONF_DIR = /etc/courier
-COURIER_IMAP_SSL = imapd-ssl
-COURIER_POP_SSL = pop3d-ssl
+PO_VERSION                      = 
+PO_AUTHDAEMON_USER              = daemon
+PO_AUTHDAEMON_GROUP             = daemon
+PO_AUTHLIB_CONF_DIR             = /etc/courier
+PO_AUTHLIB_SOCKET_DIR           = /var/run/courier/authdaemon
+PO_AUTHDAEMON_PATH              = /var/run/courier/authdaemon/socket
+PO_AUTHDAEMON_DATABASE_USER     =
+PO_AUTHDAEMON_DATABASE_PASSWORD =
+PO_CONF_DIR                     = /etc/courier
+PO_IMAP_SSL                     = imapd-ssl
+PO_POP_SSL                      = pop3d-ssl
 
 # Cyrus SASL
-SASL_CONF_DIR = /etc/postfix/sasl
-PWCHECK_METHOD= authdaemon
-LOG_LEVEL = 2
-MECH_LIST = plain login
-AUTHDAEMON_PATH = /var/run/courier/authdaemon/socket
+SASL_CONF_DIR                   = /etc/postfix/sasl
+PWCHECK_METHOD                  = authdaemon
+LOG_LEVEL                       = 2
+MECH_LIST                       = plain login
 
 # Maildrop
-QUOTA_WARN_MSG_PATH = /etc/quotawarnmsg
+QUOTA_WARN_MSG_PATH             = /etc/quotawarnmsg
 
 

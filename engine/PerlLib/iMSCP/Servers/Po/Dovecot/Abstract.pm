@@ -25,14 +25,12 @@ package iMSCP::Servers::Po::Dovecot::Abstract;
 
 use strict;
 use warnings;
+use Array::Utils qw/ unique /;
 use autouse Fcntl => qw/ O_RDONLY /;
-use autouse 'File::Basename' => qw/ fileparse /;
 use autouse 'iMSCP::Crypt' => qw/ ALNUM randomStr /;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isOneOfStringsInList isStringNotInList isValidPassword isValidUsername /;
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
-use autouse 'iMSCP::TemplateParser' => qw/ processByRef /;
-use Array::Utils qw/ unique /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Database /;
 use iMSCP::Config;
@@ -40,8 +38,6 @@ use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Service;
-use iMSCP::Umask;
 use iMSCP::Servers::Mta;
 use iMSCP::Servers::Sqld;
 use Sort::Naturally;
@@ -97,12 +93,10 @@ sub showSqlUserDialog
     my ($self, $dialog) = @_;
 
     my $masterSqlUser = main::setupGetQuestion( 'DATABASE_USER' );
-    my $dbUser = main::setupGetQuestion(
-        'DOVECOT_SQL_USER', $self->{'config'}->{'DATABASE_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' )
-    );
+    my $dbUser = main::setupGetQuestion( 'PO_SQL_USER', $self->{'config'}->{'PO_SQL_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' ));
     my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = main::setupGetQuestion(
-        'DOVECOT_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'} )
+        'PO_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'PO_SQL_PASSWORD'} )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -210,21 +204,21 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    my $rs = setRights( $self->{'config'}->{'DOVECOT_CONF_DIR'},
+    my $rs = setRights( $self->{'config'}->{'PO_CONF_DIR'},
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_GROUP'},
             mode  => '0755'
         }
     );
-    $rs ||= setRights( "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot.conf",
+    $rs ||= setRights( "$self->{'config'}->{'PO_CONF_DIR'}/dovecot.conf",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
             mode  => '0640'
         }
     );
-    $rs ||= setRights( "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-sql.conf",
+    $rs ||= setRights( "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-sql.conf",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -276,7 +270,7 @@ sub getVersion
 {
     my ($self) = @_;
 
-    $self->{'config'}->{'DOVECOT_VERSION'};
+    $self->{'config'}->{'PO_VERSION'};
 }
 
 =item addMail( \%moduleData )
@@ -469,7 +463,18 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
+    my $rs = execute( [ $self->{'PO_BIN'}, '--version' ], \ my $stdout, \ my $stderr );
+    error( $stderr || 'Unknown error' ) if $rs;
+    return $rs if $rs;
+
+    if ( $stdout !~ m/^([\d.]+)/ ) {
+        error( "Couldn't guess Dovecot version from the `$self->{'PO_BIN'}--version` command output" );
+        return 1;
+    }
+
+    $self->{'config'}->{'PO_VERSION'} = $1;
+    debug( sprintf( 'Dovecot version set to: %s', $1 ));
+    0;
 }
 
 =item _configure( )
@@ -491,7 +496,7 @@ sub _configure
     eval {
         # Make the imscp.d directory free of any file that were
         # installed by i-MSCP listener files.
-        iMSCP::Dir->new( dirname => "$self->{'config'}->{'DOVECOT_CONF_DIR'}/imscp.d" )->clear( undef, qr/_listener\.conf$/ )
+        iMSCP::Dir->new( dirname => "$self->{'config'}->{'PO_CONF_DIR'}/imscp.d" )->clear( undef, qr/_listener\.conf$/ )
     };
     if ( $@ ) {
         error( $@ );
@@ -524,17 +529,17 @@ EOF
             0;
         }
     );
-    $rs ||= $self->buildConfFile( 'dovecot.conf', "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot.conf", undef,
+    $rs ||= $self->buildConfFile( 'dovecot.conf', "$self->{'config'}->{'PO_CONF_DIR'}/dovecot.conf", undef,
         {
-            DOVECOT_CONF_DIR              => $self->{'config'}->{'DOVECOT_CONF_DIR'},
-            DOVECOT_SASL_AUTH_SOCKET_PATH => $self->{'config'}->{'DOVECOT_SASL_AUTH_SOCKET_PATH'},
-            ENGINE_ROOT_DIR               => $main::imscpConfig{'ENGINE_ROOT_DIR'},
-            HOSTNAME                      => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
-            IMSCP_GROUP                   => $main::imscpConfig{'IMSCP_GROUP'},
-            LISTEN_INTERFACES             => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? '*, [::]' : '*',
-            MTA_MAILBOX_UID_NAME          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-            POSTFIX_USER                  => $self->{'mta'}->{'config'}->{'POSTFIX_USER'},
-            POSTFIX_GROUP                 => $self->{'mta'}->{'config'}->{'POSTFIX_GROUP'}
+            PO_CONF_DIR              => $self->{'config'}->{'PO_CONF_DIR'},
+            PO_SASL_AUTH_SOCKET_PATH => $self->{'config'}->{'PO_SASL_AUTH_SOCKET_PATH'},
+            PO_LISTEN_INTERFACES     => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? '*, [::]' : '*',
+            ENGINE_ROOT_DIR          => $main::imscpConfig{'ENGINE_ROOT_DIR'},
+            IMSCP_GROUP              => $main::imscpConfig{'IMSCP_GROUP'},
+            MTA_MAILBOX_UID_NAME     => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
+            MTA_USER                 => $self->{'mta'}->{'config'}->{'MTA_USER'},
+            MTA_GROUP                => $self->{'mta'}->{'config'}->{'MTA_GROUP'},
+            SERVER_HOSTNAME          => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
         },
         {
             umask => 0027,
@@ -543,13 +548,13 @@ EOF
             mode  => 0640
         }
     );
-    $rs ||= $self->buildConfFile( 'dovecot-sql.conf', "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-sql.conf", undef,
+    $rs ||= $self->buildConfFile( 'dovecot-sql.conf', "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-sql.conf", undef,
         {
-            DATABASE_HOST        => main::setupGetQuestion( 'DATABASE_HOST' ),
-            DATABASE_NAME        => main::setupGetQuestion( 'DATABASE_NAME' ) =~ s%('|"|\\)%\\$1%gr,
-            DATABASE_PORT        => main::setupGetQuestion( 'DATABASE_PORT' ),
-            DATABASE_USER        => $self->{'config'}->{'DATABASE_USER'} =~ s%('|"|\\)%\\$1%gr,
-            DATABASE_PASSWORD    => $self->{'config'}->{'DATABASE_PASSWORD'} =~ s%('|"|\\)%\\$1%gr,
+            PO_DATABASE_HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
+            PO_DATABASE_NAME     => main::setupGetQuestion( 'DATABASE_NAME' ) =~ s%('|"|\\)%\\$1%gr,
+            PO_DATABASE_PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
+            PO_SQL_USER          => $self->{'config'}->{'PO_SQL_USER'} =~ s%('|"|\\)%\\$1%gr,
+            PO_SQL_PASSWORD      => $self->{'config'}->{'PO_DATABASE_PASSWORD'} =~ s%('|"|\\)%\\$1%gr,
             MTA_MAILBOX_GID      => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
             MTA_MAILBOX_UID      => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
             MTA_VIRTUAL_MAIL_DIR => $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
@@ -563,8 +568,8 @@ EOF
     );
     $rs ||= $self->buildConfFile( 'quota-warning', "$main::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh", undef,
         {
-            DOVECOT_DELIVER_PATH => $self->{'config'}->{'DOVECOT_DELIVER_PATH'},
-            HOSTNAME             => main::setupGetQuestion( 'SERVER_HOSTNAME' )
+            PO_DELIVER_PATH => $self->{'config'}->{'PO_DELIVER_PATH'},
+            HOSTNAME        => main::setupGetQuestion( 'SERVER_HOSTNAME' )
         },
         {
             umask => 0027,
@@ -590,15 +595,15 @@ sub _setupSqlUser
     my ($self) = @_;
 
     my $dbName = main::setupGetQuestion( 'DATABASE_NAME' );
-    my $dbUser = main::setupGetQuestion( 'DOVECOT_SQL_USER' );
+    my $dbUser = main::setupGetQuestion( 'PO_SQL_USER' );
     my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion( 'DOVECOT_SQL_PASSWORD' );
+    my $dbPass = main::setupGetQuestion( 'PO_SQL_PASSWORD' );
 
     eval {
         my $sqlServer = iMSCP::Servers::Sqld->factory();
 
         # Drop old SQL user if required
-        for my $sqlUser ( $self->{'config'}->{'DATABASE_USER'}, $dbUser ) {
+        for my $sqlUser ( $self->{'config'}->{'PO_SQL_USER'}, $dbUser ) {
             next unless $sqlUser;
 
             for my $host( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
@@ -627,8 +632,8 @@ sub _setupSqlUser
         return 1;
     }
 
-    $self->{'config'}->{'DATABASE_USER'} = $dbUser;
-    $self->{'config'}->{'DATABASE_PASSWORD'} = $dbPass;
+    $self->{'config'}->{'PO_SQL_USER'} = $dbUser;
+    $self->{'config'}->{'PO_SQL_PASSWORD'} = $dbPass;
     0;
 }
 
@@ -682,9 +687,9 @@ sub _dropSqlUser
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
         ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
 
-    return 0 unless $self->{'config'}->{'DATABASE_USER'} && $dbUserHost;
+    return 0 unless $self->{'config'}->{'PO_SQL_USER'} && $dbUserHost;
 
-    eval { iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'DATABASE_USER'}, $dbUserHost ); };
+    eval { iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'PO_SQL_USER'}, $dbUserHost ); };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -705,7 +710,7 @@ sub _removeConfig
 {
     my ($self) = @_;
 
-    eval { iMSCP::Dir->new( dirnname => "$self->{'config'}->{'DOVECOT_CONF_DIR'}/imscp.d" )->remove(); };
+    eval { iMSCP::Dir->new( dirnname => "$self->{'config'}->{'PO_CONF_DIR'}/imscp.d" )->remove(); };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -741,7 +746,7 @@ sub beforePostfixConfigure
             return 0 unless $cfgTplName eq 'master.cf';
             ${$cfgTpl} .= <<"EOF";
 dovecot   unix  -       n       n       -       -       pipe
- flags=DRhu user=$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}:$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} argv=$dovecotServer->{'config'}->{'DOVECOT_DELIVER_PATH'} -f \${sender} -d \${user}\@\${nexthop} -m INBOX.\${extension}
+ flags=DRhu user=$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}:$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} argv=$dovecotServer->{'config'}->{'PO_DELIVER_PATH'} -f \${sender} -d \${user}\@\${nexthop} -m INBOX.\${extension}
 EOF
             0;
         }

@@ -3,7 +3,7 @@
 # See the documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2017.12.29
+# Last update: 2018.01.18
 
 %main::questions = (
     # Mandatory parameters
@@ -261,7 +261,7 @@
     # Possible values: master, slave
     #
     # Leave empty for default: master
-    BIND_MODE                           => '',
+    NAMED_MODE                          => '',
 
     # Primary DNS server IP addresses (only relevant in slave mode)
     #
@@ -269,7 +269,7 @@
     # or space
     #
     # Leave empty for default: no
-    PRIMARY_DNS                         => '',
+    NAMED_PRIMARY_DNS                   => '',
 
     # Slave DNS server IP addresses (only relevant in master mode)
     #
@@ -277,21 +277,21 @@
     # or space
     #
     # Leave empty for default: no
-    SECONDARY_DNS                       => '',
+    NAMED_SECONDARY_DNS                 => '',
 
-    # IPv6 support (only relevant with 'bind')
+    # DNS IPv6 support
     #
     # Possible values: yes, no
     #
     # Leave empty for default: no
-    BIND_IPV6                           => '',
+    NAMED_IPV6_SUPPORT                  => '',
 
     # Local DNS resolver (only relevant with 'bind')
     #
     # Possible values: yes, no
     #
     # Leave empty for default: yes
-    LOCAL_DNS_RESOLVER                  => '',
+    NAMED_LOCAL_DNS_RESOLVER            => '',
 
     # Cron server implementation
     #
@@ -317,7 +317,7 @@
     # Possibles values: event, itk, prefork, worker
     #
     # Leave empty for default: event
-    APACHE2_MPM                         => '',
+    HTTPD_MPM                           => '',
 
     # PHP version for customers
     #
@@ -369,7 +369,7 @@
     # See http://www.proftpd.org/docs/directives/linked/config_ref_MaxInstances.html
     #
     # Leave empty for default: 100
-    FTPD_MAX_CLIENTS                  => '',
+    FTPD_MAX_CLIENTS                    => '',
 
     # FTPd maximum number of clients allowed to connect per IP
     #
@@ -378,7 +378,7 @@
     # http://www.proftpd.org/docs/directives/linked/config_ref_MaxClientsPerHost.html
     #
     # Leave empty for default: 20
-    FTPD_MAX_CLIENTS_PER_IP           => '',
+    FTPD_MAX_CLIENTS_PER_IP             => '',
 
     # FTP SQL user
     #
@@ -423,22 +423,22 @@
     # Only ASCII alphabet characters and numbers are allowed in password.
     #
     # Leave empty for default: imscp_srv_user
-    AUTHDAEMON_SQL_USER                 => '',
+    PO_AUTHDAEMON_SQL_USER              => '',
     # Only ASCII alphabet characters and numbers are allowed in password.
     #
     # Leave empty for autogeneration.
-    AUTHDAEMON_SQL_PASSWORD             => '',
+    PO_AUTHDAEMON_SQL_PASSWORD          => '',
 
     # Dovecot SQL user (only relevant with 'dovecot')
     #
     # Only ASCII alphabet characters and numbers are allowed in password.
     #
     # Leave empty for default: imscp_srv_user
-    DOVECOT_SQL_USER                    => '',
+    PO_SQL_USER                         => '',
     # Only ASCII alphabet characters and numbers are allowed in password.
     #
     # Leave empty for autogeneration.
-    DOVECOT_SQL_PASSWORD                => '',
+    PO_SQL_PASSWORD                     => '',
 
     # Enable or disable SSL for FTP/Mail services
     #

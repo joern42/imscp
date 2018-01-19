@@ -101,11 +101,11 @@ sub authdaemonSqlUserDialog
 
     my $masterSqlUser = main::setupGetQuestion( 'DATABASE_USER' );
     my $dbUser = main::setupGetQuestion(
-        'AUTHDAEMON_SQL_USER', $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' )
+        'PO_AUTHDAEMON_SQL_USER', $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' )
     );
     my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = main::setupGetQuestion(
-        'AUTHDAEMON_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'AUTHDAEMON_DATABASE_PASSWORD'} )
+        'PO_AUTHDAEMON_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_PASSWORD'} )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -137,7 +137,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'AUTHDAEMON_SQL_USER', $dbUser );
+    main::setupSetQuestion( 'PO_AUTHDAEMON_SQL_USER', $dbUser );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] ) || !isValidPassword( $dbPass ) ) {
         unless ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
@@ -168,7 +168,7 @@ EOF
         $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
     }
 
-    main::setupSetQuestion( 'AUTHDAEMON_SQL_PASSWORD', $dbPass );
+    main::setupSetQuestion( 'PO_AUTHDAEMON_SQL_PASSWORD', $dbPass );
     0;
 }
 
@@ -212,10 +212,10 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    if ( -d $self->{'config'}->{'AUTHLIB_SOCKET_DIR'} ) {
-        my $rs ||= setRights( $self->{'config'}->{'AUTHLIB_SOCKET_DIR'},
+    if ( -d $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'} ) {
+        my $rs ||= setRights( $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'},
             {
-                user  => $self->{'config'}->{'AUTHDAEMON_USER'},
+                user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
                 group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
                 mode  => '0750'
             }
@@ -223,10 +223,10 @@ sub setEnginePermissions
         return $rs if $rs;
     }
 
-    my $rs = setRights( "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/authmysqlrc",
+    my $rs = setRights( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authmysqlrc",
         {
-            user  => $self->{'config'}->{'AUTHDAEMON_USER'},
-            group => $self->{'config'}->{'AUTHDAEMON_GROUP'},
+            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
+            group => $self->{'config'}->{'PO_AUTHDAEMON_GROUP'},
             mode  => '0660'
         }
     );
@@ -237,12 +237,12 @@ sub setEnginePermissions
             mode  => '0640'
         }
     );
-    return $rs if $rs || !-f "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem";
+    return $rs if $rs || !-f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem";
 
-    setRights( "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem",
+    setRights( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem",
         {
-            user  => $self->{'config'}->{'AUTHDAEMON_USER'},
-            group => $self->{'config'}->{'AUTHDAEMON_GROUP'},
+            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
+            group => $self->{'config'}->{'PO_AUTHDAEMON_GROUP'},
             mode  => '0600'
         }
     );
@@ -285,7 +285,7 @@ sub getVersion
 {
     my ($self) = @_;
 
-    $self->{'config'}->{'COURIER_VERSION'};
+    $self->{'config'}->{'PO_VERSION'};
 }
 
 =item addMail( \%moduleData )
@@ -492,15 +492,15 @@ sub _setupSqlUser
     my ($self) = @_;
 
     my $dbName = main::setupGetQuestion( 'DATABASE_NAME' );
-    my $dbUser = main::setupGetQuestion( 'AUTHDAEMON_SQL_USER' );
+    my $dbUser = main::setupGetQuestion( 'PO_AUTHDAEMON_SQL_USER' );
     my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion( 'AUTHDAEMON_SQL_PASSWORD' );
+    my $dbPass = main::setupGetQuestion( 'PO_AUTHDAEMON_SQL_PASSWORD' );
 
     eval {
         my $sqlServer = iMSCP::Servers::Sqld->factory();
 
         # Drop old SQL user if required
-        for my $sqlUser ( $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'}, $dbUser ) {
+        for my $sqlUser ( $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'}, $dbUser ) {
             next unless $sqlUser;
 
             for my $host( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
@@ -529,8 +529,8 @@ sub _setupSqlUser
         return 1;
     }
 
-    $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'} = $dbUser;
-    $self->{'config'}->{'AUTHDAEMON_DATABASE_PASSWORD'} = $dbPass;
+    $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'} = $dbUser;
+    $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_PASSWORD'} = $dbPass;
     0;
 }
 
@@ -551,12 +551,12 @@ sub _configure
     $rs ||= $self->_buildDHparametersFile();
     $rs ||= $self->_buildAuthdaemonrcFile();
     $rs ||= $self->_buildSslConfFiles();
-    $rs ||= $self->buildConfFile( 'authmysqlrc', "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/authmysqlrc", undef,
+    $rs ||= $self->buildConfFile( 'authmysqlrc', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authmysqlrc", undef,
         {
             DATABASE_HOST        => main::setupGetQuestion( 'DATABASE_HOST' ),
             DATABASE_PORT        => main::setupGetQuestion( 'DATABASE_PORT' ),
-            DATABASE_USER        => $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'},
-            DATABASE_PASSWORD    => $self->{'config'}->{'AUTHDAEMON_DATABASE_PASSWORD'},
+            DATABASE_USER        => $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'},
+            DATABASE_PASSWORD    => $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_PASSWORD'},
             DATABASE_NAME        => main::setupGetQuestion( 'DATABASE_NAME' ),
             MTA_MAILBOX_UID      => ( scalar getpwnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'} ) ),
             MTA_MAILBOX_GID      => ( scalar getgrnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} ) ),
@@ -564,8 +564,8 @@ sub _configure
         },
         {
             umask => 0027,
-            user  => $self->{'config'}->{'AUTHDAEMON_USER'},
-            group => $self->{'config'}->{'AUTHDAEMON_GROUP'},
+            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
+            group => $self->{'config'}->{'PO_AUTHDAEMON_GROUP'},
             mode  => 0640
         }
     );
@@ -581,9 +581,9 @@ sub _configure
 
     # Build local courier configuration files
     for my $sname( qw/ imapd imapd-ssl pop3d pop3d-ssl / ) {
-        next unless -f "$self->{'cfgDir'}/$sname.local" && -f "$self->{'config'}->{'COURIER_CONF_DIR'}/$sname";
+        next unless -f "$self->{'cfgDir'}/$sname.local" && -f "$self->{'config'}->{'PO_CONF_DIR'}/$sname";
 
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'COURIER_CONF_DIR'}/$sname" );
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$sname" );
         my $fileContentRef = $file->getAsRef();
         unless ( defined $fileContentRef ) {
             error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
@@ -644,17 +644,13 @@ sub _setupPostfixSasl
 
     # Add postfix user in `mail' group to make it able to access
     # authdaemon rundir
-    my $rs = iMSCP::SystemUser->new()->addToGroup(
-        $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'}, $self->{'mta'}->{'config'}->{'POSTFIX_USER'}
-    );
+    my $rs = iMSCP::SystemUser->new()->addToGroup( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
     return $rs if $rs;
 
     # Mount authdaemond socket directory in Postfix chroot
     # Postfix won't be able to connect to socket located outside of its chroot
-    my $fsSpec = File::Spec->canonpath( $self->{'config'}->{'AUTHLIB_SOCKET_DIR'} );
-    my $fsFile = File::Spec->canonpath(
-        "$self->{'mta'}->{'config'}->{'POSTFIX_QUEUE_DIR'}/$self->{'config'}->{'AUTHLIB_SOCKET_DIR'}"
-    );
+    my $fsSpec = File::Spec->canonpath( $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'} );
+    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'}" );
     my $fields = { fs_spec => $fsSpec, fs_file => $fsFile, fs_vfstype => 'none', fs_mntops => 'bind,slave' };
 
     eval { iMSCP::Dir->new( dirname => $fsFile )->make(); };
@@ -684,7 +680,7 @@ sub _setupPostfixSasl
             PWCHECK_METHOD  => $self->{'config'}->{'PWCHECK_METHOD'},
             LOG_LEVEL       => $self->{'config'}->{'LOG_LEVEL'},
             MECH_LIST       => $self->{'config'}->{'MECH_LIST'},
-            AUTHDAEMON_PATH => $self->{'config'}->{'AUTHDAEMON_PATH'}
+            PO_AUTHDAEMON_PATH => $self->{'config'}->{'PO_AUTHDAEMON_PATH'}
         },
         \$cfgTpl
     );
@@ -711,16 +707,16 @@ sub _buildDHparametersFile
 
     return 0 unless iMSCP::ProgramFinder::find( 'certtool' ) || iMSCP::ProgramFinder::find( 'mkdhparams' );
 
-    if ( -f "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem" ) {
+    if ( -f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem" ) {
         my $rs = execute(
-            [ 'openssl', 'dhparam', '-in', "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem", '-text', '-noout' ], \ my $stdout, \ my $stderr
+            [ 'openssl', 'dhparam', '-in', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem", '-text', '-noout' ], \ my $stdout, \ my $stderr
         );
         debug( $stderr || 'Unknown error' ) if $rs;
         if ( $rs == 0 && $stdout =~ /\((\d+)\s+bit\)/ && $1 >= 2048 ) {
             return 0; # Don't regenerate file if not needed
         }
 
-        $rs = iMSCP::File->new( filename => "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem" )->delFile();
+        $rs = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem" )->delFile();
         return $rs if $rs;
     }
 
@@ -747,7 +743,7 @@ sub _buildDHparametersFile
             my $rs = executeNoWait( $cmd, ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? sub {} : $outputHandler ), $outputHandler );
             error( $output || 'Unknown error' ) if $rs;
             $rs ||= iMSCP::File->new(
-                filename => $tmpFile->filename )->moveFile( "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/dhparams.pem"
+                filename => $tmpFile->filename )->moveFile( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem"
             ) if $tmpFile;
             $rs;
         }, 'Generating DH parameter file', 1, 1
@@ -775,12 +771,12 @@ sub _buildAuthdaemonrcFile
             0;
         }
     );
-    $rs ||= $self->buildConfFile( "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/authdaemonrc", "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/authdaemonrc",
-        undef, undef,
+    $rs ||= $self->buildConfFile( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authdaemonrc",
+        "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authdaemonrc", undef, undef,
         {
             umask => 0007,
-            user  => $self->{'config'}->{'AUTHDAEMON_USER'},
-            group => $self->{'config'}->{'AUTHDAEMON_GROUP'},
+            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
+            group => $self->{'config'}->{'PO_AUTHDAEMON_GROUP'},
             mode  => 0660
         }
     );
@@ -800,14 +796,14 @@ sub _buildSslConfFiles
 
     return 0 unless main::setupGetQuestion( 'SERVICES_SSL_ENABLED', 'no' ) eq 'yes';
 
-    for ( $self->{'config'}->{'COURIER_IMAP_SSL'}, $self->{'config'}->{'COURIER_POP_SSL'} ) {
+    for ( $self->{'config'}->{'PO_IMAP_SSL'}, $self->{'config'}->{'PO_POP_SSL'} ) {
         my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', $_, \ my $cfgTpl, {} );
         return $rs if $rs;
 
         unless ( defined $cfgTpl ) {
-            $cfgTpl = iMSCP::File->new( filename => "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/$_" )->get();
+            $cfgTpl = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/$_" )->get();
             unless ( defined $cfgTpl ) {
-                error( sprintf( "Couldn't read the %s file", "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/$_" ));
+                error( sprintf( "Couldn't read the %s file", "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/$_" ));
                 return 1;
             }
         }
@@ -824,7 +820,7 @@ sub _buildSslConfFiles
         $rs = $self->{'eventManager'}->trigger( 'afterCourierBuildSslConfFile', \ $cfgTpl, $_ );
         return $rs if $rs;
 
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/$_" );
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/$_" );
         $file->set( $cfgTpl );
         $rs = $file->save();
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
@@ -884,9 +880,9 @@ sub _dropSqlUser
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
         ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
 
-    return 0 unless $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'} && $dbUserHost;
+    return 0 unless $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'} && $dbUserHost;
 
-    eval { iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'}, $dbUserHost ); };
+    eval { iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'}, $dbUserHost ); };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -908,7 +904,7 @@ sub _removeConfig
     my ($self) = @_;
 
     # Umount the courier-authdaemond rundir from the Postfix chroot
-    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'POSTFIX_QUEUE_DIR'}/$self->{'config'}->{'AUTHLIB_SOCKET_DIR'}" );
+    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'}" );
     my $rs = removeMountEntry( qr%.*?[ \t]+\Q$fsFile\E(?:/|[ \t]+)[^\n]+% );
     $rs ||= umount( $fsFile );
     return $rs if $rs;
@@ -920,14 +916,12 @@ sub _removeConfig
     }
 
     # Remove the `postfix' user from the `mail' group
-    $rs = iMSCP::SystemUser->new()->removeFromGroup(
-        $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'}, $self->{'mta'}->{'config'}->{'POSTFIX_USER'}
-    );
+    $rs = iMSCP::SystemUser->new()->removeFromGroup( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
     return $rs if $rs;
 
     # Remove i-MSCP configuration stanza from the courier-imap daemon configuration file
-    if ( -f "$self->{'config'}->{'COURIER_CONF_DIR'}/imapd" ) {
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'COURIER_CONF_DIR'}/imapd" );
+    if ( -f "$self->{'config'}->{'PO_CONF_DIR'}/imapd" ) {
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/imapd" );
         my $fileContentRef = $file->getAsRef();
         unless ( defined $fileContentRef ) {
             error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));

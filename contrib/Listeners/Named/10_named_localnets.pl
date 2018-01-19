@@ -43,7 +43,7 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($cfgTpl, $cfgTplName) = @_;
 
-        return 0 unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
+        return 0 unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
 
         ${$cfgTpl} =~ s/^(\s*allow-(?:recursion|query-cache|transfer)).*$/$1 { localnets; };/gm;
         0;

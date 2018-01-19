@@ -1,7 +1,7 @@
 zone "{DOMAIN_NAME}" {
   type master;
-  masterfile-format {BIND_DB_FORMAT};
+  masterfile-format {NAMED_DB_FORMAT};
   file "imscp/master/{DOMAIN_NAME}.db";
-  allow-transfer { {SECONDARY_DNS} };
+  allow-transfer { {NAMED_SECONDARY_DNS} };
   notify yes;
 };

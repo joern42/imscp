@@ -1,33 +1,20 @@
-BIND_VERSION =
-BIND_USER = bind
-BIND_GROUP = bind
-
-BIND_CONF_DIR = /etc/bind
-BIND_CONF_DEFAULT_FILE = /etc/default/bind9
-BIND_CONF_FILE = /etc/bind/named.conf
-BIND_LOCAL_CONF_FILE = /etc/bind/named.conf.local
-BIND_OPTIONS_CONF_FILE = /etc/bind/named.conf.options
-BIND_DB_ROOT_DIR = /var/cache/bind
-BIND_DB_MASTER_DIR = /var/cache/bind/imscp/master
-BIND_DB_SLAVE_DIR = /var/cache/bind/imscp/slave
+NAMED_VERSION            =
+NAMED_GROUP              = bind
+NAMED_USER               = bind
+NAMED_CONF_DIR           = /etc/bind
+NAMED_CONF_FILE          = /etc/bind/named.conf
+NAMED_LOCAL_CONF_FILE    = /etc/bind/named.conf.local
+NAMED_OPTIONS_CONF_FILE  = /etc/bind/named.conf.options
+NAMED_DB_ROOT_DIR        = /var/cache/bind
+NAMED_DB_MASTER_DIR      = /var/cache/bind/imscp/master
+NAMED_DB_SLAVE_DIR       = /var/cache/bind/imscp/slave
+NAMED_LOCAL_DNS_RESOLVER = {LOCAL_DNS_RESOLVER}
+NAMED_IPV6_SUPPORT       = {BIND_IPV6}
+NAMED_MODE               = {BIND_MODE}
+NAMED_PRIMARY_DNS        = {PRIMARY_DNS}
+NAMED_SECONDARY_DNS      = {SECONDARY_DNS}
 
 # Format for compiled zone files
 # Possible values: text, raw or raw=N where N can be 0 or 1
 # See NAMED-CHECKZONE(8)
-BIND_DB_FORMAT = raw=0
-
-# Mode in which the server should acts (master|slave)
-BIND_MODE =
-
-# List of IP addresses for master server(s)
-# Only relevant in slave mode
-PRIMARY_DNS =
-
-# List of IP addresses for slave server(s)
-# Only relevant in master mode
-SECONDARY_DNS =
-
-BIND_IPV6 =
-
-# DNS Resolver
-LOCAL_DNS_RESOLVER =
+NAMED_DB_FORMAT          = raw=0

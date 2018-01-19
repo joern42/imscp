@@ -25,25 +25,9 @@ package iMSCP::Servers::Po::Dovecot::Debian;
 
 use strict;
 use warnings;
-use autouse Fcntl => qw/ O_RDONLY /;
-use autouse 'File::Basename' => qw/ fileparse /;
-use autouse 'iMSCP::Execute' => qw/ execute /;
-use autouse 'iMSCP::Rights' => qw/ setRights /;
-use autouse 'iMSCP::TemplateParser' => qw/ processByRef /;
-use Array::Utils qw/ unique /;
-use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Database /;
-use iMSCP::Config;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
 use iMSCP::File;
-use iMSCP::Getopt;
-use iMSCP::Service;
-use iMSCP::Umask;
-use iMSCP::Servers::Mta;
-use iMSCP::Servers::Sqld;
-use Sort::Naturally;
-use Tie::File;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Po::Dovecot::Abstract';
 
@@ -160,7 +144,7 @@ sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
 
-    return 0 unless -x '/usr/sbin/dovecot';
+    return 0 unless -x $self->{'PO_BIN'};
 
     $self->_setVersion();
 }
@@ -247,30 +231,6 @@ sub reload
 
 =over 4
 
-=item _setVersion( )
-
- See iMSCP::Servers::Dovecot::Abstract::_setVersion()
-
-=cut
-
-sub _setVersion
-{
-    my ($self) = @_;
-
-    my $rs = execute( [ '/usr/sbin/dovecot', '--version' ], \ my $stdout, \ my $stderr );
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    if ( $stdout !~ m/^([\d.]+)/ ) {
-        error( "Couldn't guess Dovecot version from the `/usr/sbin/dovecot --version` command output" );
-        return 1;
-    }
-
-    $self->{'config'}->{'DOVECOT_VERSION'} = $1;
-    debug( sprintf( 'Dovecot version set to: %s', $1 ));
-    0;
-}
-
 =item _cleanup( )
 
  Process cleanup tasks
@@ -285,8 +245,8 @@ sub _cleanup
 
     return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    if ( -f "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-dict-sql.conf" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-dict-sql.conf" )->delFile();
+    if ( -f "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-dict-sql.conf" ) {
+        my $rs = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-dict-sql.conf" )->delFile();
         return $rs if $rs;
     }
 

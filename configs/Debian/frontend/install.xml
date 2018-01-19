@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <folder mode="0755">${ROOT_CONF}/logrotate.d</folder>
-    <folder mode="0755" export="ROOT_NGINX_CONF">${ROOT_CONF}/nginx</folder>
-    <folder mode="0755">${ROOT_NGINX_CONF}/conf.d</folder>
-    <folder mode="0755">${ROOT_NGINX_CONF}/sites-available</folder>
-    <folder mode="0755">${ROOT_NGINX_CONF}/sites-enabled</folder>
-    <folder mode="0750">${LOCAL_USR_LIB}/imscp_panel</folder>
-    <folder mode="0750">${LOCAL_CONF}/imscp_panel</folder>
+    <folder umask="0022">${ROOT_CONF}/logrotate.d</folder>
+    <folder umask="0022" export="ROOT_NGINX_CONF">${ROOT_CONF}/nginx</folder>
+    <folder umask="0022">${ROOT_NGINX_CONF}/conf.d</folder>
+    <folder umask="0022">${ROOT_NGINX_CONF}/sites-available</folder>
+    <folder umask="0022">${ROOT_NGINX_CONF}/sites-enabled</folder>
+    <folder>${LOCAL_USR_LIB}/imscp_panel</folder>
+    <folder>${LOCAL_CONF}/imscp_panel</folder>
     <folder>${SYSTEM_CONF}/frontend</folder>
     <copy_config>${SYSTEM_CONF}/frontend/cron.daily</copy_config>
     <copy_config>${SYSTEM_CONF}/frontend/logrotate.d</copy_config>
@@ -15,7 +15,7 @@
     <copy_config>${SYSTEM_CONF}/frontend/frontend.data.dist</copy_config>
     <copy_config mode="0750">${LOCAL_USR_LIB}/imscp_panel/imscp_panel_reopenlogs</copy_config>
     <copy_config>${SYSTEM_CONF}/frontend/imscp_fastcgi.nginx</copy_config>
-    <copy_config>${ROOT_CONF}/logrotate.d/imscp_panel</copy_config>
+    <copy_config umask="0022">${ROOT_CONF}/logrotate.d/imscp_panel</copy_config>
     <copy_config>${SYSTEM_CONF}/frontend/imscp_php.nginx</copy_config>
     <copy_config>${SYSTEM_CONF}/frontend/nginx.nginx</copy_config>
     <copy_config>${SYSTEM_CONF}/frontend/php.ini</copy_config>

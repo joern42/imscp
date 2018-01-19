@@ -54,7 +54,7 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($cfgTpl, $cfgTplName) = @_;
 
-        return 0 unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
+        return 0 unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
 
         replaceBlocByRef( "// imscp [{ENTRY_ID}] entry BEGIN\n", "// imscp [{ENTRY_ID}] entry ENDING\n", <<"EOF", $cfgTpl, 'preserveTags' );
     rate-limit {

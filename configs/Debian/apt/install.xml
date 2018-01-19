@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install>
-    <folder mode="0755">${ROOT_CONF}/apt</folder>
-    <folder mode="0755">${ROOT_CONF}/apt/apt.conf.d</folder>
-    <copy_config mode="0644">${ROOT_CONF}/apt/apt.conf.d/01norecommend</copy_config>
+<install umask="0022">
+    <folder>${ROOT_CONF}/apt</folder>
+    <folder>${ROOT_CONF}/apt/apt.conf.d</folder>
+    <copy_config>${ROOT_CONF}/apt/apt.conf.d/01norecommend</copy_config>
 </install>

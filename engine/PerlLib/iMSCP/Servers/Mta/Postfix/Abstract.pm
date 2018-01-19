@@ -38,6 +38,7 @@ use iMSCP::Dir;
 use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
 use Tie::File;
+use iMSCP::Service;
 use parent 'iMSCP::Servers::Mta';
 
 =head1 DESCRIPTION
@@ -131,7 +132,7 @@ sub setEnginePermissions
 {
     my ($self) = @_;
     # eg. /etc/postfix/main.cf
-    my $rs = setRights( $self->{'config'}->{'POSTFIX_CONF_FILE'},
+    my $rs = setRights( $self->{'config'}->{'MTA_MAIN_CONF_FILE'},
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_GROUP'},
@@ -139,7 +140,7 @@ sub setEnginePermissions
         }
     );
     # eg. /etc/postfix/master.cf
-    $rs ||= setRights( $self->{'config'}->{'POSTFIX_MASTER_CONF_FILE'},
+    $rs ||= setRights( $self->{'config'}->{'MTA_MASTER_CONF_FILE'},
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_GROUP'},
@@ -230,7 +231,7 @@ sub getVersion
 {
     my ($self) = @_;
 
-    $self->{'config'}->{'POSTFIX_VERSION'};
+    $self->{'config'}->{'MTA_VERSION'};
 }
 
 =item addDomain( \%moduleData )
@@ -768,13 +769,13 @@ sub postconf
         %params or croak( 'Missing parameters ' );
 
         my @pToDel = ();
-        my $conffile = $self->{'config'}->{'POSTFIX_CONF_DIR'} || '/etc/postfix';
+        my $conffile = $self->{'config'}->{'MTA_CONF_DIR'} || '/etc/postfix';
         my $time = time();
 
         # Avoid POSTCONF(1) being slow by waiting 2 seconds before next processing
         # See https://groups.google.com/forum/#!topic/list.postfix.users/MkhEqTR6yRM
-        utime $time, $time-2, $self->{'config'}->{'POSTFIX_CONF_FILE'} or croak(
-            sprintf( "Couldn't touch %s file: %s", $self->{'config'}->{'POSTFIX_CONF_FILE'} )
+        utime $time, $time-2, $self->{'config'}->{'MTA_MAIN_CONF_FILE'} or croak(
+            sprintf( "Couldn't touch %s file: %s", $self->{'config'}->{'MTA_MAIN_CONF_FILE'} )
         );
 
         my ($stdout, $stderr);
@@ -1016,7 +1017,7 @@ sub _setVersion
         return 1;
     }
 
-    $self->{'config'}->{'POSTFIX_VERSION'} = $1;
+    $self->{'config'}->{'MTA_VERSION'} = $1;
     debug( sprintf( 'Postfix version set to: %s', $stdout ));
     0;
 }
@@ -1097,7 +1098,7 @@ sub _buildMainCfFile
     my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} );
     my $hostname = main::setupGetQuestion( 'SERVER_HOSTNAME' );
 
-    my $rs = $self->buildConfFile( 'main.cf', $self->{'config'}->{'POSTFIX_CONF_FILE'}, undef,
+    my $rs = $self->buildConfFile( 'main.cf', $self->{'config'}->{'MTA_MAIN_CONF_FILE'}, undef,
         {
             MTA_INET_PROTOCOLS       => $baseServerIpType,
             MTA_SMTP_BIND_ADDRESS    => ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '',
@@ -1203,7 +1204,7 @@ sub _buildMainCfFile
                 }
             );
 
-            if ( version->parse( $self->{'config'}->{'POSTFIX_VERSION'} ) >= version->parse( '2.10.0' ) ) {
+            if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '2.10.0' ) ) {
                 $params{'smtpd_relay_restrictions'} = {
                     action => 'replace',
                     values => [ '' ],
@@ -1211,7 +1212,7 @@ sub _buildMainCfFile
                 };
             }
 
-            if ( version->parse( $self->{'config'}->{'POSTFIX_VERSION'} ) >= version->parse( '3.0.0' ) ) {
+            if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '3.0.0' ) ) {
                 $params{'compatibility_level'} = {
                     action => 'replace',
                     values => [ '2' ]
@@ -1235,7 +1236,7 @@ sub _buildMasterCfFile
 {
     my ($self) = @_;
 
-    $self->buildConfFile( 'master.cf', $self->{'config'}->{'POSTFIX_MASTER_CONF_FILE'}, undef,
+    $self->buildConfFile( 'master.cf', $self->{'config'}->{'MTA_MASTER_CONF_FILE'}, undef,
         {
             ARPL_PATH            => "$main::imscpConfig{'ROOT_DIR'}/engine/messenger/imscp-arpl-msgr",
             IMSCP_GROUP          => $main::imscpConfig{'IMSCP_GROUP'},
@@ -1282,6 +1283,21 @@ sub _removeFiles
     return 0 unless -f $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'};
 
     iMSCP::File->new( filename => $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'} )->delFile();
+}
+
+=item _shutdown( $priority )
+
+ See iMSCP::Servers::Abstract::_shutdown()
+
+=cut
+
+sub _shutdown
+{
+    my ($self, $priority) = @_;
+
+    return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
+
+    iMSCP::Service->getInstance()->registerDelayedAction( 'postfix', [ $action, sub { $self->$action(); } ], $priority );
 }
 
 =item END

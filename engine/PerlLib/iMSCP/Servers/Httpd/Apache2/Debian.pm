@@ -368,7 +368,7 @@ sub _setupModules
 {
     my ($self) = @_;
 
-    if ( $self->{'config'}->{'APACHE2_MPM'} eq 'event' ) {
+    if ( $self->{'config'}->{'HTTPD_MPM'} eq 'event' ) {
         my $rs = $self->disableModules( qw/ mpm_itk mpm_prefork mpm_worker cgi / );
         $rs ||= $self->enableModules(
             qw/ mpm_event access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex
@@ -377,7 +377,7 @@ sub _setupModules
         return 0;
     }
 
-    if ( $self->{'config'}->{'APACHE2_MPM'} eq 'itk' ) {
+    if ( $self->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
         my $rs = $self->disableModules( qw/ mpm_event mpm_worker cgid suexec / );
         $rs ||= $self->enableModules(
             qw/ mpm_prefork mpm_itk access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host
@@ -386,7 +386,7 @@ sub _setupModules
         return 0;
     }
 
-    if ( $self->{'config'}->{'APACHE2_MPM'} eq 'prefork' ) {
+    if ( $self->{'config'}->{'HTTPD_MPM'} eq 'prefork' ) {
         my $rs = $self->disableModules( qw/ mpm_event mpm_itk mpm_worker cgid / );
         $rs ||= $self->enableModules(
             qw/ mpm_prefork access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user
@@ -395,7 +395,7 @@ sub _setupModules
         return 0;
     }
 
-    if ( $self->{'config'}->{'APACHE2_MPM'} eq 'worker' ) {
+    if ( $self->{'config'}->{'HTTPD_MPM'} eq 'worker' ) {
         my $rs = $self->disableModules( qw/ mpm_event mpm_itk mpm_prefork cgi / );
         $rs ||= $self->enableModules(
             qw/ mpm_worker access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex

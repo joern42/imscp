@@ -267,7 +267,7 @@ sub _setVersion
         return 1;
     }
 
-    $self->{'config'}->{'COURIER_VERSION'} = $1;
+    $self->{'config'}->{'PO_VERSION'} = $1;
     debug( sprintf( 'Courier version set to: %s', $1 ));
     0;
 }
@@ -289,9 +289,9 @@ sub _cleanup
     return unless $oldPluginApiVersion < version->parse( '1.5.2' );
 
     for ( qw/ pop3d pop3d-ssl imapd imapd-ssl / ) {
-        next unless -f "$self->{'config'}->{'COURIER_CONF_DIR'}/$_";
+        next unless -f "$self->{'config'}->{'PO_CONF_DIR'}/$_";
 
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'COURIER_CONF_DIR'}/$_" );
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$_" );
         my $fileContentRef = $file->getAsRef();
         unless ( defined $fileContentRef ) {
             error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
@@ -310,14 +310,14 @@ sub _cleanup
         return $rs if $rs;
     }
 
-    if ( -f "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" ) {
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" );
+    if ( -f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ) {
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" );
         $file->set( '' );
         my $rs = $file->save();
         $rs ||= $file->mode( 0600 );
         return $rs if $rs;
 
-        $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'AUTHLIB_CONF_DIR'}/userdb" ], \ my $stdout, \ my $stderr );
+        $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
@@ -325,12 +325,12 @@ sub _cleanup
 
     # Remove postfix user from authdaemon group.
     # It is now added in mail group (since 1.5.0)
-    my $rs = iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'POSTFIX_USER'} );
+    my $rs = iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'PO_AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
     return $rs if $rs;
 
     # Remove old authdaemon socket private/authdaemon mount directory.
     # Replaced by var/run/courier/authdaemon (since 1.5.0)
-    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'POSTFIX_QUEUE_DIR'}/private/authdaemon" );
+    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/private/authdaemon" );
     $rs ||= umount( $fsFile );
     return $rs if $rs;
 

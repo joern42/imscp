@@ -216,7 +216,7 @@ function generatePage($tpl)
 
     if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
         $apache2Config = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache2/apache.data'));
-        $isApache2Itk = $apache2Config['APACHE2_MPM'] == 'itk';
+        $isApache2Itk = $apache2Config['HTTPD_MPM'] == 'itk';
     } else {
         $isApache2Itk = false;
     }

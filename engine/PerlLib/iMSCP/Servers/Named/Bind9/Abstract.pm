@@ -86,7 +86,7 @@ sub askDnsServerMode
 {
     my ($self, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'BIND_MODE', $self->{'config'}->{'BIND_MODE'} || ( iMSCP::Getopt->preseed ? 'master' : '' ));
+    my $value = main::setupGetQuestion( 'NAMED_MODE', $self->{'config'}->{'NAMED_MODE'} || ( iMSCP::Getopt->preseed ? 'master' : '' ));
     my %choices = ( 'master', 'Master DNS server', 'slave', 'Slave DNS server' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -97,8 +97,8 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'BIND_MODE', $value );
-    $self->{'config'}->{'BIND_MODE'} = $value;
+    main::setupSetQuestion( 'NAMED_MODE', $value );
+    $self->{'config'}->{'NAMED_MODE'} = $value;
 
     $self->askDnsServerIps( $dialog );
 }
@@ -116,12 +116,12 @@ sub askDnsServerIps
 {
     my ($self, $dialog) = @_;
 
-    my $dnsServerMode = $self->{'config'}->{'BIND_MODE'};
+    my $dnsServerMode = $self->{'config'}->{'NAMED_MODE'};
     my @masterDnsIps = split /[; \t]+/, main::setupGetQuestion(
-            'PRIMARY_DNS', $self->{'config'}->{'PRIMARY_DNS'} || ( iMSCP::Getopt->preseed ? 'no' : '' )
+            'NAMED_PRIMARY_DNS', $self->{'config'}->{'NAMED_PRIMARY_DNS'} || ( iMSCP::Getopt->preseed ? 'no' : '' )
         );
     my @slaveDnsIps = split /[; \t]+/, main::setupGetQuestion(
-            'SECONDARY_DNS', $self->{'config'}->{'SECONDARY_DNS'} || ( iMSCP::Getopt->preseed ? 'no' : '' )
+            'NAMED_SECONDARY_DNS', $self->{'config'}->{'NAMED_SECONDARY_DNS'} || ( iMSCP::Getopt->preseed ? 'no' : '' )
         );
     my ($rs, $answer, $msg) = ( 0, '', '' );
 
@@ -195,16 +195,16 @@ EOF
     return $rs unless $rs < 30;
 
     if ( $dnsServerMode eq 'master' ) {
-        $self->{'config'}->{'PRIMARY_DNS'} = 'no';
-        $self->{'config'}->{'SECONDARY_DNS'} = join ';', @slaveDnsIps;
+        $self->{'config'}->{'NAMED_PRIMARY_DNS'} = 'no';
+        $self->{'config'}->{'NAMED_SECONDARY_DNS'} = join ';', @slaveDnsIps;
         return $rs;
     }
 
-    $self->{'config'}->{'PRIMARY_DNS'} = join ';', @masterDnsIps;
-    main::setupSetQuestion( 'PRIMARY_DNS', $self->{'config'}->{'PRIMARY_DNS'} );
+    $self->{'config'}->{'NAMED_PRIMARY_DNS'} = join ';', @masterDnsIps;
+    main::setupSetQuestion( 'NAMED_PRIMARY_DNS', $self->{'config'}->{'NAMED_PRIMARY_DNS'} );
 
-    main::setupSetQuestion( 'SECONDARY_DNS', 'no' );
-    $self->{'config'}->{'SECONDARY_DNS'} = 'no';
+    main::setupSetQuestion( 'NAMED_SECONDARY_DNS', 'no' );
+    $self->{'config'}->{'NAMED_SECONDARY_DNS'} = 'no';
     $rs;
 }
 
@@ -222,12 +222,12 @@ sub askIPv6Support
     my ($self, $dialog) = @_;
 
     unless ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ) {
-        main::setupSetQuestion( 'BIND_IPV6', 'no' );
-        $self->{'config'}->{'BIND_IPV6'} = 'no';
+        main::setupSetQuestion( 'NAMED_IPV6_SUPPORT', 'no' );
+        $self->{'config'}->{'NAMED_IPV6_SUPPORT'} = 'no';
         return 0;
     }
 
-    my $value = main::setupGetQuestion( 'BIND_IPV6', $self->{'config'}->{'BIND_IPV6'} || ( iMSCP::Getopt->preseed ? 'no' : '' ));
+    my $value = main::setupGetQuestion( 'NAMED_IPV6_SUPPORT', $self->{'config'}->{'NAMED_IPV6_SUPPORT'} || ( iMSCP::Getopt->preseed ? 'no' : '' ));
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -238,8 +238,8 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'BIND_IPV6', $value );
-    $self->{'config'}->{'BIND_IPV6'} = $value;
+    main::setupSetQuestion( 'NAMED_IPV6_SUPPORT', $value );
+    $self->{'config'}->{'NAMED_IPV6_SUPPORT'} = $value;
     0;
 }
 
@@ -257,7 +257,7 @@ sub askLocalDnsResolver
     my ($self, $dialog) = @_;
 
     my $value = main::setupGetQuestion(
-        'LOCAL_DNS_RESOLVER', $self->{'config'}->{'LOCAL_DNS_RESOLVER'} || ( iMSCP::Getopt->preseed ? 'yes' : '' )
+        'NAMED_LOCAL_DNS_RESOLVER', $self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'} || ( iMSCP::Getopt->preseed ? 'yes' : '' )
     );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
@@ -271,7 +271,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    $self->{'config'}->{'LOCAL_DNS_RESOLVER'} = $value;
+    $self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'} = $value;
     0;
 }
 
@@ -287,7 +287,7 @@ sub install
 {
     my ($self) = @_;
 
-    for my $conffile( 'BIND_CONF_DEFAULT_FILE', 'BIND_CONF_FILE', 'BIND_LOCAL_CONF_FILE', 'BIND_OPTIONS_CONF_FILE' ) {
+    for my $conffile( 'NAMED_CONF_FILE', 'NAMED_LOCAL_CONF_FILE', 'NAMED_OPTIONS_CONF_FILE' ) {
         next if $self->{'config'}->{$conffile} eq '';
 
         my $rs = $self->_bkpConfFile( $self->{'config'}->{$conffile} );
@@ -311,19 +311,19 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    my $rs = setRights( $self->{'config'}->{'BIND_CONF_DIR'},
+    my $rs = setRights( $self->{'config'}->{'NAMED_CONF_DIR'},
         {
             user      => $main::imscpConfig{'ROOT_USER'},
-            group     => $self->{'config'}->{'BIND_GROUP'},
+            group     => $self->{'config'}->{'NAMED_GROUP'},
             dirmode   => '2750',
             filemode  => '0640',
             recursive => 1
         }
     );
-    $rs ||= setRights( $self->{'config'}->{'BIND_DB_ROOT_DIR'},
+    $rs ||= setRights( $self->{'config'}->{'NAMED_DB_ROOT_DIR'},
         {
-            user      => $self->{'config'}->{'BIND_USER'},
-            group     => $self->{'config'}->{'BIND_GROUP'},
+            user      => $self->{'config'}->{'NAMED_USER'},
+            group     => $self->{'config'}->{'NAMED_GROUP'},
             dirmode   => '2750',
             filemode  => '0640',
             recursive => 1
@@ -367,7 +367,7 @@ sub getVersion
 {
     my ($self) = @_;
 
-    $self->{'config'}->{'BIND_VERSION'};
+    $self->{'config'}->{'NAMED_VERSION'};
 }
 
 =item addDomain( \%moduleData )
@@ -388,7 +388,7 @@ sub addDomain
     $rs ||= $self->_addDmnConfig( $moduleData );
     return $rs if $rs;
 
-    if ( $self->{'config'}->{'BIND_MODE'} eq 'master' ) {
+    if ( $self->{'config'}->{'NAMED_MODE'} eq 'master' ) {
         $rs = $self->_addDmnDb( $moduleData );
         return $rs if $rs;
     }
@@ -410,7 +410,7 @@ sub postaddDomain
     my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostAddDomain', $moduleData );
     return $rs if $rs;
 
-    if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'BIND_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
+    if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
         $rs = $self->addSubdomain( {
             # Listeners want probably know real parent domain name for the
             # DNS name being added even if that entry is added in another
@@ -487,8 +487,8 @@ sub deleteDomain
     $rs ||= $self->_deleteDmnConfig( $moduleData );
     return $rs if $rs;
 
-    if ( $self->{'config'}->{'BIND_MODE'} eq 'master' ) {
-        for ( "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db", "$self->{'config'}->{'BIND_DB_MASTER_DIR'}/$moduleData->{'DOMAIN_NAME'}.db" ) {
+    if ( $self->{'config'}->{'NAMED_MODE'} eq 'master' ) {
+        for ( "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db", "$self->{'config'}->{'NAMED_DB_MASTER_DIR'}/$moduleData->{'DOMAIN_NAME'}.db" ) {
             next unless -f;
 
             $rs = iMSCP::File->new( filename => $_ )->delFile();
@@ -514,7 +514,7 @@ sub postdeleteDomain
     my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostDeleteDomain', $moduleData );
     return $rs if $rs;
 
-    if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'BIND_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
+    if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
         $rs = $self->deleteSubdomain( {
             PARENT_DOMAIN_NAME => $main::imscpConfig{'BASE_SERVER_VHOST'},
             DOMAIN_NAME        => $moduleData->{'ALIAS'} . '.' . $main::imscpConfig{'BASE_SERVER_VHOST'}
@@ -536,7 +536,7 @@ sub addSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless $self->{'config'}->{'BIND_MODE'} eq 'master';
+    return 0 unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
     my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'PARENT_DOMAIN_NAME'}.db";
     unless ( -f $wrkDbFile ) {
@@ -629,7 +629,7 @@ sub postaddSubdomain
     my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostAddSubdomain', $moduleData );
     return $rs if $rs;
 
-    if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'BIND_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
+    if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
         $rs = $self->addSubdomain( {
             # Listeners want probably know real parent domain name for the
             # DNS name being added even if that entry is added in another
@@ -699,7 +699,7 @@ sub deleteSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless $self->{'config'}->{'BIND_MODE'} eq 'master';
+    return 0 unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
     my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'PARENT_DOMAIN_NAME'}.db";
     unless ( -f $wrkDbFile ) {
@@ -745,7 +745,7 @@ sub postdeleteSubdomain
     my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostDeleteSubdomain', $moduleData );
     return $rs if $rs;
 
-    if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'BIND_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
+    if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
         $rs = $self->deleteSubdomain( {
             PARENT_DOMAIN_NAME => $main::imscpConfig{'BASE_SERVER_VHOST'},
             DOMAIN_NAME        => $moduleData->{'ALIAS'} . '.' . $main::imscpConfig{'BASE_SERVER_VHOST'}
@@ -767,7 +767,7 @@ sub addCustomDNS
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless $self->{'config'}->{'BIND_MODE'} eq 'master';
+    return 0 unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
     my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db";
     unless ( -f $wrkDbFile ) {
@@ -886,12 +886,12 @@ sub _addDmnConfig
 {
     my ($self, $moduleData) = @_;
 
-    unless ( defined $self->{'config'}->{'BIND_MODE'} ) {
+    unless ( defined $self->{'config'}->{'NAMED_MODE'} ) {
         error( 'Bind mode is not defined. Run imscp-reconfigure script.' );
         return 1;
     }
 
-    my ($cfgFileName, $cfgFileDir) = fileparse( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} || $self->{'config'}->{'BIND_CONF_FILE'} );
+    my ($cfgFileName, $cfgFileDir) = fileparse( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} || $self->{'config'}->{'NAMED_CONF_FILE'} );
 
     unless ( -f "$self->{'wrkDir'}/$cfgFileName" ) {
         error( sprintf( 'File %s not found. Run imscp-reconfigure script.', "$self->{'wrkDir'}/$cfgFileName" ));
@@ -905,7 +905,7 @@ sub _addDmnConfig
         return 1;
     }
 
-    my $tplFileName = "cfg_$self->{'config'}->{'BIND_MODE'}.tpl";
+    my $tplFileName = "cfg_$self->{'config'}->{'NAMED_MODE'}.tpl";
     my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', $tplFileName, \ my $tplCfgEntryContent, $moduleData );
     return $rs if $rs;
 
@@ -921,18 +921,18 @@ sub _addDmnConfig
     return $rs if $rs;
 
     my $tags = {
-        BIND_DB_FORMAT => $self->{'config'}->{'BIND_DB_FORMAT'} =~ s/=\d//r,
+        NAMED_DB_FORMAT => $self->{'config'}->{'NAMED_DB_FORMAT'} =~ s/=\d//r,
         DOMAIN_NAME    => $moduleData->{'DOMAIN_NAME'}
     };
 
-    if ( $self->{'config'}->{'BIND_MODE'} eq 'master' ) {
-        if ( $self->{'config'}->{'SECONDARY_DNS'} ne 'no' ) {
-            $tags->{'SECONDARY_DNS'} = join( '; ', split( ';', $self->{'config'}->{'SECONDARY_DNS'} )) . '; localhost;';
+    if ( $self->{'config'}->{'NAMED_MODE'} eq 'master' ) {
+        if ( $self->{'config'}->{'NAMED_SECONDARY_DNS'} ne 'no' ) {
+            $tags->{'NAMED_SECONDARY_DNS'} = join( '; ', split( ';', $self->{'config'}->{'NAMED_SECONDARY_DNS'} )) . '; localhost;';
         } else {
-            $tags->{'SECONDARY_DNS'} = 'localhost;';
+            $tags->{'NAMED_SECONDARY_DNS'} = 'localhost;';
         }
     } else {
-        $tags->{'PRIMARY_DNS'} = join( '; ', split( ';', $self->{'config'}->{'PRIMARY_DNS'} )) . ';';
+        $tags->{'NAMED_PRIMARY_DNS'} = join( '; ', split( ';', $self->{'config'}->{'NAMED_PRIMARY_DNS'} )) . ';';
     }
 
     replaceBlocByRef(
@@ -947,7 +947,7 @@ EOF
     $rs = $self->{'eventManager'}->trigger( 'afterBind9AddDmnConfig', \$cfgWrkFileContent, $moduleData );
     $rs ||= $cfgFile->set( $cfgWrkFileContent );
     $rs ||= $cfgFile->save();
-    $rs ||= $cfgFile->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
+    $rs ||= $cfgFile->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} );
     $rs ||= $cfgFile->mode( 0640 );
     $rs ||= $cfgFile->copyFile( "$cfgFileDir$cfgFileName" );
 }
@@ -965,7 +965,7 @@ sub _deleteDmnConfig
 {
     my ($self, $moduleData) = @_;
 
-    my ($cfgFileName, $cfgFileDir) = fileparse( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} || $self->{'config'}->{'BIND_CONF_FILE'} );
+    my ($cfgFileName, $cfgFileDir) = fileparse( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} || $self->{'config'}->{'NAMED_CONF_FILE'} );
 
     unless ( -f "$self->{'wrkDir'}/$cfgFileName" ) {
         error( sprintf( 'File %s not found. Run imscp-reconfigure script.', "$self->{'wrkDir'}/$cfgFileName" ));
@@ -989,7 +989,7 @@ sub _deleteDmnConfig
     $rs = $self->{'eventManager'}->trigger( 'afterBind9DelDmnConfig', \$cfgWrkFileContent, $moduleData );
     $rs ||= $cfgFile->set( $cfgWrkFileContent );
     $rs ||= $cfgFile->save();
-    $rs ||= $cfgFile->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
+    $rs ||= $cfgFile->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} );
     $rs ||= $cfgFile->mode( 0640 );
     $rs ||= $cfgFile->copyFile( "$cfgFileDir$cfgFileName" );
 }
@@ -1037,7 +1037,9 @@ sub _addDmnDb
     my $domainIP = $net->isRoutableAddr( $moduleData->{'DOMAIN_IP'} ) ? $moduleData->{'DOMAIN_IP'} : $moduleData->{'BASE_SERVER_PUBLIC_IP'};
 
     unless ( $nsRecordB eq '' && $glueRecordB eq '' ) {
-        my @nsIPs = ( $domainIP, ( ( $self->{'config'}->{'SECONDARY_DNS'} eq 'no' ) ? () : split ';', $self->{'config'}->{'SECONDARY_DNS'} ) );
+        my @nsIPs = ( $domainIP, ( ( $self->{'config'}->{'NAMED_SECONDARY_DNS'} eq 'no' )
+                ? () : split ';', $self->{'config'}->{'NAMED_SECONDARY_DNS'} )
+        );
         my ($nsRecords, $glueRecords) = ( '', '' );
 
         for my $ipAddrType( qw/ ipv4 ipv6 / ) {
@@ -1180,8 +1182,8 @@ sub _compileZone
     local $UMASK = 027;
     my $rs = execute(
         [
-            'named-compilezone', '-i', 'full', '-f', 'text', '-F', $self->{'config'}->{'BIND_DB_FORMAT'}, '-s', 'relative', '-o',
-            "$self->{'config'}->{'BIND_DB_MASTER_DIR'}/$zonename.db", $zonename, $filename
+            'named-compilezone', '-i', 'full', '-f', 'text', '-F', $self->{'config'}->{'NAMED_DB_FORMAT'}, '-s', 'relative', '-o',
+            "$self->{'config'}->{'NAMED_DB_MASTER_DIR'}/$zonename.db", $zonename, $filename
         ],
         \ my $stdout,
         \ my $stderr
@@ -1231,8 +1233,8 @@ sub _makeDirs
 
     eval {
         my @directories = (
-            [ $self->{'config'}->{'BIND_DB_MASTER_DIR'}, $self->{'config'}->{'BIND_USER'}, $self->{'config'}->{'BIND_GROUP'}, 02750 ],
-            [ $self->{'config'}->{'BIND_DB_SLAVE_DIR'}, $self->{'config'}->{'BIND_USER'}, $self->{'config'}->{'BIND_GROUP'}, 02750 ]
+            [ $self->{'config'}->{'NAMED_DB_MASTER_DIR'}, $self->{'config'}->{'NAMED_USER'}, $self->{'config'}->{'NAMED_GROUP'}, 02750 ],
+            [ $self->{'config'}->{'NAMED_DB_SLAVE_DIR'}, $self->{'config'}->{'NAMED_USER'}, $self->{'config'}->{'NAMED_GROUP'}, 02750 ]
         );
 
         for my $directory( @directories ) {
@@ -1243,8 +1245,8 @@ sub _makeDirs
             } );
         }
 
-        iMSCP::Dir->new( dirname => $self->{'config'}->{'BIND_DB_MASTER_DIR'} )->clear();
-        iMSCP::Dir->new( dirname => $self->{'config'}->{'BIND_DB_SLAVE_DIR'} )->clear() if $self->{'config'}->{'BIND_MODE'} ne 'slave';
+        iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_MASTER_DIR'} )->clear();
+        iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_SLAVE_DIR'} )->clear() if $self->{'config'}->{'NAMED_MODE'} ne 'slave';
     };
     if ( $@ ) {
         error( $@ );
@@ -1269,106 +1271,63 @@ sub _configure
     my $rs = $self->{'eventManager'}->trigger( 'beforeBind9Configure' );
     return $rs if $rs;
 
-    # default conffile (Debian/Ubuntu specific)
-    if ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && exists $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} ) {
-        $self->{'eventManager'}->registerOne(
-            'beforeBind9BuildConfFile',
-            sub {
-                # Enable/disable local DNS resolver
-                ${$_[0]} =~ s/RESOLVCONF=(?:no|yes)/RESOLVCONF=$self->{'config'}->{'LOCAL_DNS_RESOLVER'}/i;
-
-                return 0 unless ${$_[0]} =~ /OPTIONS="(.*)"/;
-
-                # Enable/disable IPV6 support
-                ( my $options = $1 ) =~ s/\s*-[46]\s*//g;
-                $options = '-4 ' . $options unless $self->{'config'}->{'BIND_IPV6'} eq 'yes';
-                ${$_[0]} =~ s/OPTIONS=".*"/OPTIONS="$options"/;
-                0;
-            }
-        );
-
-        my $tplName = basename( $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} );
-        $rs = $self->buildConfFile( $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'}, "$self->{'wrkDir'}/$tplName" );
-        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} );
-        return $rs if $rs;
-
-        eval {
-            # Fix for #IP-1333
-            # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=744304
-            my $serviceMngr = iMSCP::Service->getInstance();
-            if ( $serviceMngr->isSystemd() ) {
-                if ( $self->{'config'}->{'LOCAL_DNS_RESOLVER'} eq 'yes' ) {
-                    # Service will be started automatically when Bind9 will be restarted
-                    $serviceMngr->enable( 'bind9-resolvconf' );
-                } else {
-                    $serviceMngr->stop( 'bind9-resolvconf' );
-                    $serviceMngr->disable( 'bind9-resolvconf' );
-                }
-            }
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-    }
-
     # option configuration file
-    if ( $self->{'config'}->{'BIND_OPTIONS_CONF_FILE'} ) {
+    if ( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} ) {
         $self->{'eventManager'}->registerOne(
             'beforeBind9BuildConfFile',
             sub {
-                ${$_[0]} =~ s/listen-on-v6\s+\{\s+any;\s+\};/listen-on-v6 { none; };/ if $_[5]->{'BIND_IPV6'} eq 'no';
+                ${$_[0]} =~ s/listen-on-v6\s+\{\s+any;\s+\};/listen-on-v6 { none; };/ if $_[5]->{'NAMED_IPV6_SUPPORT'} eq 'no';
                 ${$_[0]} =~ s%//\s+(check-spf\s+ignore;)%$1% if version->parse( $self->getVersion()) >= version->parse( '9.9.3' );
                 0;
             }
         );
 
-        my $tplName = basename( $self->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
+        my $tplName = basename( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
         $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
-                group => $self->{'config'}->{'BIND_GROUP'}
+                group => $self->{'config'}->{'NAMED_GROUP'}
             }
         );
-        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
+        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
         return $rs if $rs;
     }
 
     # master configuration file
-    if ( $self->{'config'}->{'BIND_CONF_FILE'} ) {
+    if ( $self->{'config'}->{'NAMED_CONF_FILE'} ) {
         $self->{'eventManager'}->registerOne(
             'beforeBind9BuildConfFile',
             sub {
-                return 0 if -f "$_[5]->{'BIND_CONF_DIR'}/bind.keys";
-                ${$_[0]} =~ s%include\s+\Q"$_[5]->{'BIND_CONF_DIR'}\E/bind.keys";\n%%;
+                return 0 if -f "$_[5]->{'NAMED_CONF_DIR'}/bind.keys";
+                ${$_[0]} =~ s%include\s+\Q"$_[5]->{'NAMED_CONF_DIR'}\E/bind.keys";\n%%;
                 0;
             }
         );
 
-        my $tplName = basename( $self->{'config'}->{'BIND_CONF_FILE'} );
+        my $tplName = basename( $self->{'config'}->{'NAMED_CONF_FILE'} );
         $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
-                group => $self->{'config'}->{'BIND_GROUP'}
+                group => $self->{'config'}->{'NAMED_GROUP'}
             }
         );
-        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'BIND_CONF_FILE'} );
+        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'NAMED_CONF_FILE'} );
         return $rs if $rs;
     }
 
     # local configuration file
-    if ( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} ) {
-        my $tplName = basename( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} );
+    if ( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} ) {
+        my $tplName = basename( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} );
         $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
-                group => $self->{'config'}->{'BIND_GROUP'}
+                group => $self->{'config'}->{'NAMED_GROUP'}
             }
         );
-        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} );
+        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} );
         return $rs if $rs;
     }
 
@@ -1412,22 +1371,7 @@ sub _removeConfig
 {
     my ($self) = @_;
 
-    if ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && exists $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} ) {
-        my ($filename, $dirname) = fileparse( $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} );
-        next unless -d $dirname && -f "$self->{'bkpDir'}/$filename.system";
-
-        my $rs = iMSCP::File->new( filename => "$self->{'bkpDir'}/$filename.system" )->copyFile(
-            $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'}, { preserve => 'no' }
-        );
-        return $rs if $rs;
-
-        my $file = iMSCP::File->new( filename => $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} );
-        $rs = $file->mode( 0644 );
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_USER'} );
-        return $rs if $rs;
-    }
-
-    for ( 'BIND_CONF_FILE', 'BIND_LOCAL_CONF_FILE', 'BIND_OPTIONS_CONF_FILE' ) {
+    for ( 'NAMED_CONF_FILE', 'NAMED_LOCAL_CONF_FILE', 'NAMED_OPTIONS_CONF_FILE' ) {
         next unless exists $self->{'config'}->{$_};
 
         my ($filename, $dirname) = fileparse( $self->{'config'}->{$_} );
@@ -1439,13 +1383,13 @@ sub _removeConfig
 
         my $file = iMSCP::File->new( filename => $self->{'config'}->{$_} );
         $rs = $file->mode( 0640 );
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
+        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} );
         return $rs if $rs;
     }
 
     eval {
-        iMSCP::Dir->new( dirname => $self->{'config'}->{'BIND_DB_MASTER_DIR'} )->remove();
-        iMSCP::Dir->new( dirname => $self->{'config'}->{'BIND_DB_SLAVE_DIR'} )->remove();
+        iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_MASTER_DIR'} )->remove();
+        iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_SLAVE_DIR'} )->remove();
         iMSCP::Dir->new( dirname => $self->{'wrkDir'} )->clear();
     };
     if ( $@ ) {
