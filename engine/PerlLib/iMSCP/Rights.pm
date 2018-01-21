@@ -97,8 +97,8 @@ sub setRights
                         # We do not call chmod on symkink targets
                         return if -l;
 
-                        # It is OK to reuse the previous lstat structure tbelow
-                        # we know that we have a real file.
+                        # It is OK to reuse the previous lstat structure below
+                        # because we know that we have a real file.
 
                         if ( $mode ) {
                             chmod $mode, $_ or croak( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
