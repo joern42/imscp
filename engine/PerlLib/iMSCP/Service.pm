@@ -26,6 +26,7 @@ package iMSCP::Service;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use iMSCP::Debug qw/ debug /;
 use File::Basename;
 use iMSCP::Debug qw/ error getMessageByType /;
 use iMSCP::Execute;
@@ -49,9 +50,7 @@ my %DELAYED_ACTIONS;
 
 =item isEnabled( $service )
 
- Does the given service is enabled?
-
- Return TRUE if the given service is enabled, FALSE otherwise, croak on failure
+ See iMSCP::Providers::Service::Interface::isEnabled()
 
 =cut
 
@@ -59,18 +58,12 @@ sub isEnabled
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
-    my $ret = $self->{'provider'}->isEnabled( $service );
-    $ret;
+    $self->{'provider'}->isEnabled( $service );
 }
 
 =item enable( $service )
 
- Enable the given service
-
- Param string $service Service name
- Return bool TRUE on success, croak on failure
+ See iMSCP::Providers::Service::Interface::enable()
 
 =cut
 
@@ -78,19 +71,13 @@ sub enable
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
-    my $ret = eval { $self->{'provider'}->enable( $service ) };
-    $ret && !$@ or croak( sprintf( "Couldn't enable the `%s' service: %s", $service, $@ || $self->_getLastError()));
-    $ret;
+    eval { $self->{'provider'}->enable( $service ) };
+    !$@ or croak( sprintf( "Couldn't enable the `%s' service: %s", $service, $@ ));
 }
 
 =item disable( $service )
 
- Disable the given service
-
- Param string $service Service name
- Return bool TRUE on success, croak on failure
+ See iMSCP::Providers::Service::Interface::disable()
 
 =cut
 
@@ -98,19 +85,18 @@ sub disable
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
-    my $ret = eval { $self->{'provider'}->disable( $service ) };
-    $ret && !$@ or croak( sprintf( "Couldn't disable the `%s' service: %s", $service, $@ || $self->_getLastError()));
-    $ret;
+    eval { $self->{'provider'}->disable( $service ) };
+    !$@ or croak( sprintf( "Couldn't disable the `%s' service: %s", $service, $@ ));
 }
 
 =item remove( $service )
 
- Remove the given service
-
- Param string $service Service name
- Return bool TRUE on success, croak on failure
+ See iMSCP::Providers::Service::Interface::remove()
+ 
+ Because we want to remove service files, independently of the current
+ init system, this method reimplement some parts of the Systemd and
+ Upstart providers. Calling the remove() method on these providers when
+ they are not the current init system would lead to a failure.
 
 =cut
 
@@ -118,49 +104,52 @@ sub remove
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
     eval {
-        $self->{'provider'}->remove( $service ) or croak( $self->_getLastError());
+        $self->{'provider'}->remove( $service );
 
         unless ( $self->{'init'} eq 'Systemd' ) {
             my $provider = $self->getProvider( 'Systemd' );
 
             # Remove drop-in files if any
-            my $dropInDir = '/etc/systemd/system/';
-            ( undef, undef, my $suffix ) = fileparse( $service, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
-            $dropInDir .= $service . ( $suffix ? '' : '.service' ) . '.d';
-            iMSCP::Dir->new( dirname => $dropInDir )->remove() if -d $dropInDir;
+            for ( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
+                my $dropInDir = $_;
+                ( undef, undef, my $suffix ) = fileparse(
+                    $service, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer /
+                );
+                $dropInDir .= $service . ( $suffix ? '' : '.service' ) . '.d';
+                next unless -d $dropInDir;
+                debug( sprintf ( "Removing the `%s' systemd drop-in directory", $dropInDir ));
+                iMSCP::Dir->new( dirname => $dropInDir )->remove();
+            }
 
-            my $unitFilePath = eval { $provider->resolveUnit( $service, 'withpath', 'flushcache' ); };
-            if ( defined $unitFilePath
+            # Remove unit files if any
+            while ( my $unitFilePath = eval { $self->resolveUnit( $service, 'withpath', 'nocache' ) } ) {
                 # We do not want remove units that are shipped by distribution packages
-                && index( $unitFilePath, '/etc/systemd/system/' ) != 0
-            ) {
-                iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or croak( $self->_getLastError());
+                last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
+                debug( sprintf ( 'Removing the %s unit', $unitFilePath ));
+                iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or croak(
+                    getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+                );
             }
         }
 
         unless ( $self->{'init'} eq 'Upstart' ) {
             my $provider = $self->getProvider( 'Upstart' );
             for ( qw / conf override / ) {
-                my $jobfilePath = eval { $provider->getJobFilePath( $service, $_ ); };
-                if ( defined $jobfilePath ) {
+
+                if ( my $jobfilePath = eval { $provider->getJobFilePath( $service, $_ ); } ) {
+                    debug( sprintf ( "Removing the `%s' upstart job", $jobfilePath ));
                     iMSCP::File->new( filename => $jobfilePath )->delFile() == 0 or croak( $self->_getLastError());
                 }
             }
         }
     };
-    !$@ or croak( sprintf( "Couldn't remove the `%s' service: %s", $service, $@ ));
-    1;
+    !$@ or croak( sprintf( "Couldn't remove the `%s' service: %s", basename( $service, '.service' ), $@ ));
 }
 
 =item start( $service )
 
- Start the given service
-
- Param string $service Service name
- Return bool TRUE on success, croak on failure
+ See iMSCP::Providers::Service::Interface::start()
 
 =cut
 
@@ -168,19 +157,13 @@ sub start
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
-    my $ret = eval { $self->{'provider'}->start( $service ) };
-    $ret && !$@ or croak( sprintf( "Couldn't start the `%s' service: %s", $service, $@ || $self->_getLastError()));
-    $ret;
+    eval { $self->{'provider'}->start( $service ) };
+    !$@ or croak( sprintf( "Couldn't start the `%s' service: %s", $service, $@ ));
 }
 
 =item stop( $service )
 
- Stop the given service
-
- Param string $service Service name
- Return bool TRUE on success, croak on failure
+ See iMSCP::Providers::Service::Interface::stop()
 
 =cut
 
@@ -188,19 +171,13 @@ sub stop
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
-    my $ret = eval { $self->{'provider'}->stop( $service ) };
-    $ret && !$@ or croak( sprintf( "Couldn't stop the `%s' service: %s", $service, $@ || $self->_getLastError()));
-    $ret;
+    eval { $self->{'provider'}->stop( $service ) };
+    !$@ or croak( sprintf( "Couldn't stop the `%s' service: %s", $service, $@ ));
 }
 
 =item restart( $service )
 
- Restart the given service
-
- Param string $service Service name
- Return bool TRUE on success, croak on failure
+ See iMSCP::Providers::Service::Interface::restart()
 
 =cut
 
@@ -208,19 +185,13 @@ sub restart
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
-    my $ret = eval { $self->{'provider'}->restart( $service ); };
-    $ret && !$@ or croak( sprintf( "Couldn't restart the `%s' service: %s", $service, $@ || $self->_getLastError()));
-    $ret;
+    eval { $self->{'provider'}->restart( $service ); };
+    !$@ or croak( sprintf( "Couldn't restart the `%s' service: %s", $service, $@ ));
 }
 
 =item reload( $service )
 
- Reload the given service
-
- Param string $service Service name
- Return bool TRUE on success, croak on failure
+ See iMSCP::Providers::Service::Interface::reload()
 
 =cut
 
@@ -228,19 +199,13 @@ sub reload
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'parameter $service is not defined' );
-
-    my $ret = eval { $self->{'provider'}->reload( $service ); };
-    $ret && !$@ or croak( sprintf( "Couldn't reload the `%s' service: %s", $service, $@ || $self->_getLastError()));
-    $ret;
+    eval { $self->{'provider'}->reload( $service ); };
+    !$@ or croak( sprintf( "Couldn't reload the `%s' service: %s", $service, $@ ));
 }
 
 =item isRunning( $service )
 
- Is the given service running?
-
- Param string $service Service name
- Return bool TRUE if the given service is running, FALSE otherwise
+ See iMSCP::Providers::Service::Interface::isRunning()
 
 =cut
 
@@ -248,26 +213,20 @@ sub isRunning
 {
     my ($self, $service) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
-    eval { $self->{'provider'}->isRunning( $service ); };
+    $self->{'provider'}->isRunning( $service );
 }
 
-=item hasService( $service )
+=item hasService( $service [, $nocache ] )
 
- Does the given service exists?
-
- Return bool TRUE if the given service exits, FALSE otherwise
+ See iMSCP::Providers::Service::Interface::hasService()
 
 =cut
 
 sub hasService
 {
-    my ($self, $service) = @_;
+    my ($self, $service, $nocache) = @_;
 
-    defined $service or croak( 'Missing or undefined $service parameter' );
-
-    $self->{'provider'}->hasService( $service );
+    $self->{'provider'}->hasService( $service, $nocache );
 }
 
 =item getInitSystem()
@@ -287,7 +246,7 @@ sub getInitSystem()
 
  Is sysvinit used as init system?
 
- Return bool TRUE if sysvinit is used as init system, FALSE otherwise
+ Return bool TRUE if sysvinit is the current init system, FALSE otherwise
 
 =cut
 
@@ -300,7 +259,7 @@ sub isSysvinit
 
  Is upstart used as init system?
 
- Return bool TRUE if upstart is used as init system, FALSE otherwise
+ Return bool TRUE if upstart is is the current init system, FALSE otherwise
 
 =cut
 
@@ -313,7 +272,7 @@ sub isUpstart
 
  Is systemd used as init system?
 
- Return bool TRUE if systemd is used as init system, FALSE otherwise
+ Return bool TRUE if systemd is the current init system, FALSE otherwise
 
 =cut
 
@@ -494,10 +453,10 @@ sub _executeDelayedActions
             next;
         }
 
-        my $ret = eval { $self->$action( $service ); };
-        if ( $@ || $ret ) {
+        $self->$action( $service );
+        if ( $@ ) {
             error( $@ || $self->_getLastError());
-            return $ret || 1;
+            return 1;
         }
     }
 

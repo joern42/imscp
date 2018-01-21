@@ -70,14 +70,8 @@ sub enable
 
     defined $job or croak( 'parameter $job is not defined' );
 
-    if ( $self->_isUpstart( $job ) ) {
-        return 0 unless $self->SUPER::enable( $job );
-    }
-
-    # Enable the underlying SysVinit script if any
-    return $self->iMSCP::Providers::Service::Debian::Sysvinit::enable( $job ) if $self->_isSysvinit( $job );
-
-    1;
+    $self->SUPER::enable( $job ) if $self->_isUpstart( $job );
+    $self->iMSCP::Providers::Service::Debian::Sysvinit::enable( $job ) if $self->_isSysvinit( $job );
 }
 
 =item disable( $job )
@@ -92,14 +86,8 @@ sub disable
 
     defined $job or croak( 'parameter $job is not defined' );
 
-    if ( $self->_isUpstart( $job ) ) {
-        return 0 unless $self->SUPER::disable( $job );
-    }
-
-    # Disable the underlying SysVinit script if any
-    return $self->iMSCP::Providers::Service::Debian::Sysvinit::disable( $job ) if $self->_isSysvinit( $job );
-
-    1;
+    $self->SUPER::disable( $job ) if $self->_isUpstart( $job );
+    $self->iMSCP::Providers::Service::Debian::Sysvinit::disable( $job ) if $self->_isSysvinit( $job );
 }
 
 =item remove( $job )
@@ -114,11 +102,7 @@ sub remove
 
     defined $job or croak( 'parameter $job is not defined' );
 
-    if ( $self->_isUpstart( $job ) ) {
-        return 0 unless $self->SUPER::remove( $job );
-    }
-
-    # Remove the underlying SysVinit script if any
+    $self->SUPER::remove( $job ) if $self->_isUpstart( $job );
     $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $job );
 }
 

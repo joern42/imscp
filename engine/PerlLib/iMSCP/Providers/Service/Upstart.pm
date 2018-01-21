@@ -26,6 +26,7 @@ package iMSCP::Providers::Service::Upstart;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use File::Basename;
 use File::Spec;
 use iMSCP::File;
@@ -130,11 +131,15 @@ sub remove
     defined $job or croak( 'Missing or undefined $job parameter' );
 
     return 1 unless $self->_isUpstart( $job );
-    return 0 unless $self->stop( $job );
+
+    $self->stop( $job );
 
     for ( qw/ conf override / ) {
         if ( my $jobFilePath = eval { $self->getJobFilePath( $job, $_ ); } ) {
-            return 0 if iMSCP::File->new( filename => $jobFilePath )->delFile();
+            debug( sprintf ( "Removing the %s upstart job", $jobFilePath ));
+            iMSCP::File->new( filename => $jobFilePath )->delFile() or croak(
+                getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+            );
         }
     }
 
@@ -154,8 +159,8 @@ sub start
     defined $job or croak( 'Missing or undefined $job parameter' );
 
     if ( $self->_isUpstart( $job ) ) {
-        return $self->_exec( [ $COMMANDS{'start'}, $job ] ) == 0 unless $self->isRunning( $job );
-        return 1;
+        $self->_exec( [ $COMMANDS{'start'}, $job ] ) unless $self->isRunning( $job );
+        return;
     }
 
     $self->SUPER::start( $job );
@@ -174,8 +179,8 @@ sub stop
     defined $job or croak( 'Missing or undefined $job parameter' );
 
     if ( $self->_isUpstart( $job ) ) {
-        return $self->_exec( [ $COMMANDS{'stop'}, $job ] ) == 0 if $self->isRunning( $job );
-        return 1;
+        $self->_exec( [ $COMMANDS{'stop'}, $job ] ) if $self->isRunning( $job );
+        return;
     }
 
     $self->SUPER::stop( $job );
@@ -194,8 +199,13 @@ sub restart
     defined $job or croak( 'Missing or undefined $job parameter' );
 
     if ( $self->_isUpstart( $job ) ) {
-        return $self->_exec( [ $COMMANDS{'restart'}, $job ] ) == 0 if $self->isRunning( $job );
-        return $self->start( $job );
+        if ( $self->isRunning( $job ) ) {
+            $self->_exec( [ $COMMANDS{'restart'}, $job ] );
+        } else {
+            $self->start( $job );
+        }
+
+        return;
     }
 
     $self->SUPER::restart( $job );
@@ -215,13 +225,17 @@ sub reload
 
     if ( $self->_isUpstart( $job ) ) {
         if ( $self->isRunning( $job ) ) {
-            # We need catch STDERR here as we do do want report it as error
-            my $ret = $self->_exec( [ $COMMANDS{'reload'}, $job ], undef, \ my $stderr ) == 0;
-            return $self->restart( $job ) unless $ret; # Reload failed. Try a restart instead.
-            return $ret;
+            # We need catch STDERR here as we do do want raise failure (see _exec() for further details)
+            my $ret = $self->_exec( [ $COMMANDS{'reload'}, $job ], undef, \ my $stderr );
+
+            # If the reload action failed, we try a restart instead. This cover
+            # case where the reload action is not supported.
+            $self->restart( $job ) unless $ret;
+            return;
         }
 
-        return $self->start( $job );
+        $self->start( $job );
+        return;
     }
 
     $self->SUPER::reload( $job );

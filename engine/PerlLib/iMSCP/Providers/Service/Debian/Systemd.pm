@@ -55,24 +55,28 @@ sub isEnabled
 {
     my ($self, $unit) = @_;
 
-    # We need to catch STDERR here as we do not want report it as error
+    # We need to catch STDERR here as we do not want raise failure when command
+    # status is other than 0 but not STDERR
     my $ret = $self->_exec(
         [ $iMSCP::Providers::Service::Systemd::COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \ my $stdout, \ my $stderr
     );
+    croak( $stderr ) if $ret && $stderr;
 
     # The indirect state indicates that the unit is not enabled.
     return 0 if $stdout eq 'indirect';
 
-    # The 'is-enabled' API call is not implemented till the Systemd version 220-1
-    # (Debian package), that is, under the following distributions (main repository):
-    # - Debian < 9 (Stretch)
-    # - Ubuntu < 18.04 (Bionic Beaver)
+    # The 'is-enabled' API call for SysVinit script is not implemented till the
+    # Systemd version 220-1 (Debian package), that is, under the following
+    # distributions (main repository):
+    #  - Debian < 9 (Stretch)
+    #  - Ubuntu < 18.04 (Bionic Beaver)
     if ( $ret > 0 && $self->_getLastExecOutput() eq '' ) {
         # For the SysVinit scripts, we want operate only on services
         ( $unit, undef, my $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
         return $self->iMSCP::Providers::Service::Debian::Sysvinit::isEnabled( $unit ) if grep( $suffix eq $_, '', '.service' );
     }
 
+    # The command status 0 indicate that the service is enabled
     $ret == 0;
 }
 
@@ -89,10 +93,9 @@ sub remove
     defined $unit or die( 'parameter $unit is not defined' );
 
     # For the SysVinit scripts, we want operate only on services
-    my $ret = 0;
     my ( $init, undef, $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
-    $ret = $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $init ) if grep( $suffix eq $_, '', '.service' );
-    $ret && $self->SUPER::remove( $unit );
+    $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $init ) if grep( $suffix eq $_, '', '.service' );
+    $self->SUPER::remove( $unit );
 }
 
 =back

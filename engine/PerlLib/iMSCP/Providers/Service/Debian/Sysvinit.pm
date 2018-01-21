@@ -58,8 +58,9 @@ sub isEnabled
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    return 1 if scalar glob "/etc/rc[S5].d/S??$service";
+    $self->_isSysvinit() or croak( sprintf( 'Unknown %s service', $service ));
 
+    return 1 if scalar glob "/etc/rc[S5].d/S??$service";
     0;
 }
 
@@ -75,7 +76,8 @@ sub enable
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'defaults' ] ) == 0 && $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'enable' ] ) == 0;
+    $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'defaults' ] );
+    $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'enable' ] );
 }
 
 =item disable( $service )
@@ -90,7 +92,8 @@ sub disable
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'defaults' ] ) == 0 && $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'disable' ] ) == 0;
+    $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'defaults' ] );
+    $self->_exec( [ $COMMANDS{'update-rc.d'}, $service, 'disable' ] );
 }
 
 =item remove( $service )
@@ -107,7 +110,9 @@ sub remove
 
     return 1 unless $self->_isSysvinit( $service );
 
-    $self->stop( $service ) && $self->_exec( [ $COMMANDS{'update-rc.d'}, '-f', $service, 'remove' ] ) == 0 && $self->SUPER::remove( $service );
+    $self->stop( $service );
+    $self->_exec( [ $COMMANDS{'update-rc.d'}, '-f', $service, 'remove' ] );
+    $self->SUPER::remove( $service );
 }
 
 =back

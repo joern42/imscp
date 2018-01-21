@@ -26,8 +26,9 @@ package iMSCP::Providers::Service::Sysvinit;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use iMSCP::Debug qw / debug /;
 use File::Spec;
-use iMSCP::Debug qw/ debug error /;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::Service::Interface /;
@@ -55,10 +56,11 @@ sub remove
     defined $service or croak( 'Missing or undefined $service parameter' );
 
     if ( my $initScriptPath = eval { $self->getInitScriptPath( $service, 'nocache' ); } ) {
-        return 0 if iMSCP::File->new( filename => $initScriptPath )->delFile();
+        debug( sprintf ( "Removing the %s sysvinit script", $initScriptPath ));
+        iMSCP::File->new( filename => $initScriptPath )->delFile() == 0 or croak(
+            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+        );
     }
-
-    1;
 }
 
 =item start( $service )
@@ -73,9 +75,9 @@ sub start
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    return 1 if $self->isRunning( $service );
+    return if $self->isRunning( $service );
 
-    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] ) == 0;
+    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] );
 }
 
 =item stop( $service )
@@ -90,9 +92,9 @@ sub stop
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    return 1 unless $self->isRunning( $service );
+    return unless $self->isRunning( $service );
 
-    $self->_exec( [ $self->getInitScriptPath( $service ), 'stop' ] ) == 0;
+    $self->_exec( [ $self->getInitScriptPath( $service ), 'stop' ] );
 }
 
 =item restart( $service )
@@ -107,9 +109,13 @@ sub restart
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    return $self->_exec( [ $self->getInitScriptPath( $service ), 'restart' ] ) == 0 if $self->isRunning( $service );
+    if ( $self->isRunning( $service ) ) {
+        $self->_exec( [ $self->getInitScriptPath( $service ), 'restart' ] );
+        return;
+    }
 
-    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] ) == 0;
+    # Service is not running yet, we start it instead
+    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] );
 }
 
 =item reload( $service )
@@ -125,13 +131,16 @@ sub reload
     defined $service or croak( 'Missing or undefined $service parameter' );
 
     if ( $self->isRunning( $service ) ) {
-        # We need catch STDERR here as we do do want report it as error
-        my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'reload' ], undef, \ my $stderr ) == 0;
-        return $self->restart( $service ) unless $ret; # Reload failed. Try a restart instead.
-        return $ret;
+        # We need catch STDERR here as we do do want raise failure (see _exec() for further details)
+        my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'reload' ], undef, \ my $stderr );
+        # If the reload action failed, we try a restart instead. This cover
+        # case where the reload action is not supported.
+        $self->restart( $service ) if $ret;
+        return;
     }
 
-    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] ) == 0;
+    # Service is not running yet, we start it instead
+    $self->_exec( [ $self->getInitScriptPath( $service ), 'start' ] );
 }
 
 =item isRunning( $service )
@@ -149,11 +158,11 @@ sub isRunning
     return $self->_exec( [ $self->getInitScriptPath( $service ), 'status' ] ) == 0 unless defined $self->{'_pid_pattern'};
 
     my $ret = $self->_getPid( $self->{'_pid_pattern'} );
-    $self->{'_pid_pattern'} = undef;
+    undef $self->{'_pid_pattern'};
     $ret;
 }
 
-=item hasService( $service )
+=item hasService( $service [, 'nocache' = FALSE ] )
 
  See iMSCP::Providers::Service::Interface
 
@@ -161,11 +170,11 @@ sub isRunning
 
 sub hasService
 {
-    my ($self, $service) = @_;
+    my ($self, $service, $nocache) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    eval { $self->_searchInitScript( $service ); };
+    eval { $self->_searchInitScript( $service, $nocache ); };
 }
 
 =item getInitScriptPath( $service, [ $nocache =  FALSE ] )
@@ -174,7 +183,7 @@ sub hasService
 
  Param string $service Service name
  Param bool $nocache OPTIONAL If true, no cache will be used
- Return string Init script path on success, croak on failure
+ Return string Init script path on success, croak if the SysVinit script path is not found
 
 =cut
 
@@ -192,7 +201,7 @@ sub getInitScriptPath
  Set PID pattern for next _getPid( ) invocation
 
  Param string|Regexp $pattern Process PID pattern
- Return int 0
+ Return void
 
 =cut
 
@@ -203,7 +212,6 @@ sub setPidPattern
     defined $pattern or croak( 'Missing or undefined $pattern parameter' );
 
     $self->{'_pid_pattern'} = ref $pattern eq 'Regexp' ? $pattern : qr/$pattern/;
-    0;
 }
 
 =back
@@ -241,10 +249,10 @@ sub _init
 
 =item _isSysvinit( $service )
 
- Does the given service is managed by a SysVinit script?
+ is the given service a SysVinit script?
 
  Param string $service Service name
- Return bool TRUE if the given service is managed by a SysVinit script, FALSE otherwise
+ Return bool TRUE if the service is a SysVinit script, FALSE otherwise
 
 =cut
 
@@ -301,13 +309,13 @@ sub _searchInitScript
  Execute the given command
 
  It is possible to capture both STDOUT and STDERR output by providing scalar
- references. STDERR output is used for error reporting when the command status
+ references. STDERR output is used for raising failure when the command status
  is other than 0 and if no scalar reference has been provided for its capture.
 
  Param array_ref \@command Command to execute
  Param scalar_ref \$stdout OPTIONAL Scalar reference for STDOUT capture
  Param scalar_ref \$stderr OPTIONAL Scalar reference for STDERR capture
- Return int Command exit status
+ Return int Command exit status, croak on failure if tje command status is other than 0 and if no scalar reference has been provided for STDERR
 
 =cut
 
@@ -317,9 +325,13 @@ sub _exec
 
     my $ret = execute( $command, ref $stdout eq 'SCALAR' ? $stdout : \$stdout, ref $stderr eq 'SCALAR' ? $stderr : \ $stderr );
     ref $stdout ? ${$stdout} eq '' || debug( ${$stdout} ) : $stdout eq '' || debug( $stdout );
-    #ref $stderr ? ${$stderr} eq '' || debug( ${$stderr} ) : $stderr eq '' || debug( $stderr ) unless $ret;
-    ref $stderr ? ${$stderr} eq '' || error( ${$stderr} ) : $stderr eq '' || error( $stderr ) if $ret && ref $stderr ne 'SCALAR';
 
+    # Raise a failure if command status is other than 0 and if no scalar
+    # reference has been provided for STDERR, giving choice to callers
+    croak( $stderr || 'Unknown error' ) if $ret && ref $stderr ne 'SCALAR';
+
+    # We cache STDOUT output.
+    # see _getLastExecOutput()
     $EXEC_OUTPUT = \ ( ref $stdout ? ${$stdout} : $stdout );
     $ret;
 }
