@@ -80,7 +80,7 @@ sub factory
 {
     my ($class, $serverClass) = @_;
 
-    # Prevent call of the factory on known iMSCP::Servers::* abstract classes
+    # Restrict call of the factory to iMSCP::Servers::* abstract classes
     $class =~ tr/:// < 5 or croak( sprintf( 'The factory() method cannot be called on the %s server class', $class ));
 
     $serverClass //= $main::imscpConfig{$class} || 'iMSCP::Servers::Noserver';
@@ -111,7 +111,7 @@ sub factory
  This method is automatically called by the i-MSCP installer and reconfiguration script.
  That is the place where event listeners for setup dialog *MUST* be registered.
  
- Any server relying on i-MSCP setup dialog *MUST* implement this method.
+ Any server relying on i-MSCP setup dialog *MUST* override this method.
 
  Return int 0 on success, other on failure
 
@@ -132,7 +132,7 @@ sub registerSetupListeners
  reconfiguration script.
 
  Any server requiring pre-installation tasks *SHOULD* override this method, not
- forgetting to call it, unless stopping the service is not desired.
+ forgetting to call it, unless stopping the linked service(s) is not desired.
 
  Return int 0 on success, other on failure
 
@@ -173,7 +173,7 @@ sub install
  reconfiguration script.
  
  Any server requiring post-installation tasks *SHOULD* override this method,
- not forgetting to call it, unless starting the service is not desired.
+ not forgetting to call it, unless starting the linked service(s) is not desired.
 
  Return int 0 on success, other on failure
 
@@ -201,8 +201,7 @@ sub postinstall
 
  This method is automatically called by the i-MSCP installer/uninstaller.
 
- Any server requiring pre-uninstallation tasks *SHOULD* override this method
- it.
+ Any server requiring pre-uninstallation tasks *SHOULD* override this method.
 
  Return int 0 on success, other on failure
 
@@ -240,8 +239,7 @@ sub uninstall
 
  This method is automatically called by the i-MSCP installer/uninstaller.
 
- Any server requiring post-uninstallation tasks *SHOULD* override this method
- it.
+ Any server requiring post-uninstallation tasks *SHOULD* override this method.
 
  Return int 0 on success, other on failure
 
@@ -261,7 +259,8 @@ sub postuninstall
  This method is automatically called by the i-MSCP engine permission management
  script.
 
- Any server relying on configuration files or scripts *SHOULD* override it.
+ Any server relying on configuration files or scripts *SHOULD* override this
+ method.
 
  Return int 0 on success, other on failure
 
