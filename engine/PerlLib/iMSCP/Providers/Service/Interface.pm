@@ -37,10 +37,10 @@ use Carp qw/ croak /;
 
 =item isEnabled( $service )
 
- Is the given service is enabled?
+ Is the given service enabled?
 
  Param string $service Service name
- Return TRUE if the given service is enabled, FALSE otherwise
+ Return TRUE if the service is enabled, FALSE otherwise, croak if the service doesn't exist
 
 =cut
 
@@ -55,10 +55,10 @@ sub isEnabled
 
  Enable the given service
 
- If $service is already enabled, no failure *MUST* be reported.
+ If the service is already enabled, no failure *MUST* be raised.
 
  Param string $service Service name
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure or if the service doesn't exist
 
 =cut
 
@@ -73,10 +73,10 @@ sub enable
 
  Disable the given service
 
- If $service is already disabled, no failure *MUST* be reported.
+ If the service is already disabled, no failure *MUST* be raised.
 
  Param string $service Service name
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure or if the service doesn't exist
 
 =cut
 
@@ -91,12 +91,12 @@ sub disable
 
  Remove the given service
 
- If $service doesn't exist, no failure *MUST* be reported.
+ If the service doesn't exist, no failure *MUST* be raised.
  If the iMSCP::Providers::Service::Interface provider provide a compatibility
- layer for SysVinit scripts, those *SHOULD* be also removed.
+ layer for SysVinit scripts, the sysvinit script *SHOULD* be also removed.
 
  Param string $service Service name
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure
 
 =cut
 
@@ -111,8 +111,10 @@ sub remove
 
  Start the given service
 
+ If the service is already running, no failure *MUST* be raised.
+
  Param string $service Service name
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure or if the service doesn't exist
 
 =cut
 
@@ -127,10 +129,10 @@ sub start
 
  Stop the given service
 
- If $service is not running, no failure *MUST* be reported.
+ If the service is not running, no failure *MUST* be raised.
 
  Param string $service Service name
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure or if the service doesn't exist
 
 =cut
 
@@ -145,10 +147,10 @@ sub stop
 
  Restart the given service
 
- If $ervice is not running, it *MUST* be started.
+ If the service is not running, it *MUST* be started.
 
  Param string $service Service name
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure or if the service doesn't exist
 
 =cut
 
@@ -163,11 +165,11 @@ sub restart
 
  Reload the given service
 
- If $service doesn't support reload, it *SHOULD* be restarted.
- If $service is not running, it *MUST* be started.
+ If the service doesn't support the reload action, it *MUST* be restarted.
+ If the service is not running, it *MUST* be started.
 
  Param string $service Service name
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure or if the service doesn't exist
 
 =cut
 
@@ -183,7 +185,7 @@ sub reload
  Is the given service running?
 
  Param string $service Service name
- Return bool TRUE if the given service is running, FALSE otherwise
+ Return bool TRUE if the service is running, FALSE otherwise, croak if the service doesn't exist
 
 =cut
 
@@ -194,12 +196,13 @@ sub isRunning
     croak ( sprintf( 'The %s class must implement the isRunning() method', ref $self ));
 }
 
-=item hasService( $service )
+=item hasService( $service [, 'nocache' = FALSE ] )
 
  Does the given service exists?
 
  Param string $service Service name
- Return bool TRUE if the given service exits, FALSE otherwise
+ Param bool $nocache OPTIONAL If TRUE, no cache *MUST* be used
+ Return bool TRUE if the service exits, FALSE otherwise
 
 =cut
 
