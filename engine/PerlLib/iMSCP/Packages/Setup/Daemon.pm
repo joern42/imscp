@@ -61,13 +61,13 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{$_[0]}, sub { $self->imscpDaemonType( @_ ) };
+            push @{$_[0]}, sub { $self->imscpDaemonTypeDialog( @_ ) };
             0;
         }
     );
 }
 
-=item imscpBackupDialog( \%dialog )
+=item imscpDaemonTypeDialog( \%dialog )
 
  Ask for the i-MSCP daemon type
 
@@ -76,7 +76,7 @@ sub registerSetupListeners
 
 =cut
 
-sub imscpDaemonType
+sub imscpDaemonTypeDialog
 {
     my ($self, $dialog) = @_;
 
@@ -85,7 +85,7 @@ sub imscpDaemonType
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'daemon', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'daemon' );
-\\Z4\\Zb\\Zui-MSCP Daemon Type for processing of i-MSCP backend requests\\Zn
+\\Z4\\Zb\\Zui-MSCP Daemon Type\\Zn
 
 Please choose how the i-MSCP backend requests must be processed:
 \\Z \\Zn
@@ -124,7 +124,7 @@ sub install
 {
     my ($self) = @_;
 
-    # Reset previous setup if any
+    # Reset previous install if any
     my $rs = $self->uninstall();
     return $rs if $rs;
 
@@ -178,15 +178,24 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        # Make sure that the daemon is not running
         my $srvMngr = iMSCP::Service->getInstance();
-        if ( $srvMngr->hasService( 'imscp_daemon' ) ) {
-            if ( iMSCP::Getopt->context() eq 'installer' ) {
+        if ( iMSCP::Getopt->context() eq 'installer' ) {
+            if ( $srvMngr->hasService( 'imscp_daemon' ) ) {
+                # Installer context.
+                # We need  stop and disable the service
                 $srvMngr->stop( 'imscp_daemon' );
-                $srvMngr->disable( 'imscp_daemon' );
-            } else {
-                $srvMngr->remove( 'imscp_daemon' );
+
+                if ( $srvMngr->isSystemd() ) {
+                    # If systemd is the current init we mask the service. Service will be disabled and masked.
+                    $srvMngr->mask( 'imscp_daemon' );
+                } else {
+                    $srvMngr->disable( 'imscp_daemon' );
+                }
             }
+        } else {
+            # Uninstaller context.
+            # We need remove Systemd unit, Upstart job and SysVinit
+            $srvMngr->remove( 'imscp_daemon' );
         }
 
         # Remove daemon directory
