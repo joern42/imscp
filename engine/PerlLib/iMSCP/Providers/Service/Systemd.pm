@@ -39,7 +39,7 @@ our %COMMANDS = (
 );
 
 # Paths in which service units must be searched
-# Order is signifiant, specially for remove action
+# Order is signifiant, specially for the remove action
 my @UNITFILEPATHS = (
     '/etc/systemd/system',
     '/usr/local/lib/systemd/system',
@@ -70,7 +70,7 @@ sub isEnabled
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
     # We need to catch STDERR here as we do not want raise a failure when
-    # command status is other than 0 but not STDERR
+    # command status is other than 0 but no STDERR
     my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \ my $stdout, \my $stderr );
     croak( $stderr ) if $ret && $stderr;
 
@@ -353,8 +353,8 @@ sub resolveUnit
         croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $@ ));
     }
 
-    # Resolve the unit, unless it is not a symlink pointing to a regular file
-    # Case of a masked unit that point to the /dev/null character special file
+    # Resolve the unit, unless it is not a symlink pointing to a regular file,
+    # case of a masked unit that point to the /dev/null character special file
     # For the file test, we reuse the stat structure from the last stat() call
     # that has been made in the _searchUnitFile() method
     $unitFilePath = readlink( $unitFilePath ) or croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! )) if -f _ && -l $unitFilePath;
@@ -372,7 +372,7 @@ sub resolveUnit
 
  Reload the systemd manager configuration
 
- Return bool TRUE on succes, FALSe on failure
+ Return void, croak on failure
 
 =cut
 

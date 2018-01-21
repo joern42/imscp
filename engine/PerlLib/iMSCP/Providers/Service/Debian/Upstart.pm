@@ -102,7 +102,7 @@ sub remove
 
     defined $job or croak( 'parameter $job is not defined' );
 
-    $self->SUPER::remove( $job ) if $self->_isUpstart( $job );
+    $self->SUPER::remove( $job );
     $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $job );
 }
 

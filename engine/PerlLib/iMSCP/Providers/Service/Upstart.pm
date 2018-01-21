@@ -130,7 +130,7 @@ sub remove
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
-    return 1 unless $self->_isUpstart( $job );
+    return unless $self->_isUpstart( $job );
 
     $self->stop( $job );
 

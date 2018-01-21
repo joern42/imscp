@@ -56,7 +56,7 @@ sub isEnabled
     my ($self, $unit) = @_;
 
     # We need to catch STDERR here as we do not want raise failure when command
-    # status is other than 0 but not STDERR
+    # status is other than 0 but no STDERR
     my $ret = $self->_exec(
         [ $iMSCP::Providers::Service::Systemd::COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \ my $stdout, \ my $stderr
     );
@@ -65,8 +65,8 @@ sub isEnabled
     # The indirect state indicates that the unit is not enabled.
     return 0 if $stdout eq 'indirect';
 
-    # The 'is-enabled' API call for SysVinit script is not implemented till the
-    # Systemd version 220-1 (Debian package), that is, under the following
+    # The 'is-enabled' API call for SysVinit scripts is not implemented till
+    # the Systemd version 220-1 (Debian package), that is, under the following
     # distributions (main repository):
     #  - Debian < 9 (Stretch)
     #  - Ubuntu < 18.04 (Bionic Beaver)

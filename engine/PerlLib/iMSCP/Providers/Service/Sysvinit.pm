@@ -315,7 +315,7 @@ sub _searchInitScript
  Param array_ref \@command Command to execute
  Param scalar_ref \$stdout OPTIONAL Scalar reference for STDOUT capture
  Param scalar_ref \$stderr OPTIONAL Scalar reference for STDERR capture
- Return int Command exit status, croak on failure if tje command status is other than 0 and if no scalar reference has been provided for STDERR
+ Return int Command exit status, croak on failure if the command status is other than 0 and if no scalar reference has been provided for STDERR
 
 =cut
 
