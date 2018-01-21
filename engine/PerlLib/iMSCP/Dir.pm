@@ -376,6 +376,8 @@ sub rcopy
         my $src = File::Spec->canonpath( $self->{'dirname'} . '/' . $entry );
         my $dst = File::Spec->canonpath( $destDir . '/' . $entry );
 
+        # It is OK to reuse the previous lstat structure below because we know
+        # that we have a real file.
         if ( -l $src || -f _ ) {
             iMSCP::File->new( filename => $src )->copyFile( $dst, $options ) == 0 or croak(
                 sprintf( "Couldn't copy `%s' file/symlink to `%s': %s", $src, $dst, getLastError())

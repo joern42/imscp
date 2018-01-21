@@ -41,18 +41,18 @@ our @EXPORT = qw/ setRights /;
 
 =over 4
 
-=item setRights( $target, \%options )
+=item setRights( $target, \%attrs )
 
- Depending on the given options, set owner, group and permissions on the given target
+ Depending on the given attributes, set owner, group and permissions on the given target
 
  Param string $target Target file or directory
- Param hash \%options:
-  mode      : Set mode on the given directory/file
-  dirmode   : Set mode on directories
-  filemode  : Set mode on files
-  user      : Set owner on the given file
-  group     : Set group for the given file
-  recursive : Whether or not operations must be processed recursively
+ Param hash \%attrs:
+  mode      : OPTIONAL Set mode on the given directory/file
+  dirmode   : OPTIONAL Set mode on directories
+  filemode  : OPTIONAL Set mode on files
+  user      : OPTIONAL Set owner on the given file
+  group     : OPTIONAL Set group for the given file
+  recursive : OPTIONAL Whether or not operations must be processed recursively
 
  Return int 0 on success, 1 on failure
 
@@ -60,36 +60,45 @@ our @EXPORT = qw/ setRights /;
 
 sub setRights
 {
-    my ($target, $options) = @_;
+    my ($target, $attrs) = @_;
 
     eval {
         defined $target or croak( '$target parameter is not defined' );
-        ref $options eq 'HASH' && %{$options} or croak( '$options parameter is not defined or is not a hashref' );
+        ref $attrs eq 'HASH' && %{$attrs} or croak( 'attrs parameter is not defined or is not a hashref' );
 
-        if ( defined $options->{'mode'} && ( defined $options->{'dirmode'} || defined $options->{'filemode'} ) ) {
-            croak( '`mode` option is not allowed when using dirmode/filemode options' );
+        # Return early if none of accepted attributes is set. This is the
+        # case when that function is used dynamically, and when setting of
+        # permissions/ownership is made optional.
+        return 0 unless defined $attrs->{'mode'} || defined $attrs->{'dirmode'} || defined $attrs->{'filemode'} || defined $attrs->{'user'}
+            || defined $attrs->{'group'};
+
+        if ( defined $attrs->{'mode'} && ( defined $attrs->{'dirmode'} || defined $attrs->{'filemode'} ) ) {
+            croak( '`mode` attribute and the dirmode or filemode attributes are mutally exclusive' );
         }
 
-        my $uid = $options->{'user'} ? getpwnam( $options->{'user'} ) : -1;
-        my $gid = $options->{'group'} ? getgrnam( $options->{'group'} ) : -1;
-        defined $uid or croak( sprintf( 'user option refers to inexistent user: %s', $options->{'user'} ));
-        defined $gid or croak( sprintf( 'group option refers to inexistent group: %s', $options->{'group'} ));
+        my $uid = $attrs->{'user'} ? getpwnam( $attrs->{'user'} ) : -1;
+        my $gid = $attrs->{'group'} ? getgrnam( $attrs->{'group'} ) : -1;
+        defined $uid or croak( sprintf( 'user attribute refers to inexistent user: %s', $attrs->{'user'} ));
+        defined $gid or croak( sprintf( 'group attribute refers to inexistent group: %s', $attrs->{'group'} ));
 
-        my $mode = defined $options->{'mode'} ? oct( $options->{'mode'} ) : undef;
-        my $dirmode = defined $options->{'dirmode'} ? oct( $options->{'dirmode'} ) : undef;
-        my $filemode = defined $options->{'filemode'} ? oct( $options->{'filemode'} ) : undef;
+        my $mode = defined $attrs->{'mode'} ? oct( $attrs->{'mode'} ) : undef;
+        my $dirmode = defined $attrs->{'dirmode'} ? oct( $attrs->{'dirmode'} ) : undef;
+        my $filemode = defined $attrs->{'filemode'} ? oct( $attrs->{'filemode'} ) : undef;
 
-        if ( $options->{'recursive'} ) {
+        if ( $attrs->{'recursive'} ) {
             local $SIG{'__WARN__'} = sub { croak @_ };
             find(
                 {
                     wanted   => sub {
-                        if ( $options->{'user'} || $options->{'group'} ) {
+                        if ( $attrs->{'user'} || $attrs->{'group'} ) {
                             lchown $uid, $gid, $_ or croak( sprintf( "Couldn't set user/group on %s: %s", $_, $! ));
                         }
 
                         # We do not call chmod on symkink targets
                         return if -l;
+
+                        # It is OK to reuse the previous lstat structure tbelow
+                        # we know that we have a real file.
 
                         if ( $mode ) {
                             chmod $mode, $_ or croak( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
@@ -107,7 +116,7 @@ sub setRights
             return 0;
         }
 
-        if ( $options->{'user'} || $options->{'group'} ) {
+        if ( $attrs->{'user'} || $attrs->{'group'} ) {
             lchown $uid, $gid, $target or croak( sprintf( "Couldn't set user/group on %s: %s", $target, $! ));
         }
 
