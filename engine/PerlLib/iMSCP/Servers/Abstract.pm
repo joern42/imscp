@@ -513,6 +513,10 @@ sub buildConfFile
 
  Implements autoloading for inexistent methods
 
+ FIXME: This is a bit error prone. There could be typos in method calls and we
+ wouldn't be able to catch them easily... Best would be to provide a stub for
+ known methods, at least those called by the iMSCP::Modules::Abstract module.
+
  Return int 0
 
 =cut
