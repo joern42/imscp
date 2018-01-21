@@ -66,7 +66,7 @@ sub getPriority
 
 =item factory( [ $serverClass = $main::imscpConfig{$class} ] )
 
- Creates and returns a concrete iMSCP::Servers::Abstract ($serverClass) server instance
+ Creates and returns an iMSCP::Servers::Abstract ($serverClass) server instance
 
  This method is not intented to be called on final iMSCP::Servers::Abstract
  server classes.
@@ -109,7 +109,7 @@ sub factory
  Register setup event listeners
  
  This method is automatically called by the i-MSCP installer and reconfiguration script.
- That is the place where event listeners for setup dialog should be registered.
+ That is the place where event listeners for setup dialog *MUST* be registered.
  
  Any server relying on i-MSCP setup dialog *MUST* implement this method.
 
@@ -128,8 +128,11 @@ sub registerSetupListeners
 
  Process the server pre-installation tasks
  
- This method is automatically called by the i-MSCP installer and reconfiguration script.
- Any server requiring pre-installation tasks *SHOULD* implement it.
+ This method is automatically called by the i-MSCP installer and
+ reconfiguration script.
+
+ Any server requiring pre-installation tasks *SHOULD* override this method, not
+ forgetting to call it, unless stopping the service is not desired.
 
  Return int 0 on success, other on failure
 
@@ -146,8 +149,10 @@ sub preinstall
 
  Process the server installation tasks
 
- This method is automatically called by the i-MSCP installer and reconfiguration script.
- Any server requiring installation tasks *SHOULD* implement it.
+ This method is automatically called by the i-MSCP installer and
+ reconfiguration script.
+ 
+ Any server requiring post-installation tasks *SHOULD* override this method.
 
  Return int 0 on success, other on failure
 
@@ -164,8 +169,11 @@ sub install
 
  Process server post-installation tasks
 
- This method is automatically called by the i-MSCP installer and reconfiguration script.
- Any server requiring post-installation tasks *SHOULD* implement it.
+ This method is automatically called by the i-MSCP installer and
+ reconfiguration script.
+ 
+ Any server requiring post-installation tasks *SHOULD* override this method,
+ not forgetting to call it, unless starting the service is not desired.
 
  Return int 0 on success, other on failure
 
@@ -192,7 +200,9 @@ sub postinstall
  Process the server pre-uninstallation tasks
 
  This method is automatically called by the i-MSCP installer/uninstaller.
- Any server requiring pre-uninstallation tasks *SHOULD* implement it.
+
+ Any server requiring pre-uninstallation tasks *SHOULD* override this method
+ it.
 
  Return int 0 on success, other on failure
 
@@ -210,7 +220,8 @@ sub preuninstall
  Process the server uninstallation tasks
 
  This method is automatically called by the i-MSCP installer/uninstaller.
- Any server requiring uninstallation tasks *SHOULD* implement it.
+
+ Any server requiring uninstallation tasks *SHOULD* override this method.
 
  Return int 0 on success, other on failure
 
@@ -228,7 +239,9 @@ sub uninstall
  Process the server post-uninstallation tasks
 
  This method is automatically called by the i-MSCP installer/uninstaller.
- Any server requiring post-uninstallation tasks *SHOULD* implement it.
+
+ Any server requiring post-uninstallation tasks *SHOULD* override this method
+ it.
 
  Return int 0 on success, other on failure
 
@@ -243,10 +256,12 @@ sub postuninstall
 
 =item setEnginePermissions( )
 
- Sets the server permissions, that is, the permissions on server directories and files
+ Sets the server permissions
 
- This method is automatically called by the i-MSCP engine permission management script.
- Any server relying on configuration files or scripts *SHOULD* implement it.
+ This method is automatically called by the i-MSCP engine permission management
+ script.
+
+ Any server relying on configuration files or scripts *SHOULD* override it.
 
  Return int 0 on success, other on failure
 
@@ -263,7 +278,8 @@ sub setEnginePermissions
 
  Return event server name
 
- This name is most used in abstract classes for event names construction.
+ Name returned by this method is most used in abstract classes, for event names
+ construction.
 
  Return string server name for event names construction
 
@@ -330,7 +346,7 @@ sub getVersion
  This make it possible to perform some maintenance tasks such as updating
  server versions.
  
- Only Debian server implementations *SHOULD* implement that method.
+ Only Debian server implementations *SHOULD* override that method.
 
  Return int 0 on success, other on failure
 
@@ -435,7 +451,7 @@ sub buildConfFile
     $mdata //= {};
     $sdata //= {};
     $params //= {};
-    
+
     defined $srcFile or confess( 'Missing or undefined $srcFile parameter' );
     defined $trgFile or confess( 'Missing or undefined $trgFile parameter' );
 
@@ -563,7 +579,7 @@ sub _loadConfig
 
     if ( iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/$filename.dist" ) {
         if ( -f "$self->{'cfgDir'}/$filename" ) {
-            debug( sprintf( 'Merging old %s configuration with new %s configuration ...', $filename, "$filename.dist" ) );
+            debug( sprintf( 'Merging old %s configuration with new %s configuration ...', $filename, "$filename.dist" ));
 
             tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename", readonly => 1,
                 # We do not want croak when accessing non-existing parameters
@@ -580,7 +596,8 @@ sub _loadConfig
             # Old parameter: DATABASE_USER
             # New parameter: FTP_SQL_USER
             #
-            # The value of the new parameter should be set as follows:
+            # The value of the new parameter should be set as follows in the
+            # configuration file:
             #
             #   FTP_SQL_USER = {DATABASE_USER}
             #
@@ -604,6 +621,7 @@ sub _loadConfig
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         } else {
+            # For a fresh installation, we make the configuration file free of any placeholder
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
             processByRef( {}, $file->getAsRef(), 'empty_unknown' );
             $file->save() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
@@ -626,9 +644,10 @@ sub _loadConfig
 
  Reload or restart the server
 
- This method is called automatically when the program exits. It *MUST* be
- implemented by all servers that require a reload or restart when their
- configuration has been changed.
+ This method is called automatically when the program exits.
+ 
+ Any server that require a reload or restart when their configuration has been
+ changed *MUST* override this method.
 
  Param int $priority Server priority
  Return void
