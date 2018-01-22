@@ -833,19 +833,26 @@ EOF
         return $rs if $rs;
     }
 
-    # In all cases, we process database update. This is important because sometime developers forget to update the
-    # database revision in the database.sql schema file.
-    my $rs = execute(
-        [
-            ( iMSCP::ProgramFinder::find( 'php' ) or die( "Couldn't find system PHP (cli) binary" ) )
-            , '-d', 'date.timezone=UTC', "$main::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php"
-        ],
-        \ my $stdout,
-        \ my $stderr
-    );
-    debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs
+    eval {
+        # In all cases, we process database update. This is important because sometime developers forget to update the
+        # database revision in the database.sql schema file.
+        my $rs = execute(
+            [
+                ( iMSCP::ProgramFinder::find( 'php' ) or croak( "Couldn't find system PHP (cli) binary" ) )
+                , '-d', 'date.timezone=UTC', "$main::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php"
+            ],
+            \ my $stdout,
+            \ my $stderr
+        );
+        debug( $stdout ) if $stdout;
+        croak( $stderr || 'Unknown error' ) if $rs;
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
 }
 
 =item _setupIsImscpDb( $dbName )

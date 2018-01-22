@@ -96,7 +96,7 @@ sub new
 EOT
 
         $self->{'_php_cmd'} = [
-            ( iMSCP::ProgramFinder::find( 'php' ) or die( "Couldn't find system PHP (cli) binary" ) ),
+            ( iMSCP::ProgramFinder::find( 'php' ) or croak( "Couldn't find system PHP (cli) binary" ) ),
             '-d', "date.timezone=$main::imscpConfig{'TIMEZONE'}", '-d', 'allow_url_fopen=1'
         ];
         # Set default STD routines
