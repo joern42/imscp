@@ -64,12 +64,18 @@ system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgr
 print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required distribution package ...\n";
 system(
     'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
-    'ca-certificates', 'debconf-utils', 'dialog', 'dirmngr', 'facter', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
+    'ca-certificates', 'debconf-utils', 'dialog', 'dirmngr', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
     'libclass-autouse-perl', 'libdata-compare-perl', 'libdata-validate-domain-perl', 'libfile-homedir-perl', 'libjson-perl', 'libjson-xs-perl',
     'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libnet-ip-perl', 'libnet-domain-tld-perl', 'libscalar-defer-perl',
     'libsort-versions-perl', 'libxml-simple-perl', 'policyrcd-script-zg2', 'wget', 'whiptail', 'virt-what', 'libdatetime-perl', 'libemail-valid-perl',
-    'libdata-validate-ip-perl', 'lsb-release'
+    'libdata-validate-ip-perl', 'lsb-release', 'ruby'
 ) == 0 or die(
+    "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
+);
+
+# Install FACTER(8) from rubygem.org as the version provided by some distributions is too old
+print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required facter program (RubyGem) ...\n";
+system( '/usr/bin/gem', 'install', 'facter', '--quiet', '--minimal-deps' ) == 0 or die(
     "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
 );
 
@@ -91,6 +97,8 @@ if ( eval "require Module::Load::Conditional; 1;" ) {
 } else {
     die "[\x1b[0;31mERROR\x1b[0m] Module::Load::Conditional Perl module not available\n";
 }
+
+exit;
 
 1;
 __END__
