@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::AntiRootkits::Chkrootkit::Chkrootkit - i-MSCP Chkrootkit package
+ iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Chkrootkit - i-MSCP Chkrootkit package
 
 =cut
 
@@ -21,12 +21,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::AntiRootkits::Chkrootkit::Chkrootkit;
+package iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Chkrootkit;
 
 use strict;
 use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
-use Class::Autouse qw/ :nostat iMSCP::Packages::AntiRootkits::Chkrootkit::Installer iMSCP::Packages::AntiRootkits::Chkrootkit::Uninstaller /;
+use Class::Autouse qw/ :nostat iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Uninstaller /;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -52,7 +52,7 @@ sub preinstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::AntiRootkits::Chkrootkit::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
+    iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
 
 =item postinstall( )
@@ -67,7 +67,7 @@ sub postinstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::AntiRootkits::Chkrootkit::Installer->getInstance( eventManager => $self->{'eventManager'} )->postinstall();
+    iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer->getInstance( eventManager => $self->{'eventManager'} )->postinstall();
 }
 
 =item uninstall( )
@@ -82,7 +82,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::AntiRootkits::Chkrootkit::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
+    iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }
 
 =item setEnginePermissions( )

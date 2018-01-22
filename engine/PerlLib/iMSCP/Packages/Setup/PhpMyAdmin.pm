@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::PhpMyAdmin - i-MSCP PhpMyAdmin package
+ iMSCP::Packages::Setup::PhpMyAdmin - i-MSCP PhpMyAdmin package
 
 =cut
 
@@ -21,11 +21,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::PhpMyAdmin;
+package iMSCP::Packages::Setup::PhpMyAdmin;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat iMSCP::Packages::PhpMyAdmin::Installer iMSCP::Packages::PhpMyAdmin::Uninstaller /;
+use Class::Autouse qw/ :nostat iMSCP::Packages::Setup::PhpMyAdmin::Installer iMSCP::Packages::Setup::PhpMyAdmin::Uninstaller /;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::EventManager;
@@ -79,7 +79,7 @@ sub registerSetupListeners
 {
     my ($self) = @_;
 
-    iMSCP::Packages::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->registerSetupListeners();
+    iMSCP::Packages::Setup::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->registerSetupListeners();
 }
 
 =item preinstall( )
@@ -94,7 +94,7 @@ sub preinstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
+    iMSCP::Packages::Setup::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
 
 =item install( )
@@ -109,7 +109,7 @@ sub install
 {
     my ($self) = @_;
 
-    iMSCP::Packages::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
+    iMSCP::Packages::Setup::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
 }
 
 =item uninstall( )
@@ -126,7 +126,7 @@ sub uninstall
 
     return 0 if $self->{'skip_uninstall'};
 
-    iMSCP::Packages::PhpMyAdmin::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
+    iMSCP::Packages::Setup::PhpMyAdmin::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }
 
 =item getPriority( )
@@ -152,7 +152,7 @@ sub getPriority
 
  Initialize instance
 
- Return iMSCP::Packages::PhpMyAdmin
+ Return iMSCP::Packages::Setup::PhpMyAdmin
 
 =cut
 

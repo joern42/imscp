@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::FileManager::Pydio::Pydio - i-MSCP Pydio package
+ iMSCP::Packages::Setup::FileManager::Pydio::Pydio - i-MSCP Pydio package
 
 =cut
 
@@ -21,11 +21,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::FileManager::Pydio::Pydio;
+package iMSCP::Packages::Setup::FileManager::Pydio::Pydio;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat iMSCP::Packages::FileManager::Pydio::Installer iMSCP::Packages::FileManager::Pydio::Uninstaller /;
+use Class::Autouse qw/ :nostat iMSCP::Packages::Setup::FileManager::Pydio::Installer iMSCP::Packages::Setup::FileManager::Pydio::Uninstaller /;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -53,7 +53,7 @@ sub preinstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::FileManager::Pydio::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
+    iMSCP::Packages::Setup::FileManager::Pydio::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
 
 =item install( )
@@ -68,7 +68,7 @@ sub install
 {
     my ($self) = @_;
 
-    iMSCP::Packages::FileManager::Pydio::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
+    iMSCP::Packages::Setup::FileManager::Pydio::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
 }
 
 =item uninstall( )
@@ -83,7 +83,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::FileManager::Pydio::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
+    iMSCP::Packages::Setup::FileManager::Pydio::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }
 
 =back

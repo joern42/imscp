@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::AntiRootkits::Rkhunter::Uninstaller - i-MSCP Rkhunter Anti-Rootkits package uninstaller
+ iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Uninstaller - i-MSCP Rkhunter Anti-Rootkits package uninstaller
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::AntiRootkits::Rkhunter::Uninstaller;
+package iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Uninstaller;
 
 use strict;
 use warnings;

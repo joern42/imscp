@@ -133,9 +133,9 @@ sub postinstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance( eventManager => $self->{'eventManager'} );
-        $serviceMngr->enable( 'nginx' );
-        $serviceMngr->enable( 'imscp_panel' );
+        my $srvProvider = iMSCP::Service->getInstance( eventManager => $self->{'eventManager'} );
+        $srvProvider->enable( 'nginx' );
+        $srvProvider->enable( 'imscp_panel' );
     };
     if ( $@ ) {
         error( $@ );
@@ -324,7 +324,7 @@ sub setGuiPermissions
 
  Process addUser tasks
 
- Param hash \%data user data as provided by Modules::FtpUser module
+ Param hash \%data user data as provided by Modules::User module
  Return int 0 on success, other on failure
 
 =cut

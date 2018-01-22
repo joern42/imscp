@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::AntiRootkits - i-MSCP Anti-Rootkits package
+ iMSCP::Packages::Setup::FileManager - i-MSCP FileManager package
 
 =cut
 
@@ -21,29 +21,29 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::AntiRootkits;
+package iMSCP::Packages::Setup::FileManager;
 
 use strict;
 use warnings;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList /;
 use File::Basename;
-use iMSCP::Debug qw / debug error /;
-use iMSCP::Dialog;
+use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
+use iMSCP::Packages::FrontEnd;
 use version;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- i-MSCP Anti-Rootkits package.
+ i-MSCP FileManager package.
 
- Handles Anti-Rootkits packages found in the AntiRootkits directory.
+ Handles FileManager packages found in the FileManager directory.
 
 =head1 PUBLIC METHODS
 
-=over
+=over 4
 
 =item registerSetupListeners( )
 
@@ -66,7 +66,7 @@ sub registerSetupListeners
     );
 }
 
-=item askAntiRootkits(\%dialog)
+=item showDialog( \%dialog )
 
  Show dialog
 
@@ -80,31 +80,31 @@ sub showDialog
     my ($self, $dialog) = @_;
 
     @{$self->{'SELECTED_PACKAGES'}} = split (
-        ',', main::setupGetQuestion( 'ANTI_ROOTKITS_PACKAGES', iMSCP::Getopt->preseed ? join( ',', @{$self->{'AVAILABLE_PACKAGES'}} ) : '' )
+        ',', main::setupGetQuestion( 'FILEMANAGER_PACKAGES', iMSCP::Getopt->preseed ? join( ',', @{$self->{'AVAILABLE_PACKAGES'}} ) : '' )
     );
 
     my %choices;
     @choices{@{$self->{'AVAILABLE_PACKAGES'}}} = @{$self->{'AVAILABLE_PACKAGES'}};
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antirootkits', 'all', 'forced' ] )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'filemanagers', 'all', 'forced' ] )
         || !@{$self->{'SELECTED_PACKAGES'}}
         || grep { !exists $choices{$_} && $_ ne 'no' } @{$self->{'SELECTED_PACKAGES'}}
     ) {
         ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checkbox(
             <<"EOF", \%choices, grep { exists $choices{$_} && $_ ne 'no' } @{$self->{'SELECTED_PACKAGES'}} );
-Please select the Anti-Rootkits packages you want to install:
+Please select the FTP filemanager packages you want to install:
 \\Z \\Zn
 EOF
         push @{$self->{'SELECTED_PACKAGES'}}, 'no' unless @{$self->{'SELECTED_PACKAGES'}};
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'ANTI_ROOTKITS_PACKAGES', join ',', @{$self->{'SELECTED_PACKAGES'}} );
+    main::setupSetQuestion( 'FILEMANAGER_PACKAGES', join ',', @{$self->{'SELECTED_PACKAGES'}} );
 
     return 0 if $self->{'SELECTED_PACKAGES'}->[0] eq 'no';
 
     for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::AntiRootkits::${_}::${_}";
+        my $package = "iMSCP::Packages::Setup::FileManager::${_}::${_}";
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'showDialog' ) ) or next;
         debug( sprintf( 'Executing showDialog action on %s', $package ));
@@ -119,7 +119,7 @@ EOF
 
  Process preinstall tasks
 
- /!\ This method also trigger uninstallation of unselected Anti-Rootkits packages.
+ /!\ This method also trigger uninstallation of unselected file manager packages.
 
  Return int 0 on success, other or die on failure
 
@@ -132,7 +132,7 @@ sub preinstall
     my @distroPackages = ();
     for my $package( @{$self->{'AVAILABLE_PACKAGES'}} ) {
         next if grep( $package eq $_, @{$self->{'SELECTED_PACKAGES'}});
-        $package = "iMSCP::Packages::AntiRootkits::${package}::${package}";
+        $package = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
         eval "require $package" or die( $@ );
 
         if ( my $subref = $package->can( 'uninstall' ) ) {
@@ -151,7 +151,7 @@ sub preinstall
 
     @distroPackages = ();
     for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::AntiRootkits::${_}::${_}";
+        my $package = "iMSCP::Packages::Setup::FileManager::${_}::${_}";
         eval "require $package" or die( $@ );
 
         if ( my $subref = $package->can( 'preinstall' ) ) {
@@ -181,7 +181,7 @@ sub install
     my ($self) = @_;
 
     for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::AntiRootkits::${_}::${_}";
+        my $package = "iMSCP::Packages::Setup::FileManager::${_}::${_}";
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'install' ) ) or next;
         debug( sprintf( 'Executing install action on %s', $package ));
@@ -205,7 +205,7 @@ sub postinstall
     my ($self) = @_;
 
     for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::AntiRootkits::${_}::${_}";
+        my $package = "iMSCP::Packages::Setup::FileManager::${_}::${_}";
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'postinstall' ) ) or next;
         debug( sprintf( 'Executing postinstall action on %s', $package ));
@@ -216,10 +216,11 @@ sub postinstall
     0;
 }
 
-=item uninstall( )
+=item uninstall( [ $package ])
 
  Process uninstall tasks
 
+ Param string $package OPTIONAL Package to uninstall
  Return int 0 on success, other or die on failure
 
 =cut
@@ -230,7 +231,7 @@ sub uninstall
 
     my @distroPackages = ();
     for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::AntiRootkits::${_}::${_}";
+        my $package = "iMSCP::Packages::Setup::FileManager::${_}::${_}";
         eval "require $package" or die( $@ );
 
         if ( my $subref = $package->can( 'uninstall' ) ) {
@@ -273,7 +274,7 @@ sub setEnginePermissions
     my ($self) = @_;
 
     for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::AntiRootkits::${_}::${_}";
+        my $package = "iMSCP::Packages::Setup::FileManager::${_}::${_}";
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;
         debug( sprintf( 'Executing setEnginePermissions action on %s', $package ));
@@ -297,7 +298,7 @@ sub setGuiPermissions
     my ($self) = @_;
 
     for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::AntiRootkits::${_}::${_}";
+        my $package = "iMSCP::Packages::Setup::FileManager::${_}::${_}";
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'setGuiPermissions' ) ) or next;
         debug( sprintf( 'Executing setGuiPermissions action on %s', $package ));
@@ -316,9 +317,9 @@ sub setGuiPermissions
 
 =item init( )
 
- Initialize instance
+ Initialize insance
 
- Return iMSCP::Packages::AntiRootkits, die on failure
+ Return iMSCP::Packages::Setup::FileManager, die on failure
 
 =cut
 
@@ -326,8 +327,9 @@ sub _init
 {
     my ($self) = @_;
 
-    @{$self->{'AVAILABLE_PACKAGES'}} = iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/AntiRootkits' )->getDirs();
-    @{$self->{'SELECTED_PACKAGES'}} = grep( $_ ne 'no', split( ',', $main::imscpConfig{'ANTI_ROOTKITS_PACKAGES'} ));
+    # Pydio package temporarily disabled due to PHP version constraint that is not met
+    @{$self->{'AVAILABLE_PACKAGES'}} = grep( $_ ne 'Pydio', iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/FileManager' )->getDirs());
+    @{$self->{'SELECTED_PACKAGES'}} = grep( $_ ne 'no', split( ',', $main::imscpConfig{'FILEMANAGER_PACKAGES'} ));
     $self;
 }
 
@@ -335,7 +337,7 @@ sub _init
 
  Install distribution packages
 
- Param list @packages List of distribution packages to install
+ Param list @packages List of packages to install
  Return int 0 on success, other on failure
 
 =cut
@@ -356,8 +358,8 @@ sub _installPackages
     my $rs = execute(
         [
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-            'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew', '--option',
-            'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
+            'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew',
+            '--option', 'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
             ( iMSCP::Getopt->forcereinstall ? '--reinstall' : () ), '--auto-remove', '--purge', '--no-install-recommends',
             ( version->parse( `apt-get --version 2>/dev/null` =~ /^apt\s+(\d\.\d)/ ) < version->parse( '1.1' )
                 ? '--force-yes' : '--allow-downgrades' ),

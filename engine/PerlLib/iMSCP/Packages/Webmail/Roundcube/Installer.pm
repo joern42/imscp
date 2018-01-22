@@ -478,7 +478,7 @@ sub _setupDatabase
         # According https://dev.mysql.com/doc/refman/5.7/en/grant.html,
         # we can grant privileges on databases that doesn't exist yet.
         my $quotedRcDbName = $dbh->quote_identifier( $rcDbName );
-        $dbh->do( "GRANT ALL PRIVILEGES ON @{[ $quotedRcDbName =~ s/([%_])/\\$1/gr ]}.*TO ?\@?", undef, $dbUser, $dbUserHost );
+        $dbh->do( "GRANT ALL PRIVILEGES ON @{[ $quotedRcDbName =~ s/([%_])/\\$1/gr ]}.* TO ?\@?", undef, $dbUser, $dbUserHost );
 
         # Give required privileges on the imscp.mail table
         # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660

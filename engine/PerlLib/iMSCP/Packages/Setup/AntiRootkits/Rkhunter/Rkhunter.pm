@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::AntiRootkits::Rkhunter::Rkhunter - i-MSCP Rkhunter package
+ iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Rkhunter - i-MSCP Rkhunter package
 
 =cut
 
@@ -21,12 +21,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::AntiRootkits::Rkhunter::Rkhunter;
+package iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Rkhunter;
 
 use strict;
 use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
-use Class::Autouse qw/ :nostat iMSCP::Packages::AntiRootkits::Rkhunter::Installer iMSCP::Packages::AntiRootkits::Rkhunter::Uninstaller /;
+use Class::Autouse qw/ :nostat iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Installer iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Uninstaller /;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -49,7 +49,7 @@ sub preinstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::AntiRootkits::Rkhunter::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
+    iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
 
 =item postinstall( )
@@ -64,7 +64,7 @@ sub postinstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::AntiRootkits::Rkhunter::Installer->getInstance( eventManager => $self->{'eventManager'} )->postinstall();
+    iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Installer->getInstance( eventManager => $self->{'eventManager'} )->postinstall();
 }
 
 =item uninstall( )
@@ -79,7 +79,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::AntiRootkits::Rkhunter::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
+    iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }
 
 =item setEnginePermissions( )
@@ -92,7 +92,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my $rs = setRights( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/AntiRootkits/Rkhunter/Cron.pl",
+    my $rs = setRights( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_USER'},

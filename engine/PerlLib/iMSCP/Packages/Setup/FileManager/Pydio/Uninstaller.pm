@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::FileManager::Pydio::Uninstaller - i-MSCP Pydio package uninstaller
+ iMSCP::Packages::Setup::FileManager::Pydio::Uninstaller - i-MSCP Pydio package uninstaller
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::FileManager::Pydio::Uninstaller;
+package iMSCP::Packages::Setup::FileManager::Pydio::Uninstaller;
 
 use strict;
 use warnings;
@@ -65,7 +65,7 @@ sub uninstall
 
  Initialize instance
 
- Return iMSCP::Packages::FileManager::Pydio::Uninstaller
+ Return iMSCP::Packages::Setup::FileManager::Pydio::Uninstaller
 
 =cut
 

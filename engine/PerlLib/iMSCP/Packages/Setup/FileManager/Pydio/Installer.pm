@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::FileManager::Pydio::Installer - i-MSCP Pydio package installer
+ iMSCP::Packages::Setup::FileManager::Pydio::Installer - i-MSCP Pydio package installer
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::FileManager::Pydio::Installer;
+package iMSCP::Packages::Setup::FileManager::Pydio::Installer;
 
 use strict;
 use warnings;

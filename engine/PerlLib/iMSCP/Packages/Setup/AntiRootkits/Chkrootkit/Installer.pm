@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::AntiRootkits::Chkrootkit::Installer - i-MSCP Chkrootkit package installer
+ iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer - i-MSCP Chkrootkit package installer
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::AntiRootkits::Chkrootkit::Installer;
+package iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer;
 
 use strict;
 use warnings;
@@ -98,7 +98,7 @@ sub _disableDebianConfig
 sub _addCronTask
 {
     iMSCP::Servers::Cron->factory()->addTask( {
-        TASKID  => 'iMSCP::Packages::AntiRootkits::Chkrootkit',
+        TASKID  => 'iMSCP::Packages::Setup::AntiRootkits::Chkrootkit',
         MINUTE  => '@weekly',
         HOUR    => '',
         DAY     => '',

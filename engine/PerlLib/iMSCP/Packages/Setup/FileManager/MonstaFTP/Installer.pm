@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::FileManager::MonstaFTP::Installer - i-MSCP MonstaFTP package installer
+ iMSCP::Packages::Setup::FileManager::MonstaFTP::Installer - i-MSCP MonstaFTP package installer
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::FileManager::MonstaFTP::Installer;
+package iMSCP::Packages::Setup::FileManager::MonstaFTP::Installer;
 
 use strict;
 use warnings;
@@ -119,7 +119,7 @@ EOF
 
  Initialize instance
 
- Return iMSCP::Packages::FileManager::MonstaFTP::Installer
+ Return iMSCP::Packages::Setup::FileManager::MonstaFTP::Installer
 
 =cut
 

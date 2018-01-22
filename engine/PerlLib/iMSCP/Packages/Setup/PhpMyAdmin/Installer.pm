@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::PhpMyAdmin::Installer - i-MSCP PhpMyAdmin package installer
+ iMSCP::Packages::Setup::PhpMyAdmin::Installer - i-MSCP PhpMyAdmin package installer
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::PhpMyAdmin::Installer;
+package iMSCP::Packages::Setup::PhpMyAdmin::Installer;
 
 use strict;
 use warnings;
@@ -37,7 +37,7 @@ use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
 use iMSCP::Packages::FrontEnd;
-use iMSCP::Packages::PhpMyAdmin;
+use iMSCP::Packages::Setup::PhpMyAdmin;
 use iMSCP::Servers::Sqld;
 use JSON;
 use version;
@@ -241,7 +241,7 @@ EOF
 
  Initialize instance
 
- Return iMSCP::Packages::PhpMyAdmin::Installer
+ Return iMSCP::Packages::Setup::PhpMyAdmin::Installer
 
 =cut
 
@@ -249,7 +249,7 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->{'phpmyadmin'} = iMSCP::Packages::PhpMyAdmin->getInstance();
+    $self->{'phpmyadmin'} = iMSCP::Packages::Setup::PhpMyAdmin->getInstance();
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
     $self->{'cfgDir'} = $self->{'phpmyadmin'}->{'cfgDir'};
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
@@ -453,7 +453,7 @@ sub _buildHttpdConfig
     my ($self) = @_;
 
     $self->{'frontend'}->buildConfFile(
-        "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/PhpMyAdmin/config/nginx/imscp_pma.nginx",
+        "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/PhpMyAdmin/config/nginx/imscp_pma.nginx",
         { GUI_PUBLIC_DIR => $main::imscpConfig{'GUI_PUBLIC_DIR'} },
         { destination => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_pma.conf" }
     );

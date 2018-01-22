@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::AntiRootkits::Rkhunter::Installer - i-MSCP Rkhunter package installer
+ iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Installer - i-MSCP Rkhunter package installer
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::AntiRootkits::Rkhunter::Installer;
+package iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Installer;
 
 use strict;
 use warnings;
@@ -127,7 +127,7 @@ sub _disableDebianConfig
 sub _addCronTask
 {
     iMSCP::Servers::Cron->factory()->addTask( {
-        TASKID  => 'iMSCP::Packages::AntiRootkits::Rkhunter',
+        TASKID  => 'iMSCP::Packages::Setup::AntiRootkits::Rkhunter',
         MINUTE  => '@weekly',
         HOUR    => '',
         DAY     => '',
@@ -136,7 +136,7 @@ sub _addCronTask
         USER    => $main::imscpConfig{'ROOT_USER'},
         COMMAND =>
         'nice -n 10 ionice -c2 -n5 '
-            . "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/AntiRootkits/Rkhunter/Cron.pl "
+            . "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl "
             . "> /dev/null 2>&1"
     } );
 }
@@ -160,7 +160,7 @@ sub _scheduleCheck
     return $rs if $rs;
 
     $rs = execute(
-        "echo 'perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/AntiRootkits/Rkhunter/Cron.pl > /dev/null 2>&1' | at now + 10 minutes",
+        "echo 'perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl > /dev/null 2>&1' | at now + 10 minutes",
         \ my $stdout,
         \ my $stderr
     );

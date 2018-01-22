@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::FileManager::MonstaFTP::MonstaFTP - i-MSCP package
+ iMSCP::Packages::Setup::FileManager::MonstaFTP::MonstaFTP - i-MSCP package
 
 =cut
 
@@ -21,11 +21,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::FileManager::MonstaFTP::MonstaFTP;
+package iMSCP::Packages::Setup::FileManager::MonstaFTP::MonstaFTP;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat iMSCP::Packages::FileManager::MonstaFTP::Installer iMSCP::Packages::FileManager::MonstaFTP::Uninstaller /;
+use Class::Autouse qw/ :nostat iMSCP::Packages::Setup::FileManager::MonstaFTP::Installer iMSCP::Packages::Setup::FileManager::MonstaFTP::Uninstaller /;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -52,7 +52,7 @@ sub preinstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::FileManager::MonstaFTP::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
+    iMSCP::Packages::Setup::FileManager::MonstaFTP::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
 
 =item install( )
@@ -67,7 +67,7 @@ sub install
 {
     my ($self) = @_;
 
-    iMSCP::Packages::FileManager::MonstaFTP::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
+    iMSCP::Packages::Setup::FileManager::MonstaFTP::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
 }
 
 =item uninstall( )
@@ -82,7 +82,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    iMSCP::Packages::FileManager::MonstaFTP::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
+    iMSCP::Packages::Setup::FileManager::MonstaFTP::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }
 
 =back

@@ -178,31 +178,31 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $srvMngr = iMSCP::Service->getInstance();
+        my $srvProvider = iMSCP::Service->getInstance();
         if ( iMSCP::Getopt->context() eq 'installer' ) {
-            if ( $srvMngr->hasService( 'imscp_daemon' ) ) {
+            if ( $srvProvider->hasService( 'imscp_daemon' ) ) {
                 # Installer context.
                 # We need  stop and disable the service
-                $srvMngr->stop( 'imscp_daemon' );
+                $srvProvider->stop( 'imscp_daemon' );
 
-                if ( $srvMngr->isSystemd() ) {
+                if ( $srvProvider->isSystemd() ) {
                     # If systemd is the current init we mask the service. Service will be disabled and masked.
-                    $srvMngr->mask( 'imscp_daemon' );
+                    $srvProvider->getProvider()->mask( 'imscp_daemon' );
                 } else {
-                    $srvMngr->disable( 'imscp_daemon' );
+                    $srvProvider->disable( 'imscp_daemon' );
                 }
             }
         } else {
             # Uninstaller context.
             # We need remove Systemd unit, Upstart job and SysVinit
-            $srvMngr->remove( 'imscp_daemon' );
+            $srvProvider->remove( 'imscp_daemon' );
         }
 
         # Remove daemon directory
         iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/daemon" )->remove();
     };
     if ( $@ ) {
-        error( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        error( $@ );
         return 1;
     }
 

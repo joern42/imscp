@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::AntiRootkits::Chkrootkit::Uninstaller - i-MSCP Chkrootkit package uninstaller
+ iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Uninstaller - i-MSCP Chkrootkit package uninstaller
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Packages::AntiRootkits::Chkrootkit::Uninstaller;
+package iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Uninstaller;
 
 use strict;
 use warnings;
