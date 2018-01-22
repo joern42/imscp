@@ -106,7 +106,9 @@ sub process
 sub add
 {
     my ($self) = @_;
-
+    
+    # TODO: To be moved in the iMSCP::Servers::Server implementation
+    
     return $self->SUPER::add() if $self->{'admin_status'} eq 'tochangepwd';
 
     my $user = my $group = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'admin_id'} );
@@ -152,6 +154,8 @@ sub add
 sub delete
 {
     my ($self) = @_;
+
+    # TODO: To be moved in the iMSCP::Servers::Server implementation
 
     my $user = my $group = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'admin_id'} );
     my $rs = $self->{'eventManager'}->trigger( 'onBeforeDeleteImscpUnixUser', $user );

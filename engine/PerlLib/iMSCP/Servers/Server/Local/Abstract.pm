@@ -391,7 +391,7 @@ sub addIpAddr
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeAddIpAddr', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerAddIpAddr', $moduleData );
     return $rs if $rs;
 
     if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
@@ -406,7 +406,7 @@ sub addIpAddr
         }
     }
 
-    $self->{'eventManager'}->trigger( 'afterAddIpAddr', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterLocalServerAddIpAddr', $moduleData );
 }
 
 =item deleteIpAddr( \%moduleData )
@@ -419,7 +419,7 @@ sub deleteIpAddr
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeDeleteIpAddr', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteIpAddr', $moduleData );
     return $rs if $rs;
 
     if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
@@ -433,7 +433,35 @@ sub deleteIpAddr
         }
     }
 
-    $self->{'eventManager'}->trigger( 'afterDeleteIpAddr', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterLocalServerDeleteIpAddr', $moduleData );
+}
+
+=item addUser( \%moduleData )
+
+ See iMSCP::Servers::Server::addUser()
+
+=cut
+
+sub addUser
+{
+    my ($self, $moduleData) = @_;
+
+    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerAddUser', $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'afterLocalServerAddUser', $moduleData );
+}
+
+=item deleteUser( \%moduleData )
+
+ See iMSCP::Servers::Server::deleteUser()
+
+=cut
+
+sub deleteUser
+{
+    my ($self, $moduleData) = @_;
+
+    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteUser', $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'afterLocalServerDeleteUser', $moduleData );
 }
 
 =item start( )

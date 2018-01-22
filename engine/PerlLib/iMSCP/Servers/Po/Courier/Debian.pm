@@ -80,12 +80,12 @@ sub postinstall
             push @toDisableServices, 'courier-pop-ssl', 'courier-imap-ssl';
         }
 
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->enable( $_ ) for @toEnableServices;
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->enable( $_ ) for @toEnableServices;
 
         for ( @toDisableServices ) {
-            $serviceMngr->stop( $_ );
-            $serviceMngr->disable( $_ );
+            $srvProvider->stop( $_ );
+            $srvProvider->disable( $_ );
         }
     };
     if ( $@ ) {
@@ -110,9 +110,9 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
+        my $srvProvider = iMSCP::Service->getInstance();
         for ( 'courier-authdaemon', 'courier-pop', 'courier-pop-ssl', 'courier-imap', 'courier-imap-ssl' ) {
-            $serviceMngr->restart( $_ ) if $serviceMngr->hasService( $_ ) && $serviceMngr->isRunning( $_ );
+            $srvProvider->restart( $_ ) if $srvProvider->hasService( $_ ) && $srvProvider->isRunning( $_ );
         };
     };
     if ( $@ ) {
@@ -149,11 +149,11 @@ sub start
     my ($self) = @_;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->start( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->start( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
         if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
-            $serviceMngr->start( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
+            $srvProvider->start( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
         }
     };
     if ( $@ ) {
@@ -175,10 +175,10 @@ sub stop
     my ($self) = @_;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
+        my $srvProvider = iMSCP::Service->getInstance();
 
         for ( 'courier-authdaemon', 'courier-pop', 'courier-imap', 'courier-pop-ssl', 'courier-imap-ssl' ) {
-            $serviceMngr->stop( $_ );
+            $srvProvider->stop( $_ );
         }
 
     };
@@ -201,11 +201,11 @@ sub restart
     my ($self) = @_;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->restart( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
         if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
-            $serviceMngr->restart( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
+            $srvProvider->restart( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
         }
     };
     if ( $@ ) {
@@ -227,11 +227,11 @@ sub reload
     my ($self) = @_;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->reload( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->reload( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
         if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
-            $serviceMngr->reload( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
+            $srvProvider->reload( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
         }
     };
     if ( $@ ) {

@@ -203,8 +203,7 @@ sub _getData
             'SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?',
             undef,
             ( $self->{'php_config_level'} eq 'per_user'
-                ? $self->{'domain_id'}
-                : ( $self->{'php_config_level'} eq 'per_domain' ? $self->{'subdomain_alias_id'} : $self->{'subdomain_id'} )
+                ? $self->{'domain_id'} : ( $self->{'php_config_level'} eq 'per_domain' ? $self->{'alias_id'} : $self->{'subdomain_alias_id'} )
             ),
             ( $self->{'php_config_level'} eq 'per_user' ? 'dmn' : ( $self->{'php_config_level'} eq 'per_domain' ? 'als' : 'subals' ) )
         ) || {};
@@ -217,6 +216,7 @@ sub _getData
         BASE_SERVER_IP          => $main::imscpConfig{'BASE_SERVER_IP'},
         BASE_SERVER_PUBLIC_IP   => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
         DOMAIN_ADMIN_ID         => $self->{'domain_admin_id'},
+        DOMAIN_ID               => $self->{'subdomain_alias_id'},
         DOMAIN_NAME             => $self->{'subdomain_alias_name'} . '.' . $self->{'alias_name'},
         DOMAIN_IP               => $main::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $self->{'ip_number'},
         DOMAIN_TYPE             => 'alssub',
@@ -244,8 +244,8 @@ sub _getData
         FORWARD                 => $self->{'subdomain_alias_url_forward'} || 'no',
         FORWARD_TYPE            => $self->{'subdomain_alias_type_forward'} || '',
         FORWARD_PRESERVE_HOST   => $self->{'subdomain_alias_host_forward'} || 'Off',
-        DISABLE_FUNCTIONS       =>
-        $phpini->{'disable_functions'} || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
+        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'}
+            || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
         MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
         MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,

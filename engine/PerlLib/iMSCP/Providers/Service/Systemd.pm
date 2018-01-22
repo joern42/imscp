@@ -356,7 +356,7 @@ sub resolveUnit
     # Resolve the unit, unless it is not a symlink pointing to a regular file,
     # case of a masked unit that point to the /dev/null character special file
     # For the file test, we reuse the stat structure from the last stat() call
-    # that has been made in the _searchUnitFile() method
+    # that has been done in the _searchUnitFile() method
     $unitFilePath = readlink( $unitFilePath ) or croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! )) if -f _ && -l $unitFilePath;
 
     if ( $nocache ) {

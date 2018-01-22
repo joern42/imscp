@@ -106,35 +106,6 @@ sub process
     $rs;
 }
 
-=item disable( )
-
- Disable domain alias
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub disable
-{
-    my ($self) = @_;
-
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-
-        # Sets the status of any subdomain that belongs to this domain alias to 'todisable'.
-        $self->{'_dbh'}->do(
-            "UPDATE subdomain_alias SET subdomain_alias_status = 'todisable' WHERE alias_id = ? AND subdomain_alias_status <> 'todelete'",
-            undef, $self->{'alias_id'}
-        );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $self->SUPER::disable();
-}
-
 =back
 
 =head1 PRIVATE METHODS
@@ -237,6 +208,7 @@ sub _getData
         BASE_SERVER_IP          => $main::imscpConfig{'BASE_SERVER_IP'},
         BASE_SERVER_PUBLIC_IP   => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
         DOMAIN_ADMIN_ID         => $self->{'domain_admin_id'},
+        DOMAIN_ID               => $self->{'alias_id'},
         DOMAIN_NAME             => $self->{'alias_name'},
         DOMAIN_IP               => $main::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $self->{'ip_number'},
         DOMAIN_TYPE             => 'als',
@@ -262,8 +234,8 @@ sub _getData
         FORWARD                 => $self->{'url_forward'} || 'no',
         FORWARD_TYPE            => $self->{'type_forward'} || '',
         FORWARD_PRESERVE_HOST   => $self->{'host_forward'} || 'Off',
-        DISABLE_FUNCTIONS       =>
-        $phpini->{'disable_functions'} || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
+        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'}
+            || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
         MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
         MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,

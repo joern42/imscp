@@ -94,7 +94,11 @@ sub new
     "prefer-stable":true
 }
 EOT
-        $self->{'_php_cmd'} = [ '/usr/bin/php7.1', '-d', "date.timezone=$main::imscpConfig{'TIMEZONE'}", '-d', 'allow_url_fopen=1' ];
+
+        $self->{'_php_cmd'} = [
+            ( iMSCP::ProgramFinder::find( 'php' ) or die( "Couldn't find system PHP (cli) binary" ) ),
+            '-d', "date.timezone=$main::imscpConfig{'TIMEZONE'}", '-d', 'allow_url_fopen=1'
+        ];
         # Set default STD routines
         $self->setStdRoutines();
     }

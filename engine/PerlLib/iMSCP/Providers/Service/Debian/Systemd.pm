@@ -66,7 +66,7 @@ sub isEnabled
     return 0 if $stdout eq 'indirect';
 
     # The 'is-enabled' API call for SysVinit scripts is not implemented till
-    # the Systemd version 220-1 (Debian package), that is, under the following
+    # the systemd version 220-1 (Debian package), that is, under the following
     # distributions (main repository):
     #  - Debian < 9 (Stretch)
     #  - Ubuntu < 18.04 (Bionic Beaver)

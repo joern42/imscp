@@ -89,8 +89,8 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->restart( 'mariadb' ) if $serviceMngr->hasService( 'mariadb' ) && $serviceMngr->isRunning( 'mariadb' );
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( 'mariadb' ) if $srvProvider->hasService( 'mariadb' ) && $srvProvider->isRunning( 'mariadb' );
     };
     if ( $@ ) {
         error( $@ );

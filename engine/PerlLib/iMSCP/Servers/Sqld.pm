@@ -140,6 +140,30 @@ sub dropUser
     croak ( sprintf( 'The %s class must implement the dropUser() method', ref $self ));
 }
 
+=item restoreDomain ( \%moduleData )
+
+ Restore all databases that belong to the given domain account
+
+  Process restoreDomain tasks
+ 
+  The following events *MUST* be triggered:
+  - before<SNAME>RestoreDomain( \%moduleData )
+  - after<SNAME>RestoreDomain( \%moduleData )
+
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+
+ Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain module
+ Return int 0 on success, other on failure
+
+=cut
+
+sub restoreDomain
+{
+    my ($self) = @_;
+
+    croak ( sprintf( 'The %s class must implement the restoreDomain() method', ref $self ));
+}
+
 =back
 
 =head1 PRIVATE METHODS

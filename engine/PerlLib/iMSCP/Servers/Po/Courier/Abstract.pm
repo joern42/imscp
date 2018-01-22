@@ -677,9 +677,9 @@ sub _setupPostfixSasl
 
     processByRef(
         {
-            PWCHECK_METHOD  => $self->{'config'}->{'PWCHECK_METHOD'},
-            LOG_LEVEL       => $self->{'config'}->{'LOG_LEVEL'},
-            MECH_LIST       => $self->{'config'}->{'MECH_LIST'},
+            PWCHECK_METHOD     => $self->{'config'}->{'PWCHECK_METHOD'},
+            LOG_LEVEL          => $self->{'config'}->{'LOG_LEVEL'},
+            MECH_LIST          => $self->{'config'}->{'MECH_LIST'},
             PO_AUTHDAEMON_PATH => $self->{'config'}->{'PO_AUTHDAEMON_PATH'}
         },
         \$cfgTpl

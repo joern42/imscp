@@ -91,8 +91,8 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->restart( 'postfix' ) if $serviceMngr->hasService( 'postfix' ) && $serviceMngr->isRunning( 'postfix' );
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( 'postfix' ) if $srvProvider->hasService( 'postfix' ) && $srvProvider->isRunning( 'postfix' );
     };
     if ( $@ ) {
         error( $@ );

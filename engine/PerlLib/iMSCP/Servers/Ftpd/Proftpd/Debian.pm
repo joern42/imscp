@@ -91,8 +91,8 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->restart( 'proftpd' ) if $serviceMngr->hasService( 'proftpd' ) && $serviceMngr->isRunning( 'proftpd' );
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( 'proftpd' ) if $srvProvider->hasService( 'proftpd' ) && $srvProvider->isRunning( 'proftpd' );
     };
     if ( $@ ) {
         error( $@ );

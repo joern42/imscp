@@ -74,8 +74,7 @@ sub addUser
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the addUser() method', ref $self ));
-
+    croak( sprintf( 'The %s class must implement the addUser() method', ref $self ));
 }
 
 =item addFtpUser( \%moduleData )
@@ -97,7 +96,7 @@ sub addFtpUser
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the addFtpUser() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the addFtpUser() method', ref $self ));
 }
 
 =item disableFtpUser( \%moduleData )
@@ -119,7 +118,7 @@ sub disableFtpUser
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the disableFtpUser() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the disableFtpUser() method', ref $self ));
 }
 
 =item deleteFtpUser( \%moduleData )
@@ -141,7 +140,7 @@ sub deleteFtpUser
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the deleteFtpUser() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the deleteFtpUser() method', ref $self ));
 }
 
 =item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
@@ -159,7 +158,7 @@ sub getTraffic
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }
 
 =back

@@ -37,7 +37,6 @@ use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
 use iMSCP::TemplateParser qw/ getBlocByRef process processByRef replaceBlocByRef /;
-use iMSCP::Service;
 use iMSCP::Umask;
 use version;
 use parent 'iMSCP::Servers::Named';
@@ -922,7 +921,7 @@ sub _addDmnConfig
 
     my $tags = {
         NAMED_DB_FORMAT => $self->{'config'}->{'NAMED_DB_FORMAT'} =~ s/=\d//r,
-        DOMAIN_NAME    => $moduleData->{'DOMAIN_NAME'}
+        DOMAIN_NAME     => $moduleData->{'DOMAIN_NAME'}
     };
 
     if ( $self->{'config'}->{'NAMED_MODE'} eq 'master' ) {

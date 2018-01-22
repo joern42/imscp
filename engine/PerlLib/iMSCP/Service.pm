@@ -123,7 +123,7 @@ sub remove
             }
 
             # Remove unit files if any
-            while ( my $unitFilePath = eval { $self->resolveUnit( $service, 'withpath', 'nocache' ) } ) {
+            while ( my $unitFilePath = eval { $provider->resolveUnit( $service, 'withpath', 'nocache' ) } ) {
                 # We do not want remove units that are shipped by distribution packages
                 last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
                 debug( sprintf ( 'Removing the %s unit', $unitFilePath ));
@@ -136,9 +136,8 @@ sub remove
         unless ( $self->{'init'} eq 'Upstart' ) {
             my $provider = $self->getProvider( 'Upstart' );
             for ( qw / conf override / ) {
-
                 if ( my $jobfilePath = eval { $provider->getJobFilePath( $service, $_ ); } ) {
-                    debug( sprintf ( "Removing the `%s' upstart job", $jobfilePath ));
+                    debug( sprintf ( "Removing the `%s' upstart file", $jobfilePath ));
                     iMSCP::File->new( filename => $jobfilePath )->delFile() == 0 or croak( $self->_getLastError());
                 }
             }

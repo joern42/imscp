@@ -222,7 +222,7 @@ sub maxClientsDialog
 {
     my ($self, $dialog) = @_;
 
-    my $maxClients = main::setupGetQuestion( 'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} // ( iMSCP::Getopt->preseed ? 100 : '' ) );
+    my $maxClients = main::setupGetQuestion( 'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} // ( iMSCP::Getopt->preseed ? 100 : '' ));
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 

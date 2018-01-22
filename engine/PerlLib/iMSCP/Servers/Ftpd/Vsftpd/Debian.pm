@@ -99,8 +99,8 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->restart( 'vsftpd' ) if $serviceMngr->hasService( 'vsftpd' ) && $serviceMngr->isRunning( 'vsftpd' );
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( 'vsftpd' ) if $srvProvider->hasService( 'vsftpd' ) && $srvProvider->isRunning( 'vsftpd' );
     };
     if ( $@ ) {
         error( $@ );

@@ -26,19 +26,9 @@ package iMSCP::Modules::Domain;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use File::Basename;
 use File::Spec;
-use File::Temp;
-use iMSCP::Crypt qw/ decryptRijndaelCBC randomStr /;
-use iMSCP::Debug qw/ debug error getLastError warning /;
-use iMSCP::Dir;
-use iMSCP::Ext2Attributes qw/ clearImmutable /;
-use iMSCP::Execute qw/ execute escapeShell /;
-use iMSCP::Servers::Sqld;
+use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
-
-# See _restoreDatabase() below
-my $DEFAULT_MYSQL_CONFFILE;
 
 =head1 DESCRIPTION
 
@@ -111,138 +101,6 @@ sub process
     }
 
     $rs;
-}
-
-=item disable( )
-
- Disable domain
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub disable
-{
-    my ($self) = @_;
-
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-
-        # Sets the status of any subdomain that belongs to this domain to 'todisable'.
-        $self->{'_dbh'}->do(
-            "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'", undef, $self->{'domain_id'}
-        );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $self->SUPER::disable();
-}
-
-=item restore( )
-
- Restore backup
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub restore
-{
-    my ($self) = @_;
-
-    my $homeDir = "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'domain_name'}";
-    my $bkpDir = "$homeDir/backups";
-
-    eval {
-        # Restore know databases only
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-
-        my $rows = $self->{'_dbh'}->selectall_arrayref(
-            'SELECT sqld_name FROM sql_database WHERE domain_id = ?', { Slice => {} }, $self->{'domain_id'}
-        );
-
-        for my $row( @{$rows} ) {
-            # Encode slashes as SOLIDUS unicode character
-            # Encode dots as Full stop unicode character
-            ( my $encodedDbName = $row->{'sqld_name'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
-
-            for ( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
-                my $dbDumpFilePath = File::Spec->catfile( $bkpDir, $encodedDbName . $_ );
-                debug( $dbDumpFilePath );
-                next unless -f $dbDumpFilePath;
-                $self->_restoreDatabase( $row->{'sqld_name'}, $dbDumpFilePath );
-            }
-        }
-
-        # Restore first Web backup found
-        for ( iMSCP::Dir->new( dirname => $bkpDir )->getFiles() ) {
-            next if -l "$bkpDir/$_"; # Don't follow symlinks (See #IP-990)
-            next unless /^web-backup-.+?\.tar(?:\.(bz2|gz|lzma|xz))?$/;
-
-            my $archFormat = $1 || '';
-
-            # Since we are now using immutable bit to protect some folders, we must in order do the following
-            # to restore a backup archive:
-            #
-            # - Un-protect user homedir (clear immutable flag recursively)
-            # - Restore web files
-            # - Update status of sub, als and alssub, entities linked to the parent domain to 'torestore'
-            # - Run the restore( ) parent method
-            #
-            # The third and last tasks allow the i-MSCP Httpd server implementations to set correct permissions and
-            # set immutable flag on folders if needed for each entity
-            #
-            # Note: This is a lot of works but this will be fixed when the backup feature will be rewritten
-
-            if ( $archFormat eq 'bz2' ) {
-                $archFormat = 'bzip2';
-            } elsif ( $archFormat eq 'gz' ) {
-                $archFormat = 'gzip';
-            }
-
-            clearImmutable( $homeDir, 1 ); # Un-protect homedir recursively
-
-            my $cmd;
-            if ( $archFormat ne '' ) {
-                $cmd = [ 'tar', '-x', '-p', "--$archFormat", '-C', $homeDir, '-f', "$bkpDir/$_" ];
-            } else {
-                $cmd = [ 'tar', '-x', '-p', '-C', $homeDir, '-f', "$bkpDir/$_" ];
-            }
-
-            my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
-            debug( $stdout ) if $stdout;
-            $rs == 0 or croak( $stderr || 'Unknown error' );
-
-            eval {
-                $self->{'_dbh'}->begin_work();
-                $self->{'_dbh'}->do(
-                    'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'}
-                );
-                $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
-                $self->{'_dbh'}->do(
-                    "
-                        UPDATE subdomain_alias
-                        SET subdomain_alias_status = 'torestore'
-                        WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
-                    ",
-                    undef, $self->{'domain_id'}
-                );
-                $self->{'_dbh'}->commit();
-            };
-
-            $self->{'_dbh'}->rollback() if $@;
-            last;
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $self->SUPER::restore();
 }
 
 =back
@@ -344,6 +202,7 @@ sub _getData
         BASE_SERVER_IP          => $main::imscpConfig{'BASE_SERVER_IP'},
         BASE_SERVER_PUBLIC_IP   => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
         DOMAIN_ADMIN_ID         => $self->{'domain_admin_id'},
+        DOMAIN_ID               => $self->{'domain_id'},
         DOMAIN_NAME             => $self->{'domain_name'},
         DOMAIN_IP               => $main::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $self->{'ip_number'},
         DOMAIN_TYPE             => 'dmn',
@@ -369,8 +228,8 @@ sub _getData
         FORWARD                 => $self->{'url_forward'} || 'no',
         FORWARD_TYPE            => $self->{'type_forward'} || '',
         FORWARD_PRESERVE_HOST   => $self->{'host_forward'} || 'Off',
-        DISABLE_FUNCTIONS       =>
-        $phpini->{'disable_functions'} || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
+        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'}
+            || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
         MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
         MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,
@@ -383,59 +242,6 @@ sub _getData
         EXTERNAL_MAIL           => $self->{'external_mail'},
         MAIL_ENABLED            => $self->{'external_mail'} eq 'off' && ( $self->{'mail_on_domain'} || $self->{'domain_mailacc_limit'} >= 0 )
     };
-}
-
-=item _restoreDatabase( $dbName, $dbDumpFilePath )
-
- Restore a database from the given database dump file
- 
- Param string $dbName Database name
- Param string $dbDumpFilePath Path to database dump file
- Return void, croak on failure
-
-=cut
-
-sub _restoreDatabase
-{
-    my (undef, $dbName, $dbDumpFilePath) = @_;
-
-    my (undef, undef, $archFormat) = fileparse( $dbDumpFilePath, qr/\.(?:bz2|gz|lzma|xz)/ );
-
-    my $cmd;
-
-    if ( $archFormat eq '.bz2' ) {
-        $cmd = 'bzcat -d ';
-    } elsif ( $archFormat eq '.gz' ) {
-        $cmd = 'zcat -d ';
-    } elsif ( $archFormat eq '.lzma' ) {
-        $cmd = 'lzma -dc ';
-    } elsif ( $archFormat eq '.xz' ) {
-        $cmd = 'xz -dc ';
-    } else {
-        $cmd = 'cat ';
-    }
-
-    unless ( $DEFAULT_MYSQL_CONFFILE ) {
-        $DEFAULT_MYSQL_CONFFILE = File::Temp->new();
-        print $DEFAULT_MYSQL_CONFFILE <<"EOF";
-[mysql]
-host = $main::imscpConfig{'DATABASE_HOST'}
-port = $main::imscpConfig{'DATABASE_PORT'}
-user = "@{ [ $main::imscpConfig{'DATABASE_USER'} =~ s/"/\\"/gr ] }"
-password = "@{ [ decryptRijndaelCBC($main::imscpKEY, $main::imscpIV, $main::imscpConfig{'DATABASE_PASSWORD'}) =~ s/"/\\"/gr ] }"
-max_allowed_packet = 500M
-EOF
-        $DEFAULT_MYSQL_CONFFILE->close();
-    }
-
-    my @cmd = (
-        $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$DEFAULT_MYSQL_CONFFILE",
-        escapeShell( $dbName )
-    );
-    my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
-    debug( $stdout ) if $stdout;
-    $rs == 0 or croak( error( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' )));
-    0;
 }
 
 =back

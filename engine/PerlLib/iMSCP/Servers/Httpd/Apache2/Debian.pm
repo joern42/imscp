@@ -100,6 +100,16 @@ sub uninstall
     my $rs = $self->_removeDirs();
     $rs ||= $self->_restoreDefaultConfig();
     $rs ||= $self->SUPER::uninstall();
+    return $rs if $rs;
+
+    eval {
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( 'apache2' ) if $srvProvider->hasService( 'apache2' ) && $srvProvider->isRunning( 'apache2' );
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
 }
 
 =item dpkgPostInvokeTasks()
@@ -324,7 +334,7 @@ sub _setVersion
     return $rs if $rs;
 
     if ( $stdout !~ /apache\/([\d.]+)/i ) {
-        error( "Couldn't guess Apache2 version from the `/usr/sbin/apache2ctl -v 0>&1` command output" );
+        error( "Couldn't guess Apache2 version from the `/usr/sbin/apache2ctl -v` command output" );
         return 1;
     }
 
@@ -566,17 +576,17 @@ sub _restoreDefaultConfig
     my ($self) = @_;
 
     if ( -f '/etc/apache2/vlogger.conf' ) {
-        my $rs = iMSCP::File->new( filename => "'/etc/apache2/vlogger.conf'" )->delFile();
+        my $rs = iMSCP::File->new( filename => '/etc/apache2/vlogger.conf' )->delFile();
         return $rs if $rs;
     }
 
-    if ( -f "/etc/apache2/sites-available/00_nameserver.conf" ) {
+    if ( -f '/etc/apache2/sites-available/00_nameserver.conf' ) {
         my $rs = $self->disableSites( '00_nameserver.conf' );
-        $rs ||= iMSCP::File->new( filename => "/etc/apache2/sites-available/00_nameserver.conf" )->delFile();
+        $rs ||= iMSCP::File->new( filename => '/etc/apache2/sites-available/00_nameserver.conf' )->delFile();
         return $rs if $rs;
     }
 
-    my $confDir = -d "/etc/apache2/conf-available" ? "/etc/apache2/conf-available" : "/etc/apache2/conf.d";
+    my $confDir = -d '/etc/apache2/conf-available' ? '/etc/apache2/conf-available' : 'etc/apache2/conf.d';
 
     if ( -f "$confDir/00_imscp.conf" ) {
         my $rs = $self->disableConfs( '00_imscp.conf' );

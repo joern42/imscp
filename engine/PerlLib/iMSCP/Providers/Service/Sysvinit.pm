@@ -247,20 +247,21 @@ sub _init
     $self;
 }
 
-=item _isSysvinit( $service )
+=item _isSysvinit( $service [, $nocache = FALSE] )
 
  is the given service a SysVinit script?
 
  Param string $service Service name
+ Param bool $nocache OPTIONAL If true, no cache will be used
  Return bool TRUE if the service is a SysVinit script, FALSE otherwise
 
 =cut
 
 sub _isSysvinit
 {
-    my ($self, $service) = @_;
+    my ($self, $service, $nocache) = @_;
 
-    eval { $self->_searchInitScript( $service ); };
+    eval { $self->_searchInitScript( $service, $nocache ); };
 }
 
 =item searchInitScript( $service, [ $nocache =  FALSE ] )
@@ -296,10 +297,7 @@ sub _searchInitScript
         $initScripts{$service} = $initScriptPath if -f $initScriptPath;
     }
 
-    unless ( $nocache || $initScripts{$service} ) {
-        $initScripts{$service} = undef;
-    }
-
+    $initScripts{$service} = undef unless $nocache || $initScripts{$service};
     $initScripts{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
     $nocache ? delete $initScripts{$service} : $initScripts{$service};
 }

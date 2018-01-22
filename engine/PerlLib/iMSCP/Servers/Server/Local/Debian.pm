@@ -25,9 +25,9 @@ package iMSCP::Servers::Server::Local::Debian;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Debug' => qw/ debug /;
+use autouse 'iMSCP::Debug' => qw/ debug error /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Bootstrapper iMSCP::File /;
+use Class::Autouse qw/ :nostat iMSCP::Bootstrapper iMSCP::File iMSCP::ProgramFinder /;
 use iMSCP::Service;
 use JSON qw/ decode_json /;
 use parent 'iMSCP::Servers::Server::Local::Abstract';
@@ -67,20 +67,25 @@ sub dpkgPostInvokeTasks
     my ($self) = @_;
 
     # Gather system information
-    my $sysInfo = eval { decode_json( `facter --json osfamily lsbdistid lsbdistrelease lsbdistcodename 2> /dev/null` ) } or croak(
-        sprintf( "Couldn't gather system information: %s", $@ )
-    );
+    my $sysInfo = eval {
+        my $facter = iMSCP::ProgramFinder::find( 'facter' ) or croak( 'facter program not found' );
+        decode_json( `$facter --json os 2> /dev/null` );
+    };
+    if ( $@ ) {
+        error( sprintf( "Couldn't gather system information: %s", $@ ));
+        return 1;
+    }
 
     # Reload config in writing mode
     iMSCP::Bootstrapper->getInstance()->loadMainConfig( { nodeferring => 1 } );
 
-    $main::imscpConfig{'DISTRO_ID'} = $sysInfo->{'lsbdistid'};
+    $main::imscpConfig{'DISTRO_ID'} = $sysInfo->{'os'}->{'lsb'}->{'distid'};
     debug( sprintf( 'Distribution ID set to: %s', $main::imscpConfig{'DISTRO_ID'} ));
 
-    $main::imscpConfig{'DISTRO_CODENAME'} = $sysInfo->{'lsbdistcodename'};
+    $main::imscpConfig{'DISTRO_CODENAME'} = $sysInfo->{'os'}->{'lsb'}->{'distcodename'};
     debug( sprintf( 'Distribution codename set to: %s', $main::imscpConfig{'DISTRO_CODENAME'} ));
 
-    $main::imscpConfig{'DISTRO_RELEASE'} = $sysInfo->{'lsbdistrelease'};
+    $main::imscpConfig{'DISTRO_RELEASE'} = $sysInfo->{'os'}->{'lsb'}->{'distrelease'};
     debug( sprintf( 'Distribution release set to: %s', $main::imscpConfig{'DISTRO_RELEASE'} ));
 
     $main::imscpConfig{'SYSTEM_INIT'} = iMSCP::Service->getInstance()->getInitSystem();

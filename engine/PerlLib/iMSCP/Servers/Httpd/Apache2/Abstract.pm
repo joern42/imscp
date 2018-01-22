@@ -42,9 +42,9 @@ use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ mount umount isMountpoint addMountEntry removeMountEntry /;
 use iMSCP::Net;
-use iMSCP::Rights;
+use iMSCP::Rights qw/ setRights /;
 use iMSCP::SystemUser;
-use iMSCP::TemplateParser qw/ processByRef replaceBlocByRef /;
+use iMSCP::TemplateParser qw/ replaceBlocByRef /;
 use Scalar::Defer;
 use parent qw/ iMSCP::Servers::Httpd /;
 
@@ -155,16 +155,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_removeVloggerSqlUser();
-    return $rs if $rs;
-
-    eval { $self->restart() if iMSCP::Service->getInstance()->hasService( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    $self->_removeVloggerSqlUser();
 }
 
 =item setEnginePermissions( )
@@ -302,7 +293,77 @@ sub restoreDomain
     my ($self, $moduleData) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeApache2RestoreDomain', $moduleData );
-    $rs ||= $self->_addFiles( $moduleData );
+
+    unless ( $moduleData->{'DOMAIN_TYPE'} eq 'als' ) {
+        eval {
+            # Restore the first backup found
+            for ( iMSCP::Dir->new( dirname => "$moduleData->{'HOME_DIR'}/backups" )->getFiles() ) {
+                next if -l "$moduleData->{'HOME_DIR'}/backups/$_"; # Don't follow symlinks (See #IP-990)
+                next unless /^web-backup-.+?\.tar(?:\.(bz2|gz|lzma|xz))?$/;
+
+                my $archFormat = $1 || '';
+
+                # Since we are now using immutable bit to protect some folders, we
+                # must in order do the following to restore a backup archive:
+                #
+                # - Un-protect user homedir (clear immutable flag recursively)
+                # - Restore web files
+                # - Update status of sub, als and alssub, entities linked to the
+                #   domain to 'torestore'
+                #
+                # The third and last task allow to set correct permissions and set
+                # immutable flag on folders if needed for each entity
+
+                if ( $archFormat eq 'bz2' ) {
+                    $archFormat = 'bzip2';
+                } elsif ( $archFormat eq 'gz' ) {
+                    $archFormat = 'gzip';
+                }
+
+                # Un-protect homedir recursively
+                clearImmutable( $moduleData->{'HOME_DIR'}, 1 );
+
+                my $cmd;
+                if ( $archFormat ne '' ) {
+                    $cmd = [ 'tar', '-x', '-p', "--$archFormat", '-C', $moduleData->{'HOME_DIR'}, '-f', "$moduleData->{'HOME_DIR'}/backups/$_" ];
+                } else {
+                    $cmd = [ 'tar', '-x', '-p', '-C', $moduleData->{'HOME_DIR'}, '-f', "$moduleData->{'HOME_DIR'}/backups/$_" ];
+                }
+
+                $rs = execute( $cmd, \ my $stdout, \ my $stderr );
+                debug( $stdout ) if $stdout;
+                $rs == 0 or croak( $stderr || 'Unknown error' );
+
+                my $dbh = iMSCP::Database->getInstance()->getRawDb();
+                local $dbh->{'RaiseError'} = 1;
+
+                eval {
+                    $dbh->begin_work();
+                    $dbh->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
+                    $dbh->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
+                    $dbh->do(
+                        "
+                            UPDATE subdomain_alias
+                            SET subdomain_alias_status = 'torestore'
+                            WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                        ",
+                        undef,
+                        $self->{'domain_id'}
+                    );
+                    $dbh->commit();
+                };
+
+                $dbh->rollback() if $@;
+                last;
+            }
+        };
+        if ( $@ ) {
+            error( $@ );
+            return 1;
+        }
+    }
+
+    $rs = $self->_addFiles( $moduleData );
     $rs ||= $self->{'eventManager'}->trigger( 'afterApache2RestoreDomain', $moduleData );
 }
 
@@ -317,7 +378,34 @@ sub disableDomain
     my ($self, $moduleData) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeApache2DisableDomain', $moduleData );
-    $rs ||= $self->_disableDomain( $moduleData );
+    return $rs if $rs;
+
+    eval {
+        my $dbh = iMSCP::Database->getInstance()->getRawDb();
+        local $dbh->{'RaiseError'} = 1;
+
+        if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
+            # Sets the status of any subdomain that belongs to this domain to 'todisable'.
+            $dbh->do(
+                "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'",
+                undef,
+                $moduleData->{'DOMAIN_ID'}
+            );
+        } else {
+            # Sets the status of any subdomain that belongs to this domain alias to 'todisable'.
+            $dbh->do(
+                "UPDATE subdomain_alias SET subdomain_alias_status = 'todisable' WHERE alias_id = ? AND subdomain_alias_status <> 'todelete'",
+                undef,
+                $self->{'DOMAIN_ID'}
+            );
+        }
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    $rs = $self->_disableDomain( $moduleData );
     $rs ||= $self->{'eventManager'}->trigger( 'afterApache2DisableDomain', $moduleData );
 }
 
@@ -753,75 +841,34 @@ sub deleteHtaccess
 sub buildConfFile
 {
     my ($self, $srcFile, $trgFile, $mdata, $sdata, $params) = @_;
-    $mdata //= {};
-    $sdata //= {};
-    $params //= {};
 
-    my ($filename, $path) = fileparse( $srcFile );
-    my $cfgTpl;
+    my $rs = $self->{'eventManager'}->registerOne(
+        'beforeApache2BuildConfFile',
+        sub {
+            return 0 unless grep( $_ eq $_[1], ( 'domain.tpl', 'domain_disabled.tpl' ) );
 
-    if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
-        $cfgTpl = $self->{'_templates'}->{$srcFile};
-    } else {
-        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'apache2', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
-        return $rs if $rs;
+            if ( grep( $_ eq $sdata->{'VHOST_TYPE'}, 'domain', 'domain_disabled' ) ) {
+                replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', $_[0] );
+                replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', $_[0] );
+            } elsif ( grep( $_ eq $sdata->{'VHOST_TYPE'}, 'domain_fwd', 'domain_ssl_fwd', 'domain_disabled_fwd' ) ) {
+                if ( $sdata->{'VHOST_TYPE'} ne 'domain_ssl_fwd' ) {
+                    replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', $_[0] );
+                }
 
-        unless ( defined $cfgTpl ) {
-            $srcFile = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
-            $cfgTpl = iMSCP::File->new( filename => $srcFile )->get();
-            unless ( defined $cfgTpl ) {
-                error( sprintf( "Couldn't read the %s file", $srcFile ));
-                return 1;
-            }
-        }
-
-        $self->{'_templates'}->{$srcFile} = $cfgTpl if $params->{'cached'};
-    }
-
-    if ( grep( $_ eq $filename, ( 'domain.tpl', 'domain_disabled.tpl' ) ) ) {
-        if ( grep( $_ eq $sdata->{'VHOST_TYPE'}, 'domain', 'domain_disabled' ) ) {
-            replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', \$cfgTpl );
-            replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', \$cfgTpl );
-        } elsif ( grep( $_ eq $sdata->{'VHOST_TYPE'}, 'domain_fwd', 'domain_ssl_fwd', 'domain_disabled_fwd' ) ) {
-            if ( $sdata->{'VHOST_TYPE'} ne 'domain_ssl_fwd' ) {
-                replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', \$cfgTpl );
+                replaceBlocByRef( "# SECTION dmn BEGIN.\n", "# SECTION dmn END.\n", '', $_[0] );
+            } elsif ( grep( $_ eq $sdata->{'VHOST_TYPE'}, 'domain_ssl', 'domain_disabled_ssl' ) ) {
+                replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', $_[0] );
             }
 
-            replaceBlocByRef( "# SECTION dmn BEGIN.\n", "# SECTION dmn END.\n", '', \$cfgTpl );
-        } elsif ( grep( $_ eq $sdata->{'VHOST_TYPE'}, 'domain_ssl', 'domain_disabled_ssl' ) ) {
-            replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', \$cfgTpl );
-        }
-    }
-
-    my $rs = $self->{'eventManager'}->trigger(
-        'beforeApache2BuildConfFile', \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+            0;
+        },
+        100
     );
-    return $rs if $rs;
-
-    processByRef( $sdata, \$cfgTpl ) if %{$sdata};
-    processByRef( $mdata, \$cfgTpl ) if %{$mdata};
-
-    $rs = $self->{'eventManager'}->trigger( 'afterApache2BuildConfFile', \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params );
-    return $rs if $rs;
-
-    my $fh = iMSCP::File->new( filename => $trgFile );
-    $fh->set( $cfgTpl );
-    $rs = $fh->save( $params->{'umask'} // undef );
-    return $rs if $rs;
-
-    if ( exists $params->{'user'} || exists $params->{'group'} ) {
-        $rs = $fh->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} );
-        return ${$rs} if $rs;
-    }
-
-    if ( exists $params->{'mode'} ) {
-        $rs = $fh->mode( $params->{'mode'} );
-        return $rs if $rs;
-    }
+    $rs ||= $self->SUPER::buildConfFile( $srcFile, $trgFile, $mdata, $sdata, $params );
 
     # On configuration file change, schedule server reload
-    $self->{'reload'} ||= 1;
-    0;
+    $self->{'reload'} ||= 1 unless $rs;
+    $rs;
 }
 
 =item getTraffic( \%trafficDb )

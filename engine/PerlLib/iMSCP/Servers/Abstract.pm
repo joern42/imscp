@@ -108,7 +108,7 @@ sub factory
 
  Register setup event listeners
  
- This method is automatically called by the i-MSCP installer and reconfiguration script.
+ This method is called by the i-MSCP installer and reconfiguration script.
  That is the place where event listeners for setup dialog *MUST* be registered.
  
  Any server relying on i-MSCP setup dialog *MUST* override this method.
@@ -128,8 +128,7 @@ sub registerSetupListeners
 
  Process the server pre-installation tasks
  
- This method is automatically called by the i-MSCP installer and
- reconfiguration script.
+ This method is called by the i-MSCP installer and reconfiguration script.
 
  Any server requiring pre-installation tasks *SHOULD* override this method, not
  forgetting to call it, unless stopping the linked service(s) is not desired.
@@ -149,8 +148,7 @@ sub preinstall
 
  Process the server installation tasks
 
- This method is automatically called by the i-MSCP installer and
- reconfiguration script.
+ This method is called by the i-MSCP installer and reconfiguration script.
  
  Any server requiring post-installation tasks *SHOULD* override this method.
 
@@ -169,8 +167,7 @@ sub install
 
  Process server post-installation tasks
 
- This method is automatically called by the i-MSCP installer and
- reconfiguration script.
+ This method is called by the i-MSCP installer and reconfiguration script.
  
  Any server requiring post-installation tasks *SHOULD* override this method,
  not forgetting to call it, unless starting the linked service(s) is not desired.
@@ -199,7 +196,7 @@ sub postinstall
 
  Process the server pre-uninstallation tasks
 
- This method is automatically called by the i-MSCP installer/uninstaller.
+ This method is called by the i-MSCP installer and uninstaller.
 
  Any server requiring pre-uninstallation tasks *SHOULD* override this method.
 
@@ -218,7 +215,7 @@ sub preuninstall
 
  Process the server uninstallation tasks
 
- This method is automatically called by the i-MSCP installer/uninstaller.
+ This method is called by the i-MSCP installer and uninstaller.
 
  Any server requiring uninstallation tasks *SHOULD* override this method.
 
@@ -237,7 +234,7 @@ sub uninstall
 
  Process the server post-uninstallation tasks
 
- This method is automatically called by the i-MSCP installer/uninstaller.
+ This method is called by the i-MSCP installer and uninstaller.
 
  Any server requiring post-uninstallation tasks *SHOULD* override this method.
 
@@ -256,8 +253,7 @@ sub postuninstall
 
  Sets the server permissions
 
- This method is automatically called by the i-MSCP engine permission management
- script.
+ This method is called by the i-MSCP engine permission management script.
 
  Any server relying on configuration files or scripts *SHOULD* override this
  method.
@@ -341,9 +337,8 @@ sub getVersion
 
  Process dpkg(1) post-invoke tasks
 
- This method is automatically called after each dpkg(1) invocation.
- This make it possible to perform some maintenance tasks such as updating
- server versions.
+ This method is called after each dpkg(1) invocation. This make it possible to
+ perform some maintenance tasks such as updating server versions.
  
  Only Debian server implementations *SHOULD* override that method.
 
@@ -451,8 +446,8 @@ sub buildConfFile
     $sdata //= {};
     $params //= {};
 
-    defined $srcFile or confess( 'Missing or undefined $srcFile parameter' );
-    defined $trgFile or confess( 'Missing or undefined $trgFile parameter' );
+    defined $srcFile or croak( 'Missing or undefined $srcFile parameter' );
+    defined $trgFile or croak( 'Missing or undefined $trgFile parameter' );
 
     my ($sname, $cfgTpl) = ( $self->getEventServerName(), undef );
     my ($filename, $path) = fileparse( $srcFile );
@@ -566,7 +561,7 @@ sub _init
 
  Load the i-MSCP server configuration
  
- Also merge the old configuration with the new configuration in setup context.
+ Also merge the old configuration with the new configuration in installer context.
 
  Param string $filename i-MSCP server configuration filename
  Return void, croak on failure

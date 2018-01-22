@@ -72,14 +72,20 @@ sub preinstall
         # FIXME: One administrator could rely on default configuration (outside of i-MSCP)
         $httpd->disableConfs( 'serve-cgi-bin.conf' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
-        my $serviceMngr = iMSCP::Service->getInstance();
+        my $srvProvider = iMSCP::Service->getInstance();
 
         # Disable PHP session cleaner services as we don't rely on them
         # FIXME: One administrator could rely on those services (outside of i-MSCP)
         for ( qw/ phpsessionclean phpsessionclean.timer / ) {
-            next unless $serviceMngr->hasService( $_ );
-            $serviceMngr->stop( $_ );
-            $serviceMngr->disable( $_ );
+            next unless $srvProvider->hasService( $_ );
+            $srvProvider->stop( $_ );
+
+            if ( $srvProvider->isSystemd() ) {
+                # If systemd is the current init we mask the service. Service will be disabled and masked.
+                $srvProvider->getProvider()->mask( $_ );
+            } else {
+                $srvProvider->disable( $_ );
+            }
         }
 
         for ( @{$self->{'_available_php_versions'}} ) {
@@ -97,13 +103,20 @@ sub preinstall
 
             # Tasks for fpm SAPI
 
-            if ( $serviceMngr->hasService( "php$_-fpm" ) ) {
+            if ( $srvProvider->hasService( "php$_-fpm" ) ) {
                 # Stop PHP-FPM instance
                 $self->stop( $_ ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
                 # Disable PHP-FPM service if selected SAPI for customer is not fpm or if PHP version
                 # is other than selected PHP alternative
-                $serviceMngr->disable( "php$_-fpm" ) if $self->{'config'}->{'PHP_SAPI'} ne 'fpm' || $self->{'config'}->{'PHP_VERSION'} ne $_;
+                if ( $self->{'config'}->{'PHP_SAPI'} ne 'fpm' || $self->{'config'}->{'PHP_VERSION'} ne $_ ) {
+                    if ( $srvProvider->isSystemd() ) {
+                        # If systemd is the current init we mask the service. Service will be disabled and masked.
+                        $srvProvider->getProvider()->mask( "php$_-fpm" );
+                    } else {
+                        $srvProvider->disable( "php$_-fpm" );
+                    }
+                }
             }
 
             # Disable default Apache2 conffile
@@ -147,20 +160,6 @@ sub install
     my ($self) = @_;
 
     eval {
-        # Set default alternatives according PHP version for customers
-        #my ($stdout, $stderr);
-        #execute( [ 'update-alternatives', '--set', 'php', "/usr/bin/php$self->{'config'}->{'PHP_VERSION'}" ], \$stdout, \$stderr ) == 0 or croak(
-        #    $stderr || 'Unknown error'
-        #);
-        #execute( [ 'update-alternatives', '--set', 'phar', "/usr/bin/phar$self->{'config'}->{'PHP_VERSION'}" ], \$stdout, \$stderr ) == 0 or croak(
-        #    $stderr || 'Unknown error'
-        #);
-        #execute(
-        #    [ 'update-alternatives', '--set', 'phar.phar', "/usr/bin/phar.phar$self->{'config'}->{'PHP_VERSION'}" ], \$stdout, \$stderr
-        #) == 0 or croak(
-        #    $stderr || 'Unknown error'
-        #);
-
         my $httpd = iMSCP::Servers::Httpd->factory();
         my $serverData = {
             HTTPD_USER                          => $httpd->getRunningUser(),
@@ -799,16 +798,16 @@ sub _shutdown
 
     return unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
 
-    my $serviceMngr = iMSCP::Service->getInstance();
+    my $srvProvider = iMSCP::Service->getInstance();
 
     for my $action( qw/ reload restart / ) {
         for my $phpVersion( keys %{$self->{$action}} ) {
             # Check for actions precedence. The 'restart' action has higher precedence than the 'reload' action
             next if $action eq 'reload' && $self->{'restart'}->{$phpVersion};
             # Do not act if the PHP version is not enabled
-            next unless $serviceMngr->isEnabled( "php$phpVersion-fpm" );
+            next unless $srvProvider->isEnabled( "php$phpVersion-fpm" );
 
-            $serviceMngr->registerDelayedAction( "php$phpVersion-fpm", [ $action, sub { $self->$action(); } ], $priority );
+            $srvProvider->registerDelayedAction( "php$phpVersion-fpm", [ $action, sub { $self->$action(); } ], $priority );
         }
     }
 }

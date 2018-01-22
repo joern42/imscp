@@ -81,8 +81,11 @@ sub boot
     }
 
     unless ( $options->{'norequirements'} ) {
-        my $test = ( iMSCP::Getopt->context() eq 'installer' ) ? 'all' : 'user';
-        iMSCP::Requirements->new()->$test();
+        if ( iMSCP::Getopt->context() eq 'installer' ) {
+            iMSCP::Requirements->new()->all();
+        } else {
+            iMSCP::Requirements->new()->user();
+        }
     }
 
     $self->_genKeys() unless $options->{'nokeys'};
@@ -122,7 +125,7 @@ sub loadMainConfig
 
  Lock a file
 
- Param bool $nowait OPTIONAL Whether or not to wait for lock (Default: FALSE)
+ Param bool $nowait OPTIONAL Whether or not to wait for lock
  Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (nowait case), croak on failure
 
 =cut

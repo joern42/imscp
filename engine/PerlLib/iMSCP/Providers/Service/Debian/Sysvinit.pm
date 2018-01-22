@@ -108,7 +108,7 @@ sub remove
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    return 1 unless $self->_isSysvinit( $service );
+    return unless $self->_isSysvinit( $service, 'nocache' );
 
     $self->stop( $service );
     $self->_exec( [ $COMMANDS{'update-rc.d'}, '-f', $service, 'remove' ] );

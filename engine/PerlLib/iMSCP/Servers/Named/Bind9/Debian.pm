@@ -106,19 +106,19 @@ sub postinstall
     my ($self) = @_;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
+        my $srvProvider = iMSCP::Service->getInstance();
 
         # Fix for #IP-1333
         # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=744304
         if ( $self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'} eq 'yes' ) {
             # Service will be started automatically when Bind9 will be restarted
-            $serviceMngr->enable( 'bind9-resolvconf' );
+            $srvProvider->enable( 'bind9-resolvconf' );
         } else {
-            $serviceMngr->stop( 'bind9-resolvconf' );
-            $serviceMngr->disable( 'bind9-resolvconf' );
+            $srvProvider->stop( 'bind9-resolvconf' );
+            $srvProvider->disable( 'bind9-resolvconf' );
         }
 
-        $serviceMngr->enable( 'bind9' );
+        $srvProvider->enable( 'bind9' );
     };
     if ( $@ ) {
         error( $@ );

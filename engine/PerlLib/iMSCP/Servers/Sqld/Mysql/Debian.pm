@@ -97,8 +97,8 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->restart( 'mysql' ) if $serviceMngr->hasService( 'mysql' ) && $serviceMngr->isRunning( 'mysql' );
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( 'mysql' ) if $srvProvider->hasService( 'mysql' ) && $srvProvider->isRunning( 'mysql' );
     };
     if ( $@ ) {
         error( $@ );

@@ -26,14 +26,14 @@ package iMSCP::Servers::Sqld::Mysql::Abstract;
 use strict;
 use warnings;
 use autouse 'iMSCP::Crypt' => qw/ ALNUM encryptRijndaelCBC decryptRijndaelCBC randomStr /;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/
-        isNotEmpty isNumber isNumberInRange isOneOfStringsInList isStringInList isStringNotInList
-        isValidHostname isValidIpAddr isValidPassword isValidUsername isValidDbName /;
-use autouse 'iMSCP::Execute' => qw/ execute /;
+use autouse 'iMSCP::Dialog::InputValidation' => qw/isNotEmpty isNumber isNumberInRange isOneOfStringsInList isStringInList isStringNotInList
+    isValidHostname isValidIpAddr isValidPassword isValidUsername isValidDbName /;
+use autouse 'iMSCP::Execute' => qw/ execute escapeShell /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Getopt /;
+use File::Spec;
 use File::Temp;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug error /;
@@ -448,6 +448,46 @@ sub dropUser
     0;
 }
 
+=item restoreDomain ( \%moduleData )
+
+ See iMSCP::Servers::Sqld::restoreDomain()
+
+=cut
+
+sub restoreDomain
+{
+    my ($self, $moduleData) = @_;
+
+    $self->{'eventManager'}->trigger( 'before' . $self->getEventServerName . 'RestoreDomain' );
+
+    eval {
+        my $dbh = iMSCP::Database->getInstance()->getRawDb();
+        local $dbh->{'RaiseError'} = 1;
+
+        # Restore known databases only
+        my $rows = $dbh->selectall_arrayref( 'SELECT sqld_name FROM sql_database WHERE domain_id = ?', { Slice => {} }, $moduleData->{'DOMAIN_ID'} );
+
+        for my $row( @{$rows} ) {
+            # Encode slashes as SOLIDUS unicode character
+            # Encode dots as Full stop unicode character
+            ( my $encodedDbName = $row->{'sqld_name'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
+
+            for ( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
+                my $dbDumpFilePath = File::Spec->catfile( "$moduleData->{'HOME_DIR'}/backups", $encodedDbName . $_ );
+                debug( $dbDumpFilePath );
+                next unless -f $dbDumpFilePath;
+                $self->_restoreDatabase( $row->{'sqld_name'}, $dbDumpFilePath );
+            }
+        }
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    $self->{'eventManager'}->trigger( 'after' . $self->getEventServerName . 'RestoreDomain' );
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -795,7 +835,7 @@ EOF
 
     # In all cases, we process database update. This is important because sometime developers forget to update the
     # database revision in the database.sql schema file.
-    my $rs = execute( "/usr/bin/php7.1 -d date.timezone=UTC $main::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php", \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'php', '-d', 'date.timezone=UTC', "$main::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php" ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     $rs
@@ -853,6 +893,85 @@ sub _tryDbConnect
     $db->set( 'DATABASE_USER', $user );
     $db->set( 'DATABASE_PASSWORD', $pwd );
     $db->connect();
+}
+
+=item _restoreDatabase( $dbName, $dbDumpFilePath )
+
+ Restore a database from the given database dump file
+ 
+ Param string $dbName Database name
+ Param string $dbDumpFilePath Path to database dump file
+ Return void, croak on failure
+
+=cut
+
+sub _restoreDatabase
+{
+    my ($self, $dbName, $dbDumpFilePath) = @_;
+
+    eval {
+        my (undef, undef, $archFormat) = fileparse( $dbDumpFilePath, qr/\.(?:bz2|gz|lzma|xz)/ );
+        my $cmd;
+
+        if ( $archFormat eq '.bz2' ) {
+            $cmd = 'bzcat -d ';
+        } elsif ( $archFormat eq '.gz' ) {
+            $cmd = 'zcat -d ';
+        } elsif ( $archFormat eq '.lzma' ) {
+            $cmd = 'lzma -dc ';
+        } elsif ( $archFormat eq '.xz' ) {
+            $cmd = 'xz -dc ';
+        } else {
+            $cmd = 'cat ';
+        }
+
+        # We need to create an user that will be able to act on the target
+        # database only. Making use of an user with full privileges, such as
+        # the i-MSCP master SQL user, would create a security breach as the
+        # $dbDumpFilePath dump is provided by the customer
+
+        my $tmpUser = randomStr( 16, ALNUM );
+        my $tmpPassword = randomStr( 16, ALNUM );
+        $self->createUser( $tmpUser, $main::imscpConfig{'DATABASE_USER_HOST'}, $tmpPassword );
+        my $dbh = iMSCP::Database->getInstance()->getRawDb();
+        local $dbh->{'RaiseError'} = 1;
+
+        # According MySQL documentation (http://dev.mysql.com/doc/refman/5.5/en/grant.html#grant-accounts-passwords)
+        # The “_” and “%” wildcards are permitted when specifying database names in GRANT statements that grant privileges
+        # at the global or database levels. This means, for example, that if you want to use a “_” character as part of a
+        # database name, you should specify it as “\_” in the GRANT statement, to prevent the user from being able to
+        # access additional databases matching the wildcard pattern; for example, GRANT ... ON `foo\_bar`.* TO ....
+        #
+        # In practice, without escaping, an user added for db `a_c` would also have access to a db `abc`.
+        $dbh->do( "GRANT ALL PRIVILEGES ON @{[ $dbh->quote_identifier( $dbName ) =~ s/([%_])/\\$1/gr ]}.* TO ?\@?", undef, $tmpUser, $tmpPassword );
+
+        # Avoid error such as 'MySQL error 1449: The user specified as a definer does not exist' by updating definer if any
+        # FIXME: Need flush privileges?
+        # FIXME: Should we STAMP that statement?
+        # TODO: TO BE TESTED FIRST
+        #$dbh->do( "UPDATE mysql.proc SET definer = ?@? WHERE db = ?", undef, $tmpUser, $tmpPassword, $dbName );
+
+        my $defaultExtraFile = File::Temp->new();
+        print $defaultExtraFile <<"EOF";
+[mysql]
+host = $main::imscpConfig{'DATABASE_HOST'}
+port = $main::imscpConfig{'DATABASE_PORT'}
+user = @{ [ $tmpUser =~ s/"/\\"/gr ] }
+password = @{ [ $tmpPassword =~ s/"/\\"/gr ] }
+max_allowed_packet = 500M
+EOF
+        $defaultExtraFile->close();
+
+        my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultExtraFile", escapeShell( $dbName ) );
+        my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
+        debug( $stdout ) if $stdout;
+        $rs == 0 or croak( error( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' )));
+
+        $self->dropUser( $tmpUser, $main::imscpConfig{'DATABASE_USER_HOST'} );
+    };
+    if ( $@ ) {
+        croak( $@ );
+    }
 }
 
 =back

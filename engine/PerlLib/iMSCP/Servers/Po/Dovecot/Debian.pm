@@ -68,16 +68,16 @@ sub preinstall
     my ($self) = @_;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
+        my $srvProvider = iMSCP::Service->getInstance();
 
         # Disable dovecot.socket unit if any
         # Dovecot as configured by i-MSCP doesn't rely on systemd activation socket
         # This also solve problem on boxes where IPv6 is not available; default dovecot.socket unit file make
         # assumption that IPv6 is available without further checks...
         # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=814999
-        if ( $serviceMngr->isSystemd() && $serviceMngr->hasService( 'dovecot.socket' ) ) {
-            $serviceMngr->stop( 'dovecot.socket' );
-            $serviceMngr->disable( 'dovecot.socket' );
+        if ( $serviceMngr->isSystemd() && $srvProvider->hasService( 'dovecot.socket' ) ) {
+            $srvProvider->stop( 'dovecot.socket' );
+            $srvProvider->disable( 'dovecot.socket' );
         }
     };
     if ( $@ ) {
@@ -123,8 +123,8 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->restart( 'dovecot' ) if $serviceMngr->hasService( 'dovecot' ) && $serviceMngr->isRunning( 'dovecot' );
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( 'dovecot' ) if $srvProvider->hasService( 'dovecot' ) && $srvProvider->isRunning( 'dovecot' );
     };
     if ( $@ ) {
         error( $@ );

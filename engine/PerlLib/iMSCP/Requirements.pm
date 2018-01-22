@@ -111,13 +111,13 @@ sub _init
 
     $self->{'programs'} = {
         # We only check the PHP version that is required for the i-MSCP frontEnd
-        'php7.1' => {
+        'php' => {
             version_command => "%s -nv 2> /dev/null",
             version_regexp  => qr/PHP\s+([\d.]+)/,
-            min_version     => '7.1.0',
+            min_version     => '5.6.0',
             max_version     => '7.1.999', # Arbitrary minor version is intentional. We only want reject PHP > 7.1.x
             modules         => [
-                # 'apc', 'apcu', # These extensions are not provided for PHP 7.1 under Debian 10/Buster
+                # Only mandatories extensions must be listed below
                 'ctype', 'curl', 'date', 'dom', 'fileinfo', 'filter', 'ftp', 'gd', 'gettext', 'gmp', 'hash', 'iconv', 'imap', 'intl', 'json',
                 'libxml', 'mbstring', 'mcrypt', 'mysqlnd', 'mysqli', 'openssl', 'pcntl', 'pcre', 'PDO', 'pdo_mysql', 'Phar', 'posix', 'pspell',
                 'Reflection', 'session', 'SimpleXML', 'sockets', 'SPL', 'xml', 'xmlreader', 'xmlwriter', 'zip', 'zlib', 'Zend OPcache'
@@ -268,9 +268,9 @@ sub _programVersions
 sub _checkPhpModules
 {
     my ($self, $modules) = @_;
-    $modules //= $self->{'programs'}->{'php7.1'}->{'modules'};
+    $modules //= $self->{'programs'}->{'php'}->{'modules'};
 
-    open my $fh, '-|', $self->{'programs'}->{'php7.1'}->{'command_path'}, '-d', 'date.timezone=UTC', '-m' or croak(
+    open my $fh, '-|', $self->{'programs'}->{'php'}->{'command_path'}, '-d', 'date.timezone=UTC', '-m' or croak(
         sprintf( "Couldn't pipe to php command: %s", $! )
     );
     chomp( my @modules = <$fh> );

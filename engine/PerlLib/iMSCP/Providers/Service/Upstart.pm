@@ -77,8 +77,15 @@ sub isEnabled
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
-    return $self->_isEnabledPre067( $self->_readJobFile( $job )) if $self->_versionIsPre067();
-    return $self->_isEnabledPre090( $self->_readJobFile( $job )) if $self->_versionIsPre090();
+    if ( $self->_versionIsPre067() ) {
+        $self->_isEnabledPre067( $self->_readJobFile( $job ));
+        return;
+    }
+
+    if ( $self->_versionIsPre090() ) {
+        $self->_isEnabledPre090( $self->_readJobFile( $job ));
+        return;
+    }
 
     $self->_isEnabledPost090( $self->_readJobFile( $job ), $self->_readJobOverrideFile( $job ));
 }
@@ -95,7 +102,10 @@ sub enable
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
-    return $self->_enablePre090( $job, $self->_readJobFile( $job )) if $self->_versionIsPre090();
+    if ( $self->_versionIsPre090() ) {
+        $self->_enablePre090( $job, $self->_readJobFile( $job ));
+        return;
+    }
 
     $self->_enablePost090( $job, $self->_readJobFile( $job ), $self->_readJobOverrideFile( $job ));
 }
@@ -112,8 +122,15 @@ sub disable
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
-    return $self->_disablePre067( $job, $self->_readJobFile( $job )) if $self->_versionIsPre067();
-    return $self->_disablePre090( $job, $self->_readJobFile( $job )) if $self->_versionIsPre090();
+    if ( $self->_versionIsPre067() ) {
+        $self->_disablePre067( $job, $self->_readJobFile( $job ));
+        return;
+    }
+
+    if ( $self->_versionIsPre090() ) {
+        $self->_disablePre090( $job, $self->_readJobFile( $job ));
+        return;
+    }
 
     $self->_disablePost090( $job, $self->_readJobOverrideFile( $job ));
 }
@@ -130,13 +147,16 @@ sub remove
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
-    return unless $self->_isUpstart( $job );
+    if ( $self->_isUpstart( $job ) ) {
+        $self->stop( $job );
+    }
 
-    $self->stop( $job );
+    # Even if there is no job file, there can be still orphaned job override
+    # file which we need to remove.
 
     for ( qw/ conf override / ) {
         if ( my $jobFilePath = eval { $self->getJobFilePath( $job, $_ ); } ) {
-            debug( sprintf ( "Removing the %s upstart job", $jobFilePath ));
+            debug( sprintf ( "Removing the %s upstart file", $jobFilePath ));
             iMSCP::File->new( filename => $jobFilePath )->delFile() or croak(
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
@@ -489,8 +509,7 @@ sub _enablePre090
     # Add or uncomment `START ON' stanza if needed
     unless ( $self->_isEnabledPre090( $jobFileContent ) ) {
         $jobFileContent = ( $jobFileContent =~ /$COMMENTED_START_ON/ )
-            ? $self->_uncommentStartOnStanzaIn( $jobFileContent )
-            : $self->_addDefaultStartOnStanzaTo( $jobFileContent );
+            ? $self->_uncommentStartOnStanzaIn( $jobFileContent ) : $self->_addDefaultStartOnStanzaTo( $jobFileContent );
     }
 
     return $self->_writeFile( $job, $jobFileContent );
@@ -805,7 +824,7 @@ sub _ensureDisabledWithManualStanza
     $self->_removeManualStanzaFrom( $string ) . "manual\n";
 }
 
-=item _searchJobFile( $job, $jobFileType )
+=item _searchJobFile( $job [, $jobFileType = 'conf' ] )
 
  Search the job configuration file or job override file which belongs to the given job in all available paths
 

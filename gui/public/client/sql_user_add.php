@@ -283,7 +283,7 @@ function addSqlUser($sqldId)
     // In practice, without escaping, an user added for db `a_c` would also have access to a db `abc`.
     $row['sqld_name'] = preg_replace('/([%_])/', '\\\\$1', $row['sqld_name']);
 
-    exec_query(sprintf('GRANT ALL PRIVILEGES ON %s.* to ?@?', quoteIdentifier($row['sqld_name'])), [$user, $host]);
+    exec_query(sprintf('GRANT ALL PRIVILEGES ON %s.* TO ?@?', quoteIdentifier($row['sqld_name'])), [$user, $host]);
     exec_query('INSERT INTO sql_user (sqld_id, sqlu_name, sqlu_host) VALUES (?, ?, ?)', [$sqldId, $user, $host]);
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddSqlUser, [
         'SqlUserId'       => Registry::get('iMSCP_Application')->getDatabase()->lastInsertId(),
