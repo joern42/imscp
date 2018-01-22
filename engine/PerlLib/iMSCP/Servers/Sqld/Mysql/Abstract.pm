@@ -32,7 +32,7 @@ use autouse 'iMSCP::Execute' => qw/ execute escapeShell /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Getopt /;
+use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::Program::Finder /;
 use File::Spec;
 use File::Temp;
 use iMSCP::Database;
@@ -835,7 +835,14 @@ EOF
 
     # In all cases, we process database update. This is important because sometime developers forget to update the
     # database revision in the database.sql schema file.
-    my $rs = execute( [ 'php', '-d', 'date.timezone=UTC', "$main::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php" ], \ my $stdout, \ my $stderr );
+    my $rs = execute(
+        [
+            ( iMSCP::ProgramFinder::find( 'php' ) or die( "Couldn't find system PHP (cli) binary" ) )
+            , '-d', 'date.timezone=UTC', "$main::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php"
+        ],
+        \ my $stdout,
+        \ my $stderr
+    );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     $rs
