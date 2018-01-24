@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install>
-    <folder umask="0022" create_if="index('${iMSCP::Servers::Ftpd}', '::Vsftpd::') != -1">${ROOT_CONF}/logrotate.d</folder>
-    <folder umask="0022" create_if="index('${iMSCP::Servers::Ftpd}', '::Vsftpd::') != -1">${ROOT_CONF}/vsftpd</folder>
-    <folder umask="0022" create_if="index('${iMSCP::Servers::Ftpd}', '::Vsftpd::') != -1">${ROOT_CONF}/vsftpd/imscp</folder>
-    <folder>${SYSTEM_CONF}/vsftpd</folder>
-    <copy_config>${SYSTEM_CONF}/vsftpd/vsftpd.conf</copy_config>
-    <copy_config>${SYSTEM_CONF}/vsftpd/vsftpd.data.dist</copy_config>
-    <copy_config>${SYSTEM_CONF}/vsftpd/vsftpd_pam.conf</copy_config>
-    <copy_config>${SYSTEM_CONF}/vsftpd/vsftpd_user.conf</copy_config>
-    <copy_config umask="0022" copy_if="index('${iMSCP::Servers::Ftpd}', '::Vsftpd::') != -1">${ROOT_CONF}/logrotate.d/vsftpd</copy_config>
+<install umask="0022">
+    <!--
+        The vsdtpd LOGROTATE(8) configuration file is copied only when the
+        copy_if expression evaluate to TRUE. Otherwise, it is removed.
+    -->
+    <folder create_if="index('${iMSCP::Servers::Ftpd}', '::Vsftpd::') != -1">${SYSTEM_CONF_DIR}/logrotate.d</folder>
+    <copy_config copy_if="index('${iMSCP::Servers::Ftpd}', '::Vsftpd::') != -1" subdir="logrotate.d">
+        ${SYSTEM_CONF_DIR}/logrotate.d/proftpd-basic
+    </copy_config>
+
+    <!--
+        The vsftod configuration directory is copied only when the copy_if
+        expression evaluate to TRUE. Otherwise, it is removed.
+    -->
+    <copy_config copy_if="index('${iMSCP::Servers::Ftpd}', '::Vsftpd::') != -1">${SYSTEM_CONF_DIR}/vsftpd</copy_config>
+
+    <copy_config copy_as="vsftpd" umask="0027">${IMSCP_CONF_DIR}/vsftpd_imscp</copy_config>
 </install>
