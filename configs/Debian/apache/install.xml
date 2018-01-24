@@ -1,12 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <folder export="ROOT_APACHE_CONF" umask="0022">${ROOT_CONF}/apache2</folder>
-    <folder>${ROOT_APACHE_CONF}/imscp</folder>
-    <folder>${ROOT_APACHE_CONF}/imscp/before</folder>
-    <folder>${SYSTEM_CONF}/apache</folder>
-    <copy_config>${SYSTEM_CONF}/apache/parts</copy_config>
-    <copy_config>${SYSTEM_CONF}/apache/00_imscp.conf</copy_config>
-    <copy_config>${SYSTEM_CONF}/apache/00_nameserver.conf</copy_config>
-    <copy_config>${SYSTEM_CONF}/apache/apache.data.dist</copy_config>
-    <copy_config>${SYSTEM_CONF}/apache/logrotate.conf</copy_config>
+    <folder umask="0022">${SYSTEM_CONF_DIR}/apache2/imscp/before</folder>
+
+    <copy_config copy_cwd="1">${IMSCP_CONF_DIR}/apache</copy_config>
 </install>

@@ -138,7 +138,7 @@ EOF
                         error( sprintf( 'Error while executing pre-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )) if $rs;
                         $rs;
                     },
-                    sprintf( 'Executing pre-install tasks for %s ... Please be patient.', $subjectH ), $nTasks, $cTask
+                    sprintf( 'Executing pre-install tasks for %s... Please be patient.', $subjectH ), $nTasks, $cTask
                 );
                 last if $rs;
                 $cTask++;
@@ -193,7 +193,7 @@ EOF
                         error( sprintf( 'Error while executing post-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )) if $rs;
                         $rs;
                     },
-                    sprintf( 'Executing post-install tasks for %s ... Please be patient.', $subjectH ), $nTasks, $cTask
+                    sprintf( 'Executing post-install tasks for %s... Please be patient.', $subjectH ), $nTasks, $cTask
                 );
                 last if $rs;
                 $cTask++;
@@ -1090,7 +1090,7 @@ sub _rebuildAndInstallPackage
                 $self->{'need_pbuilder_update'} = 0;
 
                 my $msgHeader = "Creating/Updating pbuilder environment\n\n - ";
-                my $msgFooter = "\n\nPlease be patient. This may take few minutes ...";
+                my $msgFooter = "\n\nPlease be patient. This may take few minutes...";
 
                 my $stderr = '';
                 my $cmd = [
@@ -1121,7 +1121,7 @@ sub _rebuildAndInstallPackage
     $rs ||= step(
         sub {
             my $msgHeader = sprintf( "Downloading %s %s source package\n\n - ", $pkgSrc, $main::imscpConfig{'DISTRO_ID'} );
-            my $msgFooter = "\nDepending on your system this may take few seconds ...";
+            my $msgFooter = "\nDepending on your system this may take few seconds...";
 
             my $stderr = '';
             $rs = executeNoWait(
@@ -1171,12 +1171,12 @@ sub _rebuildAndInstallPackage
                 error( sprintf( "Couldn't add `imscp' local suffix: %s", $stderr || 'Unknown error' )) if $rs;
                 return $rs if $rs;
             },
-            sprintf( 'Patching %s %s source package ...', $pkgSrc, $main::imscpConfig{'DISTRO_ID'} ), 5, 3
+            sprintf( 'Patching %s %s source package...', $pkgSrc, $main::imscpConfig{'DISTRO_ID'} ), 5, 3
         );
         $rs ||= step(
             sub {
                 my $msgHeader = sprintf( "Building new %s %s package\n\n - ", $pkg, $main::imscpConfig{'DISTRO_ID'} );
-                my $msgFooter = "\n\nPlease be patient. This may take few seconds ...";
+                my $msgFooter = "\n\nPlease be patient. This may take few seconds...";
                 my $stderr;
 
                 $rs = executeNoWait(

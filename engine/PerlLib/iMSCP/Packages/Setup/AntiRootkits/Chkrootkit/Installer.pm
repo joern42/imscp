@@ -123,7 +123,7 @@ sub _scheduleCheck
 
     # Create an empty file to avoid planning multiple checks if installer is run more than once
     my $file = iMSCP::File->new( filename => $main::imscpConfig{'CHKROOTKIT_LOG'} );
-    $file->set( "Check scheduled ...\n" );
+    $file->set( "Check scheduled...\n" );
     my $rs = $file->save();
     return $rs if $rs;
 

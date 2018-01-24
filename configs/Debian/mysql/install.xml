@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <folder>${SYSTEM_CONF}/mysql</folder>
-    <copy_config>${SYSTEM_CONF}/mysql/mysql.data.dist</copy_config>
+    <copy_config copy_cwd="1">${IMSCP_CONF_DIR}/mysql</copy_config>
 </install>

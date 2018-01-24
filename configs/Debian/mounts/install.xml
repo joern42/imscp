@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install>
-    <folder>${SYSTEM_CONF}/mounts</folder>
-    <copy_config>${SYSTEM_CONF}/mounts/mounts.conf</copy_config>
+<install umask="0022">
+    <copy_config copy_as="init">${SYSTEM_CONF_DIR}/upstart</copy_config>
+
+    <copy_config copy_as="init.d" filemode="0755" recursive="1">${SYSTEM_CONF_DIR}/sysvinit</copy_config>
+
+    <copy_config>${SYSTEM_LOCAL_LIB_DIR}/systemd</copy_config>
+
+    <!--
+        The imscp_mountall.service systemd unit is now installed in the
+        /usr/local/lib/systemd/system directory (since version 1.6.0) to make
+        us able to mask it. If the old unit file still exists under the
+        /etc/systemd/system directory, we need delete it through the service
+        provider, meaning that the imscp_mountall service will be stopped,
+        disabled and removed. It will be re-enabled later on by the installer.
+    -->
+    <copy_config copy_if="0" srv_provider="imscp_mountall">${SYSTEM_CONF_DIR}/systemd/system/imscp_mountall.service</copy_config>
+
+    <copy_config copy_cwd="1" umask="0027">${IMSCP_CONF_DIR}/mounts</copy_config>
 </install>

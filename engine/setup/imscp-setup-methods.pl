@@ -42,30 +42,6 @@ use iMSCP::SystemGroup;
 use iMSCP::SystemUser;
 use iMSCP::Umask;
 
-sub setupInstallFiles
-{
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupInstallFiles', $main::{'INST_PREF'} );
-    return $rs if $rs;
-
-    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Daemon
-    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::FrontEnd
-    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Backend
-    eval {
-        # Process cleanup to avoid any security risks and conflicts
-        for ( qw/ engine gui / ) {
-            iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/$_" )->remove();
-        }
-
-        iMSCP::Dir->new( dirname => $main::{'INST_PREF'} )->rcopy( '/' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    iMSCP::EventManager->getInstance()->trigger( 'afterSetupInstallFiles', $main::{'INST_PREF'} );
-}
-
 sub setupBoot
 {
     iMSCP::Bootstrapper->getInstance()->boot( {
@@ -89,6 +65,12 @@ sub setupBoot
     # We open the imscpOld.conf file in write mode. This is needed because some servers will update it after processing tasks
     # that must be done once, such as uninstallation tasks (older server alternatives)
     tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf";
+    
+    if(iMSCP::Getopt->context() eq 'installer' && iMSCP::Service->getInstance()->isSystemd()) {
+        # Unit files could have been updated. We need make systemd aware of changes
+        iMSCP::Service->getInstance()->getProvider()->daemonReload();
+    }
+    
     0;
 }
 
@@ -175,16 +157,16 @@ sub setupTasks
 
 sub setupDeleteBuildDir
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDeleteBuildDir', $main::{'INST_PREF'} );
+    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDeleteBuildDir', $main::{'DESTDIR'} );
     return $rs if $rs;
 
-    eval { iMSCP::Dir->new( dirname => $main::{'INST_PREF'} )->remove(); };
+    eval { iMSCP::Dir->new( dirname => $main::{'DESTDIR'} )->remove(); };
     if ( $@ ) {
         error( $@ );
         return 1;
     }
 
-    iMSCP::EventManager->getInstance()->trigger( 'afterSetupDeleteBuildDir', $main::{'INST_PREF'} );
+    iMSCP::EventManager->getInstance()->trigger( 'afterSetupDeleteBuildDir', $main::{'DESTDIR'} );
 }
 
 #
@@ -248,8 +230,8 @@ sub setupCoreServices
     # iMSCP::Packages::Daemon
     # iMSCP::Packages::Traffic
     # iMSCP::Packages::Mounts
-    my $serviceMngr = iMSCP::Service->getInstance();
-    $serviceMngr->enable( $_ ) for 'imscp_traffic', 'imscp_mountall';
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->enable( $_ ) for 'imscp_traffic', 'imscp_mountall';
     0;
 }
 
@@ -267,7 +249,7 @@ Installing composer from https://getcomposer.org
 
 $line
 
-Depending on your connection speed, this may take few seconds ...
+Depending on your connection speed, this may take few seconds...
 EOT
         },
         sub {}
@@ -469,7 +451,7 @@ sub setupServersAndPackages
 
             $rs = step(
                 sub { $server->factory( $main::imscpOdlConfig{$server} )->$lcTask(); },
-                sprintf( "Executing %s %s tasks ...", $server, $lcTask ),
+                sprintf( "Executing %s %s tasks...", $server, $lcTask ),
                 $nSteps,
                 $nStep
             );
@@ -499,7 +481,7 @@ sub setupServersAndPackages
 
         my $nStep = 1;
         for ( @servers ) {
-            $rs = step( sub { $_->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks ...", $_, $lcTask ), $nSteps, $nStep );
+            $rs = step( sub { $_->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep );
             last if $rs;
             $nStep++;
         }
@@ -512,7 +494,7 @@ sub setupServersAndPackages
                 ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
                 $rs = step(
                     sub { $subref->( $_->getInstance( eventManager => $eventManager )) },
-                    sprintf( "Executing %s %s tasks ...", $_, $lcTask ), $nSteps, $nStep
+                    sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep
                 );
                 last if $rs;
                 $nStep++;
@@ -574,7 +556,7 @@ sub setupRestartServices
     my $nbSteps = @services;
     my $step = 1;
     for ( @services ) {
-        $rs = step( $_->[0], sprintf( 'Starting/Restarting %s service ...', $_->[1] ), $nbSteps, $step );
+        $rs = step( $_->[0], sprintf( 'Starting/Restarting %s service...', $_->[1] ), $nbSteps, $step );
         last if $rs;
         $step++;
     }

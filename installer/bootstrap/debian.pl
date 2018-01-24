@@ -29,10 +29,10 @@ system( 'clear 2>/dev/null' );
 print "Satisfying pre-requisites for the i-MSCP installer\n";
 
 unless ( -f '/etc/imscp/listener.d/10_apt_sources_list.pl' ) {
-    print " [\x1b[0;34mINFO\x1b[0m] Updating distribution package index files ...\n";
+    print " [\x1b[0;34mINFO\x1b[0m] Updating distribution package index files...\n";
     system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
 
-    print " [\x1b[0;34mINFO\x1b[0m] Installing the lsb-reelase distribution package ...\n";
+    print " [\x1b[0;34mINFO\x1b[0m] Installing the lsb-reelase distribution package...\n";
     system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'lsb-release' ) == 0 or die(
         "[\x1b[0;31mERROR\x1b[0m] Couldn't install the lsb-release package.\n"
     );
@@ -46,22 +46,22 @@ unless ( -f '/etc/imscp/listener.d/10_apt_sources_list.pl' ) {
     my $file = "$ROOTDIR/configs/$distId/apt/sources.list";
 
     if ( -f $file ) {
-        print " [\x1b[0;34mINFO\x1b[0m] Updating APT sources.list file ...\n";
+        print " [\x1b[0;34mINFO\x1b[0m] Updating APT sources.list file...\n";
         system( '/bin/cp', '-f', $file,
             '/etc/apt/sources.list' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't copy APT sources.list file \n" );
         system( "perl -pi -e 's/{codename}/$distCodename/g;' /etc/apt/sources.list" );
     }
 }
 
-print " [\x1b[0;34mINFO\x1b[0m] Updating distribution package index files ...\n";
+print " [\x1b[0;34mINFO\x1b[0m] Updating distribution package index files...\n";
 system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
 
-print " [\x1b[0;34mINFO\x1b[0m] Upgrading distribution packages (upgrade) ...\n";
+print " [\x1b[0;34mINFO\x1b[0m] Upgrading distribution packages (upgrade)...\n";
 system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgrade' ) == 0 or die(
     "[\x1b[0;31mERROR\x1b[0m] Couldn't upgrade distribution packages.\n"
 );
 
-print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required distribution package ...\n";
+print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required distribution package...\n";
 system(
     'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
     'ca-certificates', 'debconf-utils', 'dialog', 'dirmngr', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
@@ -74,7 +74,7 @@ system(
 );
 
 # Install FACTER(8) from rubygem.org as the version provided by some distributions is too old
-print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required facter program (RubyGem) ...\n";
+print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required facter program (RubyGem)...\n";
 system( '/usr/bin/gem', 'install', 'facter', '--quiet', '--minimal-deps' ) == 0 or die(
     "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
 );
@@ -89,7 +89,7 @@ if ( eval "require Module::Load::Conditional; 1;" ) {
     }
 
     if ( %perlModules ) {
-        print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required Perl module(s) from CPAN ...\n";
+        print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required Perl module(s) from CPAN...\n";
         system( "echo 'yes' | cpan -T @{ [ keys %perlModules ] }" ) == 0 or die(
             "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-reuired Perl module(s) from CPAN.\n"
         );

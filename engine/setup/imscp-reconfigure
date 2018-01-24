@@ -27,12 +27,28 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+END {
+    return unless iMSCP::Getopt->noprompt;
+
+    print STDOUT output( 'i-MSCP has been successfully installed/updated.', 'ok' ) unless $?;
+
+    if ( $? == 5 ) {
+        # We exit with status 5 from iMSCP::Dialog in noninteractive mode
+        if ( iMSCP::Getopt->preseed ) {
+            print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
+            return;
+        }
+
+        print STDERR output( 'Missing or bad entry found in configuration file.', 'fatal' );
+    }
+}
+
 use strict;
 use warnings;
 use File::Basename;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
-use iMSCP::Debug qw/ output /;
+use iMSCP::Debug qw/ output newDebug /;
 use iMSCP::Dialog;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
@@ -71,7 +87,7 @@ iMSCP::Getopt->verbose( 0 ) unless iMSCP::Getopt->noprompt;
 
 system( 'clear 2>/dev/null' );
 
-print STDOUT output( 'Installation in progress ... Please wait.', 'info' ) if iMSCP::Getopt->noprompt;
+print STDOUT output( 'Reconfiguration in progress... Please wait.', 'info' ) if iMSCP::Getopt->noprompt;
 
 sub run
 {
@@ -126,22 +142,6 @@ EOF
 }
 
 exit run();
-
-END {
-    return unless iMSCP::Getopt->noprompt;
-
-    print STDOUT output( 'i-MSCP has been successfully installed/updated.', 'ok' ) unless $?;
-
-    if ( $? == 5 ) {
-        # We exit with status 5 from iMSCP::Dialog in noninteractive mode
-        if ( iMSCP::Getopt->preseed ) {
-            print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
-            return;
-        }
-
-        print STDERR output( 'Missing or bad entry found in configuration file.', 'fatal' );
-    }
-}
 
 =head1 AUTHOR
 

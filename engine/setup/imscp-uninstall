@@ -206,7 +206,7 @@ sub _uninstallPackages
         ( my $subref = $package->can( 'uninstall' ) ) or $step++ && next;
         $rs = step(
             sub { $subref->( $package->getInstance()) },
-            sprintf( 'Executing %s uninstall tasks ...', $package ),
+            sprintf( 'Executing %s uninstall tasks...', $package ),
             $nbSteps,
             $step
         );
@@ -228,7 +228,7 @@ sub _uninstallServers
 
     for my $task( qw/ preuninstall uninstall postuninstall / ) {
         for my $server( @servers ) {
-            $rs = step( sub { $server->factory()->$task() }, sprintf( 'Executing %s uninstall tasks ...', $server ), $nbSteps, $step );
+            $rs = step( sub { $server->factory()->$task() }, sprintf( 'Executing %s uninstall tasks...', $server ), $nbSteps, $step );
             last if $rs;
             $step++;
         }
@@ -245,12 +245,12 @@ sub _uninstallServices
     # FIXME: Should be done by specific setup packages, eg:
     # iMSCP::Packages::Setup::Traffic
     # iMSCP::Package::Setup::Mounts
-    my $serviceMngr = iMSCP::Service->getInstance();
-    $serviceMngr->remove( $_ ) for 'imscp_traffic', 'imscp_mountall';
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->remove( $_ ) for 'imscp_traffic', 'imscp_mountall';
 
     # FIXME: Should be done by the Bind9 server implementation...
     for my $service( 'bind9', 'bind9-resolvconf' ) {
-        $serviceMngr->disable( $service ) if $serviceMngr->isSystemd();
+        $srvProvider->disable( $service ) if $srvProvider->isSystemd();
 
         if ( -f "/etc/systemd/system/$service.service" ) {
             my $rs = iMSCP::File->new( filename => "/etc/systemd/system/$service.service" )->delFile();
@@ -258,7 +258,7 @@ sub _uninstallServices
         }
 
         if ( -f "/lib/systemd/system/$service.service" ) {
-            $serviceMngr->enable( $service ) if $serviceMngr->isSystemd();
+            $srvProvider->enable( $service ) if $srvProvider->isSystemd();
         }
     }
 

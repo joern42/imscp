@@ -121,9 +121,13 @@ INSTALLER
     Added: `create_if` attribute -- Allows to conditionally create a folder (folder xml node from install.xml files)
     Added: Missing patches for pam-mysql -- Devuan 1.0/Jessie
     Added: `pre_remove' attribute -- Allows to remove previous directory (folder xml node from install.xml files)
+    Enhancement: Make it possible to delegate deletion of service file to the service provider (Installer install.xml files)
     Enhancement: Make it possible to disable IPv6 support globally, regadless of its availability (Local iMSCP::Servers::Server)
+    Enhancement: Make it possible to install a conffile from a subdir, relative to the distribution confdir (Installer install xml files)
+    Enhancement: Make it possible to keep an existent file only if a specific condition is meet (Installer install.xml files)
     Enhancement: Make it possible to provide per distribution (codename) configuration file
     Enhancement: Make it possible to replace IP address of all client with new primary IP (iMSCP::Servers::Server::local::installer)
+    Enhancement: Make it possible to set ownership/permissions recursively and on a per object basis (Installer install.xml files)
     Enhancement: Provide good default values for installer whenever possible
     Fixed: All Perl packages must be in iMSCP namespace
     Fixed: `build' mode is broken for fresh installs -- Packages must be pre-installed regardless of install mode
@@ -133,6 +137,7 @@ INSTALLER
     Fixed: Don't assume RSYSLOGD(8) as system log daemon -- One drop-in replacement could be installed instead
     Fixed: Filtering of packages that must be uninstalled is made too early (iMSCP::Installer::Debian)
     Fixed: If a password is getting incorrect due to a password policy change, user must be warned
+    Fixed: The system manager configuration must be reloaded on setup boot to make it aware of changes (Systemd)
     Fixed: Setup dialog for the alternative URLs feature is not shown on fresh install
     Merged: Distribution layout.xml file with distribution master install.xml file
     Removed: `allow_switch` attribute from packages files (check is now done by the distribution adapter)

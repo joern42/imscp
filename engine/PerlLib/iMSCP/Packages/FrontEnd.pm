@@ -798,7 +798,7 @@ sub _mergeConfig
         tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/frontend.data.dist";
         tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/frontend.data", readonly => 1;
 
-        debug( 'Merging old configuration with new configuration ...' );
+        debug( 'Merging old configuration with new configuration...' );
 
         while ( my ($key, $value) = each( %oldConfig ) ) {
             next unless exists $newConfig{$key};

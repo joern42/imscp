@@ -1,6 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install umask="0022">
-    <folder mode="0755">${ROOT_CONF}/logrotate.d</folder>
-    <copy_config copy_if="'${DISTRO_CODENAME}' ne 'trusty' &amp;&amp; -x '/usr/sbin/rsyslogd'">${ROOT_CONF}/logrotate.d/rsyslog</copy_config>
-    <copy_config copy_if="'${DISTRO_CODENAME}' eq 'trusty' &amp;&amp; -x '/usr/sbin/rsyslogd'" copy_as="rsyslog">${ROOT_CONF}/logrotate.d/rsyslog.14.04</copy_config>
+    <!--
+        The rsyslog LOGROTATE(8) configuration file is copied only when the
+        copy_if expression evaluate to TRUE. Otherwise, it is removed if it
+        exists, unless the keep_if_exist expression evaluate to TRUE.
+    -->
+    <folder create_if="-x '/usr/sbin/rsyslogd'">${SYSTEM_CONF_DIR}/logrotate.d</folder>
+    <copy_config copy_if="'${DISTRO_CODENAME}' ne 'trusty' &amp;&amp; -x '/usr/sbin/rsyslogd'"
+                 keep_if_exist="-x '/usr/sbin/rsyslogd" subdir="logrotate.d">
+        ${SYSTEM_CONF_DIR}/logrotate.d/rsyslog
+    </copy_config>
+
+    <!--
+        The rsyslog LOGROTATE(8) configuration file is copied only when the
+        copy_if expression evaluate to TRUE. Otherwise, it is removed if it
+        exists, unless the keep_if_exist expression evaluate to TRUE.
+    -->
+    <copy_config copy_if="'${DISTRO_CODENAME}' eq 'trusty' &amp;&amp; -x '/usr/sbin/rsyslogd'" copy_as="rsyslog"
+                 keep_if_exist="-x '/usr/sbin/rsyslogd" subdir="logrotate.d">
+        ${SYSTEM_CONF_DIR}/logrotate.d/rsyslog.14.04
+    </copy_config>
 </install>

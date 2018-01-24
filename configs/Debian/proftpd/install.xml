@@ -1,8 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install>
-    <folder umask="0022" create_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1">${ROOT_CONF}/logrotate.d</folder>
-    <folder>${SYSTEM_CONF}/proftpd</folder>
-    <copy_config>${SYSTEM_CONF}/proftpd/proftpd.conf</copy_config>
-    <copy_config>${SYSTEM_CONF}/proftpd/proftpd.data.dist</copy_config>
-    <copy_config umask="0022" copy_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1">${ROOT_CONF}/logrotate.d/proftpd-basic</copy_config>
+<install umask="0022">
+    <!--
+        The proftpd init script is copied only when the copy_if expression evaluate
+        to TRUE. Otherwise, it is removed by the service provider.
+    -->
+    <folder create_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1">${SYSTEM_CONF_DIR}/init.d</folder>
+    <copy_config copy_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1" srv_provider="proftpd" subdir="sysvinit" mode="0755">
+        ${SYSTEM_CONF_DIR}/init.d/proftpd
+    </copy_config>
+
+    <!--
+        The proftpd LOGROTATE(8) configuration file is copied only when the
+        copy_if expression evaluate to TRUE. Otherwise, it is removed.
+    -->
+    <folder create_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1">${SYSTEM_CONF_DIR}/logrotate.d/</folder>
+    <copy_config copy_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1" subdir="logrotate.d">
+        ${SYSTEM_CONF_DIR}/logrotate.d/proftpd-basic
+    </copy_config>
+
+    <copy_config umask="0027">${IMSCP_CONF_DIR}/proftpd</copy_config>
 </install>

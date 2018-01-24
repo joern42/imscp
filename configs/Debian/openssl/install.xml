@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <folder>${SYSTEM_CONF}/openssl</folder>
-    <copy_config>${SYSTEM_CONF}/openssl/openssl.cnf.tpl</copy_config>
+    <copy_config copy_cwd="1">${IMSCP_CONF_DIR}/openssl</copy_config>
 </install>

@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <folder>${SYSTEM_CONF}/listeners.d</folder>
-    <copy_config>${SYSTEM_CONF}/listeners.d/README.md</copy_config>
+    <copy_config copy_cwd="1">${IMSCP_CONF_DIR}/listeners.d</copy_config>
 </install>

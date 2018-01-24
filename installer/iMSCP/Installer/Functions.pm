@@ -39,8 +39,9 @@ use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
+use iMSCP::ProgramFinder;
 use iMSCP::Stepper qw/ step /;
-use iMSCP::Rights;
+use iMSCP::Rights qw/ setRights /;
 use iMSCP::Service;
 use iMSCP::Umask;
 use JSON qw/ decode_json /;
@@ -72,33 +73,56 @@ my $DISTRO_INSTALLER;
 sub loadConfig
 {
     # Gather system information
-    my $sysInfo = eval { decode_json( `facter --json osfamily lsbdistid lsbdistrelease lsbdistcodename virtual 2> /dev/null` ) } or croak(
-        sprintf( "Couldn't gather system information: %s", $@ )
-    );
+    my $sysInfo = eval {
+        my $facter = iMSCP::ProgramFinder::find( 'facter' ) or croak( "Couldn't find FACTER(8) program" );
+        decode_json( `$facter --json os virtual 2> /dev/null` );
+    };
+    if ( $@ ) {
+        error( sprintf( "Couldn't gather system information: %s", $@ ));
+        return 1;
+    }
 
-    # Load the master configuration file
+    # Load the i-MSCP master configuration file
     tie %main::imscpConfig, 'iMSCP::Config', fileName => "$FindBin::Bin/configs/imscp.conf", readonly => 1, temporary => 1;
 
-    if ( -f "$FindBin::Bin/configs/$sysInfo->{'lsbdistid'}/imscp.conf" ) {
-        # Override default configuration parameters by distribution specific parameters
-        tie my %distroConfig, 'iMSCP::Config', fileName => "$FindBin::Bin/configs/$sysInfo->{'lsbdistid'}/imscp.conf", readonly => 1, temporary => 1;
+    # Override the i-MSCP master configuration file with parameters from the
+    # master distribution family configuration file if any
+    if ( -f "$FindBin::Bin/configs/$sysInfo->{'os'}->{'family'}/imscp.conf" ) {
+        tie my %distroConfig, 'iMSCP::Config',
+            fileName  => "$FindBin::Bin/configs/$sysInfo->{'os'}->{'family'}/imscp.conf",
+            readonly  => 1,
+            temporary => 1;
         @main::imscpConfig{keys %distroConfig} = values %distroConfig;
         untie( %distroConfig );
     }
 
-    # Load old configuration
+    # Override the i-MSCP master configuration file with parameters from the
+    # master distribution configuration file if any
+    if ( $sysInfo->{'os'}->{'family'} ne $sysInfo->{'os'}->{'lsb'}->{'distid'}
+        && -f "$FindBin::Bin/configs/$sysInfo->{'os'}->{'lsb'}->{'distid'}/imscp.conf"
+    ) {
+        tie my %distroConfig, 'iMSCP::Config',
+            fileName  => "$FindBin::Bin/configs/$sysInfo->{'os'}->{'lsb'}->{'distid'}/imscp.conf",
+            readonly  => 1,
+            temporary => 1;
+        @main::imscpConfig{keys %distroConfig} = values %distroConfig;
+        untie( %distroConfig );
+    }
+
+    # Load old master configuration file
     if ( -f "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
+        # Recovering case (after update or installation failure)
         tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf", readonly => 1, temporary => 1;
     } elsif ( -f "$main::imscpConfig{'CONF_DIR'}/imscp.conf" ) {
-        # Load the current configuration file
+        # Update case
         tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => 1, temporary => 1;
     } else {
-        # Frech installation case
+        # Fresh installation case
         %main::imscpOldConfig = %main::imscpConfig;
     }
 
     if ( tied( %main::imscpOldConfig ) ) {
-        debug( 'Merging old configuration with new configuration ...' );
+        debug( 'Merging old configuration with new configuration...' );
 
         # Parameters that we want keep in %main::imscpConfig
         my @toKeepFromNew = @main::imscpConfig{ qw/ BuildDate Version CodeName PluginApi THEME_ASSETS_VERSION / };
@@ -113,10 +137,16 @@ sub loadConfig
         undef( @toKeepFromNew );
 
         # Set distribution lsb info and system info
-        @main::imscpConfig{qw/ DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
-            $sysInfo->{'lsbdistid'}, $sysInfo->{'lsbdistcodename'}, $sysInfo->{'lsbdistrelease'}, iMSCP::Service->getInstance()->getInitSystem(),
-            $sysInfo->{'virtual'} || ''
+
+        @main::imscpConfig{qw/ DISTRO_FAMILY DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
+            $sysInfo->{'os'}->{'family'},
+            $sysInfo->{'os'}->{'lsb'}->{'distid'},
+            $sysInfo->{'os'}->{'lsb'}->{'distcodename'},
+            $sysInfo->{'os'}->{'lsb'}->{'distrelease'},
+            iMSCP::Service->getInstance()->getInitSystem(),
+            $sysInfo->{'virtual'}
         );
+
         $main::imscpConfig{'DISTRO_FAMILY'} = $sysInfo->{'osfamily'} unless $main::imscpConfig{'DISTRO_FAMILY'} ne '';
 
         # Make sure that the old configuration contains all expected parameters
@@ -200,7 +230,7 @@ sub build
             return unless $_ eq '.gitkeep';
             unlink or croak( sprintf( "Couldn't remove %s file: %s", $File::Find::name, $! ));
         },
-        $main::{'INST_PREF'}
+        $main::{'DESTDIR'}
     );
 
     $rs = iMSCP::EventManager->getInstance()->trigger( 'afterPostBuild' );
@@ -215,10 +245,10 @@ sub build
     while ( my ($name, $config) = each %confmap ) {
         if ( $name eq 'imscpOld' ) {
             local $UMASK = 027;
-            iMSCP::File->new( filename => "$main::{'SYSTEM_CONF'}/$name.conf" )->save();
+            iMSCP::File->new( filename => "$main::{'IMSCP_CONF_DIR'}/$name.conf" )->save();
         }
 
-        tie my %config, 'iMSCP::Config', fileName => "$main::{'SYSTEM_CONF'}/$name.conf";
+        tie my %config, 'iMSCP::Config', fileName => "$main::{'IMSCP_CONF_DIR'}/$name.conf";
         @config{ keys %{$config} } = values %{$config};
         untie %config;
     }
@@ -240,13 +270,6 @@ sub install
     {
         package main;
         require "$FindBin::Bin/engine/setup/imscp-setup-methods.pl";
-    }
-
-    # Not really the right place to do that job but we have not really choice because this must be done before
-    # installation of new files
-    my $serviceMngr = iMSCP::Service->getInstance();
-    if ( $serviceMngr->hasService( 'imscp_network' ) ) {
-        $serviceMngr->remove( 'imscp_network' );
     }
 
     my $bootstrapper = iMSCP::Bootstrapper->getInstance();
@@ -274,7 +297,7 @@ EOF
     undef @runningJobs;
 
     my @steps = (
-        [ \&main::setupInstallFiles, 'Installing distribution files' ],
+        [ \&installDistributionFiles, 'Installing distribution files' ],
         [ \&main::setupBoot, 'Bootstrapping installer' ],
         [ \&main::setupRegisterListeners, 'Registering servers/packages event listeners' ],
         [ \&main::setupDialog, 'Processing setup dialog' ],
@@ -440,7 +463,7 @@ sub _confirmDistro
 {
     my ($dialog) = @_;
 
-    $dialog->infobox( "\nDetecting target distribution ..." );
+    $dialog->infobox( "\nDetecting target distribution..." );
 
     if ( $main::imscpConfig{'DISTRO_ID'} ne '' && $main::imscpConfig{'DISTRO_RELEASE'} ne '' && $main::imscpConfig{'DISTRO_CODENAME'} ne '' ) {
         my $packagesFile = "$main::imscpConfig{'DISTRO_ID'}-$main::imscpConfig{'DISTRO_CODENAME'}.xml";
@@ -558,8 +581,10 @@ sub _checkRequirements
 sub _buildDistributionFiles
 {
     my $rs = _buildConfigFiles();
+    exit;
     $rs ||= _buildEngineFiles();
     $rs ||= _buildFrontendFiles();
+    0;
 }
 
 =item _buildConfigFiles( )
@@ -572,40 +597,34 @@ sub _buildDistributionFiles
 
 sub _buildConfigFiles
 {
+    # Master install.xml file
 
-    my $masterConfDir = "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_FAMILY'}";
-    my $distConfdir = $main::imscpConfig{'DISTRO_ID'} ne $main::imscpConfig{'DISTRO_FAMILY'}
-            && -d "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}"
-        ? "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}" : $masterConfDir;
-
-    my $installFilePath = $distConfdir ne $masterConfDir && -f "$distConfdir/install.xml" ? "$distConfdir/install.xml" : "$masterConfDir/install.xml";
-
-    # Process root xml install file
-    my $rs = _processXmlInstallFile( $installFilePath );
+    my $rs = _processXmlInstallFile(
+            -f "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}/install.xml"
+        ? "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}/install.xml"
+        : ( -f "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_FAMILY'}/install.xml"
+            ? "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_FAMILY'}/install.xml"
+            : "$FindBin::Bin/configs/install.xml"
+        )
+    );
     return $rs if $rs;
 
-    # Copy master configuration file
-    {
-        local $UMASK = 027;
-        $rs = iMSCP::File->new( filename => "$FindBin::Bin/configs/imscp.conf" )->copyFile(
-            "$main::{'SYSTEM_CONF'}/imscp.conf", { preserve => 'no' }
-        );
+    # servers/services install.xml files
+
+    my $distroFamilyConfDir = "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_FAMILY'}";
+    my $distroConfDir = $main::imscpConfig{'DISTRO_ID'} ne $main::imscpConfig{'DISTRO_FAMILY'}
+            && -d "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}"
+        ? "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}" : $distroFamilyConfDir;
+
+    for ( iMSCP::Dir->new( dirname => $distroFamilyConfDir )->getDirs() ) {
+        my $installFile = $distroConfDir ne $distroFamilyConfDir && -f "$distroConfDir/$_/install.xml"
+            ? "$distroConfDir/$_/install.xml" : "$distroFamilyConfDir/$_/install.xml";
+
+        next unless -f $installFile;
+
+        $rs = _processXmlInstallFile( $installFile );
         return $rs if $rs;
     }
-
-    # Process folder xml install file
-    for ( iMSCP::Dir->new( dirname => $masterConfDir )->getDirs() ) {
-        $installFilePath = $distConfdir ne $masterConfDir && -f "$distConfdir/$_/install.xml"
-            ? "$distConfdir/$_/install.xml" : "$masterConfDir/$_/install.xml";
-
-        next unless -f $installFilePath;
-
-        $rs = _processXmlInstallFile( $installFilePath );
-        return $rs if $rs;
-    }
-
-    # Copy database schema
-    _processXmlInstallFile( "$FindBin::Bin/database/install.xml" );
 }
 
 =item _buildEngineFiles( )
@@ -640,7 +659,11 @@ sub _buildEngineFiles
 
 sub _buildFrontendFiles
 {
-    iMSCP::Dir->new( dirname => "$FindBin::Bin/gui" )->rcopy( "$main::{'SYSTEM_ROOT'}/gui", { preserve => 'no' } );
+    local $UMASK = 0027;
+
+    debug( "Copying $FindBin::Bin/gui to $main::{'IMSCP_ROOT_DIR'}/gui" );
+
+    iMSCP::Dir->new( dirname => "$FindBin::Bin/gui" )->rcopy( "$main::{'IMSCP_ROOT_DIR'}/gui", { preserve => 'no' } );
 }
 
 =item _savePersistentData( )
@@ -653,7 +676,7 @@ sub _buildFrontendFiles
 
 sub _savePersistentData
 {
-    my $destdir = $main::{'INST_PREF'};
+    local $UMASK = 0027;
 
     # Move old skel directory to new location
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/apache/skel" )->rcopy(
@@ -661,7 +684,7 @@ sub _savePersistentData
     ) if -d "$main::imscpConfig{'CONF_DIR'}/apache/skel";
 
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/skel" )->rcopy(
-        "$destdir$main::imscpConfig{'CONF_DIR'}/skel", { preserve => 'no' }
+        "$main::{'DESTDIR'}$main::imscpConfig{'CONF_DIR'}/skel", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'CONF_DIR'}/skel";
 
     # Move old listener files to new location
@@ -671,32 +694,32 @@ sub _savePersistentData
 
     # Save ISP logos (older location)
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/gui/themes/user_logos" )->rcopy(
-        "$destdir$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent/ispLogos", { preserve => 'no' }
+        "$main::{'DESTDIR'}$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent/ispLogos", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'ROOT_DIR'}/gui/themes/user_logos";
 
     # Save ISP logos (new location)
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/gui/data/ispLogos" )->rcopy(
-        "$destdir$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent/ispLogos", { preserve => 'no' }
+        "$main::{'DESTDIR'}$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent/ispLogos", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'ROOT_DIR'}/gui/data/ispLogos";
 
     # Save GUI logs
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/gui/data/logs" )->rcopy(
-        "$destdir$main::imscpConfig{'ROOT_DIR'}/gui/data/logs", { preserve => 'no' }
+        "$main::{'DESTDIR'}$main::imscpConfig{'ROOT_DIR'}/gui/data/logs", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'ROOT_DIR'}/gui/data/logs";
 
     # Save GUI persistent data
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent" )->rcopy(
-        "$destdir$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent", { preserve => 'no' }
+        "$main::{'DESTDIR'}$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent";
 
     # Save software (older path ./gui/data/softwares) to new path (./gui/data/persistent/softwares)
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/gui/data/softwares" )->rcopy(
-        "$destdir$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent/softwares", { preserve => 'no' }
+        "$main::{'DESTDIR'}$main::imscpConfig{'ROOT_DIR'}/gui/data/persistent/softwares", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'ROOT_DIR'}/gui/data/softwares";
 
     # Save plugins
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'PLUGINS_DIR'}" )->rcopy(
-        "$destdir$main::imscpConfig{'PLUGINS_DIR'}", { preserve => 'no' }
+        "$main::{'DESTDIR'}$main::imscpConfig{'PLUGINS_DIR'}", { preserve => 'no' }
     ) if -d $main::imscpConfig{'PLUGINS_DIR'};
 
     # Quick fix for #IP-1340 (Removes old filemanager directory which is no longer used)
@@ -704,7 +727,7 @@ sub _savePersistentData
 
     # Save tools
     iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/gui/public/tools" )->rcopy(
-        "$destdir$main::imscpConfig{'ROOT_DIR'}/gui/public/tools", { preserve => 'no' }
+        "$main::{'DESTDIR'}$main::imscpConfig{'ROOT_DIR'}/gui/public/tools", { preserve => 'no' }
     ) if -d "$main::imscpConfig{'ROOT_DIR'}/gui/public/tools";
 
     0;
@@ -720,7 +743,6 @@ sub _savePersistentData
 
 sub _removeObsoleteFiles
 {
-
     return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
     for ( "$main::imscpConfig{'CACHE_DATA_DIR'}/addons",
@@ -789,9 +811,31 @@ sub _removeObsoleteFiles
     0;
 }
 
+=item _buildDistributionFiles( )
+
+ Install distribution files
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub installDistributionFiles
+{
+    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::FrontEnd
+    # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Setup::Backend
+    eval {
+        iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/$_" )->remove() for qw/ engine gui /;
+        iMSCP::Dir->new( dirname => $main::{'DESTDIR'} )->rcopy( '/' );
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+}
+
 =item _processXmlInstallFile( $installFilePath )
 
- Process an install.xml file or distribution layout.xml file
+ Process an install.xml file
 
  Param string $installFilePath XML installation file path
  Return int 0 on success, other on failure
@@ -802,7 +846,7 @@ sub _processXmlInstallFile
 {
     my ($installFilePath) = @_;
 
-    my $xml = XML::Simple->new( ForceArray => 1, ForceContent => 1 );
+    my $xml = XML::Simple->new( ForceArray => 1, ForceContent => 1, KeyAttr => [] );
     my $node = eval { $xml->XMLin( $installFilePath, VarAttr => 'export', NormaliseSpace => 2 ) };
     if ( $@ ) {
         error( $@ );
@@ -812,7 +856,7 @@ sub _processXmlInstallFile
     local $CWD = dirname( $installFilePath );
     local $UMASK = defined $node->{'umask'} ? oct( $node->{'umask'} ) : 0027;
 
-    # Process 'folder' nodes if any
+    # Process 'folder' nodes
     if ( $node->{'folder'} ) {
         for ( @{$node->{'folder'}} ) {
             $_->{'content'} = _expandVars( $_->{'content'} );
@@ -822,7 +866,7 @@ sub _processXmlInstallFile
         }
     }
 
-    # Process 'copy_config' nodes if any
+    # Process 'copy_config' nodes
     if ( $node->{'copy_config'} ) {
         for ( @{$node->{'copy_config'}} ) {
             $_->{'content'} = _expandVars( $_->{'content'} );
@@ -831,7 +875,7 @@ sub _processXmlInstallFile
         }
     }
 
-    # Process 'copy' nodes if any
+    # Process 'copy' nodes
     if ( $node->{'copy'} ) {
         for ( @{$node->{'copy'}} ) {
             $_->{'content'} = _expandVars( $_->{'content'} );
@@ -872,14 +916,15 @@ sub _expandVars
 
 =item _processFolderNode( \%node )
 
- Process the given folder node
+ Create a folder according the given node
 
  OPTIONAL node attributes:
-  create_if : Create the folder only if the condition is met
-  umas :    : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal)
-  user      : Target directory owner
-  group     : Target directory group
-  mode      : Target directory mode
+  create_if     : Create the folder only if the condition is met
+  pre_remove    : Whether the directory must be re-created from scratch
+  umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal)
+  user          : Target directory owner
+  group         : Target directory group
+  mode          : Target directory mode
  Param hashref \%node Node
  Return int 0 on success, other or croak on failure
 
@@ -889,9 +934,11 @@ sub _processFolderNode
 {
     my ($node) = @_;
 
-    return 0 if defined $node->{'create_if'} && !eval _expandVars( $node->{'create_if'} );
+    return 0 if $node->{'content'} eq '' || ( defined $node->{'create_if'} && !eval _expandVars( $node->{'create_if'} ) );
 
     local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
+
+    debug( sprintf( "Creating %s directory", $node->{'content'} ));
 
     my $dir = iMSCP::Dir->new( dirname => $node->{'content'} );
     $dir->remove() if $node->{'pre_remove'};
@@ -904,15 +951,30 @@ sub _processFolderNode
 
 =item _processCopyConfigNode( \%node )
 
- Process the givencopy_config node
+ Copy a configuration directory or file according the given node
+
+ Files that are being removed and which are located under one of /etc/init,
+ /etc/init.d, /etc/systemd/system or /usr/local/lib/systemd/system directories
+ are processed by the service provider. Specific treatment must be applied for
+ these files. Removing them without further care could cause unexpected issues
+ with the init system
 
  OPTIONAL node attributes:
-  copy_if       : Copy the file or directory only if the condition is met, delete it otherwise, unless the keep_if_exists attribute is TRUE
-  keep_if_exist : Don't delete the file or directory if it exists
+  copy_if       : Copy the file or directory only if the condition is met, remove it otherwise, unless the keep_if_exists attribute is TRUE
+  keep_if_exist : Don't delete the file or directory if it exists and if the keep_if_exist evaluate to TRUE
+  copy_cwd      : Copy the $CWD directory (excluding the install.xml), instead of a directory in $CWD (current config directory)
+  copy_as       : Target file or directory name
+  subdir        : Sub-directory in which file must be searched, relative to $CWD (current config directory)
   umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal)
+  mode          : Target file or directory mode
+  dirmode       : Target directory mode (can be set only if the mode attribute is not set)
+  filemode      : Target directory mode (can be set only if the mode attribute is not set)
   user          : Target file or directory owner
   group         : Target file or directory group
-  mode          : Target file or directory mode
+  recursive     : Whether or not ownership and permissions must be fixed recursively
+  srv_provider  : Whether or not the give node must be processed by the service provider on removal (case of SysVinit, Upstart and Systemd conffiles)
+                  That attribute must be set with the service name for which the system provider must act. This attribute is evaluated only when
+                  the node provide the copy_if attribute and only if the expression (value) of that attribute evaluate to FALSE.
  Param hashref \%node Node
  Return int 0 on success, other or croak on failure
 
@@ -923,61 +985,86 @@ sub _processCopyConfigNode
     my ($node) = @_;
 
     if ( defined $node->{'copy_if'} && !eval _expandVars( $node->{'copy_if'} ) ) {
-        return 0 if $node->{'keep_if_exist'};
-        ( my $syspath = $node->{'content'} ) =~ s/^$main::{'INST_PREF'}//;
+        return 0 if defined $node->{'keep_if_exist'} && eval _expandVars( $node->{'keep_if_exist'} );
+
+        my $syspath;
+        if ( defined $node->{'copy_as'} ) {
+            my (undef, $dirs) = fileparse( $node->{'content'} );
+            ( $syspath = "$dirs/$node->{'copy_as'}" ) =~ s/^$main::{'DESTDIR'}//;
+        } else {
+            ( $syspath = $node->{'content'} ) =~ s/^$main::{'DESTDIR'}//;
+        }
+
         return 0 unless $syspath ne '/' && -e $syspath;
+
+        if ( $node->{'srv_provider'} ) {
+            debug( sprintf( "Removing %s through the service provider", $syspath ));
+            iMSCP::Service->getInstance()->remove( $node->{'srv_provider'} );
+            return;
+        }
+
         return iMSCP::Dir->new( dirname => $syspath )->remove() if -d _;
         return iMSCP::File->new( filename => $syspath )->delFile();
     }
 
-    my ($filename, $dirs) = fileparse( $node->{'content'} );
-
-    my $source = $filename;
-    if ( $main::imscpConfig{'DISTRO_ID'} ne $main::imscpConfig{'DISTRO_FAMILY'} ) {
-        # If $filename isn't in current directory, take it from master configuration directory
-        $source = $CWD =~ s%^($FindBin::Bin/configs/)$main::imscpConfig{'DISTRO_ID'}%${1}$main::imscpConfig{'DISTRO_FAMILY'}%r
-            . "/$filename" unless -e $filename;
-    }
-
-    # Override target filename if requested
-    $filename = $node->{'copy_as'} if defined $node->{'copy_as'};
-
-    my $target = File::Spec->canonpath( "$dirs/$filename" );
-
+    local $CWD = dirname( $CWD ) if $node->{'copy_cwd'};
     local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
 
-    if ( -d $source ) {
+    my ($name, $dirs) = fileparse( $node->{'content'} );
+    my $source = File::Spec->catfile( $CWD, $node->{'subdir'} // '', $name );
+    my $target = File::Spec->canonpath( $dirs . '/' . ( $node->{'copy_as'} // $name ));
+
+    if ( !-e $source && $main::imscpConfig{'DISTRO_FAMILY'} ne $main::imscpConfig{'DISTRO_ID'} ) {
+        # If name isn't in $CWD(/$node->{'subdir'})?, search for it in the <DISTRO_FAMILY>(/$node->{'subdir'})? directory,
+        $source =~ s%^($FindBin::Bin/configs/)$main::imscpConfig{'DISTRO_ID'}%${1}$main::imscpConfig{'DISTRO_FAMILY'}%;
+        # stat again as _ refers to the previous stat structure
+        unless ( stat $source ) {
+            error( sprintf( "Couldn't stat %s: %s", $source, $! ));
+            return 1;
+        }
+    }
+
+    debug( sprintf( "Copying %s to %s", $source, $target ));
+
+    if ( -d _ ) {
         iMSCP::Dir->new( dirname => $source )->rcopy( $target, { preserve => 'no' } );
+        if ( $node->{'copy_cwd'} ) {
+            my $rs = iMSCP::File->new( filename => $target . '/install.xml' )->delFile();
+            return $rs if $rs;
+        }
     } else {
         my $rs = iMSCP::File->new( filename => $source )->copyFile( $target, { preserve => 'no' } );
         return $rs if $rs;
     }
 
-    return 0 unless defined $node->{'user'} || defined $node->{'group'} || defined $node->{'mode'};
-
-    my $handle = -l $target || !-d _ ? iMSCP::File->new( filename => $target ) : iMSCP::Dir->new( dirname => $target );
-
-    if ( defined $node->{'user'} || defined $node->{'group'} ) {
-        my $rs = $handle->owner(
-            ( defined $node->{'user'} ? _expandVars( $node->{'user'} ) : -1 ), ( defined $node->{'group'} ? _expandVars( $node->{'group'} ) : -1 )
-        );
-        return $rs if $rs;
-    }
-
-    defined $node->{'mode'} ? $handle->mode( oct( $node->{'mode'} )) : 0;
+    setRights( $target,
+        {
+            mode      => $node->{'mode'},
+            dirmode   => $node->{'dirmode'},
+            filemode  => $node->{'filemode'},
+            user      => defined $node->{'user'} ? _expandVars( $node->{'user'} ) : undef,
+            group     => defined $node->{'group'} ? _expandVars( $node->{'group'} ) : undef,
+            recursive => $node->{'recursive'}
+        }
+    );
 }
 
 =item _processCopyNode( \%node )
 
- Process the given copy node
+ Copy a directory or file according the given node
 
  OPTIONAL node attributes:
   copy_if       : Copy the file or directory only if the condition is met, delete it otherwise, unless the keep_if_exists attribute is TRUE
-  keep_if_exist : Don't delete the file or directory if it exists
+  keep_if_exist : keep_if_exist : Don't delete the file or directory if it exists and if the keep_if_exist evaluate to TRUE
+  copy_as       : Target file or directory name
+  subdir        : Sub-directory in which file must be searched, relative to $CWD (current confiration directory)
   umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal)
+  mode          : Target file or directory mode
+  dirmode       : Target directory mode (can be set only if the mode attribute is not set)
+  filemode      : Target directory mode (can be set only if the mode attribute is not set)
   user          : Target file or directory owner
   group         : Target file or directory group
-  mode          : Target file or directory mode
+  recursive     : Whether or not ownership and permissions must be fixed recursively
  Param hashref \%node Node
  Return int 0 on success, other or croak on failure
 
@@ -988,37 +1075,39 @@ sub _processCopyNode
     my ($node) = @_;
 
     if ( defined $node->{'copy_if'} && !eval _expandVars( $node->{'copy_if'} ) ) {
-        return 0 if $node->{'keep_if_exist'};
+        return 0 if defined $node->{'keep_if_exist'} && eval _expandVars( $node->{'keep_if_exist'} );
+
         ( my $syspath = $node->{'content'} ) =~ s/^$main::{'INST_PREF'}//;
         return 0 unless $syspath ne '/' && -e $syspath;
         return iMSCP::Dir->new( dirname => $syspath )->remove() if -d _;
         return iMSCP::File->new( filename => $syspath )->delFile();
     }
 
-    my ($filename, $dirs) = fileparse( $node->{'content'} );
-    my $target = File::Spec->canonpath( "$dirs/$filename" );
-
     local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
 
-    if ( -d $filename ) {
-        iMSCP::Dir->new( dirname => $filename )->rcopy( $target, { preserve => 'no' } );
+    my ($name, $dirs) = fileparse( $node->{'content'} );
+    my $source = File::Spec->catfile( $CWD, $node->{'subdir'} // '', $name );
+    my $target = File::Spec->canonpath( $dirs . '/' . ( $node->{'copy_as'} // $name ));
+
+    debug( sprintf( "Copying %s to %s", $source, $target ));
+
+    if ( -d $source ) {
+        iMSCP::Dir->new( dirname => $source )->rcopy( $target, { preserve => 'no' } );
     } else {
-        my $rs = iMSCP::File->new( filename => $filename )->copyFile( $target, { preserve => 'no' } );
+        my $rs = iMSCP::File->new( filename => $source )->copyFile( $target, { preserve => 'no' } );
         return $rs if $rs;
     }
 
-    return 0 unless defined $node->{'user'} || defined $node->{'group'} || defined $node->{'mode'};
-
-    my $handle = -l $target || !-d _ ? iMSCP::File->new( filename => $target ) : iMSCP::Dir->new( dirname => $target );
-
-    if ( defined $node->{'user'} || defined $node->{'group'} ) {
-        my $rs = $handle->owner(
-            ( defined $node->{'user'} ? _expandVars( $node->{'user'} ) : -1 ), ( defined $node->{'group'} ? _expandVars( $node->{'group'} ) : -1 )
-        );
-        return $rs if $rs;
-    }
-
-    defined $node->{'mode'} ? $handle->mode( oct( $node->{'mode'} )) : 0;
+    setRights( $target,
+        {
+            mode      => $node->{'mode'},
+            dirmode   => $node->{'dirmode'},
+            filemode  => $node->{'filemode'},
+            user      => defined $node->{'user'} ? _expandVars( $node->{'user'} ) : undef,
+            group     => defined $node->{'group'} ? _expandVars( $node->{'group'} ) : undef,
+            recursive => $node->{'recursive'}
+        }
+    );
 }
 
 =item _getInstaller( )

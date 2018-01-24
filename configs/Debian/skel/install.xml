@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <folder>${SYSTEM_CONF}/skel</folder>
-    <copy_config>${SYSTEM_CONF}/skel/alias</copy_config>
-    <copy_config>${SYSTEM_CONF}/skel/domain</copy_config>
-    <copy_config>${SYSTEM_CONF}/skel/domain_disabled_pages</copy_config>
-    <copy_config>${SYSTEM_CONF}/skel/subdomain</copy_config>
-    <copy_config>${SYSTEM_CONF}/skel/README</copy_config>
+    <copy_config copy_cwd="1">${IMSCP_CONF_DIR}/skel</copy_config>
 </install>

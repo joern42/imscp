@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<install>
-    <folder>${SYSTEM_CONF}/database</folder>
-    <copy_config>${SYSTEM_CONF}/database/database.sql</copy_config>
-</install>

@@ -29,6 +29,38 @@
 
 BEGIN { $0 = 'imscp-installer'; }
 
+END {
+    return unless iMSCP::Getopt->noprompt;
+
+    if ( $? == 5 ) {
+        if ( iMSCP::Getopt->preseed ) {
+            # We exit with status 5 from iMSCP::Dialog in noninteractive mode
+            print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
+            return;
+        }
+
+        print STDERR output( 'Missing or bad entry found in configuration file.', 'fatal' );
+        return;
+    }
+
+    return if $?;
+
+    unless ( iMSCP::Getopt->buildonly ) {
+        print STDOUT output( 'i-MSCP has been successfully installed/updated.', 'ok' );
+        return;
+    }
+
+    print STDOUT output( 'i-MSCP has been successfully built.', 'ok' );
+    print STDOUT output( <<"EOF", 'info' );
+To continue, you must execute the following commands:
+
+  # rm -fR $main::imscpConfig{'ROOT_DIR'}/{engine,gui}
+  # cp -fR $main::{'DESTDIR'}/* /
+  # rm -fR $main::{'DESTDIR'}
+  # perl $main::imscpConfig{'ROOT_DIR'}/engine/setup/imscp-reconfigure -d
+EOF
+}
+
 use strict;
 use warnings;
 use File::Basename;
@@ -82,9 +114,9 @@ loadConfig();
 
 if ( iMSCP::Getopt->noprompt ) {
     if ( iMSCP::Getopt->buildonly ) {
-        print STDOUT output( 'Build steps in progress ... Please wait.', 'info' )
+        print STDOUT output( 'Build steps in progress... Please wait.', 'info' )
     } else {
-        print STDOUT output( 'Installation in progress ... Please wait.', 'info' );
+        print STDOUT output( 'Installation in progress... Please wait.', 'info' );
     }
 }
 
@@ -97,43 +129,11 @@ iMSCP::Dialog->getInstance()->msgbox( <<"EOF" );
 
 To continue, you must execute the following commands:
 
-  # rm -fR $main::imscpConfig{'ROOT_DIR'}/{daemon,engine,gui}
-  # cp -fR $main::{'INST_PREF'}/* /
-  # rm -fR $main::{'INST_PREF'}
+  # rm -fR $main::imscpConfig{'ROOT_DIR'}/{engine,gui}
+  # cp -fR $main::{'DESTDIR'}/* /
+  # rm -fR $main::{'DESTDIR'}
   # perl $main::imscpConfig{'ROOT_DIR'}/engine/setup/imscp-reconfigure -d
 EOF
-
-END {
-    return unless iMSCP::Getopt->noprompt;
-
-    if ( $? == 5 ) {
-        if ( iMSCP::Getopt->preseed ) {
-            # We exit with status 5 from iMSCP::Dialog in noninteractive mode
-            print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
-            return;
-        }
-
-        print STDERR output( 'Missing or bad entry found in configuration file.', 'fatal' );
-        return;
-    }
-
-    return if $?;
-
-    unless ( iMSCP::Getopt->buildonly ) {
-        print STDOUT output( 'i-MSCP has been successfully installed/updated.', 'ok' );
-        return;
-    }
-
-    print STDOUT output( 'i-MSCP has been successfully built.', 'ok' );
-    print STDOUT output( <<"EOF", 'info' );
-To continue, you must execute the following commands:
-
-  # rm -fR $main::imscpConfig{'ROOT_DIR'}/{daemon,engine,gui}
-  # cp -fR $main::{'INST_PREF'}/* /
-  # rm -fR $main::{'INST_PREF'}
-  # perl $main::imscpConfig{'ROOT_DIR'}/engine/setup/imscp-reconfigure -d
-EOF
-}
 
 =head1 AUTHOR
 

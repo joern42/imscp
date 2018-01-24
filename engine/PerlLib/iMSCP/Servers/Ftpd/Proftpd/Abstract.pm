@@ -481,7 +481,7 @@ sub getTraffic
     $logFile ||= $self->{'config'}->{'FTPD_TRAFFIC_LOG_FILE'};
 
     unless ( -f $logFile ) {
-        debug( sprintf( "ProFTPd traffic %s log file doesn't exist. Skipping ...", $logFile ));
+        debug( sprintf( "ProFTPd traffic %s log file doesn't exist. Skipping...", $logFile ));
         return;
     }
 

@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<install umask="0022">
-    <folder>${ROOT_CONF}/apt</folder>
-    <folder>${ROOT_CONF}/apt/apt.conf.d</folder>
-    <copy_config>${ROOT_CONF}/apt/apt.conf.d/90imscp</copy_config>
-</install>

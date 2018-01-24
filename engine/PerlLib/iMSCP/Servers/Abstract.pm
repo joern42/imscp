@@ -521,21 +521,6 @@ sub AUTOLOAD
     0;
 }
 
-=item DESTROY
-
- Destroy the server instance
- 
- Return void
-
-=cut
-
-sub DESTROY
-{
-    my ($self) = @_;
-
-    debug( sprintf( '%s server instance', ref $self ));
-}
-
 =back
 
 =head1 PRIVATE METHODS
@@ -577,7 +562,7 @@ sub _loadConfig
 
     if ( iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/$filename.dist" ) {
         if ( -f "$self->{'cfgDir'}/$filename" ) {
-            debug( sprintf( 'Merging old %s configuration with new %s configuration ...', $filename, "$filename.dist" ));
+            debug( sprintf( 'Merging old %s configuration with new %s configuration...', $filename, "$filename.dist" ));
 
             tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename", readonly => 1,
                 # We do not want croak when accessing non-existing parameters

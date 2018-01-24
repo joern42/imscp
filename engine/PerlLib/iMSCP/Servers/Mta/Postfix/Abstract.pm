@@ -552,7 +552,7 @@ sub getTraffic
     $logFile ||= "$main::imscpConfig{'TRAFF_LOG_DIR'}/$main::imscpConfig{'MAIL_TRAFF_LOG'}";
 
     unless ( -f $logFile ) {
-        debug( sprintf( "SMTP %s log file doesn't exist. Skipping ...", $logFile ));
+        debug( sprintf( "SMTP %s log file doesn't exist. Skipping...", $logFile ));
         return;
     }
 

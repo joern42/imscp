@@ -66,7 +66,7 @@ sub boot
 {
     my ($self, $options) = @_;
 
-    debug( sprintf( 'Booting %s ...', iMSCP::Getopt->context()));
+    debug( sprintf( 'Booting %s...', iMSCP::Getopt->context()));
 
     $self->loadMainConfig( $options );
 
@@ -190,7 +190,7 @@ sub _genKeys
         || $main::imscpIV eq '{IV}' || length( $main::imscpIV ) != 16
         || ( iMSCP::Getopt->context() eq 'installer' && !-f "$main::imscpConfig{'CONF_DIR'}/imscp-db-keys.php" )
     ) {
-        debug( 'Missing or invalid i-MSCP key files. Generating a new key files ...' );
+        debug( 'Missing or invalid i-MSCP key files. Generating a new key files...' );
         -d $main::imscpConfig{'CONF_DIR'} or croak( sprintf( "%s doesn't exist or is not a directory", $main::imscpConfig{'CONF_DIR'} ));
 
         local $UMASK = 027;

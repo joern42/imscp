@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <copy>${LOCAL_USR_SBIN}/maillogconvert.pl</copy>
-    <copy>${SYSTEM_ENGINE_ROOT}/traffic/imscp-srv-traff</copy>
-    <copy>${SYSTEM_ENGINE_ROOT}/traffic/imscp-vrl-traff</copy>
-    <copy mode="0750" copy_if="index('${iMSCP::Servers::Httpd}', '::Apache2::') != -1">${SYSTEM_ENGINE_ROOT}/traffic/vlogger</copy>
+    <folder>${IMSCP_ENGINE_DIR}/traffic</folder>
+    <copy>${SYSTEM_LOCAL_SBIN_DIR}/maillogconvert.pl</copy>
+    <copy>${IMSCP_ENGINE_DIR}/traffic/imscp-srv-traff</copy>
+    <copy>${IMSCP_ENGINE_DIR}/traffic/imscp-vrl-traff</copy>
+    <copy mode="0750" copy_if="index('${iMSCP::Servers::Httpd}', '::Apache2::') != -1">${IMSCP_ENGINE_DIR}/traffic/vlogger</copy>
 </install>

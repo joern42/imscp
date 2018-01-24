@@ -152,7 +152,7 @@ sub installComposer
         && -x "$installDir/$filename"
         && version->parse( $self->getComposerVersion( "$installDir/$filename" )) == version->parse( $version )
     ) {
-        $self->{'_stdout'}( "Composer version is already $version. Skipping installation ...\n" );
+        $self->{'_stdout'}( "Composer version is already $version. Skipping installation...\n" );
         return;
     }
 

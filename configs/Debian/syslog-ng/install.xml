@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install>
-    <folder umask="0022" create_if="-x '/usr/sbin/syslog-ng'">${ROOT_CONF}/logrotate.d</folder>
-    <copy_config umask="0022" copy_if="-x '/usr/sbin/syslog-ng'">${ROOT_CONF}/logrotate.d/syslog-ng</copy_config>
+<install umask="0022">
+    <!--
+        The syslog-ng LOGROTATE(8) configuration file is copied only when the
+        copy_if expression evaluate to TRUE. Otherwise, it is removed.
+    -->
+    <folder create_if="-x '/usr/sbin/rsyslogd'">${SYSTEM_CONF_DIR}/logrotate.d/</folder>
+    <copy_config copy_if="-x '/usr/sbin/syslog-ng'" subdir="logrotate.d">${SYSTEM_CONF_DIR}/logrotate.d/syslog-ng</copy_config>
 </install>

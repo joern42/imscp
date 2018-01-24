@@ -433,7 +433,7 @@ sub _processModuleDbTasks
     my ($self, $module, $sql, $perItemLogFile) = @_;
 
     eval {
-        debug( sprintf( 'Processing %s tasks ...', $module ), ( caller( 2 ) )[3] );
+        debug( sprintf( 'Processing %s tasks...', $module ), ( caller( 2 ) )[3] );
 
         local $self->{'_dbh'}->{'RaiseError'} = 1;
 

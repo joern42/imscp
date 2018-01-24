@@ -106,11 +106,11 @@ sub registerSetupListeners
                         return if $stdout eq '';
 
                         step( undef, <<"EOT", 1, 1 )
-Installing/Updating i-MSCP frontEnd (dependencies) composer packages ...
+Installing/Updating i-MSCP frontEnd (dependencies) composer packages...
 
 $stdout
 
-Depending on your connection speed, this may take few minutes ...
+Depending on your connection speed, this may take few minutes...
 EOT
                     }
                 )->installPackages();
@@ -596,11 +596,11 @@ sub preinstall
                     return if $stdout eq '';
 
                     step( undef, <<"EOT", 3, $step )
-Installing/Updating i-MSCP frontEnd (tools) composer packages ...
+Installing/Updating i-MSCP frontEnd (tools) composer packages...
 
 $stdout
 
-Depending on your connection speed, this may take few minutes ...
+Depending on your connection speed, this may take few minutes...
 EOT
                 };
 
