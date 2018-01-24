@@ -2,7 +2,7 @@
 <install umask="0022">
     <!--
         The courier-authdaemon init script is copied only when the copy_if expression
-        evaluate to TRUE. Otherwise, it is removed by the service provider
+        evaluate to TRUE. Otherwise, it is removed by the service provider.
     -->
     <folder create_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1">${SYSTEM_CONF_DIR}/init.d</folder>
     <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1" srv_provider="courier-authdaemon" subdir="sysvinit" mode="0755">

@@ -137,17 +137,14 @@ sub loadConfig
         undef( @toKeepFromNew );
 
         # Set distribution lsb info and system info
-
-        @main::imscpConfig{qw/ DISTRO_FAMILY DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
-            $sysInfo->{'os'}->{'family'},
+        @main::imscpConfig{qw/ DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
             $sysInfo->{'os'}->{'lsb'}->{'distid'},
             $sysInfo->{'os'}->{'lsb'}->{'distcodename'},
             $sysInfo->{'os'}->{'lsb'}->{'distrelease'},
             iMSCP::Service->getInstance()->getInitSystem(),
             $sysInfo->{'virtual'}
         );
-
-        $main::imscpConfig{'DISTRO_FAMILY'} = $sysInfo->{'osfamily'} unless $main::imscpConfig{'DISTRO_FAMILY'} ne '';
+        $main::imscpConfig{'DISTRO_FAMILY'} = $sysInfo->{'os'}->{'family'} unless $main::imscpConfig{'DISTRO_FAMILY'} ne '';
 
         # Make sure that the old configuration contains all expected parameters
         while ( my ($param, $value) = each( %main::imscpConfig ) ) {
@@ -581,7 +578,6 @@ sub _checkRequirements
 sub _buildDistributionFiles
 {
     my $rs = _buildConfigFiles();
-    exit;
     $rs ||= _buildEngineFiles();
     $rs ||= _buildFrontendFiles();
     0;

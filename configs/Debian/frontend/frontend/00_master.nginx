@@ -1,38 +1,19 @@
 server {
-    listen {
-        BASE_SERVER_IP
-    }
-    :{
-        BASE_SERVER_VHOST_HTTP_PORT
-    }
-    default_server;
-    listen 127.0.0.1:{
-        BASE_SERVER_VHOST_HTTP_PORT
-    };
+    listen {BASE_SERVER_IP}:{BASE_SERVER_VHOST_HTTP_PORT} default_server;
+    listen 127.0.0.1:{BASE_SERVER_VHOST_HTTP_PORT};
     # SECTION IPv6 BEGIN.
-    listen [::]:{
-        BASE_SERVER_VHOST_HTTP_PORT
-    }
-    default_server ipv6only=on;
+    listen [::]:{BASE_SERVER_VHOST_HTTP_PORT} default_server ipv6only=on;
     # SECTION IPv6 END.
 
     # SECTION http BEGIN.
-    server_name {
-        BASE_SERVER_VHOST
-    };
+    server_name {BASE_SERVER_VHOST};
 
-    root {
-        WEB_DIR
-    }
-    /public;
+    root {WEB_DIR}/public;
 
     index index.php index.html;
 
     location ^~ /errors/ {
-        alias {
-            WEB_DIR
-        }
-        /public/errordocs/;
+        alias {WEB_DIR}/public/errordocs/;
         expires 30d;
     }
 
@@ -49,24 +30,17 @@ server {
     }
 
     location ^~ /ispLogos/ {
-        root {
-            WEB_DIR
-        }
-        /data/persistent;
+        root {WEB_DIR}/data/persistent;
         expires 30d;
     }
 
     location ~ ^/themes/(.*)/assets/ {
-        root {
-            WEB_DIR
-        };
+        root {WEB_DIR};
         expires 30d;
     }
 
     location ~ ^/(.*)/themes/(.*)/assets/ {
-        root {
-            PLUGINS_DIR
-        };
+        root {PLUGINS_DIR};
         expires 30d;
     }
 
@@ -87,10 +61,7 @@ server {
 
     location @plugin {
         include imscp_fastcgi.conf;
-        fastcgi_param SCRIPT_FILENAME {
-            WEB_DIR
-        }
-        /public/plugins.php;
+        fastcgi_param SCRIPT_FILENAME {WEB_DIR}/public/plugins.php;
         fastcgi_param SCRIPT_NAME /plugins.php;
     }
 
@@ -99,12 +70,7 @@ server {
     # SECTION http END.
 
     # SECTION https redirect BEGIN.
-    return 302 https://{
-        BASE_SERVER_VHOST
-    }
-    :{
-        BASE_SERVER_VHOST_HTTPS_PORT
-    }
+    return 302 https://{BASE_SERVER_VHOST}:{BASE_SERVER_VHOST_HTTPS_PORT}
     $request_uri;
     # SECTION https redirect END.
 }

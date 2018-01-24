@@ -36,12 +36,12 @@
     # SECTION cgi BEGIN.
     Alias /cgi-bin/ {WEB_DIR}/cgi-bin/
     <Directory {WEB_DIR}/cgi-bin>
-    AllowOverride AuthConfig Indexes Limit Options=Indexes,MultiViews \
-    Fileinfo=RewriteEngine,RewriteOptions,RewriteBase,RewriteCond,RewriteRule Nonfatal=Override
-    DirectoryIndex index.cgi index.pl index.py index.rb
-    Options FollowSymLinks ExecCGI
-    AddHandler cgi-script .cgi .pl .py .rb
-    Require all granted
+        AllowOverride AuthConfig Indexes Limit Options=Indexes,MultiViews \
+            Fileinfo=RewriteEngine,RewriteOptions,RewriteBase,RewriteCond,RewriteRule Nonfatal=Override
+        DirectoryIndex index.cgi index.pl index.py index.rb
+        Options FollowSymLinks ExecCGI
+        AddHandler cgi-script .cgi .pl .py .rb
+        Require all granted
     # SECTION cgi-bin addons BEGIN.
     # SECTION cgi-bin addons END.
     </Directory>

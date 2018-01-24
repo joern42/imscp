@@ -11,17 +11,17 @@
 
     # SECTION ssl BEGIN.
     SSLEngine On
-    SSLCertificateFile {CERTIFICATE}
+    SSLCertificateFile      {CERTIFICATE}
     SSLCertificateChainFile {CERTIFICATE}
 
     Header always set Strict-Transport-Security "max-age={HSTS_MAX_AGE}{HSTS_INCLUDE_SUBDOMAINS}"
     # SECTION ssl END.
 
     <Directory {USER_WEB_DIR}/domain_disabled_pages>
-    AllowOverride None
-    DirectoryIndex index.html
-    Options FollowSymLinks
-    Require all granted
+        AllowOverride None
+        DirectoryIndex index.html
+        Options FollowSymLinks
+        Require all granted
     </Directory>
 
     RedirectMatch 303 ^/(?!(?:images/.+|index\.html|$)) {HTTP_URI_SCHEME}www.{DOMAIN_NAME}/
