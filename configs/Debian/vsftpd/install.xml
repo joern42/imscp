@@ -10,7 +10,7 @@
     </copy_config>
 
     <!--
-        The vsftod configuration directory is copied only when the copy_if
+        The vsftpd configuration directory is copied only when the copy_if
         expression evaluate to TRUE. Otherwise, it is removed.
     -->
     <copy_config copy_if="index('${iMSCP::Servers::Ftpd}', '::Vsftpd::') != -1">${SYSTEM_CONF_DIR}/vsftpd</copy_config>
