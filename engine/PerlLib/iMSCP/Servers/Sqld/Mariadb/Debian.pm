@@ -345,13 +345,10 @@ EOF
             { srcname => 'defaults-extra-file' }
         );
         # Simply mimic Debian behavior (/usr/share/mysql/debian-start.inc.sh)
-        $rs ||= execute( "/usr/bin/logger -p daemon.info -i -t$0 'Upgrading MariaDB tables if necessary.'", \my $stdout, \my $stderr );
         $rs ||= execute(
-            "/usr/bin/mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1"
-                . "| egrep -v '^(1|\@had|ERROR (1054|1060|1061))'"
-                . "| /usr/bin/logger -p daemon.warn -i -t$0",
-            \$stdout,
-            \$stderr
+            "/usr/bin/mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'",
+            \my $stdout,
+            \my $stderr
         );
         debug( $stdout ) if $stdout;
         error( sprintf(

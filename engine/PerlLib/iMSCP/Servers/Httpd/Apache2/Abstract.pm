@@ -1684,7 +1684,7 @@ EOF
 
         my $defaultsExtraFile = File::Temp->new();
         print $defaultsExtraFile <<"EOF";
-[mysql_upgrade]
+[mysql]
 host = {HOST}
 port = {PORT}
 user = "{USER}"
