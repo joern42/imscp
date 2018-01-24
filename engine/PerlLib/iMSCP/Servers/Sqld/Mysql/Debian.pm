@@ -288,7 +288,7 @@ sub _updateServerConfig
     # Upgrade MySQL tables if necessary
 
     {
-        my $defaultsExtraFile = File::Temp->new( UNLINK => 0 );
+        my $defaultsExtraFile = File::Temp->new();
         print $defaultsExtraFile <<'EOF';
 [mysql_upgrade]
 host = {HOST}
