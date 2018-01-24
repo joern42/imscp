@@ -30,10 +30,10 @@ print "Satisfying pre-requisites for the i-MSCP installer\n";
 
 unless ( -f '/etc/imscp/listener.d/10_apt_sources_list.pl' ) {
     print " [\x1b[0;34mINFO\x1b[0m] Updating distribution package index files...\n";
-    system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
+    system( '/usr/bin/apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
 
     print " [\x1b[0;34mINFO\x1b[0m] Installing the lsb-reelase distribution package...\n";
-    system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'lsb-release' ) == 0 or die(
+    system( '/usr/bin/apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'lsb-release' ) == 0 or die(
         "[\x1b[0;31mERROR\x1b[0m] Couldn't install the lsb-release package.\n"
     );
 
@@ -54,17 +54,17 @@ unless ( -f '/etc/imscp/listener.d/10_apt_sources_list.pl' ) {
 }
 
 print " [\x1b[0;34mINFO\x1b[0m] Updating distribution package index files...\n";
-system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
+system( '/usr/bin/apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
 
 print " [\x1b[0;34mINFO\x1b[0m] Upgrading distribution packages (upgrade)...\n";
-system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgrade' ) == 0 or die(
+system( '/usr/bin/apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgrade' ) == 0 or die(
     "[\x1b[0;31mERROR\x1b[0m] Couldn't upgrade distribution packages.\n"
 );
 
 print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required distribution package...\n";
 system(
-    'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
-    'ca-certificates', 'debconf-utils', 'dialog', 'dirmngr', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
+    '/usr/bin/apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
+    'ca-certificates', 'cpanminus', 'debconf-utils', 'dialog', 'dirmngr', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
     'libclass-autouse-perl', 'libdata-compare-perl', 'libdata-validate-domain-perl', 'libfile-homedir-perl', 'libjson-perl', 'libjson-xs-perl',
     'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libnet-ip-perl', 'libnet-domain-tld-perl', 'libscalar-defer-perl',
     'libsort-versions-perl', 'libxml-simple-perl', 'policyrcd-script-zg2', 'wget', 'whiptail', 'virt-what', 'libdatetime-perl', 'libemail-valid-perl',
@@ -75,7 +75,7 @@ system(
 
 # Install FACTER(8) from rubygem.org as the version provided by some distributions is too old
 print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required facter program (RubyGem)...\n";
-system( '/usr/bin/gem', 'install', 'facter', '--quiet', '--minimal-deps' ) == 0 or die(
+system( '/usr/bin/gem', 'install', 'facter', '--quiet', '--minimal-deps', '--version', '2.5.1' ) == 0 or die(
     "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
 );
 
@@ -90,7 +90,7 @@ if ( eval "require Module::Load::Conditional; 1;" ) {
 
     if ( %perlModules ) {
         print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required Perl module(s) from CPAN...\n";
-        system( "echo 'yes' | cpan -T @{ [ keys %perlModules ] }" ) == 0 or die(
+        system( '/usr/bin/cpanm', '--notest', '--quiet', keys %perlModules ) == 0 or die(
             "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-reuired Perl module(s) from CPAN.\n"
         );
     }
