@@ -31,7 +31,7 @@ use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use File::Temp;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug error /;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Sqld::Mysql::Abstract';
@@ -288,29 +288,37 @@ sub _updateServerConfig
     # Upgrade MySQL tables if necessary
 
     {
-        my $defaultExtraFile = File::Temp->new();
-        print <<'EOF';
+        my $defaultsExtraFile = File::Temp->new( UNLINK => 0 );
+        print $defaultsExtraFile <<'EOF';
 [mysql_upgrade]
 host = {HOST}
 port = {PORT}
 user = "{USER}"
 password = "{PASSWORD}"
 EOF
-        $defaultExtraFile->close();
-        my $rs = $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
+        $defaultsExtraFile->close();
+        my $rs = $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
                 HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
                 USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
                 PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
-            { srcname => 'default-extra-file' }
+            { srcname => 'defaults-extra-file' }
         );
-        return $rs if $rs;
-
-        $rs = execute( "/usr/bin/mysql_upgrade --defaults-extra-file=$defaultExtraFile", \my $stdout, \my $stderr );
+        # Simply mimic Debian behavior (/usr/share/mysql/debian-start.inc.sh)
+        $rs ||= execute( "/usr/bin/logger -p daemon.info -i -t$0 'Upgrading MySQL tables if necessary.'", \my $stdout, \my $stderr );
+        $rs ||= execute(
+            "/usr/bin/mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1"
+                . "| egrep -v '^(1|\@had|ERROR (1054|1060|1061))'"
+                . "| /usr/bin/logger -p daemon.warn -i -t$0",
+            \$stdout,
+            \$stderr
+        );
         debug( $stdout ) if $stdout;
-        error( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' )) if $rs;
+        error( sprintf(
+            "Couldn't upgrade SQL server system tables: %s", $stderr || getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+        )) if $rs;
         return $rs if $rs;
     }
 

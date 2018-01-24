@@ -807,27 +807,27 @@ sub _setupDatabase
         my $rs = $self->buildConfFile( "$main::imscpConfig{'CONF_DIR'}/database/database.sql", $dbSchemaFile, undef, { DATABASE_NAME => $dbName } );
         return $rs if $rs;
 
-        my $defaultExtraFile = File::Temp->new();
-        print $defaultExtraFile <<'EOF';
+        my $defaultsExtraFile = File::Temp->new();
+        print $defaultsExtraFile <<'EOF';
 [mysql]
 host = {HOST}
 port = {PORT}
 user = "{USER}"
 password = "{PASSWORD}"
 EOF
-        $defaultExtraFile->close();
-        $rs = $self->buildConfFile( $defaultExtraFile, $defaultExtraFile, undef,
+        $defaultsExtraFile->close();
+        $rs = $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
                 HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
                 USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
                 PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
-            { srcname => 'default-extra-file' }
+            { srcname => 'defaults-extra-file' }
         );
         return $rs if $rs;
 
-        $rs = execute( "cat $dbSchemaFile | /usr/bin/mysql --defaults-extra-file=$defaultExtraFile", \ my $stdout, \ my $stderr );
+        $rs = execute( "cat $dbSchemaFile | /usr/bin/mysql --defaults-extra-file=$defaultsExtraFile", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
@@ -965,8 +965,8 @@ sub _restoreDatabase
         # TODO: TO BE TESTED FIRST
         #$dbh->do( "UPDATE mysql.proc SET definer = ?@? WHERE db = ?", undef, $tmpUser, $tmpPassword, $dbName );
 
-        my $defaultExtraFile = File::Temp->new();
-        print $defaultExtraFile <<"EOF";
+        my $defaultsExtraFile = File::Temp->new();
+        print $defaultsExtraFile <<"EOF";
 [mysql]
 host = $main::imscpConfig{'DATABASE_HOST'}
 port = $main::imscpConfig{'DATABASE_PORT'}
@@ -974,9 +974,9 @@ user = @{ [ $tmpUser =~ s/"/\\"/gr ] }
 password = @{ [ $tmpPassword =~ s/"/\\"/gr ] }
 max_allowed_packet = 500M
 EOF
-        $defaultExtraFile->close();
+        $defaultsExtraFile->close();
 
-        my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultExtraFile", escapeShell( $dbName ) );
+        my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultsExtraFile", escapeShell( $dbName ) );
         my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         $rs == 0 or croak( error( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' )));

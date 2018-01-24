@@ -1682,27 +1682,27 @@ EOF
         );
         return $rs if $rs;
 
-        my $defaultExtrafile = File::Temp->new();
-        print $defaultExtrafile <<"EOF";
+        my $defaultsExtraFile = File::Temp->new();
+        print $defaultsExtraFile <<"EOF";
 [mysql_upgrade]
 host = {HOST}
 port = {PORT}
 user = "{USER}"
 password = "{PASSWORD}"
 EOF
-        $defaultExtrafile->close();
-        $rs = $self->buildConfFile( $defaultExtrafile, $defaultExtrafile, undef,
+        $defaultsExtraFile->close();
+        $rs = $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
                 HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
                 USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
                 PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
-            { srcname => 'default-extra-file' }
+            { srcname => 'defaults-extra-file' }
         );
         return $rs if $rs;
 
-        $rs = execute( "cat $dbSchemaFile | /usr/bin/mysql --defaults-extra-file=$defaultExtrafile", \ my $stdout, \ my $stderr );
+        $rs = execute( "cat $dbSchemaFile | /usr/bin/mysql --defaults-extra-file=$defaultsExtraFile", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
