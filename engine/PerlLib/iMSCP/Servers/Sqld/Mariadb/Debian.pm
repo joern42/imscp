@@ -292,7 +292,7 @@ max_allowed_packet = {MAX_ALLOWED_PACKET}
 event_scheduler = {EVENT_SCHEDULER}
 innodb_use_native_aio = {INNODB_USE_NATIVE_AIO}
 max_connections = {MAX_CONNECTIONS}
-max_allowed_packet = MAX_ALLOWED_PACKET}
+max_allowed_packet = {MAX_ALLOWED_PACKET}
 performance_schema = {PERFORMANCE_SCHEMA}
 sql_mode = {SQL_MODE}
 EOF
