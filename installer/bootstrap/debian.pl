@@ -75,7 +75,7 @@ system(
 
 # Install FACTER(8) from rubygem.org as the version provided by some distributions is too old
 print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required facter program (RubyGem)...\n";
-system( '/usr/bin/gem', 'install', 'facter', '--quiet', '--minimal-deps', '--version', '2.5.1' ) == 0 or die(
+system( '/usr/bin/gem', 'install', 'facter', '--quiet', '--conservative', '--minimal-deps', '--version', '2.5.1' ) == 0 or die(
     "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
 );
 

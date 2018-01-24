@@ -177,7 +177,7 @@
         <mysql_5.7
                 default="1"
                 description="MySQL 5.7 server"
-                class="iMSCP::Servers::Sqld::MySQL::Debian"
+                class="iMSCP::Servers::Sqld::Mysql::Debian"
                 pinning_package="libmysqlclient20 mysql-client-5.7 mysql-common mysql-server-5.7"
                 pinning_pin="release o=Ubuntu,n=xenial"
                 pinning_pin_priority="1001"

@@ -173,7 +173,7 @@
     <sqld class="iMSCP::Servers::Sqld" description="SQL server">
         <mysql_5.7
                 description="MySQL 5.7 server"
-                class="iMSCP::Servers::Sqld::MySQL::Debian"
+                class="iMSCP::Servers::Sqld::Mysql::Debian"
                 repository="http://repo.mysql.com/apt/debian/ stretch mysql-5.7"
                 repository_key_id="5072E1F5"
                 repository_key_srv="keyserver.ubuntu.com"

@@ -69,7 +69,7 @@ sub dpkgPostInvokeTasks
     # Gather system information
     my $sysInfo = eval {
         my $facter = iMSCP::ProgramFinder::find( 'facter' ) or croak( 'facter program not found' );
-        decode_json( `$facter --json os 2> /dev/null` );
+        decode_json( `$facter _2.5.1_ --json os 2> /dev/null` );
     };
     if ( $@ ) {
         error( sprintf( "Couldn't gather system information: %s", $@ ));

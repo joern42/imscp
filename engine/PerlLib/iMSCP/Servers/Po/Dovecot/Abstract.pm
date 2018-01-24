@@ -519,7 +519,7 @@ EOF
                     return 1;
                 }
 
-                $cfgTpl .= <<"EOF";
+                ${$_[0]} .= <<"EOF";
 ssl_protocols = @{[ version->parse( $1 ) >= version->parse( '1.1' ) ? '!SSLv3' : '!SSLv2 !SSLv3' ]}
 ssl_cert = <$main::imscpConfig{'CONF_DIR'}/imscp_services.pem
 ssl_key = <$main::imscpConfig{'CONF_DIR'}/imscp_services.pem

@@ -170,7 +170,7 @@ sub _init
                 'JSON::XS'                   => 2.340,
                 Lchown                       => 1.01,
                 #                'List::Util'                 => undef, # Core module
-                'LWP::Simple'                => 6.05,
+                'LWP::Simple'                => 6.00,
                 'Mail::Address'              => 2.12,
                 #                'MIME::Base64'               => undef, # Core module
                 'MIME::Entity'               => 5.505,

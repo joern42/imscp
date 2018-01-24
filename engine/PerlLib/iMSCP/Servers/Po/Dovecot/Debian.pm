@@ -75,7 +75,7 @@ sub preinstall
         # This also solve problem on boxes where IPv6 is not available; default dovecot.socket unit file make
         # assumption that IPv6 is available without further checks...
         # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=814999
-        if ( $serviceMngr->isSystemd() && $srvProvider->hasService( 'dovecot.socket' ) ) {
+        if ( $srvProvider->isSystemd() && $srvProvider->hasService( 'dovecot.socket' ) ) {
             $srvProvider->stop( 'dovecot.socket' );
             $srvProvider->disable( 'dovecot.socket' );
         }

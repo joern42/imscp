@@ -193,6 +193,8 @@ sub _genKeys
         debug( 'Missing or invalid i-MSCP key files. Generating a new key files...' );
         -d $main::imscpConfig{'CONF_DIR'} or croak( sprintf( "%s doesn't exist or is not a directory", $main::imscpConfig{'CONF_DIR'} ));
 
+        require Data::Dumper;
+
         local $UMASK = 027;
         local $Data::Dumper::Indent = 0;
 

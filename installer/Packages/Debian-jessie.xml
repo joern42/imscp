@@ -176,7 +176,7 @@
         <mysql_5.7
                 default="1"
                 description="MySQL 5.7 server"
-                class="iMSCP::Servers::Sqld::MySQL::Debian"
+                class="iMSCP::Servers::Sqld::Mysql::Debian"
                 repository="http://repo.mysql.com/apt/debian/ jessie mysql-5.7"
                 repository_key_id="5072E1F5"
                 repository_key_srv="keyserver.ubuntu.com"

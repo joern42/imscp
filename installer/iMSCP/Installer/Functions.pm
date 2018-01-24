@@ -75,18 +75,21 @@ sub loadConfig
     # Gather system information
     my $sysInfo = eval {
         my $facter = iMSCP::ProgramFinder::find( 'facter' ) or croak( "Couldn't find FACTER(8) program" );
-        decode_json( `$facter --json os virtual 2> /dev/null` );
+        decode_json( `$facter _2.5.1_ --json os virtual 2> /dev/null` );
     };
     if ( $@ ) {
         error( sprintf( "Couldn't gather system information: %s", $@ ));
         return 1;
     }
 
+    # Fix for the osfamily FACT that is badly detected by FACTER(8) for Devuan
+    $sysInfo->{'os'}->{'osfamily'} = 'Debian' if $sysInfo->{'os'}->{'lsb'}->{'distid'} eq 'Devuan';
+
     # Load the i-MSCP master configuration file
     tie %main::imscpConfig, 'iMSCP::Config', fileName => "$FindBin::Bin/configs/imscp.conf", readonly => 1, temporary => 1;
 
     # Override the i-MSCP master configuration file with parameters from the
-    # master distribution family configuration file if any
+    # OS family configuration file if any
     if ( -f "$FindBin::Bin/configs/$sysInfo->{'os'}->{'family'}/imscp.conf" ) {
         tie my %distroConfig, 'iMSCP::Config',
             fileName  => "$FindBin::Bin/configs/$sysInfo->{'os'}->{'family'}/imscp.conf",
@@ -97,8 +100,8 @@ sub loadConfig
     }
 
     # Override the i-MSCP master configuration file with parameters from the
-    # master distribution configuration file if any
-    if ( $sysInfo->{'os'}->{'family'} ne $sysInfo->{'os'}->{'lsb'}->{'distid'}
+    # distribution ID configuration file if any
+    if ( $sysInfo->{'os'}->{'lsb'}->{'distid'} ne $sysInfo->{'os'}->{'family'}
         && -f "$FindBin::Bin/configs/$sysInfo->{'os'}->{'lsb'}->{'distid'}/imscp.conf"
     ) {
         tie my %distroConfig, 'iMSCP::Config',
@@ -124,33 +127,33 @@ sub loadConfig
     if ( tied( %main::imscpOldConfig ) ) {
         debug( 'Merging old configuration with new configuration...' );
 
-        # Parameters that we want keep in %main::imscpConfig
+        # Entries that we want keep in %main::imscpConfig
         my @toKeepFromNew = @main::imscpConfig{ qw/ BuildDate Version CodeName PluginApi THEME_ASSETS_VERSION / };
 
-        # Fill the new configuration parameters with values from %main::imscpOldConfig
+        # Fill %main::imscpConfig with values from %main::imscpOldConfig
         while ( my ($key, $value) = each( %main::imscpOldConfig ) ) {
             $main::imscpConfig{$key} = $value if exists $main::imscpConfig{$key};
         }
 
-        # Re-inject parameters that we wanted to keep in new configuration
+        # Restore entries that we wanted to keep in %main::imscpConfig
         @main::imscpConfig{ qw/ BuildDate Version CodeName PluginApi THEME_ASSETS_VERSION / } = @toKeepFromNew;
         undef( @toKeepFromNew );
 
-        # Set distribution lsb info and system info
-        @main::imscpConfig{qw/ DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
-            $sysInfo->{'os'}->{'lsb'}->{'distid'},
-            $sysInfo->{'os'}->{'lsb'}->{'distcodename'},
-            $sysInfo->{'os'}->{'lsb'}->{'distrelease'},
-            iMSCP::Service->getInstance()->getInitSystem(),
-            $sysInfo->{'virtual'}
-        );
-        $main::imscpConfig{'DISTRO_FAMILY'} = $sysInfo->{'os'}->{'family'} unless $main::imscpConfig{'DISTRO_FAMILY'} ne '';
-
-        # Make sure that the old configuration contains all expected parameters
+        # Make sure that %main::imscpOldConfig contains all expected parameters
         while ( my ($param, $value) = each( %main::imscpConfig ) ) {
             $main::imscpOldConfig{$param} = $value unless exists $main::imscpOldConfig{$param};
         }
     }
+
+    # Set/Update the distribution lsb/system info
+    @main::imscpConfig{qw/ DISTRO_FAMILY DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
+        $sysInfo->{'os'}->{'family'},
+        $sysInfo->{'os'}->{'lsb'}->{'distid'},
+        $sysInfo->{'os'}->{'lsb'}->{'distcodename'},
+        $sysInfo->{'os'}->{'lsb'}->{'distrelease'},
+        iMSCP::Service->getInstance()->getInitSystem(),
+        $sysInfo->{'virtual'}
+    );
 
     # Load listener files
     iMSCP::EventManager->getInstance();

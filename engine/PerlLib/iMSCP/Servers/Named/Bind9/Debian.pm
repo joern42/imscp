@@ -150,8 +150,8 @@ sub uninstall
     return $rs if $rs;
 
     eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->restart( 'bind9' ) if $serviceMngr->hasService( 'bind9' ) && $serviceMngr->isRunning( 'bind9' );
+        my $srvProvider = iMSCP::Service->getInstance();
+        $srvProvider->restart( 'bind9' ) if $srvProvider->hasService( 'bind9' ) && $srvProvider->isRunning( 'bind9' );
     };
     if ( $@ ) {
         error( $@ );
