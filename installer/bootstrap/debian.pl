@@ -66,9 +66,9 @@ system(
     '/usr/bin/apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
     'ca-certificates', 'cpanminus', 'debconf-utils', 'dialog', 'dirmngr', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
     'libclass-autouse-perl', 'libdata-compare-perl', 'libdata-validate-domain-perl', 'libfile-homedir-perl', 'libjson-perl', 'libjson-xs-perl',
-    'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libnet-ip-perl', 'libnet-domain-tld-perl', 'libscalar-defer-perl',
-    'libsort-versions-perl', 'libxml-simple-perl', 'policyrcd-script-zg2', 'wget', 'whiptail', 'virt-what', 'libdatetime-perl', 'libemail-valid-perl',
-    'libdata-validate-ip-perl', 'lsb-release', 'ruby'
+    'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libnet-ip-perl', 'libnet-domain-tld-perl', 'libnet-libidn-perl',
+    'libscalar-defer-perl', 'libsort-versions-perl', 'libxml-simple-perl', 'policyrcd-script-zg2', 'wget', 'whiptail', 'virt-what',
+    'libdatetime-perl', 'libemail-valid-perl', 'libdata-validate-ip-perl', 'lsb-release', 'ruby'
 ) == 0 or die(
     "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
 );
