@@ -195,13 +195,13 @@ sub setEnginePermissions
     );
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
@@ -867,7 +867,6 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$main::imscpConfig{'CONF_DIR'}/postfix" );
-    $self->_loadConfig( 'postfix.data' );
     $self->SUPER::_init();
 }
 

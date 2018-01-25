@@ -90,7 +90,7 @@ unless ( $STORAGE_ROOT_PATH eq '' ) {
     );
 
     iMSCP::EventManager->getInstance()->register(
-        'beforeApache2AddFiles',
+        'beforeApacheAddFiles',
         sub {
             my ($data) = @_;
 
@@ -103,7 +103,7 @@ unless ( $STORAGE_ROOT_PATH eq '' ) {
     );
 
     iMSCP::EventManager->getInstance()->register(
-        'afterApache2AddFiles',
+        'afterApacheAddFiles',
         sub {
             my ($data) = @_;
 
@@ -151,7 +151,7 @@ unless ( $STORAGE_ROOT_PATH eq '' ) {
     );
 
     iMSCP::EventManager->getInstance()->register(
-        'beforeApache2DelDmn',
+        'beforeApacheDeleteDomain',
         sub {
             my $data = shift;
 

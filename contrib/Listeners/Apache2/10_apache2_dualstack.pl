@@ -32,14 +32,14 @@ use version;
 ## Configuration variables
 #
 
-# Parameter that allows to add one or many IPs to all Apache2 vhosts files
+# Parameter that allows to add one or many IPs to all Apache vhosts files
 # Please replace the entries below by your own entries
 my @GLOBAL_IPS = (
     'IP1',
     'IP2'
 );
 
-# Parameter that allows to add one or many IPs to the Apache2 vhost file of the
+# Parameter that allows to add one or many IPs to the Apache vhost file of the
 # specified domains. Please replace the entries below by your own entries
 my %PER_DOMAIN_IPS = (
     'domain1.tld' => [ 'IP1', 'IP2' ],
@@ -55,7 +55,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'onApache2AddVhostIps',
+    'onApacheAddVhostIps',
     sub {
         my ($data, $domainIps) = @_;
 

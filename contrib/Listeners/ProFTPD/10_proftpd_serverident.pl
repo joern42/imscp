@@ -1,4 +1,4 @@
-# i-MSCP iMSCP::Listener::ProFTPd::TLS listener file
+# i-MSCP iMSCP::Listener::ProFTPD::ServerIdent listener file
 # Copyright (C) 2017-2018 Laurent Declercq <l.declercq@nuxwin.com>
 # Copyright (C) 2015-2017 Rene Schuster <mail@reneschuster.de>
 #
@@ -17,18 +17,26 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 #
-## Enforce TLS
-## See http://www.proftpd.org/docs/directives/linked/config_ref_TLSRequired.html
+## Show custom server identification message
+## See See http://www.proftpd.org/docs/directives/linked/config_ref_ServerIdent.html
 #
 
-package iMSCP::Listener::ProFTPd::TLS;
+package iMSCP::Listener::ProFTPD::ServerIdent;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
 use iMSCP::EventManager;
+use iMSCP::TemplateParser qw/ processByRef /;
 use version;
+
+#
+## Configuration parameters
+#
+
+# Server identification message to display when a client connect
+my $SERVER_IDENT_MESSAGE = 'i-MSCP FTP server.';
 
 #
 ## Please, don't edit anything below this line
@@ -39,12 +47,14 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterProftpdBuildConfFile',
+    'beforeProftpdBuildConfFile',
     sub {
         my ($tplContent, $tplName) = @_;
 
         return 0 unless $tplName eq 'proftpd.conf';
-        ${$tplContent} =~ s/(TLSRequired\s+)off/${1}on/im;
+
+        $SERVER_IDENT_MESSAGE =~ s%("|\\)%\\$1%g;
+        processByRef( { SERVER_IDENT_MESSAGE => qq/"$SERVER_IDENT_MESSAGE"/ }, $tplContent );
         0;
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;

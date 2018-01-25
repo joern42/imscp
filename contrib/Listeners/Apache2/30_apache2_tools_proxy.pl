@@ -43,7 +43,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'beforeApache2BuildConf',
+    'beforeApacheBuildConf',
     sub {
         my ($cfgTpl, $tplName, undef, $moduleData, $serverData) = @_;
 

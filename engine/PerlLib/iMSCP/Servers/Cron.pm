@@ -104,13 +104,13 @@ sub setEnginePermissions
     );
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
@@ -253,12 +253,7 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{$self}{qw/ cfgDir _templates /} = ( "$main::imscpConfig{'CONF_DIR'}/cron", {} );
-
-    $self->_loadConfig( 'cron.data' );
-
-    # Register event listener for processing of cront tasks
     $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
-
     $self->SUPER::_init();
 }
 

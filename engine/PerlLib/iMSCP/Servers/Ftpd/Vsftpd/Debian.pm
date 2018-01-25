@@ -127,9 +127,7 @@ sub dpkgPostInvokeTasks
 
 =item start( )
 
- Start vsftpd
-
- Return int 0, other on failure
+ See iMSCP::Servers::Abstract::start()
 
 =cut
 
@@ -148,9 +146,7 @@ sub start
 
 =item stop( )
 
- Stop vsftpd
-
- Return int 0, other on failure
+ See iMSCP::Servers::Abstract::stop()
 
 =cut
 
@@ -169,9 +165,7 @@ sub stop
 
 =item restart( )
 
- Restart vsftpd
-
- Return int 0, other on failure
+ See iMSCP::Servers::Abstract::restart()
 
 =cut
 
@@ -190,9 +184,7 @@ sub restart
 
 =item reload( )
 
- Reload vsftpd
-
- Return int 0, other on failure
+ See iMSCP::Servers::Abstract::reload()
 
 =cut
 

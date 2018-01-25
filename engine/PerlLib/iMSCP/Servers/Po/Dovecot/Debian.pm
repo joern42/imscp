@@ -144,7 +144,7 @@ sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
 
-    return 0 unless -x $self->{'PO_BIN'};
+    return 0 unless -x $self->{'config'}->{'PO_BIN'};
 
     $self->_setVersion();
 }

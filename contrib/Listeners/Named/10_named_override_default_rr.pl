@@ -44,7 +44,7 @@ if ( index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1 ) {
     # - @   IN {IP_TYPE} {DOMAIN_IP}
     # - www IN CNAME     @
     iMSCP::EventManager->getInstance()->register(
-        'beforeBind9AddCustomDNS',
+        'beforeBindAddCustomDNS',
         sub {
             my ($wrkDbFileContent, $data) = @_;
 
@@ -84,7 +84,7 @@ if ( index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1 ) {
     # i-MSCP Bind9 server impl. will not do it unless the domain is being fully
     # reconfigured
     iMSCP::EventManager->getInstance()->register(
-        'afterBind9AddCustomDNS',
+        'afterBindAddCustomDNS',
         sub {
             my ($wrkDbFileContent, $data) = @_;
 

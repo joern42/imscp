@@ -65,10 +65,10 @@ sub preinstall
     eval {
         my $httpd = iMSCP::Servers::Httpd->factory();
 
-        # Disable i-MSCP Apache2 fcgid modules. It will be re-enabled in postinstall if needed
+        # Disable i-MSCP Apache fcgid modules. It will be re-enabled in postinstall if needed
         $httpd->disableModules( 'fcgid_imscp' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
-        # Disable default Apache2 conffile for CGI programs
+        # Disable default Apache conffile for CGI programs
         # FIXME: One administrator could rely on default configuration (outside of i-MSCP)
         $httpd->disableConfs( 'serve-cgi-bin.conf' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
@@ -92,13 +92,13 @@ sub preinstall
             # Tasks for apache2handler SAPI
 
             if ( $self->{'config'}->{'PHP_SAPI'} ne 'apache2handler' || $self->{'config'}->{'PHP_VERSION'} ne $_ ) {
-                # Disable Apache2 PHP module if PHP version is other than selected PHP alternative
+                # Disable Apache PHP module if PHP version is other than selected PHP alternative
                 $httpd->disableModules( "php$_" ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             }
 
             # Tasks for cgi SAPI
 
-            # Disable default Apache2 conffile
+            # Disable default Apache conffile
             $httpd->disableConfs( "php$_-cgi.conf" ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
             # Tasks for fpm SAPI
@@ -119,7 +119,7 @@ sub preinstall
                 }
             }
 
-            # Disable default Apache2 conffile
+            # Disable default Apache conffile
             $httpd->disableConfs( "php$_-fpm.conf " ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
             # Reset PHP-FPM pool confdir
@@ -194,7 +194,7 @@ sub install
             $rs == 0 or croak ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
-        # Build the Apache2 Fcgid module conffile
+        # Build the Apache fcgid module conffile
         $httpd->buildConfFile( "$self->{'cfgDir'}/cgi/apache_fcgid_module.conf", "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.conf",
             undef,
             {
@@ -240,12 +240,12 @@ sub postinstall
         my $httpd = iMSCP::Servers::Httpd->factory();
 
         if ( $self->{'config'}->{'PHP_SAPI'} eq 'apache2handler' ) {
-            # Enable Apache2 PHP module for selected PHP alternative
+            # Enable Apache PHP module for selected PHP alternative
             $httpd->enableModules( "php$self->{'config'}->{'PHP_VERSION'}" ) == 0 or croak (
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'cgi' ) {
-            # Enable Apache2 fcgid module
+            # Enable Apache fcgid module
             $httpd->enableModules( qw/ fcgid fcgid_imscp / ) == 0 or croak (
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
@@ -607,7 +607,7 @@ sub _buildPhpConfig
     my ($self, $moduleData) = @_;
 
     if ( $self->{'config'}->{'PHP_SAPI'} eq 'apache2handler' ) {
-        $self->_buildApache2HandlerConfig( $moduleData );
+        $self->_buildApacheHandlerConfig( $moduleData );
         return;
     }
 

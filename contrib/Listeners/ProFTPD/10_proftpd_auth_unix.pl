@@ -1,4 +1,4 @@
-# i-MSCP iMSCP::Listener::ProFTPd::Auth::Unix listener file
+# i-MSCP iMSCP::Listener::ProFTPD::Auth::Unix listener file
 # Copyright (C) 2017-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
 # This library is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
 ##  - http://www.proftpd.org/docs/modules/mod_auth_unix.html
 #
 
-package iMSCP::Listener::ProFTPd::Auth::Unix;
+package iMSCP::Listener::ProFTPD::Auth::Unix;
 
 our $VERSION = '1.0.2';
 

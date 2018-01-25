@@ -58,7 +58,7 @@ sub install
 
     my $rs = $self->_disableDefaultConfig();
     $rs ||= $self->_createCacheDir();
-    $rs ||= $self->_setupApache2();
+    $rs ||= $self->_setupApache();
     $rs ||= $self->_cleanup();
 }
 
@@ -154,15 +154,15 @@ sub _createCacheDir
     0;
 }
 
-=item _setupApache2( )
+=item _setupApache( )
 
- Setup Apache2 for AWStats
+ Setup Apache for AWStats
 
  Return int 0 on success, other on failure
 
 =cut
 
-sub _setupApache2
+sub _setupApache
 {
     my ($self) = @_;
 
@@ -173,10 +173,10 @@ sub _setupApache2
     $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'httpd'}->getRunningGroup());
     $rs ||= $file->mode( 0640 );
 
-    # Enable required Apache2 modules
+    # Enable required Apache modules
     $rs ||= $self->{'httpd'}->enableModules( 'authn_socache' );
 
-    # Create Apache2 vhost
+    # Create Apache vhost
     $rs ||= $self->{'httpd'}->buildConfFile(
         "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Config/01_awstats.conf",
         "$self->{'httpd'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/01_awstats.conf",

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Ftpd::Proftpd::Debian - i-MSCP (Debian) ProFTPd server implementation
+ iMSCP::Servers::Ftpd::Proftpd::Debian - i-MSCP (Debian) ProFTPD server implementation
 
 =cut
 
@@ -37,7 +37,7 @@ our $VERSION = '1.0.0';
 
 =head1 DESCRIPTION
 
- i-MSCP (Debian) ProFTPd server implementation.
+ i-MSCP (Debian) ProFTPD server implementation.
 
 =head1 PUBLIC METHODS
 

@@ -337,18 +337,18 @@ sub uninstall
 {
     my ($self) = @_;
 
-    return 0 unless -f "$main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf";
+    return 0 unless -f "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf";
 
-    iMSCP::File->new( filename => "$main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" )->delFile();
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
@@ -365,7 +365,7 @@ sub getHumanServerName
 {
     my ($self) = @_;
 
-    sprintf( '%s %s', $main::imscpConfig{'DISTRO_ID'}, $main::imscpConfig{'DISTRO_RELEASE'} );
+    sprintf( '%s %s', $self->{'config'}->{'DISTRO_ID'}, $self->{'config'}->{'DISTRO_RELEASE'} );
 }
 
 =item getVersion( )
@@ -378,7 +378,7 @@ sub getVersion
 {
     my ($self) = @_;
 
-    $main::imscpConfig{'DISTRO_RELEASE'};
+    $self->{'config'}->{'DISTRO_RELEASE'};
 }
 
 =item addIpAddr( \%moduleData )
@@ -543,6 +543,20 @@ sub _init
     $self->SUPER::_init();
 }
 
+=item _loadConfig( [ $filename = lc( $self->getServerName() . 'data ) ] )
+
+ See iMSCP::Servers::Abstract::_loadConfig()
+
+=cut
+
+sub _loadConfig
+{
+    my ($self) = @_;
+
+    $self->{'config'} = \%main::imscpConfig;
+    $self->{'cfgDir'} = $self->{'config'}->{'CONF_DIR'};
+}
+
 =item _setupHostname( )
 
  Setup server hostname
@@ -633,12 +647,12 @@ vm.swappiness=10
 EOF
     $sysctlFile->close();
     my $rs = $self->buildConfFile(
-        $sysctlFile, "$main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf", undef, undef, { srcname => 'sysctl_imscp.conf' }
+        $sysctlFile, "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf", undef, undef, { srcname => 'sysctl_imscp.conf' }
     );
     return $rs if $rs;
 
     # Don't catch any error here to avoid permission denied error on some vps due to restrictions set by provider
-    execute( "$main::imscpConfig{'CMD_SYSCTL'} -p $main::imscpConfig{'SYSCTL_CONF_DIR'}/imscp.conf", \ my $stdout, \ my $stderr );
+    execute( [ $self->{'config'}->{'CMD_SYSCTL'}, '-p', "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     debug( $stderr ) if $stderr;
     0;

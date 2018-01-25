@@ -74,7 +74,7 @@ sub install
     # Update /etc/default/bind9 file (only if exist)
     if ( -f '/etc/default/bind9' ) {
         $rs = $self->{'eventManager'}->registerOne(
-            'beforeBind9BuildConfFile',
+            'beforeBindBuildConfFile',
             sub {
                 # Enable/disable local DNS resolver
                 ${$_[0]} =~ s/RESOLVCONF=(?:no|yes)/RESOLVCONF=$self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'}/i;
@@ -271,12 +271,12 @@ sub _setVersion
     return $rs if $rs;
 
     if ( $stdout !~ /version=([\d.]+)/i ) {
-        error( "Couldn't guess Bind9 version from the `/usr/bin/bind9-config --version` command output" );
+        error( "Couldn't guess Bind version from the `/usr/bin/bind9-config --version` command output" );
         return 1;
     }
 
     $self->{'config'}->{'NAMED_VERSION'} = $1;
-    debug( sprintf( 'Bind9 version set to: %s', $1 ));
+    debug( sprintf( 'Bind version set to: %s', $1 ));
     0;
 }
 

@@ -43,8 +43,8 @@ use parent 'iMSCP::Servers::Abstract';
 
  TODO (Enterprise Edition):
  - Depending of selected Httpd server, customer should be able to choose between several SAPI:
-  - Apache2 with MPM Event, Worker or Prefork: cgi or fpm
-  - Apache2 with MPM ITK                     : apache2handler or fpm
+  - Apache with MPM Event, Worker or Prefork: cgi or fpm
+  - Apache with MPM ITK                      : apache2handler or fpm
   - Nginx (Implementation not available yet) : fpm
   - ...
  - Customer should be able to select the PHP version to use (Merge of PhpSwitcher plugin in core)
@@ -154,14 +154,14 @@ sub askForPhpSapi
 
     my $httpd = iMSCP::Servers::Httpd->factory();
     if ( $httpd->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
-        # Apache2 PHP module only works with Apache's prefork based MPM
+        # Apache PHP module only works with Apache's prefork based MPM
         # We allow it only with the Apache's ITK MPM because the Apache's prefork MPM
         # doesn't allow to constrain each individual vhost to a particular system user/group.
-        $choices{'apache2handler'} = 'PHP through Apache2 PHP module (apache2handler SAPI)';
+        $choices{'apache2handler'} = 'PHP through Apache PHP module (apache2handler SAPI)';
     } else {
-        # Apache2 Fcgid module doesn't work with Apache's ITK MPM
+        # Apache Fcgid module doesn't work with Apache's ITK MPM
         # https://lists.debian.org/debian-apache/2013/07/msg00147.html
-        $choices{'cgi'} = 'PHP through Apache2 Fcgid module (cgi SAPI)';
+        $choices{'cgi'} = 'PHP through Apache Fcgid module (cgi SAPI)';
     }
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -252,13 +252,13 @@ sub setEnginePermissions
     );
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
@@ -471,7 +471,6 @@ sub _init
     }
 
     @{$self}{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$main::imscpConfig{'CONF_DIR'}/php" );
-    $self->_loadConfig( 'php.data' );
     $self->SUPER::_init();
 }
 
@@ -490,7 +489,7 @@ sub _setFullVersion
     croak( sprintf( 'The %s class must implement the _setFullVersion() method', ref $self ));
 }
 
-=item _buildApache2HandlerConfig( \%moduleData )
+=item _buildApacheHandlerConfig( \%moduleData )
 
  Build PHP apache2handler configuration for the given domain
  
@@ -501,7 +500,7 @@ sub _setFullVersion
 
 =cut
 
-sub _buildApache2HandlerConfig
+sub _buildApacheHandlerConfig
 {
     my ($self, $moduleData) = @_;
 
@@ -512,11 +511,11 @@ sub _buildApache2HandlerConfig
         return;
     }
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforePhpApache2HandlerSapiBuildConf', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforePhpApacheHandlerSapiBuildConf', $moduleData );
 
     debug( sprintf( 'Building Apache2Handler configuration for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
 
-    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpApache2HandlerSapiBuildConf', $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpApacheHandlerSapiBuildConf', $moduleData );
     $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 }
 
@@ -656,17 +655,17 @@ sub _buildFpmConfig
 
 =over 4
 
-=item beforeApache2BuildConfFile( $phpServer, \$cfgTpl, $filename, \$trgFile, \%mdata, \%sdata, \%sconfig, $params )
+=item beforeApacheBuildConfFile( $phpServer, \$cfgTpl, $filename, \$trgFile, \%mdata, \%sdata, \%sconfig, $params )
 
- Event listener that inject PHP configuration in Apache2 vhosts
+ Event listener that inject PHP configuration in Apache vhosts
 
  Param iMSCP::Servers::Php $phpServer  instance
- Param scalar \$cfgTpl Reference to Apache2 template content
- Param string $filename Apache2 template name
+ Param scalar \$cfgTpl Reference to Apache template content
+ Param string $filename Apache template name
  Param scalar \$trgFile Target file path
  Param hashref \%mdata Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Param hashref \%sconfig Apache2 server data
- Param hashref \%sconfig Apache2 server data
+ Param hashref \%sconfig Apache server data
+ Param hashref \%sconfig Apache server data
  Param hashref \%params OPTIONAL parameters:
   - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to UMASK(2)
   - user    : File owner (default: $> for a new file, no change for existent file)
@@ -678,17 +677,17 @@ sub _buildFpmConfig
 
 =cut
 
-sub beforeApache2BuildConfFile
+sub beforeApacheBuildConfFile
 {
     my ($phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params) = @_;
 
     return 0 unless $filename eq 'domain.tpl' && grep( $_ eq $sdata->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
 
     $phpServer->{'eventManager'}->trigger(
-        'beforePhpApache2BuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
+        'beforePhpApacheBuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
     );
 
-    debug( sprintf( 'Injecting PHP configuration in Apache2 vhost for the %s domain', $mdata->{'DOMAIN_NAME'} ));
+    debug( sprintf( 'Injecting PHP configuration in Apache vhost for the %s domain', $mdata->{'DOMAIN_NAME'} ));
 
     if ( $phpServer->{'config'}->{'PHP_SAPI'} eq 'apache2handler' ) {
         if ( $mdata->{'FORWARD'} eq 'no' && $mdata->{'PHP_SUPPORT'} eq 'yes' ) {
@@ -838,11 +837,11 @@ EOF
     }
 
     $phpServer->{'eventManager'}->trigger(
-        'afterPhpApache2BuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
+        'afterPhpApacheBuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
     );
 }
 
-=item afterApache2AddFiles( \%moduleData )
+=item afterApacheAddFiles( \%moduleData )
 
  Event listener that create PHP (phptmp) directory in customer Web folders
 
@@ -851,9 +850,8 @@ EOF
 
 =cut
 
-sub afterApache2AddFiles
+sub afterApacheAddFiles
 {
-
     my (undef, $moduleData) = @_;
 
     return 0 unless $moduleData->{'DOMAIN_TYPE'} eq 'dmn';

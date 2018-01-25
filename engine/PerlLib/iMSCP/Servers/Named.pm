@@ -62,7 +62,7 @@ sub getPriority
   - before<SNAME>AddDomain( \%moduleData )
   - after<SNAME>AddDomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
@@ -84,7 +84,7 @@ sub addDomain
   - before<SNAME>PostAddDomain( \%moduleData )
   - after<SNAME>PostAddDomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
@@ -106,7 +106,7 @@ sub postaddDomain
   - before<SNAME>AddDomain( \%moduleData )
   - after<SNAME>AddDomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
@@ -128,7 +128,7 @@ sub disableDomain
   - before<SNAME>PostDisableDomain( \%moduleData )
   - after<SNAME>PostDisableDomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
@@ -150,7 +150,7 @@ sub postdisableDomain
   - before<SNAME>DeleteDomain( \%moduleData )
   - after<SNAME>DeleteDomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%data Domain data
  Return int 0 on success, other on failure
@@ -172,7 +172,7 @@ sub deleteDomain
   - before<SNAME>PostDeleteDomain( \%moduleData )
   - after<SNAME>PostDeleteDomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
@@ -194,7 +194,7 @@ sub postdeleteDomain
   - before<SNAME>AddSubdomain( \%moduleData )
   - after<SNAME>AddSubdomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Subdomain data
  Return int 0 on success, other on failure
@@ -216,7 +216,7 @@ sub addSubdomain
   - before<SNAME>PostAddSubdomain( \%moduleData )
   - after<SNAME>PostAddSubdomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Subdomain data
  Return int 0 on success, other on failure
@@ -238,7 +238,7 @@ sub postaddSubdomain
   - before<SNAME>DisableSubdomain( \%moduleData )
   - after<SNAME>DisableSubdomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
@@ -260,7 +260,7 @@ sub disableSubdomain
   - before<SNAME>PostDisableSubdomain( \%moduleData )
   - after<SNAME>PostDisableSubdomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
  Return int 0 on success, other on failure
@@ -282,7 +282,7 @@ sub postdisableSubdomain
   - before<SNAME>DeleteSubdomain( \%moduleData )
   - after<SNAME>DeleteSubdomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Subdomain data
  Return int 0 on success, other on failure
@@ -304,7 +304,7 @@ sub deleteSubdomain
   - before<SNAME>PostDeleteSubdomain( \%moduleData )
   - after<SNAME>PostDeleteSubdomain( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Subdomain data
  Return int 0 on success, other on failure
@@ -326,7 +326,7 @@ sub postdeleteSubdomain
   - before<SNAME>AddCustomDNS( \%moduleData )
   - after<SNAME>AddCustomDNS( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Custom DNS data
  Return int 0 on success, other on failure

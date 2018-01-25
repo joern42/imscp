@@ -269,22 +269,22 @@ sub setEnginePermissions
     0;
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- Return event server name
+ Return CamelCase server name
+ 
+ Server name must follow CamelCase naming convention such as Apache, Courier,
+ Dovecot... See https://en.wikipedia.org/wiki/Camel_case
 
- Name returned by this method is most used in abstract classes, for event names
- construction.
-
- Return string server name for event names construction
+ Return string CamelCase server name
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the getEventServerName() method', ref $self ));
+    croak ( sprintf( 'The %s class must implement the getServerName() method', ref $self ));
 }
 
 =item getHumanServerName( )
@@ -422,7 +422,7 @@ sub reload
   - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
   - after<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param string $srcFile Absolute source filepath or source filepath relative to the i-MSCP server configuration directory
  Param string $trgFile Target file path
@@ -449,7 +449,7 @@ sub buildConfFile
     defined $srcFile or croak( 'Missing or undefined $srcFile parameter' );
     defined $trgFile or croak( 'Missing or undefined $trgFile parameter' );
 
-    my ($sname, $cfgTpl) = ( $self->getEventServerName(), undef );
+    my ($sname, $cfgTpl) = ( $self->getServerName(), undef );
     my ($filename, $path) = fileparse( $srcFile );
     $params->{'srcname'} //= $filename;
 
@@ -537,18 +537,20 @@ sub _init
 {
     my ($self) = @_;
 
-    return $self unless ref $self eq __PACKAGE__;
+    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+    $self->_loadConfig();
+    $self;
 }
 
-=item _loadConfig( $filename )
+=item _loadConfig( [ $filename = lc( $self->getServerName() . 'data ) ] )
 
- Load the i-MSCP server configuration
+ Load the server configuration
  
- Also merge the old configuration with the new configuration in installer context.
+ In installer context, also merge the old configuration with new configuration and make
+ old configuration available through the 'old_config attribute.
 
- Param string $filename i-MSCP server configuration filename
+ Param string $filename OPTIONAL i-MSCP server configuration filename
  Return void, croak on failure
 
 =cut
@@ -556,13 +558,14 @@ sub _init
 sub _loadConfig
 {
     my ($self, $filename) = @_;
+    $filename //= lc( $self->getServerName() . '.data' );
 
     defined $filename or croak( 'Missing $filename parameter' );
     defined $self->{'cfgDir'} or croak( sprintf( "The %s class must define the `cfgDir' property", ref $self ));
 
     if ( iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/$filename.dist" ) {
         if ( -f "$self->{'cfgDir'}/$filename" ) {
-            debug( sprintf( 'Merging old %s configuration with new %s configuration...', $filename, "$filename.dist" ));
+            debug( sprintf( 'Merging old %s server configuration with new %s server configuration...', $filename, "$filename.dist" ));
 
             tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename", readonly => 1,
                 # We do not want croak when accessing non-existing parameters
@@ -597,12 +600,17 @@ sub _loadConfig
                 $newConfig{$key} = $value if exists $newConfig{$key};
             }
 
+            # Make the old configuration available through the 'old_config'
+            # attribute
+            #tie %{$self->{'old_config'}}, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename";
+            #%{$self->{'old_config'}} = %oldConfig;
+
             untie( %newConfig );
             untie( %oldConfig );
 
-            iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename" )->delFile() == 0 or croak(
-                getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-            );
+            #iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename" )->delFile() == 0 or croak(
+            #    getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+            #);
         } else {
             # For a fresh installation, we make the configuration file free of any placeholder
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
@@ -616,11 +624,17 @@ sub _loadConfig
         );
     }
 
+    debug( sprintf( 'Loading %s server configuration...', $filename, "$filename.dist" ));
+    
     tie %{$self->{'config'}},
         'iMSCP::Config',
         fileName    => "$self->{'cfgDir'}/$filename",
         readonly    => iMSCP::Getopt->context() ne 'installer',
         nodeferring => iMSCP::Getopt->context() eq 'installer';
+
+    # Make the new configuration also available through the 'old_config'
+    # attribute, unless we have an old config
+    #%{$self->{'old_config'}} = %{$self->{'config'}} unless exists $self->{'old_config'} || iMSCP::Getopt->context() ne 'installer';
 }
 
 =item _shutdown( $priority )

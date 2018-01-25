@@ -63,7 +63,7 @@ sub getPriority
   - before<SNAME>AddFtpUser( \%moduleData )
   - after<SNAME>AddFtpUser( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the Modules::User module
  Return int 0 on success, other on failure
@@ -85,7 +85,7 @@ sub addUser
   - before<SNAME>AddFtpUser( \%moduleData )
   - after<SNAME>AddFtpUser( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the Modules::FtpUser module
  Return int 0 on success, other on failure
@@ -107,7 +107,7 @@ sub addFtpUser
   - before<SNAME>DisableFtpUser( \%moduleData )
   - after<SNAME>DisableFtpUser( \%moduleData )
 
-  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the Modules::FtpUser module
  Return int 0 on success, other on failure
@@ -129,7 +129,7 @@ sub disableFtpUser
   - before<SNAME>DeleteFtpUser( \%moduleData )
   - after<SNAME>DeleteFtpUser( \%moduleData )
 
- where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the Modules::FtpUser module
  Return int 0 on success, other on failure

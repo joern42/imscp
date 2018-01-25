@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Ftpd::Proftpd - i-MSCP ProFTPd Server abstract implementation
+ iMSCP::Servers::Ftpd::Proftpd - i-MSCP ProFTPD Server abstract implementation
 
 =cut
 
@@ -42,7 +42,7 @@ use parent 'iMSCP::Servers::Ftpd';
 
 =head1 DESCRIPTION
 
- i-MSCP ProFTPd Server abstract implementation.
+ i-MSCP ProFTPD Server abstract implementation.
 
 =head1 PUBLIC METHODS
 
@@ -71,7 +71,7 @@ sub registerSetupListeners
 
 =item sqlUserDialog( \%dialog )
 
- Ask for ProFTPd SQL user
+ Ask for ProFTPD SQL user
 
  Param iMSCP::Dialog \%dialog
  Return int 0 on success, other on failure
@@ -106,7 +106,7 @@ sub sqlUserDialog
 
             ( $rs, $dbUser ) = $dialog->inputbox( <<"EOF", $dbUser );
 $iMSCP::Dialog::InputValidation::lastValidationError
-Please enter a username for the ProFTPd SQL user (leave empty for default):
+Please enter a username for the ProFTPD SQL user (leave empty for default):
 \\Z \\Zn
 EOF
         } while $rs < 30
@@ -132,7 +132,7 @@ EOF
 
                 ( $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass );
 $iMSCP::Dialog::InputValidation::lastValidationError
-Please enter a password for the ProFTPd SQL user (leave empty for autogeneration):
+Please enter a password for the ProFTPD SQL user (leave empty for autogeneration):
 \\Z \\Zn
 EOF
             } while $rs < 30 && !isValidPassword( $dbPass );
@@ -155,7 +155,7 @@ EOF
 
 =item passivePortRangeDialog( \%dialog )
 
- Ask for ProFTPd port range to use for passive data transfers
+ Ask for ProFTPD port range to use for passive data transfers
 
  Param iMSCP::Dialog \%dialog
  Return int 0 on success, other on failure
@@ -188,9 +188,9 @@ sub passivePortRangeDialog
 
             ( $rs, $passivePortRange ) = $dialog->inputbox( <<"EOF", $passivePortRange );
 $iMSCP::Dialog::InputValidation::lastValidationError
-\\Z4\\Zb\\ZuProFTPd passive port range\\Zn
+\\Z4\\Zb\\ZuProFTPD passive port range\\Zn
 
-Please enter the passive port range for ProFTPd (leave empty for default).
+Please enter the passive port range for ProFTPD (leave empty for default).
 
 Note that if you're behind a NAT, you must forward those ports to this server.
 \\Z \\Zn
@@ -211,7 +211,7 @@ EOF
 
 =item maxClientsDialog( \%dialog )
 
- Ask for ProFTPd max clients
+ Ask for ProFTPD max clients
 
  Param iMSCP::Dialog \%dialog
  Return int 0 on success, other on failure
@@ -239,9 +239,9 @@ sub maxClientsDialog
 
             ( $rs, $maxClients ) = $dialog->inputbox( <<"EOF", $maxClients );
 $iMSCP::Dialog::InputValidation::lastValidationError
-\\Z4\\Zb\\ZuProFTPd max clients\\Zn
+\\Z4\\Zb\\ZuProFTPD max clients\\Zn
 
-Please set the maximum number of ProFTPd clients (leave empty for default).
+Please set the maximum number of ProFTPD clients (leave empty for default).
 
 Allowed value: A number in range 0..1000, 0 for no limit.
 \\Z \\Zn
@@ -258,7 +258,7 @@ EOF
 
 =item maxCLientsPerIpDialog( \%dialog )
 
- Ask for ProFTPd max clients per IP
+ Ask for ProFTPD max clients per IP
 
  Param iMSCP::Dialog \%dialog
  Return int 0 on success, other on failure
@@ -288,9 +288,9 @@ sub maxCLientsPerIpDialog
 
             ( $rs, $maxClientsPerIp ) = $dialog->inputbox( <<"EOF", $maxClientsPerIp );
 $iMSCP::Dialog::InputValidation::lastValidationError
-\\Z4\\Zb\\ZuProFTPd max client per IP\\Zn
+\\Z4\\Zb\\ZuProFTPD max client per IP\\Zn
 
-Please set the maximum number of clients allowed to connect to ProFTPd per IP (leave empty for default).
+Please set the maximum number of clients allowed to connect to ProFTPD per IP (leave empty for default).
 
 Allowed value: A number in range 0..1000, 0 for no limit.
 \\Z \\Zn
@@ -351,13 +351,13 @@ sub setEnginePermissions
     );
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
@@ -374,7 +374,7 @@ sub getHumanServerName
 {
     my ($self) = @_;
 
-    sprintf( 'ProFTPd %s', $self->getVersion());
+    sprintf( 'ProFTPD %s', $self->getVersion());
 }
 
 =item getVersion( )
@@ -481,11 +481,11 @@ sub getTraffic
     $logFile ||= $self->{'config'}->{'FTPD_TRAFFIC_LOG_FILE'};
 
     unless ( -f $logFile ) {
-        debug( sprintf( "ProFTPd traffic %s log file doesn't exist. Skipping...", $logFile ));
+        debug( sprintf( "ProFTPD traffic %s log file doesn't exist. Skipping...", $logFile ));
         return;
     }
 
-    debug( sprintf( 'Processing ProFTPd traffic %s log file', $logFile ));
+    debug( sprintf( 'Processing ProFTPD traffic %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
     $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
@@ -497,7 +497,7 @@ sub getTraffic
     my $lastLogIdx = $#logs;
 
     if ( exists $logs[$idx] && $logs[$idx] eq $idxContent ) {
-        debug( sprintf( 'Skipping ProFTPd traffic logs that were already processed (lines %d to %d)', 1, ++$idx ));
+        debug( sprintf( 'Skipping ProFTPD traffic logs that were already processed (lines %d to %d)', 1, ++$idx ));
     } elsif ( $idxContent ne '' && substr( $logFile, -2 ) ne '.1' ) {
         debug( 'Log rotation has been detected. Processing last rotated log file first' );
         $self->getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
@@ -505,11 +505,11 @@ sub getTraffic
     }
 
     if ( $lastLogIdx < $idx ) {
-        debug( 'No new ProFTPd traffic logs found for processing' );
+        debug( 'No new ProFTPD traffic logs found for processing' );
         return;
     }
 
-    debug( sprintf( 'Processing ProFTPd traffic logs (lines %d to %d)', $idx+1, $lastLogIdx+1 ));
+    debug( sprintf( 'Processing ProFTPD traffic logs (lines %d to %d)', $idx+1, $lastLogIdx+1 ));
 
     my $regexp = qr/^(?:[^\s]+\s){7}(?<bytes>\d+)\s(?:[^\s]+\s){5}[^\s]+\@(?<domain>[^\s]+)/;
 
@@ -545,13 +545,12 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$main::imscpConfig{'CONF_DIR'}/proftpd" );
-    $self->_loadConfig( 'proftpd.data' );
     $self->SUPER::_init();
 }
 
 =item _setVersion
 
- Set ProFTPd version
+ Set ProFTPD version
 
  Return int 0 on success, other on failure
 
@@ -567,18 +566,18 @@ sub _setVersion
     return $rs if $rs;
 
     if ( $stdout !~ /([\d.]+)/ ) {
-        error( "Couldn't find ProFTPd version from the `$self->{'config'}->{'FTPD_BIN'} -v` command output" );
+        error( "Couldn't find ProFTPD version from the `$self->{'config'}->{'FTPD_BIN'} -v` command output" );
         return 1;
     }
 
     $self->{'config'}->{'FTPD_VERSION'} = $1;
-    debug( "ProFTPd version set to: $1" );
+    debug( "ProFTPD version set to: $1" );
     0;
 }
 
 =item _configure( )
 
- Configure ProFTPd
+ Configure ProFTPD
 
  return int 0 on succes, other on failure
 
@@ -684,7 +683,7 @@ EOF
 
 =item _setupSqlUser( )
 
- Setup SQL user for ProFTPd
+ Setup SQL user for ProFTPD
 
  Return int 0 on success, other on failure
 

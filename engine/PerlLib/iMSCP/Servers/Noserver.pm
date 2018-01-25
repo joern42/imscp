@@ -66,17 +66,17 @@ sub postinstall
     0;
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
-    'Noserver';
+    'NoServer';
 }
 
 =item getHumanServerName( )
@@ -89,7 +89,7 @@ sub getHumanServerName
 {
     my ($self) = @_;
 
-    'Noserver (BlackHole) 1.0.0';
+    'No server (BlackHole) 1.0.0';
 }
 
 =item getVersion()

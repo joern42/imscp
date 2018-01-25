@@ -155,12 +155,12 @@
         </postfix>
     </mta>
     <ftpd class="iMSCP::Servers::Ftpd" description="FTP server">
-        <proftpd default="1" description="ProFTPd server" class="iMSCP::Servers::Ftpd::Proftpd::Debian">
+        <proftpd default="1" description="ProFTPD server" class="iMSCP::Servers::Ftpd::Proftpd::Debian">
             <package>proftpd-basic</package>
             <package>proftpd-mod-mysql</package>
             <package_conflict>vsftpd</package_conflict>
         </proftpd>
-        <vsftpd description="VsFTPD server" class="iMSCP::Servers::Ftpd::Vsftpd::Debian">
+        <vsftpd description="VsFTPd server" class="iMSCP::Servers::Ftpd::Vsftpd::Debian">
             <package rebuild_with_patches="libpam-mysql/patches/dpatch" patch_sys_type="dpatch" pkg_src_name="pam-mysql">libpam-mysql</package>
             <package>vsftpd</package>
             <package_conflict>proftpd-basic</package_conflict>

@@ -440,13 +440,13 @@ function generateFeaturesForm(TemplateEngine $tpl, &$data)
         }
 
         if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-            $apache2Config = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache2/apache.data'));
-            $isApache2Itk = $apache2Config['HTTPD_MPM'] == 'itk';
+            $apacheConfig = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+            $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
         } else {
-            $isApache2Itk = false;
+            $isApacheItk = false;
         }
 
-        if ($isApache2Itk) {
+        if ($isApacheItk) {
             $tpl->assign([
                 'PHP_EDITOR_DISABLE_FUNCTIONS_BLOCK' => '',
                 'PHP_EDITOR_MAIL_FUNCTION_BLOCK'     => ''

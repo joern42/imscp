@@ -359,13 +359,13 @@ sub setEnginePermissions
     );
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
@@ -458,7 +458,7 @@ sub restoreDomain
 {
     my ($self, $moduleData) = @_;
 
-    $self->{'eventManager'}->trigger( 'before' . $self->getEventServerName . 'RestoreDomain' );
+    $self->{'eventManager'}->trigger( 'before' . $self->getServerName . 'RestoreDomain' );
 
     eval {
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
@@ -485,7 +485,7 @@ sub restoreDomain
         return 1;
     }
 
-    $self->{'eventManager'}->trigger( 'after' . $self->getEventServerName . 'RestoreDomain' );
+    $self->{'eventManager'}->trigger( 'after' . $self->getServerName . 'RestoreDomain' );
 }
 
 =back
@@ -507,7 +507,6 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/mysql";
-    $self->_loadConfig( 'mysql.data' );
     $self->SUPER::_init();
 }
 

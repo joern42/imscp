@@ -241,13 +241,13 @@ function generateFeaturesForm(TemplateEngine $tpl)
 
 
     if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apache2Config = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache2/apache.data'));
-        $isApache2Itk = $apache2Config['HTTPD_MPM'] == 'itk';
+        $apacheConfig = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+        $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
-        $isApache2Itk = false;
+        $isApacheItk = false;
     }
 
-    if (!$isApache2Itk) {
+    if (!$isApacheItk) {
         $tpl->assign([
             'TR_PHP_INI_AL_DISABLE_FUNCTIONS'  => tr('Can edit the PHP %s configuration option', '<strong>disable_functions</strong>'),
             'PHP_INI_AL_DISABLE_FUNCTIONS_YES' => $data['php_ini_al_disable_functions'] == 'yes' ? ' checked' : '',

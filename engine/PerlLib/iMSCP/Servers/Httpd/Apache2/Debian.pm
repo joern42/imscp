@@ -80,7 +80,7 @@ sub postinstall
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->start(); }, 'Apache2' ];
+            push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ];
             0;
         },
         3
@@ -97,9 +97,8 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_removeDirs();
+    my $rs = $self->SUPER::uninstall();
     $rs ||= $self->_restoreDefaultConfig();
-    $rs ||= $self->SUPER::uninstall();
     return $rs if $rs;
 
     eval {
@@ -334,12 +333,12 @@ sub _setVersion
     return $rs if $rs;
 
     if ( $stdout !~ /apache\/([\d.]+)/i ) {
-        error( "Couldn't guess Apache2 version from the `/usr/sbin/apache2ctl -v` command output" );
+        error( "Couldn't guess Apache version from the `/usr/sbin/apache2ctl -v` command output" );
         return 1;
     }
 
     $self->{'config'}->{'HTTPD_VERSION'} = $1;
-    debug( sprintf( 'Apache2 version set to: %s', $1 ));
+    debug( sprintf( 'Apache version set to: %s', $1 ));
     0;
 }
 
@@ -368,7 +367,7 @@ sub _makeDirs
 
 =item _setupModules( )
 
- Setup Apache2 modules according selected MPM
+ Setup Apache modules according selected MPM
 
  return 0 on success, other on failure
 
@@ -414,13 +413,13 @@ sub _setupModules
         return 0;
     }
 
-    error( 'Unknown Apache2 MPM' );
+    error( 'Unknown Apache MPM' );
     1;
 }
 
 =item _configure( )
 
- Configure Apache2
+ Configure Apache
 
  Return int 0 on success, other on failure
 
@@ -431,7 +430,7 @@ sub _configure
     my ($self) = @_;
 
     my $rs = $self->{'eventManager'}->registerOne(
-        'beforeApache2BuildConfFile',
+        'beforeApacheBuildConfFile',
         sub {
             my ($cfgTpl) = @_;
             ${$cfgTpl} =~ s/^NameVirtualHost[^\n]+\n//gim;
@@ -544,28 +543,9 @@ sub _cleanup
     $rs;
 }
 
-=item _removeDirs( )
-
- Remove non-default Apache2 directories
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub _removeDirs
-{
-    eval { iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove(); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
 =item _restoreDefaultConfig( )
 
- Restore default Apache2 configuration
+ Restore default Apache configuration
 
  Return int 0 on success, other on failure
 
@@ -574,6 +554,12 @@ sub _removeDirs
 sub _restoreDefaultConfig
 {
     my ($self) = @_;
+
+    eval { iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove(); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
 
     if ( -f '/etc/apache2/vlogger.conf' ) {
         my $rs = iMSCP::File->new( filename => '/etc/apache2/vlogger.conf' )->delFile();

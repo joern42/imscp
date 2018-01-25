@@ -17,7 +17,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 #
-## Listener file that add security headers (https://securityheaders.io) in customer Apache2 vhosts
+## Listener file that add security headers (https://securityheaders.io) in
+# customer Apache vhosts
 #
 
 package iMSCP::Listener::Apache2::Security::Headers;
@@ -39,7 +40,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'beforeApache2BuildConf',
+    'beforeApacheBuildConf',
     sub {
         my ($cfgTpl, $tplName, undef, undef, $serverData) = @_;
 

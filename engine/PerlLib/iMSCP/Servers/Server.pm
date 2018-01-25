@@ -62,7 +62,7 @@ sub getPriority
   - before<SNAME>AddIpAddr( \%moduleData )
   - after<SNAME>AddIpAddr( \%moduleData )
 
- where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::IpAddr module
  Return int 0 on success, other on failure
@@ -84,7 +84,7 @@ sub addIpAddr
   - before<SNAME>DeleteIpAddr( \%moduleData )
   - after<SNAME>DeleteIpAddr( \%moduleData )
 
- where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::IpAddr module
  Return int 0 on success, other on failure
@@ -106,7 +106,7 @@ sub deleteIpAddr
   - before<SNAME>AddUser( \%moduleData )
   - after<SNAME>AddUser( \%moduleData )
 
- where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
  Return int 0 on success, other on failure
@@ -128,7 +128,7 @@ sub addUser
   - before<SNAME>DeleteUser( \%moduleData )
   - after<SNAME>DeleteUser( \%moduleData )
 
- where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
  Return int 0 on success, other on failure

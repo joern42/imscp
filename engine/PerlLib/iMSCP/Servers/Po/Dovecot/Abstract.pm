@@ -128,7 +128,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'DOVECOT_SQL_USER', $dbUser );
+    main::setupSetQuestion( 'PO_SQL_USER', $dbUser );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] ) || !isValidPassword( $dbPass ) ) {
         unless ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
@@ -159,7 +159,7 @@ EOF
         $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
     }
 
-    main::setupSetQuestion( 'DOVECOT_SQL_PASSWORD', $dbPass );
+    main::setupSetQuestion( 'PO_SQL_PASSWORD', $dbPass );
     0;
 }
 
@@ -234,13 +234,13 @@ sub setEnginePermissions
     );
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
@@ -447,7 +447,6 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{$self}{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$main::imscpConfig{'CONF_DIR'}/dovecot" );
-    $self->_loadConfig( 'dovecot.data' );
     $self->SUPER::_init();
 }
 
@@ -463,12 +462,12 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( [ $self->{'PO_BIN'}, '--version' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ $self->{'config'}->{'PO_BIN'}, '--version' ], \ my $stdout, \ my $stderr );
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ m/^([\d.]+)/ ) {
-        error( "Couldn't guess Dovecot version from the `$self->{'PO_BIN'}--version` command output" );
+        error( "Couldn't guess Dovecot version from the `$self->{'config'}->{'PO_BIN'}--version` command output" );
         return 1;
     }
 
@@ -554,7 +553,7 @@ EOF
             PO_DATABASE_NAME     => main::setupGetQuestion( 'DATABASE_NAME' ) =~ s%('|"|\\)%\\$1%gr,
             PO_DATABASE_PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
             PO_SQL_USER          => $self->{'config'}->{'PO_SQL_USER'} =~ s%('|"|\\)%\\$1%gr,
-            PO_SQL_PASSWORD      => $self->{'config'}->{'PO_DATABASE_PASSWORD'} =~ s%('|"|\\)%\\$1%gr,
+            PO_SQL_PASSWORD      => $self->{'config'}->{'PO_SQL_PASSWORD'} =~ s%('|"|\\)%\\$1%gr,
             MTA_MAILBOX_GID      => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
             MTA_MAILBOX_UID      => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
             MTA_VIRTUAL_MAIL_DIR => $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}

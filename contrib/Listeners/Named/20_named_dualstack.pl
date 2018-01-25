@@ -121,7 +121,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    [ 'afterBind9AddDomainDb', 'afterBind9AddSubdomain' ],
+    [ 'afterBindAddDomainDb', 'afterBindAddSubdomain' ],
     sub {
         my ($tplContent, $data) = @_;
 

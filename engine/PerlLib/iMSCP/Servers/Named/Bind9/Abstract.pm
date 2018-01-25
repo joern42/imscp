@@ -330,17 +330,17 @@ sub setEnginePermissions
     );
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
-    'Bind9';
+    'Bind';
 }
 
 =item getHumanServerName( )
@@ -383,7 +383,7 @@ sub addDomain
     # Occurs only in few contexts (eg. when using BASE_SERVER_VHOST as customer domain)
     return 0 if $self->{'seen_zones'}->{$moduleData->{'DOMAIN_NAME'}};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9AddDomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindAddDomain', $moduleData );
     $rs ||= $self->_addDmnConfig( $moduleData );
     return $rs if $rs;
 
@@ -393,7 +393,7 @@ sub addDomain
     }
 
     $self->{'seen_zones'}->{$moduleData->{'DOMAIN_NAME'}} ||= 1;
-    $self->{'eventManager'}->trigger( 'afterBind9AddDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindAddDomain', $moduleData );
 }
 
 =item postaddDomain( \%moduleData )
@@ -406,7 +406,7 @@ sub postaddDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostAddDomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostAddDomain', $moduleData );
     return $rs if $rs;
 
     if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
@@ -431,7 +431,7 @@ sub postaddDomain
     }
 
     $self->{'reload'} ||= 1;
-    $self->{'eventManager'}->trigger( 'afterBind9PostAddDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindPostAddDomain', $moduleData );
 }
 
 =item disableDomain( \%moduleData )
@@ -448,9 +448,9 @@ sub disableDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9DisableDomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDisableDomain', $moduleData );
     $rs ||= $self->addDomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterBind9DisableDomain', $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'afterBindDisableDomain', $moduleData );
 }
 
 =item postdisableDomain( \%moduleData )
@@ -465,9 +465,9 @@ sub postdisableDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostDisableDomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostDisableDomain', $moduleData );
     $rs ||= $self->postaddDomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterBind9PostDisableDomain', $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'afterBindPostDisableDomain', $moduleData );
 }
 
 =item deleteDomain( \%moduleData )
@@ -482,7 +482,7 @@ sub deleteDomain
 
     return 0 if $moduleData->{'PARENT_DOMAIN_NAME'} eq $main::imscpConfig{'BASE_SERVER_VHOST'} && !$moduleData->{'FORCE_DELETION'};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9DeleteDomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDeleteDomain', $moduleData );
     $rs ||= $self->_deleteDmnConfig( $moduleData );
     return $rs if $rs;
 
@@ -495,7 +495,7 @@ sub deleteDomain
         }
     }
 
-    $self->{'eventManager'}->trigger( 'afterBind9DeleteDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindDeleteDomain', $moduleData );
 }
 
 =item postdeleteDomain( \%moduleData )
@@ -510,7 +510,7 @@ sub postdeleteDomain
 
     return 0 if $moduleData->{'PARENT_DOMAIN_NAME'} eq $main::imscpConfig{'BASE_SERVER_VHOST'} && !$moduleData->{'FORCE_DELETION'};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostDeleteDomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostDeleteDomain', $moduleData );
     return $rs if $rs;
 
     if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
@@ -522,7 +522,7 @@ sub postdeleteDomain
     }
 
     $self->{'reload'} ||= 1;
-    $self->{'eventManager'}->trigger( 'afterBind9PostDeleteDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindPostDeleteDomain', $moduleData );
 }
 
 =item addSubdomain( \%moduleData )
@@ -565,7 +565,7 @@ sub addSubdomain
         $rs = $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, \$wrkDbFileContent, \$wrkDbFileContent );
     }
 
-    $rs ||= $self->{'eventManager'}->trigger( 'beforeBind9AddSubdomain', \$wrkDbFileContent, \$subEntry, $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'beforeBindAddSubdomain', \$wrkDbFileContent, \$subEntry, $moduleData );
     return $rs if $rs;
 
     my $net = iMSCP::Net->getInstance();
@@ -609,7 +609,7 @@ sub addSubdomain
         "; sub [{SUBDOMAIN_NAME}] entry BEGIN\n", "; sub [{SUBDOMAIN_NAME}] entry ENDING\n", $subEntry, \$wrkDbFileContent, 'preserve'
     );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBind9AddSubdomain', \$wrkDbFileContent, $moduleData );
+    $rs = $self->{'eventManager'}->trigger( 'afterBindAddSubdomain', \$wrkDbFileContent, $moduleData );
     $rs ||= $wrkDbFile->set( $wrkDbFileContent );
     $rs ||= $wrkDbFile->save();
     $rs ||= $self->_compileZone( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
@@ -625,7 +625,7 @@ sub postaddSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostAddSubdomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostAddSubdomain', $moduleData );
     return $rs if $rs;
 
     if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
@@ -650,7 +650,7 @@ sub postaddSubdomain
     }
 
     $self->{'reload'} ||= 1;
-    $self->{'eventManager'}->trigger( 'afterBind9PostAddSubdomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindPostAddSubdomain', $moduleData );
 }
 
 =item disableSubdomain( \%moduleData )
@@ -666,9 +666,9 @@ sub disableSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9DisableSubdomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDisableSubdomain', $moduleData );
     $rs ||= $self->addSubdomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterBind9DisableSubdomain', $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'afterBindDisableSubdomain', $moduleData );
 }
 
 =item postdisableSubdomain( \%moduleData )
@@ -683,9 +683,9 @@ sub postdisableSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostDisableSubdomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostDisableSubdomain', $moduleData );
     $rs ||= $self->postaddSubdomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterBind9PostDisableSubdomain', $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'afterBindPostDisableSubdomain', $moduleData );
 }
 
 =item deleteSubdomain( \%moduleData )
@@ -718,14 +718,14 @@ sub deleteSubdomain
         return $rs if $rs;
     }
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9DeleteSubdomain', \$wrkDbFileContent, $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDeleteSubdomain', \$wrkDbFileContent, $moduleData );
     return $rs if $rs;
 
     replaceBlocByRef(
         "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', \$wrkDbFileContent
     );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBind9DeleteSubdomain', \$wrkDbFileContent, $moduleData );
+    $rs = $self->{'eventManager'}->trigger( 'afterBindDeleteSubdomain', \$wrkDbFileContent, $moduleData );
     $rs ||= $wrkDbFile->set( $wrkDbFileContent );
     $rs ||= $wrkDbFile->save();
     $rs ||= $self->_compileZone( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
@@ -741,7 +741,7 @@ sub postdeleteSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9PostDeleteSubdomain', $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostDeleteSubdomain', $moduleData );
     return $rs if $rs;
 
     if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
@@ -753,7 +753,7 @@ sub postdeleteSubdomain
     }
 
     $self->{'reload'} ||= 1;
-    $self->{'eventManager'}->trigger( 'afterBind9PostDeleteSubdomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindPostDeleteSubdomain', $moduleData );
 }
 
 =item addCustomDNS( \%moduleData )
@@ -786,7 +786,7 @@ sub addCustomDNS
         return $rs if $rs;
     }
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9AddCustomDNS', \$wrkDbFileContent, $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindAddCustomDNS', \$wrkDbFileContent, $moduleData );
     return $rs if $rs;
 
     my @customDNS = ();
@@ -823,7 +823,7 @@ sub addCustomDNS
         \$newWrkDbFileContent
     );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBind9AddCustomDNS', \$newWrkDbFileContent, $moduleData );
+    $rs = $self->{'eventManager'}->trigger( 'afterBindAddCustomDNS', \$newWrkDbFileContent, $moduleData );
     $rs ||= $wrkDbFile->set( $newWrkDbFileContent );
     $rs ||= $wrkDbFile->save();
     $rs ||= $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
@@ -851,15 +851,14 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload serials seen_zones cfgDir /} = ( 0, 0, {}, {}, "$main::imscpConfig{'CONF_DIR'}/bind" );
+    @{$self}{qw/ restart reload serials seen_zones cfgDir /} = (0, 0, {}, {}, "$main::imscpConfig{'CONF_DIR'}/bind" );
     @{$self}{qw/ bkpDir wrkDir tplDir /} = ( "$self->{'cfgDir'}/backup", "$self->{'cfgDir'}/working", "$self->{'cfgDir'}/parts" );
-    $self->_loadConfig( 'bind.data' );
     $self->SUPER::_init();
 }
 
 =item _setVersion( )
 
- Set Bind9 version
+ Set Bind version
 
  Return int 0 on success, other on failure
 
@@ -916,7 +915,7 @@ sub _addDmnConfig
         }
     }
 
-    $rs = $self->{'eventManager'}->trigger( 'beforeBind9AddDmnConfig', \$cfgWrkFileContent, \$tplCfgEntryContent, $moduleData );
+    $rs = $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', \$cfgWrkFileContent, \$tplCfgEntryContent, $moduleData );
     return $rs if $rs;
 
     my $tags = {
@@ -943,7 +942,7 @@ sub _addDmnConfig
 // imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING
 EOF
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBind9AddDmnConfig', \$cfgWrkFileContent, $moduleData );
+    $rs = $self->{'eventManager'}->trigger( 'afterBindAddDmnConfig', \$cfgWrkFileContent, $moduleData );
     $rs ||= $cfgFile->set( $cfgWrkFileContent );
     $rs ||= $cfgFile->save();
     $rs ||= $cfgFile->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} );
@@ -978,14 +977,14 @@ sub _deleteDmnConfig
         return 1;
     }
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9DelDmnConfig', \$cfgWrkFileContent, $moduleData );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDeleteDomainConfig', \$cfgWrkFileContent, $moduleData );
     return $rs if $rs;
 
     replaceBlocByRef(
         "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', \$cfgWrkFileContent
     );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBind9DelDmnConfig', \$cfgWrkFileContent, $moduleData );
+    $rs = $self->{'eventManager'}->trigger( 'afterBindDeleteDomainConfig', \$cfgWrkFileContent, $moduleData );
     $rs ||= $cfgFile->set( $cfgWrkFileContent );
     $rs ||= $cfgFile->save();
     $rs ||= $cfgFile->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} );
@@ -1026,7 +1025,7 @@ sub _addDmnDb
     }
 
     $rs = $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$tplDbFileC, \$wrkDbFileContent );
-    $rs ||= $self->{'eventManager'}->trigger( 'beforeBind9AddDomainDb', \$tplDbFileC, $moduleData );
+    $rs ||= $self->{'eventManager'}->trigger( 'beforeBindAddDomainDb', \$tplDbFileC, $moduleData );
     return $rs if $rs;
 
     my $nsRecordB = getBlocByRef( "; dmn NS RECORD entry BEGIN\n", "; dmn NS RECORD entry ENDING\n", \$tplDbFileC );
@@ -1107,7 +1106,7 @@ sub _addDmnDb
         );
     }
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBind9AddDomainDb', \$tplDbFileC, $moduleData );
+    $rs = $self->{'eventManager'}->trigger( 'afterBindAddDomainDb', \$tplDbFileC, $moduleData );
     $rs ||= $wrkDbFile->set( $tplDbFileC );
     $rs ||= $wrkDbFile->save();
     $rs ||= $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
@@ -1267,13 +1266,13 @@ sub _configure
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBind9Configure' );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeBindConfigure' );
     return $rs if $rs;
 
     # option configuration file
     if ( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} ) {
         $self->{'eventManager'}->registerOne(
-            'beforeBind9BuildConfFile',
+            'beforeBindBuildConfFile',
             sub {
                 ${$_[0]} =~ s/listen-on-v6\s+\{\s+any;\s+\};/listen-on-v6 { none; };/ if $_[5]->{'NAMED_IPV6_SUPPORT'} eq 'no';
                 ${$_[0]} =~ s%//\s+(check-spf\s+ignore;)%$1% if version->parse( $self->getVersion()) >= version->parse( '9.9.3' );
@@ -1296,7 +1295,7 @@ sub _configure
     # master configuration file
     if ( $self->{'config'}->{'NAMED_CONF_FILE'} ) {
         $self->{'eventManager'}->registerOne(
-            'beforeBind9BuildConfFile',
+            'beforeBindBuildConfFile',
             sub {
                 return 0 if -f "$_[5]->{'NAMED_CONF_DIR'}/bind.keys";
                 ${$_[0]} =~ s%include\s+\Q"$_[5]->{'NAMED_CONF_DIR'}\E/bind.keys";\n%%;
@@ -1330,7 +1329,7 @@ sub _configure
         return $rs if $rs;
     }
 
-    $self->{'eventManager'}->trigger( 'afterBind9Configure' );
+    $self->{'eventManager'}->trigger( 'afterBindConfigure' );
 }
 
 =item _checkIps(@ips)

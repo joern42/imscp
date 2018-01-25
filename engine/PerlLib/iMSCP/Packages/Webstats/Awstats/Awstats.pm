@@ -186,7 +186,7 @@ sub preaddDomain
     return 0 if $self->{'_is_registered_event_listener'};
 
     $self->{'_is_registered_event_listener'} = 1;
-    $self->{'eventManager'}->register( 'beforeApache2BuildConfFile', $self );
+    $self->{'eventManager'}->register( 'beforeApacheBuildConfFile', $self );
 }
 
 =item addDomain( \%moduleData )
@@ -261,7 +261,7 @@ sub preaddSubdomain
     return 0 if $self->{'_is_registered_event_listener'};
 
     $self->{'_is_registered_event_listener'} = 1;
-    $self->{'eventManager'}->register( 'beforeApache2BuildConfFile', $self );
+    $self->{'eventManager'}->register( 'beforeApacheBuildConfFile', $self );
 
 }
 
@@ -409,17 +409,17 @@ sub _addAwstatsConfig
 
 =over 4
 
-=item afterApache2BuildConfFile( $awstats, \$cfgTpl, $filename, \$trgFile, \%moduleData, \%apache2ServerData, \%apache2ServerConfig, \%parameters )
+=item afterApacheBuildConfFile( $awstats, \$cfgTpl, $filename, \$trgFile, \%moduleData, \%apacheServerData, \%apacheServerConfig, \%parameters )
 
- Event listener that inject AWstats configuration in Apache2 vhosts
+ Event listener that inject AWstats configuration in Apache vhosts
 
  Param scalar $awstats iMSCP::Packages::Webstats::Awstats::Awstats instance
- Param scalar \$scalar Reference to Apache2 conffile
- Param string $filename Apache2 template name
+ Param scalar \$scalar Reference to Apache conffile
+ Param string $filename Apache template name
  Param scalar \$trgFile Target file path
  Param hashref \%moduleData Data as provided by Alias|Domain|Subdomain|SubAlias modules
- Param hashref \%apache2ServerData Apache2 server data
- Param hashref \%apache2ServerConfig Apache2 server data
+ Param hashref \%apacheServerData Apache server data
+ Param hashref \%apacheServerConfig Apache server data
  Param hashref \%parameters OPTIONAL Parameters:
   - user  : File owner (default: root)
   - group : File group (default: root
@@ -429,13 +429,13 @@ sub _addAwstatsConfig
 
 =cut
 
-sub beforeApache2BuildConfFile
+sub beforeApacheBuildConfFile
 {
     my (undef, $cfgTpl, $filename, undef, $moduleData) = @_;
 
     return 0 if $filename ne 'domain.tpl' || $moduleData->{'FORWARD'} ne 'no';
 
-    debug( sprintf( 'Injecting AWStats configuration in Apache2 vhost for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
+    debug( sprintf( 'Injecting AWStats configuration in Apache vhost for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
 
     replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
     # SECTION addons BEGIN.

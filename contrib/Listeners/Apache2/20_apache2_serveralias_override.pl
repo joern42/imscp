@@ -17,7 +17,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 #
-## Allows to add additional server aliases in the given Apache2 vhosts.
+## Allows to add additional server aliases in the given Apache vhosts.
 #
 
 package iMSCP::Listener::Apache2::ServerAlias::Override;
@@ -33,7 +33,7 @@ use version;
 ## Configuration variables
 #
 
-# Map Apache2 vhosts (domains) to additional server aliases 
+# Map Apache vhosts (domains) to additional server aliases 
 my %serverAliases = (
     'example1.com' => 'example1.in example1.br', # Add example1.in and example1.br server aliases to exemple1.com vhost
     'example2.com' => 'example2.in example2.br' # Add example2.in and example2.br server aliases to exemple2.com vhost
@@ -48,7 +48,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterApache2BuildConf',
+    'afterApacheBuildConf',
     sub {
         my ($tplContent, $tplName, undef, $moduleData) = @_;
 

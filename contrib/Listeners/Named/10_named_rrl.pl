@@ -16,9 +16,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 #
-## Implement RRL (Response Rate Limiting Feature for Bind9)
+## Implement RRL (Response Rate Limiting Feature for Bind DNS server)
 ## See https://kb.isc.org/article/AA-00994/0/Using-the-Response-Rate-Limiting-Feature-in-BIND-9.10.html
-## Note: Before use of this listener, you must ensure that your Bind9 version support RRL.
+## Note: Before use of this listener, you must ensure that your Bind version support RRL.
 ##
 #
 
@@ -50,7 +50,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterBind9BuildConfFile',
+    'afterBindBuildConfFile',
     sub {
         my ($cfgTpl, $cfgTplName) = @_;
 

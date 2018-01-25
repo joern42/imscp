@@ -63,7 +63,7 @@ sub getPriority
   - before<SNAME>AddMail( \%moduleData )
   - after<SNAME>AddMail( \%moduleData )
 
- where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getEventServerName() method.
+ where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Mail module
  Return int 0 on success, other on failure

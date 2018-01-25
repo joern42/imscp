@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 #
-## Allows to override the *_PER_CLASS fcgid settings in Apache2 vhost files
+## Allows to override the *_PER_CLASS fcgid settings in Apache vhost files
 ##
 
 package iMSCP::Listener::PhpFcgid::Settings::Override;
@@ -32,7 +32,7 @@ use version;
 ## Configuration parameters
 #
 
-# Overrides the *_PER_CLASS fcgid settings inside Apache2 vhosts
+# Overrides the *_PER_CLASS fcgid settings inside Apache vhosts
 # Note that domain names must be in ASCII format.
 my %SETTINGS = (
     # Global *_PER_CLASS fcgid settings 
@@ -64,9 +64,9 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 iMSCP::EventManager->getInstance()->register(
-    'afterPhpApache2BuildConfFile',
+    'afterPhpApacheBuildConfFile',
     sub {
-        my ($phpServer, undef, undef, undef, $moduleData, $apache2ServerData) = @_;
+        my ($phpServer, undef, undef, undef, $moduleData, $apacheServerData) = @_;
 
         return 0 unless $phpServer->{'config'}->{'PHP_SAPI'} eq 'cgi'
             && $moduleData->{'FORWARD'} eq 'no'
@@ -74,14 +74,14 @@ iMSCP::EventManager->getInstance()->register(
 
         if ( exists $SETTINGS{'*'} ) {
             # Apply global *_PER_CLASS fcgid settings
-            @{$apache2ServerData}{keys %{$SETTINGS{'*'}}} = values %{$SETTINGS{'*'}};
+            @{$apacheServerData}{keys %{$SETTINGS{'*'}}} = values %{$SETTINGS{'*'}};
         }
 
         return 0 unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
 
         if ( exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}} ) {
             # Apply per domain *_PER_CLASS fcgid settings
-            @{$apache2ServerData}{keys %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}}} = values %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}};
+            @{$apacheServerData}{keys %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}}} = values %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}};
         }
 
         0;

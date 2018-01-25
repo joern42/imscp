@@ -79,17 +79,23 @@ sub dpkgPostInvokeTasks
     # Reload config in writing mode
     iMSCP::Bootstrapper->getInstance()->loadMainConfig( { nodeferring => 1 } );
 
-    $main::imscpConfig{'DISTRO_ID'} = $sysInfo->{'os'}->{'lsb'}->{'distid'};
-    debug( sprintf( 'Distribution ID set to: %s', $main::imscpConfig{'DISTRO_ID'} ));
+    # Fix for the osfamily FACT that is badly detected by FACTER(8) for Devuan
+    $sysInfo->{'os'}->{'osfamily'} = 'Debian' if $sysInfo->{'os'}->{'lsb'}->{'distid'} eq 'Devuan';
 
-    $main::imscpConfig{'DISTRO_CODENAME'} = $sysInfo->{'os'}->{'lsb'}->{'distcodename'};
-    debug( sprintf( 'Distribution codename set to: %s', $main::imscpConfig{'DISTRO_CODENAME'} ));
+    $self->{'config'}->{'DISTRO_FAMILY'} = $sysInfo->{'os'}->{'family'};
+    debug( sprintf( 'Distribution family set to: %s', $self->{'config'}->{'DISTRO_FAMILY'} ));
+    
+    $self->{'config'}->{'DISTRO_ID'} = $sysInfo->{'os'}->{'lsb'}->{'distid'};
+    debug( sprintf( 'Distribution ID set to: %s', $self->{'config'}->{'DISTRO_ID'} ));
 
-    $main::imscpConfig{'DISTRO_RELEASE'} = $sysInfo->{'os'}->{'lsb'}->{'distrelease'};
-    debug( sprintf( 'Distribution release set to: %s', $main::imscpConfig{'DISTRO_RELEASE'} ));
+    $self->{'config'}->{'DISTRO_CODENAME'} = $sysInfo->{'os'}->{'lsb'}->{'distcodename'};
+    debug( sprintf( 'Distribution codename set to: %s', $self->{'config'}->{'DISTRO_CODENAME'} ));
 
-    $main::imscpConfig{'SYSTEM_INIT'} = iMSCP::Service->getInstance()->getInitSystem();
-    debug( sprintf( 'System init set to: %s', $main::imscpConfig{'SYSTEM_INIT'} ));
+    $self->{'config'}->{'DISTRO_RELEASE'} = $sysInfo->{'os'}->{'lsb'}->{'distrelease'};
+    debug( sprintf( 'Distribution release set to: %s', $self->{'config'}->{'DISTRO_RELEASE'} ));
+
+    $self->{'config'}->{'SYSTEM_INIT'} = iMSCP::Service->getInstance()->getInitSystem();
+    debug( sprintf( 'System init set to: %s', $self->{'config'}->{'SYSTEM_INIT'} ));
 
     iMSCP::Bootstrapper->getInstance()->loadMainConfig( { config_readonly => 1 } );
     0;
@@ -114,9 +120,9 @@ sub _cleanup
     my ($self) = @_;
 
     return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' )
-        && -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp";
+        && -f "$self->{'config'}->{'LOGROTATE_CONF_DIR'}/imscp";
 
-    iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'LOGROTATE_CONF_DIR'}/imscp" )->delFile();
 }
 
 =back

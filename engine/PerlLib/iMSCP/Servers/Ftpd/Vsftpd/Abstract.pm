@@ -362,13 +362,13 @@ sub setEnginePermissions
     );
 }
 
-=item getEventServerName( )
+=item getServerName( )
 
- See iMSCP::Servers::Abstract::getEventServerName()
+ See iMSCP::Servers::Abstract::getServerName()
 
 =cut
 
-sub getEventServerName
+sub getServerName
 {
     my ($self) = @_;
 
@@ -560,7 +560,6 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$main::imscpConfig{'CONF_DIR'}/vsftpd" );
-    $self->_loadConfig( 'vsftpd.data' );
     $self->SUPER::_init();
 }
 
@@ -612,7 +611,7 @@ sub _configure
     unlink glob "/etc/vsftpd/imscp/*";
 
     my ($passvMinPort, $passvMaxPort) = split( /\s+/, $self->{'config'}->{'FTPD_PASSIVE_PORT_RANGE'} );
-    # vsftpd main configuration file
+    # VsFTPd main configuration file
 
     $rs ||= $self->{'eventManager'}->registerOne(
         'beforeProftpdBuildConfFile',
@@ -750,7 +749,7 @@ sub _setupSqlUser
 
 =item _createFtpUserConffile( \%moduleData )
 
- Create user vsftpd configuration file
+ Create VsFTPd user configuration file
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::FtpUser module
  Return int 0, other on failure
@@ -771,7 +770,7 @@ sub _createFtpUserConffile
 
 =item _deleteFtpUserConffile(\%moduleData)
 
- Delete user vsftpd configuration file
+ Delete VsFTPd user configuration file
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::FtpUser module
  Return int 0, other on failure
