@@ -9,6 +9,7 @@ HTTPD_SITES_ENABLED_DIR        = /etc/apache2/sites-enabled
 HTTPD_CUSTOM_SITES_DIR         = /etc/apache2/imscp
 HTTPD_ROOT_DIR                 = /var/www
 HTTPD_LOG_DIR                  = /var/log/apache2
+HTTPD_STATE_DIR                = /var/lib/apache2
 HTTPD_HTACCESS_USERS_FILENAME  = .htpasswd
 HTTPD_HTACCESS_GROUPS_FILENAME = .htgroup
 HTTPD_MOUNT_CUSTOMER_LOGS      = yes
