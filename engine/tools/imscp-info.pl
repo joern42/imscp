@@ -104,6 +104,8 @@ EOF
 
     print output "Daemon type for backend requests : $main::imscpConfig{'DAEMON_TYPE'}", 'info';
     print "\n";
+} else {
+    $json->{'daemon_type'} = $main::imscpConfig{'DAEMON_TYPE'};
 }
 
 for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
