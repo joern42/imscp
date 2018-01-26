@@ -2,11 +2,11 @@
 
 =head1 NAME
 
- imscp-info.pl [OPTION]... - Display information about current i-MSCP instance
+ imscp-info.pl - Display information about i-MSCP instance
 
 =head1 SYNOPSIS
 
- perl imscp-info.pl
+ perl imscp-info.pl [OPTION]...
 
 =cut
 
@@ -40,15 +40,15 @@ use JSON qw/ to_json /;
 
 iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
 
-Show i-MSCP version and servers info.
+Display information about i-MSCP instance.
 
 OPTIONS:
- -v,    --version-only  Show i-MSCP version info only.
- -s,    --system-only   Show i-MSCP system info only.
- -j,    --json          Show output in JSON format},
-    'version-only|v' => \my $versionOnly,
-    'server-only|s'  => \my $serverOnly,
-    'json|j'         => \my $json,
+ -v,    --version-only  Display i-MSCP version info only.
+ -s,    --system-only   Display i-MSCP system info only.
+ -j,    --json          Display output in JSON format.},
+    'version-only|v' => \&iMSCP::Getopt::versionOnly,
+    'server-only|s'  => \&iMSCP::Getopt::serverOnly,
+    'json|j'         => \&iMSCP::Getopt::json
 );
 
 iMSCP::Bootstrapper->getInstance()->boot( {
@@ -60,15 +60,15 @@ iMSCP::Bootstrapper->getInstance()->boot( {
 
 iMSCP::Getopt->debug( 0 );
 
-if ( $versionOnly && $serverOnly ) {
+if ( iMSCP::Getopt->versionOnly && iMSCP::Getopt->serverOnly ) {
     print "\nThe --version-only and --system-only options are mutually exclusive\n";
     iMSCP::Getopt->showUsage();
 }
 
-$json = {} if $json;
+my $json = {} if iMSCP::Getopt->json;
 
-unless ( $serverOnly ) {
-    if ( defined $json ) {
+unless ( iMSCP::Getopt->serverOnly ) {
+    if ( iMSCP::Getopt->json ) {
         $json->{'build_date'} = $main::imscpConfig{'BuildDate'} || 'Unreleased';
         $json->{'version'} = $main::imscpConfig{'Version'};
         $json->{'codename'} = $main::imscpConfig{'CodeName'};
@@ -88,12 +88,12 @@ EOF
     }
 }
 
-if ( $versionOnly ) {
-    print to_json( $json, { utf8 => 1, pretty => 1 } );
+if ( iMSCP::Getopt->versionOnly ) {
+    print to_json( $json, { utf8 => 1, pretty => 1 } ) if iMSCP::Getopt->json;
     exit;
 }
 
-unless ( defined $json ) {
+unless ( iMSCP::Getopt->json ) {
     print <<'EOF';
 
 #################################################################
@@ -111,7 +111,7 @@ EOF
 for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     my $srvInstance = $_->factory();
 
-    if ( $json ) {
+    if ( iMSCP::Getopt->json ) {
         $json->{'servers'}->{$_} = {
             implementation => ref $srvInstance,
             version        => $srvInstance->getImplVersion(),
@@ -131,7 +131,7 @@ for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     print "\n";
 }
 
-print to_json( $json, { utf8 => 1, pretty => 1 } ) if defined $json;
+print to_json( $json, { utf8 => 1, pretty => 1 } ) if iMSCP::Getopt->json;
 
 =head1 AUTHOR
 
