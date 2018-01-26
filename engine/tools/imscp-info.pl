@@ -36,7 +36,7 @@ use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ output /;
 use iMSCP::Getopt;
 use iMSCP::Servers;
-use Carp::Always;
+use JSON qw/ to_json /;
 
 iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
 
@@ -44,9 +44,11 @@ Show i-MSCP version and servers info.
 
 OPTIONS:
  -v,    --version-only  Show i-MSCP version info only.
- -s,    --system-only   Show i-MSCP system info only.},
-    'version-only|v'   => \my $versionOnly,
-    'server-only|s'   => \my $serverOnly,
+ -s,    --system-only   Show i-MSCP system info only.
+ -j,    --json          Show output in JSON format},
+    'version-only|v' => \my $versionOnly,
+    'server-only|s'  => \my $serverOnly,
+    'json|j'         => \my $json,
 );
 
 iMSCP::Bootstrapper->getInstance()->boot( {
@@ -58,30 +60,41 @@ iMSCP::Bootstrapper->getInstance()->boot( {
 
 iMSCP::Getopt->debug( 0 );
 
-if($versionOnly && $serverOnly) {
+if ( $versionOnly && $serverOnly ) {
     print "\nThe --version-only and --system-only options are mutually exclusive\n";
     iMSCP::Getopt->showUsage();
 }
 
-unless($serverOnly) {
-    print <<'EOF';
+$json = {} if $json;
+
+unless ( $serverOnly ) {
+    if ( defined $json ) {
+        $json->{'build_date'} = $main::imscpConfig{'BuildDate'} || 'Unreleased';
+        $json->{'version'} = $main::imscpConfig{'Version'};
+        $json->{'codename'} = $main::imscpConfig{'CodeName'};
+        $json->{'plugin_api'} = $main::imscpConfig{'PluginApi'};
+    } else {
+        print <<'EOF';
 
 #################################################################
 ###                    i-MSCP Version Info                    ###
 #################################################################
 
 EOF
-
-    print output "Build date                            : @{ [ $main::imscpConfig{'BuildDate'} || 'Unreleased' ] }", 'info';
-    print output "Version                               : $main::imscpConfig{'Version'}", 'info';
-    print output "Codename                              : $main::imscpConfig{'CodeName'}", 'info';
-    print output "Plugin API                            : $main::imscpConfig{'PluginApi'}", 'info';
-
+        print output "Build date                       : @{ [ $main::imscpConfig{'BuildDate'} || 'Unreleased' ] }", 'info';
+        print output "Version                          : $main::imscpConfig{'Version'}", 'info';
+        print output "Codename                         : $main::imscpConfig{'CodeName'}", 'info';
+        print output "Plugin API                       : $main::imscpConfig{'PluginApi'}", 'info';
+    }
 }
 
-exit if $versionOnly;
+if ( $versionOnly ) {
+    print to_json( $json, { utf8 => 1, pretty => 1 } );
+    exit;
+}
 
-print <<'EOF';
+unless ( defined $json ) {
+    print <<'EOF';
 
 #################################################################
 ###                    i-MSCP System Info                     ###
@@ -89,22 +102,34 @@ print <<'EOF';
 
 EOF
 
-print output "Daemon type for backend requests      : $main::imscpConfig{'DAEMON_TYPE'}", 'info';
-print "\n";
+    print output "Daemon type for backend requests : $main::imscpConfig{'DAEMON_TYPE'}", 'info';
+    print "\n";
+}
 
 for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     my $srvInstance = $_->factory();
 
-    print output "Server abstract implementation        : $_", 'info';
-    print output "Server croncrete implementation       : @{ [ ref $srvInstance ] }", 'info';
-    print output "Server implementation version         : @{ [ $srvInstance->getImplVersion() ] }", 'info';
-    print output "Server name for event names construct : @{ [ $srvInstance->getEventServerName() ] }", 'info';
-    print output "Server human name                     : @{ [ $srvInstance->getHumanServerName() ] }", 'info';
-    print output "Server priority                       : @{ [ $srvInstance->getPriority() ] }", 'info';
+    if ( $json ) {
+        $json->{'servers'}->{$_} = {
+            implementation => ref $srvInstance,
+            version        => $srvInstance->getImplVersion(),
+            internal_name  => $srvInstance->getServerName(),
+            human_name     => $srvInstance->getHumanServerName(),
+            priority       => $srvInstance->getPriority()
+        };
+        next;
+    }
+
+    print output "Server                           : $_", 'info';
+    print output "Server implementation            : @{ [ ref $srvInstance ] }", 'info';
+    print output "Server implementation version    : @{ [ $srvInstance->getImplVersion() ] }", 'info';
+    print output "Server name for internal use     : @{ [ $srvInstance->getServerName() ] }", 'info';
+    print output "Server human name                : @{ [ $srvInstance->getHumanServerName() ] }", 'info';
+    print output "Server priority for processing   : @{ [ $srvInstance->getPriority() ] }", 'info';
     print "\n";
 }
 
-
+print to_json( $json, { utf8 => 1, pretty => 1 } ) if defined $json;
 
 =head1 AUTHOR
 
