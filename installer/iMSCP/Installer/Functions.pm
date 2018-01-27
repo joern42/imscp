@@ -25,7 +25,6 @@ package iMSCP::Installer::Functions;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Basename;
 use File::Find qw/ find /;
 use iMSCP::Bootstrapper;
@@ -49,7 +48,7 @@ use XML::Simple;
 use version;
 use parent 'Exporter';
 
-our @EXPORT_OK = qw/ loadConfig build install /;
+our @EXPORT_OK = qw/ loadConfig build install expandVars /;
 
 # Installer instance
 my $DISTRO_INSTALLER;
@@ -74,8 +73,8 @@ sub loadConfig
 {
     # Gather system information
     my $sysInfo = eval {
-        my $facter = iMSCP::ProgramFinder::find( 'facter' ) or croak( "Couldn't find FACTER(8) program" );
-        decode_json( `$facter _2.5.1_ --json os virtual 2> /dev/null` );
+        my $facter = iMSCP::ProgramFinder::find( 'facter' ) or die( "Couldn't find FACTER(8) program" );
+        decode_json( `$facter _2.5.1_ --json architecture os virtual 2> /dev/null` );
     };
     if ( $@ ) {
         error( sprintf( "Couldn't gather system information: %s", $@ ));
@@ -146,11 +145,12 @@ sub loadConfig
     }
 
     # Set/Update the distribution lsb/system info
-    @main::imscpConfig{qw/ DISTRO_FAMILY DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
+    @main::imscpConfig{qw/ DISTRO_FAMILY DISTRO_ID DISTRO_CODENAME DISTRO_RELEASE DISTRO_ARCH SYSTEM_INIT SYSTEM_VIRTUALIZER /} = (
         $sysInfo->{'os'}->{'family'},
         $sysInfo->{'os'}->{'lsb'}->{'distid'},
         $sysInfo->{'os'}->{'lsb'}->{'distcodename'},
         $sysInfo->{'os'}->{'lsb'}->{'distrelease'},
+        $sysInfo->{'architecture'},
         iMSCP::Service->getInstance()->getInitSystem(),
         $sysInfo->{'virtual'}
     );
@@ -228,7 +228,7 @@ sub build
     find(
         sub {
             return unless $_ eq '.gitkeep';
-            unlink or croak( sprintf( "Couldn't remove %s file: %s", $File::Find::name, $! ));
+            unlink or die( sprintf( "Couldn't remove %s file: %s", $File::Find::name, $! ));
         },
         $main::{'DESTDIR'}
     );
@@ -832,6 +832,33 @@ sub installDistributionFiles
     }
 }
 
+=item expandVars( $string )
+
+ Expand variables in the given string
+
+ Param string $string string containing variables to expands
+ Return string
+
+=cut
+
+sub expandVars
+{
+    my ($string) = @_;
+    $string //= '';
+
+    while ( my ($var) = $string =~ /\$\{([^{}]+)\}/g ) {
+        if ( defined $main::{$var} ) {
+            $string =~ s/\$\{$var\}/$main::{$var}/;
+        } elsif ( defined $main::imscpConfig{$var} ) {
+            $string =~ s/\$\{$var\}/$main::imscpConfig{$var}/;
+        } else {
+            fatal( "Couldn't expand the \${$var} variable. Variable is not found." );
+        }
+    }
+
+    $string;
+}
+
 =item _processXmlInstallFile( $installFilePath )
 
  Process an install.xml file
@@ -858,7 +885,7 @@ sub _processXmlInstallFile
     # Process 'folder' nodes
     if ( $node->{'folder'} ) {
         for ( @{$node->{'folder'}} ) {
-            $_->{'content'} = _expandVars( $_->{'content'} );
+            $_->{'content'} = expandVars( $_->{'content'} );
             $main::{$_->{'export'}} = $_->{'content'} if defined $_->{'export'};
             my $rs = _processFolderNode( $_ );
             return $rs if $rs;
@@ -868,7 +895,7 @@ sub _processXmlInstallFile
     # Process 'copy_config' nodes
     if ( $node->{'copy_config'} ) {
         for ( @{$node->{'copy_config'}} ) {
-            $_->{'content'} = _expandVars( $_->{'content'} );
+            $_->{'content'} = expandVars( $_->{'content'} );
             my $rs = _processCopyConfigNode( $_ );
             return $rs if $rs;
         }
@@ -877,40 +904,13 @@ sub _processXmlInstallFile
     # Process 'copy' nodes
     if ( $node->{'copy'} ) {
         for ( @{$node->{'copy'}} ) {
-            $_->{'content'} = _expandVars( $_->{'content'} );
+            $_->{'content'} = expandVars( $_->{'content'} );
             my $rs = _processCopyNode( $_ );
             return $rs if $rs;
         }
     }
 
     0;
-}
-
-=item _expandVars( $string )
-
- Expand variables in the given string
-
- Param string $string string containing variables to expands
- Return string
-
-=cut
-
-sub _expandVars
-{
-    my ($string) = @_;
-    $string //= '';
-
-    while ( my ($var) = $string =~ /\$\{([^{}]+)\}/g ) {
-        if ( defined $main::{$var} ) {
-            $string =~ s/\$\{$var\}/$main::{$var}/;
-        } elsif ( defined $main::imscpConfig{$var} ) {
-            $string =~ s/\$\{$var\}/$main::imscpConfig{$var}/;
-        } else {
-            fatal( "Couldn't expand the \${$var} variable. Variable is not found." );
-        }
-    }
-
-    $string;
 }
 
 =item _processFolderNode( \%node )
@@ -925,7 +925,7 @@ sub _expandVars
   group         : Target directory group
   mode          : Target directory mode
  Param hashref \%node Node
- Return int 0 on success, other or croak on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -933,7 +933,7 @@ sub _processFolderNode
 {
     my ($node) = @_;
 
-    return 0 if $node->{'content'} eq '' || ( defined $node->{'create_if'} && !eval _expandVars( $node->{'create_if'} ) );
+    return 0 if $node->{'content'} eq '' || ( defined $node->{'create_if'} && !eval expandVars( $node->{'create_if'} ) );
 
     local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
 
@@ -942,8 +942,8 @@ sub _processFolderNode
     my $dir = iMSCP::Dir->new( dirname => $node->{'content'} );
     $dir->remove() if $node->{'pre_remove'};
     $dir->make( {
-        user  => defined $node->{'user'} ? _expandVars( $node->{'owner'} ) : undef,
-        group => defined $node->{'group'} ? _expandVars( $node->{'group'} ) : undef,
+        user  => defined $node->{'user'} ? expandVars( $node->{'owner'} ) : undef,
+        group => defined $node->{'group'} ? expandVars( $node->{'group'} ) : undef,
         mode  => defined $node->{'mode'} ? oct( $node->{'mode'} ) : undef
     } );
 }
@@ -975,7 +975,7 @@ sub _processFolderNode
                   That attribute must be set with the service name for which the system provider must act. This attribute is evaluated only when
                   the node provide the copy_if attribute and only if the expression (value) of that attribute evaluate to FALSE.
  Param hashref \%node Node
- Return int 0 on success, other or croak on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -983,8 +983,8 @@ sub _processCopyConfigNode
 {
     my ($node) = @_;
 
-    if ( defined $node->{'copy_if'} && !eval _expandVars( $node->{'copy_if'} ) ) {
-        return 0 if defined $node->{'keep_if_exist'} && eval _expandVars( $node->{'keep_if_exist'} );
+    if ( defined $node->{'copy_if'} && !eval expandVars( $node->{'copy_if'} ) ) {
+        return 0 if defined $node->{'keep_if_exist'} && eval expandVars( $node->{'keep_if_exist'} );
 
         my $syspath;
         if ( defined $node->{'copy_as'} ) {
@@ -1041,8 +1041,8 @@ sub _processCopyConfigNode
             mode      => $node->{'mode'},
             dirmode   => $node->{'dirmode'},
             filemode  => $node->{'filemode'},
-            user      => defined $node->{'user'} ? _expandVars( $node->{'user'} ) : undef,
-            group     => defined $node->{'group'} ? _expandVars( $node->{'group'} ) : undef,
+            user      => defined $node->{'user'} ? expandVars( $node->{'user'} ) : undef,
+            group     => defined $node->{'group'} ? expandVars( $node->{'group'} ) : undef,
             recursive => $node->{'recursive'}
         }
     );
@@ -1065,7 +1065,7 @@ sub _processCopyConfigNode
   group         : Target file or directory group
   recursive     : Whether or not ownership and permissions must be fixed recursively
  Param hashref \%node Node
- Return int 0 on success, other or croak on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1073,8 +1073,8 @@ sub _processCopyNode
 {
     my ($node) = @_;
 
-    if ( defined $node->{'copy_if'} && !eval _expandVars( $node->{'copy_if'} ) ) {
-        return 0 if defined $node->{'keep_if_exist'} && eval _expandVars( $node->{'keep_if_exist'} );
+    if ( defined $node->{'copy_if'} && !eval expandVars( $node->{'copy_if'} ) ) {
+        return 0 if defined $node->{'keep_if_exist'} && eval expandVars( $node->{'keep_if_exist'} );
 
         ( my $syspath = $node->{'content'} ) =~ s/^$main::{'INST_PREF'}//;
         return 0 unless $syspath ne '/' && -e $syspath;
@@ -1102,8 +1102,8 @@ sub _processCopyNode
             mode      => $node->{'mode'},
             dirmode   => $node->{'dirmode'},
             filemode  => $node->{'filemode'},
-            user      => defined $node->{'user'} ? _expandVars( $node->{'user'} ) : undef,
-            group     => defined $node->{'group'} ? _expandVars( $node->{'group'} ) : undef,
+            user      => defined $node->{'user'} ? expandVars( $node->{'user'} ) : undef,
+            group     => defined $node->{'group'} ? expandVars( $node->{'group'} ) : undef,
             recursive => $node->{'recursive'}
         }
     );
@@ -1113,7 +1113,7 @@ sub _processCopyNode
 
  Returns i-MSCP installer instance for the current distribution
 
- Return iMSCP::Installer::Abstract, croak on failure
+ Return iMSCP::Installer::Abstract, die on failure
 
 =cut
 
@@ -1122,7 +1122,7 @@ sub _getInstaller
     return $DISTRO_INSTALLER if $DISTRO_INSTALLER;
 
     $DISTRO_INSTALLER = "iMSCP::Installer::${main::imscpConfig{'DISTRO_FAMILY'}}";
-    eval "require $DISTRO_INSTALLER; 1" or croak( $@ );
+    eval "require $DISTRO_INSTALLER; 1" or die( $@ );
     $DISTRO_INSTALLER = $DISTRO_INSTALLER->new();
 }
 
