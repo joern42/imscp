@@ -66,7 +66,7 @@ sub getPriority
 
 =item factory( [ $serverClass = $main::imscpConfig{$class} ] )
 
- Creates and returns an iMSCP::Servers::Abstract ($serverClass) server instance
+ Creates and returns an iMSCP::Servers::Abstract server instance
 
  This method is not intented to be called on final iMSCP::Servers::Abstract
  server classes.
@@ -91,7 +91,8 @@ sub factory
 
     if ( $serverClass ne $main::imscpConfig{$class} ) {
         # We don't keep trace of server instances that were asked explicitly as
-        # this would prevent load of those which are implicit
+        # this would prevent load of those which are implicit.
+        # This also mean that the _shutdown() method on those server instances won't be called automatically.
         return $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());;
     }
 
@@ -567,13 +568,15 @@ sub _loadConfig
         if ( -f "$self->{'cfgDir'}/$filename" ) {
             debug( sprintf( 'Merging old %s server configuration with new %s server configuration...', $filename, "$filename.dist" ));
 
-            tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename", readonly => 1,
+            tie my %oldConfig, 'iMSCP::Config',
+                fileName => "$self->{'cfgDir'}/$filename",
+                readonly => 1,
                 # We do not want croak when accessing non-existing parameters
                 # in old configuration file. The new configuration file can
                 # refers to old parameters for new parameter values but in case
                 # the parameter doesn't exist in old conffile, we want simply
                 # an empty value. 
-                nocroak                                  => 1;
+                nocroak  => 1;
 
             # Sometime, a configuration parameter get renamed. In such case the
             # developer could want set the new parameter value with the old
@@ -591,7 +594,7 @@ sub _loadConfig
             # be automatically used as value for the new FTP_SQL_USER parameter.
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
             processByRef( \%oldConfig, $file->getAsRef(), 'empty_unknown' );
-            $file->save() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $file->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             undef( $file );
 
             tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename.dist";
@@ -615,17 +618,17 @@ sub _loadConfig
             # For a fresh installation, we make the configuration file free of any placeholder
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
             processByRef( {}, $file->getAsRef(), 'empty_unknown' );
-            $file->save() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $file->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             undef( $file );
         }
 
-        iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" )->moveFile( "$self->{'cfgDir'}/$filename" ) == 0 or croak(
+        iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" )->moveFile( "$self->{'cfgDir'}/$filename" ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
     }
 
-    debug( sprintf( 'Loading %s server configuration...', $filename, "$filename.dist" ));
-    
+    debug( sprintf( 'Loading %s server configuration...', $self->getServerName()));
+
     tie %{$self->{'config'}},
         'iMSCP::Config',
         fileName    => "$self->{'cfgDir'}/$filename",
