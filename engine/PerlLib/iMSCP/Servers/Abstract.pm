@@ -92,7 +92,8 @@ sub factory
     if ( $serverClass ne $main::imscpConfig{$class} ) {
         # We don't keep trace of server instances that were asked explicitly as
         # this would prevent load of those which are implicit.
-        # This also mean that the _shutdown() method on those server instances won't be called automatically.
+        # This also means that the _shutdown() method on those server instances
+        # will not be called automatically.
         return $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());;
     }
 
