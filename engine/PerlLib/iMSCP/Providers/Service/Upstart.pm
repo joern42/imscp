@@ -157,7 +157,7 @@ sub remove
     for ( qw/ conf override / ) {
         if ( my $jobFilePath = eval { $self->getJobFilePath( $job, $_ ); } ) {
             debug( sprintf ( "Removing the %s upstart file", $jobFilePath ));
-            iMSCP::File->new( filename => $jobFilePath )->delFile() or croak(
+            iMSCP::File->new( filename => $jobFilePath )->delFile() or die(
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         }
@@ -867,7 +867,7 @@ sub _readJobFile
     defined $job or croak( 'Missing or undefined $job parameter' );
 
     my $filepath = $self->getJobFilePath( $job );
-    iMSCP::File->new( filename => $filepath )->get() or croak( sprintf( "Couldn't read the `%s' file", $filepath ));
+    iMSCP::File->new( filename => $filepath )->get() or die( sprintf( "Couldn't read the `%s' file", $filepath ));
 }
 
 =item _readJobOverrideFile( $job )
@@ -899,7 +899,7 @@ sub _readJobOverrideFile
 
  Param string $filename file name
  Param string $fileContent file content
- Return bool TRUE on success, croak on failure
+ Return bool TRUE on success, die on failure
 
 =cut
 
@@ -916,9 +916,9 @@ sub _writeFile
 
     if ( $fileContent ne '' ) {
         $file->set( $fileContent );
-        $file->save() == 0 && $file->mode( 0644 ) == 0 or croak( sprintf( "Couldn't write the `%s' file", $filepath ));
+        $file->save() == 0 && $file->mode( 0644 ) == 0 or die( sprintf( "Couldn't write the `%s' file", $filepath ));
     } elsif ( $filepath =~ /\.override$/ && -f $filepath ) {
-        $file->delFile() == 0 or croak( sprintf( "Couldn't unlink the `%s' file", $filepath ));
+        $file->delFile() == 0 or die( sprintf( "Couldn't unlink the `%s' file", $filepath ));
     } else {
         1;
     }

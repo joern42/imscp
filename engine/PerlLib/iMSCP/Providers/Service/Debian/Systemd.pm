@@ -60,7 +60,7 @@ sub isEnabled
     my $ret = $self->_exec(
         [ $iMSCP::Providers::Service::Systemd::COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \ my $stdout, \ my $stderr
     );
-    croak( $stderr ) if $ret && $stderr;
+    die( $stderr ) if $ret && $stderr;
 
     # The indirect state indicates that the unit is not enabled.
     return 0 if $stdout eq 'indirect';

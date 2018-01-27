@@ -57,7 +57,7 @@ sub remove
 
     if ( my $initScriptPath = eval { $self->getInitScriptPath( $service, 'nocache' ); } ) {
         debug( sprintf ( "Removing the %s sysvinit script", $initScriptPath ));
-        iMSCP::File->new( filename => $initScriptPath )->delFile() == 0 or croak(
+        iMSCP::File->new( filename => $initScriptPath )->delFile() == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
     }
@@ -270,7 +270,7 @@ sub _isSysvinit
 
  Param string $service Service name
  Param bool $nocache OPTIONAL If true, no cache will be used
- Return string Init script path on success, croak on failure
+ Return string Init script path on success, die on failure
 
 =cut
 
@@ -284,7 +284,7 @@ sub _searchInitScript
     if ( $nocache ) {
         delete $initScripts{$service};
     } elsif ( exists $initScripts{$service} ) {
-        defined $initScripts{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
+        defined $initScripts{$service} or die( sprintf( "SysVinit script %s not found", $service ));
         return $initScripts{$service};
     }
 
@@ -298,7 +298,7 @@ sub _searchInitScript
     }
 
     $initScripts{$service} = undef unless $nocache || $initScripts{$service};
-    $initScripts{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
+    $initScripts{$service} or die( sprintf( "SysVinit script %s not found", $service ));
     $nocache ? delete $initScripts{$service} : $initScripts{$service};
 }
 
@@ -313,7 +313,7 @@ sub _searchInitScript
  Param array_ref \@command Command to execute
  Param scalar_ref \$stdout OPTIONAL Scalar reference for STDOUT capture
  Param scalar_ref \$stderr OPTIONAL Scalar reference for STDERR capture
- Return int Command exit status, croak on failure if the command status is other than 0 and if no scalar reference has been provided for STDERR
+ Return int Command exit status, die on failure if the command status is other than 0 and if no scalar reference has been provided for STDERR
 
 =cut
 
@@ -326,7 +326,7 @@ sub _exec
 
     # Raise a failure if command status is other than 0 and if no scalar
     # reference has been provided for STDERR, giving choice to callers
-    croak( $stderr || 'Unknown error' ) if $ret && ref $stderr ne 'SCALAR';
+    die( $stderr || 'Unknown error' ) if $ret && ref $stderr ne 'SCALAR';
 
     # We cache STDOUT output.
     # see _getLastExecOutput()
@@ -384,7 +384,7 @@ sub _getPid
     defined $pattern or croak( 'Missing or undefined $pattern parameter' );
 
     my $ps = $self->_getPs();
-    open my $fh, '-|', $ps or croak( sprintf( "Couldn't pipe to %s: %s", $ps, $! ));
+    open my $fh, '-|', $ps or die( sprintf( "Couldn't pipe to %s: %s", $ps, $! ));
 
     while ( <$fh> ) {
         next unless /$pattern/;

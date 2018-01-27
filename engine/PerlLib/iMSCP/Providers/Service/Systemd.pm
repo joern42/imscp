@@ -182,7 +182,7 @@ sub remove
     # Remove drop-in directories if any
     for ( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
         my $dropInDir = $_;
-        ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
+        ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
         $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
         next unless -d $dropInDir;
         debug( sprintf ( 'Removing the %s drop-in directory', $dropInDir ));
@@ -194,7 +194,7 @@ sub remove
         # We do not want remove units that are shipped by distribution packages
         last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
         debug( sprintf ( 'Removing the %s unit', $unitFilePath ));
-        iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or croak(
+        iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
     }
@@ -316,7 +316,7 @@ sub hasService
  Param string $unit Unit name
  Param bool withpath If true, full unit path will be returned
  Param bool $nocache OPTIONAL If true, no cache will be used
- Return string real unit file path or name, SysVinit file path or name, croak if the unit cannot be resolved
+ Return string real unit file path or name, SysVinit file path or name, croak/die if the unit cannot be resolved
 
 =cut
 
@@ -332,7 +332,7 @@ sub resolveUnit
     if ( $nocache ) {
         delete $resolved{$unit};
     } elsif ( exists $resolved{$unit} ) {
-        defined $resolved{$unit} or croak( sprintf( "Couldn't resolve the %s unit", $unit ));
+        defined $resolved{$unit} or die( sprintf( "Couldn't resolve the %s unit", $unit ));
         return $resolved{$unit}->[$withpath ? 0 : 1];
     }
 
@@ -350,14 +350,14 @@ sub resolveUnit
         }
 
         $resolved{$unit} = undef unless $nocache;
-        croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $@ ));
+        die( sprintf( "Couldn't resolve the %s unit: %s", $unit, $@ ));
     }
 
     # Resolve the unit, unless it is not a symlink pointing to a regular file,
     # case of a masked unit that point to the /dev/null character special file
     # For the file test, we reuse the stat structure from the last stat() call
     # that has been done in the _searchUnitFile() method
-    $unitFilePath = readlink( $unitFilePath ) or croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! )) if -f _ && -l $unitFilePath;
+    $unitFilePath = readlink( $unitFilePath ) or die( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! )) if -f _ && -l $unitFilePath;
 
     if ( $nocache ) {
         return $unitFilePath if $withpath;
@@ -404,7 +404,7 @@ sub _searchUnitFile
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer / );
+    ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
     $unit .= '.service' unless $suffix;
 
     for ( @UNITFILEPATHS ) {
@@ -413,7 +413,7 @@ sub _searchUnitFile
         return $filepath if -f $filepath || -c _;
     }
 
-    croak( sprintf( "Unit %s not found", $unit ));
+    die( sprintf( "Unit %s not found", $unit ));
 }
 
 =back
