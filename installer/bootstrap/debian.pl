@@ -24,59 +24,51 @@
 #  - Ubuntu 14.04, 16.04
 #  - Devuan 1.0
 
+
 system( 'clear 2>/dev/null' );
 
-print "Satisfying pre-requisites for the i-MSCP installer\n";
-
 unless ( -f '/etc/imscp/listener.d/10_apt_sources_list.pl' ) {
-    print " [\x1b[0;34mINFO\x1b[0m] Updating distribution package index files...\n";
-    system( '/usr/bin/apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
+    prntInfo 'Updating distribution package index files...';
+    system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "couldn't update APT index" );
 
-    print " [\x1b[0;34mINFO\x1b[0m] Installing the lsb-reelase distribution package...\n";
-    system( '/usr/bin/apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'lsb-release' ) == 0 or die(
-        "[\x1b[0;31mERROR\x1b[0m] Couldn't install the lsb-release package.\n"
+    prntInfo 'Installing the lsb-reelase distribution package...';
+    system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'lsb-release' ) == 0 or die(
+        "couldn't install the lsb-release package"
     );
 
-    my $distId = `/usr/bin/lsb_release --short --id 2>/dev/null` or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't guess distribution ID\n" );
+    my $distId = `lsb_release --short --id 2>/dev/null` or die( "coudln't guess distribution ID" );
     chomp( $distId );
-    my $distCodename = `/usr/bin/lsb_release --short --codename 2>/dev/null` or die(
-        "[\x1b[0;31mERROR\x1b[0m] Couldn't guess distribution codename\n"
-    );
+    my $distCodename = `lsb_release --short --codename 2>/dev/null` or die( "couldn't guess distribution codename" );
     chomp( $distCodename );
     my $file = "$ROOTDIR/configs/$distId/apt/sources.list";
 
     if ( -f $file ) {
-        print " [\x1b[0;34mINFO\x1b[0m] Updating APT sources.list file...\n";
-        system( '/bin/cp', '-f', $file,
-            '/etc/apt/sources.list' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't copy APT sources.list file \n" );
+        prntInfo 'Updating APT sources.list file...';
+        system( 'cp', '-f', $file, '/etc/apt/sources.list' ) == 0 or die( "Couldn't copy APT sources.list file" );
         system( "perl -pi -e 's/{codename}/$distCodename/g;' /etc/apt/sources.list" );
     }
 }
 
-print " [\x1b[0;34mINFO\x1b[0m] Updating distribution package index files...\n";
-system( '/usr/bin/apt-get', '--quiet=1', 'update' ) == 0 or die( "[\x1b[0;31mERROR\x1b[0m] Couldn't update APT index.\n" );
+prntInfo 'Updating distribution package index files...';
+system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "couldn't update APT index" );
 
-print " [\x1b[0;34mINFO\x1b[0m] Upgrading distribution packages (upgrade)...\n";
-system( '/usr/bin/apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgrade' ) == 0 or die(
-    "[\x1b[0;31mERROR\x1b[0m] Couldn't upgrade distribution packages.\n"
-);
+prntInfo "Upgrading distribution packages (upgrade)...";
+system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgrade' ) == 0 or die( "couldn't upgrade distribution packages" );
 
-print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required distribution package...\n";
+prntInfo 'Installing pre-required distribution package...';
 system(
-    '/usr/bin/apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
+    'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
     'ca-certificates', 'cpanminus', 'debconf-utils', 'dialog', 'dirmngr', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
     'libclass-autouse-perl', 'libdata-compare-perl', 'libdata-validate-domain-perl', 'libfile-homedir-perl', 'libjson-perl', 'libjson-xs-perl',
     'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libnet-ip-perl', 'libnet-domain-tld-perl', 'libnet-libidn-perl',
     'libscalar-defer-perl', 'libsort-versions-perl', 'libxml-simple-perl', 'policyrcd-script-zg2', 'wget', 'whiptail', 'virt-what',
     'libdatetime-perl', 'libemail-valid-perl', 'libdata-validate-ip-perl', 'lsb-release', 'ruby'
-) == 0 or die(
-    "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
-);
+) == 0 or die( "couldn't install pre-required distribution packages" );
 
 # Install FACTER(8) from rubygem.org as the version provided by some distributions is too old
-print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required facter program (RubyGem)...\n";
-system( '/usr/bin/gem', 'install', 'facter', '--quiet', '--conservative', '--minimal-deps', '--version', '2.5.1' ) == 0 or die(
-    "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-required distribution packages.\n"
+prntInfo "[\x1b[0;34mINFO\x1b[0m] Installing pre-required facter program (RubyGem)...\n";
+system( 'gem', 'install', 'facter', '--quiet', '--conservative', '--minimal-deps', '--version', '2.5.1' ) == 0 or die(
+    "couldn't install pre-required distribution packages"
 );
 
 if ( eval "require Module::Load::Conditional; 1;" ) {
@@ -89,13 +81,11 @@ if ( eval "require Module::Load::Conditional; 1;" ) {
     }
 
     if ( %perlModules ) {
-        print " [\x1b[0;34mINFO\x1b[0m] Installing pre-required Perl module(s) from CPAN...\n";
-        system( '/usr/bin/cpanm', '--notest', '--quiet', keys %perlModules ) == 0 or die(
-            "[\x1b[0;31mERROR\x1b[0m] Couldn't install pre-reuired Perl module(s) from CPAN.\n"
-        );
+        prntInfo "Installing pre-required Perl module(s) from CPAN...";
+        system( 'cpanm', '--notest', '--quiet', keys %perlModules ) == 0 or die( "couldn't install pre-reuired Perl module(s) from CPAN" );
     }
 } else {
-    die "[\x1b[0;31mERROR\x1b[0m] Module::Load::Conditional Perl module not available\n";
+    die( 'The Module::Load::Conditional Perl module not available' );
 }
 
 1;
