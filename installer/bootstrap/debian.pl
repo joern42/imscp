@@ -85,7 +85,7 @@ if ( eval "require Module::Load::Conditional; 1;" ) {
         system( 'cpanm', '--notest', '--quiet', keys %perlModules ) == 0 or die( "couldn't install pre-reuired Perl module(s) from CPAN" );
     }
 } else {
-    die( 'The Module::Load::Conditional Perl module not available' );
+    die( 'the Module::Load::Conditional Perl module not available' );
 }
 
 1;

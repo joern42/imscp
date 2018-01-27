@@ -28,7 +28,7 @@ setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 sub prntInfo
 {
-    print STDOUT " [\x1b[0;34mINFO\x1b[0m] @_\n";
+    print STDOUT "[\x1b[0;34mINFO\x1b[0m] @_\n";
 }
 
 sub prntError
@@ -37,13 +37,13 @@ sub prntError
     exit 1;
 }
 
-$< == 0 or die( "[\x1b[0;31mERROR\x1b[0m] The i-MSCP installer must be run as root user.\n" );
+$< == 0 or prntError( 'the i-MSCP installer must be run as root user.' );
 
 chomp( our $ROOTDIR = `dirname @{ [ __FILE__ ]} 2>/dev/null` );
-chdir( $ROOTDIR ) or die( sprintf( "[\x1b[0;31mERROR\x1b[0m] Couldn't chdir: %s", $! || 'Unknown error' ));
+chdir( $ROOTDIR ) or prntError( sprintf( "couldn't chdir: %s", $! || 'Unknown error' ));
 
 if ( !-f '/etc/imscp/imscp.conf' || !grep (/^-(?:[^-]*?[hs?][^-]*|-(?:help|skip-distro-packages))$/, @ARGV) ) {
-    my ($bootstrapDir, $bootstrapFile) = ( "$ROOTDIR/installer/bootstrap", undef );
+    my ($bootstrapDir, $bootstrapFile) = ( "$ROOTDIR/installer/bootstrap" );
 
     if ( -f '/etc/debian_version' || -f '/etc/devuan_version' ) {
         $bootstrapFile = 'debian.pl';
@@ -58,14 +58,14 @@ if ( !-f '/etc/imscp/imscp.conf' || !grep (/^-(?:[^-]*?[hs?][^-]*|-(?:help|skip-
     } elsif ( -f '/etc/gentoo-release' ) {
         $bootstrapFile = 'gentoo.pl';
     } else {
-        prntError( 'Your distribution is not supported yet. Please contact the i-MSCP team.' );
+        prntError( 'Your distribution is not known yet. Please contact the i-MSCP team.' );
     }
 
     -f "$bootstrapDir/$bootstrapFile" or prntError(
         "No installer bootstrap file found for your distribution. You need first implement the $bootstrapDir/$bootstrapFile bootstrap file."
     );
 
-    eval { require "$bootstrapDir/$bootstrapFile"; } or prntError( "Couldn't bootstrap the installer: $@" );
+    eval { require "$bootstrapDir/$bootstrapFile"; } or prntError( "Couldn't bootstrap the i-MSCP installer: $@" );
 }
 
 # Execute the real installer
