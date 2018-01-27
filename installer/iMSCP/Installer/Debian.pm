@@ -34,6 +34,7 @@ use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
 use iMSCP::Getopt;
+use iMSCP::Installer::Functions qw/ expandVars /;
 use iMSCP::ProgramFinder;
 use iMSCP::Stepper qw/ startDetail endDetail step /;
 use iMSCP::TemplateParser qw/ processByRef /;
@@ -388,17 +389,28 @@ sub _parsePackageNode
         push @{$target}, $node->{'content'};
     }
 
-    # Per package pre-install tasks
+    # Pre-install tasks
     if ( defined $node->{'pre_install_task'} ) {
         push @{ $self->{'packagesPreInstallTasks'}->{$node->{'content'}} }, $_ for @{$node->{'pre_install_task'}};
     }
 
-    # Per package post-install tasks
+    # Post-install tasks
     if ( defined $node->{'post_install_task'} ) {
         push @{$self->{'packagesPostInstallTasks'}->{$node->{'content'}}}, $_ for @{$node->{'post_install_task'}};
     }
 
-    # Per package APT pinning
+    # APT repository
+    if ( defined $node->{'repository'} ) {
+        push @{$self->{'aptRepositoriesToAdd'}},
+            {
+                repository         => $node->{'repository'},
+                repository_key_uri => $node->{'repository_key_uri'} || undef,
+                repository_key_id  => $node->{'repository_key_id'} || undef,
+                repository_key_srv => $node->{'repository_key_srv'} || undef
+            };
+    }
+
+    # APT preferences
     if ( defined $node->{'pinning_package'} ) {
         push @{$self->{'aptPreferences'}},
             {
@@ -424,12 +436,6 @@ sub _processPackagesFile
     my $rs = $self->{'eventManager'}->trigger( 'onBuildPackageList', \ my $pkgFile );
     return $rs if $rs;
 
-    chomp( my $arch = `dpkg-architecture -qDEB_HOST_ARCH 2>/dev/null` || '' );
-    if ( $? >> 8 != 0 || $arch eq '' ) {
-        error( "Couldn't determine OS architecture" );
-        return 1;
-    }
-
     my $xml = XML::Simple->new( NoEscape => 1 );
     my $pkgData = eval {
         $xml->XMLin(
@@ -445,32 +451,32 @@ sub _processPackagesFile
 
     my $dialog = iMSCP::Dialog->getInstance();
 
-    # Make sure that all expected sections are defined in the packages file
-    for ( qw/ frontend cron server httpd php po mta ftpd sqld perl other / ) {
-        defined $pkgData->{$_} or die( sprintf( "Missing %s section in the distribution packages file.", $_ ));
+    # Make sure that all mandatory sections are defined in the packages file
+    for ( qw/ cron server httpd php po mta ftpd sqld / ) {
+        defined $pkgData->{$_} or die( sprintf( 'Missing %s section in the distribution packages file.', $_ ));
     }
 
     while ( my ($section, $data) = each( %{$pkgData} ) ) {
-        # List of packages to install
+        # Packages to install
         if ( defined $data->{'package'} ) {
             for ( @{$data->{'package'}} ) {
                 $self->_parsePackageNode( $_, $self->{'packagesToInstall'} );
             }
         }
 
-        # List of packages to install (delayed)
+        # Packages to install (delayed)
         if ( defined $data->{'package_delayed'} ) {
             $self->_parsePackageNode( $_, $self->{'packagesToInstallDelayed'} ) for @{$data->{'package_delayed'}};
         }
 
-        # List of conflicting packages that must be pre-removed
+        # Conflicting packages to pre-remove
         if ( defined $data->{'package_conflict'} ) {
             for ( @{$data->{'package_conflict'}} ) {
                 push @{$self->{'packagesToPreUninstall'}}, ref $_ eq 'HASH' ? $_->{'content'} : $_;
             }
         }
 
-        # Per package section APT repository
+        # APT repository
         if ( defined $data->{'repository'} ) {
             push @{$self->{'aptRepositoriesToAdd'}},
                 {
@@ -481,7 +487,7 @@ sub _processPackagesFile
                 };
         }
 
-        # Per package section APT pinning
+        # APT preferences
         if ( defined $data->{'pinning_package'} ) {
             push @{$self->{'aptPreferences'}},
                 {
@@ -491,19 +497,19 @@ sub _processPackagesFile
                 };
         }
 
-        # Per package section pre-install tasks
+        # Pre-install tasks
         if ( defined $data->{'pre_install_task'} ) {
             push @{$self->{'packagesPreInstallTasks'}->{$section}}, $_ for @{$data->{'pre_install_task'}};
         }
 
-        # Per package section post-install tasks
+        # Post-install tasks
         if ( defined $data->{'post_install_task'} ) {
             push @{$self->{'packagesPostInstallTasks'}->{$section}}, $_ for @{$data->{'post_install_task'}};
         }
 
         # Delete items that were already processed
         delete @{$data}{qw/ package package_delayed package_conflict pinning_package repository repository_key_uri repository_key_id
-            repository_key_srv post_install_task post_install_task provide_alternatives /};
+            repository_key_srv post_install_task post_install_task /};
 
         # Jump in next section, unless the section defines alternatives
         next unless %{$data};
@@ -520,12 +526,8 @@ sub _processPackagesFile
         my $sAlt = $main::questions{ $sectionClass } || $main::imscpConfig{ $sectionClass };
 
         # Build list of supported alternatives
-        # Discard those alternatives for which architecture requirement is not met
-        # Discard those alternatives for which init system requirement is not met
-        my @supportedAlts = grep {
-            ( !$data->{$_}->{'required_arch'} || $data->{$_}->{'required_arch'} eq $arch )
-                && ( !$data->{$_}->{'required_init'} || $data->{$_}->{'required_init'} eq $main::imscpConfig{'SYSTEM_INIT'} )
-        } keys %{$data};
+        # Discard those alternatives for evaluation of the condition attribute if any is not TRUE
+        my @supportedAlts = grep { !defined $data->{$_}->{'condition'} || eval expandVars( $data->{$_}->{'condition'} ) } keys %{$data};
 
         if ( $section eq 'sqld' ) {
             # The sqld section need a specific treatment
@@ -582,66 +584,67 @@ EOF
             return $ret if $ret; # Handle ESC case
         }
 
-        # Packages to install for the selected alternative
-        if ( defined $data->{$sAlt}->{'package'} ) {
-            for ( @{$data->{$sAlt}->{'package'}} ) {
-                $self->_parsePackageNode( $_, $self->{'packagesToInstall'} );
-            }
-        }
-
-        # Package to install (delayed) for the selected alternative
-        if ( defined $data->{$sAlt}->{'package_delayed'} ) {
-            for ( @{$data->{$sAlt}->{'package_delayed'}} ) {
-                $self->_parsePackageNode( $_, $self->{'packagesToInstallDelayed'} );
-            }
-        }
-
-        # Conflicting packages that must be pre-removed for the selected
-        # alternative.
-        if ( defined $data->{$sAlt}->{'package_conflict'} ) {
-            for ( @{$data->{$sAlt}->{'package_conflict'}} ) {
-                push @{$self->{'packagesToPreUninstall'}}, ref $_ eq 'HASH' ? $_->{'content'} : $_;
-            }
-        }
-
-        # APT pinning for the selected alternative
-        if ( defined $data->{$sAlt}->{'pinning_package'} ) {
-            push @{$self->{'aptPreferences'}},
-                {
-                    pinning_package      => $data->{$sAlt}->{'pinning_package'},
-                    pinning_pin          => $data->{$sAlt}->{'pinning_pin'} || undef,
-                    pinning_pin_priority => $data->{$sAlt}->{'pinning_pin_priority'} || undef,
-                }
-        }
-
-        # APT repository to add for the selected alternative
-        if ( defined $data->{$sAlt}->{'repository'} ) {
-            push @{$self->{'aptRepositoriesToAdd'}},
-                {
-                    repository         => $data->{$sAlt}->{'repository'},
-                    repository_key_uri => $data->{$sAlt}->{'repository_key_uri'} || undef,
-                    repository_key_id  => $data->{$sAlt}->{'repository_key_id'} || undef,
-                    repository_key_srv => $data->{$sAlt}->{'repository_key_srv'} || undef
-                };
-        }
-
-        # Perl alternative pre-install tasks
-        if ( defined $data->{$sAlt}->{'pre_install_task'} ) {
-            push @{$self->{'packagesPreInstallTasks'}->{$sAlt}}, $_ for @{$data->{$sAlt}->{'pre_install_task'}};
-        }
-
-        # Perl alternative post-install tasks
-        if ( defined $data->{$sAlt}->{'post_install_task'} ) {
-            push @{$self->{'packagesPostInstallTasks'}->{$sAlt}}, $_ for @{$data->{$sAlt}->{'post_install_task'}};
-        }
-
-        # Schedule removal of APT repositories and packages that belong to
-        # unselected alternatives
-        $dialog->endGauge();
+        # Process alternatives data
         while ( my ($alt, $altData) = each( %{$data} ) ) {
-            next if $alt eq $sAlt;
+            # Process data for the selected alternative or those which need to
+            # be always installed
+            if ( $alt eq $sAlt || $altData->{'install_always'} ) {
+                # Packages to install
+                if ( defined $altData->{'package'} ) {
+                    for ( @{$altData->{'package'}} ) {
+                        $self->_parsePackageNode( $_, $self->{'packagesToInstall'} );
+                    }
+                }
 
-            # Packages to uninstall
+                # Package to install (delayed)
+                if ( defined $altData->{'package_delayed'} ) {
+                    for ( @{$altData->{'package_delayed'}} ) {
+                        $self->_parsePackageNode( $_, $self->{'packagesToInstallDelayed'} );
+                    }
+                }
+
+                # Conflicting packages to pre-removed
+                if ( defined $altData->{'package_conflict'} ) {
+                    for ( @{$altData->{'package_conflict'}} ) {
+                        push @{$self->{'packagesToPreUninstall'}}, ref $_ eq 'HASH' ? $_->{'content'} : $_;
+                    }
+                }
+
+                # APT repository
+                if ( defined $altData->{'repository'} ) {
+                    push @{$self->{'aptRepositoriesToAdd'}},
+                        {
+                            repository         => $altData->{'repository'},
+                            repository_key_uri => $altData->{'repository_key_uri'} || undef,
+                            repository_key_id  => $altData->{'repository_key_id'} || undef,
+                            repository_key_srv => $altData->{'repository_key_srv'} || undef
+                        };
+                }
+
+                # APT preferences
+                if ( defined $altData->{'pinning_package'} ) {
+                    push @{$self->{'aptPreferences'}},
+                        {
+                            pinning_package      => $altData->{'pinning_package'},
+                            pinning_pin          => $altData->{'pinning_pin'} || undef,
+                            pinning_pin_priority => $altData->{'pinning_pin_priority'} || undef,
+                        }
+                }
+
+                # Pre-install tasks
+                if ( defined $altData->{'pre_install_task'} ) {
+                    push @{$self->{'packagesPreInstallTasks'}->{$sAlt}}, $_ for @{$altData->{'pre_install_task'}};
+                }
+
+                # Post-install tasks
+                if ( defined $altData->{'post_install_task'} ) {
+                    push @{$self->{'packagesPostInstallTasks'}->{$sAlt}}, $_ for @{$altData->{'post_install_task'}};
+                }
+
+                next;
+            }
+
+            # Process data for alternatives that don't need to be installed
             for ( qw / package package_delayed / ) {
                 next unless defined $altData->{$_};
 
@@ -653,9 +656,9 @@ EOF
             }
         }
 
-        # Set server/package class name
+        # Set server/package class name for the selected alternative
         $main::imscpConfig{$sectionClass} = $data->{$sAlt}->{'class'} || 'iMSCP::Servers::Noserver';
-        # Set alternative name for processing (volatile data)
+        # Set alternative name for installer use
         $main::questions{'_' . $section} = $sAlt;
     }
 
@@ -754,14 +757,14 @@ EOF
             return $rs if $rs;
 
             # Workaround https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1633754
-            $rs = execute( [ '/usr/bin/pkill', '-TERM', 'dirmngr' ], \ $stdout, \ $stderr );
+            $rs = execute( [ 'pkill', '-TERM', 'dirmngr' ], \ $stdout, \ $stderr );
             debug( $stdout ) if $stdout;
             warning( $stderr ) if $rs && $stderr ne '';
         } elsif ( $repository->{'repository_key_uri'} ) {
             # Add the repository key by fetching it first from the given URI
             my $keyFile = File::Temp->new( UNLINK => 1 );
             $rs = execute(
-                [ '/usr/bin/wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile->filename, $repository->{'repository_key_uri'} ],
+                [ 'wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile->filename, $repository->{'repository_key_uri'} ],
                 \ my $stdout,
                 \ my $stderr
             );
