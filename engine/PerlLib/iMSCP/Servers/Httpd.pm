@@ -471,7 +471,9 @@ sub enableSites
 =item disableSites( @sites )
 
  Disable the given sites
- 
+
+ If a site doesn't exist, no error *MUST* be raised.
+
  Param list @sites List of sites to disable
  Return int 0 on success, other on failure
 
@@ -487,7 +489,9 @@ sub disableSites
 =item removeSites( @sites )
 
  Remove the given sites
- 
+
+ If a site doesn't exist, no error *MUST* be raised.
+
  Param list @sites List of sites to remove
  Return int 0 on success, other on failure
 
@@ -519,7 +523,9 @@ sub enableConfs
 =item disableConfs( @confs )
 
  Disable the given configurations
- 
+
+ If a configuration doesn't exist, no error *MUST* be raised.
+
  Param list @confs List of configurations to disable
  Return int 0 on success, other on failure
 
@@ -535,7 +541,9 @@ sub disableConfs
 =item removeConfs( @confs )
 
  Remove the given configurations
- 
+
+ If a configuration doesn't exist, no error *MUST* be raised.
+
  Param list @confs List of configurations to remove
  Return int 0 on success, other on failure
 
@@ -551,6 +559,8 @@ sub removeConfs
 =item enableModules( @mods )
 
  Enable the given modules
+ 
+ Any dependency module *SHOULD* be also enabled.
  
  Param list @mods List of modules to enable
  Return int 0 on success, other on failure
@@ -568,6 +578,8 @@ sub enableModules
 
  Disable the given modules
  
+ If a module doesn't exist, no error *MUST* be raised.
+ 
  Param list @mods List of modules to disable
  Return int 0 on success, other on failure
 
@@ -583,8 +595,11 @@ sub disableModules
 =item removeModules( @mods )
 
  Remove the given modules
- 
- Param list @confs List of modules to remove
+
+ If a module doesn't exist, no error *MUST* be raised.
+ Any depending module *SHOULD* be pre-disabled.
+
+ Param list @mods List of modules to remove
  Return int 0 on success, other on failure
 
 =cut
@@ -593,7 +608,7 @@ sub removeModules
 {
     my ($self) = @_;
 
-    die ( sprintf( 'The %s class must implement the removeConfs() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the removeModules() method', ref $self ));
 }
 
 =back
