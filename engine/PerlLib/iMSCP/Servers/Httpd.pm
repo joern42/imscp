@@ -25,21 +25,11 @@ package iMSCP::Servers::Httpd;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Rights' => qw/ setRights /;
-use Carp qw/ croak /;
-use Cwd qw/ realpath /;
-use File::Basename;
-use File::Find qw/ find /;
-use File::Spec;
-use iMSCP::Debug qw/ debug error warning getMessageByType /;
-use iMSCP::Dir;
-use iMSCP::File;
-use iMSCP::Getopt;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
 
- This class provides a factory and an abstract implementation for the i-MSCP httpd servers..
+ This class provides a factory and an abstract implementation for the i-MSCP httpd servers.
 
 =head1 CLASS METHODS
 
@@ -421,7 +411,7 @@ sub deleteHtaccess
  Get httpd traffic data
 
  Param hashref \%trafficDb Traffic database
- Croak on failure
+ die on failure
 
 =cut
 
@@ -466,8 +456,6 @@ sub getRunningGroup
 
  Enable the given sites
  
- Default implementation that *SHOULD* met requirements for both Apache and Nginx servers.
- 
  Param list @sites List of sites to enable
  Return int 0 on success, other on failure
 
@@ -475,57 +463,14 @@ sub getRunningGroup
 
 sub enableSites
 {
-    my ($self, @sites) = @_;
+    my ($self) = @_;
 
-    my $ret = 0;
-    eval {
-        my $caller = ( caller( 1 ) )[3];
-
-        for ( @sites ) {
-            my $site = basename( $_, '.conf' ); # Support input with .conf suffix too
-            my $tgt = "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site.conf";
-            my $link = "$self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}/$site.conf";
-
-            unless ( -e $tgt ) {
-                warning( sprintf( '%s is a dangling symlink', $link ), $caller ) if -l $link && !-e $link;
-
-                if ( iMSCP::Getopt->context() eq 'uninstaller' ) {
-                    $self->_switchMarker( 'site', 'enable', $site );
-                    next; # we do not report error. We are uninstalling anyway
-                }
-
-                error( sprintf( "Site %s doesn't exist", $site ), $caller );
-                $ret ||= 1;
-                next;
-            }
-
-            my $check = $self->_checkLink( $tgt, $link );
-            if ( $check eq 'ok' ) {
-                debug( sprintf( 'Site %s already enabled', $site ), $caller );
-            } elsif ( $check eq 'missing' ) {
-                debug( sprintf( 'Enabling site %s', $site ), $caller );
-                my $rs = $self->_addLink( $tgt, $link );
-                $rs ||= $self->_switchMarker( 'site', 'enable', $site );
-                $ret ||= $rs if $rs;
-            } else {
-                error( sprintf( "Site %s isn't properly enabled: %s", $check ), $caller );
-                $ret ||= 1;
-            }
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $ret;
+    die ( sprintf( 'The %s class must implement the enableSites() method', ref $self ));
 }
 
 =item disableSites( @sites )
 
  Disable the given sites
- 
- Default implementation that *SHOULD* met requirements for both Apache and Nginx servers.
  
  Param list @sites List of sites to disable
  Return int 0 on success, other on failure
@@ -534,99 +479,32 @@ sub enableSites
 
 sub disableSites
 {
-    my ($self, @sites) = @_;
+    my ($self) = @_;
 
-    my ($ret, $conflink) = ( 0 );
-    eval {
-        my $caller = ( caller( 1 ) )[3];
-
-        for ( @sites ) {
-            my $site = basename( $_, '.conf' ); # Support input with .conf suffix too
-            my $tgt = "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site.conf";
-            my $link = "$self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}/$site.conf";
-
-            unless ( -e $tgt ) {
-                if ( -l $link && !-e $link ) {
-                    debug( sprintf( 'Removing dangling symlink: %s', $link ), $caller );
-                    unlink( $link ) or die( sprintf( "Couldn't remove the %s link: %s", $link, $! ));
-
-                    # force a .conf path. It may exist as dangling link, too
-                    $conflink = "$self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}/$site.conf";
-                    if ( -l $conflink && !-e $conflink ) {
-                        debug( sprintf( 'Removing dangling symlink: %s', $conflink ), $caller );
-                        unlink( $conflink ) or die( sprintf( "Couldn't remove the %s link: %s", $link, $! ));
-                    }
-
-                    next;
-                }
-
-                $self->_switchMarker( 'site', 'disable', $site ) if iMSCP::Getopt->context() eq 'uninstaller';
-
-                # Unlike Debian a2dissite script behavior, we do not want report
-                # error when a site that we try to disable doesn't exist.
-                debug( sprintf( "Site %s doesn't exist. Skipping...", $site ), $caller );
-                next;
-            }
-
-            if ( -e $link || -l $link ) {
-                debug( sprintf( 'Disabling site %s', $site ), $caller );
-                $self->_removeLink( $link );
-                $self->_removeLink( $conflink ) if $conflink && -e $conflink;
-                $self->_switchMarker( 'site', 'disable', $site );
-            } elsif ( $conflink && -e $conflink ) {
-                debug( sprintf( 'Disabling stale config file %s.conf ', $site ), $caller );
-                $self->_removeLink( $conflink );
-            } else {
-                debug( sprintf( 'Site %s already disabled', $site ), $caller );
-                $self->_switchMarker( 'site', 'disable', $site ) if iMSCP::Getopt->context() eq 'uninstlaler';
-            }
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $ret;
+    die ( sprintf( 'The %s class must implement the disableSites() method', ref $self ));
 }
 
-=item enableModules( @modules )
+=item removeSites( @sites )
 
- Enable the given modules
+ Remove the given sites
  
- Param list @modules List of modules to enable
+ Param list @sites List of sites to remove
  Return int 0 on success, other on failure
 
 =cut
 
-sub enableModules
+sub removeSites
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the removeSites() method', ref $self ));
 }
 
-=item disableModules( @modules )
+=item enableConfs( @confs )
 
- Disable the given modules
+ Enable the given configurations
  
- Param list @modules List of modules to disable
- Return int 0 on success, other on failure
-
-=cut
-
-sub disableModules
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
-}
-
-=item enableConfs( @conffiles )
-
- Enable the given configuration files
- 
- Param list @conffiles List of configuration files to enable
+ Param list @confs List of configurations to enable
  Return int 0 on success, other on failure
 
 =cut
@@ -635,14 +513,14 @@ sub enableConfs
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the enableConfs() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the enableConfs() method', ref $self ));
 }
 
-=item disableConfs( @conffiles )
+=item disableConfs( @confs )
 
- Disable the given configuration files
+ Disable the given configurations
  
- Param list @conffiles List of configuration files to disable
+ Param list @confs List of configurations to disable
  Return int 0 on success, other on failure
 
 =cut
@@ -651,7 +529,71 @@ sub disableConfs
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the disableConfs() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the disableConfs() method', ref $self ));
+}
+
+=item removeConfs( @confs )
+
+ Remove the given configurations
+ 
+ Param list @confs List of configurations to remove
+ Return int 0 on success, other on failure
+
+=cut
+
+sub removeConfs
+{
+    my ($self) = @_;
+
+    die ( sprintf( 'The %s class must implement the removeConfs() method', ref $self ));
+}
+
+=item enableModules( @mods )
+
+ Enable the given modules
+ 
+ Param list @mods List of modules to enable
+ Return int 0 on success, other on failure
+
+=cut
+
+sub enableModules
+{
+    my ($self) = @_;
+
+    die ( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
+}
+
+=item disableModules( @mods )
+
+ Disable the given modules
+ 
+ Param list @mods List of modules to disable
+ Return int 0 on success, other on failure
+
+=cut
+
+sub disableModules
+{
+    my ($self) = @_;
+
+    die ( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
+}
+
+=item removeModules( @mods )
+
+ Remove the given modules
+ 
+ Param list @confs List of modules to remove
+ Return int 0 on success, other on failure
+
+=cut
+
+sub removeModules
+{
+    my ($self) = @_;
+
+    die ( sprintf( 'The %s class must implement the removeConfs() method', ref $self ));
 }
 
 =back
@@ -670,133 +612,9 @@ sub _init
 {
     my ($self) = @_;
 
-    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+    ref $self ne __PACKAGE__ or die( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     $self->SUPER::_init();
-}
-
-=item _checkLink( $tgt, $link )
-
- Check the given symlink
- 
- Param $string $link Link target
- Param $string $link Link path
- return int 0 on success, die on failure
-
-=cut
-
-sub _checkLink
-{
-    my ($self, $tgt, $link) = @_;
-
-    if ( !-e $link ) {
-        if ( -l $link ) {
-            debug( sprintf( 'Removing dangling link %s', $link ));
-            unlink $link or die( sprintf( "Couldn't remove the %s link: %s", $link, $! ));
-        }
-
-        return 'missing';
-    }
-
-    return sprintf( '%s is a real file, not touching it', $link ) if -e $link && !-l $link;
-    return sprintf( "The %s link exists but doesn't point to %s, not touching it", $link, $tgt ) if realpath( $link ) ne realpath( $tgt );
-    'ok';
-}
-
-=item _addLink( $tgt, $link )
-
- Create the given link
- 
- Param $string $link Link target
- Param $string $link Link path
- return int 0 on success, die on failure
-
-=cut
-
-sub _addLink
-{
-    my ($self, $tgt, $link) = @_;
-
-    symlink( File::Spec->abs2rel( $tgt, dirname( $link )), $link ) or die( sprintf( "Couldn't create %s: $!" ));
-    $self->{'reload'} ||= 1;
-    0;
-}
-
-=item _removeLink( $link )
-
- Remove the given link
- 
- Param $string $link Link path
- Return int 0 on success, die on failure
-
-=cut
-
-sub _removeLink
-{
-    my ($self, $link) = @_;
-
-    if ( -l $link ) {
-        unlink $link or die( sprintf( "Couldn't remove the %s link: %s", $link, $! ));
-    } elsif ( -e $link ) {
-        error( sprintf( "%s isn't a symbolic link, not deleting", $link ));
-        return 1;
-    }
-
-    $self->{'reload'} ||= 1;
-    0;
-}
-
-=item _switchMarker()
-
- Create or delete marker for the given object
-
- Debian OS Apache2 specific (see a2enmod script for further details)
- 
- Param string $which (conf|module|site)
- Param string $what (enable|disable)
- param $string $name Name
- Return int 0 on succes, other on failure
-
-=cut
-
-sub _switchMarker
-{
-    my ($self, $which, $what, $name) = @_;
-
-    return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && $self->getServerName eq 'Apache';
-
-    my $stateMarkerDir = "$self->{'config'}->{'HTTPD_STATE_DIR'}/$which/${what}d_by_admin";
-    my $stateMarker = "$stateMarkerDir/$name";
-
-    unless ( -d $stateMarkerDir ) {
-        eval { iMSCP::Dir->new( dirname => $stateMarkerDir )->make( { umask => 0022 } ); };
-        if ( $@ ) {
-            error( sprintf( "Failed to create the %s marker directory:", $stateMarkerDir, $@ ));
-            return 1;
-        }
-    }
-
-    eval {
-        find(
-            sub {
-                return unless $_ eq $name && -f;
-                unlink or die sprintf( "Failed to remove old %s marker: %s", $File::Find::name, $! );
-            },
-            $self->{'config'}->{'HTTPD_STATE_DIR'}
-        );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    return 0 if iMSCP::Getopt->context() eq 'uninstaller';
-
-    my $rs = iMSCP::File->new( filename => $stateMarker )->save();
-    error( sprintf(
-        "Failed to create the %s marker: %s", $stateMarker, getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    )) if $rs;
-    $rs;
 }
 
 =back

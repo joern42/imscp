@@ -332,7 +332,7 @@ sub restoreDomain
 
                 $rs = execute( $cmd, \ my $stdout, \ my $stderr );
                 debug( $stdout ) if $stdout;
-                $rs == 0 or croak( $stderr || 'Unknown error' );
+                $rs == 0 or die( $stderr || 'Unknown error' );
 
                 my $dbh = iMSCP::Database->getInstance()->getRawDb();
                 local $dbh->{'RaiseError'} = 1;
@@ -502,33 +502,32 @@ sub addHtpasswd
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheAddHtpasswd', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'beforeApacheAddHtpasswd', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         ${$fileContentRef} =~ s/^$moduleData->{'HTUSER_NAME'}:[^\n]*\n//gim;
         ${$fileContentRef} .= "$moduleData->{'HTUSER_NAME'}:$moduleData->{'HTUSER_PASS'}\n";
 
-        $self->{'eventManager'}->trigger( 'afterApacheAddHtpasswd', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'afterApacheAddHtpasswd', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         my $rs = $file->save( 0027 );
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
         $rs ||= $file->mode( 0640 );
-        $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
         error( $@ );
-
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
         return 1;
@@ -556,32 +555,31 @@ sub deleteHtpasswd
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtpasswd', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtpasswd', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         ${$fileContentRef} =~ s/^$moduleData->{'HTUSER_NAME'}:[^\n]*\n//gim;
 
-        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtpasswd', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtpasswd', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         my $rs = $file->save();
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
         $rs ||= $file->mode( 0640 );
-        $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
         error( $@ );
-
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
         return 1;
@@ -607,33 +605,32 @@ sub addHtgroup
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheAddHtgroup', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'beforeApacheAddHtgroup', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         ${$fileContentRef} =~ s/^$moduleData->{'HTGROUP_NAME'}:[^\n]*\n//gim;
         ${$fileContentRef} .= "$moduleData->{'HTGROUP_NAME'}:$moduleData->{'HTGROUP_USERS'}\n";
 
-        $self->{'eventManager'}->trigger( 'afterApacheAddHtgroup', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'afterApacheAddHtgroup', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         my $rs = $file->save( 0027 );
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
         $rs ||= $file->mode( 0640 );
-        $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
         error( $@ );
-
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
         return 1;
@@ -661,32 +658,31 @@ sub deleteHtgroup
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtgroup', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtgroup', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         ${$fileContentRef} =~ s/^$moduleData->{'HTGROUP_NAME'}:[^\n]*\n//gim;
 
-        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtgroup', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtgroup', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         my $rs = $file->save();
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
         $rs ||= $file->mode( 0640 );
-        $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
         error( $@ );
-
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
         return 1;
@@ -716,13 +712,13 @@ sub addHtaccess
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheAddHtaccess', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'beforeApacheAddHtaccess', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
@@ -749,20 +745,19 @@ EOF
         replaceBlocByRef( $bTag, $eTag, '', $fileContentRef );
         ${$fileContentRef} = $bTag . $tagContent . $eTag . ${$fileContentRef};
 
-        $self->{'eventManager'}->trigger( 'afterApacheAddHtaccess', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'afterApacheAddHtaccess', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         my $rs = $file->save( 0027 );
         $rs ||= $file->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} );
         $rs ||= $file->mode( 0640 );
-        $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
     };
     if ( $@ ) {
         error( $@ );
-
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
         return 1;
@@ -794,19 +789,19 @@ sub deleteHtaccess
 
         if ( $fileExist ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtaccess', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtaccess', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
         replaceBlocByRef( "### START i-MSCP PROTECTION ###\n", "### END i-MSCP PROTECTION ###\n", '', $fileContentRef );
 
-        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtaccess', $fileContentRef, $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtaccess', $fileContentRef, $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
@@ -814,16 +809,15 @@ sub deleteHtaccess
             my $rs = $file->save();
             $rs ||= $file->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} );
             $rs ||= $file->mode( 0640 );
-            $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } elsif ( $fileExist ) {
-            $file->delFile() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $file->delFile() == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
         setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
     };
     if ( $@ ) {
         error( $@ );
-
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
         return 1;
@@ -903,7 +897,7 @@ sub getTraffic
     if ( $@ ) {
         $dbh->rollback();
         %{$trafficDb} = ();
-        croak( sprintf( "Couldn't collect traffic data: %s", $@ ));
+        die( sprintf( "Couldn't collect traffic data: %s", $@ ));
     }
 
     0;
@@ -933,102 +927,6 @@ sub getRunningGroup
     my ($self) = @_;
 
     $self->{'config'}->{'HTTPD_GROUP'};
-}
-
-=item enableSites( @sites )
-
- Enable the given sites
- 
- Param list @sites List of sites to enable
- Return int 0 on success, other on failure
-
-=cut
-
-sub enableSites
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the enableSites() method', ref $self ));
-}
-
-=item disableSites( @sites )
-
- Disable the given sites
- 
- Param list @sites List of sites to disable
- Return int 0 on success, other on failure
-
-=cut
-
-sub disableSites
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the disableSites() method', ref $self ));
-}
-
-=item enableModules( @modules )
-
- Enable the given modules
- 
- Param list @modules List of modules to enable
- Return int 0 on success, other on failure
-
-=cut
-
-sub enableModules
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
-}
-
-=item disableModules( @modules )
-
- Disable the given modules
- 
- Param list @modules List of modules to disable
- Return int 0 on success, other on failure
-
-=cut
-
-sub disableModules
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
-}
-
-=item enableConfs( @conffiles )
-
- Enable the given configuration files
- 
- Param list @conffiles List of configuration files to enable
- Return int 0 on success, other on failure
-
-=cut
-
-sub enableConfs
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the enableConfs() method', ref $self ));
-}
-
-=item disableConfs( @conffiles )
-
- Disable the given configuration files
- 
- Param list @conffiles List of configuration files to disable
- Return int 0 on success, other on failure
-
-=cut
-
-sub disableConfs
-{
-    my ($self) = @_;
-
-    croak ( sprintf( 'The %s class must implement the disableConfs() method', ref $self ));
 }
 
 =back
@@ -1066,7 +964,7 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
 }
 
 =item _deleteDomain( \%moduleData )
@@ -1082,23 +980,12 @@ sub _deleteDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->disableSites( "$moduleData->{'DOMAIN_NAME'}.conf", "$moduleData->{'DOMAIN_NAME'}_ssl.conf" );
-    return $rs if $rs;
-
-    for ( "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
-        "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf",
-        "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf"
-    ) {
-        next unless -f $_;
-        $rs = iMSCP::File->new( filename => $_ )->delFile();
-        return $rs if $rs;
-    }
-
-    $rs = $self->_umountLogsFolder( $moduleData );
+    my $rs = $self->removeSites( $moduleData->{'DOMAIN_NAME'}, $moduleData->{'DOMAIN_NAME'} . '_ssl' );
+    $rs ||= $self->_umountLogsFolder( $moduleData );
     return $rs if $rs;
 
     unless ( $moduleData->{'SHARED_MOUNT_POINT'} || !-d $moduleData->{'WEB_DIR'} ) {
-        ( my $userWebDir = $main::imscpConfig{'USER_WEB_DIR'} ) =~ s%/+$%%;
+        my $userWebDir = File::Spec->canonpath( $main::imscpConfig{'USER_WEB_DIR'} );
         my $parentDir = dirname( $moduleData->{'WEB_DIR'} );
 
         clearImmutable( $parentDir );
@@ -1265,7 +1152,7 @@ sub _disableDomain
         $moduleData, $serverData, { cached => 1 }
     );
 
-    $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}.conf" );
+    $rs ||= $self->enableSites( $moduleData->{'DOMAIN_NAME'} );
     return $rs if $rs;
 
     # Create https vhost (or delete it if SSL is disabled)
@@ -1281,19 +1168,11 @@ sub _disableDomain
         $rs = $self->buildConfFile( 'parts/domain_disabled.tpl',
             "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf", $moduleData, $serverData, { cached => 1 }
         );
-        $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl.conf" );
+        $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
         return $rs if $rs;
     } else {
-        # Try to disable the site in any case to cover possible dangling symlink
-        $rs = $self->disableSites( "$moduleData->{'DOMAIN_NAME'}_ssl.conf" );
+        $rs = $self->removeSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
         return $rs if $rs;
-
-        if ( -f "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf" ) {
-            $rs ||= iMSCP::File->new(
-                filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf"
-            )->delFile();
-            return $rs if $rs;
-        }
     }
 
     # Make sure that custom httpd conffile exists (cover case where file has been removed for any reasons)
@@ -1372,7 +1251,7 @@ sub _addCfg
         $serverData, { cached => 1 }
     );
 
-    $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}.conf" );
+    $rs ||= $self->enableSites( $moduleData->{'DOMAIN_NAME'} );
     return $rs if $rs;
 
     # Create https vhost (or delete it if SSL is disabled)
@@ -1393,19 +1272,11 @@ sub _addCfg
         $rs = $self->buildConfFile( 'parts/domain.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf",
             $moduleData, $serverData, { cached => 1 }
         );
-        $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl.conf" );
+        $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
         return $rs if $rs;
     } else {
-        # Try to disable the site in any case to cover possible dangling symlink
-        $rs = $self->disableSites( "$moduleData->{'DOMAIN_NAME'}_ssl.conf" );
+        $rs = $self->removeSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
         return $rs if $rs;
-
-        if ( -f "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf" ) {
-            $rs ||= iMSCP::File->new(
-                filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf"
-            )->delFile();
-            return $rs if $rs;
-        }
     }
 
     unless ( -f "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf" ) {
@@ -1466,7 +1337,7 @@ sub _addFiles
     my ($self, $moduleData) = @_;
 
     eval {
-        $self->{'eventManager'}->trigger( 'beforeApacheAddFiles', $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'beforeApacheAddFiles', $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
@@ -1515,7 +1386,7 @@ sub _addFiles
         clearImmutable( $moduleData->{'WEB_DIR'} ) if -d $moduleData->{'WEB_DIR'};
 
         if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
-            $self->_umountLogsFolder( $moduleData ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $self->_umountLogsFolder( $moduleData ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
             if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} ne 'yes' ) {
                 iMSCP::Dir->new( dirname => "$moduleData->{'WEB_DIR'}/logs" )->remove();
@@ -1539,7 +1410,7 @@ sub _addFiles
                 group => $moduleData->{'GROUP'},
                 mode  => '0750'
             }
-        ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         # Get list of possible files inside Web folder root
         my @files = iMSCP::Dir->new( dirname => $webFolderSkeleton )->getAll();
@@ -1553,7 +1424,7 @@ sub _addFiles
                     group     => $moduleData->{'GROUP'},
                     recursive => $fixPermissions
                 }
-            ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
         if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
@@ -1566,7 +1437,7 @@ sub _addFiles
                         group => $self->getRunningGroup(),
                         mode  => '0640'
                     }
-                ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+                ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             }
 
             # Set ownership for logs directory
@@ -1577,7 +1448,7 @@ sub _addFiles
                         group     => $moduleData->{'GROUP'},
                         recursive => $fixPermissions
                     }
-                ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+                ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             }
         }
 
@@ -1590,14 +1461,14 @@ sub _addFiles
                     filemode  => '0640',
                     recursive => $file =~ /^(?:00_private|cgi-bin|htdocs)$/ ? 0 : $fixPermissions
                 }
-            ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
         if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} eq 'yes' ) {
-            $self->_mountLogsFolder( $moduleData ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $self->_mountLogsFolder( $moduleData ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
-        $self->{'eventManager'}->trigger( 'afterApacheAddFiles', $moduleData ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'afterApacheAddFiles', $moduleData ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
 
@@ -1701,7 +1572,7 @@ EOF
         );
         return $rs if $rs;
 
-        $rs = execute( "cat $dbSchemaFile | /usr/bin/mysql --defaults-extra-file=$defaultsExtraFile", \ my $stdout, \ my $stderr );
+        $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
@@ -1853,22 +1724,18 @@ sub afterApacheBuildConfFile
 
 =over 4
 
-=item DESTROY
+=item END
 
  Umount and remove tmpfs
 
 =cut
 
-sub DESTROY
-{
-    my ($self) = @_;
-
-    my $tmpfs = "$main::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache_tmpfs";
-    umount( $tmpfs ) if isMountpoint( $tmpfs );
-    iMSCP::Dir->new( dirname => $tmpfs )->remove();
-
-    $self->SUPER::DESTROY();
-}
+END
+    {
+        my $tmpfs = "$main::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache_tmpfs";
+        umount( $tmpfs ) if isMountpoint( $tmpfs );
+        iMSCP::Dir->new( dirname => $tmpfs )->remove();
+    }
 
 =back
 
