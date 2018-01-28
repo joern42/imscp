@@ -210,7 +210,7 @@ sub reload
 
 =item enableSites( @sites )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::enableSites()
+ See iMSCP::Servers::Httpd::enableSites()
 
 =cut
 
@@ -257,7 +257,7 @@ sub enableSites
 
 =item disableSites( @sites )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::disableSites()
+ See iMSCP::Servers::Httpd::disableSites()
 
 =cut
 
@@ -307,7 +307,7 @@ sub disableSites
 
 =item removeSites( @sites )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::removeSites()
+ See iMSCP::Servers::Httpd::removeSites()
 
 =cut
 
@@ -345,7 +345,7 @@ sub removeSites
 
 =item enableConfs( @confs )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::enableConfs()
+ See iMSCP::Servers::Httpd::enableConfs()
 
 =cut
 
@@ -392,7 +392,7 @@ sub enableConfs
 
 =item disableConfs( @confs )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::disableConfs()
+ See iMSCP::Servers::Httpd::disableConfs()
 
 =cut
 
@@ -442,7 +442,7 @@ sub disableConfs
 
 =item removeConfs( @confs )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::removeConfs()
+ See iMSCP::Servers::Httpd::removeConfs()
 
 =cut
 
@@ -480,7 +480,7 @@ sub removeConfs
 
 =item enableModules( @mods )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::enableModules()
+ See iMSCP::Servers::Httpd::enableModules()
 
 =cut
 
@@ -561,7 +561,7 @@ sub enableModules
 
 =item disableModules( @mods )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::disableModules()
+ See iMSCP::Servers::Httpd::disableModules()
 
 =cut
 
@@ -643,7 +643,7 @@ sub disableModules
 
 =item removeModules( @mods )
 
- See iMSCP::Servers::Httpd::Apache2::Abstract::removeModules()
+ See iMSCP::Servers::Httpd::removeModules()
 
 =cut
 
