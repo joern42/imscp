@@ -106,7 +106,7 @@ EOF
  Param string $subject Message subject
  Param string $message Message to be sent
  Param string $severity Message severity
- Return int 0 on success, other or croak on failure
+ Return int 0 on success, other or die on failure
  
 =cut
 
@@ -114,7 +114,7 @@ sub _sendMail
 {
     my (undef, $subject, $message, $severity) = @_;
 
-    my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or croak( "Couldn't find sendmail executable" );
+    my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or die( "Couldn't find sendmail executable" );
     my $host = $main::imscpConfig{'BASE_SERVER_VHOST'};
     my $out = MIME::Entity->new()->build(
         From       => "i-MSCP ($host) <noreply\@$host>",

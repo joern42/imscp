@@ -25,6 +25,7 @@ package iMSCP::Servers::Mta::Postfix::Debian;
 
 use strict;
 use warnings;
+use Class::Autouse qw/ :nostat iMSCP::ProgramFinder /;
 use File::Basename;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Execute qw/ execute /;
@@ -33,7 +34,7 @@ use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Mta::Postfix::Abstract';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
@@ -112,7 +113,7 @@ sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
 
-    return 0 unless -x '/usr/sbin/postconf';
+    return 0 unless iMSCP::ProgramFinder::find( 'postconf' );
 
     $self->_setVersion();
 }

@@ -35,7 +35,7 @@ our @EXPORT = qw/
 
 BEGIN {
     $SIG{'__DIE__'} = sub { fatal( @_, ( caller( 1 ) )[3] || 'main' ) if defined $^S && !$^S };
-    $SIG{'__WARN__'} = sub { fatal( @_, ( caller( 1 ) )[3] || 'main' ); };
+    $SIG{'__WARN__'} = sub { warn( @_, ( caller( 1 ) )[3] || 'main' ); };
 }
 
 my $self;

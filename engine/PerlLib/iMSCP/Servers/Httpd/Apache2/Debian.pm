@@ -28,6 +28,7 @@ use warnings;
 use autouse 'iMSCP::Mount' => qw/ umount /;
 use Array::Utils qw/ unique /;
 use Carp qw/ croak /;
+use Class::Autouse qw/ :nostat iMSCP::ProgramFinder /;
 use Cwd qw/ realpath /;
 use File::Basename;
 use File::Find qw/ find /;
@@ -127,7 +128,7 @@ sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
 
-    return 0 unless -x '/usr/sbin/apache2ctl';
+    return 0 unless iMSCP::ProgramFinder::find( 'apache2ctl' );
 
     $self->_setVersion();
 }
@@ -689,7 +690,7 @@ sub removeModules
 
 =item _init( )
 
- See iMSCP::Servers::Httpd::_init()
+ See iMSCP::Servers::Httpd::Apache2::Abstract::_init()
 
 =cut
 
@@ -711,12 +712,12 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( [ '/usr/sbin/apache2ctl', '-v' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'apache2ctl', '-v' ], \ my $stdout, \ my $stderr );
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ /apache\/([\d.]+)/i ) {
-        error( "Couldn't guess Apache version from the `/usr/sbin/apache2ctl -v` command output" );
+        error( "Couldn't guess Apache version from the `apache2ctl -v` command output" );
         return 1;
     }
 

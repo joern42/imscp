@@ -79,7 +79,7 @@ sub addSystemUser
         push @commands,
             [
                 [
-                    '/usr/sbin/useradd',
+                    'useradd',
                     ( defined $self->{'password'} ? ( '-p', $self->{'password'} ) : () ),
                     '-c', $self->{'comment'} // 'i-MSCP user',
                     '-d', $home,
@@ -104,13 +104,13 @@ sub addSystemUser
         # If we attempt to modify user' login or home, we must ensure
         # that there is no process running for the user
         if ( $username ne $oldUsername || $home ne $userProps[7] ) {
-            push @commands, [ [ '/usr/bin/pkill', '-KILL', '-u', $userProps[2] ], [ 0, 1 ] ];
+            push @commands, [ [ 'pkill', '-KILL', '-u', $userProps[2] ], [ 0, 1 ] ];
             $isImmutableHome = -d $userProps[7] && isImmutable( $userProps[7] );
             clearImmutable( $userProps[7] ) if $isImmutableHome;
         }
 
         my $usermodCmd = [
-            '/usr/sbin/usermod',
+            'usermod',
             ( defined $self->{'password'} ? ( '-p', $self->{'password'} ) : () ),
             ( defined $self->{'comment'} && $self->{'comment'} ne $userProps[6]
                 ? ( '-c', $self->{'comment'} // 'iMSCP user' ) : () ),
@@ -137,7 +137,7 @@ sub addSystemUser
     }
 
     if ( @userProps && $oldUsername ne $username && defined $newGroupname ) {
-        my $rs = execute( [ '/usr/sbin/groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \ my $stdout, \ my $stderr );
+        my $rs = execute( [ 'groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs && $rs;
@@ -179,17 +179,17 @@ sub delSystemUser
 
     my @commands = (
         # Delete user' CRON(8) jobs
-        [ [ '/usr/bin/crontab', '-r', '-u', $username ], [ 0, 1 ] ],
+        [ [ 'crontab', '-r', '-u', $username ], [ 0, 1 ] ],
         # Delete any user' AT(1) jobs
-        [ [ '/usr/bin/find', '/var/spool/cron/atjobs', '-type', 'f', '-user', $username, '-delete' ], [ 0 ] ],
+        [ [ 'find', '/var/spool/cron/atjobs', '-type', 'f', '-user', $username, '-delete' ], [ 0 ] ],
         # Remove user' LPQ(1) jobs
         ( -x '/usr/bin/lprm' ? [ [ '/usr/bin/lprm', $username ], [ 0 ] ] : () ),
         # Kill user' processes
-        [ [ '/usr/bin/pkill', '-KILL', '-u', $username ], [ 0, 1 ] ],
+        [ [ 'pkill', '-KILL', '-u', $username ], [ 0, 1 ] ],
         # Remove user
         [
             [
-                '/usr/sbin/userdel',
+                'userdel',
                 ( $self->{'keepHome'} ? '' : '-r' ),
                 ( $self->{'force'} && !$self->{'keepHome'} ? '-f' : '' ),
                 $username
@@ -244,7 +244,7 @@ sub addToGroup
         return 1;
     }
 
-    my $rs = execute( [ '/usr/bin/gpasswd', '-a', $username, $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'gpasswd', '-a', $username, $groupname ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs && $rs != 3;
     return $rs if $rs && $rs != 3;
@@ -281,7 +281,7 @@ sub removeFromGroup
 
     return 0 unless getpwnam( $username ) && getgrnam( $groupname );
 
-    my $rs = execute( [ '/usr/bin/gpasswd', '-d', $username, $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'gpasswd', '-d', $username, $groupname ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs && $rs != 3;
     return $rs if $rs && $rs != 3;

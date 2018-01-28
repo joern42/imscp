@@ -19,7 +19,6 @@
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Spec;
 use iMSCP::Bootstrapper;
 use iMSCP::Composer;
@@ -261,7 +260,7 @@ EOT
 
     # Create composer.phar compatibility symlink for backward compatibility with plugins
     if ( -l "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) {
-        unlink ( "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) or croak(
+        unlink ( "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) or die(
             sprintf( "Couldn't delete %s symlink: %s", "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar", $! )
         );
     }

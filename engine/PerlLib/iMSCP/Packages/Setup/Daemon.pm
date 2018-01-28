@@ -80,11 +80,11 @@ sub imscpDaemonTypeDialog
 {
     my ($self, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'DAEMON_TYPE', iMSCP::Getopt->preseed ? 'daemon' : '' );
-    my %choices = ( 'daemon', 'Via the i-MSCP daemon (real time)', 'cron', 'Via cron (every 5 minutes)' );
+    my $value = main::setupGetQuestion( 'DAEMON_TYPE', iMSCP::Getopt->preseed ? 'imscp' : '' );
+    my %choices = ( 'imscp', 'Via the i-MSCP daemon (real time)', 'cron', 'Via cron (every 5 minutes)' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'daemon', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'daemon' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'imscp' );
 \\Z4\\Zb\\Zui-MSCP Daemon Type\\Zn
 
 Please choose how the i-MSCP backend requests must be processed:

@@ -36,7 +36,7 @@ use iMSCP::Umask;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Ftpd::Vsftpd::Abstract';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 

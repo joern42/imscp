@@ -77,7 +77,7 @@ sub addIpAddr
 
     $data->{'ip_netmask'} ||= ( $addrVersion eq 'ipv4' ) ? 24 : 64;
 
-    $self->_updateInterfacesFile( 'add', $data ) == 0 or croak( "Couldn't update interfaces file" );
+    $self->_updateInterfacesFile( 'add', $data ) == 0 or die( "Couldn't update interfaces file" );
 
     return 0 unless $data->{'ip_config_mode'} eq 'auto';
 
@@ -94,7 +94,7 @@ sub addIpAddr
             ? "$data->{'ip_card'}:$data->{'ip_id'}" : $data->{'ip_card'};
 
         my ($stdout, $stderr);
-        execute( [ $COMMANDS{'ifup'}, '--force', $netCard ], \$stdout, \$stderr ) == 0 or croak(
+        execute( [ $COMMANDS{'ifup'}, '--force', $netCard ], \$stdout, \$stderr ) == 0 or die(
             sprintf( "Couldn't bring up the `%s' network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
         );
         return $self;
@@ -129,13 +129,13 @@ sub removeIpAddr
         && $self->_isDefinedInterface( "$data->{'ip_card'}:$data->{'ip_id'}" )
     ) {
         my ($stdout, $stderr);
-        execute( "$COMMANDS{'ifdown'} --force $data->{'ip_card'}:$data->{'ip_id'}", \$stdout, \$stderr ) == 0 or croak(
+        execute( "$COMMANDS{'ifdown'} --force $data->{'ip_card'}:$data->{'ip_id'}", \$stdout, \$stderr ) == 0 or die(
             sprintf( "Couldn't bring down the `%s' network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
         );
 
         my $ifupStateFile = $IFUP_STATE_DIR . "/ifup.$data->{'ip_card'}:$data->{'ip_id'}";
         if ( -f $ifupStateFile ) {
-            iMSCP::File->new( filename => $ifupStateFile )->delFile == 0 or croak( sprintf( "Couldn't remove `%s' ifup state file", $ifupStateFile ));
+            iMSCP::File->new( filename => $ifupStateFile )->delFile == 0 or die( sprintf( "Couldn't remove `%s' ifup state file", $ifupStateFile ));
         }
     } elsif ( $data->{'ip_config_mode'} eq 'auto' ) {
         # Cover not aliased interface (IPv6) case
@@ -143,7 +143,7 @@ sub removeIpAddr
         $self->{'net'}->delAddr( $data->{'ip_address'} );
     }
 
-    $self->_updateInterfacesFile( 'remove', $data ) == 0 or croak( "Couldn't update interfaces file" );
+    $self->_updateInterfacesFile( 'remove', $data ) == 0 or die( "Couldn't update interfaces file" );
     $self;
 }
 

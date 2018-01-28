@@ -25,7 +25,6 @@ package iMSCP::Mount;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use Errno qw / EINVAL ENOENT /;
 use File::Spec;
 use File::stat ();
@@ -133,8 +132,8 @@ my %PROPAGATION_FLAGS = (
 # Lazy-load mount entries
 my $MOUNTS = lazy
     {
-        -f '/proc/self/mounts' or croak( "Couldn't load mount entries. File /proc/self/mounts not found." );
-        open my $fh, '<', '/proc/self/mounts' or croak( sprintf( "Couldn't read /proc/self/mounts file: %s", $! ));
+        -f '/proc/self/mounts' or die( "Couldn't load mount entries. File /proc/self/mounts not found." );
+        open my $fh, '<', '/proc/self/mounts' or die( sprintf( "Couldn't read /proc/self/mounts file: %s", $! ));
         my $entries;
         while ( my $entry = <$fh> ) {
             my $fsFile = ( split /\s+/, $entry )[1];

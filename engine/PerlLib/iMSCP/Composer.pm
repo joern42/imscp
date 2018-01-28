@@ -137,7 +137,7 @@ sub requirePackage
  Param string $installDir OPTIONAL Installation directory
  Param string $filename OPTIONAL Composer installation filename
  Param string $version OPTIONAL Composer version to install
- Return iMSCP::Composer, croak on failure
+ Return iMSCP::Composer, die on failure
 
 =cut
 
@@ -163,22 +163,24 @@ sub installComposer
     # Make sure to create temporary file with expected ownership
     my $installer;
     if ( $self->{'_attrs'}->{'user'} ne $main::imscpConfig{'ROOT_USER'} ) {
-        local $) = getgrnam( $self->{'_attrs'}->{'group'} ) or croak( "Couldn't setgid: %s", $! );
-        local $> = getpwnam( $self->{'_attrs'}->{'user'} ) or croak( "Couldn't setuid: %s:", $! );
+        local $) = getgrnam( $self->{'_attrs'}->{'group'} ) or die( "Couldn't setgid: %s", $! );
+        local $> = getpwnam( $self->{'_attrs'}->{'user'} ) or die( "Couldn't setuid: %s:", $! );
         $installer = File::Temp->new();
     } else {
         $installer = File::Temp->new();
     }
 
+    $installer->close();
+
     my $rs = execute(
         $self->_getSuCmd(
-            ( iMSCP::ProgramFinder::find( 'curl' ) or croak( 'cURL is either not installed or not executable' ) ),
+            ( iMSCP::ProgramFinder::find( 'curl' ) or die( 'cURL is either not installed or not executable' ) ),
             '--fail', '--connect-timeout', 10, '-s', '-S', '-o', $installer, 'https://getcomposer.org/installer'
         ),
         undef,
         \ my $stderr,
     );
-    $rs == 0 or croak( sprintf( "Couldn't download composer: %s", $stderr || 'Unknown error' ));
+    $rs == 0 or die( sprintf( "Couldn't download composer: %s", $stderr || 'Unknown error' ));
     $rs = executeNoWait(
         $self->_getSuCmd(
             @{$self->{'_php_cmd'}}, $installer, '--', '--no-ansi', ( $version ? "--version=$version" : () ),
@@ -187,7 +189,7 @@ sub installComposer
         $self->{'_stdout'},
         $self->{'_stderr'}
     );
-    $rs == 0 or croak( "Couldn't install composer" );
+    $rs == 0 or die( "Couldn't install composer" );
 
     $self;
 }
@@ -205,7 +207,7 @@ sub installComposer
                         in require-dev must be installed
  Param bool $noautoloader OPTIONAL flag indicating whether or not autoloader
                           generation must be skipped
- Return iMSCP::Composer, croak on failure
+ Return iMSCP::Composer, die on failure
 
 =cut
 
@@ -227,7 +229,7 @@ sub installPackages
     my $rs = $file->save();
     $rs ||= $file->owner( $self->{'_attrs'}->{'user'}, $self->{'_attrs'}->{'group'} );
     $rs ||= $file->mode( 0640 );
-    $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ));
+    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ));
     $rs = executeNoWait(
         $self->_getSuCmd(
             @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, 'install', '--no-progress', '--no-ansi',
@@ -237,7 +239,7 @@ sub installPackages
         $self->{'_stdout'},
         $self->{'_stderr'}
     );
-    $rs == 0 or croak( "Couldn't install composer packages" );
+    $rs == 0 or die( "Couldn't install composer packages" );
 
     $self;
 }
@@ -257,7 +259,7 @@ sub installPackages
                         in require-dev must be installed
  Param bool $noautoloader OPTIONAL flag indicating whether or not autoloader
                           generation must be skipped
- Return iMSCP::Composer, croak on failure
+ Return iMSCP::Composer, die on failure
 
 =cut
 
@@ -279,7 +281,7 @@ sub updatePackages
     my $rs = $file->save();
     $rs ||= $file->owner( $self->{'_attrs'}->{'user'}, $self->{'_attrs'}->{'group'} );
     $rs ||= $file->mode( 0640 );
-    $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ));
+    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ));
     $rs = executeNoWait(
         $self->_getSuCmd(
             @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, 'update', '--no-progress', '--no-ansi',
@@ -289,7 +291,7 @@ sub updatePackages
         $self->{'_stdout'},
         $self->{'_stderr'}
     );
-    $rs == 0 or croak( "Couldn't Update composer packages" );
+    $rs == 0 or die( "Couldn't Update composer packages" );
 
     $self;
 }
@@ -298,7 +300,7 @@ sub updatePackages
 
  Clear composer's internal package cache, including vendor directory
 
- Return iMSCP::Composer, croak on failure
+ Return iMSCP::Composer, die on failure
 
 =cut
 
@@ -311,7 +313,7 @@ sub clearPackageCache
         $self->{'_stdout'},
         $self->{'_stderr'}
     );
-    $rs == 0 or croak( "Couldn't clear composer's internal package cache" );
+    $rs == 0 or die( "Couldn't clear composer's internal package cache" );
 
     # See https://getcomposer.org/doc/06-config.md#vendor-dir
     my $vendorDir = "$self->{'_attrs'}->{'working_dir'}/vendor";
@@ -328,7 +330,7 @@ sub clearPackageCache
 
  Check package requirements
 
- Return iMSCP::Composer, croak if package requirements are not met
+ Return iMSCP::Composer, die if package requirements are not met
 
 =cut
 
@@ -336,7 +338,7 @@ sub checkPackageRequirements
 {
     my ($self) = @_;
 
-    -d $self->{'_attrs'}->{'working_dir'} or croak( "Unmet requirements (all packages)" );
+    -d $self->{'_attrs'}->{'working_dir'} or die( "Unmet requirements (all packages)" );
 
     while ( my ( $package, $version ) = each( %{$self->{'_attrs'}->{'composer_json'}->{'require'}} ) ) {
         $self->{'_stdout'}( sprintf( "Checking requirements for the %s (%s) composer package\n", $package, $version ));
@@ -349,7 +351,7 @@ sub checkPackageRequirements
             \my $stderr
         );
         debug( $stdout ) if $stdout;
-        $rs == 0 or croak( sprintf( "Unmet requirements (%s %s): %s", $package, $version, $stderr ));
+        $rs == 0 or die( sprintf( "Unmet requirements (%s %s): %s", $package, $version, $stderr ));
     }
 
     $self;
@@ -406,7 +408,7 @@ sub setStdRoutines
  Return composer version
 
  Param string $composerPath Composer path
- Return string version, croak on failure
+ Return string version, die on failure
 
 =cut
 
@@ -416,9 +418,9 @@ sub getComposerVersion
 
     my $rs = execute( $self->_getSuCmd( @{$self->{'_php_cmd'}}, $composerPath, '--no-ansi', '--version' ), \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    $rs == 0 or croak( sprintf( "Couldn't get composer (%s) version: %s", $composerPath, $stderr ));
+    $rs == 0 or die( sprintf( "Couldn't get composer (%s) version: %s", $composerPath, $stderr ));
     ( $stdout =~ /version\s+([\d.]+)/ );
-    $1 or croak( sprintf( "Couldn't parse composer (%s) version from version string: %s", $composerPath, $stdout // '' ));
+    $1 or die( sprintf( "Couldn't parse composer (%s) version from version string: %s", $composerPath, $stdout // '' ));
 }
 
 =back

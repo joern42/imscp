@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Noserver - Factory and implementation for the i-MSCP Noserver (BlackHole) server
+ iMSCP::Servers::NoServer - Factory and implementation for the i-MSCP NoServer (BlackHole) server
 
 =cut
 
@@ -21,17 +21,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Servers::Noserver;
+package iMSCP::Servers::NoServer;
 
 use strict;
 use warnings;
 use parent 'iMSCP::Servers::Abstract';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
- This class provides a factory and implementation for the i-MSCP Noserver (BlackHole) server.
+ This class provides a factory and implementation for the i-MSCP NoServer (BlackHole) server.
  
  The intent of this server is to be used as a black hole when one administrator want fully disable
  a specific service.

@@ -120,7 +120,7 @@ sub createUser
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the createUser() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the createUser() method', ref $self ));
 }
 
 =item dropUser( $user, $host )
@@ -137,7 +137,7 @@ sub dropUser
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the dropUser() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the dropUser() method', ref $self ));
 }
 
 =item restoreDomain ( \%moduleData )
@@ -161,7 +161,7 @@ sub restoreDomain
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the restoreDomain() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the restoreDomain() method', ref $self ));
 }
 
 =back

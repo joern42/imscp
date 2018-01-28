@@ -169,10 +169,11 @@ sub loadConfig
 
 sub build
 {
-    if ( $main::imscpConfig{'iMSCP::Packages::FrontEnd'} eq '' || $main::imscpConfig{'iMSCP::Servers::Ftpd'} eq ''
-        || $main::imscpConfig{'iMSCP::Servers::Httpd'} eq '' || $main::imscpConfig{'iMSCP::Servers::Named'} eq ''
-        || $main::imscpConfig{'iMSCP::Servers::Mta'} eq '' || $main::imscpConfig{'iMSCP::Servers::Php'} eq ''
-        || $main::imscpConfig{'iMSCP::Servers::Po'} eq '' || $main::imscpConfig{'iMSCP::Servers::Sqld'} eq ''
+    if ( $main::imscpConfig{'iMSCP::Servers::Cron'} eq '' || $main::imscpConfig{'iMSCP::Servers::Ftpd'} eq ''
+        || $main::imscpConfig{'iMSCP::Servers::Httpd'} eq '' || $main::imscpConfig{'iMSCP::Servers::Mta'} eq ''
+        || $main::imscpConfig{'iMSCP::Servers::Named'} eq '' || $main::imscpConfig{'iMSCP::Servers::Php'} eq ''
+        || $main::imscpConfig{'iMSCP::Servers::Po'} eq '' || $main::imscpConfig{'iMSCP::Servers::Server'} eq ''
+        || $main::imscpConfig{'iMSCP::Servers::Sqld'} eq ''
     ) {
         iMSCP::Getopt->noprompt( 0 ) unless iMSCP::Getopt->preseed;
         iMSCP::Getopt->skippackages( 0 );

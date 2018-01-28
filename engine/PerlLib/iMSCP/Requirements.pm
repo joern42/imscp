@@ -19,7 +19,6 @@ package iMSCP::Requirements;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use iMSCP::ProgramFinder;
 use version;
 use parent 'iMSCP::Common::Object';
@@ -36,7 +35,7 @@ use parent 'iMSCP::Common::Object';
 
  Process check for all requirements
 
- Return undef on success, croak on failure
+ Return undef on success, die on failure
 
 =cut
 
@@ -55,13 +54,13 @@ sub all
 
  Check user under which the script is running
 
- Return undef on success, croak on failure
+ Return undef on success, die on failure
 
 =cut
 
 sub user
 {
-    $< == 0 or croak( 'This script must be run as root user.' );
+    $< == 0 or die( 'This script must be run as root user.' );
     undef;
 }
 
@@ -72,7 +71,7 @@ sub user
  Param string $version Version to match
  Param string $minVersion Min required version
  Param string $maxVersion Max required version
- Return undef on success, croak on failure
+ Return undef on success, die on failure
 
 =cut
 
@@ -81,11 +80,11 @@ sub checkVersion
     my (undef, $version, $minVersion, $maxVersion) = @_;
 
     if ( version->parse( $version ) < version->parse( $minVersion ) ) {
-        croak( sprintf( "version %s is too old. Minimum supported version is %s\n", $version, $minVersion ));
+        die( sprintf( "version %s is too old. Minimum supported version is %s\n", $version, $minVersion ));
     }
 
     if ( $maxVersion && version->parse( $version ) > version->parse( $maxVersion ) ) {
-        croak( sprintf( "version %s is not supported. Supported versions are %s to %s\n", $version, $minVersion, $maxVersion ));
+        die( sprintf( "version %s is not supported. Supported versions are %s to %s\n", $version, $minVersion, $maxVersion ));
     }
 
     undef;
@@ -198,7 +197,7 @@ sub _init
 
  Checks program requirements
 
- Return undef on success, croak on failure
+ Return undef on success, die on failure
 
 =cut
 
@@ -207,7 +206,7 @@ sub _checkPrograms
     my ($self) = @_;
 
     for ( keys %{$self->{'programs'}} ) {
-        $self->{'programs'}->{$_}->{'command_path'} = iMSCP::ProgramFinder::find( $_ ) or croak(
+        $self->{'programs'}->{$_}->{'command_path'} = iMSCP::ProgramFinder::find( $_ ) or die(
             sprintf( "Couldn't find the `%s' command in search path", $_ )
         );
 
@@ -222,7 +221,7 @@ sub _checkPrograms
             );
         };
 
-        croak( sprintf( "%s: %s\n", $_, $@ )) if $@;
+        die( sprintf( "%s: %s\n", $_, $@ )) if $@;
     }
 
     undef;
@@ -236,7 +235,7 @@ sub _checkPrograms
  Param regexp $versionRegexp Regexp to find version in command version output string
  Param $minVersion Min required version
  Param $maxVersion Max required version
- Return undef on success, croak on failure
+ Return undef on success, die on failure
 
 =cut
 
@@ -246,10 +245,10 @@ sub _programVersions
 
     my $stdout = `$versionCommand 2>/dev/null`;
 
-    $stdout or croak( "Couldn't find version. No output\n" );
+    $stdout or die( "Couldn't find version. No output\n" );
 
     if ( $versionRegexp ) {
-        $stdout =~ /$versionRegexp/m or croak( sprintf( "Couldn't find version. Output was: %s\n", $stdout ));
+        $stdout =~ /$versionRegexp/m or die( sprintf( "Couldn't find version. Output was: %s\n", $stdout ));
         $stdout = $1;
     }
 
@@ -261,7 +260,7 @@ sub _programVersions
  Checks that the given PHP modules are available
 
  Param array \@modules List of modules
- Return undef on success, croak on failure
+ Return undef on success, die on failure
 
 =cut
 
@@ -270,7 +269,7 @@ sub _checkPhpModules
     my ($self, $modules) = @_;
     $modules //= $self->{'programs'}->{'php'}->{'modules'};
 
-    open my $fh, '-|', $self->{'programs'}->{'php'}->{'command_path'}, '-d', 'date.timezone=UTC', '-m' or croak(
+    open my $fh, '-|', $self->{'programs'}->{'php'}->{'command_path'}, '-d', 'date.timezone=UTC', '-m' or die(
         sprintf( "Couldn't pipe to php command: %s", $! )
     );
     chomp( my @modules = <$fh> );
@@ -282,8 +281,8 @@ sub _checkPhpModules
 
     return undef unless @missingModules;
 
-    @missingModules < 2 or croak( sprintf( "The following PHP modules are not installed or not enabled: %s\n", join ', ', @missingModules ));
-    croak( sprintf( "The `%s' PHP module is not installed or not enabled.\n", pop @missingModules ));
+    @missingModules < 2 or die( sprintf( "The following PHP modules are not installed or not enabled: %s\n", join ', ', @missingModules ));
+    die( sprintf( "The `%s' PHP module is not installed or not enabled.\n", pop @missingModules ));
 }
 
 =item _checkPerlModules( [ \%modules = $self->{'programs'}->{'perl'}->{'modules'} ])
@@ -291,7 +290,7 @@ sub _checkPhpModules
  Checks that the given Perl modules are availables at the minimum specified version
 
  params hashref \%modules OPTIOANL Reference to a hash of module name and module minimum version pairs
- Return undef on success, croak on failure
+ Return undef on success, die on failure
 
 =cut
 
@@ -324,7 +323,7 @@ EOF
         push @missingModules, "Module::Load::Conditional module\n";
     }
 
-    croak( sprintf( "The following Perl modules are not installed or don't met version requirements:\n\n%s", join "\n", @missingModules ));
+    die( sprintf( "The following Perl modules are not installed or don't met version requirements:\n\n%s", join "\n", @missingModules ));
 }
 
 =back

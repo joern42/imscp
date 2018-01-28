@@ -32,7 +32,7 @@ use iMSCP::Debug qw/ error /;
 use version;
 use parent 'iMSCP::Servers::Sqld::Mysql::Debian';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
@@ -155,7 +155,7 @@ sub createUser
             }
         }
     };
-    !$@ or croak( sprintf( "Couldn't create/update the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or die( sprintf( "Couldn't create/update the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 

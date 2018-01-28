@@ -36,7 +36,11 @@ use iMSCP::Getopt;
 use iMSCP::TemplateParser qw/ processByRef /;
 use parent 'iMSCP::Common::Singleton';
 
-# Server instances
+# Implicite server instances
+# We need keep trace of server instances
+# that were loaded implicitly because we need call
+# the _shutdown() method on them when the program exit.
+# See the END block below for a better understanding.
 my %_SERVER_INSTANCES;
 
 =head1 DESCRIPTION
@@ -83,7 +87,7 @@ sub factory
     # Restrict call of the factory to iMSCP::Servers::* abstract classes
     $class =~ tr/:// < 5 or croak( sprintf( 'The factory() method cannot be called on the %s server class', $class ));
 
-    $serverClass //= $main::imscpConfig{$class} || 'iMSCP::Servers::Noserver';
+    $serverClass //= $main::imscpConfig{$class} || 'iMSCP::Servers::NoServer';
 
     return $_SERVER_INSTANCES{$class} if exists $_SERVER_INSTANCES{$class};
 
@@ -276,7 +280,7 @@ sub setEnginePermissions
  Return CamelCase server name
  
  Server name must follow CamelCase naming convention such as Apache, Courier,
- Dovecot... See https://en.wikipedia.org/wiki/Camel_case
+ Dovecot, LocalServer... See https://en.wikipedia.org/wiki/Camel_case
 
  Return string CamelCase server name
 
@@ -286,7 +290,7 @@ sub getServerName
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the getServerName() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the getServerName() method', ref $self ));
 }
 
 =item getHumanServerName( )
@@ -301,7 +305,7 @@ sub getHumanServerName
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the getHumanServerName() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the getHumanServerName() method', ref $self ));
 }
 
 =item getImplVersion()
@@ -332,7 +336,7 @@ sub getVersion
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
 }
 
 =item dpkgPostInvokeTasks()
@@ -367,7 +371,7 @@ sub start
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the start() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the start() method', ref $self ));
 }
 
 =item stop( )
@@ -382,7 +386,7 @@ sub stop
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the stop() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the stop() method', ref $self ));
 }
 
 =item restart( )
@@ -397,7 +401,7 @@ sub restart
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the restart() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the restart() method', ref $self ));
 }
 
 =item reload( )
@@ -412,7 +416,7 @@ sub reload
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the reload() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the reload() method', ref $self ));
 }
 
 =item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )

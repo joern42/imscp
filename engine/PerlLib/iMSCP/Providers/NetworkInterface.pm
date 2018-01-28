@@ -72,7 +72,7 @@ sub removeIpAddr
 
  Get network interface provider
 
- Return iMSCP::Providers::NetworkInterface, croak on failure
+ Return iMSCP::Providers::NetworkInterface, croak/die on failure
 
 =cut
 
@@ -84,8 +84,8 @@ sub getProvider
 
     $self->{'_provider'} ||= do {
         my $provider = __PACKAGE__ . '::' . $main::imscpConfig{'DISTRO_FAMILY'};
-        can_load( modules => { $provider => undef } ) or croak(
-            sprintf( "Couldn't load `%s' network interface provider: %s", $provider, $Module::Load::Conditional::ERROR )
+        can_load( modules => { $provider => undef } ) or die(
+            sprintf( "Couldn't load the `%s' network interface provider: %s", $provider, $Module::Load::Conditional::ERROR )
         );
         $provider = $provider->new();
         $self->setProvider( $provider );

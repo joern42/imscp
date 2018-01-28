@@ -347,11 +347,11 @@ sub processDbTasks
             );
 
             my ($stdout, $stderr);
-            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or croak(
+            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
             debug( $stdout ) if $stdout;
-            execute( "rm -fR /tmp/sw-$_->{'domain_id'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or croak( $stderr || 'Unknown error' );
+            execute( "rm -fR /tmp/sw-$_->{'domain_id'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
             debug( $stdout ) if $stdout;
         }
 
@@ -382,11 +382,11 @@ sub processDbTasks
             );
 
             my ($stdout, $stderr);
-            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or croak(
+            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
             debug( $stdout ) if $stdout;
-            execute( "rm -fR /tmp/sw-$_->{'software_archive'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or croak( $stderr || 'Unknown error' );
+            execute( "rm -fR /tmp/sw-$_->{'software_archive'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
             debug( $stdout ) if $stdout;
         }
 
@@ -469,7 +469,7 @@ sub _processModuleDbTasks
                 $rs = $self->_processModuleTasks( $module, $row->{'id'} );
             }
 
-            $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             endDebug();
         }
     };

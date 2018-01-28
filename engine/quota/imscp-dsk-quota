@@ -116,11 +116,7 @@ sub quotaFiles
 
                 if ( $dirType eq 'webdir' ) {
                     my $rs = execute(
-                        [
-                            '/usr/bin/nice', '-n', '19',
-                            '/usr/bin/ionice', '-c2', '-n7',
-                            'du', '--exclude=backups/*', '--exclude=logs/*', '-s', '-B1', $dir
-                        ],
+                        [ 'nice', '-n', '19', 'ionice', '-c2', '-n7', 'du', '--exclude=backups/*', '--exclude=logs/*', '-s', '-B1', $dir ],
                         \ my $stdout,
                         \ my $stderr
                     );

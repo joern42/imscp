@@ -73,7 +73,7 @@ sub addIpAddr
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
 }
 
 =item deleteIpAddr( \%moduleData )
@@ -95,7 +95,7 @@ sub deleteIpAddr
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the deleteIpAddr() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the deleteIpAddr() method', ref $self ));
 }
 
 =item addUser( \%moduleData )
@@ -117,7 +117,7 @@ sub addUser
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the addUser() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the addUser() method', ref $self ));
 }
 
 =item deleteUser( \%moduleData )
@@ -139,7 +139,7 @@ sub deleteUser
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the deleteUser() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the deleteUser() method', ref $self ));
 }
 
 =back

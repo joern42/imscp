@@ -43,7 +43,7 @@ use parent 'iMSCP::Common::Singleton';
 
 umask 022;
 
-$ENV{'HOME'} = ( getpwuid $> )[7] or croak( "Couldn't find running user homedir" );
+$ENV{'HOME'} = ( getpwuid $> )[7] or die( "Couldn't find running user homedir" );
 
 =head1 DESCRIPTION
 
@@ -91,7 +91,7 @@ sub boot
     $self->_genKeys() unless $options->{'nokeys'};
     $self->_setDbSettings() unless $options->{'nodatabase'};
 
-    iMSCP::EventManager->getInstance()->trigger( 'onBoot', iMSCP::Getopt->context()) == 0 or croak(
+    iMSCP::EventManager->getInstance()->trigger( 'onBoot', iMSCP::Getopt->context()) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self;
@@ -110,6 +110,8 @@ sub loadMainConfig
 {
     my (undef, $options) = @_;
 
+    debug( sprintf( 'Loading i-MSCP master configuration...' ));
+    
     untie %main::imscpConfig;
     tie %main::imscpConfig,
         'iMSCP::Config',
@@ -126,7 +128,7 @@ sub loadMainConfig
  Lock a file
 
  Param bool $nowait OPTIONAL Whether or not to wait for lock
- Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (nowait case), croak on failure
+ Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (nowait case), die on failure
 
 =cut
 
@@ -174,7 +176,7 @@ sub unlock
 
  Generates encryption key and initialization vector
 
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -191,7 +193,7 @@ sub _genKeys
         || ( iMSCP::Getopt->context() eq 'installer' && !-f "$main::imscpConfig{'CONF_DIR'}/imscp-db-keys.php" )
     ) {
         debug( 'Missing or invalid i-MSCP key files. Generating a new key files...' );
-        -d $main::imscpConfig{'CONF_DIR'} or croak( sprintf( "%s doesn't exist or is not a directory", $main::imscpConfig{'CONF_DIR'} ));
+        -d $main::imscpConfig{'CONF_DIR'} or die( sprintf( "%s doesn't exist or is not a directory", $main::imscpConfig{'CONF_DIR'} ));
 
         require Data::Dumper;
 
@@ -201,7 +203,7 @@ sub _genKeys
         ( $main::imscpKEY, $main::imscpIV ) = ( randomStr( 32 ), randomStr( 16 ) );
 
         for ( qw/ imscp-db-keys.pl imscp-db-keys.php / ) {
-            open my $fh, '>', "$main::imscpConfig{'CONF_DIR'}/$_" or croak(
+            open my $fh, '>', "$main::imscpConfig{'CONF_DIR'}/$_" or die(
                 sprintf( "Couldn't open %s file for writing: %s", "$main::imscpConfig{'CONF_DIR'}/$_", $! )
             );
             print $fh <<"EOF";
@@ -225,7 +227,7 @@ EOF
 
  Set database connection settings
 
- Return int 0 on success, croak on failure
+ Return int 0 on success, die on failure
 
 =cut
 

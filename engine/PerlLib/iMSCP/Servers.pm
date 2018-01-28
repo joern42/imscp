@@ -25,7 +25,6 @@ package iMSCP::Servers;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Basename;
 use parent 'iMSCP::Common::Singleton';
 
@@ -81,12 +80,12 @@ sub _init
 {
     my ($self) = @_;
 
-    $_ = basename( $_, '.pm' ) for @{$self->{'servers'}} = grep { $_ !~ /(?:Abstract|Noserver)\.pm$/ } glob( dirname( __FILE__ ) . '/Servers/*.pm' );
+    $_ = basename( $_, '.pm' ) for @{$self->{'servers'}} = grep { $_ !~ /(?:Abstract|NoServer)\.pm$/ } glob( dirname( __FILE__ ) . '/Servers/*.pm' );
 
     # Load all server classes
     for ( @{$self->{'servers'}} ) {
         my $server = "iMSCP::Servers::${_}";
-        eval "require $server; 1" or croak( sprintf( "Couldn't load %s server class: %s", $server, $@ ));
+        eval "require $server; 1" or die( sprintf( "Couldn't load %s server class: %s", $server, $@ ));
     }
 
     # Sort servers by priority (descending order)

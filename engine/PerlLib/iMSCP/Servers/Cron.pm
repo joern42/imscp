@@ -214,7 +214,7 @@ sub enableSystemCronTask
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the enableSystemCronTask() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the enableSystemCronTask() method', ref $self ));
 }
 
 =item disableSystemCronTask( $cronTask [, $directory = ALL ] )
@@ -231,7 +231,7 @@ sub disableSystemCronTask
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the disableSystemCronTask() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the disableSystemCronTask() method', ref $self ));
 }
 
 =back
@@ -269,7 +269,7 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
 }
 
 =item _validateCronTask( \%data )

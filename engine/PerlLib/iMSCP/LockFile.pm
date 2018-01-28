@@ -25,7 +25,6 @@ package iMSCP::LockFile;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use Errno qw / ENOENT EWOULDBLOCK /;
 use Fcntl qw/ :flock /;
 use iMSCP::Debug qw/ debug /;
@@ -45,7 +44,7 @@ use parent 'iMSCP::Common::Object';
 
  Acquire the lock file
 
- Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (non blocking), croak on failure
+ Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (non blocking), die on failure
 
 =cut
 
@@ -56,7 +55,7 @@ sub acquire
     debug( sprintf( 'Acquiring exclusive lock on %s', $self->{'path'} ));
 
     while ( !$self->{'_fd'} ) {
-        open my $fd, '>', $self->{'path'} or croak( sprintf( "Couldn't open %s file", $self->{'path'} ));
+        open my $fd, '>', $self->{'path'} or die( sprintf( "Couldn't open %s file", $self->{'path'} ));
 
         eval {
             return 0 unless $self->_tryLock( $fd );
@@ -66,7 +65,7 @@ sub acquire
 
         # Close the file if it is not the required one
         close( $fd ) unless $self->{'_fd'};
-        croak( $@ ) if $@
+        die( $@ ) if $@
     }
 
     1;
@@ -76,7 +75,7 @@ sub acquire
 
  Remove, close, and release the lock file
 
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -97,7 +96,7 @@ sub release
     # process A: check device and inode
     # process B: delete file
     # process C: open and lock a different file at the same path
-    unlink( $self->{'path'} ) or croak( sprintf( "Couldn't unlink the %s file: %s", $self->{'path'}, $! ));
+    unlink( $self->{'path'} ) or die( sprintf( "Couldn't unlink the %s file: %s", $self->{'path'}, $! ));
     close $self->{'_fd'};
     undef $self->{'_fd'};
 }
@@ -132,7 +131,7 @@ sub _init
  Try to acquire the lock file
 
  Param int $fd file descriptor of the opened file to lock
- Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (non blocking), croak on failure
+ Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (non blocking), die on failure
 
 =cut
 
@@ -142,7 +141,7 @@ sub _tryLock
 
     return 1 if flock( $fd, LOCK_EX | ( $self->{'non_blocking'} ? LOCK_NB : 0 ));
 
-    $!{'EWOULDBLOCK'} or croak( sprintf( "Couldn't acquire exclusive lock on %s: %s", $self->{'path'}, $! ));
+    $!{'EWOULDBLOCK'} or die( sprintf( "Couldn't acquire exclusive lock on %s: %s", $self->{'path'}, $! ));
     debug( sprintf( "A lock on %s is held by another process.", $self->{'path'} ));
     0;
 }
@@ -156,7 +155,7 @@ sub _tryLock
  acquiring the lock.
 
  Param int $fd file descriptor of the opened file to lock
- Return TRUE if the lock was successfully acquired, FALSE otherwise, croak on failure
+ Return TRUE if the lock was successfully acquired, FALSE otherwise, die on failure
 
 =cut
 
@@ -167,10 +166,10 @@ sub _lockSuccess
     my @stat1 = CORE::stat( $self->{'path'} );
     unless ( @stat1 ) {
         return if $!{'ENOENT'};
-        croak( sprintf( "Couldn't stats: %s", $! ));
+        die( sprintf( "Couldn't stats: %s", $! ));
     }
 
-    my @stat2 = CORE::stat( $fd ) or croak( sprintf( "Couldn't stats: %s", $! ));
+    my @stat2 = CORE::stat( $fd ) or die( sprintf( "Couldn't stats: %s", $! ));
 
     # If our locked file descriptor and the file on disk refer to
     # the same device and inode, they're the same file.

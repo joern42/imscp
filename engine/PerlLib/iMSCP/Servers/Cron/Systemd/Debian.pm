@@ -87,7 +87,7 @@ sub start
 
     eval { iMSCP::Service->getInstance()->start( 'cron.target' ); };
     if ( $@ ) {
-        croak( $@ );
+        die( $@ );
         return 1;
     }
 
@@ -106,7 +106,7 @@ sub stop
 
     eval { iMSCP::Service->getInstance()->stop( 'cron.target' ); };
     if ( $@ ) {
-        croak( $@ );
+        die( $@ );
         return 1;
     }
 
@@ -125,7 +125,7 @@ sub restart
 
     eval { iMSCP::Service->getInstance()->restart( 'cron.target' ); };
     if ( $@ ) {
-        croak( $@ );
+        die( $@ );
         return 1;
     }
 
@@ -162,12 +162,12 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( '/usr/bin/dpkg -s systemd-cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'dpkg -s systemd-cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ /version:\s+([\d.]+)/i ) {
-        error( "Couldn't guess Cron (Systemd) version from the `/usr/bin/dpkg -s systemd-cron | grep -i '^version'` command output" );
+        error( "Couldn't guess Cron (Systemd) version from the `dpkg -s systemd-cron | grep -i '^version'` command output" );
         return 1;
     }
 

@@ -51,7 +51,7 @@ our @EXPORT = qw/ execute executeNoWait escapeShell getExitCode /;
  Param string|array $command Command to execute
  Param string \$stdout OPTIONAL Variable for capture of STDOUT
  Param string \$stderr OPTIONAL Variable for capture of STDERR
- Return int Command exit code or croak on failure
+ Return int Command exit code or croak/die on failure
 
 =cut
 
@@ -84,7 +84,7 @@ sub execute( $;$$ )
         ${$stderr} = capture_stderr sub { system( $list ? @{$command} : $command ); };
         chomp( $stderr );
     } else {
-        system( $list ? @{$command} : $command ) != -1 or croak( sprintf( "Couldn't execute command: %s", $! ));
+        system( $list ? @{$command} : $command ) != -1 or die( sprintf( "Couldn't execute command: %s", $! ));
     }
 
     getExitCode();

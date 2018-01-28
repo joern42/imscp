@@ -291,7 +291,7 @@ sub infobox
 
  Param string $text Text to show
  Param int $percent OPTIONAL Initial percentage show in the meter
- Return int 0, croak on failure
+ Return int 0, croak/die on failure
 
 =cut
 
@@ -308,7 +308,7 @@ sub startGauge
         '--gauge', $text,
         ( ( $self->{'autosize'} ) ? 0 : $self->{'lines'} ),
         ( ( $self->{'autosize'} ) ? 0 : $self->{'columns'} ),
-        $percent // 0 or croak( "Couldn't start gauge" );
+        $percent // 0 or die( "Couldn't start gauge" );
 
     $self->{'gauge'}->autoflush( 1 );
     0;
@@ -513,7 +513,7 @@ sub _resize
 
  Find dialog variant (dialog|cdialog)
 
- Return iMSCP::Dialog::Dialog, croak on failure
+ Return iMSCP::Dialog::Dialog, die on failure
 
 =cut
 
@@ -521,7 +521,7 @@ sub _findBin
 {
     my ($self, $variant) = @_;
 
-    my $bindPath = iMSCP::ProgramFinder::find( $variant ) or croak( sprintf( "Couldn't find dialog program: %s", $variant ));
+    my $bindPath = iMSCP::ProgramFinder::find( $variant ) or die( sprintf( "Couldn't find dialog program: %s", $variant ));
     $self->{'bin'} = $bindPath;
     $self;
 }

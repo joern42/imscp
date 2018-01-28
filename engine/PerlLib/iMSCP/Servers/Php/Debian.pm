@@ -39,7 +39,7 @@ use Scalar::Defer;
 use version;
 use parent 'iMSCP::Servers::Php';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
@@ -65,12 +65,12 @@ sub preinstall
     eval {
         my $httpd = iMSCP::Servers::Httpd->factory();
 
-        # Disable i-MSCP Apache fcgid modules. It will be re-enabled in postinstall if needed
-        $httpd->disableModules( 'fcgid_imscp' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        # Disable the Apache fcgid_imscp modules. It will be re-enabled in postinstall if needed
+        $httpd->disableModules( 'fcgid_imscp' ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         # Disable default Apache conffile for CGI programs
-        # FIXME: One administrator could rely on default configuration (outside of i-MSCP)
-        $httpd->disableConfs( 'serve-cgi-bin.conf' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        # FIXME: One administrator could rely on that config (outside of i-MSCP)
+        $httpd->disableConfs( 'serve-cgi-bin.conf' ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
         my $srvProvider = iMSCP::Service->getInstance();
 
@@ -93,19 +93,19 @@ sub preinstall
 
             if ( $self->{'config'}->{'PHP_SAPI'} ne 'apache2handler' || $self->{'config'}->{'PHP_VERSION'} ne $_ ) {
                 # Disable Apache PHP module if PHP version is other than selected PHP alternative
-                $httpd->disableModules( "php$_" ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+                $httpd->disableModules( "php$_" ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             }
 
             # Tasks for cgi SAPI
 
             # Disable default Apache conffile
-            $httpd->disableConfs( "php$_-cgi.conf" ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $httpd->disableConfs( "php$_-cgi.conf" ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
             # Tasks for fpm SAPI
 
             if ( $srvProvider->hasService( "php$_-fpm" ) ) {
                 # Stop PHP-FPM instance
-                $self->stop( $_ ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+                $self->stop( $_ ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
                 # Disable PHP-FPM service if selected SAPI for customer is not fpm or if PHP version
                 # is other than selected PHP alternative
@@ -120,11 +120,11 @@ sub preinstall
             }
 
             # Disable default Apache conffile
-            $httpd->disableConfs( "php$_-fpm.conf " ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $httpd->disableConfs( "php$_-fpm.conf" ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
             # Reset PHP-FPM pool confdir
             for ( grep !/www\.conf$/, glob "/etc/php/$_/fpm/pool.d/*.conf" ) {
-                iMSCP::File->new( filename => $_ )->delFile() == 0 or croak(
+                iMSCP::File->new( filename => $_ )->delFile() == 0 or die(
                     getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
                 );
             }
@@ -194,7 +194,7 @@ sub install
             $rs == 0 or croak ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         }
 
-        # Build the Apache fcgid module conffile
+        # Create the Apache fcgid_imscp module, which itself depends on the Apache fcgi module
         $httpd->buildConfFile( "$self->{'cfgDir'}/cgi/apache_fcgid_module.conf", "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.conf",
             undef,
             {
@@ -205,12 +205,8 @@ sub install
             }
         ) == 0 or croak ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 
-        my $file = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid.load" );
-        my $cfgTpl = $file->getAsRef();
-        defined $cfgTpl or croak( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
-
-        $file = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.load" );
-        $file->set( "<IfModule !mod_fcgid.c>\n" . ${$cfgTpl} . "</IfModule>\n" );
+        my $file = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.load" );
+        $file->set( "# Depends: fcgid\n" );
         my $rs = $file->save();
         $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
         $rs ||= $file->mode( 0644 );
@@ -245,10 +241,8 @@ sub postinstall
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'cgi' ) {
-            # Enable Apache fcgid module
-            $httpd->enableModules( qw/ fcgid fcgid_imscp / ) == 0 or croak (
-                getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-            );
+            # Enable Apache fcgid_imscp module, which itself depends on the Apache fcgid module
+            $httpd->enableModules( 'fcgid_imscp' ) == 0 or croak ( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'fpm' ) {
             # Enable proxy_fcgi module
             $httpd->enableModules( qw/ proxy_fcgi setenvif / ) == 0 or croak (
@@ -258,7 +252,7 @@ sub postinstall
             # Enable PHP-FPM service for selected PHP alternative
             iMSCP::Service->getInstance()->enable( "php$self->{'config'}->{'PHP_VERSION'}-fpm" );
         } else {
-            croak( 'Unknown PHP SAPI' );
+            die( 'Unknown PHP SAPI' );
         }
     };
     if ( $@ ) {
@@ -280,20 +274,13 @@ sub uninstall
     my ($self) = @_;
 
     eval {
-        my $httpd = iMSCP::Servers::Httpd->factory();
-
-        $httpd->disableModules( 'fcgid_imscp' ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-
-        for ( 'fcgid_imscp.conf', 'fcgid_imscp.load' ) {
-            next unless -f "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_";
-            iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_" )->delFile() == 0 or croak(
-                getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-            );
-        }
+        iMSCP::Servers::Httpd->factory()->removeModules( 'fcgid_imscp' ) == 0 or die(
+            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+        );
 
         for ( split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} ) {
             next unless -f "/etc/init/php$_-fpm.override";
-            iMSCP::File->new( filename => "/etc/init/php$_-fpm.override" )->delFile() == 0 or croak(
+            iMSCP::File->new( filename => "/etc/init/php$_-fpm.override" )->delFile() == 0 or die(
                 getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
             );
         }
@@ -455,7 +442,7 @@ sub enableModules
 
     ref $modules eq 'ARRAY' or croak( 'Invalid $module parameter. Array expected' );
 
-    my $rs = execute( [ '/usr/sbin/phpenmod', '-v', $phpVersion, '-s', $phpSapi, @{$modules} ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'phpenmod', '-v', $phpVersion, '-s', $phpSapi, @{$modules} ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
 
@@ -478,7 +465,7 @@ sub disableModules
 
     ref $modules eq 'ARRAY' or croak( 'Invalid $module parameter. Array expected' );
 
-    my $rs = execute( [ '/usr/sbin/phpdismod', '-v', $phpVersion, '-s', $phpSapi, @{$modules} ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'phpdismod', '-v', $phpVersion, '-s', $phpSapi, @{$modules} ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
 
@@ -712,7 +699,7 @@ sub _deleteFpmConfig
 
         debug( sprintf( 'Deleting the %s FPM pool configuration file', "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" ));
 
-        iMSCP::File->new( filename => "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" )->delFile() == 0 or croak(
+        iMSCP::File->new( filename => "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" )->delFile() == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unkown error'
         );
 
@@ -740,7 +727,7 @@ sub _setFullVersion
 {
     my ($self) = @_;
 
-    ( $self->{'config'}->{'PHP_VERSION_FULL'} ) = `/usr/bin/php -nv 2> /dev/null` =~ /^PHP\s+([\d.]+)/ or croak(
+    ( $self->{'config'}->{'PHP_VERSION_FULL'} ) = `php -nv 2> /dev/null` =~ /^PHP\s+([\d.]+)/ or die(
         "Couldn't guess PHP version for the selected PHP alternative"
     );
 }
@@ -758,13 +745,13 @@ sub _cleanup
     return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
     if ( -f "$self->{'cfgDir'}/php.old.data" ) {
-        iMSCP::File->new( filename => "$self->{'cfgDir'}/php.old.data" )->delFile() == 0 or croak(
+        iMSCP::File->new( filename => "$self->{'cfgDir'}/php.old.data" )->delFile() == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
     }
 
     if ( -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" ) {
-        iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->delFile() == 0 or croak(
+        iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->delFile() == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
     }
@@ -773,14 +760,14 @@ sub _cleanup
 
     my $httpd = iMSCP::Servers::Httpd->factory();
 
-    $httpd->disableModules( qw/ fastcgi_imscp php5 php5_cgi php5filter php_fpm_imscp proxy_handler / ) == 0 or croak(
+    $httpd->disableModules( qw/ fastcgi_imscp php5 php5_cgi php5filter php_fpm_imscp proxy_handler / ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 
     for ( 'fastcgi_imscp.conf', 'fastcgi_imscp.load', 'php_fpm_imscp.conf', 'php_fpm_imscp.load' ) {
         next unless -f "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_";
 
-        iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_" )->delFile() == 0 or croak(
+        iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_" )->delFile() == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
     }

@@ -56,7 +56,7 @@ sub get
     return $self->{'fileContent'} if defined $self->{'fileContent'};
 
     unless ( defined $self->{'filename'} ) {
-        croak( "Attribut `filename' is not set." );
+        error( "Attribut `filename' is not set." );
         return undef;
     }
 

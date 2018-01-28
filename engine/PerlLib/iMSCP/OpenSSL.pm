@@ -73,7 +73,7 @@ sub validatePrivateKey
     }
 
     my $cmd = [
-        '/usr/bin/openssl', 'pkey', '-in', $self->{'private_key_container_path'}, '-noout',
+        'openssl', 'pkey', '-in', $self->{'private_key_container_path'}, '-noout',
         ( ( $passphraseFile ) ? ( '-passin', 'file:' . $passphraseFile->filename ) : () )
     ];
 
@@ -130,7 +130,7 @@ sub validateCertificate
     }
 
     my $cmd = [
-        '/usr/bin/openssl', 'verify',
+        'openssl', 'verify',
         ( ( $self->{'ca_bundle_container_path'} ne '' ) ? ( '-CAfile', $self->{'ca_bundle_container_path'} ) : () ),
         '-purpose', 'sslserver', $self->{'certificate_container_path'}
     ];
@@ -182,7 +182,7 @@ sub importPrivateKey
     }
 
     my $cmd = [
-        '/usr/bin/openssl', 'pkey', '-in', $self->{'private_key_container_path'},
+        'openssl', 'pkey', '-in', $self->{'private_key_container_path'},
         '-out', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem",
         ( ( $passphraseFile ) ? ( '-passin', 'file:' . $passphraseFile->filename ) : () )
     ];
@@ -308,7 +308,7 @@ sub createSelfSignedCertificate
     $openSSLConffile->close();
 
     my $cmd = [
-        '/usr/bin/openssl', 'req', '-x509', '-nodes', '-days', '365', '-config', $openSSLConffile->filename, '-newkey', 'rsa',
+        'openssl', 'req', '-x509', '-nodes', '-days', '365', '-config', $openSSLConffile->filename, '-newkey', 'rsa',
         '-keyout', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem",
         '-out', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem"
     ];
@@ -355,7 +355,7 @@ sub getCertificateExpiryTime
         return undef;
     }
 
-    my $rs = execute( [ '/usr/bin/openssl', 'x509', '-enddate', '-noout', '-in', $certificatePath ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'openssl', 'x509', '-enddate', '-noout', '-in', $certificatePath ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
 
     unless ( $rs == 0 && $stdout =~ /^notAfter=(.*)/i ) {

@@ -30,7 +30,7 @@ use parent 'iMSCP::Providers::Service::Sysvinit';
 
 # Commands used in that package
 my %COMMANDS = (
-    'update-rc.d' => '/usr/sbin/update-rc.d'
+    'update-rc.d' => 'update-rc.d'
 );
 
 =head1 DESCRIPTION

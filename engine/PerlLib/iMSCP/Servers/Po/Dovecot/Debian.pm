@@ -31,7 +31,7 @@ use iMSCP::File;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Po::Dovecot::Abstract';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 

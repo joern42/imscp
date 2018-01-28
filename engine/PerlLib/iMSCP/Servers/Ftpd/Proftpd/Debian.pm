@@ -33,7 +33,7 @@ use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Ftpd::Proftpd::Abstract';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 

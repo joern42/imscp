@@ -101,11 +101,11 @@ sub setRights
                         # because we know that we have a real file.
 
                         if ( $mode ) {
-                            chmod $mode, $_ or croak( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                            chmod $mode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
                         } elsif ( $dirmode && -d _ ) {
-                            chmod $dirmode, $_ or croak( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                            chmod $dirmode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
                         } elsif ( $filemode && !-d _ ) {
-                            chmod $filemode, $_ or croak( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                            chmod $filemode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
                         }
                     },
                     no_chdir => 1
@@ -117,16 +117,16 @@ sub setRights
         }
 
         if ( $attrs->{'user'} || $attrs->{'group'} ) {
-            lchown $uid, $gid, $target or croak( sprintf( "Couldn't set user/group on %s: %s", $target, $! ));
+            lchown $uid, $gid, $target or die( sprintf( "Couldn't set user/group on %s: %s", $target, $! ));
         }
 
         unless ( -l $target ) { # We do not call chmod on symkink targets
             if ( $mode ) {
-                chmod $mode, $target or croak( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                chmod $mode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
             } elsif ( $dirmode && -d _ ) {
-                chmod $dirmode, $target or croak( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                chmod $dirmode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
             } elsif ( $filemode && !-d _ ) {
-                chmod $filemode, $target or croak( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                chmod $filemode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
             }
         }
     };

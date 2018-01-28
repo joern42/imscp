@@ -251,7 +251,7 @@
     # Possible values:
     # - Debian-like distributions:
     #   - iMSCP::Servers::Named::Bind9::Debian
-    #   - iMSCP::Servers::Noserver
+    #   - iMSCP::Servers::NoServer
     #
     # Leave empty for default: iMSCP::Servers::Named::Bind9::Debian
     'iMSCP::Servers::Named'             => '',

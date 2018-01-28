@@ -676,7 +676,7 @@ sub _setupPrimaryIP
 
     eval {
         my $netCard = ( $primaryIP eq '0.0.0.0' ) ? 'any' : iMSCP::Net->getInstance()->getAddrDevice( $primaryIP );
-        defined $netCard or croak( sprintf( "Couldn't find network card for the `%s' IP address", $primaryIP ));
+        defined $netCard or die( sprintf( "Couldn't find network card for the `%s' IP address", $primaryIP ));
 
         my $db = iMSCP::Database->getInstance();
         my $oldDbName = $db->useDatabase( main::setupGetQuestion( 'DATABASE_NAME' ));

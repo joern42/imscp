@@ -67,7 +67,7 @@ sub flush
  Required arguments for tie command
   - fileName: Configuration file path
  Optional arguments for tie command
-  - nocreate: Do not create file if it doesn't already exist, croak instead
+  - nocreate: Do not create file if it doesn't already exist, die instead
   - nodeferring: Writes in file immediately instead of deffering writing (Only relevant in write mode)
   - nocroak: Do not croak when accessing to an non-existent configuration parameter
   - nospaces: Do not add spaces around configuration parameter name/value separator
@@ -82,7 +82,7 @@ sub TIEHASH
 
     my $self = bless { @argv && ref $argv[0] eq 'HASH' ? %{$argv[0]} : @argv }, $class;
     my $mode = $self->{'nocreate'} ? ( $self->{'readonly'} ? O_RDONLY : O_RDWR ) : ( $self->{'readonly'} ? O_RDONLY : O_RDWR | O_CREAT );
-    my $tiedArr = tie @{$self->{'_file'}}, 'Tie::File', $self->{'fileName'}, memory => 10_000_000, mode => $mode or croak(
+    my $tiedArr = tie @{$self->{'_file'}}, 'Tie::File', $self->{'fileName'}, memory => 10_000_000, mode => $mode or die(
         sprintf( "Couldn't tie %s file: %s", $self->{'fileName'}, $! )
     );
     $tiedArr->defer unless $self->{'nodeferring'} || $self->{'readonly'};

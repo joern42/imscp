@@ -24,7 +24,6 @@
 #  - Ubuntu 14.04, 16.04
 #  - Devuan 1.0
 
-
 system( 'clear 2>/dev/null' );
 
 unless ( -f '/etc/imscp/listener.d/10_apt_sources_list.pl' ) {

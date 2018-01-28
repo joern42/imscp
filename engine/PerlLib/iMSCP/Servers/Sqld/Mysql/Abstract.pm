@@ -418,7 +418,7 @@ sub createUser
             }
         }
     };
-    !$@ or croak( sprintf( "Couldn't create/update the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or die( sprintf( "Couldn't create/update the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 
@@ -444,7 +444,7 @@ sub dropUser
         return unless $dbh->selectrow_hashref( 'SELECT 1 FROM mysql.user WHERE user = ? AND host = ?', undef, $user, $host );
         $dbh->do( 'DROP USER ?@?', undef, $user, $host );
     };
-    !$@ or croak( sprintf( "Couldn't drop the %s\@%s SQL user: %s", $user, $host, $@ ));
+    !$@ or die( sprintf( "Couldn't drop the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
 }
 
@@ -647,7 +647,7 @@ sub _setVersion
         my $dbh = iMSCP::Database->getInstance()->getRawDb();
 
         local $dbh->{'RaiseError'} = 1;
-        my $row = $dbh->selectrow_hashref( 'SELECT @@version' ) or croak( "Could't find SQL server version" );
+        my $row = $dbh->selectrow_hashref( 'SELECT @@version' ) or die( "Could't find SQL server version" );
         my ($version) = $row->{'@@version'} =~ /^([0-9]+(?:\.[0-9]+){1,2})/;
 
         unless ( defined $version ) {
@@ -826,7 +826,7 @@ EOF
         );
         return $rs if $rs;
 
-        $rs = execute( "cat $dbSchemaFile | /usr/bin/mysql --defaults-extra-file=$defaultsExtraFile", \ my $stdout, \ my $stderr );
+        $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
@@ -837,14 +837,14 @@ EOF
         # database revision in the database.sql schema file.
         my $rs = execute(
             [
-                ( iMSCP::ProgramFinder::find( 'php' ) or croak( "Couldn't find system PHP (cli) binary" ) )
+                ( iMSCP::ProgramFinder::find( 'php' ) or die( "Couldn't find system PHP (cli) binary" ) )
                 , '-d', 'date.timezone=UTC', "$main::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php"
             ],
             \ my $stdout,
             \ my $stderr
         );
         debug( $stdout ) if $stdout;
-        croak( $stderr || 'Unknown error' ) if $rs;
+        die( $stderr || 'Unknown error' ) if $rs;
     };
     if ( $@ ) {
         error( $@ );
@@ -875,7 +875,7 @@ sub _setupIsImscpDb
     return 0 unless $dbh->selectrow_hashref( 'SHOW DATABASES LIKE ?', undef, $dbName );
 
     my $tables = $db->getDbTables( $dbName );
-    ref $tables eq 'ARRAY' or croak( $tables );
+    ref $tables eq 'ARRAY' or die( $tables );
 
     for my $table( qw/ server_ips user_gui_props reseller_props / ) {
         return 0 unless grep( $_ eq $table, @{$tables} );
@@ -983,7 +983,7 @@ EOF
         $self->dropUser( $tmpUser, $main::imscpConfig{'DATABASE_USER_HOST'} );
     };
     if ( $@ ) {
-        croak( $@ );
+        die( $@ );
     }
 }
 

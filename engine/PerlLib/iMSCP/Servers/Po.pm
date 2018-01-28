@@ -74,7 +74,7 @@ sub addMail
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
 }
 
 =item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
@@ -92,7 +92,7 @@ sub getTraffic
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }
 
 =back

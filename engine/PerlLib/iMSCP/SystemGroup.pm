@@ -61,7 +61,7 @@ sub addSystemGroup
         return 1;
     }
 
-    my $rs = execute( [ '/usr/sbin/groupadd', '-f', ( $systemgroup ? '-r' : () ), $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'groupadd', '-f', ( $systemgroup ? '-r' : () ), $groupname ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     $rs;
@@ -90,7 +90,7 @@ sub delSystemGroup
         return 1;
     }
 
-    my $rs = execute( [ '/usr/sbin/groupdel', $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'groupdel', $groupname ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     unless ( grep($_ == $rs, 0, 6) ) {
         error( $stderr || 'Unknown error' );

@@ -50,27 +50,27 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 our $command = {
     pbzip2 => {
         extension => 'bz2',
-        command   => '/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 pbzip2'
+        command   => 'nice -n 19 ionice -c2 -n7 pbzip2'
     },
     bzip2  => {
         extension => 'bz2',
-        command   => '/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 bzip2'
+        command   => 'nice -n 19 ionice -c2 -n7 bzip2'
     },
     gzip   => {
         extension => 'gz',
-        command   => '/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 gzip'
+        command   => 'nice -n 19 ionice -c2 -n7 gzip'
     },
     pigz   => {
         extension => 'gz',
-        command   => '/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 pigz'
+        command   => 'nice -n 19 ionice -c2 -n7 pigz'
     },
     lzma   => {
         extension => 'lzma',
-        command   => '/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 lzma'
+        command   => 'nice -n 19 ionice -c2 -n7 lzma'
     },
     xz     => {
         extension => 'xz',
-        command   => '/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 xz'
+        command   => 'nice -n 19 ionice -c2 -n7 xz'
     }
 };
 
@@ -170,7 +170,7 @@ sub _backupConfig
     }
 
     my @backupCommand = (
-        "/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 tar -c -C $main::imscpConfig{'CONF_DIR'}",
+        "nice -n 19 ionice -c2 -n7 tar -c -C $main::imscpConfig{'CONF_DIR'}",
         '--exclude=?*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]',
         '--preserve-permissions', '.', ( $algo eq 'no' ? "-f $archivePath" : "| $command->{$algo}->{'command'} -$level > $archivePath" )
     );

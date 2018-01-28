@@ -31,7 +31,7 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Cron';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
@@ -87,7 +87,7 @@ sub start
 
     eval { iMSCP::Service->getInstance()->start( 'cron' ); };
     if ( $@ ) {
-        croak( $@ );
+        die( $@ );
         return 1;
     }
 
@@ -106,7 +106,7 @@ sub stop
 
     eval { iMSCP::Service->getInstance()->stop( 'cron' ); };
     if ( $@ ) {
-        croak( $@ );
+        die( $@ );
         return 1;
     }
 
@@ -125,7 +125,7 @@ sub restart
 
     eval { iMSCP::Service->getInstance()->restart( 'cron' ); };
     if ( $@ ) {
-        croak( $@ );
+        die( $@ );
         return 1;
     }
 
@@ -144,7 +144,7 @@ sub reload
 
     eval { iMSCP::Service->getInstance()->reload( 'cron' ); };
     if ( $@ ) {
-        croak( $@ );
+        die( $@ );
         return 1;
     }
 
@@ -171,7 +171,7 @@ sub enableSystemCronTask
 
     unless ( $directory ) {
         for ( qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) {
-            my $rs = execute( [ '/usr/bin/dpkg-divert', '--rename', '--remove', "/etc/$_/$cronTask" ], \my $stdout, \my $stderr );
+            my $rs = execute( [ 'dpkg-divert', '--rename', '--remove', "/etc/$_/$cronTask" ], \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             error( $stderr || 'Unknown error' ) if $rs;
             return $rs if $rs;
@@ -185,7 +185,7 @@ sub enableSystemCronTask
         return 1;
     }
 
-    my $rs = execute( [ '/usr/bin/dpkg-divert', '--rename', '--remove', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr );
+    my $rs = execute( [ 'dpkg-divert', '--rename', '--remove', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
@@ -209,7 +209,7 @@ sub disableSystemCronTask
     unless ( $directory ) {
         for ( qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) {
             my $rs = execute(
-                [ '/usr/bin/dpkg-divert', '--divert', "/etc/$_/$cronTask.disabled", '--rename', "/etc/$_/$cronTask" ], \my $stdout, \my $stderr
+                [ 'dpkg-divert', '--divert', "/etc/$_/$cronTask.disabled", '--rename', "/etc/$_/$cronTask" ], \my $stdout, \my $stderr
             );
             debug( $stdout ) if $stdout;
             error( $stderr || 'Unknown error' ) if $rs;
@@ -225,9 +225,7 @@ sub disableSystemCronTask
     }
 
     my $rs ||= execute(
-        [ '/usr/bin/dpkg-divert', '--divert', "/etc/$directory/$cronTask.disabled", '--rename', "/etc/$directory/$cronTask" ],
-        \my $stdout,
-        \my $stderr
+        [ 'pkg-divert', '--divert', "/etc/$directory/$cronTask.disabled", '--rename', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr
     );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
@@ -250,12 +248,12 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( '/usr/bin/dpkg -s cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'dpkg -s cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ /version:\s+([\d.]+)/i ) {
-        error( "Couldn't guess Cron (Vixie) version from the `/usr/bin/dpkg -s cron | grep -i '^version'` command output" );
+        error( "Couldn't guess Cron (Vixie) version from the `dpkg -s cron | grep -i '^version'` command output" );
         return 1;
     }
 

@@ -86,7 +86,7 @@ sub process
         $self->$method();
         $self->{'eventManager'}->trigger(
             'onBeforeSetPluginStatus', $self->{'pluginName'}, \$self->{'pluginStatus'}
-        ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
     };
 
     return 0 unless $@ || $self->{'pluginAction'} ne 'run';
@@ -177,7 +177,7 @@ sub _loadData
 
  Install the plugin
 
- Return void on success, croak on failure
+ Return void on success, die on failure
 
 =cut
 
@@ -185,11 +185,11 @@ sub _install
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeInstallPlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onBeforeInstallPlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self->_executePluginAction( 'install' );
-    $self->{'eventManager'}->trigger( 'onAfterInstallPlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onAfterInstallPlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self->_enable();
@@ -199,7 +199,7 @@ sub _install
 
  Uninstall the plugin
 
- Return void on success, croak on failure
+ Return void on success, die on failure
 
 =cut
 
@@ -207,11 +207,11 @@ sub _uninstall
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeUninstallPlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onBeforeUninstallPlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self->_executePluginAction( 'uninstall' );
-    $self->{'eventManager'}->trigger( 'onAfterUninstallPlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onAfterUninstallPlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 }
@@ -220,7 +220,7 @@ sub _uninstall
 
  Enable the plugin
 
- Return void on success, croak on failure
+ Return void on success, die on failure
 
 =cut
 
@@ -228,11 +228,11 @@ sub _enable
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeEnablePlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onBeforeEnablePlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self->_executePluginAction( 'enable' );
-    $self->{'eventManager'}->trigger( 'onAfterEnablePlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onAfterEnablePlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 }
@@ -241,7 +241,7 @@ sub _enable
 
  Disable the plugin
 
- Return void on success, croak on failure
+ Return void on success, die on failure
 
 =cut
 
@@ -249,11 +249,11 @@ sub _disable
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeDisablePlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onBeforeDisablePlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self->_executePluginAction( 'disable' );
-    $self->{'eventManager'}->trigger( 'onAfterDisablePlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onAfterDisablePlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 }
@@ -262,7 +262,7 @@ sub _disable
 
  Change the plugin
 
- Return void on success, croak on failure
+ Return void on success, die on failure
 
 =cut
 
@@ -271,11 +271,11 @@ sub _change
     my ($self) = @_;
 
     $self->_disable();
-    $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self->_executePluginAction( 'change' );
-    $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 
@@ -296,7 +296,7 @@ sub _change
 
  Update the plugin
 
- Return void on success, croak on failure
+ Return void on success, die on failure
 
 =cut
 
@@ -305,7 +305,7 @@ sub _update
     my ($self) = @_;
 
     $self->_disable();
-    $self->{'eventManager'}->trigger( 'onBeforeUpdatePlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onBeforeUpdatePlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self->_executePluginAction( 'update' );
@@ -316,12 +316,12 @@ sub _update
             'UPDATE plugin SET plugin_info = ? WHERE plugin_id = ?', undef, encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'}
         );
     }
-    $self->{'eventManager'}->trigger( 'onAfterUpdatePlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onAfterUpdatePlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 
     if ( $self->{'pluginInfo'}->{'__need_change__'} ) {
-        $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
         $self->_executePluginAction( 'change' );
@@ -334,7 +334,7 @@ sub _update
                 undef, encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'}
             );
         }
-        $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} ) == 0 or croak(
+        $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
         );
     }
@@ -346,7 +346,7 @@ sub _update
 
  Run plugin item tasks
 
- Return void on success, croak on failure
+ Return void on success, die on failure
 
 =cut
 
@@ -354,11 +354,11 @@ sub _run
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeRunPlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onBeforeRunPlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
     $self->_executePluginAction( 'run' );
-    $self->{'eventManager'}->trigger( 'onAfterRunPlugin', $self->{'pluginName'} ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'onAfterRunPlugin', $self->{'pluginName'} ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 }
@@ -368,7 +368,7 @@ sub _run
  Execute the given plugin action
 
  Param string $action Action to execute on the plugin
- Return void on success, croak on failure
+ Return void on success, die on failure
 
 =cut
 
@@ -381,7 +381,7 @@ sub _executePluginAction
         my $pluginClass = iMSCP::Plugins->getInstance()->getClass( $self->{'pluginName'} );
         return undef unless $pluginClass->can( $action ); # Do not instantiate plugin when not necessary
 
-        $self->{'pluginInstance'} = ( $pluginClass->can( 'getInstance' ) || $pluginClass->can( 'new' ) || croak( 'Bad plugin class' ) )->(
+        $self->{'pluginInstance'} = ( $pluginClass->can( 'getInstance' ) || $pluginClass->can( 'new' ) || die( 'Bad plugin class' ) )->(
             $pluginClass,
             action       => $self->{'pluginAction'},
             config       => $self->{'pluginConfig'},
@@ -400,13 +400,13 @@ sub _executePluginAction
     eval {
         $subref->( $self->{'pluginInstance'}, ( $action eq 'update'
                 ? ( $self->{'pluginInfo'}->{'version'}, $self->{'pluginInfo'}->{'__nversion__'} ) : () )
-        ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
     };
 
     # Return value from the run() action is ignored by default. However a
     # plugin can force return value by setting the FORCE_RETVAL attribute to a
     # TRUE value
-    croak if $@ && ( $action ne 'run' || $self->{'pluginInstance'}->{'FORCE_RETVAL'} )
+    die if $@ && ( $action ne 'run' || $self->{'pluginInstance'}->{'FORCE_RETVAL'} )
 }
 
 =back

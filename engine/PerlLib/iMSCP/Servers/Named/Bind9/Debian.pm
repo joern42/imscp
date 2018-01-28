@@ -35,7 +35,7 @@ use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Named::Bind9::Abstract';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
@@ -266,12 +266,12 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( [ '/usr/bin/bind9-config', '--version' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'bind9-config', '--version' ], \ my $stdout, \ my $stderr );
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ /version=([\d.]+)/i ) {
-        error( "Couldn't guess Bind version from the `/usr/bin/bind9-config --version` command output" );
+        error( "Couldn't guess Bind version from the `bind9-config --version` command output" );
         return 1;
     }
 

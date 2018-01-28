@@ -26,7 +26,6 @@ package iMSCP::Servers::Server::Local::Debian;
 use strict;
 use warnings;
 use autouse 'iMSCP::Debug' => qw/ debug error /;
-use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Bootstrapper iMSCP::File iMSCP::ProgramFinder /;
 use iMSCP::Service;
 use JSON qw/ decode_json /;
@@ -68,7 +67,7 @@ sub dpkgPostInvokeTasks
 
     # Gather system information
     my $sysInfo = eval {
-        my $facter = iMSCP::ProgramFinder::find( 'facter' ) or croak( 'facter program not found' );
+        my $facter = iMSCP::ProgramFinder::find( 'facter' ) or die( 'facter program not found' );
         decode_json( `$facter _2.5.1_ --json os 2> /dev/null` );
     };
     if ( $@ ) {

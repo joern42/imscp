@@ -565,12 +565,11 @@ sub getTraffic
     # Extract and standardize SMTP logs in temporary file, using
     # maillogconvert.pl script
     my $stdLogFile = File::Temp->new();
-    my $rs = execute(
-        "/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 /usr/local/sbin/maillogconvert.pl standard < $logFile > $stdLogFile", undef, \my $stderr
-    );
-    $rs == 0 or croak( sprintf( "Couldn't standardize SMTP logs: %s", $stderr || 'Unknown error' ));
+    $stdLogFile->close();
+    my $rs = execute( "nice -n 19 ionice -c2 -n7 /usr/local/sbin/maillogconvert.pl standard < $logFile > $stdLogFile", undef, \my $stderr );
+    $rs == 0 or die( sprintf( "Couldn't standardize SMTP logs: %s", $stderr || 'Unknown error' ));
 
-    tie my @logs, 'Tie::File', $stdLogFile, mode => O_RDONLY, memory => 0 or croak( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
+    tie my @logs, 'Tie::File', "$stdLogFile", mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
 
     if ( exists $logs[$idx] && $logs[$idx] eq $idxContent ) {
         debug( sprintf( 'Skipping SMTP logs that were already processed (lines %d to %d)', 1, ++$idx ));
@@ -774,13 +773,13 @@ sub postconf
 
         # Avoid POSTCONF(1) being slow by waiting 2 seconds before next processing
         # See https://groups.google.com/forum/#!topic/list.postfix.users/MkhEqTR6yRM
-        utime $time, $time-2, $self->{'config'}->{'MTA_MAIN_CONF_FILE'} or croak(
+        utime $time, $time-2, $self->{'config'}->{'MTA_MAIN_CONF_FILE'} or die(
             sprintf( "Couldn't touch %s file: %s", $self->{'config'}->{'MTA_MAIN_CONF_FILE'} )
         );
 
         my ($stdout, $stderr);
         executeNoWait(
-            [ '/usr/sbin/postconf', '-c', $conffile, keys %params ],
+            [ 'postconf', '-c', $conffile, keys %params ],
             sub {
                 return unless ( my $p, my $v ) = $_[0] =~ /^([^=]+)\s+=\s*(.*)/;
 
@@ -822,17 +821,17 @@ sub postconf
                 }
             },
             sub { $stderr .= shift }
-        ) == 0 or croak( $stderr || 'Unknown error' );
+        ) == 0 or die( $stderr || 'Unknown error' );
 
         if ( %params ) {
-            my $cmd = [ '/usr/sbin/postconf', '-e', '-c', $conffile ];
+            my $cmd = [ 'postconf', '-e', '-c', $conffile ];
             while ( my ($param, $value) = each %params ) { push @{$cmd}, "$param=$value" };
-            execute( $cmd, \$stdout, \$stderr ) == 0 or croak( $stderr || 'Unknown error' );
+            execute( $cmd, \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
             debug( $stdout ) if $stdout;
         }
 
         if ( @pToDel ) {
-            execute( [ '/usr/sbin/postconf', '-X', '-c', $conffile, @pToDel ], \$stdout, \$stderr ) == 0 or croak( $stderr || 'Unknown error' );
+            execute( [ 'postconf', '-X', '-c', $conffile, @pToDel ], \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
             debug( $stdout ) if $stdout;
         };
 
@@ -893,7 +892,7 @@ sub _getMapFileObject
 
 EOF
             );
-            $file->save() == 0 && $file->mode( 0640 ) == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $file->save() == 0 && $file->mode( 0640 ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
             $self->{'_postmap'}->{$mapPath} ||= 1;
         }
 
@@ -1007,12 +1006,12 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( [ '/usr/sbin/postconf', '-d', '-h', 'mail_version' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'postconf', '-d', '-h', 'mail_version' ], \ my $stdout, \ my $stderr );
     debug( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ /^([\d.]+)/ ) {
-        error( "Couldn't guess Postfix version from the `/usr/sbin/postconf -d -h mail_version` command output" );
+        error( "Couldn't guess Postfix version from the `postconf -d -h mail_version` command output" );
         return 1;
     }
 
@@ -1073,7 +1072,7 @@ sub _buildAliasesDb
     );
     return $rs if $rs;
 
-    $rs = execute( '/usr/bin/newaliases', \ my $stdout, \ my $stderr );
+    $rs = execute( 'newaliases', \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     $rs;

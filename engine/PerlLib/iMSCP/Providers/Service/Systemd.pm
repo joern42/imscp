@@ -413,7 +413,7 @@ sub _searchUnitFile
         return $filepath if -f $filepath || -c _;
     }
 
-    die( sprintf( "Unit %s not found", $unit ));
+    die( sprintf( 'Unit %s not found', $unit ));
 }
 
 =back

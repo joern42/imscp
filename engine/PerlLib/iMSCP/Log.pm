@@ -25,7 +25,6 @@ package iMSCP::Log;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use Params::Check qw[ check ];
 
 local $Params::Check::VERBOSE = 1;
@@ -44,7 +43,7 @@ local $Params::Check::VERBOSE = 1;
 
  Create new iMSCP::Log object
 
- Return iMSCP::Log, croak on failure
+ Return iMSCP::Log, die on failure
 
 =cut
 
@@ -64,7 +63,7 @@ sub new
         }
     };
 
-    my $args = check( $tmpl, \%hash ) or croak( sprintf( "Couldn't create a new iMSCP::Log object: %s1", Params::Check->last_error ));
+    my $args = check( $tmpl, \%hash ) or die( sprintf( "Couldn't create a new iMSCP::Log object: %s1", Params::Check->last_error ));
     bless $args, $class
 }
 

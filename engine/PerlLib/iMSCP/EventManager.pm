@@ -83,7 +83,7 @@ sub register
 
         if ( ref $eventNames eq 'ARRAY' ) {
             for ( @{$eventNames} ) {
-                $self->register( $_, $listener, $priority, $once ) == 0 or croak(
+                $self->register( $_, $listener, $priority, $once ) == 0 or die(
                     getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
                 );
             }

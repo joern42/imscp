@@ -91,7 +91,7 @@ sub installPackages
     my ($self) = @_;
 
     # See https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
-    my $policyrcd = File::Temp->new( UNLINK => 1 );
+    my $policyrcd = File::Temp->new();
 
     # Prevents invoke-rc.d (which is invoked by package maintainer scripts) to start some services
     #
@@ -526,7 +526,7 @@ sub _processPackagesFile
         my $sAlt = $main::questions{ $sectionClass } || $main::imscpConfig{ $sectionClass };
 
         # Build list of supported alternatives
-        # Discard those alternatives for evaluation of the condition attribute if any is not TRUE
+        # Discard those alternatives for which evaluation of the 'condition' attribute expression if any is not TRUE
         my @supportedAlts = grep { !defined $data->{$_}->{'condition'} || eval expandVars( $data->{$_}->{'condition'} ) } keys %{$data};
 
         if ( $section eq 'sqld' ) {
@@ -657,7 +657,7 @@ EOF
         }
 
         # Set server/package class name for the selected alternative
-        $main::imscpConfig{$sectionClass} = $data->{$sAlt}->{'class'} || 'iMSCP::Servers::Noserver';
+        $main::imscpConfig{$sectionClass} = $data->{$sAlt}->{'class'} || 'iMSCP::Servers::NoServer';
         # Set alternative name for installer use
         $main::questions{'_' . $section} = $sAlt;
     }
@@ -762,11 +762,10 @@ EOF
             warning( $stderr ) if $rs && $stderr ne '';
         } elsif ( $repository->{'repository_key_uri'} ) {
             # Add the repository key by fetching it first from the given URI
-            my $keyFile = File::Temp->new( UNLINK => 1 );
+            my $keyFile = File::Temp->new();
+            $keyFile->close();
             $rs = execute(
-                [ 'wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile->filename, $repository->{'repository_key_uri'} ],
-                \ my $stdout,
-                \ my $stderr
+                [ 'wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile, $repository->{'repository_key_uri'} ], \ my $stdout, \ my $stderr
             );
             debug( $stdout ) if $stdout;
             error( $stderr || 'Unknown error' ) if $rs;

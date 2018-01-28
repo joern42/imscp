@@ -208,7 +208,7 @@ sub endTransaction
 
  Get raw DBI instance
 
- Return DBI instance, croak on failure
+ Return DBI instance, die on failure
 =cut
 
 sub getRawDb
@@ -218,7 +218,7 @@ sub getRawDb
     return $self->{'connection'} if $self->{'connection'};
 
     my $rs = $self->connect();
-    !$rs or croak( sprintf( "Couldn't connect to SQL server: %s", $rs ));
+    !$rs or die( sprintf( "Couldn't connect to SQL server: %s", $rs ));
     $self->{'connection'};
 }
 
@@ -311,7 +311,7 @@ sub getTableColumns
 
  Param string $dbName Database name
  Param string $dbDumpTargetDir Database dump target directory
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -360,7 +360,7 @@ EOF
 
         my $stderr;
         execute(
-            "/usr/bin/nice -n 19 /usr/bin/ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'}"
+            "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'}"
                 # Void tables locking whenever possible
                 . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '']}"
                 # Compress all information sent between the client and the server (only if remote SQL server).
@@ -369,10 +369,10 @@ EOF
                 . ' > ' . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
             undef,
             \ $stderr
-        ) == 0 or croak( $stderr || 'Unknown error' );
+        ) == 0 or die( $stderr || 'Unknown error' );
     };
     if ( $@ ) {
-        croak( sprintf( "Couldn't dump the `%s` database: %s", $dbName, $@ ));
+        die( sprintf( "Couldn't dump the `%s` database: %s", $dbName, $@ ));
     }
 }
 

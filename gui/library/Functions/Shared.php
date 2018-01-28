@@ -2100,7 +2100,7 @@ function send_request()
         return true;
     }
 
-    if (Registry::get('config')['DAEMON_TYPE'] != 'daemon') {
+    if (Registry::get('config')['DAEMON_TYPE'] != 'imscp') {
         return $isAlreadySent = true;
     }
 

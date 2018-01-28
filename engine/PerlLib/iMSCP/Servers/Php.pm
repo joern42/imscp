@@ -110,17 +110,19 @@ sub askForPhpVersion
 {
     my ($self, $dialog) = @_;
 
-    ( my @availablePhpVersions = sort grep( /\d+.\d+/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs()) ) or croak(
+    ( my @availablePhpVersions = sort grep( /\d+.\d+/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs()) ) or die(
         "Couldn't guess list of available PHP versions"
     );
 
     my %choices;
     @{choices}{@availablePhpVersions} = map { "PHP $_" } @availablePhpVersions;
 
-    my $value = main::setupGetQuestion( 'PHP_VERSION', $self->{'config'}->{'PHP_VERSION'} || ( iMSCP::Getopt->preseed ? ( keys %choices )[0] : '' ));
+    my $value = main::setupGetQuestion(
+        'PHP_VERSION', $self->{'config'}->{'PHP_VERSION'} || ( iMSCP::Getopt->preseed ? ( sort keys %choices )[0] : '' )
+    );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep( $value eq $_, keys %choices ) )[0] || ( keys %choices )[0] );
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep( $value eq $_, keys %choices ) )[0] || ( sort keys %choices )[0] );
 \Z4\Zb\ZuPHP version for customers\Zn
 
 Please choose the PHP version for the customers:
@@ -153,15 +155,27 @@ sub askForPhpSapi
     my %choices = ( 'fpm', 'PHP through PHP FastCGI Process Manager (fpm SAPI)' );
 
     my $httpd = iMSCP::Servers::Httpd->factory();
-    if ( $httpd->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
-        # Apache PHP module only works with Apache's prefork based MPM
-        # We allow it only with the Apache's ITK MPM because the Apache's prefork MPM
-        # doesn't allow to constrain each individual vhost to a particular system user/group.
-        $choices{'apache2handler'} = 'PHP through Apache PHP module (apache2handler SAPI)';
+
+    if ( $httpd->getServerName() eq 'Nginx' ) {
+        main::setupSetQuestion( 'PHP_SAPI', 'fpm' );
+        $self->{'config'}->{'PHP_SAPI'} = 'fpm';
+        return 0;
+    }
+
+    if ( $httpd->getServerName() eq 'Apache' ) {
+        if ( $httpd->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
+            # Apache PHP module only works with Apache's prefork based MPM
+            # We allow it only with the Apache's ITK MPM because the Apache's prefork MPM
+            # doesn't allow to constrain each individual vhost to a particular system user/group.
+            $choices{'apache2handler'} = 'PHP through Apache PHP module (apache2handler SAPI)';
+        } else {
+            # Apache Fcgid module doesn't work with Apache's ITK MPM
+            # https://lists.debian.org/debian-apache/2013/07/msg00147.html
+            $choices{'cgi'} = 'PHP through Apache Fcgid module (cgi SAPI)';
+        }
     } else {
-        # Apache Fcgid module doesn't work with Apache's ITK MPM
-        # https://lists.debian.org/debian-apache/2013/07/msg00147.html
-        $choices{'cgi'} = 'PHP through Apache Fcgid module (cgi SAPI)';
+        error( 'Unsupported Httpd server implementation' );
+        return 1;
     }
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -275,7 +289,8 @@ sub getHumanServerName
 {
     my ($self) = @_;
 
-    sprintf( 'PHP %s', $self->{'config'}->{'PHP_VERSION'} );
+    # FIXME: Show full version
+    sprintf( 'PHP %s (%s)', $self->{'config'}->{'PHP_VERSION'}, $self->{'config'}->{'PHP_SAPI'} );
 }
 
 =item getVersion( )
@@ -308,7 +323,7 @@ sub addDomain
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
 }
 
 =item disableDomain( \%moduleData )
@@ -328,7 +343,7 @@ sub disableDomain
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
 }
 
 =item deleteDomain( \%moduleData )
@@ -348,7 +363,7 @@ sub deleteDomain
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
 }
 
 =item addSubdomain( \%moduleData )
@@ -368,7 +383,7 @@ sub addSubdomain
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
 }
 
 =item disableSubdomain( \%moduleData )
@@ -388,7 +403,7 @@ sub disableSubdomain
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
 }
 
 =item deleteSubdomain( \%moduleData )
@@ -408,7 +423,7 @@ sub deleteSubdomain
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
 }
 
 =item enableModules( \@modules [, $phpVersion = $self->{'config'}->{'PHP_VERSION'} [, $phpSapi = $self->{'config'}->{'PHP_SAPI'} ] ] )
@@ -426,7 +441,7 @@ sub enableModules
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
+    die( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
 }
 
 =item disableModules( \@modules [, $phpVersion = $self->{'config'}->{'PHP_VERSION'} [, $phpSapi = $self->{'config'}->{'PHP_SAPI'} ] ] )
@@ -444,7 +459,7 @@ sub disableModules
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
 }
 
 =back
@@ -467,7 +482,7 @@ sub _init
 
     # Check for properties that must be defined in concret server implementations
     for ( qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR / ) {
-        defined $self->{$_ } or croak( sprintf( 'The %s package must define the %s property', ref $self, $_ ));
+        defined $self->{$_ } or die( sprintf( 'The %s package must define the %s property', ref $self, $_ ));
     }
 
     @{$self}{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$main::imscpConfig{'CONF_DIR'}/php" );
@@ -486,7 +501,7 @@ sub _setFullVersion
 {
     my ($self) = @_;
 
-    croak( sprintf( 'The %s class must implement the _setFullVersion() method', ref $self ));
+    die( sprintf( 'The %s class must implement the _setFullVersion() method', ref $self ));
 }
 
 =item _buildApacheHandlerConfig( \%moduleData )
@@ -516,7 +531,7 @@ sub _buildApacheHandlerConfig
     debug( sprintf( 'Building Apache2Handler configuration for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
 
     $rs ||= $self->{'eventManager'}->trigger( 'afterPhpApacheHandlerSapiBuildConf', $moduleData );
-    $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 }
 
 =item _buildCgiConfig( \%moduleData )
@@ -539,7 +554,7 @@ sub _buildCgiConfig
         return;
     }
 
-    $self->{'eventManager'}->trigger( 'beforePhpCgiSapiBuildConf', $moduleData ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'beforePhpCgiSapiBuildConf', $moduleData ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 
@@ -595,7 +610,7 @@ sub _buildCgiConfig
         }
     );
     $rs ||= $self->{'eventManager'}->trigger( 'afterPhpCgiSapiBuildConf', $moduleData );
-    $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 }
 
 =item _buildFpmConfig( \%moduleData )
@@ -618,7 +633,7 @@ sub _buildFpmConfig
         return;
     }
 
-    $self->{'eventManager'}->trigger( 'beforePhpFpmSapiBuildConf', $moduleData ) == 0 or croak(
+    $self->{'eventManager'}->trigger( 'beforePhpFpmSapiBuildConf', $moduleData ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
     );
 
@@ -646,7 +661,7 @@ sub _buildFpmConfig
     );
     $self->{'reload'}->{$serverData->{'PHP_VERSION'}} ||= 1 unless $rs;
     $rs ||= $self->{'eventManager'}->trigger( 'afterPhpFpmSapiBuildConf', $moduleData );
-    $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
 }
 
 =back

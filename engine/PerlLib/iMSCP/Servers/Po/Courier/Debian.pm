@@ -36,7 +36,7 @@ use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Po::Courier::Abstract';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
@@ -258,12 +258,12 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( '/usr/bin/dpkg -s courier-base | grep -i \'^version\'', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'dpkg -s courier-base | grep -i \'^version\'', \ my $stdout, \ my $stderr );
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
     if ( $stdout !~ /version:\s+([\d.]+)/i ) {
-        error( "Couldn't guess Courier version from the `/usr/bin/dpkg -s courier-base | grep -i '^version'` command output" );
+        error( "Couldn't guess Courier version from the `dpkg -s courier-base | grep -i '^version'` command output" );
         return 1;
     }
 

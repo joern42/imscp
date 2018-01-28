@@ -36,7 +36,7 @@ use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Sqld::Mysql::Abstract';
 
-our $VERSION = '1.0.0';
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
@@ -308,9 +308,7 @@ EOF
         );
         # Simply mimic Debian behavior (/usr/share/mysql/debian-start.inc.sh)
         $rs ||= execute(
-            "/usr/bin/mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'",
-            \my $stdout,
-            \my $stderr
+            "mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'", \my $stdout, \my $stderr
         );
         debug( $stdout ) if $stdout;
         error( sprintf(

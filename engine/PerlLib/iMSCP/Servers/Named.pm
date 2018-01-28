@@ -73,7 +73,7 @@ sub addDomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
 }
 
 =item postaddDomain( \%moduleData )
@@ -95,7 +95,7 @@ sub postaddDomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the postaddDomain() method', ref $self ));
 }
 
 =item disableDomain( \%moduleData )
@@ -117,7 +117,7 @@ sub disableDomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
 }
 
 =item postdisableDomain( \%moduleData )
@@ -139,7 +139,7 @@ sub postdisableDomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the postdisableDomain() method', ref $self ));
 }
 
 =item deleteDomain( \%moduleData )
@@ -161,7 +161,7 @@ sub deleteDomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
 }
 
 =item postdeleteDomain( \%moduleData )
@@ -183,7 +183,7 @@ sub postdeleteDomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the postdeleteDomain() method', ref $self ));
 }
 
 =item addSubdomain( \%moduleData )
@@ -205,7 +205,7 @@ sub addSubdomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
 }
 
 =item postaddSubdomain( \%moduleData )
@@ -227,7 +227,7 @@ sub postaddSubdomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the postaddSubdomain() method', ref $self ));
 }
 
 =item disableSubdomain( \%moduleData )
@@ -249,7 +249,7 @@ sub disableSubdomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
 }
 
 =item postdisableSubdomain( \%moduleData )
@@ -271,7 +271,7 @@ sub postdisableSubdomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the postdisableSubdomain() method', ref $self ));
 }
 
 =item deleteSubdomain( \%moduleData )
@@ -293,7 +293,7 @@ sub deleteSubdomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
 }
 
 =item postdeleteSubdomain( \%moduleData )
@@ -315,7 +315,7 @@ sub postdeleteSubdomain
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the postdeleteSubdomain() method', ref $self ));
 }
 
 =item addCustomDNS( \%moduleData )
@@ -337,7 +337,7 @@ sub addCustomDNS
 {
     my ($self) = @_;
 
-    0;
+    die ( sprintf( 'The %s class must implement the addCustomDNS() method', ref $self ));
 }
 
 =back
