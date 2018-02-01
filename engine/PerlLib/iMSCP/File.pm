@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::File - Library allowing to perform common operations on files
+ iMSCP::File - Perform common operations on files
 
 =cut
 
@@ -25,17 +25,19 @@ package iMSCP::File;
 
 use strict;
 use warnings;
-use File::Basename qw/ basename /;
-use File::Copy qw/ copy mv /;
+use English qw/ -no_match_vars /;
+use Errno qw/ EPERM EINVAL /;
+use File::Basename;
+use File::Copy ();
 use File::Spec;
-use iMSCP::Debug qw/ error /;
 use iMSCP::Umask;
-use Lchown qw/ lchown /;
+use Lchown;
+use overload '""' => "STRINGIFY", fallback => 1;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
 
- Library allowing to perform common operations on files.
+ Perform common operations on files
 
 =head1 PUBLIC METHODS
 
@@ -43,9 +45,12 @@ use parent 'iMSCP::Common::Object';
 
 =item get( )
 
- Get file content
+ Get content of this file
 
- Return string|undef File content or undef on failure
+ Warning: File slurped in memory. This method is not intented to be used on
+ large files.
+
+ Return string File content, die on failure
 
 =cut
 
@@ -53,30 +58,23 @@ sub get
 {
     my ($self) = @_;
 
-    return $self->{'fileContent'} if defined $self->{'fileContent'};
+    return $self->{'file_content'} if defined $self->{'file_content'};
 
-    unless ( defined $self->{'filename'} ) {
-        error( "Attribut `filename' is not set." );
-        return undef;
-    }
-
-    my $fh;
-    unless ( open( $fh, '<', $self->{'filename'} ) ) {
-        error( sprintf( "Couldn't open `%s' file for reading: %s", $self->{'filename'}, $! ));
-        return undef;
-    }
-
+    open( my $fh, '<', $self->{'filename'} ) or die( sprintf( 'Failed to open %s for reading: %s', $self->{'filename'}, $! ));
     local $/;
-    $self->{'fileContent'} = <$fh>;
+    $self->{'file_content'} = <$fh>;
     close( $fh );
-    $self->{'fileContent'}
+    $self->{'file_content'};
 }
 
 =item
 
- Get file content as scalar reference
+ Get file content this file as a scalar reference
 
- Return scalarref Reference to scalar containing file content, undef on failure
+ Warning: File is slurped in memory. This method is not intented to be used on
+ large files.
+
+ Return scalarref Reference to scalar containing file content, die on failure
 
 =cut
 
@@ -84,21 +82,15 @@ sub getAsRef
 {
     my ($self) = @_;
 
-    return \$self->{'fileContent'} if defined $self->{'fileContent'};
-
-    $self->{'fileContent'} = $self->get();
-
-    return undef unless defined $self->{'fileContent'};
-
-    \$self->{'fileContent'};
+    \$self->get();
 }
 
 =item set( $content )
 
- Set file content
+ Set content of this file
 
  Param string $content New file content
- Return int 0
+ Return self
 
 =cut
 
@@ -106,16 +98,16 @@ sub set
 {
     my ($self, $content) = @_;
 
-    $self->{'fileContent'} = $content // '';
-    0;
+    $self->{'file_content'} = $content // '';
+    $self;
 }
 
 =item save( [ $umask = UMASK(2) ])
 
- Save file
+ Save this file
 
- Param int $umask OPTIONAL UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal) 
- Return int 0 on success, 1 on failure
+ Param int $umask OPTIONAL UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal) 
+ Return self, die on failure
 
 =cut
 
@@ -123,58 +115,37 @@ sub save
 {
     my ($self, $umask) = @_;
 
-    unless ( defined $self->{'filename'} ) {
-        error( "Attribut `filename' is not set." );
-        return 1;
-    }
-
     local $UMASK = $umask if defined $umask;
-
-    my $fh;
-    unless ( open( $fh, '>', $self->{'filename'} ) ) {
-        error( sprintf( "Couldn't open `%s' file for writing: %s", $self->{'filename'}, $! ));
-        return 1;
-    }
-
-    $self->{'fileContent'} //= '';
-    print { $fh } $self->{'fileContent'};
+    open my $fh, '>', $self->{'filename'} or die( sprintf( 'Failed to open %s for writing: %s', $self->{'filename'}, $! ));
+    print { $fh } $self->{'file_content'} // '';
     close( $fh );
-    0;
+    $self;
 }
 
-=item delFile( )
+=item remove( )
 
- Delete file
+ Remove this file
 
- Return int 0 on success, 1 on failure
+ Return self, die on failure
 
 =cut
 
-sub delFile
+sub remove
 {
     my ($self) = @_;
 
-    unless ( defined $self->{'filename'} ) {
-        error( "Attribut `filename' is not set." );
-        return 1;
-    }
+    return unless -f $self->{'filename'};
 
-    unless ( unlink( $self->{'filename'} ) ) {
-        error( sprintf( "Couldn't delete `%s' file: %s", $self->{'filename'}, $! ));
-        return 1;
-    }
-
-    0;
+    unlink $self->{'filename'} or die( sprintf( 'Failed to delete %s: %s', $self->{'filename'}, $! ));
+    $self;
 }
 
 =item mode( $mode )
 
- Change file mode bits
-
- This routine doesn't operates on symlinks. They are ignored silently.
+ Set mode of this file
 
  Param int $mode New file mode (octal number)
- Return int 0 on success, 1 on failure
+ Return self, die on failure
 
 =cut
 
@@ -182,35 +153,20 @@ sub mode
 {
     my ($self, $mode) = @_;
 
-    unless ( defined $self->{'filename'} ) {
-        error( "Attribut `filename' is not set." );
-        return 1;
-    }
-
-    unless ( defined $mode ) {
-        error( '$mode parameter is missing.' );
-        return 1;
-    }
-
-    return 0 if -l $self->{'filename'};
-
-    unless ( chmod( $mode, $self->{'filename'} ) ) {
-        error( sprintf( "Couldn't change `%s' file permissions: %s", $self->{'filename'}, $! ));
-        return 1;
-    }
-
-    0;
+    defined $mode or croak( '$mode parameter is missing.' );
+    chmod $mode, $self->{'filename'} or die( sprintf( 'Failed to set permissions for %s: %s', $self->{'filename'}, $! ));
+    $self;
 }
 
 =item owner( $owner, $group )
 
- Change file owner and group
+ Set ownership of this file
 
- Symlinks are not dereferenced.
+ Symlinks are not dereferenced, that is, not followed.
 
- Param int|string $owner Either an username or userid
- Param int|string $group Either a groupname or groupid
- Return int 0 on success, 1 on failure
+ Param int|string $owner Either an user name or user ID
+ Param int|string $group Either a group name or group ID
+ Return self, die on failure
 
 =cut
 
@@ -218,135 +174,136 @@ sub owner
 {
     my ($self, $owner, $group) = @_;
 
-    unless ( defined $self->{'filename'} ) {
-        error( "Attribut `filename' is not set." );
-        return 1;
-    }
-
-    unless ( defined $owner ) {
-        error( '$owner parameter is missing.' );
-        return 1;
-    }
-
-    unless ( defined $group ) {
-        error( '$group parameter is missing.' );
-        return 1;
-    }
-
+    defined $owner or croak( '$owner parameter is missing.' );
+    defined $group or croak( '$group parameter is missing.' );
     my $uid = ( ( $owner =~ /^\d+$/ ) ? $owner : getpwnam( $owner ) ) // -1;
     my $gid = ( ( $group =~ /^\d+$/ ) ? $group : getgrnam( $group ) ) // -1;
-
-    unless ( lchown( $uid, $gid, $self->{'filename'} ) ) {
-        error( sprintf( "Couldn't change `%s' file ownership: %s", $self->{'filename'}, $! ));
-        return 1;
-    }
-
-    0;
+    lchown $uid, $gid, $self->{'filename'} or die ( sprintf( 'Failed to set ownership for %s: %s', $self->{'filename'}, $! ));
+    $self;
 }
 
-=item copyFile( $target [, \%options = { 'preserve' => 'yes' } ] )
+=item copyFile( $target [, \%options = { preserve => FALSE } ] )
 
- Copy file to the given destination
+ Copy this file to the given target
 
- Symlinks are not dereferenced. 
- Permissions are not set on symlink targets.
+ Warning: At this moment, only regular and symlink files are copied. Other
+ files are silently ignored.
 
- Param string $target Target path (either a directory or file path)
- Param hash $options Options
-  - preserve (yes|no): preserve ownership and permissions (default yes)
- Return int 0 on success, 1 on failure
+ Behavior:
+  Without the preserve option (default):
+   The behavior for newly created files is nearly the same as the cp(1) command with the --no-dereference option:
+     - Symlinks are not dereferenced, that is, not followed.
+     - Source file's permission bits are not preserved, that is, default permissions are used: 0666 & ~UMASK(2).
+     - Owner is set to EUID while the group set depends on a range of factors:
+        - If the fs is mounted with -o grpid, the group is made the same as that of the parent dir.
+        - If the fs is mounted with -o nogrpid and the setgid bit is disabled on the parent dir, the group will be set to EGID
+        - If the fs is mounted with -o nogrpid and the setgid bit is enabled on the parent dir, the group is made the same as that of the parent dir.
+        As at Linux 2.6.25, the -o grpid and -o nogrpid mount options are supported by ext2, ext3, ext4, and XFS. Filesystems that don't support these
+        mount options follow the -o nogrpid rules.
+  With the preserve option:
+   The behavior is nearly the same as the cp(1) command with the -no-dereference  and --preserve=mode,ownership options, excluding ACL:
+    - Symlinks are not dereferenced, that is, not followed.
+    - Source file's permission bits and ownership are preserved as much as possible.
+
+ Param string $target Target path
+ Param hash \%options OPTIONAL options:
+  - preserve: If set to TRUE preserve ownership and permissions (default FALSE)
+ Return self, die on failure
 
 =cut
 
-sub copyFile
+sub copy
 {
     my ($self, $target, $options) = @_;
+    $options //= {};
 
-    $options = {} unless $options && ref $options eq 'HASH';
+    ref $options eq 'HASH' or croak( '$options parameter is not valid. Hash expected' );
+    defined $target or croak( '$target parameter is missing.' );
 
-    unless ( defined $self->{'filename'} ) {
-        error( "Attribut `filename' is not set." );
-        return 1;
+    ( my (@srcstat) = lstat $self->{'filename'} ) or die sprintf( 'Failed to stat %s: %s', $self->{'filename'}, $! );
+
+    # At this moment, only regular files and symlinks are considered.
+    return $self unless ( my $isSymlink = -l _ ) || -f _;
+
+    # Copy the symlink or file. At this stage, permissions and ownership are
+    # not preserved
+    ( $isSymlink && symlink( readlink( $self->{'filename'} ), $target ) ) || File::Copy::copy( $self->{'filename'}, $target ) or die(
+        sprintf( 'Failed to copy %s to %s: %s', $self->{'filename'}, $target, $! )
+    );
+
+    return $self unless $options->{'preserve'};
+
+    # Preserve ownership. CHOWN(2) turns off set[ug]id bits for non-root, so do
+    # the CHMOD(2) last.
+
+    unless ( lchown( $srcstat[4], $srcstat[5], $target ) ) {
+        # If a non-root user pass the preserve flag when copying file, it's ok
+        # if we can't preserve ownership. But root probably wants to know, e.g.
+        # if NFS disallows it, or if the target system doesn't support file ownership.
+        ( $!{'EPERM'} || $!{'EINVAL'} ) && $EUID != 0 or die sprintf( 'Failed to preserve ownership for %s: %s', $target, $! );
+
+        # Failing to preserve ownership is OK. Still, try to preserve
+        # the group, but ignore the possible error.
+        lchown( -1, $srcstat[5], $target );
+
+        # As with the cp(1) --preserve=mode,owwership command, if preserving owner or group is not possible
+        # the setuid and setgid bit are cleared
+        # TODO
     }
 
-    unless ( defined $target ) {
-        error( '$target parameter is missing.' );
-        return 1;
+    # We do not want call CHMOD(2) on symlinks
+    return $self if $isSymlink;
+
+    my $mode = $srcstat[2];
+    my (@tgtstat) = stat $target;
+    $mode &= 07777;
+
+    # If there are setuid/setgid bits set on source file, we
+    # preserve them only if the following conditions are met:
+    # - setuid bit owner match. This should be always the case when EUID == 0
+    #   because we also preserve the ownership.  But for a non-root user, owner
+    #   will not always match.
+    # - setgid bit: EUID == 0 or group match and group is one of EGID.
+    if ( $mode & 06000 ) {
+        @tgtstat or die( sprintf( 'Failed to check setuid/setgid bits for %s:', $target, $! ));
+        # Clear off setuid bit if needed
+        $mode &= ~04000 if $mode & 04000 && $srcstat[4] != $tgtstat[4];
+        # Clear off setgid bit if needed
+        $mode &= ~06000 if $mode & 02000 && $EUID != 0 && ( $srcstat[5] != $tgtstat[5] || !grep ($_ == $srcstat[5], split /\s+/, $EGID) );
     }
 
-    my ($mode, $uid, $gid) = ( lstat( $self->{'filename'} ) )[2, 4, 5];
-    unless ( defined $mode ) {
-        error( sprintf( "Couldn't stat `%s' file: %s", $self->{'filename'}, $! ));
-        return 1;
+    if ( @tgtstat ) {
+        # Don't call CHMOD(2) when that is not needed (identical permissions)
+        return $self if $mode == ( $tgtstat[2] & 07777 ) || chmod $mode, $target;
     }
 
-    $target = File::Spec->canonpath( $target . '/' . basename( $self->{'filename'} )) if -d _;
-
-    if ( -l _ ) {
-        unless ( symlink( readlink( $self->{'filename'} ), $target ) ) {
-            error( sprintf( "Couldn't copy `%s' symlink to `%s': %s", $self->{'filename'}, $target, $! ));
-            return 1;
-        }
-
-        return 0 if defined $options->{'preserve'} && $options->{'preserve'} eq 'no';
-
-        unless ( lchown( $uid, $gid, $target ) ) {
-            error( sprintf( "Couldn't change `%s' symlink ownership: %s", $target, $! ));
-            return 1;
-        }
-
-        return 0;
-    }
-
-    if ( !copy( $self->{'filename'}, $target ) ) {
-        error( sprintf( "Couldn't copy `%s' file to `%s': %s", $self->{'filename'}, $target, $! ));
-        return 1;
-    }
-
-    return 0 if defined $options->{'preserve'} && $options->{'preserve'} eq 'no';
-
-    unless ( chown( $uid, $gid, $target ) ) {
-        error( sprintf( "Couldn't change `%s' file ownership: %s", $target, $! ));
-        return 1;
-    }
-
-    unless ( chmod( $mode & 07777, $target ) ) {
-        error( sprintf( "Couldn't change `%s' file permissions: %s", $target, $! ));
-        return 1;
-    }
-
-    0;
+    die( sprintf( 'Failed to preserve permissions for %s: %s', $target, $! ));
 }
 
-=item moveFile( $destination )
+=item move( $target )
 
- Move file to the given destination
+ Move this file to the given target
 
- Param string $destination Destination path (either a directory or file path)
- Return int 0 on success, 1 on failure
+ Param string target Target
+ Return self, die on failure
 
 =cut
 
-sub moveFile
+sub move
 {
-    my ($self, $destination) = @_;
+    my ($self, $target) = @_;
 
-    unless ( defined $self->{'filename'} ) {
-        error( "Attribut `filename' is not set." );
-        return 1;
-    }
+    defined $target or croak( '$target parameter is missing.' );
 
-    unless ( defined $destination ) {
-        error( '$destination parameter is missing.' );
-        return 1;
-    }
+    if ( File::Copy::mv( $self->{'filename'}, $target ) ) {
+        # Update the 'filename' attribute to make us able to continue working with
+        # this file regardless of its new location.
+        $self->{'filename'} = -d $target ? File::Spec->catfile( $target, basename( $self->{'filename'} )) : $target;
 
-    unless ( mv( $self->{'filename'}, $destination ) ) {
-        error( sprintf( "Couldn't move `%s' file to `%s': %s", $self->{'filename'}, $destination, $! ));
-        return 1;
-    }
+        return $self;
+    };
 
-    0;
+    die( sprintf( 'Failed to move %s to %s: %s', $self->{'filename'}, $target, $! ));
 }
 
 =back
@@ -359,7 +316,7 @@ sub moveFile
 
  Initialize iMSCP::File object
 
- iMSCP::File
+ Return iMSCP::File, croak if the filename attribute is not set
 
 =cut
 
@@ -367,8 +324,21 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->{'filename'} //= undef;
+    defined $self->{'filename'} or croak( 'filename attribute is not defined.' );
+    $self->{'filename'} = File::Spec->canonpath( $self->{'filename'} );
+    $self->{'file_content'} = undef;
     $self;
+}
+
+=item STRINGIFY()
+
+ Return string representation of this object, that is the filename.
+
+=cut
+
+sub STRINGIFY
+{
+    $_[0]->{'filename'};
 }
 
 =back
