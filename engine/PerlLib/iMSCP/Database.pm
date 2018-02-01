@@ -30,7 +30,6 @@ use DBI;
 use File::Temp;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw / execute escapeShell /;
-use POSIX ':signal_h';
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -42,22 +41,6 @@ use parent 'iMSCP::Common::Singleton';
 =head1 PUBLIC METHODS
 
 =over 4
-
-=item factory( )
-
- Create and return a iMSCP::Database instance
-
- Only for backward compatibility. Will be removed in a later version.
-
- Param string $adapterName Adapter name
- Return iMSCP::Database
-
-=cut
-
-sub factory
-{
-    __PACKAGE__->getInstance();
-}
 
 =item ( $prop, $value )
 
@@ -82,7 +65,7 @@ sub set
 
  Connect to the MySQL server
 
- Return int 0 on success, error string on failure
+ Return DBI::db, croak on failure
 
 =cut
 
@@ -90,45 +73,20 @@ sub connect
 {
     my ($self) = @_;
 
-    my $dsn = "dbi:mysql:database=$self->{'db'}->{'DATABASE_NAME'}" .
-        ( $self->{'db'}->{'DATABASE_HOST'} ? ';host=' . $self->{'db'}->{'DATABASE_HOST'} : '' ) .
+    my $dsn = "dbi:mysql:mysql_connect_timeout=50;database=$self->{'db'}->{'DATABASE_NAME'}"
+        . ( $self->{'db'}->{'DATABASE_HOST'} ? ';host=' . $self->{'db'}->{'DATABASE_HOST'} : '' ) .
         ( $self->{'db'}->{'DATABASE_PORT'} ? ';port=' . $self->{'db'}->{'DATABASE_PORT'} : '' );
 
-    if ( $self->{'connection'}
-        && $self->{'_dsn'} eq $dsn
-        && $self->{'_currentUser'} eq $self->{'db'}->{'DATABASE_USER'}
-        && $self->{'_currentPassword'} eq $self->{'db'}->{'DATABASE_PASSWORD'}
-    ) {
-        return 0;
-    }
-
-    $self->{'connection'}->disconnect() if $self->{'connection'};
-
-    # Set connection timeout to 5 seconds
-    my $mask = POSIX::SigSet->new( SIGALRM );
-    my $action = POSIX::SigAction->new( sub { croak "SQL database connection timeout\n" }, $mask );
-    my $oldaction = POSIX::SigAction->new();
-    sigaction( SIGALRM, $action, $oldaction );
-
-    eval {
-        eval {
-            alarm 5;
-            $self->{'connection'} = DBI->connect(
-                $dsn, $self->{'db'}->{'DATABASE_USER'}, $self->{'db'}->{'DATABASE_PASSWORD'}, $self->{'db'}->{'DATABASE_SETTINGS'}
-            );
-        };
-
-        alarm 0;
-        die if $@;
-    };
-
-    sigaction( SIGALRM, $oldaction );
-    return $@ if $@;
+    return $self->{'connect'} if $self->{'connect'} && $self->{'_dsn'} eq $dsn && $self->{'_currentUser'} eq $self->{'db'}->{'DATABASE_USER'}
+        && $self->{'_currentPassword'} eq $self->{'db'}->{'DATABASE_PASSWORD'};
 
     $self->{'_dsn'} = $dsn;
     $self->{'_currentUser'} = $self->{'db'}->{'DATABASE_USER'};
     $self->{'_currentPassword'} = $self->{'db'}->{'DATABASE_PASSWORD'};
-    $self->{'connection'}->{'RaiseError'} = 0;
+    $self->disconnect() if $self->{'connect'};
+    $self->{'connect'} = DBI->connect(
+        $dsn, $self->{'db'}->{'DATABASE_USER'}, $self->{'db'}->{'DATABASE_PASSWORD'}, $self->{'db'}->{'DATABASE_SETTINGS'}
+    );
 }
 
 =item useDatabase( $dbName )
@@ -136,7 +94,7 @@ sub connect
  Change database for the current connection
 
  Param string $dbName Database name
- Return string Old database on success, croak on failure
+ Return string Old database on success, die on failure
 
 =cut
 
@@ -149,116 +107,17 @@ sub useDatabase
     my $oldDbName = $self->{'db'}->{'DATABASE_NAME'};
     return $oldDbName if $dbName eq $oldDbName;
 
-    my $dbh = $self->getRawDb();
-    unless ( $dbh->ping() ) {
-        $self->connect();
-        $dbh = $self->getRawDb();
-    }
-
-    {
-        local $dbh->{'RaiseError'} = 1;
-        $dbh->do( 'USE ' . $self->quoteIdentifier( $dbName ));
-    }
-
+    $self->connect()->do( 'USE ' . $self->connect()->quote_identifier( $dbName ));
     $self->{'db'}->{'DATABASE_NAME'} = $dbName;
     $oldDbName;
 }
 
-=item startTransaction( )
-
- Warning: This method is deprecated as of version 1.5.0 and will be removed in
- version 1.6.0. Don't use it in new code.
-
- Start a database transaction
-
-=cut
-
-sub startTransaction
-{
-    my ($self) = @_;
-
-    my $dbh = $self->getRawDb();
-    $dbh->begin_work();
-    $dbh->{'RaiseError'} = 1;
-    $dbh;
-}
-
-=item endTransaction( )
-
- Warning: This method is deprecated as of version 1.5.0 and will be removed in
- version 1.6.0. Don't use it in new code.
-
- End a database transaction
-
-=cut
-
-sub endTransaction
-{
-    my ($self) = @_;
-
-    my $dbh = $self->getRawDb();
-
-    $dbh->{'AutoCommit'} = 1;
-    $dbh->{'RaiseError'} = 0;
-    $dbh->{'mysql_auto_reconnect'} = 1;
-    $self->{'connection'};
-}
-
-=item getRawDb( )
-
- Get raw DBI instance
-
- Return DBI instance, die on failure
-=cut
-
-sub getRawDb
-{
-    my ($self) = @_;
-
-    return $self->{'connection'} if $self->{'connection'};
-
-    my $rs = $self->connect();
-    !$rs or die( sprintf( "Couldn't connect to SQL server: %s", $rs ));
-    $self->{'connection'};
-}
-
-=item doQuery( $key, $query [, @bindValues = ( ) ] )
-
- Execute the given SQL statement
-
- Warning: This method is deprecated as of version 1.5.0 and will be removed in
- version 1.6.0. Don't use it in new code.
-
- Param int|string $key Query key
- Param string $query SQL statement to be executed
- Param array @bindValues Optionnal binds parameters
- Return hashref on success, error string on failure
-
-=cut
-
-sub doQuery
-{
-    my ($self, $key, $query, @bindValues) = @_;
-
-    my $qrs = eval {
-        defined $query or croak 'No query provided';
-        my $dbh = $self->getRawDb();
-        local $dbh->{'RaiseError'} = 0;
-        my $sth = $dbh->prepare( $query ) or croak $DBI::errstr;
-        $sth->execute( @bindValues ) or croak $DBI::errstr;
-        $sth->fetchall_hashref( $key ) || {};
-    };
-
-    return "$@" if $@;
-    $qrs;
-}
-
 =item getDbTables( [ $dbName ] )
 
- Return list of table for the current selected database
+ Return sorted list of table a database
 
  Param string $dbName Database name
- Return arrayref on success, error string on failure
+ Return arrayref, die on failure
 
 =cut
 
@@ -267,23 +126,20 @@ sub getDbTables
     my ($self, $dbName) = @_;
     $dbName //= $self->{'db'}->{'DATABASE_NAME'};
 
-    my @tables = eval {
-        my $dbh = $self->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        keys %{$dbh->selectall_hashref( 'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ?', 'TABLE_NAME', undef, $dbName )};
-    };
-
-    return "$@" if $@;
-    \@tables;
+    [
+        sort keys %{$self->connect()->selectall_hashref(
+            'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ?', 'TABLE_NAME', undef, $dbName
+        )}
+    ];
 }
 
 =item getTableColumns( [$tableName [, dbName ] ] )
 
- Return list of columns for the given table
+ Return sorted list of columns for a database table
 
  Param string $tableName Table name
  Param string $dbName Database name
- Return arrayref on success, error string on failure
+ Return arrayref, error string on failure
 
 =cut
 
@@ -292,17 +148,11 @@ sub getTableColumns
     my ($self, $tableName, $dbName) = @_;
     $dbName //= $self->{'db'}->{'DATABASE_NAME'};
 
-    my @columns = eval {
-        my $dbh = $self->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        keys %{$dbh->selectall_hashref(
-                'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?',
-                'COLUMN_NAME', undef, $dbName, $tableName
-            )};
-    };
-
-    return "$@" if $@;
-    \@columns;
+    [
+        sort keys %{$self->connect()->selectall_hashref(
+            'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?', 'COLUMN_NAME', undef, $dbName, $tableName
+        )}
+    ];
 }
 
 =item dumpdb( $dbName, $dbDumpTargetDir )
@@ -319,16 +169,15 @@ sub dumpdb
 {
     my ($self, $dbName, $dbDumpTargetDir) = @_;
 
-    eval {
-        # Encode slashes as SOLIDUS unicode character
-        # Encode dots as Full stop unicode character
-        ( my $encodedDbName = $dbName ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
+    # Encode slashes as SOLIDUS unicode character
+    # Encode dots as Full stop unicode character
+    ( my $encodedDbName = $dbName ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
 
-        debug( sprintf( 'Dump `%s` database into %s', $dbName, $dbDumpTargetDir . '/' . $encodedDbName . '.sql' ));
+    debug( sprintf( 'Dump %s database into %s', $dbName, $dbDumpTargetDir . '/' . $encodedDbName . '.sql' ));
 
-        unless ( $self->{'_sql_default_extra_file'} ) {
-            $self->{'_sql_default_extra_file'} = File::Temp->new();
-            print { $self->{'_sql_default_extra_file'} } <<"EOF";
+    unless ( $self->{'_sql_default_extra_file'} ) {
+        $self->{'_sql_default_extra_file'} = File::Temp->new();
+        print { $self->{'_sql_default_extra_file'} } <<"EOF";
 [mysqldump]
 host = $self->{'db'}->{'DATABASE_HOST'}
 port = $self->{'db'}->{'DATABASE_PORT'}
@@ -349,31 +198,25 @@ quote-names = true
 complete-insert = true
 skip-comments = true
 EOF
-            $self->{'_sql_default_extra_file'}->close();
-        }
-
-        my $dbh = $self->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        my $innoDbOnly = !$self->getRawDb->selectrow_array(
-            "SELECT COUNT(ENGINE) FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND ENGINE <> 'InnoDB'", undef, $dbName
-        );
-
-        my $stderr;
-        execute(
-            "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'}"
-                # Void tables locking whenever possible
-                . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '']}"
-                # Compress all information sent between the client and the server (only if remote SQL server).
-                . "@{[ index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '']}"
-                . " --databases @{[ escapeShell($dbName) ]}"
-                . ' > ' . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
-            undef,
-            \ $stderr
-        ) == 0 or die( $stderr || 'Unknown error' );
-    };
-    if ( $@ ) {
-        die( sprintf( "Couldn't dump the `%s` database: %s", $dbName, $@ ));
+        $self->{'_sql_default_extra_file'}->close();
     }
+
+    my $innoDbOnly = !$self->connect()->selectrow_array(
+        "SELECT COUNT(ENGINE) FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND ENGINE <> 'InnoDB'", undef, $dbName
+    );
+
+    my $stderr;
+    execute(
+        "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'}"
+            # Void tables locking whenever possible
+            . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '']}"
+            # Compress all information sent between the client and the server (only if remote SQL server).
+            . "@{[ index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '']}"
+            . " --databases @{[ escapeShell($dbName) ]}"
+            . ' > ' . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
+        undef,
+        \ $stderr
+    ) == 0 or die( $stderr || 'Unknown error' );
 }
 
 =item quoteIdentifier( $identifier )
@@ -381,7 +224,7 @@ EOF
  Quote the given identifier (database name, table name or column name)
 
  Param string $identifier Identifier to be quoted
- Return string Quoted identifier
+ Return string Quoted identifier, die on failure
 
 =cut
 
@@ -389,23 +232,9 @@ sub quoteIdentifier
 {
     my ($self, $identifier) = @_;
 
-    $self->getRawDb()->quote_identifier( $identifier );
-}
+    defined $identifier or croak( '$identifier parameter is missing' );
 
-=item quote( $string )
-
- Quote the given string
-
- Param string $string String to be quoted
- Return string Quoted string
-
-=cut
-
-sub quote
-{
-    my ($self, $string) = @_;
-
-    $self->getRawDb()->quote( $string );
+    $self->connect()->quote_identifier( $identifier );
 }
 
 =back
@@ -418,7 +247,7 @@ sub quote
 
  Initialize instance
 
- Return iMSCP::Database::mysql
+ Return iMSCP::Database
 
 =cut
 
@@ -444,7 +273,7 @@ sub _init
             mysql_auto_reconnect => 1,
             mysql_enable_utf8    => 1,
             PrintError           => 0,
-            RaiseError           => 1
+            RaiseError           => 1 # TRUE since 1.6.0
         }
     };
 
@@ -454,6 +283,27 @@ sub _init
     $self->{'_currentPassword'} = '';
     $self->{'_sql_default_extra_file'} = undef;
     $self;
+}
+
+=item AUTOLOAD
+
+ Proxy to current DBI handle
+
+=cut
+
+sub AUTOLOAD
+{
+    ( my $method = our $AUTOLOAD ) =~ s/.*:://;
+
+    my $subref = __PACKAGE__->getInstance()->connect()->can( $method ) or die( sprintf( '%s is not a DBI method', $method ));
+
+    no strict 'refs';
+    *{$AUTOLOAD} = sub {
+        shift;
+        $subref->( __PACKAGE__->getInstance()->connect(), @_ );
+    };
+
+    goto &{$AUTOLOAD};
 }
 
 =back
