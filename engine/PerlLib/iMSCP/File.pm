@@ -182,7 +182,7 @@ sub owner
     $self;
 }
 
-=item copyFile( $target [, \%options = { preserve => FALSE } ] )
+=item copy( $target [, \%options = { preserve => FALSE } ] )
 
  Copy this file to the given target
 
@@ -266,9 +266,7 @@ sub copy
     # - setgid bit: EUID == 0 or group match and group is one of EGID.
     if ( $mode & 06000 ) {
         @tgtstat or die( sprintf( 'Failed to check setuid/setgid bits for %s:', $target, $! ));
-        # Clear off setuid bit if needed
-        $mode &= ~04000 if $mode & 04000 && $srcstat[4] != $tgtstat[4];
-        # Clear off setgid bit if needed
+        $mode &= ~06000 if $mode & 04000 && $srcstat[4] != $tgtstat[4];
         $mode &= ~06000 if $mode & 02000 && $EUID != 0 && ( $srcstat[5] != $tgtstat[5] || !grep ($_ == $srcstat[5], split /\s+/, $EGID) );
     }
 
