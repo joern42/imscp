@@ -114,7 +114,7 @@ sub useDatabase
 
 =item getDbTables( [ $dbName ] )
 
- Return sorted list of table a database
+ Return sorted list of database tables
 
  Param string $dbName Database name
  Return arrayref, die on failure
@@ -219,24 +219,6 @@ EOF
     ) == 0 or die( $stderr || 'Unknown error' );
 }
 
-=item quoteIdentifier( $identifier )
-
- Quote the given identifier (database name, table name or column name)
-
- Param string $identifier Identifier to be quoted
- Return string Quoted identifier, die on failure
-
-=cut
-
-sub quoteIdentifier
-{
-    my ($self, $identifier) = @_;
-
-    defined $identifier or croak( '$identifier parameter is missing' );
-
-    $self->connect()->quote_identifier( $identifier );
-}
-
 =back
 
 =head1 PRIVATE METHODS
@@ -294,7 +276,6 @@ sub _init
 sub AUTOLOAD
 {
     ( my $method = our $AUTOLOAD ) =~ s/.*:://;
-
     my $subref = __PACKAGE__->getInstance()->connect()->can( $method ) or die( sprintf( '%s is not a DBI method', $method ));
 
     no strict 'refs';
