@@ -189,7 +189,7 @@ sub trigger
 
     # The priority queue acts as a heap which implies that as items are popped
     # they are also removed. Thus we clone it (in surface) for purposes of iteration.
-    my ($rs, $priorityQueue) = ( 0, $self->{'events'}->{$eventName}->clone() );
+    my $priorityQueue = $self->{'events'}->{$eventName}->clone();
     while ( my $listener = $priorityQueue->pop ) {
         # Execute the event listener.
         blessed $listener ? $listener->$eventName( @params ) : $listener->( @params );
