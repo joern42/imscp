@@ -73,7 +73,7 @@ sub connect
 {
     my ($self) = @_;
 
-    my $dsn = "dbi:mysql:mysql_connect_timeout=50;database=$self->{'db'}->{'DATABASE_NAME'}"
+    my $dsn = "dbi:mysql:mysql_connect_timeout=5;database=$self->{'db'}->{'DATABASE_NAME'}"
         . ( $self->{'db'}->{'DATABASE_HOST'} ? ';host=' . $self->{'db'}->{'DATABASE_HOST'} : '' ) .
         ( $self->{'db'}->{'DATABASE_PORT'} ? ';port=' . $self->{'db'}->{'DATABASE_PORT'} : '' );
 
