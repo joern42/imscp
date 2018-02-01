@@ -50,7 +50,7 @@ my $step = lazy { iMSCP::Getopt->noprompt ? \&_callback : \&_step; };
 
  Start new steps group details
 
- Return int 0
+ Return void
 
 =cut
 
@@ -59,14 +59,13 @@ sub startDetail
     return 0 if iMSCP::Getopt->noprompt;
     $dialog->endGauge();
     push @all, $last;
-    0;
 }
 
 =item endDetail( )
 
  End step group details
 
- Return int 0
+ Return void
 
 =cut
 
@@ -74,7 +73,6 @@ sub endDetail
 {
     return 0 if iMSCP::Getopt->noprompt;
     $last = pop @all;
-    0;
 }
 
 =item step( $callback, $text, $nSteps, $nStep )
@@ -85,7 +83,7 @@ sub endDetail
  Param string $text Step description
  Param int $nSteps Total number of steps (for a group of steps)
  Param int $nStep Current step number
- Return 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -106,7 +104,7 @@ sub step
 
  Param callback $callback Callback to execute
  Param string debugMsg Optional DEBUG message
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -116,15 +114,9 @@ sub _callback
 
     debug( $debugMsg ) if $debugMsg;
 
-    return 0 unless defined $callback;
+    return unless defined $callback;
 
-    my $rs = eval { $callback->(); };
-    if ( $@ ) {
-        error( $@ );
-        $rs = 1;
-    }
-
-    $rs;
+    $callback->();
 }
 
 =item _dialogstep

@@ -57,7 +57,7 @@ use fields qw/ _php_cmd _stdout _stderr _attrs /;
     working_dir:    Composer working directory (default: <home_dir>)
     composer_path:  Composer path (default: <home_dir>/composer.phar)
     composer_json:  Composer json file content (default: self-generated)
- Return iMSCP::Composer, croak on failure
+ Return iMSCP::Composer, die on failure
 
 =cut
 
@@ -68,7 +68,6 @@ sub new
     unless ( ref $self ) {
         $self = fields::new( $self );
         %{$self->{'_attrs'}} = ref $_[0] eq 'HASH' ? %{$_[0]} : @_ if @_;
-
         $self->{'_attrs'}->{'user'} ||= getpwuid( $< );
         $self->{'_attrs'}->{'group'} ||= getgrgid( ( getpwnam( $self->{'_attrs'}->{'user'} ) )[3] // croak(
             sprintf( "Couldn't find `%s` user", $self->{'_attrs'}->{'user'} )
@@ -96,7 +95,7 @@ sub new
 EOT
 
         $self->{'_php_cmd'} = [
-            ( iMSCP::ProgramFinder::find( 'php' ) or croak( "Couldn't find system PHP (cli) binary" ) ),
+            ( iMSCP::ProgramFinder::find( 'php' ) or croak( "Couldn't find php executable in \$PATH" ) ),
             '-d', "date.timezone=$main::imscpConfig{'TIMEZONE'}", '-d', 'allow_url_fopen=1'
         ];
         # Set default STD routines
@@ -113,7 +112,7 @@ EOT
  Param string $package Package name
  Param string $packageVersion OPTIONAL Package version
  Param bool $dev OPTIONAL Flag indicating if $package is a development package
- Return iMSCP::Composer, croak on failure
+ Return iMSCP::Composer, die on failure
 
 =cut
 
@@ -153,11 +152,11 @@ sub installComposer
         && version->parse( $self->getComposerVersion( "$installDir/$filename" )) == version->parse( $version )
     ) {
         $self->{'_stdout'}( "Composer version is already $version. Skipping installation...\n" );
-        return;
+        return $self;
     }
 
     if ( -d "$self->{'_attrs'}->{'home_dir'}/.composer" ) {
-        iMSCP::Dir->new( dirname => "$self->{'_attrs'}->{'home_dir'}/.composer" )->clear( undef, qr/\Q.phar\E$/ );
+        iMSCP::Dir->new( dirname => "$self->{'_attrs'}->{'home_dir'}/.composer" )->clear( qr/\.phar$/ );
     }
 
     # Make sure to create temporary file with expected ownership
@@ -174,13 +173,13 @@ sub installComposer
 
     my $rs = execute(
         $self->_getSuCmd(
-            ( iMSCP::ProgramFinder::find( 'curl' ) or die( 'cURL is either not installed or not executable' ) ),
+            ( iMSCP::ProgramFinder::find( 'curl' ) or die( "Couldn't find curl executable in \$PATH" ) ),
             '--fail', '--connect-timeout', 10, '-s', '-S', '-o', $installer, 'https://getcomposer.org/installer'
         ),
         undef,
         \ my $stderr,
     );
-    $rs == 0 or die( sprintf( "Couldn't download composer: %s", $stderr || 'Unknown error' ));
+    !$rs or die( sprintf( "Couldn't download composer: %s", $stderr || 'Unknown error' ));
     $rs = executeNoWait(
         $self->_getSuCmd(
             @{$self->{'_php_cmd'}}, $installer, '--', '--no-ansi', ( $version ? "--version=$version" : () ),
@@ -189,7 +188,7 @@ sub installComposer
         $self->{'_stdout'},
         $self->{'_stderr'}
     );
-    $rs == 0 or die( "Couldn't install composer" );
+    !$rs or die( "Couldn't install composer" );
 
     $self;
 }
@@ -224,13 +223,14 @@ sub installPackages
         } );
     }
 
-    my $file = iMSCP::File->new( filename => "$self->{'_attrs'}->{'working_dir'}/composer.json" );
-    $file->set( $self->getComposerJson());
-    my $rs = $file->save();
-    $rs ||= $file->owner( $self->{'_attrs'}->{'user'}, $self->{'_attrs'}->{'group'} );
-    $rs ||= $file->mode( 0640 );
-    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ));
-    $rs = executeNoWait(
+    iMSCP::File
+        ->new( filename => "$self->{'_attrs'}->{'working_dir'}/composer.json" )
+        ->set( $self->getComposerJson())
+        ->save()
+        ->owner( $self->{'_attrs'}->{'user'}, $self->{'_attrs'}->{'group'} )
+        ->mode( 0640 );
+
+    executeNoWait(
         $self->_getSuCmd(
             @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, 'install', '--no-progress', '--no-ansi',
             '--no-interaction', ( $requireDev ? () : '--no-dev' ), '--no-suggest',
@@ -238,8 +238,7 @@ sub installPackages
         ),
         $self->{'_stdout'},
         $self->{'_stderr'}
-    );
-    $rs == 0 or die( "Couldn't install composer packages" );
+    ) == 0 or die( "Couldn't install composer packages" );
 
     $self;
 }
@@ -276,13 +275,14 @@ sub updatePackages
         } );
     }
 
-    my $file = iMSCP::File->new( filename => "$self->{'_attrs'}->{'working_dir'}/composer.json" );
-    $file->set( $self->getComposerJson());
-    my $rs = $file->save();
-    $rs ||= $file->owner( $self->{'_attrs'}->{'user'}, $self->{'_attrs'}->{'group'} );
-    $rs ||= $file->mode( 0640 );
-    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ));
-    $rs = executeNoWait(
+    iMSCP::File
+        ->new( filename => "$self->{'_attrs'}->{'working_dir'}/composer.json" )
+        ->set( $self->getComposerJson())
+        ->save()
+        ->owner( $self->{'_attrs'}->{'user'}, $self->{'_attrs'}->{'group'} )
+        ->mode( 0640 );
+
+    executeNoWait(
         $self->_getSuCmd(
             @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, 'update', '--no-progress', '--no-ansi',
             '--no-interaction', ( $requireDev ? () : '--no-dev' ), '--no-suggest',
@@ -290,8 +290,7 @@ sub updatePackages
         ),
         $self->{'_stdout'},
         $self->{'_stderr'}
-    );
-    $rs == 0 or die( "Couldn't Update composer packages" );
+    ) == 0 or die( "Couldn't Update composer packages" );
 
     $self;
 }
@@ -308,12 +307,11 @@ sub clearPackageCache
 {
     my ($self) = @_;
 
-    my $rs = executeNoWait(
+    executeNoWait(
         $self->_getSuCmd( @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, '--no-ansi', 'clearcache' ),
         $self->{'_stdout'},
         $self->{'_stderr'}
-    );
-    $rs == 0 or die( "Couldn't clear composer's internal package cache" );
+    ) == 0 or die( "Couldn't clear composer's internal package cache" );
 
     # See https://getcomposer.org/doc/06-config.md#vendor-dir
     my $vendorDir = "$self->{'_attrs'}->{'working_dir'}/vendor";
@@ -322,7 +320,6 @@ sub clearPackageCache
         ( $vendorDir = $composerJson->{'config'}->{'vendor-dir'} ) =~ s%(?:\$HOME|~)%$self->{'_attrs'}->{'home_dir'}%g;
     }
     iMSCP::Dir->new( dirname => $vendorDir )->remove();
-
     $self;
 }
 
@@ -351,7 +348,7 @@ sub checkPackageRequirements
             \my $stderr
         );
         debug( $stdout ) if $stdout;
-        $rs == 0 or die( sprintf( "Unmet requirements (%s %s): %s", $package, $version, $stderr ));
+        !$rs or die( sprintf( "Unmet requirements (%s %s): %s", $package, $version, $stderr ));
     }
 
     $self;
@@ -418,7 +415,7 @@ sub getComposerVersion
 
     my $rs = execute( $self->_getSuCmd( @{$self->{'_php_cmd'}}, $composerPath, '--no-ansi', '--version' ), \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    $rs == 0 or die( sprintf( "Couldn't get composer (%s) version: %s", $composerPath, $stderr ));
+    !$rs or die( sprintf( "Couldn't get composer (%s) version: %s", $composerPath, $stderr ));
     ( $stdout =~ /version\s+([\d.]+)/ );
     $1 or die( sprintf( "Couldn't parse composer (%s) version from version string: %s", $composerPath, $stdout // '' ));
 }

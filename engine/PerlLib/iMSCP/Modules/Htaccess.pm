@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::Htaccess - i-MSCP Htaccess module
+ iMSCP::Modules::Htaccess - Module for processing of htaccess entities
 
 =cut
 
@@ -25,15 +25,13 @@ package iMSCP::Modules::Htaccess;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use Encode qw/ encode_utf8 /;
 use File::Spec;
-use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of htaccess entities
+ Module for processing of htaccess entities.
 
 =head1 PUBLIC METHODS
 
@@ -52,51 +50,88 @@ sub getEntityType
     'Htaccess';
 }
 
-=item process( $htaccessId )
+=item add()
 
- Process module
+ Add, change or enable the htaccess
 
- Param int $htaccessId Htaccess unique identifier
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::add(); };
+    $self->{'_dbh'}->do( 'UPDATE htaccess SET status = ? WHERE id = ?', undef, $@ || 'ok', $self->{'id'} );
+    $self;
+}
+
+=item delete()
+
+ Delete the htaccess
+
+ Return self, die on failure
+
+=cut
+
+sub delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE htaccess SET status = ? WHERE id = ?', undef, $@, $self->{'id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM htaccess WHERE id = ?', undef, $self->{'id'} );
+    $self;
+}
+
+=item disable()
+
+ Disable the htaccess
+
+ Return self, die on failure
+
+=cut
+
+sub disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::disable(); };
+    $self->{'_dbh'}->do( 'UPDATE htaccess SET status = ? WHERE id = ?', undef, $@ || 'disabled', $self->{'id'} );
+    $self;
+}
+
+=item handleEntity( $htaccessId )
+
+ Handle the given htaccess entity
+
+ Param int $htaccessId Htaccess unique identifier
+ Return self, die on failure
+
+=cut
+
+sub handleEntity
 {
     my ($self, $htaccessId) = @_;
 
-    my $rs = $self->_loadData( $htaccessId );
-    return $rs if $rs;
+    $self->_loadData( $htaccessId );
 
-    my @sql;
     if ( $self->{'status'} =~ /^to(?:add|change|enable)$/ ) {
-        $rs = $self->add();
-        @sql = ( 'UPDATE htaccess SET status = ? WHERE id = ?', undef, ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $htaccessId );
+        $self->add();
     } elsif ( $self->{'status'} eq 'todisable' ) {
-        $rs = $self->disable();
-        @sql = (
-            'UPDATE htaccess SET status = ? WHERE id = ?', undef, ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $htaccessId
-        );
+        $self->disable();
     } elsif ( $self->{'status'} eq 'todelete' ) {
-        $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE htaccess SET status = ? WHERE id = ?', undef, ( getLastError( 'error' ) || 'Unknown error' ), $htaccessId )
-            : ( 'DELETE FROM htaccess WHERE id = ?', undef, $htaccessId );
+        $self->delete();
     } else {
-        warning( sprintf( 'Unknown action (%s) for htaccess (ID %d)', $self->{'status'}, $htaccessId ));
-        return 0;
+        die( sprintf( 'Unknown action (%s) for htaccess (ID %d)', $self->{'status'}, $htaccessId ));
     }
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $rs;
+    $self;
 }
 
 =back
@@ -110,7 +145,7 @@ sub process
  Load data
 
  Param int $htaccessId Htaccess unique identifier
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -118,42 +153,33 @@ sub _loadData
 {
     my ($self, $htaccessId) = @_;
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref(
-            "
-                SELECT t3.id, t3.auth_type, t3.auth_name, t3.path, t3.status, t3.users, t3.groups,
-                    t4.domain_name, t4.domain_admin_id
-                FROM (SELECT * FROM htaccess, (SELECT IFNULL(
+    my $row = $self->{'_dbh'}->selectrow_hashref(
+        "
+            SELECT t3.id, t3.auth_type, t3.auth_name, t3.path, t3.status, t3.users, t3.groups,
+                t4.domain_name, t4.domain_admin_id
+            FROM (SELECT * FROM htaccess, (SELECT IFNULL(
+                (
+                    SELECT group_concat(uname SEPARATOR ' ')
+                    FROM htaccess_users
+                    WHERE id regexp (CONCAT('^(', (SELECT REPLACE((SELECT user_id FROM htaccess WHERE id = ?), ',', '|')), ')\$'))
+                    GROUP BY dmn_id
+                ), '') AS users) AS t1, (SELECT IFNULL(
                     (
-                        SELECT group_concat(uname SEPARATOR ' ')
-                        FROM htaccess_users
-                        WHERE id regexp (CONCAT('^(', (SELECT REPLACE((SELECT user_id FROM htaccess WHERE id = ?), ',', '|')), ')\$'))
+                        SELECT group_concat(ugroup SEPARATOR ' ')
+                        FROM htaccess_groups
+                        WHERE id regexp (
+                            CONCAT('^(', (SELECT REPLACE((SELECT group_id FROM htaccess WHERE id = ?), ',', '|')), ')\$')
+                        )
                         GROUP BY dmn_id
-                    ), '') AS users) AS t1, (SELECT IFNULL(
-                        (
-                            SELECT group_concat(ugroup SEPARATOR ' ')
-                            FROM htaccess_groups
-                            WHERE id regexp (
-                                CONCAT('^(', (SELECT REPLACE((SELECT group_id FROM htaccess WHERE id = ?), ',', '|')), ')\$')
-                            )
-                            GROUP BY dmn_id
-                        ), '') AS groups) AS t2
-                    ) AS t3
-                JOIN domain AS t4 ON (t3.dmn_id = t4.domain_id)
-                WHERE t3.id = ?
-            ",
-            undef, $htaccessId, $htaccessId, $htaccessId
-        );
-        $row or croak( sprintf( 'Data not found for htaccess (ID %d)', $htaccessId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+                    ), '') AS groups) AS t2
+                ) AS t3
+            JOIN domain AS t4 ON (t3.dmn_id = t4.domain_id)
+            WHERE t3.id = ?
+        ",
+        undef, $htaccessId, $htaccessId, $htaccessId
+    );
+    $row or die( sprintf( 'Data not found for htaccess (ID %d)', $htaccessId ));
+    %{$self} = ( %{$self}, %{$row} );
 }
 
 =item _getData( $action )

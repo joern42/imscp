@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::IpAddr - i-MSCP IpAddr module
+ iMSCP::Modules::IpAddr - Module for processing of server IP address enties
 
 =cut
 
@@ -25,13 +25,11 @@ package iMSCP::Modules::IpAddr;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
-use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of IP address entities
+ Module for processing of server IP address entities.
 
 =head1 PUBLIC METHODS
 
@@ -50,46 +48,69 @@ sub getEntityType
     'IpAddr';
 }
 
-=item process( $ipId )
+=item add()
 
- Process module
+ Add or change the server IP address
 
- Param string $ipId Server IP unique identifier
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::add(); };
+    $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@ || 'ok', $self->{'ip_id'} );
+    $self;
+}
+
+=item delete()
+
+ Delete the server IP address
+
+ Return self, die on failure
+
+=cut
+
+sub delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@, $self->{'ip_id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM server_ips WHERE ip_id = ?', undef, $self->{'ip_id'} );
+    $self;
+}
+
+=item handleEntity( $ipId )
+
+ Handle the given IP address entitiy
+
+ Param string $ipId Server IP unique identifier
+ Return self, die on failure
+
+=cut
+
+sub handleEntity
 {
     my ($self, $ipId) = @_;
 
-    my $rs = $self->_loadData( $ipId );
-    return $rs if $rs;
+    $self->_loadData( $ipId );
 
-    my @sql;
     if ( $self->{'_data'}->{'ip_status'} =~ /^to(?:add|change)$/ ) {
-        $rs = $self->add();
-        @sql = ( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $ipId );
+        $self->add();
     } elsif ( $self->{'_data'}->{'ip_status'} eq 'todelete' ) {
-        $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, getLastError( 'error' ) || 'Unknown error', $ipId )
-            : ( 'DELETE FROM server_ips WHERE ip_id = ?', undef, $ipId );
+        $self->delete();
     } else {
-        warning( sprintf( 'Unknown action (%s) for server IP with ID %s', $self->{'_data'}->{'ip_status'}, $ipId ));
-        return 0;
+        die( sprintf( 'Unknown action (%s) for server IP with ID %s', $self->{'_data'}->{'ip_status'}, $ipId ));
     }
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $rs;
+    $self;
 }
 
 =back
@@ -103,7 +124,7 @@ sub process
  Load data
 
  Param int $ipId Server IP unique identifier
- Return data on success, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -111,19 +132,10 @@ sub _loadData
 {
     my ($self, $ipId) = @_;
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_data'} = $self->{'_dbh'}->selectrow_hashref(
-            'SELECT ip_id, ip_card, ip_number AS ip_address, ip_netmask, ip_config_mode, ip_status FROM server_ips WHERE ip_id = ?', undef, $ipId
-        );
-        $self->{'_data'} or croak( sprintf( 'Data not found for server IP address (ID %d)', $ipId ));
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    $self->{'_data'} = $self->{'_dbh'}->selectrow_hashref(
+        'SELECT ip_id, ip_card, ip_number AS ip_address, ip_netmask, ip_config_mode, ip_status FROM server_ips WHERE ip_id = ?', undef, $ipId
+    );
+    $self->{'_data'} or die( sprintf( 'Data not found for server IP address (ID %d)', $ipId ));
 }
 
 =item _getData( $action )

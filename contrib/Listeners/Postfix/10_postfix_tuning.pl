@@ -76,21 +76,16 @@ if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 )) 
                 my $rs = iMSCP::Servers::Mta->factory()->postconf( %params );
                 return $rs if $rs;
             }
-
-            0;
         },
         -99
-    );
-
-    iMSCP::EventManager->getInstance()->register(
+    )->register(
         'afterPostfixBuildConfFile',
         sub {
             my ($cfgTpl, $cfgTplName) = @_;
 
-            return 0 unless $cfgTplName eq 'master.cf' && @masterCfParameters;
+            return unless $cfgTplName eq 'master.cf' && @masterCfParameters;
 
             ${$cfgTpl} .= join( "\n", @masterCfParameters ) . "\n";
-            0;
         }
     );
 };

@@ -103,7 +103,7 @@ sub getId
 
 =back
 
- Return true upon success and undef upon failure, as well as issue a warning as to why it failed.
+ Return TRUE upon success and FALSE upon failure, as well as issue a warning as to why it failed.
 
 =cut
 

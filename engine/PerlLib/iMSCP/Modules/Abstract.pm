@@ -50,29 +50,33 @@ use parent 'iMSCP::Common::Object';
 
 sub getEntityType
 {
-    die( ref( $_[0] ) . ' module must implements the getEntityType( ) method' );
+    my ($self) = @_;
+
+    die( sprintf( 'The %s module must implements the getEntityType( ) method', ref $self ));
 }
 
-=item process( )
+=item handleEntity( )
 
- Process an entity according to its current state
+ Handle the given entity according its current status
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
-sub process
+sub handleEntity
 {
-    die( ref( $_[0] ) . ' module must implements the process( ) method' );
+    my ($self) = @_;
+
+    die( sprintf( 'The %s module must implements the handleEntity( ) method', ref $self ));
 }
 
 =item add( )
 
  Execute the `add' action on servers, packages
 
- Should be executed for items with 'toadd|tochange|toenable' status.
+ Should be executed for entities with 'toadd|tochange|toenable' status.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -85,9 +89,9 @@ sub add
 
  Execute the `delete' action on servers, packages
 
- Should be executed for items with 'todelete' status.
+ Should be executed for entities with 'todelete' status.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -100,9 +104,9 @@ sub delete
 
  Execute the `restore' action on servers, packages
 
- Should be executed for items with 'torestore' status.
+ Should be executed for entities with 'torestore' status.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -115,9 +119,9 @@ sub restore
 
  Execute the `disable' action on servers, packages
 
- Should be executed for items with 'todisable' status.
+ Should be executed for entities with 'todisable' status.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -136,7 +140,7 @@ sub disable
 
  Initialize instance
 
- Return iMSCP::Modules::Abstract
+ Return iMSCP::Modules::Abstract, die on failure
 
 =cut
 
@@ -145,18 +149,18 @@ sub _init
     my ($self) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'_dbh'} = iMSCP::Database->getInstance()->getRawDb();
+    $self->{'_dbh'} = iMSCP::Database->getInstance();
     $self->{'_data'} = {};
     $self;
 }
 
 =item _execAction( $action, $pkgType )
 
- Execute the given $action on all $pkgType that implement it
+ Execute the given action on all $pkgType that implement it
 
  Param string $action Action to execute on servers, packages (<pre|post><action><moduleType>)
  Param string $pkgType Package type (server|package)
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -167,33 +171,25 @@ sub _execAction
     my $moduleData = $self->_getData();
 
     if ( $pkgType eq 'server' ) {
-        debug( sprintf( "Executing the `%s' action on i-MSCP servers...", $action ));
-
-        for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-            my $rs = $_->factory()->$action( $moduleData );
-            return $rs if $rs;
-        }
-
-        return 0;
+        debug( sprintf( "Executing the %s action on i-MSCP servers...", $action ));
+        $_->factory()->$action( $moduleData ) for iMSCP::Servers->getInstance()->getListWithFullNames();
+        return;
     }
 
-    debug( sprintf( "Executing the `%s' action on i-MSCP packages...", $action ));
+    debug( sprintf( "Executing the %s action on i-MSCP packages...", $action ));
 
     for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
         ( my $subref = $_->can( $action ) ) or next;
-        my $rs = $subref->( $_->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
-        return $rs if $rs;
+        $subref->( $_->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
     }
-
-    0;
 }
 
 =item _execAllActions( $action )
 
- Execute pre$action, $action, post$action on servers, packages
+ Execute the pre$action, $action, post$action action on servers and packages
 
  Param string $action Action to execute on servers, packages (add|delete|restore|disable)
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -205,23 +201,17 @@ sub _execAllActions
 
     if ( $action =~ /^(?:add|restore)$/ ) {
         for my $actionPrefix( 'pre', '', 'post' ) {
-            for ( qw / server package / ) {
-                my $rs = $self->_execAction( "$actionPrefix$action$entityType", $_ );
-                return $rs if $rs;
-            }
+            $self->_execAction( "$actionPrefix$action$entityType", 'server' );
+            $self->_execAction( "$actionPrefix$action$entityType", 'package' );
         }
 
-        return 0;
+        return;
     }
 
     for my $actionPrefix( 'pre', '', 'post' ) {
-        for ( qw / package server / ) {
-            my $rs = $self->_execAction( "$actionPrefix$action$entityType", $_ );
-            return $rs if $rs;
-        }
+        $self->_execAction( "$actionPrefix$action$entityType", 'package' );
+        $self->_execAction( "$actionPrefix$action$entityType", 'server' );
     }
-
-    0;
 }
 
 =item _getData( $action )

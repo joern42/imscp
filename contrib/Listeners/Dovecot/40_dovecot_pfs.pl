@@ -43,11 +43,9 @@ iMSCP::EventManager->getInstance()->registerOne(
     'afterDovecotConfigure',
     sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/40_dovecot_pfs_listener.conf" );
-        $file->set( <<'EOT' );
+        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/40_dovecot_pfs_listener.conf" )->set( <<'EOT' )->save();
 login_log_format_elements = user=<%u> method=%m rip=%r lip=%l mpid=%e %c %k session=<%{session}>
 EOT
-        $file->save();
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 

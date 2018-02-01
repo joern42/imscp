@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::CustomDNS - i-MSCP CustomDNS module
+ iMSCP::Modules::CustomDNS - Module for processing of group of custom DNS entities
 
 =cut
 
@@ -25,14 +25,12 @@ package iMSCP::Modules::CustomDNS;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
-use iMSCP::Debug qw/ error getMessageByType /;
 use Text::Balanced qw/ extract_multiple extract_delimited /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of Custom DNS records entities
+ Module for processing of group of custom DNS entities.
 
 =head1 PUBLIC METHODS
 
@@ -51,44 +49,40 @@ sub getEntityType
     'CustomDNS';
 }
 
-=item process( $dnsRecordsGroup )
+=item handleEntity( $dnsRecordsGroup )
 
- Process the given custom DNS record group
+ Handle the given group of custom DNS record entities
 
- Note: Even if a DNS resource record is invalid, we always return 0 (success).
+ Even if a DNS resource record is not valid, we do not raise an error.
  It is the responsability of customers to fix their DNS resource records.
 
  Param string $dnsRecordsGroup DNS record group unique identifier
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
-sub process
+sub handleEntity
 {
     my ($self, $dnsRecordsGroup) = @_;
 
     my ($domainId, $aliasId ) = split ';', $dnsRecordsGroup;
 
-    unless ( defined $domainId && defined $aliasId ) {
-        error( 'Bad input data' );
-        return 1;
+    defined $domainId && defined $aliasId or die( 'Bad input data' );
+
+    eval {
+        $self->_loadData( $domainId, $aliasId );
+        $self->add()
+    };
+    if ( $@ ) {
+        $self->{'_dbh'}->do(
+            "UPDATE domain_dns SET domain_dns_status = ? WHERE domain_id = ? AND alias_id = ? AND domain_dns_status <> 'disabled'",
+            undef, $@, $domainId,
+            $aliasId
+        );
+        return;
     }
 
     eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-
-        eval { $self->_loadData( $domainId, $aliasId ); };
-        error( $@ ) if $@;
-
-        if ( $@ || $self->add() ) {
-            $self->{'_dbh'}->do(
-                "UPDATE domain_dns SET domain_dns_status = ? WHERE domain_id = ? AND alias_id = ? AND domain_dns_status <> 'disabled'",
-                undef, ( getMessageByType( 'error', { remove => 1, amount => 1 } ) || 'Invalid DNS record' ), $domainId,
-                $aliasId
-            );
-            return;
-        }
-
         $self->{'_dbh'}->begin_work();
         $self->{'_dbh'}->do(
             "
@@ -107,12 +101,9 @@ sub process
         $self->{'_dbh'}->commit();
     };
     if ( $@ ) {
-        $self->{'_dbh'}->rollback() if $self->{'_dbh'}->{'BegunWork'};
-        error( $@ );
-        return 1;
+        $self->{'_dbh'}->rollback();
+        die;
     }
-
-    0;
 }
 
 =back
@@ -125,7 +116,7 @@ sub process
 
  Initialize instance
 
- Return iMSCP::Modules::CustomDNS
+ Return iMSCP::Modules::CustomDNS, die on failure
 
 =cut
 
@@ -133,9 +124,7 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->{'domain_name'} = undef;
-    $self->{'domain_ip'} = undef;
-    $self->{'dns_records'} = [];
+    @{$self}[qw/ domain_name domain_ip dns_records /] = ( undef, undef, [] );
     $self->SUPER::_init();
 }
 
@@ -145,7 +134,7 @@ sub _init
 
  Param int $domainId Domain unique identifier
  Param int $aliasId Domain alias unique identifier, 0 if DNS records group doesn't belong to a domai alias
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -166,7 +155,7 @@ sub _loadData
         undef,
         ( $aliasId eq '0' ? $domainId : $aliasId )
     );
-    %{$row} or croak( sprintf( 'Data not found for custom DNS records group (%d;%d)', $domainId, $aliasId ));
+    %{$row} or die( sprintf( 'Data not found for custom DNS records group (%d;%d)', $domainId, $aliasId ));
     @{$self}{qw/ domain_name domain_ip /} = ( $row->{'domain_name'}, $row->{'ip_number'} );
     undef $row;
 

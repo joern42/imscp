@@ -25,10 +25,9 @@ package iMSCP::DbTasksProcessor;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use Encode qw / encode_utf8 /;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug error getMessageByType newDebug endDebug /;
+use iMSCP::Debug qw/ debug newDebug endDebug /;
 use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::Getopt;
 use iMSCP::Stepper qw/ step /;
@@ -48,7 +47,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process all db tasks
 
- Return void croak on failure
+ Return void die on failure
 
 =cut
 
@@ -58,7 +57,7 @@ sub processDbTasks
 
     # Process plugins tasks
     # Must always be processed first to allow the plugins registering their listeners on the event manager
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Plugin',
         "
             SELECT plugin_id AS id, plugin_name AS name
@@ -69,20 +68,17 @@ sub processDbTasks
         ",
         'per_item_log_file'
     );
-
     # Process IP addresses
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::IpAddr', "SELECT ip_id AS id, ip_number AS name FROM server_ips WHERE ip_status IN( 'toadd', 'tochange', 'todelete' )"
     );
-
     # Process SSL certificate toadd|tochange SSL certificates tasks
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::SSLcertificate',
         "SELECT cert_id AS id, domain_type AS name FROM ssl_certs WHERE status IN ('toadd', 'tochange', 'todelete') ORDER BY cert_id ASC"
     );
-
     # Process toadd|tochange users tasks
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::User',
         "
             SELECT admin_id AS id, admin_name AS name
@@ -92,10 +88,9 @@ sub processDbTasks
             ORDER BY admin_id ASC
         "
     );
-
     # Process toadd|tochange|torestore|toenable|todisable domain tasks
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Domain',
         "
             SELECT domain_id AS id, domain_name AS name
@@ -106,10 +101,9 @@ sub processDbTasks
             ORDER BY domain_id ASC
         "
     );
-
     # Process toadd|tochange|torestore|toenable|todisable subdomains tasks
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Subdomain',
         "
             SELECT subdomain_id AS id, CONCAT(subdomain_name, '.', domain_name) AS name
@@ -120,10 +114,9 @@ sub processDbTasks
             ORDER BY subdomain_id ASC
         "
     );
-
     # Process toadd|tochange|torestore|toenable|todisable domain aliases tasks
     # (for each entitty, process only if the parent entity is in a consistent state)
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Alias',
         "
            SELECT alias_id AS id, alias_name AS name
@@ -134,10 +127,9 @@ sub processDbTasks
            ORDER BY alias_id ASC
         "
     );
-
     # Process toadd|tochange|torestore|toenable|todisable subdomains of domain aliases tasks
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::SubAlias',
         "
             SELECT subdomain_alias_id AS id, CONCAT(subdomain_alias_name, '.', alias_name) AS name
@@ -148,10 +140,9 @@ sub processDbTasks
             ORDER BY subdomain_alias_id ASC
         "
     );
-
     # Process toadd|tochange|toenable||todisable|todelete custom DNS records group which belong to domains
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::CustomDNS',
         "
             SELECT CONCAT(t1.domain_id, ';', 0) AS id, t2.domain_name AS name
@@ -163,10 +154,9 @@ sub processDbTasks
             GROUP BY t1.domain_id, t2.domain_name
         "
     );
-
     # Process toadd|tochange|toenable|todisable|todelete custom DNS records group which belong to domain aliases
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::CustomDNS',
         "
             SELECT CONCAT(t1.domain_id, ';', t1.alias_id) AS id, t2.alias_name AS name
@@ -178,10 +168,9 @@ sub processDbTasks
             GROUP BY t1.alias_id, t1.domain_id, t2.alias_name
         "
     );
-
     # Process toadd|tochange|toenable|todisable|todelete ftp users tasks
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::FtpUser',
         "
             SELECT userid AS id, userid AS name
@@ -192,10 +181,9 @@ sub processDbTasks
             ORDER BY userid ASC
         "
     );
-
     # Process toadd|tochange|toenable|todisable|todelete mail tasks
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Mail',
         "
             SELECT mail_id AS id, mail_addr AS name
@@ -206,10 +194,9 @@ sub processDbTasks
             ORDER BY mail_id ASC
         "
     );
-
     # Process toadd|tochange|toenable|todisable|todelete Htusers tasks
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Htpasswd',
         "
             SELECT id, uname AS name
@@ -220,10 +207,9 @@ sub processDbTasks
             ORDER BY id ASC
         "
     );
-
     # Process toadd|tochange|toenable|todisable|todelete Htgroups tasks
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Htgroup',
         "
             SELECT id, ugroup AS name
@@ -234,10 +220,9 @@ sub processDbTasks
             ORDER BY id ASC
         "
     );
-
     # Process toadd|tochange|toenable|todisable|todelete Htaccess tasks
     # For each entitty, process only if the parent entity is in a consistent state
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Htaccess',
         "
             SELECT id, auth_name AS name
@@ -248,9 +233,8 @@ sub processDbTasks
             ORDER BY id ASC
         "
     );
-
     # Process todelete subdomain aliases tasks
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::SubAlias',
         "
             SELECT subdomain_alias_id AS id, concat(subdomain_alias_name, '.', alias_name) AS name
@@ -260,10 +244,9 @@ sub processDbTasks
             ORDER BY subdomain_alias_id ASC
         "
     );
-
     # Process todelete domain aliases tasks
     # For each entity, process only if the entity do not have any direct children
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Alias',
         "
             SELECT alias_id AS id, alias_name AS name
@@ -274,9 +257,8 @@ sub processDbTasks
             ORDER BY alias_id ASC
         "
     );
-
     # Process todelete subdomains tasks
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Subdomain',
         "
             SELECT subdomain_id AS id, CONCAT(subdomain_name, '.', domain_name) AS name
@@ -286,10 +268,9 @@ sub processDbTasks
             ORDER BY subdomain_id ASC
         "
     );
-
     # Process todelete domains tasks
     # For each entity, process only if the entity do not have any direct children
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::Domain',
         "
             SELECT domain_id AS id, domain_name AS name
@@ -300,10 +281,9 @@ sub processDbTasks
             ORDER BY domain_id ASC
         "
     );
-
     # Process todelete users tasks
     # For each entity, process only if the entity do not have any direct children
-    $self->_processModuleDbTasks(
+    $self->_processDbTasks(
         'iMSCP::Modules::User',
         "
             SELECT admin_id AS id, admin_name AS name
@@ -317,7 +297,6 @@ sub processDbTasks
     );
 
     # Process software package tasks
-    local $self->{'_dbh'}->{'RaiseError'} = 1;
 
     my $rows = $self->{'_dbh'}->selectall_hashref(
         "
@@ -404,7 +383,7 @@ sub processDbTasks
 
  Initialize instance
 
- Return iMSCP::DbTasksProcessor or croak on failure
+ Return iMSCP::DbTasksProcessor or die on failure
 
 =cut
 
@@ -412,93 +391,59 @@ sub _init
 {
     my ($self) = @_;
 
-    defined $self->{'mode'} or croak( 'mode attribute is not defined' );
-    $self->{'_dbh'} = iMSCP::Database->getInstance()->getRawDb();
+    $self->{'_dbh'} = iMSCP::Database->getInstance();
+    $self->{'_needStepper'} = !iMSCP::Getopt->noprompt && iMSCP::Getopt->context() =~ /^(?:un)?installer$/;
     $self;
 }
 
-=item _processModuleDbTasks( $module, $sql [, $perItemLogFile = FALSE ] )
+=item _processDbTasks( $module, $sql [, $perItemLogFile = FALSE ] )
 
- Process db tasks from the given module
+ Process the db tasks for the given module
 
- Param string $module Module name to process
- Param string $sql SQL statement for retrieval of list of items to process by the given module
+ Param string $module Module responsible to handle the db task
+ Param string $sql SQL statement for retrieval of list of entities to process by the given module
  Param bool $perItemLogFile Enable per item log file (default is per module log file)
- Return int 1 if at least one item has been processed, 0 if no item has been processed, croak on failure
+ Return void, die on failure
 
 =cut
 
-sub _processModuleDbTasks
+sub _processDbTasks
 {
     my ($self, $module, $sql, $perItemLogFile) = @_;
 
-    eval {
-        debug( sprintf( 'Processing %s tasks...', $module ), ( caller( 2 ) )[3] );
+    debug( sprintf( 'Processing %s DB tasks...', $module ), ( caller( 2 ) )[3] );
 
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
+    my $sth = $self->{'_dbh'}->prepare( $sql );
+    $sth->execute();
 
-        my $sth = $self->{'_dbh'}->prepare( $sql );
-        $sth->execute();
+    my $countRows = $sth->rows();
 
-        my $countRows = $sth->rows();
+    unless ( $countRows ) {
+        debug( sprintf( 'No DB task to process for %s', $module ), ( caller( 2 ) )[3] );
+        return;
+    }
 
-        unless ( $countRows ) {
-            debug( sprintf( 'No task to process for %s', $module ), ( caller( 2 ) )[3] );
-            return 0;
+    eval "require $module; 1" or die;
+
+    my $nStep = 1;
+    while ( my $row = $sth->fetchrow_hashref() ) {
+        my $name = encode_utf8( $row->{'name'} );
+        debug( sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ), ( caller( 2 ) )[3] );
+        newDebug( $module . ( ( $perItemLogFile ) ? "_${name}" : '' ) . '.log' );
+
+        if ( $self->{'_needStepper'} ) {
+            step(
+                sub { $module->new()->handleEntity( $row->{'id'} ) },
+                sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ), $countRows, $nStep++
+            );
+        } else {
+            $module->new()->handleEntity( $row->{'id'} );
         }
 
-        eval "require $module; 1" or croak;
-
-        my ($nStep, $rs) = ( 0, 0 );
-        my $needStepper = !iMSCP::Getopt->noprompt && grep( $self->{'mode'} eq $_, ( 'setup', 'uninstall' ) );
-
-        while ( my $row = $sth->fetchrow_hashref() ) {
-            my $name = encode_utf8( $row->{'name'} );
-
-            debug( sprintf( 'Processing %s tasks for: %s (ID %s)', $module, $name, $row->{'id'} ), ( caller( 2 ) )[3] );
-            newDebug( $module . ( ( $perItemLogFile ) ? "_${name}" : '' ) . '.log' );
-
-            if ( $needStepper ) {
-                $rs = step(
-                    sub { $self->_processModuleTasks( $module, $row->{'id'} ); },
-                    sprintf( 'Processing %s tasks for: %s (ID %s)', $module, $name, $row->{'id'} ),
-                    $countRows,
-                    ++$nStep
-                );
-            } else {
-                $rs = $self->_processModuleTasks( $module, $row->{'id'} );
-            }
-
-            $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-            endDebug();
-        }
-    };
-    if ( $@ ) {
         endDebug();
-        die;
     }
 
     1;
-}
-
-=item _processModuleTasks ( $module, $dbItemId )
-
- Process module tasks for the given db item
-
- Param string $module Module name
- Param int $dbItemId Database item unique identifier
- Return int 0 on success, other or croak on failure
-
-=cut
-
-sub _processModuleTasks
-{
-    my ($self, $module, $dbItemId) = @_;
-
-    # Only for backward compatibility with 3rd-party software.
-    # Will be removed when RaiseError will be default
-    local $self->{'_dbh'}->{'RaiseError'} = 0;
-    $module->new()->process( $dbItemId );
 }
 
 =back

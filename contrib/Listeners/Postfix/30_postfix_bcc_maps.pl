@@ -49,20 +49,18 @@ iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
-        my $rs = $mta->addMapEntry( $postfixRecipientBccMap );
-        $rs ||= $mta->addMapEntry( $postfixSenderBccMap );
-        $rs ||= $mta->postconf(
-            (
-                recipient_bcc_maps => {
-                    action => 'add',
-                    values => [ "hash:$postfixRecipientBccMap" ]
-                },
-                sender_bcc_maps    => {
-                    action => 'add',
-                    values => [ "hash:$postfixSenderBccMap" ]
-                }
-            )
-        );
+        $mta->addMapEntry( $postfixRecipientBccMap );
+        $mta->addMapEntry( $postfixSenderBccMap );
+        $mta->postconf( (
+            recipient_bcc_maps => {
+                action => 'add',
+                values => [ "hash:$postfixRecipientBccMap" ]
+            },
+            sender_bcc_maps    => {
+                action => 'add',
+                values => [ "hash:$postfixSenderBccMap" ]
+            }
+        ));
     },
     -99
 ) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Dir - Library allowing to perform common operation on directories
+ iMSCP::Dir - Perform common operations on directories
 
 =cut
 
@@ -25,392 +25,355 @@ package iMSCP::Dir;
 
 use strict;
 use warnings;
+use 5.012;
 use Carp qw/ croak /;
-use File::Copy qw/ mv /;
-use File::Path qw/ mkpath remove_tree /;
+use File::Copy ();
+use File::Path qw/ make_path remove_tree /;
 use File::Spec;
-use iMSCP::Debug qw / getLastError /;
 use iMSCP::File;
 use iMSCP::Umask;
+use overload '""' => "STRINGIFY", fallback => 1;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
 
- Library allowing to perform common operation on directories
+ Perform common operations on directories
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item getFiles( [ $dirname ] )
+=item getFiles( [ $regexp = NONE, [ $inverseMatching = FALSE ] ] )
 
- Get list of files inside directory
+ Get list of files inside this directory
 
- Param string $dirname OPTIONAL Directory - Default $self->{'dirname'}
- Return array representing list files or croak/die on failure
+ Param Regexp $regexp OPTIONAL regexp for directory content matching
+ Param bool OPTIONAL $inverseMatching Flag allowing to inverse $regexp matching 
+ Return List of files, die on failure
 
 =cut
 
 sub getFiles
 {
-    my ($self, $dirname) = @_;
-    $dirname //= $self->{'dirname'};
+    my ($self, $regexp, $inverseMatching) = @_;
 
-    defined $dirname or croak( '$dirname parameter is not defined.' );
-    opendir my $dh, $dirname or die( sprintf( "Couldn't open `%s' directory: %s", $dirname, $! ));
+    !defined $regexp || ref $regexp eq 'Regexp' or croak( 'Invalid $regexp parameter. Expects a Regexp ' );
+
+    opendir my $dh, $self->{'dirname'} or die( sprintf( 'Failed to open %s: %s', $self->{'dirname'}, $! ));
     my $dotReg = qr/^\.{1,2}\z/s;
-    my @files = grep { !/$dotReg/ && -f "$dirname/$_" } readdir( $dh );
-    @files = $self->{'fileType'} ? grep( /$self->{'fileType'}$/, @files ) : @files;
+    my @files = grep {
+        !/$dotReg/ && ( !defined $regexp || ( $inverseMatching ? !/$regexp/ : /$regexp/ ) ) && -f "$self->{'dirname'}/$_"
+    } readdir( $dh );
     closedir( $dh );
     @files;
 }
 
-=item getDirs( [ $dirname ] )
+=item getDirs( [ $regexp = NONE, [ $inverseMatching = FALSE ] ] )
 
- Get list of directories inside directory
+ Get list of directories inside this directory
 
- Param string $dirname OPTIONAL Directory - Default $self->{'dirname'}
- Return array representing list of directories or croak/die on failure
+ Param Regexp $regexp OPTIONAL regexp for directory content matching
+ Param bool OPTIONAL $inverseMatching Flag allowing to inverse $regexp matching 
+ Return List of directories, die on failure
 
 =cut
 
 sub getDirs
 {
-    my ($self, $dirname) = @_;
-    $dirname //= $self->{'dirname'};
+    my ($self, $regexp, $inverseMatching) = @_;
 
-    defined $dirname or croak( '$dirname parameter is not defined.' );
-    opendir my $dh, $dirname or die( sprintf( "Couldn't open `%s' directory: %s", $dirname, $! ));
-    my @dirs = grep { !/^\.{1,2}\z/s && -d "$dirname/$_" } readdir( $dh );
+    !defined $regexp || ref $regexp eq 'Regexp' or croak( 'Invalid $regexp parameter. Expects a Regexp ' );
+
+    opendir my $dh, $self->{'dirname'} or die( sprintf( 'Failed to open %s: %s', $self->{'dirname'}, $! ));
+    my $dotReg = qr/^\.{1,2}\z/s;
+    my @dirs = grep {
+        !/$dotReg/ && ( !defined $regexp || ( $inverseMatching ? !/$regexp/ : /$regexp/ ) ) && !-l "$self->{'dirname'}/$_" && -d _
+    } readdir( $dh );
     closedir( $dh );
     @dirs;
 }
 
-=item getAll( [ $dirname ] )
+=item getAll( [ $regexp = NONE, [ $inverseMatching = FALSE ] ] )
 
- Get list of files and directories inside directory
+ Get list of files and directories inside this directory
 
- Param string $dirname OPTIONAL Directory - Default $self->{'dirname'}
- Return list of files and directories or croak/die on failure
+ Param Regexp $regexp OPTIONAL regexp for directory content matching
+ Param bool OPTIONAL $inverseMatching Flag allowing to inverse $regexp matching 
+ Return List of files and directories, die on failure
 
 =cut
 
 sub getAll
 {
-    my ($self, $dirname) = @_;
-    $dirname //= $self->{'dirname'};
+    my ($self, $regexp, $inverseMatching) = @_;
 
-    defined $dirname or croak( '$dirname parameter is not defined.' );
-    opendir my $dh, $dirname or die( sprintf( "Couldn't open `%s' directory: %s", $dirname, $! ));
-    my @files = grep( !/^\.{1,2}\z/s, readdir( $dh ) );
+    !defined $regexp || ref $regexp eq 'Regexp' or croak( 'Invalid $regexp parameter. Expects a Regexp ' );
+
+    opendir my $dh, $self->{'dirname'} or die( sprintf( 'Failed to open %s: %s', $self->{'dirname'}, $! ));
+    my $dotReg = qr/^\.{1,2}\z/s;
+    my @files = grep { !/$dotReg/ && ( !defined $regexp || ( $inverseMatching ? !/$regexp/ : /$regexp/ ) ) } readdir( $dh );
     closedir( $dh );
     @files;
 }
 
-=item isEmpty( [ $dirname ] )
+=item isEmpty()
 
  Is directory empty?
 
- Param string $dirname OPTIONAL Directory - Default $self->{'dirname'}
- Return bool TRUE if the given directory is empty, FALSE otherwise, croak/die on failure
+ Return bool TRUE if the given directory is empty, FALSE otherwise, die on failure
 
 =cut
 
 sub isEmpty
 {
-    my ($self, $dirname) = @_;
-    $dirname //= $self->{'dirname'};
+    my ($self) = @_;
 
-    defined $dirname or croak( '$dirname parameter is not defined.' );
     my $dotReg = qr/^\.{1,2}\z/s;
-    opendir my $dh, $dirname or die( sprintf( "Couldn't open `%s' directory: %s", $dirname, $! ));
-    while ( my $entry = readdir $dh ) {
-        next if $entry =~ /$dotReg/;
+    opendir my $dh, $self->{'dirname'} or die( sprintf( 'Failed to open %s: %s', $self->{'dirname'}, $! ));
+    while ( readdir $dh ) {
+        next if /$dotReg/;
         closedir $dh;
         return 0;
     }
     closedir $dh;
-
     1;
 }
 
-=item clear( [ $dirname = $self->{'dirname'} [, $regexp = undef, [ $inverseMatching ] ] ] )
+=item clear( [ $regexp = NONE, [ $inverseMatching = FALSE ] ] )
 
- Clear a full directory content or the files/diretories inside the directory that match the given regexp
+ Clear full content of this directory or the first depth entries of the directory that match the given regexp
 
- When a regexp is provided, only regular files, symlinks and directories are considered.
+ Symlinks are not dereferenced, that is, not followed.
 
  Param Regexp $regexp OPTIONAL regexp for directory content matching
  Param bool OPTIONAL $inverseMatching Flag allowing to inverse $regexp matching 
- Return int 0 on success or croak/die on failure
+ Return self, die on failure
 
 =cut
 
 sub clear
 {
-    my ($self, $dirname, $regexp, $inverseMatching ) = @_;
-    $dirname //= $self->{'dirname'};
+    my ($self, $regexp, $inverseMatching ) = @_;
 
-    defined $dirname or croak( '$dirname parameter is not defined.' );
     !defined $regexp || ref $regexp eq 'Regexp' or croak( 'Invalid $regexp parameter. Expects a Regexp ' );
 
-    -d $dirname or croak( '$dirname is not a directory' );
-
-    if ( $regexp ) {
-        opendir my $dh, $dirname or die( sprintf( "Couldn't open `%s' directory: %s", $dirname, $! ));
-
+    if ( defined $regexp ) {
+        opendir my $dh, $self->{'dirname'} or die( sprintf( 'Failed to open %s: %s', $self->{'dirname'}, $! ));
         my $dotReg = qr/^\.{1,2}\z/s;
+        while ( readdir $dh ) {
+            next if /$dotReg/;
+            next unless $inverseMatching ? !/$regexp/ : /$regexp/;
 
-        while ( my $file = readdir( $dh ) ) {
-            next if $file =~ /$dotReg/ || ( $inverseMatching ? $file =~ /$regexp/ : $file !~ /$regexp/ );
-            $file = $dirname . '/' . $file;
+            my $entry = $self->{'dirname'} . '/' . $_;
 
-            if ( -l $file || -f _ ) {
-                unlink $file or die( sprintf( "Couldn't remove the %s file: %s", $file, $! ));
+            if ( -l $entry || !-d _ ) {
+                unlink $entry or die( sprintf( 'Failed to remove %s: %s', $entry, $! ));
                 next;
             }
 
-            next unless -d _;
-
-            remove_tree( $dirname, { error => \ my $errStack } );
-
-            if ( @{$errStack} ) {
-                my $errorStr = '';
-                for ( @{$errStack} ) {
-                    ( $file, my $message ) = %{$_};
-                    $errorStr .= ( $file eq '' ) ? "general error: $message\n" : "problem unlinking $file: $message\n";
-                }
-
-                die( sprintf( "Couldn't remove the `%s' directory: %s", $dirname, $errorStr ));
-            }
+            eval { remove_tree( $self->{'dirname'}, { safe => 1 } ); };
+            !$@ or die( sprintf( 'Failed to remove %s: %s', $entry, $@ ));
         }
 
-        closedir( $dh );
-        return 0;
+        closedir $dh;
+        return $self;
     }
 
-    $self->{'dirname'} = $dirname;
-
-    my $opts = {};
-    @{$opts}{ qw / mode user group /} = ( stat( $dirname ) )[2, 4, 5];
-    $opts->{'mode'} &= 07777;
-
-    $self->remove( $dirname );
-    $self->make( $opts );
+    eval { remove_tree( $self->{'dirname'}, { keep_root => 1, safe => 1 } ); };
+    !$@ or die( sprintf( 'Failed to clear %s: %s', $self->{'dirname'}, $@ ));
+    $self;
 }
 
-=item mode( $mode [, $dirname ] )
+=item mode( $mode )
 
  Set directory mode
 
  Param string $mode Directory mode
  Param string $dirname OPTIONAL Directory (default $self->{'dirname'})
- Return int 0 on success, croak/die on failure
+ Return int 0 on success, die on failure
 
 =cut
 
 sub mode
 {
-    my ($self, $mode, $dirname) = @_;
-    $dirname //= $self->{'dirname'};
+    my ($self, $mode) = @_;
 
-    defined $mode or croak( '$mode parameter is not defined.' );
-    defined $dirname or croak( '$dirname parameter is not defined.' );
-    chmod $mode, $dirname or die( sprintf( "Couldn't change `%s' directory permissions: %s", $dirname, $! ));
+    defined $mode or croak( '$mode parameter is missing.' );
+
+    chmod $mode, $self->{'dirname'} or die( sprintf( 'Failed to set permissions for %s: %s', $self->{'dirname'}, $! ));
     0;
 }
 
-=item owner( $owner, $group, [, $dirname = $self->{'dirname'} ] )
+=item owner( $owner, $group )
 
  Set directory owner and group
 
  Param string $owner Owner
  Param string $group Group
- Param string $dirname OPTIONAL directory
- Return int 0 on success, croak/die on failure
+ Return self, die on failure
 
 =cut
 
 sub owner
 {
-    my ($self, $owner, $group, $dirname) = @_;
-    $dirname //= $self->{'dirname'};
+    my ($self, $owner, $group) = @_;
 
-    defined $owner or croak( '$owner parameter is not defined.' );
-    defined $group or croak( '$group parameter is not defined.' );
-    defined $dirname or croak( '$dirname parameter is not defined.' );
+    defined $owner or croak( '$owner parameter is missing.' );
+    defined $group or croak( '$group parameter is missing.' );
+
     my $uid = $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // -1;
     my $gid = $group =~ /^\d+$/ ? $group : getgrnam( $group ) // -1;
-    chown $uid, $gid, $dirname or die( sprintf( "Couldn't change `%s' directory ownership: %s", $dirname, $! ));
-    0;
+    chown $uid, $gid, $self->{'dirname'} or die( sprintf( 'Failed to set ownership for %s: %s', $self->{'dirname'}, $! ));
+    $self
 }
 
 =item make( [ \%options ] )
 
  Create a directory
 
+ Setting ownership and permissions on created parent directories can lead to several
+ permission issues. Starting with version 1.5.0, the ownership and permissions on
+ created parent directories are set as EUID:EGID 0777 & ~(UMASK(2) || 0).
+
  Param hash \%options OPTIONAL options:
-  - umask          : UMASK(2) for a new diretory. For instance if the given umask is 0027, mode will be: 0777 & (~0027) = 0750 (in octal), default to UMASK(2)
-  - user           : File owner (default: $> (EUID) for a new file, no change for existent file)
-  - group          : File group (default: $) (EGID) for a new file, no change for existent file)
-  - mode           : File mode (default: 0666 & (~UMASK(2)) for a new file, no change for existent file )
-  - fixpermissions : If defined, ownership and permissions are set only if set with TRUE value
- Return int 0 on success, croak/die on failure
+  - umask          : UMASK(2) for a new diretory. For instance if the given umask is 0027, mode will be: 0777 & ~0027 = 0750 (in octal)
+  - user           : File owner (default: EUID for a new file, no change for existent directory unless fixpermissions is TRUE)
+  - group          : File group (default: EGID for a new file, no change for existent directory unless fixpermissions is TRUE)
+  - mode           : File mode (default: 0666 & ~(UMASK(2) || 0) for a new file, no change for existent directory unless fixpermissions is TRUE)
+  - fixpermissions : If TRUE, set ownership and permissions even for existent directory
+ Return self, die on failure
 
 =cut
 
 sub make
 {
     my ($self, $options) = @_;
+    $options //= {};
 
-    defined $self->{'dirname'} or croak( '`dirname` attribute is not defined.' );
-    $options = {} unless $options && ref $options eq 'HASH';
+    ref $options eq 'HASH' or croak( '$options parameter is not valid. Hash expected' );
 
     local $UMASK = $options->{'umask'} if exists $options->{'umask'};
 
-    unless ( -d $self->{'dirname'} ) {
-        my @createdDirs = mkpath( $self->{'dirname'}, { error => \ my $errStack } );
+    my $countCreated = eval { make_path $self->{'dirname'}; };
+    !$@ or die( sprintf( 'Failed to create %s: %s', $self->{'dirname'}, $@ ));
 
-        if ( @{$errStack} ) {
-            my $errorStr = '';
-
-            for ( @{$errStack} ) {
-                my ($file, $message) = %{$_};
-                $errorStr .= ( $file eq '' ) ? "general error: $message\n" : "problem creating $file: $message\n";
-            }
-
-            croak( sprintf( "Couldn't create `%s' directory: %s", $self->{'dirname'}, $errorStr ));
-        }
-
-        # Setting ownership and permissions on parent directories can lead
-        # to several permission issues. Starting with version 1.5.0, the
-        # ownership and permissions on created parent directories are set as
-        # root:root 0755 (assuming UMASK 022).
-        $options->{'fixpermissions'} = 1 if @createdDirs;
-    }
-
-    return 0 if defined $options->{'fixpermissions'} && !$options->{'fixpermissions'};
+    return $self unless $countCreated || $options->{'fixpermissions'};
 
     if ( defined $options->{'user'} || defined $options->{'group'} ) {
         $self->owner( $options->{'user'} // -1, $options->{'group'} // -1, $self->{'dirname'} );
     }
 
     $self->mode( $options->{'mode'} ) if defined $options->{'mode'};
-    0;
+    $self;
 }
 
-=item remove( [ $dirname = $self->{'dirname'} ] )
+=item remove()
 
  Remove a directory recusively
 
- Param string $dirname OPTIONAL directory
- Return int 0 on success, croak/die on failure
+ Return self, die on failure
 
 =cut
 
 sub remove
 {
-    my ($self, $dirname) = @_;
-    $dirname //= $self->{'dirname'};
+    my ($self) = @_;
 
-    defined $dirname or croak( '$dirname parameter is not defined.' );
-
-    return 0 unless -d $dirname;
-
-    remove_tree( $dirname, { error => \ my $errStack } );
-
-    if ( @{$errStack} ) {
-        my $errorStr = '';
-        for my $diag ( @{$errStack} ) {
-            my ($file, $message) = %{$diag};
-            $errorStr .= ( $file eq '' ) ? "general error: $message\n" : "problem unlinking $file: $message\n";
-        }
-
-        die( sprintf( "Couldn't remove the `%s' directory: %s", $dirname, $errorStr ));
-    }
-
-    0;
+    eval { remove_tree $self->{'dirname'}, { safe => 1 }; };
+    !$@ or die( sprintf( 'Failed to remove %s: %s', $self->{'dirname'}, $@ ));
+    $self;
 }
 
-=item rcopy( $destDir [, \%options ] )
+=item copy( $target [, \%options = { preserve => FALSE } ] )
 
- Copy a directory recusively
+ Copy the content of this directory into the given target
 
- Symlinks are not dereferenced.
- Only regular files, symlinks and directories are copied.
+ Warning: At this moment, only directory, regular and symlink files are
+ copied. Other files are silently ignored.
 
- Param string $destDir Destination directory
- Param hash \%options OPTIONAL Options:
-  - preserve (yes|no): preserve ownership and permissions (default yes)
- Return int 0 on success, croak/die on failure
+ Behavior:
+  Without the preserve option (default):
+   The behavior for newly created files is nearly the same as the cp(1) command with the --no-dereference option:
+     - Symlinks are not dereferenced, that is, not followed.
+     - Source file's permission bits are not preserved, that is, default permissions are used: 0666 & ~UMASK(2).
+     - Owner is set to EUID while the group set depends on a range of factors:
+        - If the fs is mounted with -o grpid, the group is made the same as that of the parent dir.
+        - If the fs is mounted with -o nogrpid and the setgid bit is disabled on the parent dir, the group will be set to EGID
+        - If the fs is mounted with -o nogrpid and the setgid bit is enabled on the parent dir, the group is made the same as that of the parent dir.
+        As at Linux 2.6.25, the -o grpid and -o nogrpid mount options are supported by ext2, ext3, ext4, and XFS. Filesystems that don't support these
+        mount options follow the -o nogrpid rules.
+  With the preserve option:
+   The behavior is nearly the same as the cp(1) command with the -no-dereference  and --preserve=mode,ownership options, excluding ACL:
+    - Symlinks are not dereferenced, that is, not followed.
+    - Source file's permission bits and ownership are preserved as much as possible.
+ 
+ If target doesn't already exist, it will be created.
+ Symlinks are not deferenced.
+
+ Param string $target Target directory
+ Param hash \%options OPTIONAL options:
+  - preserve: If set to TRUE preserve ownership and permissions (default FALSE)
+ Return self, die on failure
 
 =cut
 
-sub rcopy
+sub copy
 {
-    my ($self, $destDir, $options) = @_;
+    my ($self, $target, $options) = @_;
+    $options //= {};
 
-    $options = {} unless $options && ref $options eq 'HASH';
+    defined $target or croak( '$target parameter is missing.' );
+    ref $options eq 'HASH' or croak( '$options parameter is not valid. Hash expected' );
 
-    defined $destDir or croak( '$destDir parameter is not defined' );
-    defined $self->{'dirname'} or croak( '`dirname` attribute is not defined' );
+    $target = File::Spec->canonpath( $target );
 
-    unless ( -d $destDir ) {
-        my $opts = {};
-        unless ( defined $options->{'preserve'} && $options->{'preserve'} eq 'no' ) {
-            @{$opts}{ qw / mode user group /} = ( stat( $self->{'dirname'} ) )[2, 4, 5];
-            defined $opts->{'mode'} or die( sprinf( "Couldn't stat `%s' directory: %s", $self->{'dirname'}, $! ));
-            $opts->{'mode'} &= 07777;
-        }
-
-        iMSCP::Dir->new( dirname => $destDir )->make( $opts );
+    my $opts = {};
+    if ( $options->{'preserve'} ) {
+        @{$opts}{ qw / mode user group /} = ( stat( $self->{'dirname'} ) )[2, 4, 5];
+        defined $opts->{'mode'} or die( sprinf( 'Failed to stat %s: %s', $self->{'dirname'}, $! ));
+        $opts->{'mode'} &= 07777;
     }
 
-    opendir my $dh, $self->{'dirname'} or die( sprintf( "Couldn't open `%s' directory: %s", $self->{'dirname'}, $! ));
+    iMSCP::Dir->new( dirname => $target )->make( $opts );
+
+    opendir my $dh, $self->{'dirname'} or die( sprintf( 'Failed to open %s: %s', $self->{'dirname'}, $! ));
 
     my $dotReg = qr/^\.{1,2}\z/s;
+    while ( readdir $dh ) {
+        next if /$dotReg/;
 
-    while ( my $entry = readdir $dh ) {
-        next if $entry =~ /$dotReg/;
+        my $src = $self->{'dirname'} . '/' . $_;
+        my $tgt = $target . '/' . $_;
 
-        my $src = File::Spec->canonpath( $self->{'dirname'} . '/' . $entry );
-        my $dst = File::Spec->canonpath( $destDir . '/' . $entry );
-
-        # It is OK to reuse the previous lstat structure below because we know
-        # that we have a real file.
-        if ( -l $src || -f _ ) {
-            iMSCP::File->new( filename => $src )->copyFile( $dst, $options ) == 0 or die(
-                sprintf( "Couldn't copy `%s' file/symlink to `%s': %s", $src, $dst, getLastError())
-            );
+        if ( -l $src || !-d _ ) {
+            iMSCP::File->new( filename => $src )->copy( $tgt, { preserve => $options->{'preserve'} } );
             next;
         }
 
-        iMSCP::Dir->new( dirname => $src )->rcopy( $dst, $options ) if -d _;
+        iMSCP::Dir->new( dirname => $src )->copy( $tgt, $options );
     }
 
     closedir $dh;
-    0;
+    $self;
 }
 
-=item moveDir( $destDir )
+=item move( $target )
 
- Move directory
+ Move this directory to the given target
 
- Param string $destDir Destination directory
- Return int 0 on success, croak/die on failure
+ Param string $target Target directory
+ Return self, die on failure
 
 =cut
 
-sub moveDir
+sub move
 {
-    my ($self, $destDir) = @_;
+    my ($self, $target) = @_;
 
-    defined $destDir or croak( '$destDir attribute is not defined.' );
-    defined $self->{'dirname'} or croak( '`dirname` attribute is not defined.' );
-    -d $self->{'dirname'} or croak( sprintf( "Directory %s doesn't exits", $self->{'dirname'} ));
+    defined $target or croak( '$target parameter is missing.' );
 
-    mv( $self->{'dirname'}, $destDir ) or die( sprintf( "Couldn't move `%s' directory to `%s': %s", $self->{'dirname'}, $destDir, $! ));
-    0;
+    File::Copy::mv $self->{'dirname'}, $target or die( sprintf( 'Failed to  move %s to %s: %s', $self->{'dirname'}, $target, $! ));
+    $self;
 }
 
 =back
@@ -423,7 +386,7 @@ sub moveDir
 
  Initialize iMSCP::Dir object
 
- iMSCP::Dir
+ iMSCP::Dir, die on failure
 
 =cut
 
@@ -431,8 +394,21 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->{'dirname'} //= undef;
+    defined $self->{'dirname'} or die( 'dirname attribute is not defined.' );
+
+    $self->{'dirname'} = File::Spec->canonpath( $self->{'dirname'} );
     $self;
+}
+
+=item STRINGIFY()
+
+ Return string representation of this object, that is the dirname
+
+=cut
+
+sub STRINGIFY
+{
+    $_[0]->{'dirname'};
 }
 
 =back

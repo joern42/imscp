@@ -112,7 +112,7 @@ sub getVersion
  Param $string $user SQL username
  Param string $host SQL user host
  Param $string $password SQL user password
- Return int 0 on success, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -129,7 +129,7 @@ sub createUser
 
  Param $string $user SQL username
  Param string $host SQL user host
- Return int 0 on success, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -153,7 +153,7 @@ sub dropUser
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 

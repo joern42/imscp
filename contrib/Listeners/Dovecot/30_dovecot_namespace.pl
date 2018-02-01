@@ -44,8 +44,7 @@ iMSCP::EventManager->getInstance()->registerOne(
     'afterDovecotConfigure',
     sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/30_dovecot_namespace_listener.conf" );
-        $file->set( <<'EOT' );
+        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/30_dovecot_namespace_listener.conf" )->set( <<'EOT' )->save();
 namespace inbox {
     separator = /
     prefix =
@@ -60,7 +59,6 @@ namespace compat {
     alias_for =
 }
 EOT
-        $file->save();
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 

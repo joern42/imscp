@@ -72,7 +72,7 @@ sub enable
     my ($self, $service) = @_;
 
     eval { $self->{'provider'}->enable( $service ) };
-    !$@ or die( sprintf( "Couldn't enable the `%s' service: %s", $service, $@ ));
+    !$@ or die( sprintf( "Couldn't enable the %s service: %s", $service, $@ ));
 }
 
 =item disable( $service )
@@ -86,7 +86,7 @@ sub disable
     my ($self, $service) = @_;
 
     eval { $self->{'provider'}->disable( $service ) };
-    !$@ or die( sprintf( "Couldn't disable the `%s' service: %s", $service, $@ ));
+    !$@ or die( sprintf( "Couldn't disable the %s service: %s", $service, $@ ));
 }
 
 =item remove( $service )
@@ -118,7 +118,7 @@ sub remove
                 );
                 $dropInDir .= $service . ( $suffix ? '' : '.service' ) . '.d';
                 next unless -d $dropInDir;
-                debug( sprintf ( "Removing the `%s' systemd drop-in directory", $dropInDir ));
+                debug( sprintf ( "Removing the %s systemd drop-in directory", $dropInDir ));
                 iMSCP::Dir->new( dirname => $dropInDir )->remove();
             }
 
@@ -127,9 +127,7 @@ sub remove
                 # We do not want remove units that are shipped by distribution packages
                 last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
                 debug( sprintf ( 'Removing the %s unit', $unitFilePath ));
-                iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or die(
-                    getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-                );
+                iMSCP::File->new( filename => $unitFilePath )->remove();
             }
         }
 
@@ -137,13 +135,13 @@ sub remove
             my $provider = $self->getProvider( 'Upstart' );
             for ( qw / conf override / ) {
                 if ( my $jobfilePath = eval { $provider->getJobFilePath( $service, $_ ); } ) {
-                    debug( sprintf ( "Removing the `%s' upstart file", $jobfilePath ));
-                    iMSCP::File->new( filename => $jobfilePath )->delFile() == 0 or die( $self->_getLastError());
+                    debug( sprintf ( "Removing the %s upstart file", $jobfilePath ));
+                    iMSCP::File->new( filename => $jobfilePath )->remove();
                 }
             }
         }
     };
-    !$@ or die( sprintf( "Couldn't remove the `%s' service: %s", basename( $service, '.service' ), $@ ));
+    !$@ or die( sprintf( "Couldn't remove the %s service: %s", basename( $service, '.service' ), $@ ));
 }
 
 =item start( $service )
@@ -157,7 +155,7 @@ sub start
     my ($self, $service) = @_;
 
     eval { $self->{'provider'}->start( $service ) };
-    !$@ or die( sprintf( "Couldn't start the `%s' service: %s", $service, $@ ));
+    !$@ or die( sprintf( "Couldn't start the %s service: %s", $service, $@ ));
 }
 
 =item stop( $service )
@@ -171,7 +169,7 @@ sub stop
     my ($self, $service) = @_;
 
     eval { $self->{'provider'}->stop( $service ) };
-    !$@ or die( sprintf( "Couldn't stop the `%s' service: %s", $service, $@ ));
+    !$@ or die( sprintf( "Couldn't stop the %s service: %s", $service, $@ ));
 }
 
 =item restart( $service )
@@ -185,7 +183,7 @@ sub restart
     my ($self, $service) = @_;
 
     eval { $self->{'provider'}->restart( $service ); };
-    !$@ or die( sprintf( "Couldn't restart the `%s' service: %s", $service, $@ ));
+    !$@ or die( sprintf( "Couldn't restart the %s service: %s", $service, $@ ));
 }
 
 =item reload( $service )
@@ -199,7 +197,7 @@ sub reload
     my ($self, $service) = @_;
 
     eval { $self->{'provider'}->reload( $service ); };
-    !$@ or die( sprintf( "Couldn't reload the `%s' service: %s", $service, $@ ));
+    !$@ or die( sprintf( "Couldn't reload the %s service: %s", $service, $@ ));
 }
 
 =item isRunning( $service )
@@ -301,7 +299,7 @@ sub getProvider
         # Fallback to the base provider
         $provider = "iMSCP::Providers::Service::@{ [ $providerName // $self->{'init'} ] }";
         can_load( modules => { $provider => undef } ) or die(
-            sprintf( "Couldn't load the `%s' service provider: %s", $provider, $Module::Load::Conditional::ERROR )
+            sprintf( "Couldn't load the %s service provider: %s", $provider, $Module::Load::Conditional::ERROR )
         );
     }
 

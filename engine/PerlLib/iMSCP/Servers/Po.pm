@@ -66,7 +66,7 @@ sub getPriority
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Mail module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -84,7 +84,7 @@ sub addMail
  Param hashref \%trafficDb Traffic database
  Param string $logFile Path to SMTP log file (only when self-called)
  Param hashref \%trafficIndexDb Traffic index database (only when self-called)
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 

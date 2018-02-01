@@ -55,7 +55,6 @@ iMSCP::EventManager->getInstance()->register(
         return unless $cfgTplName eq 'hosts';
 
         ${$cfgTpl} .= join( "\n", @hostsFileEntries ) . "\n";
-        0;
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Server'}, '::Local::' ) != -1;
 

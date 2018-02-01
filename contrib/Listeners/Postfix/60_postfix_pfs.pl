@@ -22,7 +22,7 @@
 ## First, you must create the files before activating this listener:
 ##
 ##   cd /etc/postfix
-##   umask 022
+##   umask 0022
 ##   openssl dhparam -out dh512.tmp 512 && mv dh512.tmp dh512.pem
 ##   openssl dhparam -out dh2048.tmp 2048 && mv dh2048.tmp dh2048.pem
 ##   chmod 644 dh512.pem dh2048.pem
@@ -48,20 +48,18 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
-        return 0 unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
+        return unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
 
-        iMSCP::Servers::Mta->factory()->postconf(
-            (
-                smtpd_tls_dh1024_param_file => {
-                    action => 'replace',
-                    values => [ '/etc/postfix/dh2048.pem' ]
-                },
-                smtpd_tls_dh512_param_file  => {
-                    action => 'replace',
-                    values => [ '/etc/postfix/dh512.pem' ]
-                }
-            )
-        );
+        iMSCP::Servers::Mta->factory()->postconf( (
+            smtpd_tls_dh1024_param_file => {
+                action => 'replace',
+                values => [ '/etc/postfix/dh2048.pem' ]
+            },
+            smtpd_tls_dh512_param_file  => {
+                action => 'replace',
+                values => [ '/etc/postfix/dh512.pem' ]
+            }
+        ));
     },
     -99
 ) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;

@@ -44,7 +44,7 @@ use parent 'iMSCP::Common::Object';
 
  Acquire the lock file
 
- Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (non blocking), die on failure
+ Return bool TRUE if lock file has been acquired, FALSE if lock file has not been acquired (non blocking), die on failure
 
 =cut
 
@@ -87,7 +87,6 @@ sub release
     return unless $self->{'_owner'} == $$;
 
     debug( sprintf( 'Releasing exclusive lock on %s', $self->{'path'} ));
-
     # It is important the lock file is removed before it's released, otherwise:
     #
     # process A: open lock file
@@ -131,7 +130,7 @@ sub _init
  Try to acquire the lock file
 
  Param int $fd file descriptor of the opened file to lock
- Return int 1 if lock file has been acquired, 0 if lock file has not been acquired (non blocking), die on failure
+ Return bool TRUE if lock file has been acquired, FALSE if lock file has not been acquired (non blocking), die on failure
 
 =cut
 
@@ -155,7 +154,7 @@ sub _tryLock
  acquiring the lock.
 
  Param int $fd file descriptor of the opened file to lock
- Return TRUE if the lock was successfully acquired, FALSE otherwise, die on failure
+ Return bool TRUE if the lock was successfully acquired, FALSE otherwise, die on failure
 
 =cut
 

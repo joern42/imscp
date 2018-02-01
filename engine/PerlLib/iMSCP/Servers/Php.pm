@@ -89,7 +89,6 @@ sub registerSetupListeners
                 sub { $self->askForPhpVersion( @_ ) },
                 sub { $self->askForPhpSapi( @_ ) },
                 sub { $self->askForFastCGIconnectionType( @_ ) };
-            0;
         },
         # We want show these dialogs after the httpd server dialog because
         # we rely on httpd server configuration parameters (httpd server priority - 10)
@@ -255,7 +254,7 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    return 0 unless $self->{'config'}->{'PHP_SAPI'} eq 'cgi';
+    return unless $self->{'config'}->{'PHP_SAPI'} eq 'cgi';
 
     setRights( $self->{'config'}->{'PHP_FCGI_STARTER_DIR'},
         {
@@ -315,7 +314,7 @@ sub getVersion
   - afterPhpAddDomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -335,7 +334,7 @@ sub addDomain
   - afterPhpDisableDomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the AliasiMSCP::Modules::|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -355,7 +354,7 @@ sub disableDomain
   - afterPhpDeleteDomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -375,7 +374,7 @@ sub deleteDomain
   - afterPhpAddSubdomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -395,7 +394,7 @@ sub addSubdomain
   - afterPhpDisableSubdomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -415,7 +414,7 @@ sub disableSubdomain
   - afterPhpDeleteSubdomain( \%moduleData )
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -433,7 +432,7 @@ sub deleteSubdomain
  Param array \@modules Array containing list of modules to enable
  Param string $phpVersion OPTIONAL PHP version to operate on (default to selected PHP alternative)
  Param string phpSApi OPTIONAL PHP SAPI to operate on (default to selected PHP SAPI)
- Return int 0 on sucess, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -451,7 +450,7 @@ sub enableModules
  Param array \@modules Array containing list of modules to disable
  Param string $phpVersion OPTIONAL PHP version to operate on (default to selected PHP alternative)
  Param string phpSApi OPTIONAL PHP SAPI to operate on (default to selected PHP SAPI)
- Return int 0 on sucess, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -511,7 +510,7 @@ sub _setFullVersion
  There are nothing special to do here. We trigger events for consistency reasons.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -526,12 +525,9 @@ sub _buildApacheHandlerConfig
         return;
     }
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforePhpApacheHandlerSapiBuildConf', $moduleData );
-
+    $self->{'eventManager'}->trigger( 'beforePhpApacheHandlerSapiBuildConf', $moduleData );
     debug( sprintf( 'Building Apache2Handler configuration for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
-
-    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpApacheHandlerSapiBuildConf', $moduleData );
-    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+    $self->{'eventManager'}->trigger( 'afterPhpApacheHandlerSapiBuildConf', $moduleData );
 }
 
 =item _buildCgiConfig( \%moduleData )
@@ -539,7 +535,7 @@ sub _buildApacheHandlerConfig
  Build PHP CGI/FastCGI configuration for the given domain
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -554,9 +550,7 @@ sub _buildCgiConfig
         return;
     }
 
-    $self->{'eventManager'}->trigger( 'beforePhpCgiSapiBuildConf', $moduleData ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'beforePhpCgiSapiBuildConf', $moduleData );
 
     debug( sprintf( 'Building PHP CGI/FastCGI configuration for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
 
@@ -585,7 +579,7 @@ sub _buildCgiConfig
         TMPDIR                => $moduleData->{'HOME_DIR'} . '/phptmp'
     };
 
-    my $rs = $self->buildConfFile(
+    $self->buildConfFile(
         'cgi/php-fcgi-starter',
         "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}/php-fcgi-starter",
         $moduleData,
@@ -597,7 +591,7 @@ sub _buildCgiConfig
             cached => 1
         }
     );
-    $rs ||= $self->buildConfFile(
+    $self->buildConfFile(
         'cgi/php.ini.user',
         "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}/php$self->{'config'}->{'PHP_VERSION'}/php.ini",
         $moduleData,
@@ -609,8 +603,7 @@ sub _buildCgiConfig
             cached => 1
         }
     );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpCgiSapiBuildConf', $moduleData );
-    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+    $self->{'eventManager'}->trigger( 'afterPhpCgiSapiBuildConf', $moduleData );
 }
 
 =item _buildFpmConfig( \%moduleData )
@@ -618,7 +611,7 @@ sub _buildCgiConfig
  Build PHP fpm configuration for the given domain
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -633,9 +626,7 @@ sub _buildFpmConfig
         return;
     }
 
-    $self->{'eventManager'}->trigger( 'beforePhpFpmSapiBuildConf', $moduleData ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'beforePhpFpmSapiBuildConf', $moduleData );
 
     debug( sprintf( 'Building PHP-FPM configuration for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
 
@@ -656,12 +647,11 @@ sub _buildFpmConfig
         TMPDIR                       => "$moduleData->{'HOME_DIR'}/phptmp"
     };
 
-    my $rs = $self->buildConfFile(
+    $self->buildConfFile(
         'fpm/pool.conf', "$self->{'PHP_FPM_POOL_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}.conf", $moduleData, $serverData, { cached => 1 }
     );
-    $self->{'reload'}->{$serverData->{'PHP_VERSION'}} ||= 1 unless $rs;
-    $rs ||= $self->{'eventManager'}->trigger( 'afterPhpFpmSapiBuildConf', $moduleData );
-    $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+    $self->{'reload'}->{$serverData->{'PHP_VERSION'}} ||= 1;
+    $self->{'eventManager'}->trigger( 'afterPhpFpmSapiBuildConf', $moduleData );
 }
 
 =back
@@ -682,13 +672,13 @@ sub _buildFpmConfig
  Param hashref \%sconfig Apache server data
  Param hashref \%sconfig Apache server data
  Param hashref \%params OPTIONAL parameters:
-  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to UMASK(2)
-  - user    : File owner (default: $> for a new file, no change for existent file)
-  - group   : File group (default: $) for a new file, no change for existent file)
-  - mode    : File mode (default: 0666 & (~UMASK(2)) for a new file, no change for existent file )
+  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
+  - user    : File owner (default: EUID for a new file, no change for existent file)
+  - group   : File group (default: EGID for a new file, no change for existent file)
+  - mode    : File mode (default: 0666 & ~(UMASK(2) || 0) for a new file, no change for existent file )
   - cached  : Whether or not loaded file must be cached in memory
   - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -696,7 +686,7 @@ sub beforeApacheBuildConfFile
 {
     my ($phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params) = @_;
 
-    return 0 unless $filename eq 'domain.tpl' && grep( $_ eq $sdata->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+    return unless $filename eq 'domain.tpl' && grep( $_ eq $sdata->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
 
     $phpServer->{'eventManager'}->trigger(
         'beforePhpApacheBuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
@@ -847,8 +837,7 @@ EOF
 EOF
         }
     } else {
-        error( 'Unknown PHP SAPI' );
-        return 1;
+        die( 'Unknown PHP SAPI' );
     }
 
     $phpServer->{'eventManager'}->trigger(
@@ -861,7 +850,7 @@ EOF
  Event listener that create PHP (phptmp) directory in customer Web folders
 
  Param hashref \%moduleData Data as provided by te iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -869,21 +858,13 @@ sub afterApacheAddFiles
 {
     my (undef, $moduleData) = @_;
 
-    return 0 unless $moduleData->{'DOMAIN_TYPE'} eq 'dmn';
+    return unless $moduleData->{'DOMAIN_TYPE'} eq 'dmn';
 
-    eval {
-        iMSCP::Dir->new( dirname => "$moduleData->{'WEB_DIR'}/phptmp" )->make( {
-            user  => $moduleData->{'USER'},
-            group => $moduleData->{'GROUP'},
-            mode  => 0750
-        } )
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Dir->new( dirname => "$moduleData->{'WEB_DIR'}/phptmp" )->make( {
+        user  => $moduleData->{'USER'},
+        group => $moduleData->{'GROUP'},
+        mode  => 0750
+    } )
 }
 
 =back

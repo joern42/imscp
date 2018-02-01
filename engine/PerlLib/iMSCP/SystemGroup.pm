@@ -25,7 +25,8 @@ package iMSCP::SystemGroup;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ debug error /;
+use Carp qw/ croak /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use parent 'iMSCP::Common::Singleton';
 
@@ -43,28 +44,21 @@ use parent 'iMSCP::Common::Singleton';
 
  Param string $groupname Group name
  Param bool systemgroup Flag indication whether or not $groupname must be created as a system group
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
 sub addSystemGroup
 {
-    my (undef, $groupname, $systemgroup) = @_;
+    my ($self, $groupname, $systemgroup) = @_;
 
-    unless ( defined $groupname ) {
-        error( 'Missing $groupname parameter' );
-        return 1;
-    }
-
-    if ( $groupname eq $main::imscpConfig{'ROOT_GROUP'} ) {
-        error( sprintf( '%s group is prohibited', $main::imscpConfig{'ROOT_GROUP'} ));
-        return 1;
-    }
+    defined $groupname or croak( 'Missing $groupname parameter' );
+    $groupname ne $main::imscpConfig{'ROOT_GROUP'} or croak( sprintf( '%s group is prohibited', $main::imscpConfig{'ROOT_GROUP'} ));
 
     my $rs = execute( [ 'groupadd', '-f', ( $systemgroup ? '-r' : () ), $groupname ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs;
+    !$rs or die( $stderr || 'Unknown error' );
+    $self;
 }
 
 =item delSystemGroup( $groupname )
@@ -72,7 +66,7 @@ sub addSystemGroup
  Delete group
 
  Param string $groupname Group name
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
@@ -80,24 +74,13 @@ sub delSystemGroup
 {
     my (undef, $groupname) = @_;
 
-    unless ( defined $groupname ) {
-        error( '$groupname parameter is not defined' );
-        return 1;
-    }
-
-    if ( $groupname eq $main::imscpConfig{'ROOT_GROUP'} ) {
-        error( sprintf( '%s group deletion is prohibited', $main::imscpConfig{'ROOT_GROUP'} ));
-        return 1;
-    }
+    defined $groupname or croak( '$groupname parameter is not defined' );
+    $groupname ne $main::imscpConfig{'ROOT_GROUP'} or croak( sprintf( '%s group deletion is prohibited', $main::imscpConfig{'ROOT_GROUP'} ));
 
     my $rs = execute( [ 'groupdel', $groupname ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    unless ( grep($_ == $rs, 0, 6) ) {
-        error( $stderr || 'Unknown error' );
-        return $rs;
-    }
-
-    0;
+    grep( $_ == $rs, 0, 6 ) or die( $stderr || 'Unknown error' );
+    $self;
 }
 
 =back

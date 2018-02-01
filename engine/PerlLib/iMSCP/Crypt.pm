@@ -60,7 +60,7 @@ our @EXPORT_OK = qw/
 
  Param int $length Expected string length
  Param bool string $charList character list to use for string generation (default is Base 64 character set)
- Return string, croak on failure
+ Return string, die on failure
 
 =cut
 
@@ -95,7 +95,7 @@ sub randomStr( $;$ )
 
  Param string $password The password to be hashed
  Param string $salt An optional salt string to base the hashing on
- Returns string, croak on failure
+ Returns string, die on failure
  Deprecated As of 2012-6-7, this algorithm is "no longer considered safe" by its author. Use bcrypt instead.
 
 =cut
@@ -120,7 +120,7 @@ sub md5( $;$ )
  Param string $password Password to be hashed
  Param int $rounds A numeric value used to indicate how many times the hashing loop should be executed
  Param string $salt An optional salt string to base the hashing on
- Returns string, croak on failure
+ Returns string, die on failure
 
 =cut
 
@@ -150,7 +150,7 @@ sub sha256( $;$$ )
  Param string $password Password to be hashed
  Param int $rounds A numeric value used to indicate how many times the hashing loop should be executed
  Param string $salt An optional salt string to base the hashing on
- Returns string, croak on failure
+ Returns string, die on failure
 
 =cut
 
@@ -180,7 +180,7 @@ sub sha512($;$$)
  Param string $password Password to be hashed
  Param int $cost Base-2 logarithm of the iteration count
  Param string $salt An optional salt string to base the hashing on
- Returns string, croak on failure
+ Returns string, die on failure
 =cut
 
 sub bcrypt($;$$)
@@ -209,7 +209,7 @@ sub bcrypt($;$$)
 
  Param string $password The password to be hashed
  Param string $salt Salt An optional salt string to base the hashing on
- Return string
+ Return string, die on failure
 
 =cut
 
@@ -270,7 +270,7 @@ sub apr1MD5( $;$ )
  Param int $cost Base-2 logarithm of the iteration count (only relevant for bcrypt format)
  Param string $salt An optional salt string to base the hashing on (only relevant for bcrypt, crypt and md5 formats)
  Param string $format Format in which the password must be hashed (bcrypt|crypt|sha1|md5) -  Default is md5 (APR1)
- Return string, croak on failure
+ Return string, die on failure
 
 =cut
 
@@ -312,7 +312,7 @@ sub htpasswd( $;$$ )
 
  Param string $password The password to be checked
  Param string $hash The hash to be checked against
- Return bool, croak on failure
+ Return bool TRUE if the given password is verified, FALSE otherwise, die on failure
 
 =cut
 
@@ -344,7 +344,7 @@ sub verify( $$ )
 
  Param string $knownString The string of known length to compare against
  Param string $userString The user-supplied string
- Return bool
+ Return bool TRUE if both string are equal
 
 =cut
 
@@ -376,7 +376,7 @@ sub hashEqual( $$ )
  Param string $key Encryption key (4 up to 56 bytes long (32 up to 448 bits))
  Param string $iv Initialization vector (8 bytes long (64 bits))
  Param string $data Data to encrypt
- Return string A base64 encoded string representing encrypted data, croak on failure
+ Return string A base64 encoded string representing encrypted data, die on failure
 
 =cut
 
@@ -394,7 +394,7 @@ sub encryptBlowfishCBC( $$$ )
  Param string $key Decryption key (4 up to 56 bytes long (32 up to 448 bits))
  Param string $iv Initialization vector (8 bytes long (64 bits))
  Param string $data A base64 encoded string representing encrypted data
- Return string, croak on failure
+ Return string, die on failure
 
 =cut
 
@@ -412,7 +412,7 @@ sub decryptBlowfishCBC( $$$ )
  Param string $key Encryption key (16, 24, 32 or bytes long (128, 192 or 256 bits))
  Param string $iv Initialization vector (16 bytes long (128 bits))
  Param string $data Data to encrypt
- Return A string base64 encoded string representing encrypted data, croak on failure
+ Return A string base64 encoded string representing encrypted data, die on failure
 
 =cut
 
@@ -430,7 +430,7 @@ sub encryptRijndaelCBC( $$$ )
  Param string $key Decryption key (16, 24, 32 or bytes long (128, 192 or 256 bits))
  Param string $iv Initialization vector (16 bytes long (128 bits))
  Param string $data A base64 encoded string representing encrypted data
- Return string, croak on failure
+ Return string, die on failure
 
 =cut
 
@@ -455,7 +455,7 @@ sub decryptRijndaelCBC( $$$ )
  Param string $key Encryption key
  Param string $iv Initialization vector
  Param string $data Data to encrypt
- Return string A base64 encoded string representing encrypted data, croak on failure
+ Return string A base64 encoded string representing encrypted data, die on failure
 
 =cut
 
@@ -488,7 +488,7 @@ sub _encryptCBC( $$$$ )
  Param string $key Decryption key
  Param string $iv Initialization vector
  Param string $data A base64 encoded string representing encrypted data
- Return string, croak on failure
+ Return string, die on failure
 
 =cut
 
@@ -515,7 +515,7 @@ sub _decryptCBC( $$$$ )
  Convert a binary string using the "./0-9A-Za-z" alphabet
 
  Param string $string String to be converted
- Return string
+ Return string, die on failure
 
 =cut
 

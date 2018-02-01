@@ -76,7 +76,7 @@ sub getPriority
  server classes.
 
  Param string $serverClass OPTIONAL Server class, default to selected server alternative
- Return iMSCP::Servers::Abstract, confess on failure
+ Return iMSCP::Servers::Abstract, die on failure
 
 =cut
 
@@ -119,15 +119,13 @@ sub factory
  
  Any server relying on i-MSCP setup dialog *MUST* override this method.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub registerSetupListeners
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item preinstall( )
@@ -139,7 +137,7 @@ sub registerSetupListeners
  Any server requiring pre-installation tasks *SHOULD* override this method, not
  forgetting to call it, unless stopping the linked service(s) is not desired.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -158,15 +156,13 @@ sub preinstall
  
  Any server requiring post-installation tasks *SHOULD* override this method.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub install
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item postinstall( )
@@ -178,7 +174,7 @@ sub install
  Any server requiring post-installation tasks *SHOULD* override this method,
  not forgetting to call it, unless starting the linked service(s) is not desired.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -188,14 +184,9 @@ sub postinstall
 
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ];
-            0;
-        },
+        sub { push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ]; },
         $self->getPriority()
     );
-
-    0;
 }
 
 =item preuninstall( )
@@ -206,15 +197,13 @@ sub postinstall
 
  Any server requiring pre-uninstallation tasks *SHOULD* override this method.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub preuninstall
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item uninstall( )
@@ -225,15 +214,13 @@ sub preuninstall
 
  Any server requiring uninstallation tasks *SHOULD* override this method.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub uninstall
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item postuninstall( )
@@ -244,15 +231,13 @@ sub uninstall
 
  Any server requiring post-uninstallation tasks *SHOULD* override this method.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub postuninstall
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item setEnginePermissions( )
@@ -264,15 +249,13 @@ sub postuninstall
  Any server relying on configuration files or scripts *SHOULD* override this
  method.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub setEnginePermissions
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item getServerName( )
@@ -348,22 +331,36 @@ sub getVersion
  
  Only Debian server implementations *SHOULD* override that method.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
+}
 
-    0;
+=item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
+
+ Get server traffic data
+
+ Param hashref \%trafficDb Traffic database
+ Param string $logFile Path to ftpd traffic log file (only when self-called)
+ Param hashref \%trafficIndexDb Traffic index database (only when self-called)
+ Return void, die on failure
+
+=cut
+
+sub getTraffic
+{
+    my ($self) = @_;
 }
 
 =item start( )
 
  Start the server
 
- Return int 0, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -378,7 +375,7 @@ sub start
 
  Stop the server
 
- Return int 0, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -393,7 +390,7 @@ sub stop
 
  Restart the server
 
- Return int 0, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -408,7 +405,7 @@ sub restart
 
  Reload the server
 
- Return int 0, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -435,13 +432,13 @@ sub reload
  Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules, none if outside of an i-MSCP module context
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%params OPTIONAL parameters:
-  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to UMASK(2)
-  - user    : File owner (default: $> (EUID) for a new file, no change for existent file)
-  - group   : File group (default: $) (EGID) for a new file, no change for existent file)
-  - mode    : File mode (default: 0666 & (~UMASK(2)) for a new file, no change for existent file )
+  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
+  - user    : File owner (default: EUID for a new file, no change for existent file)
+  - group   : File group (default: EGID for a new file, no change for existent file)
+  - mode    : File mode (default: 0666 & ~(UMASK(2) || 0) for a new file, no change for existent file )
   - cached  : Whether or not loaded file must be cached in memory
   - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -462,69 +459,62 @@ sub buildConfFile
     if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
         $cfgTpl = $self->{'_templates'}->{$srcFile};
     } else {
-        my $rs = $self->{'eventManager'}->trigger(
+        $self->{'eventManager'}->trigger(
             'onLoadTemplate', lc $sname, $params->{'srcname'}, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params
         );
-        return $rs if $rs;
 
         unless ( defined $cfgTpl ) {
             $srcFile = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
             $cfgTpl = iMSCP::File->new( filename => $srcFile )->get();
-            unless ( defined $cfgTpl ) {
-                error( sprintf( "Couldn't read the %s file", $srcFile ));
-                return 1;
-            }
         }
 
         $self->{'_templates'}->{$srcFile} = $cfgTpl if $params->{'cached'};
     }
 
-    my $rs = $self->{'eventManager'}->trigger(
+    $self->{'eventManager'}->trigger(
         "before${sname}BuildConfFile", \$cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
     );
-    return $rs if $rs;
 
     processByRef( $sdata, \$cfgTpl ) if %{$sdata};
     processByRef( $mdata, \$cfgTpl ) if %{$mdata};
 
-    $rs = $self->{'eventManager'}->trigger(
+    $self->{'eventManager'}->trigger(
         "after${sname}dBuildConfFile", \$cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
     );
-    return $rs if $rs;
 
-    my $fh = iMSCP::File->new( filename => $trgFile );
-    $fh->set( $cfgTpl );
-    $rs ||= $fh->save( $params->{'umask'} // undef );
-    return $rs if $rs;
-
-    if ( defined $params->{'user'} || defined $params->{'group'} ) {
-        $rs = $fh->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} );
-        return $rs if $rs;
-    }
-
-    if ( defined $params->{'mode'} ) {
-        $rs = $fh->mode( $params->{'mode'} );
-        return $rs if $rs;
-    }
-
-    0;
+    my $file = iMSCP::File->new( filename => $trgFile )->set( $cfgTpl )->save( $params->{'umask'} // undef );
+    $file->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} )
+        if defined $params->{'user'} || defined $params->{'group'};
+    $file->mode( $params->{'mode'} ) if defined $params->{'mode'};
 }
 
 =item AUTOLOAD()
 
- Implements autoloading for inexistent methods
+ Implements autoloading for undefined method
 
- FIXME: This is a bit error prone. There could be typos in method calls and we
- wouldn't be able to catch them easily... Best would be to provide a stub for
- known methods, at least those called by the iMSCP::Modules::Abstract module.
+ The default implementation will raise an error for any method that is not known
+ to be called by the iMSCP::Modules::Abstract modules.
 
- Return int 0
+ Return void, die on failure
 
 =cut
 
 sub AUTOLOAD
 {
-    0;
+    ( my $method = our $AUTOLOAD ) =~ s/.*:://;
+
+    $method =~ /^
+        (?:pre|post)?
+        (?:add|disable|restore|delete)
+        (?:(?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddr|Mail|SSLcertificate|Subdomain|User)
+        $/x or die( sprintf( 'Unknown %s method' ), $method );
+
+    # Define the subroutine to prevent further evaluation
+    no strict 'refs';
+    *{$AUTOLOAD} = sub {};
+    
+    # Errase stack frame
+    goto &{$AUTOLOAD};
 }
 
 =back
@@ -535,7 +525,7 @@ sub AUTOLOAD
 
 =item _init( )
 
- See iMSCP::Common::Singleton::_init()
+ See iMSCP::Common::Singleton::_init(), die on failure
 
 =cut
 
@@ -557,7 +547,7 @@ sub _init
  old configuration available through the 'old_config attribute.
 
  Param string $filename OPTIONAL i-MSCP server configuration filename
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -599,7 +589,7 @@ sub _loadConfig
             # be automatically used as value for the new FTP_SQL_USER parameter.
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
             processByRef( \%oldConfig, $file->getAsRef(), 'empty_unknown' );
-            $file->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $file->save();
             undef( $file );
 
             tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename.dist";
@@ -616,20 +606,16 @@ sub _loadConfig
             untie( %newConfig );
             untie( %oldConfig );
 
-            #iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename" )->delFile() == 0 or croak(
-            #    getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-            #);
+            #iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename" )->remove();
         } else {
             # For a fresh installation, we make the configuration file free of any placeholder
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
             processByRef( {}, $file->getAsRef(), 'empty_unknown' );
-            $file->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $file->save();
             undef( $file );
         }
 
-        iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" )->moveFile( "$self->{'cfgDir'}/$filename" ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
+        iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" )->move( "$self->{'cfgDir'}/$filename" );
     }
 
     debug( sprintf( 'Loading %s server configuration...', $self->getServerName()));
@@ -662,8 +648,6 @@ sub _loadConfig
 sub _shutdown
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item END

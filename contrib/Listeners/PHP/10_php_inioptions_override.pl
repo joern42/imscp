@@ -95,8 +95,7 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($cfgTpl, $filename, undef, $moduleData) = @_;
 
-        return 0 unless grep($filename eq $_, 'php.ini.user', 'pool.conf')
-            && $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} eq $moduleData->{'DOMAIN_NAME'};
+        return unless grep($filename eq $_, 'php.ini.user', 'pool.conf') && $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} eq $moduleData->{'DOMAIN_NAME'};
 
         if ( $tplName eq 'php.ini.user' ) {
             if ( exists $SETTINGS{'*'} ) {
@@ -108,7 +107,7 @@ iMSCP::EventManager->getInstance()->register(
                 }
             }
 
-            return 0 unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
+            return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
 
             # Adds/Overrides per domain INI options values
             while ( my ($option, $value) = each( %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}} ) ) {
@@ -116,10 +115,10 @@ iMSCP::EventManager->getInstance()->register(
                 ${$cfgTpl} .= "$option = $value\n";
             }
 
-            return 0;
+            return;
         }
 
-        return 0 unless $tplName eq 'pool.conf';
+        return unless $tplName eq 'pool.conf';
 
         if ( exists $SETTINGS{'*'} ) {
             # Adds/Overrides INI options values globally
@@ -148,8 +147,6 @@ iMSCP::EventManager->getInstance()->register(
 
             ${$cfgTpl} .= "php_admin_value[$option] = $value\n";
         }
-
-        0;
     }
 );
 

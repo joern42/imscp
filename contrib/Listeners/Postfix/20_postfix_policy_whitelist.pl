@@ -49,20 +49,18 @@ iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
-        my $rs = $mta->addMapEntry( $policyClientWhitelistTable );
-        $rs ||= $mta->addMapEntry( $policyRecipientWhitelistTable );
-        $rs ||= $mta->postconf(
-            (
-                smtpd_recipient_restrictions => {
-                    action => 'add',
-                    before => qr/permit/,
-                    values => [
-                        "check_client_access hash:$policyClientWhitelistTable",
-                        "check_recipient_access hash:$policyRecipientWhitelistTable"
-                    ]
-                }
-            )
-        );
+        $mta->addMapEntry( $policyClientWhitelistTable );
+        $mta->addMapEntry( $policyRecipientWhitelistTable );
+        $mta->postconf( (
+            smtpd_recipient_restrictions => {
+                action => 'add',
+                before => qr/permit/,
+                values => [
+                    "check_client_access hash:$policyClientWhitelistTable",
+                    "check_recipient_access hash:$policyRecipientWhitelistTable"
+                ]
+            }
+        ));
     },
     -99
 ) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;

@@ -65,7 +65,7 @@ sub getPriority
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -87,7 +87,7 @@ sub addDomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -109,7 +109,7 @@ sub disableDomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Domain data
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -131,7 +131,7 @@ sub deleteDomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Subdomain data
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -153,7 +153,7 @@ sub addSubdomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Subdomain data
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -175,7 +175,7 @@ sub disableSubdomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Subdomain data
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -197,7 +197,7 @@ sub deleteSubdomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Mail data
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -219,7 +219,7 @@ sub addMail
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Mail data
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -241,7 +241,7 @@ sub disableMail
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Mail data
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -257,7 +257,7 @@ sub deleteMail
  Get SMTP traffic
 
  Param hashref \%trafficDb Traffic database
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 

@@ -50,7 +50,7 @@ $Text::Wrap::break = qr/[\s\n\|]/;
  Send an error message to system administrator
 
  Param string Error message to be sent
- Return int 0 on success, other or croak on failure
+ Return self, die on failure
  
 =cut
 
@@ -66,7 +66,7 @@ An error has been raised while executing function $functionName in $0:
 
 $message
 EOF
-    0;
+    $self
 }
 
 =item warnMsg( $message )
@@ -74,7 +74,7 @@ EOF
  Send a warning message to system administrator
 
  Param string $message Warning message to be sent
- Return int 0 on success, other or croak failure
+ Return self, die on failure
  
 =cut
 
@@ -90,7 +90,7 @@ A warning has been raised while executing function $functionName in $0:
 
 $message
 EOF
-    0;
+    $self
 }
 
 =back
@@ -106,7 +106,7 @@ EOF
  Param string $subject Message subject
  Param string $message Message to be sent
  Param string $severity Message severity
- Return int 0 on success, other or die on failure
+ Return self, die on failure
  
 =cut
 
@@ -114,7 +114,7 @@ sub _sendMail
 {
     my (undef, $subject, $message, $severity) = @_;
 
-    my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or die( "Couldn't find sendmail executable" );
+    my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or die( "Couldn't find sendmail executable in \$PATH" );
     my $host = $main::imscpConfig{'BASE_SERVER_VHOST'};
     my $out = MIME::Entity->new()->build(
         From       => "i-MSCP ($host) <noreply\@$host>",
@@ -145,14 +145,10 @@ EOF
         'X-Mailer' => 'i-MSCP Mailer (backend)'
     );
 
-    my $fh;
-    unless ( open $fh, '|-', $sendmail, '-t', '-oi', '-f', "noreply\@$host" ) {
-        error( sprintf( "Couldn't send mail: %s", $! ));
-        return 1;
-    }
+    open my $fh, '|-', $sendmail, '-t', '-oi', '-f', "noreply\@$host" or die( sprintf( "Couldn't send mail: %s", $! ));
     $out->print( $fh );
     close $fh;
-    0;
+    $self;
 }
 
 =back

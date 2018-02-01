@@ -61,7 +61,6 @@ iMSCP::EventManager->getInstance()->register(
 
         push @{$domainIps}, @GLOBAL_IPS if @GLOBAL_IPS;
         push @{$domainIps}, @{$PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}}} if $PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}};
-        0;
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 

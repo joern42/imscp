@@ -40,7 +40,7 @@ use version;
 #
 
 # Compression level
-my $compressionLevel = 6;
+my $COMPRESSION_LEVEL = 6;
 
 #
 ## Please, don't edit anything below this line
@@ -54,20 +54,18 @@ iMSCP::EventManager->getInstance()->registerOne(
     'afterDovecotConfigure',
     sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/10_dovecot_compress_listener.conf" );
-        $file->set( <<"EOT" );
+        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/10_dovecot_compress_listener.conf" )->set( <<"EOT" )->save();
 mail_plugins = \$mail_plugins zlib
 
 plugin {
     zlib_save = gz
-    zlib_save_level = $compressionLevel
+    zlib_save_level = $COMPRESSION_LEVEL
 }
 
 protocol imap {
     mail_plugins = \$mail_plugins imap_zlib
 }
 EOT
-        $file->save();
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;
 

@@ -43,11 +43,9 @@ iMSCP::EventManager->getInstance()->registerOne(
     'afterDovecotConfigure',
     sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/50_dovecot_plaintext_listener.conf" );
-        $file->set( <<"EOT" );
+        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/50_dovecot_plaintext_listener.conf" )->set( <<"EOT" )->save();
 disable_plaintext_auth = yes
 EOT
-        $file->save();
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 

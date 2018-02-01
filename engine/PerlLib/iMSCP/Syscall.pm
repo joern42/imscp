@@ -28,9 +28,7 @@ use warnings;
 no warnings qw / portable /;
 
 {
-    my $unload = sub {
-        delete @INC{qw< asm/unistd.ph asm/unistd_32.ph asm/unistd_64.ph bits/syscall.ph syscall.ph sys/syscall.ph _h2ph_pre.ph >};
-    };
+    my $unload = sub { delete @INC{qw< asm/unistd.ph asm/unistd_32.ph asm/unistd_64.ph bits/syscall.ph syscall.ph sys/syscall.ph _h2ph_pre.ph >}; };
 
     # We need to force loading in case the header files have been already loaded from elsewhere
     $unload->();

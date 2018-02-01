@@ -25,10 +25,11 @@ package iMSCP::Mount;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use Errno qw / EINVAL ENOENT /;
 use File::Spec;
 use File::stat ();
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::File;
 use iMSCP::Syscall;
 use Scalar::Defer;
@@ -180,7 +181,7 @@ sub getMounts
   - fs_mntops       : Field describing the mount options associated with the
                       filesystem
   - ignore_failures : Flag allowing to ignore mount operation failures
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -190,9 +191,7 @@ sub mount( $ )
     $fields = {} unless defined $fields && ref $fields eq 'HASH';
 
     for ( qw/ fs_spec fs_file fs_vfstype fs_mntops / ) {
-        next if defined $fields->{$_};
-        error( sprintf( "`%s' field is not defined", $_ ));
-        return 1;
+        defined $fields->{$_} or croak( sprintf( "%s field not defined", $_ ));
     }
 
     force $MOUNTS; # Force loading of mount entries if not already done
@@ -228,14 +227,12 @@ sub mount( $ )
 
     # Process the mount(2) calls
     for ( @mountArgv ) {
-        unless ( syscall( &iMSCP::Syscall::SYS_mount, @{$_} ) == 0 || $fields->{'ignore_failures'} ) {
-            error( sprintf( 'Error while executing mount(%s): %s', join( ', ', @{$_} ), $! || 'Unknown error' ));
-            return 1;
-        }
+        ( syscall( &iMSCP::Syscall::SYS_mount, @{$_} ) == 0 || $fields->{'ignore_failures'} ) or die(
+            sprintf( 'Error while executing mount(%s): %s', join( ', ', @{$_} ), $! || 'Unknown error' )
+        );
     }
 
     $MOUNTS->{$fsFile}++ unless $mflags & MS_REMOUNT;
-    0;
 }
 
 =item umount( $fsFile [, $recursive = TRUE ] )
@@ -248,7 +245,7 @@ sub mount( $ )
  Param string $fsFile Mount point of file system to umount
  Param bool $recursive OPTIONAL Flag indicating whether or not umount operation
                        must be recursive
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -256,10 +253,7 @@ sub umount( $;$ )
 {
     my ($fsFile, $recursive) = @_;
 
-    unless ( defined $fsFile ) {
-        error( '$fsFile parameter is not defined' );
-        return 1;
-    }
+    defined $fsFile or croak( '$fsFile parameter is not defined' );
 
     $recursive //= 1; # Operation is recursive by default
     $fsFile = File::Spec->canonpath( $fsFile );
@@ -271,15 +265,15 @@ sub umount( $;$ )
 
         do {
             debug( $fsFile );
-            unless ( syscall( &iMSCP::Syscall::SYS_umount2, $fsFile, MNT_DETACH ) == 0 || $!{'EINVAL'} || $!{'ENOENT'} ) {
-                error( sprintf( "Error while executing umount(%s): %s", $fsFile, $! || 'Unknown error' ));
-                return 1;
-            }
+
+            ( syscall( &iMSCP::Syscall::SYS_umount2, $fsFile, MNT_DETACH ) == 0 || $!{'EINVAL'} || $!{'ENOENT'} ) or die(
+                sprintf( "Error while executing umount(%s): %s", $fsFile, $! || 'Unknown error' )
+            );
 
             ( $MOUNTS->{$fsFile} > 1 ) ? $MOUNTS->{$fsFile}-- : delete $MOUNTS->{$fsFile};
         } while $MOUNTS->{$fsFile};
 
-        return 0;
+        return;
     }
 
     for ( reverse sort keys %{$MOUNTS} ) {
@@ -287,10 +281,10 @@ sub umount( $;$ )
 
         do {
             debug( $_ );
-            unless ( syscall( &iMSCP::Syscall::SYS_umount2, $_, MNT_DETACH ) == 0 || $!{'EINVAL'} || $!{'ENOENT'} ) {
-                error( sprintf( "Error while executing umount(%s): %s", $_, $! || 'Unknown error' ));
-                return 1;
-            }
+
+            ( syscall( &iMSCP::Syscall::SYS_umount2, $_, MNT_DETACH ) == 0 || $!{'EINVAL'} || $!{'ENOENT'} ) or die(
+                sprintf( "Error while executing umount(%s): %s", $_, $! || 'Unknown error' )
+            );
 
             ( $MOUNTS->{$_} > 1 ) ? $MOUNTS->{$_}-- : delete $MOUNTS->{$_};
         } while $MOUNTS->{$_};
@@ -305,6 +299,7 @@ sub umount( $;$ )
 
  Parameter string $fsFile Mount point
  Parameter string $flag Propagation flag as string
+ Return void, die on failure
 
 =cut
 
@@ -313,28 +308,19 @@ sub setPropagationFlag($;$)
     my ($fsFile, $pflag) = @_;
     $pflag ||= 'private';
 
-    unless ( defined $fsFile ) {
-        error( '$fsFile parameter is not defined' );
-        return 1;
-    }
+    defined $fsFile or croak( '$fsFile parameter is not defined' );
 
     $fsFile = File::Spec->canonpath( $fsFile );
 
     debug( "$fsFile $pflag" );
 
     ( undef, $pflag ) = _parseOptions( $pflag );
-    unless ( $pflag ) {
-        error( 'Invalid propagation flags' );
-        return 1;
-    }
+    $pflag or croak( 'Invalid propagation flags' );
 
     my $src = 'none';
-    unless ( syscall( &iMSCP::Syscall::SYS_mount, $src, $fsFile, 0, $pflag, 0 ) == 0 ) {
-        error( sprintf( 'Error while changing propagation flag on %s: %s', $fsFile, $! || 'Unknown error' ));
-        return 1;
-    }
-
-    0;
+    syscall( &iMSCP::Syscall::SYS_mount, $src, $fsFile, 0, $pflag, 0 ) == 0 or die(
+        sprintf( 'Error while changing propagation flag on %s: %s', $fsFile, $! || 'Unknown error' )
+    );
 }
 
 =item isMountpoint( $path )
@@ -344,18 +330,15 @@ sub setPropagationFlag($;$)
  See also mountpoint(1)
 
  Param string $path Path to test
- Return bool TRUE if $path look like a mount point, FALSE otherwise
+ Return bool TRUE if $path look like a mount point, FALSE otherwise, die on failure
 
 =cut
 
 sub isMountpoint($)
 {
-    my $path = shift;
+    my ($path) = @_;
 
-    unless ( defined $path ) {
-        error( '$path parameter is not defined' );
-        return 1;
-    }
+    defined $path or croak( '$path parameter is not defined' );
 
     $path = File::Spec->canonpath( $path );
 
@@ -372,21 +355,17 @@ sub isMountpoint($)
  Add the given mount entry in the i-MSCP fstab-like file
 
  Param string $entry Fstab-like entry to add
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub addMountEntry( $ )
 {
-    my $entry = shift;
+    my ($entry) = @_;
 
-    unless ( defined $entry ) {
-        error( '$entry parameter is not defined' );
-        return 1;
-    }
+    defined $entry or croak( '$entry parameter is not defined' );
 
-    my $rs = removeMountEntry( $entry, 0 ); # Avoid duplicate entries
-    return $rs if $rs;
+    removeMountEntry( $entry, 0 ); # Avoid duplicate entries
 
     my $fileContent = $iMSCP_FSTAB_FH->getAsRef();
     ${$fileContent} .= "$entry\n";
@@ -399,7 +378,7 @@ sub addMountEntry( $ )
 
  Param string|regexp $entry String or regexp representing Fstab-like entry to remove
  Param boolean $saveFile Flag indicating whether or not file must be saved
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -408,24 +387,12 @@ sub removeMountEntry( $;$ )
     my ($entry, $saveFile) = @_;
     $saveFile //= 1;
 
-    unless ( defined $entry ) {
-        error( '$entry parameter is not defined' );
-        return 1;
-    }
+    defined $entry or croak( '$entry parameter is not defined' );
 
-    unless ( $iMSCP_FSTAB_FH ) {
-        $iMSCP_FSTAB_FH = iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/mounts/mounts.conf" );
-    }
-
-    my $fileContent = $iMSCP_FSTAB_FH->getAsRef();
-    unless ( defined $fileContent ) {
-        error( sprintf( "Couldn't read the %s file", $iMSCP_FSTAB_FH->{'filename'} ));
-        return 1;
-    }
-
+    my $fileContent = ( $iMSCP_FSTAB_FH ||= iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/mounts/mounts.conf" ) )->getAsRef();
     $entry = quotemeta( $entry ) unless ref $entry eq 'Regexp';
     ${$fileContent} =~ s/^$entry\n//gm;
-    $saveFile ? $iMSCP_FSTAB_FH->save() : 0;
+    $iMSCP_FSTAB_FH->save() if $saveFile;
 }
 
 =back

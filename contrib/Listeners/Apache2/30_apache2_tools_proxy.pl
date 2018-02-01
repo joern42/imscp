@@ -47,7 +47,7 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($cfgTpl, $tplName, undef, $moduleData, $serverData) = @_;
 
-        return 0 unless $tplName eq 'domain.tpl' && grep( $_ eq $moduleData->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+        return unless $tplName eq 'domain.tpl' && grep( $_ eq $moduleData->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
 
         if ( $serverData->{'VHOST_TYPE'} eq 'domain' && $moduleData->{'SSL_SUPPORT'} ) {
             replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
@@ -56,7 +56,7 @@ iMSCP::EventManager->getInstance()->register(
     RedirectMatch 301 ^(/(?:ftp|pma|webmail)\/?)\$ https://$moduleData->{'DOMAIN_NAME'}\$1
     # SECTION addons END.
 EOF
-            return 0;
+            return;
         }
 
         my $cfgProxy = ( $main::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes' ) ? "    SSLProxyEngine On\n" : '';
@@ -83,7 +83,6 @@ EOF
     $cfgProxy
     # SECTION addons END.
 EOF
-        0;
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 

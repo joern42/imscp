@@ -41,13 +41,9 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($target, $tplFilename, $tplFileContent) = @_;
 
-        return 0 unless $target eq 'apt' && $tplFilename eq 'sources.list';
+        return unless $target eq 'apt' && $tplFilename eq 'sources.list';
 
-        ${$tplFileContent} = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH )->get() or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } )
-        );
-
-        0;
+        ${$tplFileContent} = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH )->get();
     }
 );
 

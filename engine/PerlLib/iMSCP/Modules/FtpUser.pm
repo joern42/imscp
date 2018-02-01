@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::FtpUser - i-MSCP FtpUser module
+ iMSCP::Modules::FtpUser - Module for processing of ftp user entities
 
 =cut
 
@@ -25,13 +25,11 @@ package iMSCP::Modules::FtpUser;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
-use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of FTP user entities
+ Module for processing of ftp user entities.
 
 =head1 PUBLIC METHODS
 
@@ -50,51 +48,88 @@ sub getEntityType
     'FtpUser';
 }
 
-=item process( $ftpUserId )
+=item add()
 
- Process module
+ Add, change or enable the ftp user
 
- Param int ftpUserId Ftp user unique identifier
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub add
 {
-    my ($self, $ftpUserId) = @_;
+    my ($self) = @_;
 
-    my $rs = $self->_loadData( $ftpUserId );
-    return $rs if $rs;
+    eval { $self->SUPER::add(); };
+    $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'ok', $self->{'userid'} );
+    $self;
+}
 
-    my @sql;
-    if ( $self->{'status'} =~ /^to(?:add|change|enable)$/ ) {
-        $rs = $self->add();
-        @sql = ( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $ftpUserId );
-    } elsif ( $self->{'status'} eq 'todisable' ) {
-        $rs = $self->disable();
-        @sql = ( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ),
-            $ftpUserId
-        );
-    } elsif ( $self->{'status'} eq 'todelete' ) {
-        $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, ( getLastError( 'error' ) || 'Unknown error' ), $ftpUserId )
-            : ( 'DELETE FROM ftp_users WHERE userid = ?', undef, $ftpUserId );
-    } else {
-        warning( sprintf( 'Unknown action (%s) for ftp user (ID %d)', $self->{'status'}, $ftpUserId ));
-        return 0;
-    }
+=item delete()
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
+ Delete the ftp user
+
+ Return self, die on failure
+
+=cut
+
+sub delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::delete(); };
     if ( $@ ) {
-        error( $@ );
-        return 1;
+        $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@, $self->{'userid'} );
+        return $self;
     }
 
-    $rs;
+    $self->{'_dbh'}->do( 'DELETE FROM ftp_users WHERE userid = ?', undef, $self->{'userid'} );
+    $self;
+}
+
+=item disable()
+
+ Disable the ftp user
+
+ Return self, die on failure
+
+=cut
+
+sub disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::disable(); };
+    $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'disabled', $self->{'userid'} );
+    $self;
+}
+
+=item handleEntity( $userid )
+
+ Handle the given ftp user entity
+
+ Param int $userid Ftp user unique identifier
+ Return self, die on failure
+
+=cut
+
+sub handleEntity
+{
+    my ($self, $userid) = @_;
+
+    $self->_loadData( $userid );
+
+    if ( $self->{'status'} =~ /^to(?:add|change|enable)$/ ) {
+        $self->add();
+    } elsif ( $self->{'status'} eq 'todisable' ) {
+        $self->disable();
+    } elsif ( $self->{'status'} eq 'todelete' ) {
+        $self->delete();
+    } else {
+        die( sprintf( 'Unknown action (%s) for ftp user (ID %d)', $self->{'status'}, $userid ));
+    }
+
+    $self;
 }
 
 =back
@@ -108,7 +143,7 @@ sub process
  Load data
 
  Param int $ftpUserId Ftp user unique identifier
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -116,18 +151,9 @@ sub _loadData
 {
     my ($self, $ftpUserId) = @_;
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ftp_users WHERE userid = ?', undef, $ftpUserId );
-        $row or croak( sprintf( 'Data not found for ftp user (ID %d)', $ftpUserId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ftp_users WHERE userid = ?', undef, $ftpUserId );
+    $row or die( sprintf( 'Data not found for ftp user (ID %d)', $ftpUserId ));
+    %{$self} = ( %{$self}, %{$row} );
 }
 
 =item _getData( $action )

@@ -41,7 +41,7 @@ use POSIX qw / tzset /;
 use sigtrap qw/ die normal-signals /;
 use parent 'iMSCP::Common::Singleton';
 
-umask 022;
+umask 0022;
 
 $ENV{'HOME'} = ( getpwuid $> )[7] or die( "Couldn't find running user homedir" );
 
@@ -58,7 +58,7 @@ $ENV{'HOME'} = ( getpwuid $> )[7] or die( "Couldn't find running user homedir" )
  Boot i-MSCP
 
  Param hashref \%options Bootstrap options
- Return iMSCP::Bootstrapper
+ Return iMSCP::Bootstrapper, die on failure
 
 =cut
 
@@ -91,9 +91,7 @@ sub boot
     $self->_genKeys() unless $options->{'nokeys'};
     $self->_setDbSettings() unless $options->{'nodatabase'};
 
-    iMSCP::EventManager->getInstance()->trigger( 'onBoot', iMSCP::Getopt->context()) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    iMSCP::EventManager->getInstance()->trigger( 'onBoot', iMSCP::Getopt->context());
     $self;
 }
 
@@ -102,7 +100,7 @@ sub boot
  Load main configuration file using given options
 
  Param hashref \%options Options for iMSCP::Config object
- Return int 0 on success, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -111,7 +109,7 @@ sub loadMainConfig
     my (undef, $options) = @_;
 
     debug( sprintf( 'Loading i-MSCP master configuration...' ));
-    
+
     untie %main::imscpConfig;
     tie %main::imscpConfig,
         'iMSCP::Config',
@@ -150,7 +148,7 @@ sub lock
  Unlock file
 
  Param string $lockFile OPTIONAL Lock file path
- Return iMSCP::Bootstrapper
+ Return self
 
 =cut
 
@@ -197,7 +195,7 @@ sub _genKeys
 
         require Data::Dumper;
 
-        local $UMASK = 027;
+        local $UMASK = 0027;
         local $Data::Dumper::Indent = 0;
 
         ( $main::imscpKEY, $main::imscpIV ) = ( randomStr( 32 ), randomStr( 16 ) );
@@ -227,7 +225,7 @@ EOF
 
  Set database connection settings
 
- Return int 0 on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -236,12 +234,11 @@ sub _setDbSettings
     my $db = iMSCP::Database->getInstance();
     $db->set( $_, $main::imscpConfig{$_} ) for qw/ DATABASE_HOST DATABASE_PORT DATABASE_NAME DATABASE_USER /;
     $db->set( 'DATABASE_PASSWORD', decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, $main::imscpConfig{'DATABASE_PASSWORD'} ));
-    0;
 }
 
 =item END
 
- Process ending tasks (Release lock on files)
+ Process shutdwon tasks
 
 =cut
 

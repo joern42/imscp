@@ -65,7 +65,7 @@ sub getPriority
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::IpAddr module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -87,7 +87,7 @@ sub addIpAddr
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::IpAddr module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -109,7 +109,7 @@ sub deleteIpAddr
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -131,7 +131,7 @@ sub addUser
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 

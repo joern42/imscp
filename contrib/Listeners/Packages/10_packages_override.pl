@@ -39,7 +39,6 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($pkgFile) = @_;
         ${$pkgFile} = $DISTRO_PACKAGES_FILE;
-        0;
     }
 );
 

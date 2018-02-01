@@ -44,7 +44,7 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($cfgTpl, $tplName, undef, undef, $serverData) = @_;
 
-        return 0 unless $tplName eq 'domain.tpl' && grep( $_ eq $serverData->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+        return unless $tplName eq 'domain.tpl' && grep( $_ eq $serverData->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
 
         $serverData->{'CONTENT_SECURITY_POLICY_HEADER_PREFIX'} = $serverData->{'VHOST_TYPE'} eq 'domain' ? 'http' : 'https';
 
@@ -60,7 +60,6 @@ iMSCP::EventManager->getInstance()->register(
     </IfModule>
     # SECTION addons END.
 EOF
-        0;
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 

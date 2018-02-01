@@ -62,7 +62,7 @@ sub getAddresses
  Param string $cidr CIDR (subnet mask)
  Param string $dev Network device name
  Param string $label OPTIONAL address label string (preserve compatibility with Linux-2.0 net aliases)
- Return int 0 on success, croak/die on failure
+ Return self, die on failure
 
 =cut
 
@@ -74,7 +74,7 @@ sub addAddr
     $self->isValidNetmask( $addr, $cidr ) or croak( sprintf( 'Invalid CIDR (subnet mask): %s', $cidr ));
     $self->isKnownDevice( $dev ) or croak( sprintf( 'Unknown network device: %s', $dev ));
 
-    return 0 if $self->isKnownAddr( $addr );
+    return $self if $self->isKnownAddr( $addr );
 
     my ($stdout, $stderr);
     my @cmd = ( 'ip', ( ( $self->getAddrVersion( $addr ) eq 'ipv4' ) ? '-4' : '-6' ), 'addr', 'add', "$addr/$cidr", 'dev', $dev );
@@ -86,7 +86,7 @@ sub addAddr
         prefix_length => $cidr,
         version       => $self->getAddrVersion( $addr )
     };
-    0;
+    $self;
 }
 
 =item delAddr( $addr )
@@ -94,7 +94,7 @@ sub addAddr
  Delete the given IP
 
  Param string $addr IP address
- Return int 0 on success, croak/die on failure
+ Return self, die on failure
 
 =cut
 
@@ -104,7 +104,7 @@ sub delAddr
 
     $addr = $self->normalizeAddr( $addr );
 
-    return 0 unless $self->isKnownAddr( $addr );
+    return $self unless $self->isKnownAddr( $addr );
 
     my $dev = $self->{'addresses'}->{$addr}->{'device'};
     my $cidr = $self->{'addresses'}->{$addr}->{'prefix_length'};
@@ -113,7 +113,7 @@ sub delAddr
         sprintf( "Couldn't delete the %s IP address: %s", $addr, $stderr || 'Unknown error' )
     );
     delete $self->{'addresses'}->{$addr};
-    0;
+    $self
 }
 
 =item getAddrVersion( $addr )
@@ -121,7 +121,7 @@ sub delAddr
  Get version of the given IP (ipv4|ipv6)
 
  Param string $addr IP address
- Return string IP version, croak in case the given IP is invalid
+ Return string IP version, croak fir the given IP address is invalid
 
 =cut
 
@@ -139,7 +139,7 @@ sub getAddrVersion
  Get type of the given IP (PUBLIC, PRIVATE, RESERVED...)
 
  Param string $addr IP address
- Return string IP type, croak in case the given IP is invalid
+ Return string IP type, croak if the given IP address is invalid
 
 =cut
 
@@ -158,7 +158,7 @@ sub getAddrType
  Return the network device name to which the given IP belong to
 
  Param string $addr IP address
- Return string Network device name, croak if the given IP is either invalid or not known by this module
+ Return string Network device name, croak if the given IP address is either invalid or not known by this module
 
 =cut
 
@@ -175,7 +175,7 @@ sub getAddrDevice
  Return the addr label
 
  Param string $addr IP address
- Return string Addr label, croak if the given IP is either invalid or not known by this module
+ Return string Addr label, croak if the given IP address is either invalid or not known by this module
 
 =cut
 
@@ -192,7 +192,7 @@ sub getAddrLabel
  Return the addr netmask
 
  Param string $addr IP address
- Return string Addr netmask, croak if the given IP is either invalid or not known by this module
+ Return string Addr netmask, croak if the given IP address is either invalid or not known by this module
 
 =cut
 
@@ -209,7 +209,7 @@ sub getAddrNetmask
  Is the given IP address known?
 
  Param string $addr IP address
- Return bool TRUE if the given IP is known, FALSE otherwise
+ Return bool TRUE if the given IP address is known, FALSE otherwise
 
 =cut
 
@@ -225,7 +225,7 @@ sub isKnownAddr
  Is the given IP address valid?
 
  Param string $addr IP address
- Return bool TRUE if valid, FALSE otherwise
+ Return bool TRUE if the given IP address is valid, FALSE otherwise
 
 =cut
 
@@ -258,7 +258,7 @@ sub isRoutableAddr
 
  Param string $addr IP address
  Param string $cidr CIDR (subnet mask)
- Return bool TRUE if valid, FALSE otherwise
+ Return bool TRUE if the given netmask for the given IP address is valid, FALSE otherwise
 
 =cut
 
@@ -279,7 +279,7 @@ sub isValidNetmask
  Normalize the given IP
 
  Param string $addr IP address
- Return string Normalized IP on success, croak/die on failure
+ Return string Normalized IP address, die on failure
 
 =cut
 
@@ -288,7 +288,9 @@ sub normalizeAddr
     my ($self, $addr) = @_;
 
     $self->isValidAddr( $addr ) or croak( sprintf( 'Invalid IP address: %s', $addr ));
+
     return $addr unless $self->getAddrVersion( $addr ) eq 'ipv6';
+
     ip_compress_address( $addr, 6 ) or die( sprintf( "Couldn't normalize the %s IP address", $addr ));
 }
 
@@ -297,7 +299,7 @@ sub normalizeAddr
  Expand the given IP
 
  Param string $addr IP address
- Return string Expanded IP on success, croak/die on failure
+ Return string Expanded IP address, die on failure
 
 =cut
 
@@ -306,7 +308,9 @@ sub expandAddr
     my ($self, $addr) = @_;
 
     $self->isValidAddr( $addr ) or croak( sprintf( 'Invalid IP address: %s', $addr ));
+
     return $addr unless $self->getAddrVersion( $addr ) eq 'ipv6';
+
     ip_expand_address( $addr, 6 ) or die( sprintf( "Couldn't expand the %s IP address", $addr ));
 }
 
@@ -346,7 +350,7 @@ sub isKnownDevice
  Bring the given network device up
 
  Param string $dev Network device name
- Return int 0 on success, croak/die on failure
+ Return self, die on failure
 
 =cut
 
@@ -359,7 +363,7 @@ sub upDevice
     execute( "ip link set dev $dev up", \$stdout, \$stderr ) == 0 or die(
         sprintf( "Couldn't bring the %s network device up: %s", $dev, $stderr || 'Unknown error' )
     );
-    0;
+    $self
 }
 
 =item downDevice( $dev )
@@ -367,7 +371,7 @@ sub upDevice
  Bring the given network device down
 
  Param string $dev Network device name
- Return int 0 on success, croak/die on failure
+ Return self, die on failure
 
 =cut
 
@@ -380,7 +384,7 @@ sub downDevice
     execute( "ip link set dev $dev down", \$stdout, \$stderr ) == 0 or die(
         sprintf( "Couldn't bring the %s network device down: %s", $dev, $stderr || 'Unknown error' )
     );
-    0;
+    $self
 }
 
 =item isDeviceUp( $dev )
@@ -419,7 +423,7 @@ sub isDeviceDown
 
  Reset instance
 
- Return iMSCP::Net, croak on failure
+ Return self, die on failure
 
 =cut
 

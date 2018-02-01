@@ -48,15 +48,13 @@ iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
-        my $rs = $mta->addMapEntry( $postfixSenderCanoncial );
-        $rs ||= $mta->postconf(
-            (
-                sender_canonical_maps => {
-                    action => 'add',
-                    values => [ "hash:$postfixSenderCanoncial" ]
-                }
-            )
-        );
+        $mta->addMapEntry( $postfixSenderCanoncial );
+        $mta->postconf( (
+            sender_canonical_maps => {
+                action => 'add',
+                values => [ "hash:$postfixSenderCanoncial" ]
+            }
+        ));
     },
     -99
 ) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;

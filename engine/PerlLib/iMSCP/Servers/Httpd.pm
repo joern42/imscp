@@ -65,7 +65,7 @@ sub getPriority
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -87,7 +87,7 @@ sub addUser
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -109,7 +109,7 @@ sub deleteUser
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -131,7 +131,7 @@ sub addDomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -153,7 +153,7 @@ sub restoreDomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -175,7 +175,7 @@ sub disableDomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -197,7 +197,7 @@ sub deleteDomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -219,7 +219,7 @@ sub addSubdomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -241,7 +241,7 @@ sub restoreSubdomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -263,7 +263,7 @@ sub disableSubdomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -285,7 +285,7 @@ sub deleteSubdomain
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htpasswd module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -307,7 +307,7 @@ sub addHtpasswd
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htpasswd module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -329,7 +329,7 @@ sub deleteHtpasswd
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htgroup module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -351,7 +351,7 @@ sub addHtgroup
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htgroup module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -373,7 +373,7 @@ sub deleteHtgroup
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htaccess module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -395,7 +395,7 @@ sub addHtaccess
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htaccess module
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -457,7 +457,7 @@ sub getRunningGroup
  Enable the given sites
  
  Param list @sites List of sites to enable
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -475,7 +475,7 @@ sub enableSites
  If a site doesn't exist, no error *MUST* be raised.
 
  Param list @sites List of sites to disable
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -493,7 +493,7 @@ sub disableSites
  If a site doesn't exist, no error *MUST* be raised.
 
  Param list @sites List of sites to remove
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -509,7 +509,7 @@ sub removeSites
  Enable the given configurations
  
  Param list @confs List of configurations to enable
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -527,7 +527,7 @@ sub enableConfs
  If a configuration doesn't exist, no error *MUST* be raised.
 
  Param list @confs List of configurations to disable
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -545,7 +545,7 @@ sub disableConfs
  If a configuration doesn't exist, no error *MUST* be raised.
 
  Param list @confs List of configurations to remove
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -563,7 +563,7 @@ sub removeConfs
  Any dependency module *SHOULD* be also enabled.
  
  Param list @mods List of modules to enable
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -581,7 +581,7 @@ sub enableModules
  If a module doesn't exist, no error *MUST* be raised.
  
  Param list @mods List of modules to disable
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -600,7 +600,7 @@ sub disableModules
  Any depending module *SHOULD* be pre-disabled.
 
  Param list @mods List of modules to remove
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 

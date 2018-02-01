@@ -25,7 +25,8 @@ package iMSCP::SystemUser;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ debug error /;
+use Carp qw/ croak /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Ext2Attributes qw/ clearImmutable isImmutable setImmutable /;
 use parent 'iMSCP::Common::Object';
@@ -44,29 +45,20 @@ use parent 'iMSCP::Common::Object';
 
  Param string $username Username
  Param string $username $newGroupname New group name of the user's initial login group (user update only)
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
 sub addSystemUser
 {
     my ($self, $username, $newGroupname ) = @_;
-
     $username //= $self->{'username'};
     my $oldUsername = $self->{'username'} // $username;
 
-    unless ( defined $username ) {
-        error( 'Missing $username parameter' );
-        return 1;
-    }
-
-    if ( $username eq $main::imscpConfig{'ROOT_USER'} ) {
-        error( sprintf( '%s user is prohibited', $main::imscpConfig{'ROOT_USER'} ));
-        return 1;
-    }
+    defined $username or croak( 'Missing $username parameter' );
+    $username ne $main::imscpConfig{'ROOT_USER'} or croak( sprintf( '%s user is prohibited', $main::imscpConfig{'ROOT_USER'} ));
 
     $self->{'username'} = $username;
-
     my $home = $self->{'home'} // "$main::imscpConfig{'USER_WEB_DIR'}/$username";
     my $isImmutableHome = -d $home && isImmutable( $home );
 
@@ -84,9 +76,7 @@ sub addSystemUser
                     '-c', $self->{'comment'} // 'i-MSCP user',
                     '-d', $home,
                     ( $self->{'skipCreateHome'} ? () : '-m' ),
-                    ( $self->{'system'} || $self->{'skipCreateHome'}
-                        ? () : ( '-k', $self->{'skeletonPath'} // '/etc/skel' )
-                    ),
+                    ( $self->{'system'} || $self->{'skipCreateHome'} ? () : ( '-k', $self->{'skeletonPath'} // '/etc/skel' ) ),
                     ( $self->{'skipGroup'} || defined $self->{'group'} ? () : '-U' ),
                     ( !$self->{'skipGroup'} && defined $self->{'group'} ? ( '-g', $self->{'group'} ) : () ),
                     ( $self->{'system'} ? '-r' : () ),
@@ -96,10 +86,7 @@ sub addSystemUser
                 [ 0, 12 ]
             ];
     } else {
-        if ( $userProps[2] == 0 ) {
-            error( sprintf( '%s user modification is prohibited', $main::imscpConfig{'ROOT_USER'} ));
-            return 1;
-        }
+        $userProps[2] != 0 or croak( sprintf( '%s user modification is prohibited', $main::imscpConfig{'ROOT_USER'} ));
 
         # If we attempt to modify user' login or home, we must ensure
         # that there is no process running for the user
@@ -112,11 +99,9 @@ sub addSystemUser
         my $usermodCmd = [
             'usermod',
             ( defined $self->{'password'} ? ( '-p', $self->{'password'} ) : () ),
-            ( defined $self->{'comment'} && $self->{'comment'} ne $userProps[6]
-                ? ( '-c', $self->{'comment'} // 'iMSCP user' ) : () ),
+            ( defined $self->{'comment'} && $self->{'comment'} ne $userProps[6] ? ( '-c', $self->{'comment'} // 'iMSCP user' ) : () ),
             ( defined $self->{'group'} && ( ( $self->{'group'} =~ /^(\d+)$/ && $1 != $userProps[3] )
-                    || getgrnam( $self->{'group'} ) ne $userProps[3] )
-                ? ( '-g', $self->{'group'} ) : () ),
+                    || getgrnam( $self->{'group'} ) ne $userProps[3] ) ? ( '-g', $self->{'group'} ) : () ),
             ( defined $self->{'home'} && $self->{'home'} ne $userProps[7]
                 ? ( '-d', $self->{'home'} // "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'username'}", '-m' ) : () ),
             ( defined $self->{'shell'} && $self->{'shell'} ne $userProps[8] ? ( '-s', $self->{'shell'} ) : () ),
@@ -130,21 +115,17 @@ sub addSystemUser
     for ( @commands ) {
         my $rs = execute( $_->[0], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        unless ( grep($_ == $rs, @{$_->[1]}) ) {
-            error( $stderr || 'Unknown error' );
-            return $rs;
-        }
+        grep($_ == $rs, @{$_->[1]}) or die( $stderr || 'Unknown error' );
     }
 
     if ( @userProps && $oldUsername ne $username && defined $newGroupname ) {
         my $rs = execute( [ 'groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        error( $stderr || 'Unknown error' ) if $rs;
-        return $rs if $rs && $rs;
+        !$rs or die( $stderr || 'Unknown error' );
     }
 
     setImmutable( $home ) if $isImmutableHome;
-    0;
+    $self;
 }
 
 =item delSystemUser( [ $username = $self->{'username'} ] )
@@ -152,7 +133,7 @@ sub addSystemUser
  Delete UNIX user
 
  Param string $username Username
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
@@ -161,19 +142,12 @@ sub delSystemUser
     my ($self, $username) = @_;
     $username //= $self->{'username'};
 
-    unless ( defined $username ) {
-        error( '$username parameter is not defined' );
-        return 1;
-    }
-
-    if ( $username eq $main::imscpConfig{'ROOT_USER'} ) {
-        error( sprintf( '%s user deletion is prohibited', $main::imscpConfig{'ROOT_USER'} ));
-        return 1;
-    }
+    defined $username or croak( '$username parameter is not defined' );
+    $username ne $main::imscpConfig{'ROOT_USER'} or croak( sprintf( '%s user deletion is prohibited', $main::imscpConfig{'ROOT_USER'} ));
 
     $self->{'username'} = $username;
 
-    return 0 unless my @userProps = getpwnam( $username );
+    return $self unless my @userProps = getpwnam( $username );
 
     clearImmutable( $userProps[7] ) if -d $userProps[7] && isImmutable( $userProps[7] );
 
@@ -201,13 +175,10 @@ sub delSystemUser
     for ( @commands ) {
         my $rs = execute( $_->[0], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        unless ( grep($_ == $rs, @{$_->[1]}) ) {
-            error( $stderr || 'Unknown error' );
-            return $rs;
-        }
+        grep( $_ == $rs, @{$_->[1]} ) or die( $stderr || 'Unknown error' );
     }
 
-    0;
+    $self;
 }
 
 =item addToGroup( [ $groupname = $self->{'groupname'} [, $username = $self->{'username'} ] ] )
@@ -216,39 +187,28 @@ sub delSystemUser
 
  Param string $groupname Group name
  Param string $username Username
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
 sub addToGroup
 {
     my ($self, $groupname, $username) = @_;
-
     $groupname //= $self->{'groupname'};
     $username //= $self->{'username'};
 
-    unless ( defined $groupname ) {
-        error( 'Missing $groupname parameter' );
-        return 1;
-    }
-    unless ( defined $username ) {
-        error( 'Missing $username parameter' );
-        return 1;
-    }
+    defined $groupname or croak( 'Missing $groupname parameter' );
+    defined $username or croak( 'Missing $username parameter' );
 
     $self->{'groupname'} = $groupname;
     $self->{'username'} = $username;
 
-    unless ( getgrnam( $groupname ) && getpwnam( $username ) ) {
-        error( 'Invalid group or username' );
-        return 1;
-    }
+    getgrnam( $groupname ) && getpwnam( $username ) or croak( 'Invalid group or username' );
 
     my $rs = execute( [ 'gpasswd', '-a', $username, $groupname ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs && $rs != 3;
-    return $rs if $rs && $rs != 3;
-    0;
+    !$rs || $rs == 3 or die( $stderr || 'Unknown error' );
+    $self;
 }
 
 =item removeFromGroup( [ $groupname = $self->{'groupname'} [, $username = $self->{'username'} ] ] )
@@ -257,7 +217,7 @@ sub addToGroup
 
  Param string $groupname Group name
  Param string $username Username
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
@@ -267,25 +227,18 @@ sub removeFromGroup
     $groupname //= $self->{'groupname'};
     $username //= $self->{'username'};
 
-    unless ( defined $groupname ) {
-        error( 'Missing $groupname parameter' );
-        return 1;
-    }
-    unless ( defined $username ) {
-        error( 'Missing $username parameter' );
-        return 1;
-    }
+    defined $groupname or croak( 'Missing $groupname parameter' );
+    defined $username or croak( 'Missing $username parameter' );
 
     $self->{'groupname'} = $groupname;
     $self->{'username'} = $username;
 
-    return 0 unless getpwnam( $username ) && getgrnam( $groupname );
+    return $self unless getpwnam( $username ) && getgrnam( $groupname );
 
     my $rs = execute( [ 'gpasswd', '-d', $username, $groupname ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs && $rs != 3;
-    return $rs if $rs && $rs != 3;
-    0;
+    !$rs || $rs == 3 or die( $stderr || 'Unknown error' );
+    $self;
 }
 
 =back

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::Alias - i-MSCP domain alias module
+ iMSCP::Modules::Alias - Module for processing of domain alias entities
 
 =cut
 # i-MSCP - internet Multi Server Control Panel
@@ -24,14 +24,12 @@ package iMSCP::Modules::Alias;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Spec;
-use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of domain alias entities
+ Module for processing of domain alias entities.
 
 =head1 PUBLIC METHODS
 
@@ -50,60 +48,107 @@ sub getEntityType
     'Domain';
 }
 
-=item process( $aliasId )
+=item add()
 
- Process the given domain alias entity
+ Add, change or enable the domain alias
 
- Param int $aliasId Domain alias unique identifier
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub add
+{
+    my ($self) = @_;
+    eval { $self->SUPER::add(); };
+    $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'ok', $self->{'alias_id'} );
+    $self;
+}
+
+=item delete()
+
+ Delete the domain alias
+
+ Return self, die on failure
+
+=cut
+
+sub delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@, $self->{'alias_id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'alias_id'} );
+    $self;
+
+}
+
+=item disable()
+
+ Disable the domain alias
+
+ Return $self, die on failure
+
+=cut
+
+sub disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::disable(); };
+    $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'disabled', $self->{'alias_id'} );
+    $self;
+}
+
+=item restore()
+
+ Restore the domain alias
+
+ Return self, die on failure
+
+=cut
+
+sub restore
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::restore(); };
+    $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'ok', $self->{'alias_id'} );
+    $self;
+}
+
+=item handleEntity( $aliasId )
+
+ handle the given domain alias entity
+
+ Param int $aliasId Domain alias unique identifier
+ Return self, die on failure
+
+=cut
+
+sub handleEntity
 {
     my ($self, $aliasId) = @_;
 
-    my $rs = $self->_loadData( $aliasId );
-    return $rs if $rs;
+    $self->_loadData( $aliasId );
 
-    my @sql;
     if ( $self->{'alias_status'} =~ /^to(?:add|change|enable)$/ ) {
-        $rs = $self->add();
-        @sql = ( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $aliasId
-        );
+        $self->add();
     } elsif ( $self->{'alias_status'} eq 'todelete' ) {
-        $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, ( getLastError( 'error' ) || 'Unknown error' ), $aliasId )
-            : ( 'DELETE FROM domain_aliasses WHERE alias_id = ?', undef, $aliasId );
+        $self->delete();
     } elsif ( $self->{'alias_status'} eq 'todisable' ) {
-        $rs = $self->disable();
-        @sql = (
-            'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $aliasId
-        );
+        $self->disable();
     } elsif ( $self->{'alias_status'} eq 'torestore' ) {
-        $rs = $self->restore();
-        @sql = (
-            'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $aliasId
-        );
+        $self->restore();
     } else {
-        warning( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'alias_status'}, $aliasId ));
-        return 0;
+        die( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'alias_status'}, $aliasId ));
     }
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $rs;
+    $self;
 }
 
 =back
@@ -117,7 +162,7 @@ sub process
  Load data
 
  Param int $aliasId Domain Alias unique identifier
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -125,40 +170,31 @@ sub _loadData
 {
     my ($self, $aliasId) = @_;
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref(
-            "
-                SELECT t1.*,
-                    t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php,
-                    t2.domain_cgi, t2.web_folder_protection, t2.phpini_perm_config_level AS php_config_level,
-                    IFNULL(t3.ip_number, '0.0.0.0') AS ip_number,
-                    t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
-                    t4.hsts_include_subdomains,
-                    t5.mail_on_domain
-                FROM domain_aliasses AS t1
-                JOIN domain AS t2 ON (t2.domain_id = t1.domain_id)
-                LEFT JOIN server_ips AS t3 ON (t3.ip_id = t1.alias_ip_id)
-                LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.alias_id AND t4.domain_type = 'als' AND t4.status = 'ok')
-                LEFT JOIN(
-                    SELECT sub_id, COUNT(sub_id) AS mail_on_domain
-                    FROM mail_users
-                    WHERE mail_type LIKE 'alias\\_%'
-                    GROUP BY sub_id
-                ) AS t5 ON (t5.sub_id = t1.alias_id)
-                WHERE t1.alias_id = ?
-            ",
-            undef, $aliasId
-        );
-        $row or croak( sprintf( 'Data not found for domain alias (ID %d)', $aliasId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $row = $self->{'_dbh'}->selectrow_hashref(
+        "
+            SELECT t1.*,
+                t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php,
+                t2.domain_cgi, t2.web_folder_protection, t2.phpini_perm_config_level AS php_config_level,
+                IFNULL(t3.ip_number, '0.0.0.0') AS ip_number,
+                t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
+                t4.hsts_include_subdomains,
+                t5.mail_on_domain
+            FROM domain_aliasses AS t1
+            JOIN domain AS t2 ON (t2.domain_id = t1.domain_id)
+            LEFT JOIN server_ips AS t3 ON (t3.ip_id = t1.alias_ip_id)
+            LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.alias_id AND t4.domain_type = 'als' AND t4.status = 'ok')
+            LEFT JOIN(
+                SELECT sub_id, COUNT(sub_id) AS mail_on_domain
+                FROM mail_users
+                WHERE mail_type LIKE 'alias\\_%'
+                GROUP BY sub_id
+            ) AS t5 ON (t5.sub_id = t1.alias_id)
+            WHERE t1.alias_id = ?
+        ",
+        undef, $aliasId
+    );
+    $row or die( sprintf( 'Data not found for domain alias (ID %d)', $aliasId ));
+    %{$self} = ( %{$self}, %{$row} );
 }
 
 =item _getData( $action )
@@ -166,7 +202,7 @@ sub _loadData
  Data provider method for servers and packages
 
  Param string $action Action
- Return hashref Reference to a hash containing data, croak on failure
+ Return hashref Reference to a hash containing data, die on failure
 
 =cut
 
@@ -184,7 +220,6 @@ sub _getData
 
     if ( $self->{'certificate'} && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'alias_name'}.pem" ) {
         $ssl = 1;
-
         if ( $self->{'allow_hsts'} eq 'on' ) {
             $hstsMaxAge = $self->{'hsts_max_age'} || 0;
             $hstsIncSub = $self->{'hsts_include_subdomains'} eq 'on' ? '; includeSubDomains' : '';
@@ -192,7 +227,6 @@ sub _getData
     }
 
     if ( $self->{'domain_php'} eq 'yes' ) {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
         $phpini = $self->{'_dbh'}->selectrow_hashref(
             'SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?',
             undef,
@@ -252,17 +286,15 @@ sub _getData
 
 =item _sharedMountPoint( )
 
- Does this domain alias share mount point with another domain?
+ Is the domain alias sharing a mount point with another domain?
 
- Return bool, croak on failure
+ Return bool TRUE if the domain alias share a mount point with another domain, FALSE otherwise, die on failure
 
 =cut
 
 sub _sharedMountPoint
 {
     my ($self) = @_;
-
-    local $self->{'_dbh'}->{'RaiseError'} = 1;
 
     my $regexp = "^$self->{'alias_mount'}(/.*|\$)";
     my ($nbSharedMountPoints) = $self->{'_dbh'}->selectrow_array(
@@ -289,7 +321,6 @@ sub _sharedMountPoint
         ",
         undef, $self->{'alias_id'}, $self->{'domain_id'}, $regexp, $self->{'domain_id'}, $regexp, $self->{'domain_id'}, $regexp
     );
-
     $nbSharedMountPoints || $self->{'alias_mount'} eq '/';
 }
 

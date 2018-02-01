@@ -110,7 +110,7 @@ sub _init
 
     $self->{'programs'} = {
         # We only check the PHP version that is required for the i-MSCP frontEnd
-        'php' => {
+        php  => {
             version_command => "%s -nv 2> /dev/null",
             version_regexp  => qr/PHP\s+([\d.]+)/,
             min_version     => '5.6.0',
@@ -122,14 +122,14 @@ sub _init
                 'Reflection', 'session', 'SimpleXML', 'sockets', 'SPL', 'xml', 'xmlreader', 'xmlwriter', 'zip', 'zlib', 'Zend OPcache'
             ]
         },
-        perl     => {
+        perl => {
             version_command => "%s -V:version 2> /dev/null",
             version_regexp  => qr/version='([\d.]+)'/,
             min_version     => '5.18.2',
             max_version     => '5.999', # Arbitrary minor version is intentional. We only want reject Perl >= 6
             modules         => {
                 'Array::Utils'               => 0.5,
-                #                autouse                      => undef, # Core module
+                autouse                      => 1.07, # Core module
                 'Bit::Vector'                => 7.3,
                 'Capture::Tiny'              => 0.24,
                 'Class::Autouse'             => 2.01,
@@ -138,54 +138,54 @@ sub _init
                 'Crypt::Eksblowfish::Bcrypt' => 0.009,
                 'Data::Clone'                => 0.004,
                 'Data::Compare'              => 1.22,
-                #                'Data::Dumper'               => undef, # Core module
+                'Data::Dumper'               => 2.145, # Core module
                 'Data::Validate::Domain'     => 0.10,
                 'Data::Validate::IP'         => 0.22,
                 'Date::Parse'                => 2.3000,
                 DateTime                     => 1.06,
                 DBI                          => 1.630,
                 'DBD::mysql'                 => 4.025,
-                #                'Digest::SHA'                => undef, # Core module
-                #                'Digest::MD5'                => undef, # Core module
+                'Digest::SHA'                => 5.84_01, # Core module
+                'Digest::MD5'                => 2.52, # Core module
                 'Email::Valid'               => 1.192,
-                #                Encode                       => undef, # Core module
-                #                Errno                        => undef, # Core module
-                #                Fcntl                        => undef, # Core module
-                #                'File::Basename'             => undef, # Core module
+                Encode                       => 2.49, # Core module
+                Errno                        => 1.18, # Core module
+                Fcntl                        => 1.11, # Core module
+                'File::Basename'             => 2.84, # Core module
                 'File::chmod'                => 0.40,
-                #                'File::Copy'                 => undef, # Core module
-                #                'File::Find'                 => undef, # Core module
+                'File::Copy'                 => 2.26, # Core module
+                'File::Find'                 => 1.23, # Core module
                 'File::HomeDir'              => 1.00,
-                #                'File::Path'                 => undef, # Core module
-                #                'File::Spec'                 => undef, # Core module
-                #                'File::stat'                 => undef, # Core module
-                #                'File::Temp'                 => undef, # Core module
-                #                FindBin                      => undef, # Core module
-                #                'Getopt::Long'               => undef, # Core module
+                'File::Path'                 => 2.09, # Core module
+                'File::Spec'                 => 3.40, # Core module
+                'File::stat'                 => 1.07, # Core module
+                'File::Temp'                 => 0.23, # Core module
+                FindBin                      => 1.51, # Core module
+                'Getopt::Long'               => 2.39, # Core module
                 'Hash::Merge'                => 0.200,
-                #                'IO::Select'                 => undef, # Core module
-                #                'IPC::Open3'                 => undef, # Core module
+                'IO::Select'                 => 1.21, # Core module
+                'IPC::Open3'                 => 1.13, # Core module
                 JSON                         => 2.61,
                 'JSON::XS'                   => 2.340,
                 Lchown                       => 1.01,
-                #                'List::Util'                 => undef, # Core module
+                'List::Util'                 => 1.27, # Core module
                 'LWP::Simple'                => 6.00,
                 'Mail::Address'              => 2.12,
-                #                'MIME::Base64'               => undef, # Core module
+                'MIME::Base64'               => 3.13, # Core module
                 'MIME::Entity'               => 5.505,
                 'MIME::Parser'               => 5.505,
                 'Net::IP'                    => 1.26,
                 'Net::LibIDN'                => 0.12,
-                #                'Params::Check'              => undef, # Core module
-                #                POSIX                        => undef, # Core module
-                #                'Scalar::Util'               => undef, # Core module
+                'Params::Check'              => 0.36, # Core module
+                POSIX                        => 1.32, # Core module
+                'Scalar::Util'               => 1.27, # Core module
                 'Scalar::Defer'              => 0.23,
                 'Sort::Naturally'            => 1.02,
-                #                Symbol                       => undef, # Core module
-                #                'Text::Wrap'                 => undef, # Core module
-                #                'Text::Balanced'             => undef, # Core module
-                #                'Tie::File'                  => undef, # Core module
-                #                version                      => undef, # Core module
+                Symbol                       => 1.07, # Core module
+                'Text::Wrap'                 => 2012.0818, # Core module
+                'Text::Balanced'             => 2.02, # Core module
+                'Tie::File'                  => 0.99, # Core module
+                version                      => 0.9902, # Core module
                 'XML::Simple'                => 2.20
             }
         }
@@ -207,7 +207,7 @@ sub _checkPrograms
 
     for ( keys %{$self->{'programs'}} ) {
         $self->{'programs'}->{$_}->{'command_path'} = iMSCP::ProgramFinder::find( $_ ) or die(
-            sprintf( "Couldn't find the `%s' command in search path", $_ )
+            sprintf( "Couldn't find %s executable in \$PATH", $_ )
         );
 
         next unless $self->{'programs'}->{$_}->{'version_command'};
@@ -282,7 +282,7 @@ sub _checkPhpModules
     return undef unless @missingModules;
 
     @missingModules < 2 or die( sprintf( "The following PHP modules are not installed or not enabled: %s\n", join ', ', @missingModules ));
-    die( sprintf( "The `%s' PHP module is not installed or not enabled.\n", pop @missingModules ));
+    die( sprintf( "The PHP module %s is not installed or not enabled.\n", pop @missingModules ));
 }
 
 =item _checkPerlModules( [ \%modules = $self->{'programs'}->{'perl'}->{'modules'} ])

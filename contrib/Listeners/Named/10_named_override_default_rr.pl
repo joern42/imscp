@@ -39,16 +39,15 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 );
 
 if ( index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1 ) {
-
-    # Listener that is responsible to replace following default DNS records:
-    # - @   IN {IP_TYPE} {DOMAIN_IP}
-    # - www IN CNAME     @
     iMSCP::EventManager->getInstance()->register(
         'beforeBindAddCustomDNS',
+        # Listener that is responsible to replace following default DNS records:
+        # - @   IN {IP_TYPE} {DOMAIN_IP}
+        # - www IN CNAME     @
         sub {
             my ($wrkDbFileContent, $data) = @_;
 
-            return 0 unless @{$data->{'DNS_RECORDS'}};
+            return unless @{$data->{'DNS_RECORDS'}};
 
             my $domainIP = iMSCP::Net->getInstance()->isRoutableAddr( $data->{'DOMAIN_IP'} )
                 ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
@@ -75,16 +74,12 @@ if ( index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1 ) {
                         //gmx;
                 }
             }
-
-            0;
         }
-    );
-
-    # Listener that is responsible to re-add the default DNS records when needed.
-    # i-MSCP Bind9 server impl. will not do it unless the domain is being fully
-    # reconfigured
-    iMSCP::EventManager->getInstance()->register(
+    )->register(
         'afterBindAddCustomDNS',
+        # Listener that is responsible to re-add the default DNS records when needed.
+        # i-MSCP Bind9 server impl. will not do it unless the domain is being fully
+        # reconfigured
         sub {
             my ($wrkDbFileContent, $data) = @_;
 
@@ -101,8 +96,6 @@ if ( index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1 ) {
             if ( ${$wrkDbFileContent} !~ /^www\Q.$data->{'DOMAIN_NAME'}.\E(?:\s+\d+)?\s+IN\s+CNAME\s+/m ) {
                 ${$wrkDbFileContent} .= "www.$data->{'DOMAIN_NAME'}.\t\tIN\tCNAME\t$data->{'DOMAIN_NAME'}.\n";
             }
-
-            0;
         }
     );
 }

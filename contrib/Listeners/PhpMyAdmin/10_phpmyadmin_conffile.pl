@@ -44,10 +44,9 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($pkgName, $tplName, $tplContent) = @_;
 
-        return 0 unless $pkgName eq 'phpmyadmin' && $tplName eq 'imscp.config.inc.php' && -f $tplFilePath;
+        return unless $pkgName eq 'phpmyadmin' && $tplName eq 'imscp.config.inc.php' && -f $tplFilePath;
 
         ${$tplContent} = iMSCP::File->new( filename => $tplFilePath )->get();
-        0;
     }
 );
 

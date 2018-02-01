@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::Plugin - i-MSCP Plugin module
+ iMSCP::Modules::Plugin - Module for processing of i-MSCP plugins
 
 =cut
 
@@ -25,10 +25,9 @@ package iMSCP::Modules::Plugin;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use Hash::Merge qw/ merge /;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::Plugins;
@@ -54,16 +53,16 @@ use parent 'iMSCP::Common::Object';
 
 =over 4
 
-=item process( $pluginId )
+=item handleEntity( $pluginId )
 
- Load plugin data and execute action according its current state
+ Handle the given plugin entity
 
  Param int Plugin unique identifier
- Return int 0 on success, croak on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub handleEntity
 {
     my ($self, $pluginId) = @_;
 
@@ -80,16 +79,14 @@ sub process
             $self->{'pluginAction'} = $1;
             $method = '_' . $self->{'pluginAction'};
         } else {
-            croak( sprintf( 'Unknown plugin status: %s', $self->{'pluginStatus'} ));
+            die( sprintf( 'Unknown plugin status: %s', $self->{'pluginStatus'} ));
         }
 
         $self->$method();
-        $self->{'eventManager'}->trigger(
-            'onBeforeSetPluginStatus', $self->{'pluginName'}, \$self->{'pluginStatus'}
-        ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $self->{'eventManager'}->trigger( 'onBeforeSetPluginStatus', $self->{'pluginName'}, \$self->{'pluginStatus'} );
     };
 
-    return 0 unless $@ || $self->{'pluginAction'} ne 'run';
+    return $self unless $@ || $self->{'pluginAction'} ne 'run';
 
     my %pluginNextStateMap = (
         toinstall   => 'enabled',
@@ -100,13 +97,12 @@ sub process
         touninstall => 'uninstalled'
     );
 
-    local $self->{'dbh'}->{'RaiseError'} = 1;
     $self->{'dbh'}->do(
         "UPDATE plugin SET " . ( $@ ? 'plugin_error' : 'plugin_status' ) . " = ? WHERE plugin_id = ?",
         undef, ( $@ ? $@ : $pluginNextStateMap{$self->{'pluginStatus'}} ), $self->{'pluginId'}
     );
 
-    return 0 if iMSCP::Getopt->context() eq 'installer';
+    return $self if iMSCP::Getopt->context() eq 'installer';
 
     my $cacheIds = 'iMSCP_Plugin_Manager_Metadata';
     $cacheIds .= ";$self->{'pluginInfo'}->{'require_cache_flush'}" if $self->{'pluginInfo'}->{'require_cache_flush'};
@@ -115,7 +111,7 @@ sub process
         ? $main::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $main::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'}
     ) . "/fcache.php?ids=$cacheIds";
     get( $url ) or warn( "Couldn't trigger flush of frontEnd cache" );
-    0;
+    $self;
 }
 
 =back
@@ -137,12 +133,12 @@ sub _init
     my ($self) = @_;
 
     $ua->timeout( 5 );
-    $ua->agent( 'i-MSCP/1.6 (+https://i-mscp.net/)' );
+    $ua->agent( "i-MSCP/1.6 (+https://i-mscp.net/)" );
     $ua->ssl_opts(
         verify_hostname => 0,
         SSL_verify_mode => 0x00
     );
-    $self->{'dbh'} = iMSCP::Database->getInstance()->getRawDb();
+    $self->{'dbh'} = iMSCP::Database->getInstance();
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     @{$self}{qw/ pluginId pluginAction pluginInstance pluginName pluginInfo pluginConfig pluginConfigPrev pluginStatus /} = undef;
     $self;
@@ -153,7 +149,7 @@ sub _init
  Load plugin data
 
  Param int Plugin unique identifier
- Return void on success, croak on failure
+ Return void, die on failure
 
 =cut
 
@@ -161,11 +157,10 @@ sub _loadData
 {
     my ($self, $pluginId) = @_;
 
-    local $self->{'dbh'}->{'RaiseError'} = 1;
     my $row = $self->{'dbh'}->selectrow_hashref(
         'SELECT plugin_name, plugin_info, plugin_config, plugin_config_prev, plugin_status FROM plugin WHERE plugin_id = ?', undef, $pluginId
     );
-    $row or croak( sprintf( 'Data not found for plugin with ID %d', $pluginId ));
+    $row or die( sprintf( 'Data not found for plugin with ID %d', $pluginId ));
     $self->{'pluginName'} = $row->{'plugin_name'};
     $self->{'pluginInfo'} = decode_json( $row->{'plugin_info'} );
     $self->{'pluginConfig'} = decode_json( $row->{'plugin_config'} );
@@ -177,7 +172,7 @@ sub _loadData
 
  Install the plugin
 
- Return void on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -185,13 +180,9 @@ sub _install
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeInstallPlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onBeforeInstallPlugin', $self->{'pluginName'} );
     $self->_executePluginAction( 'install' );
-    $self->{'eventManager'}->trigger( 'onAfterInstallPlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onAfterInstallPlugin', $self->{'pluginName'} );
     $self->_enable();
 }
 
@@ -199,7 +190,7 @@ sub _install
 
  Uninstall the plugin
 
- Return void on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -207,20 +198,16 @@ sub _uninstall
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeUninstallPlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onBeforeUninstallPlugin', $self->{'pluginName'} );
     $self->_executePluginAction( 'uninstall' );
-    $self->{'eventManager'}->trigger( 'onAfterUninstallPlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onAfterUninstallPlugin', $self->{'pluginName'} );
 }
 
 =item _enable( )
 
  Enable the plugin
 
- Return void on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -228,20 +215,16 @@ sub _enable
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeEnablePlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onBeforeEnablePlugin', $self->{'pluginName'} );
     $self->_executePluginAction( 'enable' );
-    $self->{'eventManager'}->trigger( 'onAfterEnablePlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onAfterEnablePlugin', $self->{'pluginName'} );
 }
 
 =item _disable( )
 
  Disable the plugin
 
- Return void on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -249,20 +232,16 @@ sub _disable
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeDisablePlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onBeforeDisablePlugin', $self->{'pluginName'} );
     $self->_executePluginAction( 'disable' );
-    $self->{'eventManager'}->trigger( 'onAfterDisablePlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onAfterDisablePlugin', $self->{'pluginName'} );
 }
 
 =item _change( )
 
  Change the plugin
 
- Return void on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -271,18 +250,13 @@ sub _change
     my ($self) = @_;
 
     $self->_disable();
-    $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} );
     $self->_executePluginAction( 'change' );
-    $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} );
 
     if ( $self->{'pluginInfo'}->{'__need_change__'} ) {
         $self->{'pluginConfigPrev'} = $self->{'pluginConfig'};
         $self->{'pluginInfo'}->{'__need_change__'} = JSON::false;
-        local $self->{'dbh'}->{'RaiseError'} = 1;
         $self->{'dbh'}->do(
             'UPDATE plugin SET plugin_info = ?, plugin_config_prev = plugin_config WHERE plugin_id = ?',
             undef, encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'}
@@ -296,7 +270,7 @@ sub _change
 
  Update the plugin
 
- Return void on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -305,38 +279,23 @@ sub _update
     my ($self) = @_;
 
     $self->_disable();
-    $self->{'eventManager'}->trigger( 'onBeforeUpdatePlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onBeforeUpdatePlugin', $self->{'pluginName'} );
     $self->_executePluginAction( 'update' );
     $self->{'pluginInfo'}->{'version'} = $self->{'pluginInfo'}->{'__nversion__'};
-    {
-        local $self->{'dbh'}->{'RaiseError'} = 1;
-        $self->{'dbh'}->do(
-            'UPDATE plugin SET plugin_info = ? WHERE plugin_id = ?', undef, encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'}
-        );
-    }
-    $self->{'eventManager'}->trigger( 'onAfterUpdatePlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'dbh'}->do( 'UPDATE plugin SET plugin_info = ? WHERE plugin_id = ?', undef, encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'} );
+    $self->{'eventManager'}->trigger( 'onAfterUpdatePlugin', $self->{'pluginName'} );
 
     if ( $self->{'pluginInfo'}->{'__need_change__'} ) {
-        $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
+        $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} );
         $self->_executePluginAction( 'change' );
         $self->{'pluginConfigPrev'} = $self->{'pluginConfig'};
         $self->{'pluginInfo'}->{'__need_change__'} = JSON::false;
-        {
-            local $self->{'dbh'}->{'RaiseError'} = 1;
-            $self->{'dbh'}->do(
-                'UPDATE plugin SET plugin_info = ?, plugin_config_prev = plugin_config WHERE plugin_id = ?',
-                undef, encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'}
-            );
-        }
-        $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+        $self->{'dbh'}->do(
+            'UPDATE plugin SET plugin_info = ?, plugin_config_prev = plugin_config WHERE plugin_id = ?',
+            undef,
+            encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'}
         );
+        $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} );
     }
 
     $self->_enable();
@@ -346,7 +305,7 @@ sub _update
 
  Run plugin item tasks
 
- Return void on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -354,21 +313,24 @@ sub _run
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeRunPlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onBeforeRunPlugin', $self->{'pluginName'} );
     $self->_executePluginAction( 'run' );
-    $self->{'eventManager'}->trigger( 'onAfterRunPlugin', $self->{'pluginName'} ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    $self->{'eventManager'}->trigger( 'onAfterRunPlugin', $self->{'pluginName'} );
 }
 
 =item _executePluginAction( $action )
 
  Execute the given plugin action
 
+ Note that an exception that is raised in the context of the run() action is
+ ignored by default because it is normaly the plugin responsability to update
+ the entity for which the exception has been raised. However a plugin can force
+ this module to bubble up the exception by setting the 'BUBBLE_EXCEPTIONS'
+ property on the plugin package to a TRUE value, in which case the error will
+ used tol update the plugin status.
+
  Param string $action Action to execute on the plugin
- Return void on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -377,7 +339,7 @@ sub _executePluginAction
     my ($self, $action) = @_;
 
     unless ( $self->{'pluginInstance'} ) {
-        local $SIG{'__WARN__'} = sub { croak shift }; # Turn any warning from plugin into exception
+        local $SIG{'__WARN__'} = sub { die @_ }; # Turn any warning from plugin into exception
         my $pluginClass = iMSCP::Plugins->getInstance()->getClass( $self->{'pluginName'} );
         return undef unless $pluginClass->can( $action ); # Do not instantiate plugin when not necessary
 
@@ -398,15 +360,14 @@ sub _executePluginAction
 
     local $@;
     eval {
-        $subref->( $self->{'pluginInstance'}, ( $action eq 'update'
-                ? ( $self->{'pluginInfo'}->{'version'}, $self->{'pluginInfo'}->{'__nversion__'} ) : () )
-        ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        $subref->(
+            $self->{'pluginInstance'}, $action eq 'update' ? ( $self->{'pluginInfo'}->{'version'}, $self->{'pluginInfo'}->{'__nversion__'} ) : ()
+        );
     };
 
-    # Return value from the run() action is ignored by default. However a
-    # plugin can force return value by setting the FORCE_RETVAL attribute to a
-    # TRUE value
-    die if $@ && ( $action ne 'run' || $self->{'pluginInstance'}->{'FORCE_RETVAL'} )
+    # In context of the run() action, exception are not bubbled up by default, unless
+    # the plugin 'BUBBLE_EXCEPTIONS' property is set with a TRUE value.
+    die if $@ && ( $action ne 'run' || $self->{'pluginInstance'}->{'BUBBLE_EXCEPTIONS'} )
 }
 
 =back

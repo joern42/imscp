@@ -44,7 +44,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Reset labels to their default values
 
- Return int 0
+ Return void
 
 =cut
 
@@ -60,7 +60,6 @@ sub resetLabels
         extra  => undef
     );
     $_[0]->{'_opts'}->{"$_-label"} = $defaultLabels{$_} for keys %defaultLabels;
-    0;
 }
 
 =item fselect( $file )
@@ -320,7 +319,7 @@ sub startGauge
 
  Param int $percent New percentage to show in gauge dialog box
  Param string $text New text to show in gauge dialog box
- Return int 0
+ Return void
 
 =cut
 
@@ -328,17 +327,16 @@ sub setGauge
 {
     my ($self, $percent, $text) = @_;
 
-    return 0 if iMSCP::Getopt->noprompt || !$self->{'gauge'};
+    return if iMSCP::Getopt->noprompt || !$self->{'gauge'};
 
     print { $self->{'gauge'} } sprintf( "XXX\n%d\n%s\nXXX\n", $percent, $text );
-    0
 }
 
 =item endGauge( )
 
  Terminate gauge dialog box
 
- Return int 0
+ Return void
 
 =cut
 
@@ -348,14 +346,13 @@ sub endGauge
 
     $_[0]->{'gauge'}->close();
     undef $_[0]->{'gauge'};
-    0;
 }
 
 =item hasGauge( )
 
  Is a gauge set?
 
- Return int 1 if gauge is running 0 otherwise
+ Return bool TRUE if a gauge is running FALSE otherwise
 
 =cut
 
@@ -395,7 +392,7 @@ sub set
 
  Initialize instance
 
- Return iMSCP::Dialog::Dialog, croak on failure
+ Return iMSCP::Dialog::Dialog, die on failure
 
 =cut
 
@@ -412,11 +409,11 @@ sub _init
     # Detect all the ways people have managed to screw up their
     # terminals (so far...)
     if ( !exists $ENV{'TERM'} || !defined $ENV{'TERM'} || $ENV{'TERM'} eq '' ) {
-        croak ( 'TERM is not set, so the dialog frontend is not usable.' );
+        die ( 'TERM is not set, so the dialog frontend is not usable.' );
     } elsif ( $ENV{'TERM'} =~ /emacs/i ) {
-        croak ( 'Dialog frontend is incompatible with emacs shell buffers' );
+        die ( 'Dialog frontend is incompatible with emacs shell buffers' );
     } elsif ( $ENV{'TERM'} eq 'dumb' || $ENV{'TERM'} eq 'unknown' ) {
-        croak ( 'Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.' );
+        die ( 'Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.' );
     }
 
     # Return specific exit status when ESC is pressed
@@ -500,7 +497,7 @@ sub _resize
     }
 
     if ( $lines < 24 || $cols < 80 ) {
-        croak ( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
+        die ( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
     }
 
     $self->{'lines'} = $lines-10;
@@ -521,7 +518,7 @@ sub _findBin
 {
     my ($self, $variant) = @_;
 
-    my $bindPath = iMSCP::ProgramFinder::find( $variant ) or die( sprintf( "Couldn't find dialog program: %s", $variant ));
+    my $bindPath = iMSCP::ProgramFinder::find( $variant ) or die( sprintf( "Couldn't find %s executable in \$PATH", $variant ));
     $self->{'bin'} = $bindPath;
     $self;
 }

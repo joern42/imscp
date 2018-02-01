@@ -202,7 +202,7 @@ First, you must create the files before activating this listener:
 
 ```
 cd /etc/postfix
-umask 022
+umask 0022
 openssl dhparam -out dh512.tmp 512 && mv dh512.tmp dh512.pem
 openssl dhparam -out dh2048.tmp 2048 && mv dh2048.tmp dh2048.pem
 chmod 644 dh512.pem dh2048.pem

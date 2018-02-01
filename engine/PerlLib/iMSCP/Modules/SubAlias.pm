@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::SubAlias - i-MSCP SubAlias module
+ iMSCP::Modules::SubAlias - Module for processing of subdomain alias entities
 
 =cut
 
@@ -25,14 +25,12 @@ package iMSCP::Modules::SubAlias;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Spec;
-use iMSCP::Debug qw/ debug error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of Subdomain alias entities
+ Module for processing of subdomain alias entities.
 
 =head1 PUBLIC METHODS
 
@@ -51,58 +49,112 @@ sub getEntityType
     'Subdomain';
 }
 
-=item process( $subAliasId )
+=item add()
 
- Process module
+ Add, change or enable the subdomain alias
 
- Param int $subAliasId Subdomain alias unique identifier
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::add(); };
+    $self->{'_dbh'}->do(
+        'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'ok', $self->{'subdomain_alias_id'}
+    );
+    $self;
+}
+
+=item delete()
+
+ Delete the subdomain alias
+
+ Return self, die on failure
+
+=cut
+
+sub delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE domain_id = ?', undef, $@, $self->{'subdomain_alias_id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM subdomain_alias WHERE subdomain_alias_id = ?', undef, $self->{'subdomain_alias_id'} );
+    $self;
+}
+
+=item disable()
+
+ Disable the subdomain alias
+
+ Return self, die on failure
+
+=cut
+
+sub disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::disable(); };
+    $self->{'_dbh'}->do(
+        'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'disabled', $self->{'subdomain_alias_id'}
+    );
+    $self;
+}
+
+=item restore()
+
+ Restore the subdomain alias
+
+ Return self, die on failure
+
+=cut
+
+sub restore
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::restore(); };
+    $self->{'_dbh'}->do( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'ok',
+        $self->{'domain_id'} );
+    $self;
+}
+
+=item handleEntity( $subAliasId )
+
+ Handle the given subdomain alias entity
+
+ Param int $subAliasId Subdomain alias unique identifier
+ Return self, die on failure
+
+=cut
+
+sub handleEntity
 {
     my ($self, $subAliasId) = @_;
 
-    my $rs = $self->_loadData( $subAliasId );
-    return $rs if $rs;
+    $self->_loadData( $subAliasId );
 
-    my @sql;
     if ( $self->{'subdomain_alias_status'} =~ /^to(?:add|change|enable)$/ ) {
-        $rs = $self->add();
-        @sql = ( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $subAliasId );
+        $self->add();
     } elsif ( $self->{'subdomain_alias_status'} eq 'todelete' ) {
-        $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef,
-                ( getLastError( 'error' ) || 'Unknown error' ), $subAliasId )
-            : ( 'DELETE FROM subdomain_alias WHERE subdomain_alias_id = ?', undef, $subAliasId );
+        $self->delete();
     } elsif ( $self->{'subdomain_alias_status'} eq 'todisable' ) {
-        $rs = $self->disable();
-        @sql = ( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $subAliasId );
+        $self->disable();
     } elsif ( $self->{'subdomain_alias_status'} eq 'torestore' ) {
-        $rs = $self->restore();
-        @sql = ( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $subAliasId );
+        $self->restore();
     } else {
-        warning(
-            sprintf( 'Unknown action (%s) for subdomain alias (ID %d)', $self->{'subdomain_alias_status'}, $subAliasId )
-        );
-        return 0;
+        die( sprintf( 'Unknown action (%s) for subdomain alias (ID %d)', $self->{'subdomain_alias_status'}, $subAliasId ));
     }
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $rs;
+    $self;
 }
 
 =back
@@ -116,7 +168,7 @@ sub process
  Load data
 
  Param int $subAliasId Subdomain alias unique identifier
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -124,45 +176,36 @@ sub _loadData
 {
     my ($self, $subAliasId) = @_;
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref(
-            "
-                SELECT t1.*,
-                    t2.alias_name, t2.external_mail, t3.domain_name AS user_home,
-                    t3.domain_id, t3.domain_admin_id, t3.domain_mailacc_limit, t3.domain_php, t3.domain_cgi,
-                    t3.web_folder_protection, t3.phpini_perm_config_level AS php_config_level,
-                    IFNULL(t4.ip_number, '0.0.0.0') AS ip_number,
-                    t5.private_key, t5.certificate, t5.ca_bundle, t5.allow_hsts, t5.hsts_max_age,
-                    t5.hsts_include_subdomains,
-                    t6.mail_on_domain
-                FROM subdomain_alias AS t1
-                JOIN domain_aliasses AS t2 USING(alias_id)
-                JOIN domain AS t3 USING (domain_id)
-                LEFT JOIN server_ips AS t4 ON (t4.ip_id = t2.alias_ip_id)
-                LEFT JOIN ssl_certs AS t5 ON(
-                    t5.domain_id = t1.subdomain_alias_id AND t5.domain_type = 'alssub' AND t5.status = 'ok'
-                )
-                LEFT JOIN (
-                    SELECT sub_id, COUNT(sub_id) AS mail_on_domain
-                    FROM mail_users
-                    WHERE mail_type LIKE 'alssub\\_%'
-                    GROUP BY sub_id
-                ) AS t6 ON (t6.sub_id = t1.subdomain_alias_id)
-                WHERE t1.subdomain_alias_id = ?
-            ",
-            undef,
-            $subAliasId
-        );
-        $row or croak( sprintf( 'Data not found for subdomain alias (ID %d)', $subAliasId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $row = $self->{'_dbh'}->selectrow_hashref(
+        "
+            SELECT t1.*,
+                t2.alias_name, t2.external_mail, t3.domain_name AS user_home,
+                t3.domain_id, t3.domain_admin_id, t3.domain_mailacc_limit, t3.domain_php, t3.domain_cgi,
+                t3.web_folder_protection, t3.phpini_perm_config_level AS php_config_level,
+                IFNULL(t4.ip_number, '0.0.0.0') AS ip_number,
+                t5.private_key, t5.certificate, t5.ca_bundle, t5.allow_hsts, t5.hsts_max_age,
+                t5.hsts_include_subdomains,
+                t6.mail_on_domain
+            FROM subdomain_alias AS t1
+            JOIN domain_aliasses AS t2 USING(alias_id)
+            JOIN domain AS t3 USING (domain_id)
+            LEFT JOIN server_ips AS t4 ON (t4.ip_id = t2.alias_ip_id)
+            LEFT JOIN ssl_certs AS t5 ON(
+                t5.domain_id = t1.subdomain_alias_id AND t5.domain_type = 'alssub' AND t5.status = 'ok'
+            )
+            LEFT JOIN (
+                SELECT sub_id, COUNT(sub_id) AS mail_on_domain
+                FROM mail_users
+                WHERE mail_type LIKE 'alssub\\_%'
+                GROUP BY sub_id
+            ) AS t6 ON (t6.sub_id = t1.subdomain_alias_id)
+            WHERE t1.subdomain_alias_id = ?
+        ",
+        undef,
+        $subAliasId
+    );
+    $row or die( sprintf( 'Data not found for subdomain alias (ID %d)', $subAliasId ));
+    %{$self} = ( %{$self}, %{$row} );
 }
 
 =item _getData( $action )
@@ -170,7 +213,7 @@ sub _loadData
  Data provider method for servers and packages
 
  Param string $action Action
- Return hashref Reference to a hash containing data, croak on failure
+ Return hashref Reference to a hash containing data, die on failure
 
 =cut
 
@@ -187,10 +230,8 @@ sub _getData
     my ($ssl, $hstsMaxAge, $hstsIncSub, $phpini) = ( 0, 0, 0, {} );
 
     if ( $self->{'certificate'}
-        && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'subdomain_alias_name'}.$self->{'alias_name'}.pem.pem"
-    ) {
+        && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'subdomain_alias_name'}.$self->{'alias_name'}.pem.pem" ) {
         $ssl = 1;
-
         if ( $self->{'allow_hsts'} eq 'on' ) {
             $hstsMaxAge = $self->{'hsts_max_age'} || 0;
             $hstsIncSub = $self->{'hsts_include_subdomains'} eq 'on' ? '; includeSubDomains' : '';
@@ -198,7 +239,6 @@ sub _getData
     }
 
     if ( $self->{'domain_php'} eq 'yes' ) {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
         $phpini = $self->{'_dbh'}->selectrow_hashref(
             'SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?',
             undef,
@@ -262,17 +302,15 @@ sub _getData
 
 =item _sharedMountPoint( )
 
- Does this subdomain alias share mount point with another domain?
+ Is the subdomain alias sharing a mount point with another domain?
 
- Return bool, croak on failure
+ Return bool TRUE if the subdomain alias share a mount point with another domain, FALSE otherwise, die on failure
 
 =cut
 
 sub _sharedMountPoint
 {
     my ($self) = @_;
-
-    local $self->{'_dbh'}->{'RaiseError'} = 1;
 
     my $regexp = "^$self->{'subdomain_alias_mount'}(/.*|\$)";
     my ($nbSharedMountPoints) = $self->{'_dbh'}->selectrow_array(
@@ -292,7 +330,6 @@ sub _sharedMountPoint
         ",
         undef, $self->{'domain_id'}, $regexp, $self->{'domain_id'}, $regexp, $self->{'subdomain_alias_id'}, $self->{'domain_id'}, $regexp
     );
-
     $nbSharedMountPoints || $self->{'subdomain_alias_mount'} eq '/';
 }
 

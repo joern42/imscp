@@ -51,11 +51,10 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($tplContent, $tplName) = @_;
 
-        return 0 unless $tplName eq 'proftpd.conf';
+        return unless $tplName eq 'proftpd.conf';
 
         $SERVER_IDENT_MESSAGE =~ s%("|\\)%\\$1%g;
         processByRef( { SERVER_IDENT_MESSAGE => qq/"$SERVER_IDENT_MESSAGE"/ }, $tplContent );
-        0;
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
 

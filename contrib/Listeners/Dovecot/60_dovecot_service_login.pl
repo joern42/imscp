@@ -38,10 +38,10 @@ use version;
 
 # Service ports
 # Note: Setting a port to 0 will close it
-my $pop3Port = 110;
-my $pop3sPort = 995;
-my $imapPort = 143;
-my $imapsPort = 993;
+my $POP3_PORT = 110;
+my $POP3_SSL_PORT = 995;
+my $IMAP_PORT = 143;
+my $IMAP_SSL_PORT = 993;
 
 # Space separated list of IP addresses/hostnames to listen on.
 # For instance:
@@ -49,16 +49,16 @@ my $imapsPort = 993;
 # - with '*' as value, the service-login will listen on all IPv4 addresses
 # - with '::' as value, the servicel-login will listen on all IPv6 addresses
 # - with '*, ::' as value, the service-login will listen on all IPv4/IPv6 addresses
-my $imapListenAddr = '* ::';
-my $imapsListenAddr = '* ::';
-my $pop3ListenAddr = '* ::';
-my $pop3sListenAddr = '* ::';
+my $IMAP_LISTEN_ADDR = '* ::';
+my $IMAP_SSL_LISTEN_ADDR = '* ::';
+my $POP3_LISTEN_ADDR = '* ::';
+my $POP3_SSL_LISTEN_ADDR = '* ::';
 
 # Number of connections to handle before starting a new process. Typically
 # the only useful values are 0 (unlimited) or 1. 1 is more secure, but 0
 # is faster.
-my $imapServiceCount = 0;
-my $popServiceCount = 0;
+my $IMAP_SERVICE_COUNT = 0;
+my $POP3_SERVICE_COUNT = 0;
 
 #
 ## Please, don't edit anything below this line
@@ -72,39 +72,37 @@ iMSCP::EventManager->getInstance()->registerOne(
     'afterDovecotConfigure',
     sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/60_dovecot_service_login_listener.conf" );
-        $file->set( <<"EOT" );
+        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/60_dovecot_service_login_listener.conf" )->set( <<"EOT" )->save();
 service imap-login {
     inet_listener imap {
-        port = $imapPort
-        address = $imapListenAddr
+        port = $IMAP_PORT
+        address = $IMAP_LISTEN_ADDR
     }
 
     inet_listener imaps {
-        port = $imapsPort
-        address = $imapsListenAddr
+        port = $IMAP_SSL_PORT
+        address = $IMAP_SSL_LISTEN_ADDR
         ssl = yes
     }
 
-    service_count = $imapServiceCount
+    service_count = $IMAP_SERVICE_COUNT
 }
 
 service pop3-login {
     inet_listener pop3 {
-        port = $pop3Port
-        address = $pop3ListenAddr
+        port = $POP3_PORT
+        address = $POP3_LISTEN_ADDR
     }
 
     inet_listener pop3s {
-        port = $pop3sPort
-        address = $pop3sListenAddr
+        port = $POP3_SSL_PORT
+        address = $POP3_SSL_LISTEN_ADDR
         ssl = yes
     }
 
-    service_count = $popServiceCount
+    service_count = $POP3_SERVICE_COUNT
 }
 EOT
-        $file->save();
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 

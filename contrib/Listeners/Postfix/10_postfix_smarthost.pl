@@ -48,20 +48,13 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
     sprintf( "The 10_postfix_smarthost.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'beforeInstallPackages',
-    sub {
-        push @{$_[0]}, 'libsasl2-modules';
-        0;
-    }
-);
-
+iMSCP::EventManager->getInstance()->register( 'beforeInstallPackages', sub { push @{$_[0]}, 'libsasl2-modules'; } );
 iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
-        my $rs = $mta->addMapEntry( $saslPasswdMapsPath, "$relayhost:$relayport\t$saslAuthUser:$saslAuthPasswd" );
-        $rs ||= $mta->postconf(
+        $mta->addMapEntry( $saslPasswdMapsPath, "$relayhost:$relayport\t$saslAuthUser:$saslAuthPasswd" );
+        $mta->postconf(
             (
                 # Relay parameter
                 relayhost                  => {

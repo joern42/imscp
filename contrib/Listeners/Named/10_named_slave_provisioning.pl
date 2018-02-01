@@ -76,19 +76,17 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
 # Routine that create the .htpasswd file for HTTP (Basic) authentication
 sub createHtpasswdFile
 {
-    if ( index( $AUTH_USERNAME, ':' ) != -1 ) {
-        error( "htpasswd: username contains illegal character ':'" );
-        return 1;
-    }
+    index( $AUTH_USERNAME, ':' ) == -1 or die( "htpasswd: username contains illegal character ':'" );
 
-    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/.htpasswd" );
-    $file->set( "$AUTH_USERNAME:" . ( $AUTH_PASSWORD_IS_HASHED ? $AUTH_PASSWORD : htpasswd( $AUTH_PASSWORD ) ));
-    my $rs = $file->save();
-    $rs ||= $file->owner(
+    iMSCP::File
+        ->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/.htpasswd" )
+        ->set( "$AUTH_USERNAME:" . ( $AUTH_PASSWORD_IS_HASHED ? $AUTH_PASSWORD : htpasswd( $AUTH_PASSWORD ) ))
+        ->save()
+        ->owner(
         "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
         "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}"
-    );
-    $rs ||= $file->mode( 0640 );
+    )
+        ->mode( 0640 );
 }
 
 #
@@ -101,7 +99,7 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($tplContent, $tplName) = @_;
 
-        return 0 unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
+        return unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
             || $tplName eq '00_master_ssl.nginx';
 
         my $locationSnippet = <<"EOF";
@@ -123,7 +121,6 @@ EOF
     $locationSnippet
     # SECTION custom END
 EOF
-        0;
     }
 ) if defined $AUTH_USERNAME;
 
@@ -178,29 +175,23 @@ if ($rowCount > 0) {
     echo "// END ALIASES LIST\n";
 }
 EOF
-        eval {
-            iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning" )->make( {
-                user  => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-                group => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-                mode  => 0550
-            } );
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
 
-        my $rs = createHtpasswdFile() if defined $AUTH_USERNAME;
-        return $rs if $rs;
+        iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning" )->make( {
+            user  => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+            group => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+            mode  => 0550
+        } );
 
-        my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/slave_provisioning.php" );
-        $file->set( $fileContent );
-        $rs = $file->save();
-        $rs ||= $file->owner(
+        createHtpasswdFile() if defined $AUTH_USERNAME;
+
+        iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/slave_provisioning.php" )
+            ->set( $fileContent )
+            ->save()
+            ->owner(
             "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
             "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}"
-        );
-        $rs ||= $file->mode( 0640 );
+        )
+            ->mode( 0640 );
     }
 );
 

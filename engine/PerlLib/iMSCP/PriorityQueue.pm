@@ -175,7 +175,7 @@ sub count
 
  Pop item with highter priority from the queue
 
- Return coderef|false Item or false if the queue is empty
+ Return CODE|FALSE Item or FALSE if the queue is empty
 
 =cut
 

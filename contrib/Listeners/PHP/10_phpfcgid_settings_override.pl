@@ -68,23 +68,19 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($phpServer, undef, undef, undef, $moduleData, $apacheServerData) = @_;
 
-        return 0 unless $phpServer->{'config'}->{'PHP_SAPI'} eq 'cgi'
-            && $moduleData->{'FORWARD'} eq 'no'
-            && $moduleData->{'PHP_SUPPORT'} eq 'yes';
+        return unless $phpServer->{'config'}->{'PHP_SAPI'} eq 'cgi' && $moduleData->{'FORWARD'} eq 'no' && $moduleData->{'PHP_SUPPORT'} eq 'yes';
 
         if ( exists $SETTINGS{'*'} ) {
             # Apply global *_PER_CLASS fcgid settings
             @{$apacheServerData}{keys %{$SETTINGS{'*'}}} = values %{$SETTINGS{'*'}};
         }
 
-        return 0 unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
+        return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
 
         if ( exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}} ) {
             # Apply per domain *_PER_CLASS fcgid settings
             @{$apacheServerData}{keys %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}}} = values %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}};
         }
-
-        0;
     }
 );
 

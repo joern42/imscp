@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::Domain - i-MSCP Domain module
+ iMSCP::Modules::Domain - Module for processing of domain entities
 
 =cut
 
@@ -25,14 +25,12 @@ package iMSCP::Modules::Domain;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Spec;
-use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of SSL domain entities
+ Module for processing of domain entities.
 
 =head1 PUBLIC METHODS
 
@@ -51,56 +49,107 @@ sub getEntityType
     'Domain';
 }
 
-=item process( $domainId )
+=item add()
 
- Process module
+ Add, change or enable the domain
 
- Param int $domainId Domain unique identifier
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::add(); };
+    $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'ok', $self->{'domain_id'} );
+    $self;
+}
+
+=item delete()
+
+ Delete the domain
+
+ Return self, die on failure
+
+=cut
+
+sub delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@, $self->{'domain_id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM domain WHERE domain_id = ?', undef, $self->{'domain_id'} );
+    $self;
+}
+
+=item disable()
+
+ Disable the domain
+
+ Return self, die on failure
+
+=cut
+
+sub disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::disable(); };
+    $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'disabled', $self->{'domain_id'} );
+    $self;
+}
+
+=item restore()
+
+ Restore the domain
+
+ Return self, die on failure
+
+=cut
+
+sub restore
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::restore(); };
+    $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'ok', $self->{'domain_id'} );
+    $self;
+}
+
+=item handleEntity( $domainId )
+
+ Handle the given domain entity
+
+ Param int $domainId Domain unique identifier
+ Return self, die on failure
+
+=cut
+
+sub handleEntity
 {
     my ($self, $domainId) = @_;
 
-    my $rs = $self->_loadData( $domainId );
-    return $rs if $rs;
+    $self->_loadData( $domainId );
 
-    my @sql;
     if ( $self->{'domain_status'} =~ /^to(?:add|change|enable)$/ ) {
-        $rs = $self->add();
-        @sql = ( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $domainId );
+        $self->add();
     } elsif ( $self->{'domain_status'} eq 'todelete' ) {
-        $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef,
-                getLastError( 'error' ) || 'Unknown error', $domainId )
-            : ( 'DELETE FROM domain WHERE domain_id = ?', undef, $domainId );
+        $self->delete();
     } elsif ( $self->{'domain_status'} eq 'todisable' ) {
-        $rs = $self->disable();
-        @sql = ( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $domainId );
+        $self->disable();
     } elsif ( $self->{'domain_status'} eq 'torestore' ) {
-        $rs = $self->restore();
-        @sql = ( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $domainId );
+        $self->restore();
     } else {
-        warning( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'domain_status'}, $domainId ));
-        return 0;
+        die( sprintf( 'Unknown action (%s) for domain (ID %d)', $self->{'domain_status'}, $domainId ));
     }
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $rs;
+    $self;
 }
 
 =back
@@ -114,7 +163,7 @@ sub process
  Load data
 
  Param int $domainId Domain unique identifier
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -122,41 +171,32 @@ sub _loadData
 {
     my ($self, $domainId) = @_;
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref(
-            "
-                SELECT t1.domain_id, t1.domain_admin_id, t1.domain_mailacc_limit, t1.domain_name, t1.domain_status,
-                    t1.domain_php, t1.domain_cgi, t1.external_mail, t1.web_folder_protection, t1.document_root,
-                    t1.url_forward, t1.type_forward, t1.host_forward, t1.phpini_perm_config_level AS php_config_level,
-                    IFNULL(t2.ip_number, '0.0.0.0') AS ip_number,
-                    t3.private_key, t3.certificate, t3.ca_bundle, t3.allow_hsts, t3.hsts_max_age,
-                    t3.hsts_include_subdomains,
-                    t4.mail_on_domain
-                FROM domain AS t1
-                LEFT JOIN server_ips AS t2 ON (t2.ip_id = t1.domain_ip_id)
-                LEFT JOIN ssl_certs AS t3 ON(
-                    t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok'
-                )
-                LEFT JOIN (
-                    SELECT domain_id, COUNT(domain_id) AS mail_on_domain
-                    FROM mail_users
-                    WHERE mail_type LIKE 'normal\\_%'
-                    GROUP BY domain_id
-                ) AS t4 ON(t4.domain_id = t1.domain_id)
-                WHERE t1.domain_id = ?
-            ",
-            undef, $domainId
-        );
-        $row or croak( sprintf( 'Data not found for domain (ID %d)', $domainId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $row = $self->{'_dbh'}->selectrow_hashref(
+        "
+            SELECT t1.domain_id, t1.domain_admin_id, t1.domain_mailacc_limit, t1.domain_name, t1.domain_status,
+                t1.domain_php, t1.domain_cgi, t1.external_mail, t1.web_folder_protection, t1.document_root,
+                t1.url_forward, t1.type_forward, t1.host_forward, t1.phpini_perm_config_level AS php_config_level,
+                IFNULL(t2.ip_number, '0.0.0.0') AS ip_number,
+                t3.private_key, t3.certificate, t3.ca_bundle, t3.allow_hsts, t3.hsts_max_age,
+                t3.hsts_include_subdomains,
+                t4.mail_on_domain
+            FROM domain AS t1
+            LEFT JOIN server_ips AS t2 ON (t2.ip_id = t1.domain_ip_id)
+            LEFT JOIN ssl_certs AS t3 ON(
+                t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok'
+            )
+            LEFT JOIN (
+                SELECT domain_id, COUNT(domain_id) AS mail_on_domain
+                FROM mail_users
+                WHERE mail_type LIKE 'normal\\_%'
+                GROUP BY domain_id
+            ) AS t4 ON(t4.domain_id = t1.domain_id)
+            WHERE t1.domain_id = ?
+        ",
+        undef, $domainId
+    );
+    $row or die( sprintf( 'Data not found for domain (ID %d)', $domainId ));
+    %{$self} = ( %{$self}, %{$row} );
 }
 
 =item _getData( $action )
@@ -164,7 +204,7 @@ sub _loadData
  Data provider method for servers and packages
 
  Param string $action Action
- Return hashref Reference to a hash containing data, croak on failure
+ Return hashref Reference to a hash containing data, die on failure
 
 =cut
 
@@ -181,7 +221,6 @@ sub _getData
 
     if ( $self->{'certificate'} && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'domain_name'}.pem" ) {
         $ssl = 1;
-
         if ( $self->{'allow_hsts'} eq 'on' ) {
             $hstsMaxAge = $self->{'hsts_max_age'} || 0;
             $hstsIncSub = $self->{'hsts_include_subdomains'} eq 'on' ? '; includeSubDomains' : '';
@@ -189,7 +228,6 @@ sub _getData
     }
 
     if ( $self->{'domain_php'} eq 'yes' ) {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
         $phpini = $self->{'_dbh'}->selectrow_hashref(
             "SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?", undef, $self->{'domain_id'}, 'dmn'
         ) || {};

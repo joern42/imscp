@@ -37,23 +37,14 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
         my $fileContent = $file->get();
-        unless ( defined $fileContent ) {
-            error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
-            return 1;
-        }
-
         $fileContent =~ s/(\$config\['(?:default_host|smtp_server)?'\]\s+=\s+').*(';)/$1tls:\/\/$main::imscpConfig{'BASE_SERVER_VHOST'}$2/g;
-        $file->set( $fileContent );
-        $file->save();
+        $file->set( $fileContent )->save();
     }
-);
-
-iMSCP::EventManager->getInstance()->register(
+)->register(
     'beforeUpdateRoundCubeMailHostEntries',
     sub {
         my ($hostname) = @_;
         ${$hostname} = $main::imscpConfig{'BASE_SERVER_VHOST'};
-        0;
     }
 );
 

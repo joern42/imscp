@@ -50,11 +50,9 @@ iMSCP::EventManager->getInstance()->registerOne(
     'afterDovecotConfigure',
     sub {
         my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        my $file = iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/20_dovecot_connection_listener.conf" );
-        $file->set( <<"EOT" );
+        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/20_dovecot_connection_listener.conf" )->set( <<"EOT" )->save();
 mail_max_userip_connections = $MAX_CONNECTION_PER_IP
 EOT
-        $file->save();
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 

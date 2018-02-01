@@ -74,6 +74,7 @@ sub flush
   - readonly: Sets a read-only access on the configuration file
   - temporary: Enable temporary overriding of configuration values (changes are not persistent)
 
+  Return iMSCP::Config, die on failure
 =cut
 
 sub TIEHASH
@@ -104,7 +105,7 @@ sub TIEHASH
 
 sub STORE
 {
-    !$_[0]->{'readonly'} || $_[0]->{'temporary'} or croak( sprintf( "Couldn't store the `%s' parameter: tied hash is readonly", $_[1] ));
+    !$_[0]->{'readonly'} || $_[0]->{'temporary'} or croak( sprintf( "Couldn't store the %s parameter: tied hash is readonly", $_[1] ));
 
     my $v = defined $_[2] ? $_[2] : ''; # A configuration parameter cannot be undefined.
 
@@ -176,7 +177,7 @@ sub EXISTS
 sub DELETE
 {
     !$_[0]->{'readonly'} || $_[0]->{'temporary'} or croak(
-        sprintf( "Couldn't delete the `%s' parameter: tied hash is readonly", $_[1] )
+        sprintf( "Couldn't delete the %s parameter: tied hash is readonly", $_[1] )
     );
 
     unless ( $_[0]->{'temporary'} || !exists $_[0]->{'_records_map'}->{$_[1]} ) {

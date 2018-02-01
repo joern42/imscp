@@ -45,16 +45,20 @@ our @EXPORT = qw/ setRights /;
 
  Depending on the given attributes, set owner, group and permissions on the given target
 
+ Symlinks are not dereferenced, that is, not followed.
+ 
+ FIXME: When only CHOWN(2) is involved, should we restablish any clearedoff setuid/setgid bits or should that task left to caller?
+
  Param string $target Target file or directory
  Param hash \%attrs:
-  mode      : OPTIONAL Set mode on the given directory/file
+  mode      : OPTIONAL Set mode on the given target
   dirmode   : OPTIONAL Set mode on directories
   filemode  : OPTIONAL Set mode on files
-  user      : OPTIONAL Set owner on the given file
-  group     : OPTIONAL Set group for the given file
+  user      : OPTIONAL Set owner on the given target
+  group     : OPTIONAL Set group for the given target
   recursive : OPTIONAL Whether or not operations must be processed recursively
 
- Return int 0 on success, 1 on failure
+ Return void, die on failure
 
 =cut
 
@@ -62,80 +66,72 @@ sub setRights
 {
     my ($target, $attrs) = @_;
 
-    eval {
-        defined $target or croak( '$target parameter is not defined' );
-        ref $attrs eq 'HASH' && %{$attrs} or croak( 'attrs parameter is not defined or is not a hashref' );
+    defined $target or croak( '$target parameter is not defined' );
+    ref $attrs eq 'HASH' && %{$attrs} or croak( 'attrs parameter is not defined or is not a hashref' );
 
-        # Return early if none of accepted attributes is set. This is the
-        # case when that function is used dynamically, and when setting of
-        # permissions/ownership is made optional.
-        return 0 unless defined $attrs->{'mode'} || defined $attrs->{'dirmode'} || defined $attrs->{'filemode'} || defined $attrs->{'user'}
-            || defined $attrs->{'group'};
+    # Return early if none of accepted attributes is defined. This is the case
+    # when that function is used dynamically, and when setting of permissions
+    # and ownership is made optional by caller.
+    return unless defined $attrs->{'mode'} || defined $attrs->{'dirmode'} || defined $attrs->{'filemode'} || defined $attrs->{'user'}
+        || defined $attrs->{'group'};
 
-        if ( defined $attrs->{'mode'} && ( defined $attrs->{'dirmode'} || defined $attrs->{'filemode'} ) ) {
-            croak( '`mode` attribute and the dirmode or filemode attributes are mutally exclusive' );
-        }
-
-        my $uid = $attrs->{'user'} ? getpwnam( $attrs->{'user'} ) : -1;
-        my $gid = $attrs->{'group'} ? getgrnam( $attrs->{'group'} ) : -1;
-        defined $uid or croak( sprintf( 'user attribute refers to inexistent user: %s', $attrs->{'user'} ));
-        defined $gid or croak( sprintf( 'group attribute refers to inexistent group: %s', $attrs->{'group'} ));
-
-        my $mode = defined $attrs->{'mode'} ? oct( $attrs->{'mode'} ) : undef;
-        my $dirmode = defined $attrs->{'dirmode'} ? oct( $attrs->{'dirmode'} ) : undef;
-        my $filemode = defined $attrs->{'filemode'} ? oct( $attrs->{'filemode'} ) : undef;
-
-        if ( $attrs->{'recursive'} ) {
-            local $SIG{'__WARN__'} = sub { croak @_ };
-            find(
-                {
-                    wanted   => sub {
-                        if ( $attrs->{'user'} || $attrs->{'group'} ) {
-                            lchown $uid, $gid, $_ or croak( sprintf( "Couldn't set user/group on %s: %s", $_, $! ));
-                        }
-
-                        # We do not call chmod on symkink targets
-                        return if -l;
-
-                        # It is OK to reuse the previous lstat structure below
-                        # because we know that we have a real file.
-
-                        if ( $mode ) {
-                            chmod $mode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
-                        } elsif ( $dirmode && -d _ ) {
-                            chmod $dirmode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
-                        } elsif ( $filemode && !-d _ ) {
-                            chmod $filemode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
-                        }
-                    },
-                    no_chdir => 1
-                },
-                $target
-            );
-
-            return 0;
-        }
-
-        if ( $attrs->{'user'} || $attrs->{'group'} ) {
-            lchown $uid, $gid, $target or die( sprintf( "Couldn't set user/group on %s: %s", $target, $! ));
-        }
-
-        unless ( -l $target ) { # We do not call chmod on symkink targets
-            if ( $mode ) {
-                chmod $mode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
-            } elsif ( $dirmode && -d _ ) {
-                chmod $dirmode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
-            } elsif ( $filemode && !-d _ ) {
-                chmod $filemode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
-            }
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    if ( defined $attrs->{'mode'} && ( defined $attrs->{'dirmode'} || defined $attrs->{'filemode'} ) ) {
+        croak( '`mode` attribute and the dirmode or filemode attributes are mutally exclusive' );
     }
 
-    0;
+    my $uid = $attrs->{'user'} ? getpwnam( $attrs->{'user'} ) : -1;
+    my $gid = $attrs->{'group'} ? getgrnam( $attrs->{'group'} ) : -1;
+    defined $uid or croak( sprintf( 'user attribute refers to inexistent user: %s', $attrs->{'user'} ));
+    defined $gid or croak( sprintf( 'group attribute refers to inexistent group: %s', $attrs->{'group'} ));
+
+    my $mode = defined $attrs->{'mode'} ? oct( $attrs->{'mode'} ) : undef;
+    my $dirmode = defined $attrs->{'dirmode'} ? oct( $attrs->{'dirmode'} ) : undef;
+    my $filemode = defined $attrs->{'filemode'} ? oct( $attrs->{'filemode'} ) : undef;
+
+    if ( $attrs->{'recursive'} ) {
+        local $SIG{'__WARN__'} = sub { croak @_ };
+        find(
+            {
+                wanted   => sub {
+                    if ( $attrs->{'user'} || $attrs->{'group'} ) {
+                        lchown $uid, $gid, $_ or croak( sprintf( "Couldn't set user/group on %s: %s", $_, $! ));
+                    }
+
+                    # We do not call chmod on symkinks
+                    return if -l;
+
+                    # We need call CHMOD(2) last as CHOWN(2) can clearoff the setuid and setgid mode bits
+
+                    if ( defined $mode ) {
+                        chmod $mode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                    } elsif ( defined $dirmode && -d _ ) {
+                        chmod $dirmode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                    } elsif ( defined $filemode && !-d _ ) {
+                        chmod $filemode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+                    }
+                },
+                no_chdir => 1
+            },
+            $target
+        );
+
+        return;
+    }
+
+    if ( defined $attrs->{'user'} || defined $attrs->{'group'} ) {
+        lchown $uid, $gid, $target or die( sprintf( "Couldn't set user/group on %s: %s", $target, $! ));
+    }
+
+    unless ( -l $target ) { # We do not call CHMOD(2) on symkinks
+        # We need call CHMOD(2) last as CHOWN(2) can clearoff the setuid and setgid mode bits
+        if ( defined $mode ) {
+            chmod $mode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+        } elsif ( defined $dirmode && -d _ ) {
+            chmod $dirmode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+        } elsif ( defined $filemode && !-d _ ) {
+            chmod $filemode, $target or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
+        }
+    }
 }
 
 =back

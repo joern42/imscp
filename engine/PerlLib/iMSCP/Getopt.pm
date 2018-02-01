@@ -25,7 +25,6 @@ package iMSCP::Getopt;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Basename;
 use Text::Wrap qw/ wrap /;
 
@@ -159,13 +158,13 @@ EOF
  Show usage
 
  Param int $exitCode OPTIONAL Exit code
- Return void, croak on failure
+ Return void, die on failure
 
 =cut
 
 sub showUsage
 {
-    ref $SHOW_USAGE eq 'CODE' or croak( 'showUsage( ) is not defined.' );
+    ref $SHOW_USAGE eq 'CODE' or die( 'showUsage( ) is not defined.' );
     $SHOW_USAGE->();
     exit 1;
 }
@@ -287,7 +286,7 @@ sub context
 
     return $options->{'context'} // 'backend' unless defined $context;
 
-    grep($context eq $_, ( 'installer', 'uninstaller', 'backend' )) or croak( 'Unknown execution context' );
+    grep($context eq $_, ( 'installer', 'uninstaller', 'backend' )) or die( 'Unknown execution context' );
 
     if ( grep($context eq $_, 'installer', 'uninstaller') ) {
         # Needed to make sub processes aware of i-MSCP setup context

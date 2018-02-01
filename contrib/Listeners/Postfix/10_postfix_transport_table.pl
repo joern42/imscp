@@ -52,10 +52,8 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
         while ( my ($recipient, $transport) = each( %transportTableEntries ) ) {
-            my $rs = $mta->addMapEntry( $mta->{'config'}->{'MTA_TRANSPORT_HASH'}, "$recipient\t$transport" );
-            return $rs if $rs;
+            $mta->addMapEntry( $mta->{'config'}->{'MTA_TRANSPORT_HASH'}, "$recipient\t$transport" );
         }
-        0;
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 

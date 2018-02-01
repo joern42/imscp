@@ -51,8 +51,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_setVersion();
-    $rs ||= $self->buildConfFile( 'imscp', "$self->{'config'}->{'CRON_D_DIR'}/imscp", undef,
+    $self->_setVersion();
+    $self->buildConfFile( 'imscp', "$self->{'config'}->{'CRON_D_DIR'}/imscp", undef,
         {
             QUOTA_ROOT_DIR  => $main::imscpConfig{'QUOTA_ROOT_DIR'},
             LOG_DIR         => $main::imscpConfig{'LOG_DIR'},
@@ -78,9 +78,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    return 0 unless -f "$self->{'config'}->{'CRON_D_DIR'}/imscp";
-
-    iMSCP::File->new( filename => "$self->{'config'}->{'CRON_D_DIR'}/imscp" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'CRON_D_DIR'}/imscp" )->remove();
 }
 
 =item setEnginePermissions( )
@@ -93,7 +91,7 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    return 0 unless -f "$self->{'config'}->{'CRON_D_DIR'}/imscp";
+    return unless -f "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
     setRights( "$self->{'config'}->{'CRON_D_DIR'}/imscp",
         {
@@ -144,7 +142,7 @@ sub getVersion
   - USER    : OPTIONAL Use under which the command must be run (default: root)
   - COMMAND : Command to run
   Param string $filepath OPTIONAL Cron file path, default to i-MSCP master cron file. If provided, $filepath must exist.
-  Return int 0 on success, other on failure
+  Return void, die on failure
 
 =cut
 
@@ -154,10 +152,7 @@ sub addTask
     $data = {} unless ref $data eq 'HASH';
     $filepath //= "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
-    unless ( exists $data->{'COMMAND'} && exists $data->{'TASKID'} ) {
-        error( 'Missing COMMAND or TASKID data' );
-        return 1;
-    }
+    exists $data->{'COMMAND'} && exists $data->{'TASKID'} or croak( 'Missing COMMAND or TASKID data' );
 
     $data->{'MINUTE'} //= '@daily';
     $data->{'HOUR'} //= '*';
@@ -166,12 +161,7 @@ sub addTask
     $data->{'DWEEK'} //= '*';
     $data->{'USER'} //= $main::imscpConfig{'ROOT_USER'};
 
-    eval { $self->_validateCronTask( $data ); };
-    if ( $@ ) {
-        error( sprintf( 'Invalid cron tasks: %s', $@ ));
-        return 1;
-    }
-
+    $self->_validateCronTask( $data );
     $self->buildConfFile( $filepath, $filepath, undef, $data );
 }
 
@@ -182,7 +172,7 @@ sub addTask
  Param hashref \%data Cron task data:
   - TASKID Cron task unique identifier
  Param string $filepath OPTIONAL Cron file path, default to i-MSCP master cron file.
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -192,11 +182,7 @@ sub deleteTask
     $data = {} unless ref $data eq 'HASH';
     $filepath //= "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
-    unless ( exists $data->{'TASKID'} ) {
-        error( 'Missing TASKID data' );
-        return 1;
-    }
-
+    exists $data->{'TASKID'} or croak( 'Missing TASKID data' );
     $self->buildConfFile( $filepath, $filepath, undef, $data );
 }
 
@@ -206,7 +192,7 @@ sub deleteTask
 
  Param string $cronTask Cron task name
  Param string $directory OPTIONAL Directory on which operate on (cron.d,cron.hourly,cron.daily,cron.weekly,cron.monthly), default all
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -223,7 +209,7 @@ sub enableSystemCronTask
  
  Param string $cronTask Cron task name
  Param string $directory OPTIONAL Directory on which operate on (cron.d,cron.hourly,cron.daily,cron.weekly,cron.monthly), default all
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -261,7 +247,7 @@ sub _init
 
  Set Cron version
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -299,7 +285,7 @@ sub _validateCronTask
 
  Param string $name Fieldname (uppercase)
  Param string $value Fieldvalue
- Return void, croak if the given field isn't valid
+ Return void, croak if the field isn't valid
 
 =cut
 
@@ -377,12 +363,13 @@ sub _validateField
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%sconfig Cron server configuration
  Param hashref \%params OPTIONAL parameters:
-  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & (~0027) = 0640 (in octal), default to UMASK(2)
-  - user    : File owner (default: $> (EUID) for a new file, no change for existent file)
-  - group   : File group (default: $) (EGID) for a new file, no change for existent file)
-  - mode    : File mode (default: 0666 & (~UMASK(2)) for a new file, no change for existent file )
+  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
+  - user    : File owner (default: EUID for a new file, no change for existent file)
+  - group   : File group (default: EGID for a new file, no change for existent file)
+  - mode    : File mode (default: 0666 & ~(UMASK(2) || 0) for a new file, no change for existent file )
   - cached  : Whether or not loaded file must be cached in memory
   - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
+  Return void, die on failure
 =cut
 
 sub beforeCronBuildConfFile
@@ -390,14 +377,14 @@ sub beforeCronBuildConfFile
     my ($cronServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params) = @_;
 
     # Return early if that event listener has not been triggered in the context of the ::addTask() or ::deleteTask() actions.
-    return 0 unless exists $sdata->{'TASKID'};
+    return unless exists $sdata->{'TASKID'};
 
     # Make sure that entry is not added twice in the context of the ::addTask() action.
     # Delete the cron task in context of the ::deleteTask() action.
     replaceBlocByRef( qr/^\s*\Q# imscp [$sdata->{'TASKID'}] entry BEGIN\E\n/m, qr/\Q# imscp [$sdata->{'TASKID'}] entry ENDING\E\n/, '', $cfgTpl );
 
     # Return early if that event listener has not been triggered in the context of the ::addTask() action.
-    return 0 unless exists $sdata->{'COMMAND'};
+    return unless exists $sdata->{'COMMAND'};
 
     ( ${$cfgTpl} .= <<"EOF" ) =~ s/^(\@[^\s]+)\s+/$1 /gm;
 
@@ -405,7 +392,6 @@ sub beforeCronBuildConfFile
 $sdata->{'MINUTE'} $sdata->{'HOUR'} $sdata->{'DAY'} $sdata->{'MONTH'} $sdata->{'DWEEK'} $sdata->{'USER'} $sdata->{'COMMAND'}
 # imscp [$sdata->{'TASKID'}] entry ENDING
 EOF
-    0;
 }
 
 =back

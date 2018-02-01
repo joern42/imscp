@@ -35,7 +35,7 @@ our @EXPORT = qw/
 
 BEGIN {
     $SIG{'__DIE__'} = sub { fatal( @_, ( caller( 1 ) )[3] || 'main' ) if defined $^S && !$^S };
-    $SIG{'__WARN__'} = sub { warn( @_, ( caller( 1 ) )[3] || 'main' ); };
+    $SIG{'__WARN__'} = sub { warning( @_, ( caller( 1 ) )[3] || 'main' ); };
 }
 
 my $self;
@@ -53,23 +53,23 @@ $self = {
 
 =over 4
 
-=item newDebug( $logfileId )
+=item newDebug( $logFileId )
 
  Create a new logger for the given log file identifier.
  New logger will become the current logger
 
- Param string $logfile Log file unique identifier (log file name)
+ Param string logFileId Log file unique identifier (log file name)
  Return void
 
 =cut
 
 sub newDebug
 {
-    my ($logfileId) = @_;
+    my ($logFileId) = @_;
 
-    defined $logfileId or die( 'A log file unique identifier is expected' );
-    !grep( $_->getId() eq $logfileId, @{$self->{'loggers'}} ) or die( 'A logger with same identifier already exists' );
-    push @{$self->{'loggers'}}, iMSCP::Log->new( id => $logfileId );
+    defined $logFileId or die( 'A log file unique identifier is expected' );
+    !grep( $_->getId() eq $logFileId, @{$self->{'loggers'}} ) or die( 'A logger with same identifier already exists' );
+    push @{$self->{'loggers'}}, iMSCP::Log->new( id => $logFileId );
 }
 
 =item endDebug( )
@@ -85,7 +85,7 @@ sub endDebug
 {
     my $logger = $self->{'logger'}();
 
-    return 0 if $logger->getId() eq 'default';
+    return if $logger->getId() eq 'default';
 
     pop @{$self->{'loggers'}}; # Remove logger from loggers stack
 
@@ -98,7 +98,6 @@ sub endDebug
     my $logDir = $main::imscpConfig{'LOG_DIR'} || '/tmp';
     if ( $logDir ne '/tmp' && !-d $logDir ) {
         require iMSCP::Dir;
-
         eval {
             iMSCP::Dir->new( dirname => $logDir )->make( {
                 user  => $main::imscpConfig{'ROOT_USER'},
@@ -239,31 +238,12 @@ sub output
     my ($text, $level) = @_;
 
     return "$text\n" unless defined $level;
-
-    if ( $level eq 'debug' ) {
-        return "[\x1b[0;34mDEBUG\x1b[0m] $text\n";
-    }
-
-    if ( $level eq 'info' ) {
-        return "[\x1b[0;34mINFO\x1b[0m]  $text\n";
-    }
-
-    if ( $level eq 'warn' ) {
-        return "[\x1b[0;33mWARN\x1b[0m]  $text\n";
-    }
-
-    if ( $level eq 'error' ) {
-        return "[\x1b[0;31mERROR\x1b[0m] $text\n";
-    }
-
-    if ( $level eq 'fatal' ) {
-        return "[\x1b[0;31mFATAL\x1b[0m] $text\n";
-    }
-
-    if ( $level eq 'ok' ) {
-        return "[\x1b[0;32mDONE\x1b[0m]  $text\n";
-    }
-
+    return "[\x1b[0;34mDEBUG\x1b[0m] $text\n" if $level eq 'debug';
+    return "[\x1b[0;34mINFO\x1b[0m]  $text\n" if $level eq 'info';
+    return "[\x1b[0;33mWARN\x1b[0m]  $text\n" if $level eq 'warn';
+    return "[\x1b[0;31mERROR\x1b[0m] $text\n" if $level eq 'error';
+    return "[\x1b[0;31mFATAL\x1b[0m] $text\n" if $level eq 'fatal';
+    return "[\x1b[0;32mDONE\x1b[0m]  $text\n" if $level eq 'ok';
     "$text\n";
 }
 
@@ -329,9 +309,7 @@ sub _getMessages
     my ($logger) = @_;
 
     my $bf = '';
-    for ( $logger->flush() ) {
-        $bf .= "[$_->{'when'}] [$_->{'tag'}] $_->{'message'}\n";
-    }
+    $bf .= "[$_->{'when'}] [$_->{'tag'}] $_->{'message'}\n" for $logger->flush();
     $bf;
 }
 
@@ -350,9 +328,7 @@ END {
         $countLoggers--;
     }
 
-    for ( $self->{'logger'}()->retrieve( tag => qr/(?:warn|error|fatal)/, remove => 1 ) ) {
-        print STDERR output( $_->{'message'}, $_->{'tag'} );
-    }
+    print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error|fatal)/, remove => 1 );
 }
 
 =back

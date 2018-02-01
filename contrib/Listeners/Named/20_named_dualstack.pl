@@ -127,7 +127,7 @@ iMSCP::EventManager->getInstance()->register(
 
         my $zone = $ZONE_DEFS{$data->{'REAL_PARENT_DOMAIN_NAME'} || $data->{'PARENT_DOMAIN_NAME'}} || $ZONE_DEFS{'*'} || undef;
 
-        return 0 unless defined $zone && %{$zone};
+        return unless defined $zone && %{$zone};
 
         local @DEFAULT_DNS_NAMES = @DEFAULT_DNS_NAMES;
 
@@ -135,7 +135,7 @@ iMSCP::EventManager->getInstance()->register(
             # When adding entry for the alternative URLs feature we do have
             # interest only in `@' DNS name
             @DEFAULT_DNS_NAMES = grep('@' eq $_, @DEFAULT_DNS_NAMES);
-            return 0 unless @DEFAULT_DNS_NAMES;
+            return unless @DEFAULT_DNS_NAMES;
         }
 
         my $net = iMSCP::Net->getInstance();
@@ -153,7 +153,7 @@ EOT
             }
         }
 
-        return 0 unless @names;
+        return unless @names;
 
         if ( grep( $data->{'DOMAIN_TYPE'} eq $_, 'dmn', 'als' ) ) {
             if ( getBlocByRef( "; dualstack DNS entries BEGIN\n", "; dualstack DNS entries END\n", $tplContent ) ) {
@@ -162,7 +162,7 @@ EOT
 \$ORIGIN $data->{'DOMAIN_NAME'}.
 @{[ join( '', unique @names ) ]}; dualstack DNS entries END
 EOT
-                return 0;
+                return;
             }
 
             ${$tplContent} .= <<"EOT",
@@ -170,7 +170,7 @@ EOT
 \$ORIGIN $data->{'DOMAIN_NAME'}.
 @{[ join( '', unique @names ) ]}; dualstack DNS entries END
 EOT
-                return 0;
+                return;
         }
 
         replaceBlocByRef( "; sub [$data->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$data->{'DOMAIN_NAME'}] entry ENDING\n", <<"EOF", $tplContent );
@@ -180,7 +180,6 @@ EOT
 @{ [ join( '', unique @names ) ] }
 ; sub [$data->{'DOMAIN_NAME'}] entry ENDING
 EOF
-        0;
     },
     -99
 ) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;

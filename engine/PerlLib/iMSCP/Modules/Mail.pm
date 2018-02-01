@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::Mail - i-MSCP Mail module
+ iMSCP::Modules::Mail - Module for processing of mail user entities
 
 =cut
 
@@ -25,13 +25,11 @@ package iMSCP::Modules::Mail;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
-use iMSCP::Debug qw/ error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of mail entities
+ Module for processing of mail user entities.
 
 =head1 PUBLIC METHODS
 
@@ -50,51 +48,88 @@ sub getEntityType
     'Mail';
 }
 
-=item process( $mailId )
+=item add()
 
- Process module
+ Add, change or enable the mail user
 
- Param int $mailId Mail unique identifier
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::add(); };
+    $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'ok', $self->{'mail_id'} );
+    $self;
+}
+
+=item delete()
+
+ Delete the mail user
+
+ Return self, die on failure
+
+=cut
+
+sub delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@, $self->{'mail_id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM mail_users WHERE mail_id = ?', undef, $self->{'mail_id'} );
+    $self;
+}
+
+=item disable()
+
+ Disable the mail user
+
+ Return self, die on failure
+
+=cut
+
+sub disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::disable(); };
+    $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'disabled', $self->{'mail_id'} );
+    $self;
+}
+
+=item handleEntity( $mailUserId )
+
+ Handle the given mail user entity
+
+ Param int $mailUserId Mail user unique identifier
+ Return self, die on failure
+
+=cut
+
+sub handleEntity
 {
     my ($self, $mailId) = @_;
 
-    my $rs = $self->_loadData( $mailId );
-    return $rs if $rs;
+    $self->_loadData( $mailUserId );
 
-    my @sql;
     if ( $self->{'status'} =~ /^to(?:add|change|enable)$/ ) {
-        $rs = $self->add();
-        @sql = ( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $mailId );
+        $self->add();
     } elsif ( $self->{'status'} eq 'todelete' ) {
-        $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, ( getLastError( 'error' ) || 'Unknown error' ), $mailId )
-            : ( 'DELETE FROM mail_users WHERE mail_id = ?', undef, $self->{'mail_id'} );
-
+        $self->delete();
     } elsif ( $self->{'status'} eq 'todisable' ) {
-        $rs = $self->disable();
-        @sql = ( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $mailId );
+        $self->disable();
     } else {
-        warning( sprintf( 'Unknown action (%s) for mail user (ID %d)', $self->{'status'}, $mailId ));
-        return 0;
+        die( sprintf( 'Unknown action (%s) for mail user (ID %d)', $self->{'status'}, $mailId ));
     }
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $rs;
+    $self;
 }
 
 =back
@@ -103,38 +138,26 @@ sub process
 
 =over 4
 
-=item _loadData( $mailId )
+=item _loadData( $mailUserId )
 
  Load data
 
- Param int $mailId Mail unique identifier
- Return int 0 on success, other on failure
+ Param int $mailUserId Mail unique identifier
+ Return void, die on failure
 
 =cut
 
 sub _loadData
 {
-    my ($self, $mailId) = @_;
+    my ($self, $mailUserId) = @_;
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref(
-            '
-                SELECT mail_id, mail_acc, mail_pass, mail_forward, mail_type, mail_auto_respond, status, quota, mail_addr
-                FROM mail_users
-                WHERE mail_id = ?
-            ',
-            undef, $mailId
-        );
-        $row or croak( sprintf( 'Data not found for mail user (ID %d)', $mailId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $row = $self->{'_dbh'}->selectrow_hashref(
+        ' SELECT mail_id, mail_acc, mail_pass, mail_forward, mail_type, mail_auto_respond, status, quota, mail_addr FROM mail_users WHERE mail_id = ?',
+        undef,
+        $mailUserId
+    );
+    $row or die( sprintf( 'Data not found for mail user (ID %d)', $mailUserId ));
+    %{$self} = ( %{$self}, %{$row} );
 }
 
 =item _getData( $action )

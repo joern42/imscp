@@ -99,8 +99,7 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($cfgTpl, $filename, undef, $moduleData) = @_;
 
-        return 0 unless $filename eq 'pool.conf'
-            && $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} eq $moduleData->{'DOMAIN_NAME'};
+        return unless $filename eq 'pool.conf' && $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} eq $moduleData->{'DOMAIN_NAME'};
 
         if ( exists $SETTINGS{'*'} ) {
             # Apply global PHP-FPM settings
@@ -110,14 +109,12 @@ iMSCP::EventManager->getInstance()->register(
             }
         }
 
-        return 0 unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
+        return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
 
         # Apply per domain PHP-FPM settings
         while ( my ($setting, $value) = each( %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}} ) ) {
             ${$cfgTpl} =~ s/^\Q$setting\E\s+=.*?\n/$setting = $value\n/gm;
         }
-
-        0;
     }
 );
 

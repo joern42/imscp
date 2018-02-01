@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::Subdomain - i-MSCP Subdomain module
+ iMSCP::Modules::Subdomain - Module for processing of subdomain entities
 
 =cut
 
@@ -25,14 +25,12 @@ package iMSCP::Modules::Subdomain;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 use File::Spec;
-use iMSCP::Debug qw/ debug error getLastError warning /;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
- Module for processing of subdomains entities
+ Module for processing of subdomain entities.
 
 =head1 PUBLIC METHODS
 
@@ -51,56 +49,107 @@ sub getEntityType
     'Subdomain';
 }
 
-=item process( $subdomainId )
+=item add()
 
- Process module
+ Add, change or enable the subdomain
 
- Param int $subdomainId Subdomain unique identifier
- Return int 0 on success, other on failure
+ Return self, die on failure
 
 =cut
 
-sub process
+sub add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::add(); };
+    $self->{'_dbh'}->do( 'UPDATE domain SET subdomain_status = ? WHERE subdomain_id = ?', undef, $@ || 'ok', $self->{'subdomain_id'} );
+    $self;
+}
+
+=item delete()
+
+ Delete the subdomain
+
+ Return self, die on failure
+
+=cut
+
+sub delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE subdomain SET subdomain_status = ? WHERE subdomain_id = ?', undef, $@, $self->{'subdomain_id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM subdomain WHERE subdomain_id = ?', undef, $self->{'subdomain_id'} );
+    $self;
+}
+
+=item disable()
+
+ Disable the subdomain
+
+ Return self, die on failure
+
+=cut
+
+sub disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::disable(); };
+    $self->{'_dbh'}->do( 'UPDATE subdomain SET subdomain_status = ? WHERE subdomain_id = ?', undef, $@ || 'disabled', $self->{'subdomain_id'} );
+    $self;
+}
+
+=item restore()
+
+ Restore the subdomain
+
+ Return self, die on failure
+
+=cut
+
+sub restore
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::restore(); };
+    $self->{'_dbh'}->do( 'UPDATE subdomain SET subdomain_status = ? WHERE subdomain_id = ?', undef, $@ || 'ok', $self->{'subdomain_id'} );
+    $self;
+}
+
+=item handleEntity( $subdomainId )
+
+ Handle the given subdomain entity
+
+ Param int $subdomainId Subdomain unique identifier
+ Return self, die on failure
+
+=cut
+
+sub handleEntity
 {
     my ($self, $subdomainId) = @_;
 
-    my $rs = $self->_loadData( $subdomainId );
-    return $rs if $rs;
+    $self->_loadData( $subdomainId );
 
-    my @sql;
     if ( $self->{'subdomain_status'} =~ /^to(?:add|change|enable)$/ ) {
-        $rs = $self->add();
-        @sql = ( 'UPDATE subdomain SET subdomain_status = ? WHERE subdomain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $subdomainId );
+        $self->add();
     } elsif ( $self->{'subdomain_status'} eq 'todelete' ) {
-        $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE subdomain SET subdomain_status = ? WHERE subdomain_id = ?', undef,
-                ( getLastError( 'error' ) || 'Unknown error' ), $subdomainId )
-            : ( 'DELETE FROM subdomain WHERE subdomain_id = ?', undef, $subdomainId );
+        $self->delete();
     } elsif ( $self->{'subdomain_status'} eq 'todisable' ) {
-        $rs = $self->disable();
-        @sql = ( 'UPDATE subdomain SET subdomain_status = ? WHERE subdomain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $subdomainId );
+        $self->disable();
     } elsif ( $self->{'subdomain_status'} eq 'torestore' ) {
-        $rs = $self->restore();
-        @sql = ( 'UPDATE subdomain SET subdomain_status = ? WHERE subdomain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $subdomainId );
+        $self->restore();
     } else {
-        warning( sprintf( 'Unknown action (%s) for subdomain (ID %d)', $self->{'subdomain_alias_status'}, $subdomainId ));
-        return 0;
+        die( sprintf( 'Unknown action (%s) for subdomain (ID %d)', $self->{'subdomain_alias_status'}, $subdomainId ));
     }
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    $rs;
+    $self;
 }
 
 =back
@@ -114,7 +163,7 @@ sub process
  Load data
 
  Param int $subdomainId Subdomain unique identifier
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -122,41 +171,32 @@ sub _loadData
 {
     my ($self, $subdomainId) = @_;
 
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref(
-            "
-                SELECT t1.*,
-                    t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php, t2.domain_cgi,
-                    t2.external_mail, t2.web_folder_protection, t2.phpini_perm_config_level AS php_config_level,
-                    IFNULL(t3.ip_number, '0.0.0.0') AS ip_number,
-                    t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
-                    t4.hsts_include_subdomains,
-                    t5.mail_on_domain
-                FROM subdomain AS t1
-                JOIN domain AS t2 USING(domain_id)
-                JOIN server_ips AS t3 ON (t3.ip_id = t2.domain_ip_id)
-                LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.subdomain_id AND t4.domain_type = 'sub' AND t4.status = 'ok')
-                LEFT JOIN (
-                    SELECT sub_id, COUNT(sub_id) AS mail_on_domain
-                    FROM mail_users
-                    WHERE mail_type LIKE 'subdom\\_%'
-                    GROUP BY sub_id
-                ) AS t5 ON (t5.sub_id = t1.subdomain_id)
-                WHERE t1.subdomain_id = ?
-            ",
-            undef,
-            $subdomainId
-        );
-        $row or croak( sprintf( 'Data not found for subdomain (ID %d)', $subdomainId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $row = $self->{'_dbh'}->selectrow_hashref(
+        "
+            SELECT t1.*,
+                t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php, t2.domain_cgi,
+                t2.external_mail, t2.web_folder_protection, t2.phpini_perm_config_level AS php_config_level,
+                IFNULL(t3.ip_number, '0.0.0.0') AS ip_number,
+                t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
+                t4.hsts_include_subdomains,
+                t5.mail_on_domain
+            FROM subdomain AS t1
+            JOIN domain AS t2 USING(domain_id)
+            JOIN server_ips AS t3 ON (t3.ip_id = t2.domain_ip_id)
+            LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.subdomain_id AND t4.domain_type = 'sub' AND t4.status = 'ok')
+            LEFT JOIN (
+                SELECT sub_id, COUNT(sub_id) AS mail_on_domain
+                FROM mail_users
+                WHERE mail_type LIKE 'subdom\\_%'
+                GROUP BY sub_id
+            ) AS t5 ON (t5.sub_id = t1.subdomain_id)
+            WHERE t1.subdomain_id = ?
+        ",
+        undef,
+        $subdomainId
+    );
+    $row or die( sprintf( 'Data not found for subdomain (ID %d)', $subdomainId ));
+    %{$self} = ( %{$self}, %{$row} );
 }
 
 =item _getData( $action )
@@ -164,7 +204,7 @@ sub _loadData
  Data provider method for servers and packages
 
  Param string $action Action
- Return hashref Reference to a hash containing data, croak on failure
+ Return hashref Reference to a hash containing data, die on failure
 
 =cut
 
@@ -190,7 +230,6 @@ sub _getData
     }
 
     if ( $self->{'domain_php'} eq 'yes' ) {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
         $phpini = $self->{'_dbh'}->selectrow_hashref(
             'SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?',
             undef,
@@ -251,17 +290,15 @@ sub _getData
 
 =item _sharedMountPoint( )
 
- Does this subdomain share mount point with another domain?
+ Is the subdomain sharing a mount point with another domain?
 
- Return bool, croak on failure
+ Return bool TRUE if the subdomain share a mount point with another domain, FALSE otherwise, die on failure
 
 =cut
 
 sub _sharedMountPoint
 {
     my ($self) = @_;
-
-    local $self->{'_dbh'}->{'RaiseError'} = 1;
 
     my $regexp = "^$self->{'subdomain_mount'}(/.*|\$)";
     my ($nbSharedMountPoints) = $self->{'_dbh'}->selectrow_array(
@@ -281,7 +318,6 @@ sub _sharedMountPoint
         ",
         undef, $self->{'domain_id'}, $regexp, $self->{'subdomain_id'}, $self->{'domain_id'}, $regexp, $self->{'domain_id'}, $regexp
     );
-
     $nbSharedMountPoints || $self->{'subdomain_mount'} eq '/';
 }
 

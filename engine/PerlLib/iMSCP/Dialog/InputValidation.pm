@@ -522,9 +522,7 @@ sub isAvailableSqlUser ( $ )
         die;
     }
 
-    my $dbh = $db->getRawDb();
-    $dbh->{'RaiseError'} = 1;
-    my $row = $dbh->selectrow_hashref( 'SELECT 1 FROM sql_user WHERE sqlu_name = ? LIMIT 1', undef, $username );
+    my $row = $db->selectrow_hashref( 'SELECT 1 FROM sql_user WHERE sqlu_name = ? LIMIT 1', undef, $username );
 
     $db->useDatabase( $oldDbName ) if $oldDbName;
 

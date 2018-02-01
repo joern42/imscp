@@ -48,10 +48,9 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         my ($serviceName, $conffile) = @_;
 
-        return 0 unless grep( $serviceName eq $_, 'pop3d', 'imapd' );
+        return unless grep( $serviceName eq $_, 'pop3d', 'imapd' );
 
         $conffile->{'MAXPERIP'} = $MAX_CONNECTION_PER_IP;
-        0;
     }
 ) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Courier::' ) != -1;
 

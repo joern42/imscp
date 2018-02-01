@@ -51,7 +51,7 @@ our @EXPORT = qw/ execute executeNoWait escapeShell getExitCode /;
  Param string|array $command Command to execute
  Param string \$stdout OPTIONAL Variable for capture of STDOUT
  Param string \$stderr OPTIONAL Variable for capture of STDERR
- Return int Command exit code or croak/die on failure
+ Return int Command exit code, die on failure
 
 =cut
 
@@ -97,7 +97,7 @@ sub execute( $;$$ )
  Param string|array $command Command to execute
  Param CODE $subStdout OPTIONAL routine for processing of command STDOUT line by line
  Param CODE $subStderr OPTIONAL routine for processing of command STDERR line by line
- Return int Command exit code or croak on failure
+ Return int Command exit code, die on failure
 
 =cut
 

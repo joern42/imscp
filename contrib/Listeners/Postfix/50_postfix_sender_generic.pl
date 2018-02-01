@@ -48,15 +48,13 @@ iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
-        my $rs = $mta->addMapEntry( $postfixSmtpGenericMap );
-        $rs ||= $mta->postconf(
-            (
-                smtp_generic_maps => {
-                    action => 'add',
-                    values => [ "hash:$postfixSmtpGenericMap" ]
-                }
-            )
-        );
+        $mta->addMapEntry( $postfixSmtpGenericMap );
+        $mta->postconf( (
+            smtp_generic_maps => {
+                action => 'add',
+                values => [ "hash:$postfixSmtpGenericMap" ]
+            }
+        ));
     },
     -99
 ) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
