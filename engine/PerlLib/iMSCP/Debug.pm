@@ -28,14 +28,20 @@ use warnings;
 use File::Spec;
 use iMSCP::Log;
 use iMSCP::Getopt;
+use POSIX qw/ isatty /;
 use parent 'Exporter';
 
-our @EXPORT = qw/
-    debug warning error fatal newDebug endDebug getMessage getLastError getMessageByType debugRegisterCallBack output /;
+our @EXPORT_OK = qw/ debug warning error newDebug endDebug getMessage getLastError getMessageByType debugRegisterCallBack output /;
 
 BEGIN {
-    $SIG{'__DIE__'} = sub { fatal( @_, ( caller( 1 ) )[3] || 'main' ) if defined $^S && !$^S };
-    $SIG{'__WARN__'} = sub { warning( @_, ( caller( 1 ) )[3] || 'main' ); };
+    $SIG{'__DIE__'} = sub {
+        return unless defined $^S && $^S == 0;
+        error( "@_" =~ s/\n$//r, ( caller( 1 ) )[3] || 'main' );
+        exit 1;
+    };
+    $SIG{'__WARN__'} = sub {
+        warning( "@_" =~ s/\n$//r, ( caller( 1 ) )[3] || 'main' );
+    };
 }
 
 my $self;
@@ -164,25 +170,6 @@ sub error
 
     $caller //= ( caller( 1 ) )[3] || 'main';
     $self->{'logger'}()->store( message => "$caller: $message", tag => 'error' );
-}
-
-=item fatal( $message [, $caller ] )
-
- Log a fatal message in the current logger and exit with status 255
-
- Param string $message Fatal message
- Param string $caller OPTIONAL Caller
- Return void
-
-=cut
-
-sub fatal
-{
-    my ($message, $caller) = @_;
-
-    $caller //= ( caller( 1 ) )[3] || 'main';
-    $self->{'logger'}()->store( message => "$caller: $message", tag => 'fatal' );
-    exit 255;
 }
 
 =item getLastError()
@@ -320,15 +307,25 @@ sub _getMessages
 =cut
 
 END {
-    &{$_} for @{$self->{'debug_callbacks'}};
+    eval {
+        &{$_} for @{$self->{'debug_callbacks'}};
 
-    my $countLoggers = @{$self->{'loggers'}};
-    while ( $countLoggers > 0 ) {
-        endDebug();
-        $countLoggers--;
-    }
+        my $countLoggers = @{$self->{'loggers'}};
+        while ( $countLoggers > 0 ) {
+            endDebug();
+            $countLoggers--;
+        }
 
-    print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error|fatal)/, remove => 1 );
+        if ( isatty( \*STDERR ) ) {
+            print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
+            return;
+        }
+
+        require iMSCP::Mail;
+        iMSCP::Mail->new()->warnMsg( scalar getMessageByType( 'warn' ))->errmsg( scalar getMessageByType( 'error' ));
+    };
+
+    print STDERR output( $@, 'fatal' ) if $@;
 }
 
 =back
