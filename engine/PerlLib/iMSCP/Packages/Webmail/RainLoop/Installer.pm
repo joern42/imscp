@@ -144,7 +144,7 @@ EOF
 
  Process preinstall tasks
 
- Return int 0
+ Return void, die on failure
 
 =cut
 
@@ -160,7 +160,7 @@ sub preinstall
 
  Process install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -168,14 +168,14 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_installFiles();
-    $rs ||= $self->_mergeConfig();
-    $rs ||= $self->_setupDatabase();
-    $rs ||= $self->_buildConfig();
-    $rs ||= $self->_buildHttpdConfig();
-    $rs ||= $self->_setVersion();
-    $rs ||= $self->_removeOldVersionFiles();
-    $rs ||= $self->_cleanup();
+    $self->_installFiles();
+    $self->_mergeConfig();
+    $self->_setupDatabase();
+    $self->_buildConfig();
+    $self->_buildHttpdConfig();
+    $self->_setVersion();
+    $self->_removeOldVersionFiles();
+    $self->_cleanup();
 }
 
 =back
@@ -190,7 +190,7 @@ sub install
 
  Param string \$tplContent Reference to template file content
  Param string $tplName Template name
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -198,7 +198,7 @@ sub afterFrontEndBuildConfFile
 {
     my ($tplContent, $tplName) = @_;
 
-    return 0 unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
+    return unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
     replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
@@ -207,8 +207,6 @@ sub afterFrontEndBuildConfFile
     include imscp_rainloop.conf;
     # SECTION custom END.
 EOF
-
-    0;
 }
 
 =back
@@ -240,7 +238,7 @@ sub _init
 
  Install files
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -249,44 +247,29 @@ sub _installFiles
     my ($self) = @_;
 
     my $srcDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/rainloop";
-
-    unless ( -d $srcDir ) {
-        error( "Couldn't find the imscp/rainloop package in the packages cache directory" );
-        return 1;
-    }
-
+    -d $srcDir or die( "Couldn't find the imscp/rainloop package in the packages cache directory" );
     my $destDir = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop";
 
     # Remove unwanted file to avoid hash naming convention for data directory
-    if ( -f "$destDir/data/DATA.php" ) {
-        my $rs = iMSCP::File->new( filename => "$destDir/data/DATA.php" )->delFile();
-        return $rs if $rs;
+    iMSCP::File->new( filename => "$destDir/data/DATA.php" )->remove();
+
+    # Handle upgrade from old rainloop data structure
+    if ( -d "$destDir/data/_data_11c052c218cd2a2febbfb268624efdc1" ) {
+        iMSCP::Dir->new( dirname => "$destDir/data/_data_11c052c218cd2a2febbfb268624efdc1" )->move( "$destDir/data/_data_" );
     }
 
-    eval {
-        # Handle upgrade from old rainloop data structure
-        if ( -d "$destDir/data/_data_11c052c218cd2a2febbfb268624efdc1" ) {
-            iMSCP::Dir->new( dirname => "$destDir/data/_data_11c052c218cd2a2febbfb268624efdc1" )->moveDir( "$destDir/data/_data_" );
-        }
+    # Install new files
+    iMSCP::Dir->new( dirname => "$srcDir/src" )->copy( $destDir );
+    iMSCP::Dir->new( dirname => "$srcDir/iMSCP/src" )->copy( $destDir );
+    iMSCP::Dir->new( dirname => "$srcDir/iMSCP/config" )->copy( $self->{'cfgDir'} );
 
-        # Install new files
-        iMSCP::Dir->new( dirname => "$srcDir/src" )->rcopy( $destDir, { preserve => 'no' } );
-        iMSCP::Dir->new( dirname => "$srcDir/iMSCP/src" )->rcopy( $destDir, { preserve => 'no' } );
-        iMSCP::Dir->new( dirname => "$srcDir/iMSCP/config" )->rcopy( $self->{'cfgDir'}, { preserve => 'no' } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
 }
 
 =item _mergeConfig( )
 
  Merge old config if any
 
- Return int 0
+ Return void, die on failure
 
 =cut
 
@@ -306,18 +289,17 @@ sub _mergeConfig
             $self->{'config'}->{$key} = $value;
         }
 
-        return 0;
+        return;
     }
 
     tie %{$self->{'config'}}, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/rainloop.data", nodeferring => 1;
-    0;
 }
 
 =item _setupDatabase( )
 
  Setup database
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -333,55 +315,46 @@ sub _setupDatabase
     my $dbPass = main::setupGetQuestion( 'RAINLOOP_SQL_PASSWORD' );
     my $dbOldUser = $self->{'config'}->{'DATABASE_USER'};
 
-    eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        $dbh->{'RaiseError'} = 1;
+    my $dbh = iMSCP::Database->getInstance();
+    my $quotedDbName = $dbh->quote_identifier( $rainLoopDbName );
 
-        my $quotedDbName = $dbh->quote_identifier( $rainLoopDbName );
+    $dbh->do( "CREATE DATABASE IF NOT EXISTS $quotedDbName CHARACTER SET utf8 COLLATE utf8_unicode_ci" );
 
-        $dbh->do( "CREATE DATABASE IF NOT EXISTS $quotedDbName CHARACTER SET utf8 COLLATE utf8_unicode_ci" );
+    my $sqlServer = iMSCP::Servers::Sqld->factory();
 
-        my $sqlServer = iMSCP::Servers::Sqld->factory();
+    # Drop old SQL user if required
+    for my $sqlUser ( $dbOldUser, $dbUser ) {
+        next unless $sqlUser;
 
-        # Drop old SQL user if required
-        for my $sqlUser ( $dbOldUser, $dbUser ) {
-            next unless $sqlUser;
-
-            for my $host( $dbUserHost, $oldDbUserHost ) {
-                next if !$host || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
-                $sqlServer->dropUser( $sqlUser, $host );
-            }
+        for my $host( $dbUserHost, $oldDbUserHost ) {
+            next if !$host || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
+            $sqlServer->dropUser( $sqlUser, $host );
         }
-
-        # Create SQL user if required
-        if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-            debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
-            $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
-        }
-
-        $quotedDbName =~ s/([%_])/\\$1/g;
-        $dbh->do( "GRANT ALL PRIVILEGES ON $quotedDbName.* TO ?\@?", undef, $dbUser, $dbUserHost );
-
-        # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
-        $quotedDbName = $dbh->quote_identifier( $imscpDbName );
-        $dbh->do( "GRANT SELECT (mail_addr, mail_pass), UPDATE (mail_pass) ON $quotedDbName.mail_users TO ?\@?", undef, $dbUser, $dbUserHost );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
+
+    # Create SQL user if required
+    if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
+        $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
+        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+    }
+
+    $quotedDbName =~ s/([%_])/\\$1/g;
+    $dbh->do( "GRANT ALL PRIVILEGES ON $quotedDbName.* TO ?\@?", undef, $dbUser, $dbUserHost );
+
+    # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
+    $quotedDbName = $dbh->quote_identifier( $imscpDbName );
+    $dbh->do( "GRANT SELECT (mail_addr, mail_pass), UPDATE (mail_pass) ON $quotedDbName.mail_users TO ?\@?", undef, $dbUser, $dbUserHost );
 
     $self->{'config'}->{'DATABASE_USER'} = $dbUser;
     $self->{'config'}->{'DATABASE_PASSWORD'} = $dbPass;
-    0;
 }
 
 =item _buildConfig( )
 
  Build RainLoop configuration file
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -407,22 +380,11 @@ sub _buildConfig
         my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'rainloop', $confFile, \ my $cfgTpl, $data );
         return $rs if $rs;
 
-        unless ( defined $cfgTpl ) {
-            $cfgTpl = iMSCP::File->new( filename => "$confDir/$confFile" )->get();
-            unless ( defined $cfgTpl ) {
-                error( sprintf( "Couldn't read the %s file", "$confDir/$confFile" ));
-                return 1;
-            }
-        }
+        $cfgTpl = iMSCP::File->new( filename => "$confDir/$confFile" )->get() unless defined $cfgTpl;
 
         processByRef( $data, \$cfgTpl );
 
-        my $file = iMSCP::File->new( filename => "$confDir/$confFile" );
-        $file->set( $cfgTpl );
-        $rs = $file->save();
-        $rs ||= $file->owner( $usergroup, $usergroup );
-        $rs ||= $file->mode( 0640 );
-        return $rs if $rs;
+        iMSCP::File->new( filename => "$confDir/$confFile" )->set( $cfgTpl )->save()->owner( $usergroup, $usergroup )->mode( 0640 )
     }
 
     0;
@@ -432,7 +394,7 @@ sub _buildConfig
 
  Set version
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -440,24 +402,18 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $packageDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/rainloop";
-    my $json = iMSCP::File->new( filename => "$packageDir/composer.json" )->get();
-    unless ( defined $json ) {
-        error( sprintf( "Couldn't read the %s file", "$packageDir/composer.json" ));
-        return 1;
-    }
-
-    $json = decode_json( $json );
+    my $json = decode_json(
+        iMSCP::File->new( filename => "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/rainloop/composer.json" )->get()
+    );
     debug( sprintf( 'Set new rainloop version to %s', $json->{'version'} ));
     $self->{'config'}->{'RAINLOOP_VERSION'} = $json->{'version'};
-    0;
 }
 
 =item _setVersion( )
 
  Remove old version files if any
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -471,13 +427,13 @@ sub _removeOldVersionFiles
         next if $versionDir eq $self->{'config'}->{'RAINLOOP_VERSION'};
         iMSCP::Dir->new( dirname => "$versionsDir/$versionDir" )->remove();
     }
-
-    0;
 }
 
 =item _buildHttpdConfig( )
 
  Build Httpd configuration
+
+ Return void, die on failure
 
 =cut
 
@@ -496,7 +452,7 @@ sub _buildHttpdConfig
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -504,14 +460,8 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeRainloopCleanup' );
-    return $rs if $rs;
-
-    if ( -f "$self->{'cfgDir'}/rainloop.old.data" ) {
-        $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/rainloop.old.data" )->delFile();
-        return $rs if $rs;
-    }
-
+    $self->{'eventManager'}->trigger( 'beforeRainloopCleanup' );
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/rainloop.old.data" )->remove();
     $self->{'eventManager'}->trigger( 'afterRainloopCleanup' );
 }
 

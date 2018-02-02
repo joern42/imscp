@@ -36,7 +36,7 @@ iMSCP::Bootstrapper->getInstance()->boot( {
     nokeys          => 1
 } );
 
-exit 0 unless iMSCP::ProgramFinder::find( 'rkhunter' );
+exit unless iMSCP::ProgramFinder::find( 'rkhunter' );
 
 my $logFile = $main::imscpConfig{'RKHUNTER_LOG'} || '/var/log/rkhunter.log';
 
@@ -46,10 +46,9 @@ my $logFile = $main::imscpConfig{'RKHUNTER_LOG'} || '/var/log/rkhunter.log';
 execute( "rkhunter --cronjob --logfile $logFile", \ my $stdout, \ my $stderr );
 debug( $stdout ) if $stdout;
 debug( $stderr ) if $stderr;
+exit unless -f $logFile;
 
-exit 0 unless -f $logFile;
+iMSCP::File->new( filename => $logFile )->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'IMSCP_GROUP'} )->mode( 0640 );
 
-my $file = iMSCP::File->new( filename => $logFile );
-my $rs = $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'IMSCP_GROUP'} );
-$rs ||= $file->mode( 0640 );
-exit $rs;
+1;
+__END__

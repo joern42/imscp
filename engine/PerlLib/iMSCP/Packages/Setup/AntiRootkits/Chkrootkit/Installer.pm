@@ -43,7 +43,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -56,7 +56,7 @@ sub preinstall
 
  Process post install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -64,8 +64,8 @@ sub postinstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_addCronTask();
-    $rs ||= $self->_scheduleCheck();
+    $self->_addCronTask();
+    $self->_scheduleCheck();
 }
 
 =back
@@ -78,7 +78,7 @@ sub postinstall
 
  Disable default configuration as provided by the chkrootkit Debian package
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -91,7 +91,7 @@ sub _disableDebianConfig
 
  Add cron task
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -113,7 +113,7 @@ sub _addCronTask
 
  Schedule check if log file doesn't exist or is empty
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -122,15 +122,11 @@ sub _scheduleCheck
     return 0 if -f -s $main::imscpConfig{'CHKROOTKIT_LOG'};
 
     # Create an empty file to avoid planning multiple checks if installer is run more than once
-    my $file = iMSCP::File->new( filename => $main::imscpConfig{'CHKROOTKIT_LOG'} );
-    $file->set( "Check scheduled...\n" );
-    my $rs = $file->save();
-    return $rs if $rs;
+    iMSCP::File->new( filename => $main::imscpConfig{'CHKROOTKIT_LOG'} )->set( "Check scheduled...\n" )->save();
 
-    $rs = execute( "echo 'bash chkrootkit -e > $main::imscpConfig{'CHKROOTKIT_LOG'} 2>&1' | at now + 10 minutes", \ my $stdout, \ my $stderr );
+    my $rs = execute( "echo 'bash chkrootkit -e > $main::imscpConfig{'CHKROOTKIT_LOG'} 2>&1' | at now + 10 minutes", \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs;
+    !$rs or die( $stderr || 'Unknown error' );
 }
 
 =back

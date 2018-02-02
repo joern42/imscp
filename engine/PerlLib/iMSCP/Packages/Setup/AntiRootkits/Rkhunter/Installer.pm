@@ -43,7 +43,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -56,7 +56,7 @@ sub preinstall
 
  Process post install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -64,8 +64,8 @@ sub postinstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_addCronTask();
-    $rs ||= $self->_scheduleCheck();
+    $self->_addCronTask();
+    $self->_scheduleCheck();
 }
 
 =back
@@ -78,7 +78,7 @@ sub postinstall
 
  Disable default configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -87,40 +87,25 @@ sub _disableDebianConfig
     if ( -f '/etc/default/rkhunter' ) {
         my $file = iMSCP::File->new( filename => '/etc/default/rkhunter' );
         my $fileContentRef = $file->getAsRef();
-        unless ( defined $fileContentRef ) {
-            error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
-            return 1;
-        }
-
         ${$fileContentRef} =~ s/CRON_DAILY_RUN=".*"/CRON_DAILY_RUN="false"/i;
         ${$fileContentRef} =~ s/CRON_DB_UPDATE=".*"/CRON_DB_UPDATE="false"/i;
-
-        my $rs = $file->save();
-        return $rs if $rs;
+        $file->save();
     }
 
-    return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    return unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
 
-    for ( qw/ cron.daily cron.weekly / ) {
-        my $rs = iMSCP::Servers::Cron->factory()->disableSystemCrontask( 'rkhunter', $_ );
-        return $rs if $rs;
-    }
+    iMSCP::Servers::Cron->factory()->disableSystemCrontask( 'rkhunter', $_ ) for qw/ cron.daily cron.weekly /;
 
-    if ( -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/rkhunter" ) {
-        my $rs = iMSCP::File->new(
-            filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/rkhunter" )->moveFile( '/etc/logrotate.d/rkhunter.disabled'
-        );
-        return $rs if $rs;
-    }
+    return unless -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/rkhunter";
 
-    0;
+    iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/rkhunter" )->move( '/etc/logrotate.d/rkhunter.disabled' );
 }
 
 =item _addCronTask( )
 
  Add cron task
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -145,28 +130,24 @@ sub _addCronTask
 
  Schedule check if log file doesn't exist or is empty
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _scheduleCheck
 {
-    return 0 if -f -s $main::imscpConfig{'RKHUNTER_LOG'};
+    return if -f -s $main::imscpConfig{'RKHUNTER_LOG'};
 
     # Create an empty file to avoid planning multiple check if installer is run many time
-    my $file = iMSCP::File->new( filename => $main::imscpConfig{'RKHUNTER_LOG'} );
-    $file->set( "Check scheduled...\n" );
-    my $rs = $file->save();
-    return $rs if $rs;
+    iMSCP::File->new( filename => $main::imscpConfig{'RKHUNTER_LOG'} )->set( "Check scheduled...\n" )->save();
 
-    $rs = execute(
+    my $rs = execute(
         "echo 'perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl > /dev/null 2>&1' | at now + 10 minutes",
         \ my $stdout,
         \ my $stderr
     );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs;
+    !$rs or die ( $stderr || 'Unknown error' );
 }
 
 =back

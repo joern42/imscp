@@ -53,7 +53,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -68,7 +68,7 @@ sub install
 
  Process post install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -83,7 +83,7 @@ sub postinstall
 
  Process uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -98,7 +98,7 @@ sub uninstall
 
  Set engine permissions
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -106,14 +106,14 @@ sub setEnginePermissions
 {
     my $httpd = iMSCP::Servers::Httpd->factory();
 
-    my $rs = setRights( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/awstats_updateall.pl",
+    setRights( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/awstats_updateall.pl",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_USER'},
             mode  => '0700'
         }
     );
-    $rs ||= setRights( $main::imscpConfig{'AWSTATS_CACHE_DIR'},
+    setRights( $main::imscpConfig{'AWSTATS_CACHE_DIR'},
         {
             user      => $main::imscpConfig{'ROOT_USER'},
             group     => $httpd->getRunningGroup(),
@@ -122,7 +122,7 @@ sub setEnginePermissions
             recursive => 1
         }
     );
-    $rs ||= setRights( "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats",
+    setRights( "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $httpd->getRunningGroup(),
@@ -149,7 +149,7 @@ sub getDistroPackages
  Process addUser tasks
 
  Param hashref \%moduleData Data as provided by User module
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -159,23 +159,27 @@ sub addUser
 
     my $httpd = iMSCP::Servers::Httpd->factory();
     my $file = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" );
-    my $fileContentRef = $file->getAsRef();
-    ${$fileContentRef} = '' unless defined $fileContentRef;
+    my $fileContentRef;
+
+    if ( -f "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" ) {
+        $fileContentRef = $file->getAsRef();
+    } else {
+        my $fileContent = '';
+        $fileContentRef = \ $fileContent;
+    }
+
     ${$fileContentRef} =~ s/^$moduleData->{'USERNAME'}:[^\n]*\n//gim;
     ${$fileContentRef} .= "$moduleData->{'USERNAME'}:$moduleData->{'PASSWORD_HASH'}\n";
-
-    my $rs = $file->save();
-    return $rs if $rs;
-
+    $file->save();
     $httpd->{'reload'} ||= 1;
-    0;
+
 }
 
 =item preaddDomain( )
 
  Process preaddDomain tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -183,7 +187,7 @@ sub preaddDomain
 {
     my ($self) = @_;
 
-    return 0 if $self->{'_is_registered_event_listener'};
+    return if $self->{'_is_registered_event_listener'};
 
     $self->{'_is_registered_event_listener'} = 1;
     $self->{'eventManager'}->register( 'beforeApacheBuildConfFile', $self );
@@ -194,7 +198,7 @@ sub preaddDomain
  Process addDomain tasks
 
  Param hashref \%moduleData Data as provided by Alias|Domain|SubAlias|Subdomain modules
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -210,7 +214,7 @@ sub addDomain
  Process deleteDomain tasks
 
  Param hashref \%moduleData Data as provided by Alias|Domain|SubAlias|Subdomain modules
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -218,39 +222,20 @@ sub deleteDomain
 {
     my (undef, $moduleData) = @_;
 
-    if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" ) {
-        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->delFile();
-        return $rs if $rs;
-    }
+    iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
-    return 0 unless -d $main::imscpConfig{'AWSTATS_CACHE_DIR'};
+    return unless -d $main::imscpConfig{'AWSTATS_CACHE_DIR'};
 
-    my @awstatsCacheFiles = eval {
-        iMSCP::Dir->new(
-            dirname  => $main::imscpConfig{'AWSTATS_CACHE_DIR'},
-            fileType => '^(?:awstats[0-9]+|dnscachelastupdate)' . quotemeta( ".$moduleData->{'DOMAIN_NAME'}.txt" )
-        )->getFiles();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    return 0 unless @awstatsCacheFiles;
-
-    for ( @awstatsCacheFiles ) {
-        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CACHE_DIR'}/$_" )->delFile();
-        return $rs if $rs;
-    }
-
-    0;
+    iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CACHE_DIR'}/$_" )->remove() for iMSCP::Dir->new(
+        dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'}
+    )->getFiles( qr/^(?:awstats[0-9]+|dnscachelastupdate)\Q.$moduleData->{'DOMAIN_NAME'}.txt\E$/ );
 }
 
 =item preaddSubdomain( )
 
  Process preaddSubdomain tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -258,7 +243,7 @@ sub preaddSubdomain
 {
     my ($self) = @_;
 
-    return 0 if $self->{'_is_registered_event_listener'};
+    return if $self->{'_is_registered_event_listener'};
 
     $self->{'_is_registered_event_listener'} = 1;
     $self->{'eventManager'}->register( 'beforeApacheBuildConfFile', $self );
@@ -270,7 +255,7 @@ sub preaddSubdomain
  Process addSubdomain tasks
 
  Param hashref \%moduleData Data as provided by SubAlias|Subdomain modules
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -286,7 +271,7 @@ sub addSubdomain
  Process deleteSubdomain tasks
 
  Param hashref \%moduleData Data as provided by SubAlias|Subdomain modules
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -294,32 +279,13 @@ sub deleteSubdomain
 {
     my (undef, $moduleData) = @_;
 
-    if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" ) {
-        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->delFile();
-        return $rs if $rs;
-    }
+    iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
-    return 0 unless -d $main::imscpConfig{'AWSTATS_CACHE_DIR'};
+    return unless -d $main::imscpConfig{'AWSTATS_CACHE_DIR'};
 
-    my @awstatsCacheFiles = eval {
-        iMSCP::Dir->new(
-            dirname  => $main::imscpConfig{'AWSTATS_CACHE_DIR'},
-            fileType => '^(?:awstats[0-9]+|dnscachelastupdate)' . quotemeta( ".$moduleData->{'DOMAIN_NAME'}.txt" )
-        )->getFiles();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    return 0 unless @awstatsCacheFiles;
-
-    for ( @awstatsCacheFiles ) {
-        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CACHE_DIR'}/$_" )->delFile();
-        return $rs if $rs;
-    }
-
-    0;
+    iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CACHE_DIR'}/$_" )->remove() for iMSCP::Dir->new(
+        dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'}
+    )->getFiles( qr/^(?:awstats[0-9]+|dnscachelastupdate)\Q.$moduleData->{'DOMAIN_NAME'}.txt\E$/ );
 }
 
 =back
@@ -349,7 +315,7 @@ sub _init
  Add awstats configuration file for the given domain
 
  Param hashref \%moduleData Data as provided by Alias|Domain|SubAlias|Subdomain modules
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -358,28 +324,18 @@ sub _addAwstatsConfig
     my ($self, $moduleData) = @_;
 
     unless ( $self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}} ) {
-        $self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}} = eval {
-            my $dbh = iMSCP::Database->getInstance()->getRawDb();
-            local $dbh->{'RaiseError'} = 1;
-            $dbh->selectrow_hashref( 'SELECT admin_name FROM admin WHERE admin_id = ?', undef, $moduleData->{'DOMAIN_ADMIN_ID'} );
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        } elsif ( !$self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}} ) {
-            error( sprintf( "Couldn't retrieve data for admin with ID %d", $moduleData->{'DOMAIN_ADMIN_ID'} ));
-            return 1;
-        }
+        $self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}} = iMSCP::Database->getInstance()->selectrow_hashref(
+            'SELECT admin_name FROM admin WHERE admin_id = ?', undef, $moduleData->{'DOMAIN_ADMIN_ID'}
+        );
+        $self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}} or die(
+            sprintf( "Couldn't retrieve data for admin with ID %d", $moduleData->{'DOMAIN_ADMIN_ID'} )
+        );
     }
 
     my $file = iMSCP::File->new(
         filename => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Config/awstats.imscp_tpl.conf"
     );
     my $fileContentRef = $file->getAsRef();
-    unless ( defined $fileContentRef ) {
-        error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
-        return 1;
-    }
 
     my $httpd = iMSCP::Servers::Httpd->factory();
 
@@ -397,10 +353,12 @@ sub _addAwstatsConfig
         $fileContentRef
     );
 
-    $file->{'filename'} = "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf";
-    my $rs = $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
-    $rs ||= $file->mode( 0644 );
+    iMSCP::File
+        ->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )
+        ->set( $file->get )
+        ->save()
+        ->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} )
+        ->mode( 0644 );
 }
 
 =back
@@ -425,7 +383,7 @@ sub _addAwstatsConfig
   - group : File group (default: root
   - mode  : File mode (default: 0644)
   - cached : Whether or not loaded file must be cached in memory
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -433,7 +391,7 @@ sub beforeApacheBuildConfFile
 {
     my (undef, $cfgTpl, $filename, undef, $moduleData) = @_;
 
-    return 0 if $filename ne 'domain.tpl' || $moduleData->{'FORWARD'} ne 'no';
+    return if $filename ne 'domain.tpl' || $moduleData->{'FORWARD'} ne 'no';
 
     debug( sprintf( 'Injecting AWStats configuration in Apache vhost for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
 
@@ -448,8 +406,6 @@ sub beforeApacheBuildConfFile
     </Location>
     # SECTION addons END.
 EOF
-
-    0;
 }
 
 =back

@@ -41,7 +41,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -60,7 +60,7 @@ sub uninstall
 
  Restore default configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 

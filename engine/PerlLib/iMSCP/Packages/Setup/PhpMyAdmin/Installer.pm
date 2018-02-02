@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use File::Basename;
 use iMSCP::Composer;
-use iMSCP::Crypt qw/ decryptRijndaelCBC randomStr /;
+use iMSCP::Crypt qw/ decryptRijndaelCBC randomStr ALNUM /;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/ isAvailableSqlUser isOneOfStringsInList isStringNotInList isValidPassword isValidUsername /;
@@ -57,7 +57,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Register setup event listeners
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -65,13 +65,7 @@ sub registerSetupListeners
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog',
-        sub {
-            push @{$_[0]}, sub { $self->showDialog( @_ ) };
-            0;
-        }
-    );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->showDialog( @_ ) }; } );
 }
 
 =item showDialog( \%dialog )
@@ -93,7 +87,7 @@ sub showDialog
     );
     my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = main::setupGetQuestion(
-        'PHPMYADMIN_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, iMSCP::Crypt::ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'} )
+        'PHPMYADMIN_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'} )
     );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqlmanager', 'all', 'forced' ] )
@@ -132,7 +126,7 @@ EOF
             do {
                 if ( $dbPass eq '' ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = '';
-                    $dbPass = randomStr( 16, iMSCP::Crypt::ALNUM );
+                    $dbPass = randomStr( 16, ALNUM );
                 }
 
                 ( $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass );
@@ -163,7 +157,7 @@ EOF
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -179,7 +173,7 @@ sub preinstall
 
  Process install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -187,15 +181,15 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_backupConfigFile( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}/config.inc.php" );
-    $rs ||= $self->_installFiles();
-    $rs ||= $self->_setupDatabase();
-    $rs ||= $self->_setupSqlUser();
-    $rs ||= $self->_generateBlowfishSecret();
-    $rs ||= $self->_buildConfig();
-    $rs ||= $self->_buildHttpdConfig();
-    $rs ||= $self->_setVersion();
-    $rs ||= $self->_cleanup();
+    $self->_backupConfigFile( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}/config.inc.php" );
+    $self->_installFiles();
+    $self->_setupDatabase();
+    $self->_setupSqlUser();
+    $self->_generateBlowfishSecret();
+    $self->_buildConfig();
+    $self->_buildHttpdConfig();
+    $self->_setVersion();
+    $self->_cleanup();
 }
 
 =back
@@ -210,7 +204,7 @@ sub install
 
  Param string \$tplContent Reference to template file content
  Param string $tplName Template name
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -218,7 +212,7 @@ sub afterFrontEndBuildConfFile
 {
     my ($tplContent, $tplName) = @_;
 
-    return 0 unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
+    return unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
     replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
@@ -227,8 +221,6 @@ sub afterFrontEndBuildConfFile
     include imscp_pma.conf;
     # SECTION custom END.
 EOF
-
-    0;
 }
 
 =back
@@ -262,7 +254,7 @@ sub _init
 
  Backup the given configuration file
 
- Return int 0
+ Return void, die on failure
 
 =cut
 
@@ -270,16 +262,16 @@ sub _backupConfigFile
 {
     my ($self, $cfgFile) = @_;
 
-    return 0 unless -f $cfgFile && -d $self->{'bkpDir'};
+    return unless -f $cfgFile && -d $self->{'bkpDir'};
 
-    iMSCP::File->new( filename => $cfgFile )->copyFile( $self->{'bkpDir'} . '/' . fileparse( $cfgFile ) . '.' . time, { preserve => 'no' } );
+    iMSCP::File->new( filename => $cfgFile )->copy( $self->{'bkpDir'} . '/' . fileparse( $cfgFile ) . '.' . time );
 }
 
 =item _installFiles( )
 
  Install files in production directory
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -287,27 +279,17 @@ sub _installFiles
 {
     my $packageDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/phpmyadmin";
 
-    unless ( -d $packageDir ) {
-        error( "Couldn't find the imscp/phpmyadmin package into the packages cache directory" );
-        return 1;
-    }
+    -d $packageDir or die( "Couldn't find the imscp/phpmyadmin package into the packages cache directory" );
 
-    eval {
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma" )->remove();
-        iMSCP::Dir->new( dirname => "$packageDir" )->rcopy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma", { preserve => 'no' } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-    0;
+    iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma" )->remove();
+    iMSCP::Dir->new( dirname => "$packageDir" )->copy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma" );
 }
 
 =item _setupSqlUser( )
 
  Setup restricted SQL user
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -322,70 +304,61 @@ sub _setupSqlUser
     my $dbPass = main::setupGetQuestion( 'PHPMYADMIN_SQL_PASSWORD' );
     my $dbOldUser = $self->{'config'}->{'DATABASE_USER'};
 
-    eval {
-        my $sqlServer = iMSCP::Servers::Sqld->factory();
+    my $sqlServer = iMSCP::Servers::Sqld->factory();
 
-        # Drop old SQL user if required
-        for my $sqlUser ( $dbOldUser, $dbUser ) {
-            next unless $sqlUser;
+    # Drop old SQL user if required
+    for my $sqlUser ( $dbOldUser, $dbUser ) {
+        next unless $sqlUser;
 
-            for my $host( $dbUserHost, $oldDbUserHost ) {
-                next if !$host
-                    || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
-                $sqlServer->dropUser( $sqlUser, $host );
-            }
+        for my $host( $dbUserHost, $oldDbUserHost ) {
+            next if !$host || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
+            $sqlServer->dropUser( $sqlUser, $host );
         }
-
-        # Create SQL user if required
-        if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-            debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
-            $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
-        }
-
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        $dbh->{'RaiseError'} = 1;
-
-        # Give required privileges to this SQL user
-
-        $dbh->do( 'GRANT USAGE ON mysql.* TO ?@?', undef, $dbUser, $dbUserHost );
-        $dbh->do( 'GRANT SELECT ON mysql.db TO ?@?', undef, $dbUser, $dbUserHost );
-        $dbh->do(
-            '
-                GRANT SELECT (Host, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv,
-                    Reload_priv, Shutdown_priv, Process_priv, File_priv, Grant_priv, References_priv, Index_priv,
-                    Alter_priv, Show_db_priv, Super_priv, Create_tmp_table_priv, Lock_tables_priv, Execute_priv,
-                    Repl_slave_priv, Repl_client_priv)
-                ON mysql.user
-                TO ?@?
-            ',
-            undef, $dbUser, $dbUserHost
-        );
-
-        # Check for mysql.host table existence (as for MySQL >= 5.6.7, the mysql.host table is no longer provided)
-        if ( $dbh->selectrow_hashref( "SHOW tables FROM mysql LIKE 'host'" ) ) {
-            $dbh->do( 'GRANT SELECT ON mysql.user TO ?@?', undef, $dbUser, $dbUserHost );
-            $dbh->do( 'GRANT SELECT (Host, Db, User, Table_name, Table_priv, Column_priv) ON mysql.tables_priv TO?@?', undef, $dbUser, $dbUserHost );
-        }
-
-        ( my $quotedDbName = $dbh->quote_identifier( $phpmyadminDbName ) ) =~ s/([%_])/\\$1/g;
-        $dbh->do( "GRANT ALL PRIVILEGES ON $quotedDbName.* TO ?\@?", undef, $dbUser, $dbUserHost );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
+
+    # Create SQL user if required
+    if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
+        $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
+        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+    }
+
+    my $dbh = iMSCP::Database->getInstance();
+
+    # Give required privileges to this SQL user
+
+    $dbh->do( 'GRANT USAGE ON mysql.* TO ?@?', undef, $dbUser, $dbUserHost );
+    $dbh->do( 'GRANT SELECT ON mysql.db TO ?@?', undef, $dbUser, $dbUserHost );
+    $dbh->do(
+        '
+            GRANT SELECT (Host, User, Select_priv, Insert_priv, Update_priv, Delete_priv, Create_priv, Drop_priv,
+                Reload_priv, Shutdown_priv, Process_priv, File_priv, Grant_priv, References_priv, Index_priv,
+                Alter_priv, Show_db_priv, Super_priv, Create_tmp_table_priv, Lock_tables_priv, Execute_priv,
+                Repl_slave_priv, Repl_client_priv)
+            ON mysql.user
+            TO ?@?
+        ',
+        undef, $dbUser, $dbUserHost
+    );
+
+    # Check for mysql.host table existence (as for MySQL >= 5.6.7, the mysql.host table is no longer provided)
+    if ( $dbh->selectrow_hashref( "SHOW tables FROM mysql LIKE 'host'" ) ) {
+        $dbh->do( 'GRANT SELECT ON mysql.user TO ?@?', undef, $dbUser, $dbUserHost );
+        $dbh->do( 'GRANT SELECT (Host, Db, User, Table_name, Table_priv, Column_priv) ON mysql.tables_priv TO?@?', undef, $dbUser, $dbUserHost );
+    }
+
+    ( my $quotedDbName = $dbh->quote_identifier( $phpmyadminDbName ) ) =~ s/([%_])/\\$1/g;
+    $dbh->do( "GRANT ALL PRIVILEGES ON $quotedDbName.* TO ?\@?", undef, $dbUser, $dbUserHost );
 
     $self->{'config'}->{'DATABASE_USER'} = $dbUser;
     $self->{'config'}->{'DATABASE_PASSWORD'} = $dbPass;
-    0;
 }
 
 =item _setupDatabase( )
 
  Setup database
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -394,17 +367,10 @@ sub _setupDatabase
     my $phpmyadminDir = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma";
     my $phpmyadminDbName = main::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
 
-    eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        $dbh->{'RaiseError'} = 1;
-        # Drop previous database
-        # FIXME: Find a better way to handle upgrade
-        $dbh->do( "DROP DATABASE IF EXISTS " . $dbh->quote_identifier( $phpmyadminDbName ));
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    my $dbh = iMSCP::Database->getInstance();
+    # Drop previous database
+    # FIXME: Find a better way to handle upgrade
+    $dbh->do( "DROP DATABASE IF EXISTS " . $dbh->quote_identifier( $phpmyadminDbName ));
 
     # Create database
 
@@ -412,17 +378,10 @@ sub _setupDatabase
 
     my $file = iMSCP::File->new( filename => $schemaFilePath );
     my $fileContentRef = $file->getAsRef();
-    unless ( defined $fileContentRef ) {
-        error( sprintf( "Couldn't read the %s file", $schemaFilePath ));
-        return;
-    }
-
     ${$fileContentRef} =~ s/^(-- Database :) `phpmyadmin`/$1 `$phpmyadminDbName`/im;
     ${$fileContentRef} =~ s/^(CREATE DATABASE IF NOT EXISTS) `phpmyadmin`/$1 `$phpmyadminDbName`/im;
     ${$fileContentRef} =~ s/^(USE) phpmyadmin;/$1 `$phpmyadminDbName`;/im;
-
-    my $rs = $file->save();
-    return $rs if $rs;
+    $file->save();
 
     my $mysqlConffile = File::Temp->new();
     print $mysqlConffile <<"EOF";
@@ -434,17 +393,16 @@ password = "@{ [ decryptRijndaelCBC($main::imscpKEY, $main::imscpIV, main::setup
 EOF
     $mysqlConffile->close();
 
-    $rs = execute( "mysql --defaults-extra-file=$mysqlConffile < $schemaFilePath", \ my $stdout, \ my $stderr );
+    my $rs = execute( "mysql --defaults-extra-file=$mysqlConffile < $schemaFilePath", \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs;
+    !$rs or die( $stderr || 'Unknown error' ) if $rs;
 }
 
 =item _buildHttpdConfig( )
 
  Build Httpd configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -463,7 +421,7 @@ sub _buildHttpdConfig
 
  Set version
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -471,37 +429,29 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $json = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma/composer.json" )->get();
-    unless ( defined $json ) {
-        error( sprintf( "Couldn't read %s", "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma/composer.json" ));
-        return 1;
-    }
-
-    $json = decode_json( $json );
+    my $json = decode_json( iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma/composer.json" )->get());
     debug( sprintf( 'Set new phpMyAdmin version to %s', $json->{'version'} ));
     $self->{'config'}->{'PHPMYADMIN_VERSION'} = $json->{'version'};
-    0;
 }
 
 =item _generateBlowfishSecret( )
 
  Generate blowfish secret
 
- Return int 0
+ Return void, die on failure
 
 =cut
 
 sub _generateBlowfishSecret
 {
-    $_[0]->{'config'}->{'BLOWFISH_SECRET'} = randomStr( 32, iMSCP::Crypt::ALNUM );
-    0;
+    $_[0]->{'config'}->{'BLOWFISH_SECRET'} = randomStr( 32, ALNUM );
 }
 
 =item _buildConfig( )
 
  Build configuration file
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -529,32 +479,26 @@ sub _buildConfig
         BLOWFISH     => $blowfishSecret
     };
 
-    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', \ my $cfgTpl, $data );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', \ my $cfgTpl, $data );
 
-    unless ( defined $cfgTpl ) {
-        $cfgTpl = iMSCP::File->new( filename => "$confDir/imscp.config.inc.php" )->get();
-        unless ( defined $cfgTpl ) {
-            error( sprintf( "Couldn't read the %s file", "$confDir/imscp.config.inc.php" ));
-            return 1;
-        }
-    }
+    $cfgTpl = iMSCP::File->new( filename => "$confDir/imscp.config.inc.php" )->get() unless defined $cfgTpl
 
     processByRef( $data, \$cfgTpl );
 
-    my $file = iMSCP::File->new( filename => "$self->{'wrkDir'}/config.inc.php" );
-    $file->set( $cfgTpl );
-    $rs = $file->save();
-    $rs ||= $file->owner( $usergroup, $usergroup );
-    $rs ||= $file->mode( 0640 );
-    $rs ||= $file->copyFile( "$confDir/config.inc.php" );
+    iMSCP::File
+        ->new( filename => "$self->{'wrkDir'}/config.inc.php" )
+        ->set( $cfgTpl )
+        ->save()
+        ->owner( $usergroup, $usergroup )
+        ->mode( 0640 )
+        ->copy( "$confDir/config.inc.php", { preserve => 1 } );
 }
 
 =item _cleanup( )
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -562,9 +506,7 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return 0 unless -f "$self->{'cfgDir'}/phpmyadmin.old.data";
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/phpmyadmin.old.data" )->delFile();
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/phpmyadmin.old.data" )->remove();
 }
 
 =back

@@ -45,7 +45,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process AWStats package uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -53,9 +53,9 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_deleteFiles();
-    $rs ||= $self->_removeVhost();
-    $rs ||= $self->_restoreDebianConfig();
+    $self->_deleteFiles();
+    $self->_removeVhost();
+    $self->_restoreDebianConfig();
 }
 
 =back
@@ -68,7 +68,7 @@ sub uninstall
 
  Delete files
 
- Return int 0 on success other on failure
+ Return void, die on failure
 
 =cut
 
@@ -76,30 +76,19 @@ sub _deleteFiles
 {
     my $httpd = iMSCP::Servers::Httpd->factory();
 
-    if ( -f "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" ) {
-        my $rs = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" )->delFile();
-        return $rs if $rs;
-    }
+    iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" )->remove();
+    iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->remove();
 
-    eval { iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->remove(); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    return unless -d $main::imscpConfig{'AWSTATS_CONFIG_DIR'};
 
-    return 0 unless -d $main::imscpConfig{'AWSTATS_CONFIG_DIR'};
-
-    my $rs = execute( "rm -f $main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.*.conf", \ my $stdout, \ my $stderr );
-    debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs;
+    iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CONFIG_DIR'} )->clear( qr/^awstats.*\.conf$/ );
 }
 
 =item _removeVhost( )
 
- Remove global vhost file
+ Remove global vhost file if any
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -107,29 +96,27 @@ sub _removeVhost
 {
     my $httpd = iMSCP::Servers::Httpd->factory();
 
-    return 0 unless -f "$httpd->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/01_awstats.conf";
+    $httpd->disableSites( '01_awstats.conf' );
 
-    my $rs = $httpd->disableSites( '01_awstats.conf' );
-    $rs ||= iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/01_awstats.conf" )->delFile();
+    iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/01_awstats.conf" )->remove();
 }
 
 =item _restoreDebianConfig( )
 
  Restore default configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _restoreDebianConfig
 {
-    return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    return unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
 
     if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" ) {
-        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" )->moveFile(
+        iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" )->move(
             "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf"
         );
-        return $rs if $rs;
     }
 
     iMSCP::Servers::Cron->factory()->enableSystemCrontask( 'awstats', 'cron.d' );

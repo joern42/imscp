@@ -48,7 +48,7 @@ our $VERSION = '2.1.x';
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -72,9 +72,9 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_installFiles();
-    $rs ||= $self->_buildHttpdConfig();
-    $rs ||= $self->_buildConfig();
+    $self->_installFiles();
+    $self->_buildHttpdConfig();
+    $self->_buildConfig();
 }
 
 =back
@@ -89,7 +89,7 @@ sub install
 
  Param string \$tplContent Reference to template file content
  Param string $tplName Template name
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -97,7 +97,7 @@ sub afterFrontEndBuildConfFile
 {
     my ($tplContent, $tplName) = @_;
 
-    return 0 unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
+    return unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
     replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
@@ -106,7 +106,6 @@ sub afterFrontEndBuildConfFile
     include imscp_monstaftp.conf;
     # SECTION custom END.
 EOF
-    0;
 }
 
 =back
@@ -135,37 +134,25 @@ sub _init
 
  Install MonstaFTP files in production directory
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _installFiles
 {
     my $packageDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/monsta-ftp";
+    -d $packageDir or die( "Couldn't find the imscp/monsta-ftp package into the packages cache directory" );
 
-    unless ( -d $packageDir ) {
-        error( "Couldn't find the imscp/monsta-ftp package into the packages cache directory" );
-        return 1;
-    }
-
-    eval {
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove();
-        iMSCP::Dir->new( dirname => "$packageDir/src" )->rcopy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp", { preserve => 'no' } );
-        iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->rcopy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp", { preserve => 'no' } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove();
+    iMSCP::Dir->new( dirname => "$packageDir/src" )->copy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" );
+    iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->copy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" );
 }
 
 =item _buildHttpdConfig( )
 
  Build Httpd configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -184,7 +171,7 @@ sub _buildHttpdConfig
 
  Build configuration file
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -202,25 +189,13 @@ sub _buildConfig
         TMP_PATH => "$main::imscpConfig{'GUI_ROOT_DIR'}/data/tmp"
     };
 
-    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'config.php', \ my $cfgTpl, $data );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'config.php', \ my $cfgTpl, $data );
 
-    unless ( defined $cfgTpl ) {
-        $cfgTpl = iMSCP::File->new( filename => $conffile )->get();
-        unless ( defined $cfgTpl ) {
-            error( sprintf( "Couldn't read the %s file", $conffile ));
-            return 1;
-        }
-    }
+    $cfgTpl = iMSCP::File->new( filename => $conffile )->get() unless defined $cfgTpl;
 
     processByRef( $data, \$cfgTpl );
 
-    my $file = iMSCP::File->new( filename => $conffile );
-    $file->set( $cfgTpl );
-    $rs = $file->save();
-    $rs ||= $file->owner( $usergroup, $usergroup );
-    $rs ||= $file->mode( 0440 );
-    return $rs if $rs;
+    iMSCP::File->new( filename => $conffile )->set( $cfgTpl )->save()->owner( $usergroup, $usergroup )->mode( 0440 );
 
     $conffile = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp/settings/settings.json";
     $data = {
@@ -244,16 +219,16 @@ sub _buildConfig
             }
         }
     };
-
     undef $cfgTpl;
-    $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'settings.json', \ $cfgTpl, $data );
-    return $rs if $rs;
 
-    $file = iMSCP::File->new( filename => $conffile );
-    $file->set( $cfgTpl || JSON->new()->utf8( 1 )->pretty( 1 )->encode( $data ));
-    $rs = $file->save();
-    $rs ||= $file->owner( $usergroup, $usergroup );
-    $rs ||= $file->mode( 0440 );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'settings.json', \ $cfgTpl, $data );
+
+    iMSCP::File
+        ->new( filename => $conffile )
+        ->set( $cfgTpl || JSON->new()->utf8( 1 )->pretty( 1 )->encode( $data ))
+        ->save()
+        ->owner( $usergroup, $usergroup )
+        ->mode( 0440 );
 }
 
 =back

@@ -71,7 +71,7 @@ use parent 'iMSCP::Common::Singleton';
  Register setup event listeners
 
  Param iMSCP::EventManager \%eventManager
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -86,7 +86,7 @@ sub registerSetupListeners
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -101,7 +101,7 @@ sub preinstall
 
  Process install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -116,7 +116,7 @@ sub install
 
  Process uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -124,7 +124,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    return 0 if $self->{'skip_uninstall'};
+    return if $self->{'skip_uninstall'};
 
     iMSCP::Packages::Setup::PhpMyAdmin::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }
@@ -182,7 +182,7 @@ sub _init
 
  Merge distribution configuration with production configuration
 
- Die on failure
+ Return void, die on failure
 
 =cut
 
@@ -205,9 +205,7 @@ sub _mergeConfig
         untie( %oldConfig );
     }
 
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/phpmyadmin.data.dist" )->moveFile( "$self->{'cfgDir'}/phpmyadmin.data" ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    );
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/phpmyadmin.data.dist" )->move( "$self->{'cfgDir'}/phpmyadmin.data" );
 }
 
 =back

@@ -41,7 +41,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -56,7 +56,7 @@ sub preinstall
 
  Process post install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -71,7 +71,7 @@ sub postinstall
 
  Process uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -86,29 +86,26 @@ sub uninstall
 
  Set files permissions.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub setEnginePermissions
 {
-    my $rs = setRights( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl",
+    setRights( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_USER'},
             mode  => '0700'
         }
     );
-
-    return $rs if $rs || !-f $main::imscpConfig{'RKHUNTER_LOG'};
-
     setRights( $main::imscpConfig{'RKHUNTER_LOG'},
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'IMSCP_GROUP'},
             mode  => '0640'
         }
-    );
+    ) if -f $main::imscpConfig{'RKHUNTER_LOG'};
 }
 
 =item getDistroPackages( )

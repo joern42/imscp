@@ -46,7 +46,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -54,11 +54,11 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_deleteSystemFiles();
-    $rs |= $self->_deconfigurePHP();
-    $rs ||= $self->_deconfigureHTTPD();
-    $rs ||= $self->_deleteMasterWebUser();
-    $rs ||= $self->{'frontend'}->restartNginx() if iMSCP::Service->getInstance()->hasService( 'nginx' );
+    $self->_deleteSystemFiles();
+    $self->_deconfigurePHP();
+    $self->_deconfigureHTTPD();
+    $self->_deleteMasterWebUser();
+    $self->{'frontend'}->restartNginx() if iMSCP::Service->getInstance()->hasService( 'nginx' );
 }
 
 =back
@@ -88,63 +88,43 @@ sub _init
 
  Delete system files
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _deleteSystemFiles
 {
-    for ( 'cron.daily', 'logrotate.d' ) {
-        next unless -f "/etc/$_/imscp_frontend";
-        my $rs = iMSCP::File->new( filename => "/etc/$_/imscp_frontend" )->delFile();
-        return $rs if $rs;
-    }
-
-    0;
+    iMSCP::File->new( filename => "/etc/$_/imscp_frontend" )->remove() for 'cron.daily', 'logrotate.d';
 }
 
 =item _deconfigurePHP( )
 
  Deconfigure PHP (imscp_panel service)
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _deconfigurePHP
 {
-    eval { iMSCP::Service->getInstance()->remove( 'imscp_panel' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->remove( 'imscp_panel' );
 
     for ( '/etc/default/imscp_panel', '/etc/tmpfiles.d/imscp_panel.conf', "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp_panel",
         '/usr/local/sbin/imscp_panel', '/var/log/imscp_panel.log'
     ) {
-        next unless -f;
-        my $rs = iMSCP::File->new( filename => $_ )->delFile();
-        return $rs if $rs;
+        iMSCP::File->new( filename => $_ )->remove();
     }
 
-    eval {
-        iMSCP::Dir->new( dirname => '/usr/local/lib/imscp_panel' )->remove();
-        iMSCP::Dir->new( dirname => '/usr/local/etc/imscp_panel' )->remove();
-        iMSCP::Dir->new( dirname => '/var/run/imscp' )->remove();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Dir->new( dirname => '/usr/local/lib/imscp_panel' )->remove();
+    iMSCP::Dir->new( dirname => '/usr/local/etc/imscp_panel' )->remove();
+    iMSCP::Dir->new( dirname => '/var/run/imscp' )->remove();
 }
 
 =item _deconfigureHTTPD( )
 
  Deconfigure HTTPD (nginx)
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -152,39 +132,24 @@ sub _deconfigureHTTPD
 {
     my ($self) = @_;
 
-    my $rs = $self->{'frontend'}->disableSites( '00_master.conf' );
-    return $rs if $rs;
+    $self->{'frontend'}->disableSites( '00_master.conf' );
 
-    if ( -f "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" ) {
-        $rs = iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" )->delFile();
-        return $rs if $rs;
-    }
-
-    if ( -f "$self->{'config'}->{'HTTPD_CONF_DIR'}/imscp_fastcgi.conf" ) {
-        $rs = iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/imscp_fastcgi.conf" )->delFile();
-        return $rs if $rs;
-    }
-
-    if ( -f "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/imscp_php.conf" ) {
-        $rs = iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/imscp_php.conf" )->delFile();
-        return $rs if $rs;
-    }
+    iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" )->remove();
+    iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/imscp_fastcgi.conf" )->remove();
+    iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/imscp_php.conf" )->remove();
 
     if ( -f "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/default" ) {
         # Nginx as provided by Debian
-        $rs = $self->{'frontend'}->enableSites( 'default' );
-        return $rs if $rs;
-    } elsif ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' ) {
-        if ( "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" ) {
-            # Nginx package as provided by Nginx
-            $rs = iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" )->moveFile(
-                "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf"
-            );
-            return $rs if $rs;
-        }
+        $self->{'frontend'}->enableSites( 'default' );
+        return;
     }
 
-    0;
+    if ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && -f "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" ) {
+        # Nginx package as provided by Nginx
+        iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" )->move(
+            "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf"
+        );
+    }
 }
 
 =item _deleteMasterWebUser( )
@@ -197,10 +162,8 @@ sub _deconfigureHTTPD
 
 sub _deleteMasterWebUser
 {
-    my $rs = iMSCP::SystemUser->new( force => 'yes' )->delSystemUser(
-        $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'}
-    );
-    $rs ||= iMSCP::SystemGroup->getInstance()->delSystemGroup( $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'} );
+    iMSCP::SystemUser->new( force => 'yes' )->delSystemUser( $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'} );
+    iMSCP::SystemGroup->getInstance()->delSystemGroup( $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'} );
 }
 
 =back

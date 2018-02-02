@@ -45,7 +45,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -60,7 +60,7 @@ sub preinstall
 
  Process install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -75,7 +75,7 @@ sub install
 
  Process uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 

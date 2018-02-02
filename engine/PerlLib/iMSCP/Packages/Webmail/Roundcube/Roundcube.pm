@@ -68,7 +68,7 @@ sub showDialog
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -83,7 +83,7 @@ sub preinstall
 
  Process install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -98,7 +98,7 @@ sub install
 
  Process uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -106,7 +106,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    return 0 if $self->{'skip_uninstall'};
+    return if $self->{'skip_uninstall'};
 
     iMSCP::Packages::Webmail::Roundcube::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }
@@ -115,7 +115,7 @@ sub uninstall
 
  Set gui permissions
 
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -131,7 +131,7 @@ sub setGuiPermissions
  Process deleteMail tasks
 
  Param hash \%data Mail data
- Return int 0 on success, other on failure
+ Return void, die on failure 
 
 =cut
 
@@ -139,22 +139,12 @@ sub deleteMail
 {
     my (undef, $data) = @_;
 
-    return 0 unless $data->{'MAIL_TYPE'} =~ /_mail/;
+    return unless $data->{'MAIL_TYPE'} =~ /_mail/;
 
-    eval {
-        my $db = iMSCP::Database->getInstance();
-        my $oldDbName = $db->useDatabase( $main::imscpConfig{'DATABASE_NAME'} . '_roundcube' );
-        my $dbh = $db->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        $dbh->do( 'DELETE FROM users WHERE username = ?', undef, $data->{'MAIL_ADDR'} );
-        $db->useDatabase( $oldDbName ) if $oldDbName;
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0
+    my $db = iMSCP::Database->getInstance();
+    my $oldDbName = $db->useDatabase( $main::imscpConfig{'DATABASE_NAME'} . '_roundcube' );
+    $db->do( 'DELETE FROM users WHERE username = ?', undef, $data->{'MAIL_ADDR'} );
+    $db->useDatabase( $oldDbName ) if $oldDbName;
 }
 
 =back

@@ -43,7 +43,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process uninstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -51,8 +51,8 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_unregisterConfig();
-    $rs ||= $self->_removeFiles();
+    $self->_unregisterConfig();
+    $self->_removeFiles();
 }
 
 =back
@@ -81,7 +81,7 @@ sub _init
 
  Remove include directive from frontEnd vhost files
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -89,30 +89,21 @@ sub _unregisterConfig
 {
     my ($self) = @_;
 
-    return 0 unless -f "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf";
+    return unless -f "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf";
 
     my $file = iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
     my $fileContentRef = $file->getAsRef();
-    unless ( defined $fileContentRef ) {
-        error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
-        return 1;
-    }
-
     ${$fileContentRef} =~ s/[\t ]*include imscp_monstaftp.conf;\n//;
-
-    my $rs = $file->save();
-    return $rs if $rs;
+    $file->save();
 
     $self->{'frontend'}->{'reload'} ||= 1;
-
-    0;
 }
 
 =item _removeFiles( )
 
  Remove files
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -120,15 +111,8 @@ sub _removeFiles
 {
     my ($self) = @_;
 
-    eval { iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove(); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    return 0 unless -f "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_monstaftp.conf";
-
-    iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_monstaftp.conf" )->delFile();
+    iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove();
+    iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_monstaftp.conf" )->remove();
 }
 
 =back

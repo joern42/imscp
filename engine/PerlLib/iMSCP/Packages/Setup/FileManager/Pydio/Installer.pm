@@ -46,7 +46,7 @@ our $VERSION = '0.2.0.*@dev';
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -62,7 +62,7 @@ sub preinstall
 
  Process install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -70,8 +70,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_installFiles();
-    $rs ||= $self->_buildHttpdConfig();
+    $self->_installFiles();
+    $self->_buildHttpdConfig();
 }
 
 =back
@@ -86,7 +86,7 @@ sub install
 
  Param string \$tplContent Reference to template file content
  Param string $tplName Template name
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -94,7 +94,7 @@ sub afterFrontEndBuildConfFile
 {
     my ($tplContent, $tplName) = @_;
 
-    return 0 unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
+    return unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
     replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
@@ -103,7 +103,6 @@ sub afterFrontEndBuildConfFile
     include imscp_pydio.conf;
     # SECTION custom END.
 EOF
-    0;
 }
 
 =back
@@ -132,36 +131,25 @@ sub _init
 
  Install files in production directory
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _installFiles
 {
     my $packageDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/ajaxplorer";
-    unless ( -d $packageDir ) {
-        error( "Couldn't find the imscp/ajaxplorer (Pydio) package into the packages cache directory" );
-        return 1;
-    }
+    -d $packageDir or die( "Couldn't find the imscp/ajaxplorer (Pydio) package into the packages cache directory" );
 
-    eval {
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove();
-        iMSCP::Dir->new( dirname => "$packageDir/src" )->rcopy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp", { preserve => 'no' } );
-        iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->rcopy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp", { preserve => 'no' } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove();
+    iMSCP::Dir->new( dirname => "$packageDir/src" )->copy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" );
+    iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->copy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" );
 }
 
 =item _buildHttpdConfig( )
 
  Build Httpd configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 

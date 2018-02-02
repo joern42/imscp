@@ -58,13 +58,7 @@ sub registerSetupListeners
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog',
-        sub {
-            push @{$_[0]}, sub { $self->imscpDaemonTypeDialog( @_ ) };
-            0;
-        }
-    );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->imscpDaemonTypeDialog( @_ ) }; } );
 }
 
 =item imscpDaemonTypeDialog( \%dialog )
@@ -116,7 +110,7 @@ sub getPriority
 
  Process installation tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -125,8 +119,7 @@ sub install
     my ($self) = @_;
 
     # Reset previous install if any
-    my $rs = $self->uninstall();
-    return $rs if $rs;
+    $self->uninstall();
 
     return iMSCP::Servers::Cron->factory()->addTask( {
         TASKID  => __PACKAGE__,
@@ -134,29 +127,12 @@ sub install
         COMMAND => "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-rqst-mngr > /dev/null 2>&1"
     } ) if main::setupGetQuestion( 'DAEMON_TYPE' ) eq 'cron';
 
-    $rs = $self->_compileDaemon();
-    return $rs if $rs;
+    $self->_compileDaemon();
 
-    eval { iMSCP::Service->getInstance()->enable( 'imscp_daemon' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( 'imscp_daemon' );
 
-    $rs ||= $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]},
-                [
-                    sub {
-                        iMSCP::Service->getInstance()->start( 'imscp_daemon' );
-                        0;
-                    },
-                    'i-MSCP Daemon'
-                ];
-            0;
-        },
-        99
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { iMSCP::Service->getInstance()->start( 'imscp_daemon' ); }, 'i-MSCP Daemon' ]; }, 99
     );
 }
 
@@ -164,7 +140,7 @@ sub install
 
  Process uninstallation tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -174,54 +150,43 @@ sub uninstall
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
-    my $rs = $cronServer->deleteTasks( { TASKID => __PACKAGE__ } );
-    return $rs if $rs;
+    $cronServer->deleteTasks( { TASKID => __PACKAGE__ } );
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        if ( iMSCP::Getopt->context() eq 'installer' ) {
-            if ( $srvProvider->hasService( 'imscp_daemon' ) ) {
-                # Installer context.
-                # We need  stop and disable the service
-                $srvProvider->stop( 'imscp_daemon' );
+    my $srvProvider = iMSCP::Service->getInstance();
+    if ( iMSCP::Getopt->context() eq 'installer' ) {
+        if ( $srvProvider->hasService( 'imscp_daemon' ) ) {
+            # Installer context.
+            # We need  stop and disable the service
+            $srvProvider->stop( 'imscp_daemon' );
 
-                if ( $srvProvider->isSystemd() ) {
-                    # If systemd is the current init we mask the service. Service will be disabled and masked.
-                    $srvProvider->getProvider()->mask( 'imscp_daemon' );
-                } else {
-                    $srvProvider->disable( 'imscp_daemon' );
-                }
+            if ( $srvProvider->isSystemd() ) {
+                # If systemd is the current init we mask the service. Service will be disabled and masked.
+                $srvProvider->getProvider()->mask( 'imscp_daemon' );
+            } else {
+                $srvProvider->disable( 'imscp_daemon' );
             }
-        } else {
-            # Uninstaller context.
-            # We need remove Systemd unit, Upstart job and SysVinit
-            $srvProvider->remove( 'imscp_daemon' );
         }
-
-        # Remove daemon directory
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/daemon" )->remove();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    } else {
+        # Uninstaller context.
+        # We need remove Systemd unit, Upstart job and SysVinit
+        $srvProvider->remove( 'imscp_daemon' );
     }
 
-    0;
+    # Remove daemon directory
+    iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/daemon" )->remove();
 }
 
 =item setEnginePermissions( )
 
  Set engine permissions
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub setEnginePermissions
 {
     my ($self) = @_;
-
-    return 0 unless -d "$main::imscpConfig{'ROOT_DIR'}/daemon";
 
     setRights( "$main::imscpConfig{'ROOT_DIR'}/daemon",
         {
@@ -230,7 +195,7 @@ sub setEnginePermissions
             mode      => '0750',
             recursive => 1
         }
-    );
+    ) if -d "$main::imscpConfig{'ROOT_DIR'}/daemon";
 }
 
 =back
@@ -243,7 +208,7 @@ sub setEnginePermissions
 
  Compile and install the i-MSCP daemon
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -252,31 +217,19 @@ sub _compileDaemon
     my ($self) = @_;
 
     # Compile the daemon
-
     local $CWD = dirname ( __FILE__ ) . '/Daemon';
-
     my $rs = execute( 'make clean imscp_daemon', \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
+    !$rs or die( $stderr || 'Unknown error' );
 
     # Install the daemon
-
-    eval { iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/daemon" )->make(); };
-    if ( $@ ) {
-        error( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error ' );
-        return 1;
-    }
-
-    $rs = iMSCP::File->new( filename => 'imscp_daemon' )->copyFile( "$main::imscpConfig{'ROOT_DIR'}/daemon" );
-    return $rs if $rs;
+    iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/daemon" )->make();
+    iMSCP::File->new( filename => 'imscp_daemon' )->copy( "$main::imscpConfig{'ROOT_DIR'}/daemon", { preserve => 1 } );
 
     # Leave the directory clean
-
     $rs = execute( 'make clean', \ $stdout, \ $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs;
+    !$rs or die( $stderr || 'Unknown error' );
 }
 
 =back

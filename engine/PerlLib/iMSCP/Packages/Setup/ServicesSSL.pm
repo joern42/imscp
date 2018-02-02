@@ -45,7 +45,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Register setup event listeners
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -53,13 +53,7 @@ sub registerSetupListeners
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog',
-        sub {
-            push @{$_[0]}, sub { $self->servicesSslDialog( @_ ) };
-            0;
-        }
-    );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->servicesSslDialog( @_ ) }; } );
 }
 
 =item serviceSslDialog( \%dialog )
@@ -204,7 +198,7 @@ EOF
 
  Process preinstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -213,16 +207,12 @@ sub preinstall
     my $sslEnabled = main::setupGetQuestion( 'SERVICES_SSL_ENABLED' );
 
     if ( $sslEnabled eq 'no' || main::setupGetQuestion( 'SERVICES_SSL_SETUP', 'yes' ) eq 'no' ) {
-        if ( $sslEnabled eq 'no' && -f "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem" ) {
-            my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem" )->delFile();
-            return $rs if $rs;
-        }
-
-        return 0;
+        iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem" )->remove() if $sslEnabled eq 'no';
+        return;
     }
 
     if ( main::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE' ) eq 'yes' ) {
-        return iMSCP::OpenSSL->new(
+        iMSCP::OpenSSL->new(
             certificate_chains_storage_dir => $main::imscpConfig{'CONF_DIR'},
             certificate_chain_name         => 'imscp_services'
         )->createSelfSignedCertificate(
@@ -231,6 +221,7 @@ sub preinstall
                 email       => main::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' )
             }
         );
+        return;
     }
 
     iMSCP::OpenSSL->new(

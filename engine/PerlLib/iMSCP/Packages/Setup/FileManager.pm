@@ -49,7 +49,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Register setup event listeners
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -57,13 +57,7 @@ sub registerSetupListeners
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog',
-        sub {
-            push @{$_[0]}, sub { $self->showDialog( @_ ) };
-            0;
-        }
-    );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->showDialog( @_ ) }; } );
 }
 
 =item showDialog( \%dialog )
@@ -121,7 +115,7 @@ EOF
 
  /!\ This method also trigger uninstallation of unselected file manager packages.
 
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -137,8 +131,7 @@ sub preinstall
 
         if ( my $subref = $package->can( 'uninstall' ) ) {
             debug( sprintf( 'Executing uninstall action on %s', $package ));
-            my $rs = $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-            return $rs if $rs;
+            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
         }
 
         ( my $subref = $package->can( 'getDistroPackages' ) ) or next;
@@ -146,8 +139,7 @@ sub preinstall
         push @distroPackages, $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
     }
 
-    my $rs = $self->_removePackages( @distroPackages );
-    return $rs if $rs;
+    $self->_removePackages( @distroPackages );
 
     @distroPackages = ();
     for ( @{$self->{'SELECTED_PACKAGES'}} ) {
@@ -156,8 +148,7 @@ sub preinstall
 
         if ( my $subref = $package->can( 'preinstall' ) ) {
             debug( sprintf( 'Executing preinstall action on %s', $package ));
-            $rs = $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-            return $rs if $rs;
+            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
         }
 
         ( my $subref = $package->can( 'getDistroPackages' ) ) or next;
@@ -172,7 +163,7 @@ sub preinstall
 
  Process install tasks
 
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -185,18 +176,15 @@ sub install
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'install' ) ) or next;
         debug( sprintf( 'Executing install action on %s', $package ));
-        my $rs = $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-        return $rs if $rs;
+        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
     }
-
-    0;
 }
 
 =item postinstall( )
 
  Process post install tasks
 
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -209,11 +197,8 @@ sub postinstall
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'postinstall' ) ) or next;
         debug( sprintf( 'Executing postinstall action on %s', $package ));
-        my $rs = $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-        return $rs if $rs;
+        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
     }
-
-    0;
 }
 
 =item uninstall( [ $package ])
@@ -221,7 +206,7 @@ sub postinstall
  Process uninstall tasks
 
  Param string $package OPTIONAL Package to uninstall
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -236,8 +221,7 @@ sub uninstall
 
         if ( my $subref = $package->can( 'uninstall' ) ) {
             debug( sprintf( 'Executing preinstall action on %s', $package ));
-            my $rs = $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-            return $rs if $rs;
+            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
         }
 
         ( my $subref = $package->can( 'getDistroPackages' ) ) or next;
@@ -265,7 +249,7 @@ sub getPriority
 
  Set engine permissions
 
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -278,18 +262,15 @@ sub setEnginePermissions
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;
         debug( sprintf( 'Executing setEnginePermissions action on %s', $package ));
-        my $rs = $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-        return $rs if $rs;
+        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
     }
-
-    0;
 }
 
 =item setGuiPermissions( )
 
  Set gui permissions
 
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -302,11 +283,8 @@ sub setGuiPermissions
         eval "require $package" or die( $@ );
         ( my $subref = $package->can( 'setGuiPermissions' ) ) or next;
         debug( sprintf( 'Executing setGuiPermissions action on %s', $package ));
-        my $rs = $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-        return $rs if $rs;
+        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
     }
-
-    0;
 }
 
 =back
@@ -338,7 +316,7 @@ sub _init
  Install distribution packages
 
  Param list @packages List of packages to install
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -346,7 +324,7 @@ sub _installPackages
 {
     my (undef, @packages) = @_;
 
-    return 0 unless @packages && !iMSCP::Getopt->skippackages;
+    return unless @packages && !iMSCP::Getopt->skippackages;
 
     iMSCP::Dialog->getInstance->endGauge() unless iMSCP::Getopt->noprompt;
 
@@ -368,8 +346,7 @@ sub _installPackages
         ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
         \ my $stderr
     );
-    error( sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' )) if $rs;
-    $rs;
+    !$rs or die( sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' ));
 }
 
 =item _removePackages( @packages )
@@ -377,7 +354,7 @@ sub _installPackages
  Remove distribution packages
 
  Param list @packages Packages to remove
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -385,16 +362,16 @@ sub _removePackages
 {
     my (undef, @packages) = @_;
 
-    return 0 unless @packages && !iMSCP::Getopt->skippackages;
+    return unless @packages && !iMSCP::Getopt->skippackages;
 
     # Do not try to remove packages that are not available
-    my $rs = execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \ my $stdout );
+    execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \ my $stdout );
     @packages = split /\n/, $stdout;
-    return 0 unless @packages;
+    return unless @packages;
 
     iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
 
-    $rs = execute(
+    my $rs = execute(
         [
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
             'apt-get', '--assume-yes', '--auto-remove', '--purge', '--no-install-recommends', 'remove', @packages
@@ -402,8 +379,7 @@ sub _removePackages
         ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \ $stdout : undef ),
         \my $stderr
     );
-    error( sprintf( "Couldn't remove packages: %s", $stderr || 'Unknown error' )) if $rs;
-    $rs;
+    !$rs or die( sprintf( "Couldn't remove packages: %s", $stderr || 'Unknown error' ));
 }
 
 =back

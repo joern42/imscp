@@ -48,7 +48,7 @@ use parent 'iMSCP::Common::Singleton';
 
  Process install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -56,17 +56,17 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_disableDefaultConfig();
-    $rs ||= $self->_createCacheDir();
-    $rs ||= $self->_setupApache();
-    $rs ||= $self->_cleanup();
+    $self->_disableDefaultConfig();
+    $self->_createCacheDir();
+    $self->_setupApache();
+    $self->_cleanup();
 }
 
 =item postinstall( )
 
  Process post install tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -103,25 +103,23 @@ sub _init
 
  Disable default configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _disableDefaultConfig
 {
-    return 0 unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    return unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
 
     if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" ) {
-        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" )->moveFile(
+        iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" )->move(
             "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled"
         );
-        return $rs if $rs;
     }
 
     if ( -f '/etc/cron.d/awstats.disable' ) {
         # Transitional -- Will be removed in a later release
-        my $rs = iMSCP::File->new( filename => '/etc/cron.d/awstats.disable' )->moveFile( '/etc/cron.d/awstats' );
-        return $rs if $rs;
+        iMSCP::File->new( filename => '/etc/cron.d/awstats.disable' )->move( '/etc/cron.d/awstats' );
     }
 
     iMSCP::Servers::Cron->factory()->disableSystemCrontask( 'awstats', 'cron.d' );
@@ -131,7 +129,7 @@ sub _disableDefaultConfig
 
  Create cache directory
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -139,26 +137,18 @@ sub _createCacheDir
 {
     my ($self) = @_;
 
-    eval {
-        iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $self->{'httpd'}->getRunningGroup(),
-            mode  => 02750
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->make( {
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $self->{'httpd'}->getRunningGroup(),
+        mode  => 02750
+    } );
 }
 
 =item _setupApache( )
 
  Setup Apache for AWStats
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -167,17 +157,15 @@ sub _setupApache
     my ($self) = @_;
 
     # Create Basic authentication file
-    my $file = iMSCP::File->new( filename => "$self->{'httpd'}->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" );
-    $file->set( '' ); # Make sure to start with an empty file on update/reconfiguration
-    my $rs = $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'httpd'}->getRunningGroup());
-    $rs ||= $file->mode( 0640 );
+    iMSCP::File
+        ->new( filename => "$self->{'httpd'}->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" )
+        ->set( '' ) # Make sure to start with an empty file on update/reconfiguration
+        ->save()
+        ->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'httpd'}->getRunningGroup())
+        ->mode( 0640 );
 
-    # Enable required Apache modules
-    $rs ||= $self->{'httpd'}->enableModules( 'authn_socache' );
-
-    # Create Apache vhost
-    $rs ||= $self->{'httpd'}->buildConfFile(
+    $self->{'httpd'}->enableModules( 'authn_socache' );
+    $self->{'httpd'}->buildConfFile(
         "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Config/01_awstats.conf",
         "$self->{'httpd'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/01_awstats.conf",
         undef,
@@ -187,14 +175,14 @@ sub _setupApache
             AWSTATS_WEB_DIR             => $main::imscpConfig{'AWSTATS_WEB_DIR'}
         }
     );
-    $rs ||= $self->{'httpd'}->enableSites( '01_awstats.conf' );
+    $self->{'httpd'}->enableSites( '01_awstats.conf' );
 }
 
 =item _addAwstatsCronTask( )
 
  Add AWStats cron task for dynamic mode
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -218,25 +206,19 @@ sub _addAwstatsCronTask
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _cleanup
 {
-    eval {
-        for ( iMSCP::Dir->new( dirname => $main::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
-            next unless -d "$main::imscpConfig{'USER_WEB_DIR'}/$_/statistics";
-            clearImmutable( "$main::imscpConfig{'USER_WEB_DIR'}/$_" );
-            iMSCP::Dir->new( dirname => "/var/www/virtual/$_/statistics" )->remove();
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    my ($self) = @_;
 
-    0;
+    for ( iMSCP::Dir->new( dirname => $main::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
+        next unless -d "$main::imscpConfig{'USER_WEB_DIR'}/$_/statistics";
+        clearImmutable( "$main::imscpConfig{'USER_WEB_DIR'}/$_" );
+        iMSCP::Dir->new( dirname => "/var/www/virtual/$_/statistics" )->remove();
+    }
 }
 
 =back
