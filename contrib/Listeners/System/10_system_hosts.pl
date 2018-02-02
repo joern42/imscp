@@ -25,7 +25,6 @@ our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
-use iMSCP::Debug;
 use iMSCP::EventManager;
 
 #

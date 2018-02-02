@@ -25,7 +25,6 @@ our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
-use iMSCP::Debug;
 use iMSCP::EventManager;
 use iMSCP::Servers::Mta;
 use version;
@@ -60,7 +59,7 @@ version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' )
     sprintf( "The 10_postfix_tuning.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 )) {
+if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 ) {
     iMSCP::EventManager->getInstance()->register(
         'afterPostfixConfigure',
         sub {
