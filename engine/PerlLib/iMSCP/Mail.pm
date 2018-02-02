@@ -151,7 +151,7 @@ EOF
         'X-Mailer' => 'i-MSCP Mailer (backend)'
     );
 
-    open my $fh, '|-', $sendmail, '-t', '-oi', '-f', "root\@$hostname" or die( sprintf( "Couldn't pipe to sendmail: %s", $! ));
+    open my $fh, '|-', $sendmail, '-t', '-oi', '-f', "noreply\@$hostname" or die( sprintf( "Couldn't pipe to sendmail: %s", $! ));
     $out->print( $fh );
     close $fh;
 }
