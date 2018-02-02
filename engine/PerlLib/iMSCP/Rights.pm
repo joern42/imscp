@@ -26,7 +26,6 @@ package iMSCP::Rights;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug;
 use File::Find;
 use Lchown qw/ lchown /;
 use parent 'Exporter';

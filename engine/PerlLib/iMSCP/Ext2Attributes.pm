@@ -59,8 +59,8 @@ BEGIN
             $IS_SUPPORTED = 0;
             no strict 'refs';
 
-            my $const = sub( ) { };
-            for(qw/
+            my $const = sub( ) {};
+            for ( qw/
                 EXT2_SECRM_FL EXT2_UNRM_FL EXT2_COMPR_FL EXT2_SYNC_FL EXT2_IMMUTABLE_FL EXT2_APPEND_FL EXT2_APPEND_FL EXT2_NODUMP_FL EXT2_NOATIME_FL
                 EXT2_IOC_GETFLAGS EXT2_IOC_SETFLAGS
                 /
