@@ -27,7 +27,6 @@ use strict;
 use warnings;
 use Carp qw/ croak /;
 use Encode;
-use iMSCP::Debug;
 use iMSCP::ProgramFinder;
 use MIME::Entity;
 use Text::Wrap;
@@ -58,11 +57,14 @@ sub errmsg
 {
     my ($self, $message) = @_;
 
-    defined $message or croak( "$message parameter is not defined" );
+    defined $message or croak( '$message parameter is not defined' );
 
-    my $functionName = ( caller( 1 ) )[3] || 'main';
+    return $self if $message eq '';
+
+    chomp( $message );
+
     $self->_sendMail( 'i-MSCP - An error has been raised', <<"EOF", 'error' );
-An error has been raised while executing function $functionName in $0:
+An unexpected error has been raised :
 
 $message
 EOF
@@ -82,11 +84,14 @@ sub warnMsg
 {
     my ($self, $message) = @_;
 
-    defined $message or croak( "$message parameter is not defined" );
+    defined $message or croak( '$message parameter is not defined' );
 
-    my $functionName = ( caller( 1 ) )[3] || 'main';
+    return $self if $message eq '';
+
+    chomp( $message );
+
     $self->_sendMail( 'i-MSCP - A warning has been raised', <<"EOF", 'warning' );
-A warning has been raised while executing function $functionName in $0:
+An unexpected warning has been raised:
 
 $message
 EOF
@@ -106,7 +111,7 @@ EOF
  Param string $subject Message subject
  Param string $message Message to be sent
  Param string $severity Message severity
- Return self, die on failure
+ Return void, die on failure
  
 =cut
 
@@ -115,17 +120,18 @@ sub _sendMail
     my (undef, $subject, $message, $severity) = @_;
 
     my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or die( "Couldn't find sendmail executable in \$PATH" );
-    my $host = $main::imscpConfig{'BASE_SERVER_VHOST'};
+    my $hostname = $main::imscpConfig{'BASE_SERVER_VHOST'} || `hostname -f`;
+    chomp( $hostname );
     my $out = MIME::Entity->new()->build(
-        From       => "i-MSCP ($host) <noreply\@$host>",
-        To         => $main::imscpConfig{'DEFAULT_ADMIN_ADDRESS'},
+        From       => "i-MSCP ($hostname) <noreply\@$hostname>",
+        To         => $main::imscpConfig{'DEFAULT_ADMIN_ADDRESS'} || 'root',
         Subject    => $subject,
         Type       => 'text/plain; charset=utf-8',
         Encoding   => '8bit',
         Data       => encode( 'UTF-8', wrap( '', '', <<"EOF" )),
 Dear administrator,
 
-This is an automatic email sent by i-MSCP:
+This is an automatic email sent by the i-MSCP backend:
  
 Server name: $main::imscpConfig{'SERVER_HOSTNAME'}
 Server IP: $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'}
@@ -140,15 +146,14 @@ $message
 Please do not reply to this email.
 
 ___________________________
-i-MSCP Mailer
+i-MSCP Backend Mailer
 EOF
         'X-Mailer' => 'i-MSCP Mailer (backend)'
     );
 
-    open my $fh, '|-', $sendmail, '-t', '-oi', '-f', "noreply\@$host" or die( sprintf( "Couldn't send mail: %s", $! ));
+    open my $fh, '|-', $sendmail, '-t', '-oi', '-f', "root\@$hostname" or die( sprintf( "Couldn't pipe to sendmail: %s", $! ));
     $out->print( $fh );
     close $fh;
-    $self;
 }
 
 =back
