@@ -356,7 +356,7 @@ sub _executePluginAction
         return unless $pluginClass->can( $action ); # Do not instantiate plugin when not necessary
 
         # A plugin must be either of type iMSCP::Common::Singleton or of type iMSCP::Common::Object
-        $pluginClass-isa( 'iMSCP::Common::Singleton' ) xor $pluginClass-isa( 'iMSCP::Common::Object' ) or die(
+        $pluginClass->isa( 'iMSCP::Common::Singleton' ) xor $pluginClass->isa( 'iMSCP::Common::Object' ) or die(
             sprintf( 'The %s plugin must be either of type iMSCP::Common::Singleton or of type iMSCP::Common::Object' )
         );
 
