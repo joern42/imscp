@@ -71,13 +71,13 @@ sub validatePrivateKey
     ];
     my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    die(
+    !$rs or die(
         sprintf(
             "Couldn't import SSL private key from %s file: %s",
             $self->{'private_key_container_path'},
             $stderr || 'unknown error'
         )
-    ) if $rs;
+    );
     $self;
 }
 
@@ -99,7 +99,6 @@ sub validateCertificate
     -f $self->{'certificate_container_path'} or croak( sprintf( "%s SSL certificate doesn't exist", $self->{'certificate_container_path'} ));
 
     my $caBundle = 0;
-
     if ( $self->{'ca_bundle_container_path'} ) {
         -f $self->{'ca_bundle_container_path'} or croak( sprintf( "%s SSL CA Bundle doesn't exist", $self->{'ca_bundle_container_path'} ));
         $caBundle = 1;
@@ -117,10 +116,9 @@ sub validateCertificate
     ];
     my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    die( sprintf(
+    !$rs or die( sprintf(
         "SSL certificate is not valid: %s", ( $stderr || $stdout || 'Unknown error' ) =~ s/$self->{'certificate_container_path'}:\s+//r
-    )) if $rs;
-
+    ));
     $self->{'ca_bundle_container_path'} = '' unless $caBundle;
     $self;
 }
@@ -168,7 +166,7 @@ sub importPrivateKey
     ];
     my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    die( sprintf( "Couldn't import SSL private key: %s", $stderr || 'unknown error' )) if $rs;
+    !$rs or die( sprintf( "Couldn't import SSL private key: %s", $stderr || 'unknown error' ));
     $self;
 }
 
@@ -196,7 +194,7 @@ sub importCertificate
     );
     my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    die( sprintf( "Couldn't import SSL certificate: %s", $stderr || 'unknown error' )) if $rs;
+    !$rs or die( sprintf( "Couldn't import SSL certificate: %s", $stderr || 'unknown error' ));
     $self;
 }
 
@@ -226,7 +224,7 @@ sub importCaBundle
     );
     my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    die( sprintf( "Couldn't import SSL CA Bundle: %s", $stderr || 'unknown error' )) if $rs;
+    !$rs or die( sprintf( "Couldn't import SSL CA Bundle: %s", $stderr || 'unknown error' ));
     $self;
 }
 
@@ -273,7 +271,7 @@ sub createSelfSignedCertificate
     ];
     my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    die( sprintf( "Couldn't generate self-signed certificate: %s", $stderr || 'unknown error' )) if $rs;
+    !$rs or die( sprintf( "Couldn't generate self-signed certificate: %s", $stderr || 'unknown error' ));
     $self;
 }
 
@@ -299,7 +297,7 @@ sub createCertificateChain
  Get SSL certificate expiry time
 
  Param string certificatePath Path to SSL certificate (default: $self->{'certificate_container_path'})
- Return timestamp on success, die on failure
+ Return timestamp, die on failure
 
 =cut
 
@@ -307,14 +305,11 @@ sub getCertificateExpiryTime
 {
     my ($self, $certificatePath) = @_;
     $certificatePath ||= $self->{'certificate_container_path'};
-
     $certificatePath or croak( 'Invalide SSL certificate path provided' );
 
     my $rs = execute( [ 'openssl', 'x509', '-enddate', '-noout', '-in', $certificatePath ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    unless ( $rs == 0 && $stdout =~ /^notAfter=(.*)/i ) {
-        die( sprintf( "Couldn't get SSL certificate expiry time: %s", $stderr || 'unknown error' ));
-    }
+    !$rs && $stdout =~ /^notAfter=(.*)/i or die( sprintf( "Couldn't get SSL certificate expiry time: %s", $stderr || 'unknown error' ));
 
     str2time( $1 );
 }

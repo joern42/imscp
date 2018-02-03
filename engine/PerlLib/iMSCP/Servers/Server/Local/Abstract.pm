@@ -309,9 +309,9 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_setupHostname();
-    $rs ||= $self->_setupSysctl();
-    $rs ||= $self->_setupPrimaryIP();
+    $self->_setupHostname();
+    $self->_setupSysctl();
+    $self->_setupPrimaryIP();
 }
 
 =item postinstall( )
@@ -323,8 +323,6 @@ sub install
 sub postinstall
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item uninstall( )
@@ -337,9 +335,7 @@ sub uninstall
 {
     my ($self) = @_;
 
-    return 0 unless -f "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf";
-
-    iMSCP::File->new( filename => "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" )->remove();
 }
 
 =item getServerName( )
@@ -391,19 +387,11 @@ sub addIpAddr
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerAddIpAddr', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeLocalServerAddIpAddr', $moduleData );
 
     if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
-        eval {
-
-            iMSCP::Providers::NetworkInterface->getInstance()->addIpAddr( $moduleData );
-            iMSCP::Net->getInstance()->resetInstance();
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
+        iMSCP::Providers::NetworkInterface->getInstance()->addIpAddr( $moduleData );
+        iMSCP::Net->getInstance()->resetInstance();
     }
 
     $self->{'eventManager'}->trigger( 'afterLocalServerAddIpAddr', $moduleData );
@@ -419,18 +407,11 @@ sub deleteIpAddr
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteIpAddr', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteIpAddr', $moduleData );
 
     if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
-        eval {
-            iMSCP::Providers::NetworkInterface->getInstance()->removeIpAddr( $moduleData );
-            iMSCP::Net->getInstance()->resetInstance();
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
+        iMSCP::Providers::NetworkInterface->getInstance()->removeIpAddr( $moduleData );
+        iMSCP::Net->getInstance()->resetInstance();
     }
 
     $self->{'eventManager'}->trigger( 'afterLocalServerDeleteIpAddr', $moduleData );
@@ -446,8 +427,8 @@ sub addUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerAddUser', $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterLocalServerAddUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeLocalServerAddUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterLocalServerAddUser', $moduleData );
 }
 
 =item deleteUser( \%moduleData )
@@ -460,8 +441,8 @@ sub deleteUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteUser', $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterLocalServerDeleteUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterLocalServerDeleteUser', $moduleData );
 }
 
 =item start( )
@@ -473,8 +454,6 @@ sub deleteUser
 sub start
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item stop( )
@@ -486,8 +465,6 @@ sub start
 sub stop
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item restart( )
@@ -499,8 +476,6 @@ sub stop
 sub restart
 {
     my ($self) = @_;
-
-    0;
 }
 
 =item reload( )
@@ -512,8 +487,6 @@ sub restart
 sub reload
 {
     my ($self) = @_;
-
-    0;
 }
 
 =back
@@ -561,7 +534,7 @@ sub _loadConfig
 
  Setup server hostname
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -591,8 +564,7 @@ ff02::2 ip6-allrouters
 ff02::3 ip6-allhosts
 EOF
     $conffile->close();
-    my $rs = $self->buildConfFile( $conffile, '/etc/hosts', undef, undef, { srcname => 'hosts' } );
-    return $rs if $rs;
+    $self->buildConfFile( $conffile, '/etc/hosts', undef, undef, { srcname => 'hosts' } );
 
     # Build hostname configuration file
     $conffile = File::Temp->new();
@@ -600,8 +572,7 @@ EOF
 $host
 EOF
     $conffile->close();
-    $rs = $self->buildConfFile( $conffile, '/etc/hostname', undef, undef, { srcname => 'hostname' } );
-    return $rs if $rs;
+    $self->buildConfFile( $conffile, '/etc/hostname', undef, undef, { srcname => 'hostname' } );
 
     # Build mailname configuration file
     $conffile = File::Temp->new();
@@ -609,22 +580,20 @@ EOF
 $hostname
 EOF
     $conffile->close();
-    $rs = $self->buildConfFile( $conffile, '/etc/mailname', undef, undef, { srcname => 'mailname' } );
-    return $rs if $rs;
+    $self->buildConfFile( $conffile, '/etc/mailname', undef, undef, { srcname => 'mailname' } );
     undef $conffile;
 
     # Make new hostname effective
-    $rs = execute( 'hostname --file /etc/hostname', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'hostname --file /etc/hostname', \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || "Couldn't set server hostname" ) if $rs;
-    $rs;
+    !$rs or die ( $stderr || "Couldn't set server hostname" );
 }
 
 =item _setupSysctl()
 
  Setup SYSCTL(8)
 
- return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -646,23 +615,19 @@ net.ipv4.conf.all.promote_secondaries=1
 vm.swappiness=10
 EOF
     $sysctlFile->close();
-    my $rs = $self->buildConfFile(
-        $sysctlFile, "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf", undef, undef, { srcname => 'sysctl_imscp.conf' }
-    );
-    return $rs if $rs;
+    $self->buildConfFile( $sysctlFile, "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf", undef, undef, { srcname => 'sysctl_imscp.conf' } );
 
     # Don't catch any error here to avoid permission denied error on some vps due to restrictions set by provider
     execute( [ $self->{'config'}->{'CMD_SYSCTL'}, '-p', "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     debug( $stderr ) if $stderr;
-    0;
 }
 
 =item _setupPrimaryIP( )
 
  Setup server primary IP
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -671,50 +636,38 @@ sub _setupPrimaryIP
     my ($self) = @_;
 
     my $primaryIP = main::setupGetQuestion( 'BASE_SERVER_IP' );
-    my $rs = $self->{'eventManager'}->trigger( 'beforeLocalServerSetupPrimaryIP', $primaryIP );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeLocalServerSetupPrimaryIP', $primaryIP );
 
-    eval {
-        my $netCard = ( $primaryIP eq '0.0.0.0' ) ? 'any' : iMSCP::Net->getInstance()->getAddrDevice( $primaryIP );
-        defined $netCard or die( sprintf( "Couldn't find network card for the `%s' IP address", $primaryIP ));
+    my $netCard = ( $primaryIP eq '0.0.0.0' ) ? 'any' : iMSCP::Net->getInstance()->getAddrDevice( $primaryIP );
+    defined $netCard or die( sprintf( "Couldn't find network card for the %s IP address", $primaryIP ));
 
-        my $db = iMSCP::Database->getInstance();
-        my $oldDbName = $db->useDatabase( main::setupGetQuestion( 'DATABASE_NAME' ));
+    my $db = iMSCP::Database->getInstance();
+    my $oldDbName = $db->useDatabase( main::setupGetQuestion( 'DATABASE_NAME' ));
 
-        my $dbh = $db->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
+    $db->selectrow_hashref( 'SELECT 1 FROM server_ips WHERE ip_number = ?', undef, $primaryIP )
+        ? $db->do( 'UPDATE server_ips SET ip_card = ? WHERE ip_number = ?', undef, $netCard, $primaryIP )
+        : $db->do(
+        'INSERT INTO server_ips (ip_number, ip_card, ip_config_mode, ip_status) VALUES(?, ?, ?, ?)', undef, $primaryIP, $netCard, 'manual', 'ok'
+    );
 
-        $dbh->selectrow_hashref( 'SELECT 1 FROM server_ips WHERE ip_number = ?', undef, $primaryIP )
-            ? $dbh->do( 'UPDATE server_ips SET ip_card = ? WHERE ip_number = ?', undef, $netCard, $primaryIP )
-            : $dbh->do(
-            'INSERT INTO server_ips (ip_number, ip_card, ip_config_mode, ip_status) VALUES(?, ?, ?, ?)', undef, $primaryIP, $netCard, 'manual', 'ok'
-        );
+    if ( main::setupGetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP' ) ) {
+        my $resellers = $db->selectall_arrayref( 'SELECT reseller_id, reseller_ips FROM reseller_props', { Slice => {} } );
+        if ( @{$resellers} ) {
+            my $primaryIpID = $db->selectrow_array( 'SELECT ip_id FROM server_ips WHERE ip_number = ?', undef, $primaryIP );
 
-        if ( main::setupGetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP' ) ) {
-            my $resellers = $dbh->selectall_arrayref( 'SELECT reseller_id, reseller_ips FROM reseller_props', { Slice => {} } );
-
-            if ( @{$resellers} ) {
-                my $primaryIpID = $dbh->selectrow_array( 'SELECT ip_id FROM server_ips WHERE ip_number = ?', undef, $primaryIP );
-
-                for my $reseller( @{$resellers} ) {
-                    my @ipIDS = split( ';', $reseller->{'reseller_ips'} );
-                    next if grep($_ eq $primaryIpID, @ipIDS );
-                    push @ipIDS, $primaryIpID;
-                    $dbh->do( 'UPDATE reseller_props SET reseller_ips = ? WHERE reseller_id = ?', undef, join( ';', @ipIDS ) . ';' );
-                }
-
-                $dbh->do( 'UPDATE domain SET domain_ip_id = ?', undef, $primaryIpID );
-                $dbh->do( 'UPDATE domain_aliasses SET alias_ip_id = ?', undef, $primaryIpID );
+            for my $reseller( @{$resellers} ) {
+                my @ipIDS = split( ';', $reseller->{'reseller_ips'} );
+                next if grep($_ eq $primaryIpID, @ipIDS );
+                push @ipIDS, $primaryIpID;
+                $db->do( 'UPDATE reseller_props SET reseller_ips = ? WHERE reseller_id = ?', undef, join( ';', @ipIDS ) . ';' );
             }
-        }
 
-        $db->useDatabase( $oldDbName ) if $oldDbName;
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+            $db->do( 'UPDATE domain SET domain_ip_id = ?', undef, $primaryIpID );
+            $db->do( 'UPDATE domain_aliasses SET alias_ip_id = ?', undef, $primaryIpID );
+        }
     }
 
+    $db->useDatabase( $oldDbName ) if $oldDbName;
     $self->{'eventManager'}->trigger( 'afterLocalServerSetupPrimaryIP', $primaryIP );
 }
 

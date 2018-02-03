@@ -51,8 +51,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::install();
-    $rs ||= $self->_cleanup();
+    $self->SUPER::install();
+    $self->_cleanup();
 }
 
 =item dpkgPostInvokeTasks()
@@ -67,13 +67,10 @@ sub dpkgPostInvokeTasks
 
     # Gather system information
     my $sysInfo = eval {
-        my $facter = iMSCP::ProgramFinder::find( 'facter' ) or die( 'facter program not found' );
+        my $facter = iMSCP::ProgramFinder::find( 'facter' ) or die( "Couldn't find facter executable in \$PATH" );
         decode_json( `$facter _2.5.1_ --json os 2> /dev/null` );
     };
-    if ( $@ ) {
-        error( sprintf( "Couldn't gather system information: %s", $@ ));
-        return 1;
-    }
+    !$@ or die( sprintf( "Couldn't gather system information: %s", $@ ));
 
     # Reload config in writing mode
     iMSCP::Bootstrapper->getInstance()->loadMainConfig( { nodeferring => 1 } );
@@ -83,7 +80,7 @@ sub dpkgPostInvokeTasks
 
     $self->{'config'}->{'DISTRO_FAMILY'} = $sysInfo->{'os'}->{'family'};
     debug( sprintf( 'Distribution family set to: %s', $self->{'config'}->{'DISTRO_FAMILY'} ));
-    
+
     $self->{'config'}->{'DISTRO_ID'} = $sysInfo->{'os'}->{'lsb'}->{'distid'};
     debug( sprintf( 'Distribution ID set to: %s', $self->{'config'}->{'DISTRO_ID'} ));
 
@@ -97,7 +94,6 @@ sub dpkgPostInvokeTasks
     debug( sprintf( 'System init set to: %s', $self->{'config'}->{'SYSTEM_INIT'} ));
 
     iMSCP::Bootstrapper->getInstance()->loadMainConfig( { config_readonly => 1 } );
-    0;
 }
 
 =back
@@ -110,7 +106,7 @@ sub dpkgPostInvokeTasks
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -118,10 +114,9 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' )
-        && -f "$self->{'config'}->{'LOGROTATE_CONF_DIR'}/imscp";
+    return unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    iMSCP::File->new( filename => "$self->{'config'}->{'LOGROTATE_CONF_DIR'}/imscp" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'LOGROTATE_CONF_DIR'}/imscp" )->remove();
 }
 
 =back

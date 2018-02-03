@@ -64,28 +64,21 @@ sub startUp
 {
     iMSCP::Getopt->debug( 1 ); # Force debug mode (logs)
     iMSCP::Bootstrapper->getInstance()->boot();
-    0;
 }
 
 sub process
 {
     _userDialog();
 
-    my $row = eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        $dbh->selectrow_hashref( "SELECT 1 FROM plugin WHERE plugin_status <> 'uninstalled'" );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    } elsif ( $row ) {
+    iMSCP::Database->getInstance()->selectrow_hashref( "SELECT 1 FROM plugin WHERE plugin_status <> 'uninstalled'" );
+
+    if ( $row ) {
         iMSCP::Dialog->getInstance()->infobox( <<'EOF' );
 \Z1Uninstallation aborted.\Zn
 
 You must first uninstall all i-MSCP plugins through the control panel interface.
 EOF
-        exit 0;
+        exit;
     }
 
     undef $row;
@@ -100,15 +93,10 @@ EOF
         [ \&_removeFiles, 'Removing i-MSCP files' ],
     );
 
-    my ($step, $rs) = ( 1, 0 );
-    my $nbSteps = @steps;
-    for ( @steps ) {
-        $rs = step( @{$_}, $nbSteps, $step );
-        last if $rs;
-        $step++;
-    }
+    my ($step, $nbSteps) = ( 1, @steps );
+    step( @{$_}, $nbSteps, $step++ ) for @steps;
 
-    $rs ||= iMSCP::Dialog->getInstance()->endGauge();
+    iMSCP::Dialog->getInstance()->endGauge();
 }
 
 sub shutDown
@@ -121,8 +109,6 @@ iMSCP has been successfully uninstalled.
 
 You can find uninstallation logs at /var/log/imscp/imscp-uninstall.log
 EOF
-
-    0;
 }
 
 sub _userDialog
@@ -130,7 +116,7 @@ sub _userDialog
     my $dialog = iMSCP::Dialog->getInstance();
     $dialog->set( 'title', 'i-MSCP Uninstaller Dialog' );
 
-    exit 0 if $dialog->yesno( <<"EOF", 1 );
+    exit if $dialog->yesno( <<"EOF", 1 );
 
 Welcome to the \\Z4i-MSCP $main::imscpConfig{'Version'}\\Zn uninstaller dialog.
 
@@ -144,53 +130,40 @@ EOF
 
 sub _removeCustomers
 {
-    eval {
-        {
-            my $tables = {
-                admin           => [ 'admin_status', "WHERE admin_type = 'user'" ],
-                domain          => 'domain_status',
-                domain_aliasses => 'alias_status',
-                subdomain       => 'subdomain_status',
-                subdomain_alias => 'subdomain_alias_status',
-                mail_users      => 'status',
-                htaccess        => 'status',
-                htaccess_groups => 'status',
-                htaccess_users  => 'status',
-                ssl_certs       => 'status'
-            };
-            my $aditionalCondition;
+    my $tables = {
+        admin           => [ 'admin_status', "WHERE admin_type = 'user'" ],
+        domain          => 'domain_status',
+        domain_aliasses => 'alias_status',
+        subdomain       => 'subdomain_status',
+        subdomain_alias => 'subdomain_alias_status',
+        mail_users      => 'status',
+        htaccess        => 'status',
+        htaccess_groups => 'status',
+        htaccess_users  => 'status',
+        ssl_certs       => 'status'
+    };
+    my $aditionalCondition;
 
-            my $db = iMSCP::Database->getInstance();
-            my $oldDbName = $db->useDatabase( $main::imscpConfig{'DATABASE_NAME'} );
+    my $db = iMSCP::Database->getInstance();
+    my $oldDbName = $db->useDatabase( $main::imscpConfig{'DATABASE_NAME'} );
 
-            my $dbh = $db->getRawDb();
-            local $dbh->{'RaiseError'};
-
-            while ( my ($table, $field) = each %{$tables} ) {
-                if ( ref $field eq 'ARRAY' ) {
-                    $aditionalCondition = $field->[1];
-                    $field = $field->[0];
-                } else {
-                    $aditionalCondition = ''
-                }
-
-                ( $table, $field ) = ( $dbh->quote_identifier( $table ), $dbh->quote_identifier( $field ) );
-                $dbh->do( "UPDATE $table SET $field = 'todelete' $aditionalCondition" );
-            }
-
-            $db->useDatabase( $oldDbName ) if $oldDbName;
+    while ( my ($table, $field) = each %{$tables} ) {
+        if ( ref $field eq 'ARRAY' ) {
+            $aditionalCondition = $field->[1];
+            $field = $field->[0];
+        } else {
+            $aditionalCondition = ''
         }
 
-        startDetail();
-        iMSCP::DbTasksProcessor->getInstance( mode => 'uninstall' )->processDbTasks();
-        endDetail();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+        ( $table, $field ) = ( $db->quote_identifier( $table ), $db->quote_identifier( $field ) );
+        $db->do( "UPDATE $table SET $field = 'todelete' $aditionalCondition" );
     }
 
-    0;
+    $db->useDatabase( $oldDbName ) if $oldDbName;
+
+    startDetail();
+    iMSCP::DbTasksProcessor->getInstance()->processDbTasks();
+    endDetail();
 }
 
 sub _uninstallPackages
@@ -199,45 +172,28 @@ sub _uninstallPackages
 
     # For uninstallation, we reverse package priorities
     my @packages = reverse iMSCP::Packages->getInstance()->getListWithFullNames();
-    my $nbSteps = @packages;
-    my ($step, $rs) = ( 1, 0 );
-
+    my ($step, $nbSteps) = ( 1, @packages );
     for my $package( @packages ) {
         ( my $subref = $package->can( 'uninstall' ) ) or $step++ && next;
-        $rs = step(
-            sub { $subref->( $package->getInstance()) },
-            sprintf( 'Executing %s uninstall tasks...', $package ),
-            $nbSteps,
-            $step
-        );
-        last if $rs;
+        step( sub { $subref->( $package->getInstance()) }, sprintf( 'Executing %s uninstall tasks...', $package ), $nbSteps, $step );
     }
 
     endDetail();
-    $rs;
 }
 
 sub _uninstallServers
 {
     # For uninstallation, we reverse servers priorities
     my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
-    my $nbSteps = @servers;
-    my ($step, $rs) = ( 1, 0 );
+    my ($step, $nbSteps) = ( 1, @servers );
 
     startDetail();
-
     for my $task( qw/ preuninstall uninstall postuninstall / ) {
         for my $server( @servers ) {
-            $rs = step( sub { $server->factory()->$task() }, sprintf( 'Executing %s uninstall tasks...', $server ), $nbSteps, $step );
-            last if $rs;
-            $step++;
+            step( sub { $server->factory()->$task() }, sprintf( 'Executing %s uninstall tasks...', $server ), $nbSteps, $step++ );
         }
-
-        last if $rs;
     }
-
     endDetail();
-    $rs;
 }
 
 sub _uninstallServices
@@ -252,46 +208,33 @@ sub _uninstallServices
     for my $service( 'bind9', 'bind9-resolvconf' ) {
         $srvProvider->disable( $service ) if $srvProvider->isSystemd();
 
-        if ( -f "/etc/systemd/system/$service.service" ) {
-            my $rs = iMSCP::File->new( filename => "/etc/systemd/system/$service.service" )->delFile();
-            return $rs if $rs;
-        }
+        iMSCP::File->new( filename => "/etc/systemd/system/$service.service" )->remove();
 
         if ( -f "/lib/systemd/system/$service.service" ) {
             $srvProvider->enable( $service ) if $srvProvider->isSystemd();
         }
     }
-
-    0;
 }
 
 # FIXME: Should be done by the Sqld server implementation
 sub _removeSqlData
 {
-    eval {
-        my $sqlServer = iMSCP::Servers::Sqld->factory();
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
+    my $sqlServer = iMSCP::Servers::Sqld->factory();
+    my $dbh = iMSCP::Database->getInstance();
 
-        # Remove customer's sql users
-        my $rows = $dbh->selectall_hashref( 'SELECT DISTINCT sqlu_name, sqlu_host FROM sql_user', 'sqlu_name' );
-        $sqlServer->dropUser( $rows->{$_}->{'sqlu_name'}, $rows->{$_}->{'sqlu_host'} ) for keys %{$rows};
+    # Remove customer's sql users
+    my $rows = $dbh->selectall_hashref( 'SELECT DISTINCT sqlu_name, sqlu_host FROM sql_user', 'sqlu_name' );
+    $sqlServer->dropUser( $rows->{$_}->{'sqlu_name'}, $rows->{$_}->{'sqlu_host'} ) for keys %{$rows};
 
-        # Remove customer's sql databases
-        $rows = $dbh->selectall_hashref( 'SELECT sqld_name FROM sql_database', 'sqld_name' );
-        $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $rows->{$_}->{'sqld_name'} )) for keys %{$rows};
+    # Remove customer's sql databases
+    $rows = $dbh->selectall_hashref( 'SELECT sqld_name FROM sql_database', 'sqld_name' );
+    $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $rows->{$_}->{'sqld_name'} )) for keys %{$rows};
 
-        # Remove i-MSCP sql database
-        $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $main::imscpConfig{'DATABASE_NAME'} ));
+    # Remove i-MSCP sql database
+    $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $main::imscpConfig{'DATABASE_NAME'} ));
 
-        # Drop i-MSCP master SQL user
-        $sqlServer->dropUser( $main::imscpConfig{'DATABASE_USER'}, $main::imscpConfig{'DATABASE_USER_HOST'} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    # Drop i-MSCP master SQL user
+    $sqlServer->dropUser( $main::imscpConfig{'DATABASE_USER'}, $main::imscpConfig{'DATABASE_USER_HOST'} );
 }
 
 # FIXME: Should be done by the Local server implementation
@@ -304,33 +247,16 @@ sub _removeiMSCPSystemUser
 sub _removeFiles
 {
     chdir( '/' );
+    iMSCP::File->new( filename => $_ )->remove() for '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp';
 
-    for ( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
-        next unless -f;
-        my $rs = iMSCP::File->new( filename => $_ )->delFile();
-        return $rs if $rs;
+    for ( $main::imscpConfig{'CONF_DIR'}, $main::imscpConfig{'USER_WEB_DIR'}, $main::imscpConfig{'LOG_DIR'}, $main::imscpConfig{'ROOT_DIR'} ) {
+        iMSCP::Dir->new( dirname => $_ )->remove();
     }
-
-    eval {
-        for ( $main::imscpConfig{'CONF_DIR'}, $main::imscpConfig{'USER_WEB_DIR'}, $main::imscpConfig{'LOG_DIR'},
-            $main::imscpConfig{'ROOT_DIR'}
-        ) {
-            iMSCP::Dir->new( dirname => $_ )->remove();
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
 }
 
-my $rs = 0;
-$rs ||= startUp();
-$rs ||= process();
-$rs ||= shutDown();
-exit $rs;
+startUp();
+process();
+shutDown();
 
 =head1 AUTHOR
 

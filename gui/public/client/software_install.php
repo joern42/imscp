@@ -296,7 +296,7 @@ if (!empty($_POST)) {
             $domainProps['domain_id'], $appDatabase
         ]);
         if (!$stmt->rowCount()) {
-            set_page_message(tr("Unknown `%s' database. Database must exists.", $appDatabase), 'error');
+            set_page_message(tr("Unknown %s database. Database must exists.", $appDatabase), 'error');
             $error = true;
         } else {
             $row = $stmt->fetch();
@@ -310,7 +310,7 @@ if (!empty($_POST)) {
                 $error = true;
             } # Check database connection using provided SQL user/password
             elseif (!check_db_connection($appDatabase, $appSqlUser, $appSqlPassword)) {
-                set_page_message(tr("Could not connect to the `%s' database. Please check the password.", $appDatabase), 'error');
+                set_page_message(tr("Could not connect to the %s database. Please check the password.", $appDatabase), 'error');
                 $error = true;
             }
         }

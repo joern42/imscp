@@ -190,7 +190,7 @@ sub clear
 
  Param string $mode Directory mode
  Param string $dirname OPTIONAL Directory (default $self->{'dirname'})
- Return int 0 on success, die on failure
+ Return self, die on failure
 
 =cut
 
@@ -201,7 +201,7 @@ sub mode
     defined $mode or croak( '$mode parameter is missing.' );
 
     chmod $mode, $self->{'dirname'} or die( sprintf( 'Failed to set permissions for %s: %s', $self->{'dirname'}, $! ));
-    0;
+    $self;
 }
 
 =item owner( $owner, $group )

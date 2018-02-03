@@ -216,7 +216,7 @@ function addSqlUser($sqldId)
             || in_array($user, ['debian-sys-maint', 'mysql.user', 'root'])
         ) {
             set_page_message(
-                tr("The `%s' SQL user is not available or not permitted.", $user . '@' . decode_idna($host)), 'error'
+                tr("The %s SQL user is not available or not permitted.", $user . '@' . decode_idna($host)), 'error'
             );
             return;
         }

@@ -20,7 +20,6 @@ use warnings;
 use lib '/var/www/imscp/engine/PerlLib';
 use iMSCP::Bootstrapper;
 use iMSCP::Getopt;
-use iMSCP::Debug;
 use iMSCP::Mount qw/ umount /;
 
 iMSCP::Getopt->context( 'backend' );

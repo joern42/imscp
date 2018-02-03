@@ -25,14 +25,7 @@ package iMSCP::Servers::Ftpd::Vsftpd::Debian;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Execute' => qw/ execute /;
-use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Getopt /;
-use iMSCP::Config;
-use iMSCP::Debug qw/ debug error /;
 use iMSCP::File;
-use iMSCP::TemplateParser qw/ processByRef /;
-use iMSCP::Umask;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Ftpd::Vsftpd::Abstract';
 
@@ -48,9 +41,7 @@ our $VERSION = '2.0.0';
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Ftpd::Vsftpd::Abstract::install()
 
 =cut
 
@@ -58,15 +49,13 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::install();
-    $rs ||= $self->_cleanup();
+    $self->SUPER::install();
+    $self->_cleanup();
 }
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success
+ See iMSCP::Servers::Abstract::postinstall()
 
 =cut
 
@@ -74,20 +63,13 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->enable( 'vsftpd' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::Service->getInstance()->enable( 'vsftpd' );
     $self->SUPER::postinstall();
 }
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success
+ See iMSCP::Servers::Ftpd::Vsftpd::Abstract::uninstall()
 
 =cut
 
@@ -95,19 +77,10 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::uninstall();
-    return $rs if $rs;
+    $self->SUPER::uninstall();
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->restart( 'vsftpd' ) if $srvProvider->hasService( 'vsftpd' ) && $srvProvider->isRunning( 'vsftpd' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->restart( 'vsftpd' ) if $srvProvider->hasService( 'vsftpd' ) && $srvProvider->isRunning( 'vsftpd' );
 }
 
 =item dpkgPostInvokeTasks()
@@ -120,7 +93,7 @@ sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
 
-    return 0 unless -x $self->{'config'}->{'FTPD_BIN'};
+    return unless -x $self->{'config'}->{'FTPD_BIN'};
 
     $self->_setVersion();
 }
@@ -135,13 +108,7 @@ sub start
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->start( 'vsftpd' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->start( 'vsftpd' );
 }
 
 =item stop( )
@@ -154,13 +121,7 @@ sub stop
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->stop( 'vsftpd' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->stop( 'vsftpd' );
 }
 
 =item restart( )
@@ -173,13 +134,7 @@ sub restart
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->restart( 'vsftpd' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->restart( 'vsftpd' );
 }
 
 =item reload( )
@@ -192,13 +147,7 @@ sub reload
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->reload( 'vsftpd' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->reload( 'vsftpd' );
 }
 
 =back
@@ -211,7 +160,7 @@ sub reload
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -219,16 +168,10 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    if ( -f "$self->{'cfgDir'}/vsftpd.pam" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/vsftpd.pam" )->delFile();
-        return $rs if $rs;
-    }
-
-    return 0 unless -f "$self->{'cfgDir'}/vsftpd.old.data";
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/vsftpd.old.data" )->delFile();
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/vsftpd.pam" )->remove();
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/vsftpd.old.data" )->remove();
 }
 
 =item _shutdown( $priority )

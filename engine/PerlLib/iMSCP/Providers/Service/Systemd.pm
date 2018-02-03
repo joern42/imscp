@@ -26,7 +26,7 @@ package iMSCP::Providers::Service::Systemd;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use File::Basename;
 use File::Spec;
 use iMSCP::File;
@@ -75,6 +75,7 @@ sub isEnabled
     croak( $stderr ) if $ret && $stderr;
 
     # The indirect state indicates that the unit is not enabled.
+    chomp( $stdout );
     return 0 if $stdout eq 'indirect';
 
     # The command status 0 indicate that the service is enabled
@@ -194,9 +195,7 @@ sub remove
         # We do not want remove units that are shipped by distribution packages
         last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
         debug( sprintf ( 'Removing the %s unit', $unitFilePath ));
-        iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
+        iMSCP::File->new( filename => $unitFilePath )->remove();
     }
 
     $self->daemonReload();
@@ -299,7 +298,7 @@ sub hasService
  Units can be aliased (have an alternative name), by creating a symlink from
  the new name to the existing name in one of the unit search paths.
  
- Due to unexpeted behaviors when we're acting on alias units, this method make
+ Due to unexpected behaviors when we're acting on alias units, this method make
  it possible to always act on the aliased units by resolving them.
  
  See the following reports for a better understanding of the situation

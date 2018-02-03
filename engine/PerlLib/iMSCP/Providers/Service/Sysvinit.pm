@@ -28,7 +28,6 @@ use warnings;
 use Carp qw/ croak /;
 use iMSCP::Debug qw / debug /;
 use File::Spec;
-use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::Service::Interface /;
@@ -57,9 +56,7 @@ sub remove
 
     if ( my $initScriptPath = eval { $self->getInitScriptPath( $service, 'nocache' ); } ) {
         debug( sprintf ( "Removing the %s sysvinit script", $initScriptPath ));
-        iMSCP::File->new( filename => $initScriptPath )->delFile() == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
+        iMSCP::File->new( filename => $initScriptPath )->remove();
     }
 }
 

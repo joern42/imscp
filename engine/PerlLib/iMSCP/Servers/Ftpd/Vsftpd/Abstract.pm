@@ -25,16 +25,17 @@ package iMSCP::Servers::Ftpd::Vsftpd::Abstract;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Rights' => qw/ setRights /;
+
 use autouse Fcntl => qw/ O_RDONLY /;
 use autouse 'iMSCP::Crypt' => qw/ ALNUM randomStr /;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isNumberInRange isOneOfStringsInList isStringNotInList isValidNumberRange
         isValidPassword isValidUsername /;
 use autouse 'iMSCP::Execute' => qw/ execute /;
+use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Getopt iMSCP::Servers::Sqld /;
 use iMSCP::Config;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::File;
 use parent 'iMSCP::Servers::Ftpd';
 
@@ -317,8 +318,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_setVersion();
-    $rs ||= $self->_configure();
+    $self->_setVersion();
+    $self->_configure();
 }
 
 =item uninstall( )
@@ -344,7 +345,7 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    my $rs = setRights( "$self->{'config'}->{'FTPD_USER_CONF_DIR'}",
+    setRights( "$self->{'config'}->{'FTPD_USER_CONF_DIR'}",
         {
             user      => $main::imscpConfig{'ROOT_USER'},
             group     => $main::imscpConfig{'ROOT_GROUP'},
@@ -353,7 +354,7 @@ sub setEnginePermissions
             recursive => 1
         }
     );
-    $rs ||= setRights( "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf",
+    setRights( "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_GROUP'},
@@ -411,15 +412,13 @@ sub addUser
 {
     my ($self, $moduleData) = @_;
 
-    return 0 if $moduleData->{'STATUS'} eq 'tochangepwd';
+    return if $moduleData->{'STATUS'} eq 'tochangepwd';
 
     $self->{'eventManager'}->trigger( 'beforeVsftpdAddUser', $moduleData );
 
-    my $dbh = iMSCP::Database->getInstance()->getRawDb();
+    my $dbh = iMSCP::Database->getInstance();
 
     eval {
-        local $dbh->{'RaiseError'} = 1;
-
         $dbh->begin_work();
         $dbh->do(
             'UPDATE ftp_users SET uid = ?, gid = ? WHERE admin_id = ?',
@@ -430,8 +429,7 @@ sub addUser
     };
     if ( $@ ) {
         $dbh->rollback();
-        error( $@ );
-        return 1;
+        die;
     }
 
     $self->{'eventManager'}->trigger( 'AfterVsftpdAddUser', $moduleData );
@@ -447,9 +445,9 @@ sub addFtpUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeVsftpdAddFtpUser', $moduleData );
-    $rs ||= $self->_createFtpUserConffile( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterVsftpdAddFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeVsftpdAddFtpUser', $moduleData );
+    $self->_createFtpUserConffile( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterVsftpdAddFtpUser', $moduleData );
 }
 
 =item disableFtpUser( \%moduleData )
@@ -462,9 +460,9 @@ sub disableFtpUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeVsftpdDisableFtpUser', $moduleData );
-    $rs ||= $self->_deleteFtpUserConffile( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterVsftpdDisableFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeVsftpdDisableFtpUser', $moduleData );
+    $self->_deleteFtpUserConffile( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterVsftpdDisableFtpUser', $moduleData );
 }
 
 =item deleteFtpUser( \%moduleData )
@@ -477,9 +475,9 @@ sub deleteFtpUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeVsftpdDeleteFtpUser', $moduleData );
-    $rs ||= $self->_deleteFtpUserConffile( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterVsftpdDeleteFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeVsftpdDeleteFtpUser', $moduleData );
+    $self->_deleteFtpUserConffile( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterVsftpdDeleteFtpUser', $moduleData );
 }
 
 =item getTraffic( $trafficDb [, $logFile, $trafficIndexDb ] )
@@ -567,7 +565,7 @@ sub _init
 
  Set VsFTPd version
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -577,26 +575,18 @@ sub _setVersion
 
     # Version is print through STDIN (see: strace vsftpd -v)
     my $rs = execute( "$self->{'config'}->{'FTPD_BIN'} -v 0>&1", \ my $stdout, \ my $stderr );
-
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    if ( $stdout !~ /([\d.]+)/ ) {
-        error( "Couldn't find VsFTPd version from the `$self->{'config'}->{'FTPD_BIN'} -v 0>&1` command output" );
-        return 1;
-    }
-
+    !$rs or die( $stderr || 'Unknown error' );
+    $stdout =~ /([\d.]+)/ or die( "Couldn't find VsFTPd version from the `$self->{'config'}->{'FTPD_BIN'} -v 0>&1` command output" );
     $self->{'config'}->{'FTPD_VERSION'} = $1;
     debug( sprintf( 'VsFTPd version set to: %s', $1 ));
-    0;
 }
 
 =item _configure()
 
  Configure VsFTPd configuration file
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -604,8 +594,8 @@ sub _configure
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeVsftpdConfigure' );
-    $rs ||= $self->_setupSqlUser();
+    $self->{'eventManager'}->trigger( 'beforeVsftpdConfigure' );
+    $self->_setupSqlUser();
 
     # Make sure to start with clean user configuration directory
     unlink glob "/etc/vsftpd/imscp/*";
@@ -613,7 +603,7 @@ sub _configure
     my ($passvMinPort, $passvMaxPort) = split( /\s+/, $self->{'config'}->{'FTPD_PASSIVE_PORT_RANGE'} );
     # VsFTPd main configuration file
 
-    $rs ||= $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->registerOne(
         'beforeProftpdBuildConfFile',
         sub {
             my ($cfgTpl) = @_;
@@ -653,12 +643,10 @@ rsa_cert_file=$main::imscpConfig{'CONF_DIR'}/imscp_services.pem
 rsa_private_key_file=$main::imscpConfig{'CONF_DIR'}/imscp_services.pem
 EOF
             }
-
-            0;
         }
     );
 
-    $rs = $self->buildConfFile( 'vsftpd.conf', "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf", undef,
+    $self->buildConfFile( 'vsftpd.conf', "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf", undef,
         {
             FTPD_BANNER             => $self->{'config'}->{'FTPD_BANNER'},
             FTPD_GUEST_USERNAME     => $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'},
@@ -677,7 +665,7 @@ EOF
             mode  => 0640
         }
     );
-    $rs ||= $self->buildConfFile( 'vsftpd_pam.conf', "$self->{'config'}->{'FTPD_PAM_CONF_DIR'}/vsftpd", undef,
+    $self->buildConfFile( 'vsftpd_pam.conf', "$self->{'config'}->{'FTPD_PAM_CONF_DIR'}/vsftpd", undef,
         {
             FTPD_DATABASE_HOST => main::setupGetQuestion( 'DATABASE_HOST' ),
             FTPD_DATABASE_NAME => main::setupGetQuestion( 'DATABASE_NAME' ),
@@ -690,14 +678,14 @@ EOF
             mode  => 0640
         }
     );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterVsftpdConfigure' );
+    $self->{'eventManager'}->trigger( 'afterVsftpdConfigure' );
 }
 
 =item _setupSqlUser( )
 
  Setup SQL user for VsFTPd
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -710,41 +698,33 @@ sub _setupSqlUser
     my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = main::setupGetQuestion( 'FTPD_SQL_PASSWORD' );
 
-    eval {
-        my $sqlServer = iMSCP::Servers::Sqld->factory();
+    my $sqlServer = iMSCP::Servers::Sqld->factory();
 
-        # Drop old SQL user if required
-        if ( ( $self->{'config'}->{'FTPD_SQL_USER'} ne '' && $self->{'config'}->{'FTPD_SQL_USER'} ne $dbUser )
-            || ( $main::imscpOldConfig{'DATABASE_USER_HOST'} ne '' && $main::imscpOldConfig{'DATABASE_USER_HOST'} ne $dbUserHost )
-        ) {
-            for ( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-                next if $_ eq '' || exists $main::sqlUsers{$self->{'config'}->{'FTPD_SQL_USER'} . '@' . $_};
-                $sqlServer->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $_ );
-            }
+    # Drop old SQL user if required
+    if ( ( $self->{'config'}->{'FTPD_SQL_USER'} ne '' && $self->{'config'}->{'FTPD_SQL_USER'} ne $dbUser )
+        || ( $main::imscpOldConfig{'DATABASE_USER_HOST'} ne '' && $main::imscpOldConfig{'DATABASE_USER_HOST'} ne $dbUserHost )
+    ) {
+        for ( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+            next if $_ eq '' || exists $main::sqlUsers{$self->{'config'}->{'FTPD_SQL_USER'} . '@' . $_};
+            $sqlServer->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $_ );
         }
-
-        # Create/update SQL user if needed
-        if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-            $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
-        }
-
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-
-        # GRANT privileges to the SQL user
-        # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
-        my $quotedDbName = $dbh->quote_identifier( $dbName );
-        $dbh->do( "GRANT SELECT ON $quotedDbName.ftp_users TO ?\@?", undef, $dbUser, $dbUserHost );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
+
+    # Create/update SQL user if needed
+    if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
+        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+    }
+
+    my $dbh = iMSCP::Database->getInstance();
+
+    # GRANT privileges to the SQL user
+    # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
+    my $quotedDbName = $dbh->quote_identifier( $dbName );
+    $dbh->do( "GRANT SELECT ON $quotedDbName.ftp_users TO ?\@?", undef, $dbUser, $dbUserHost );
 
     $self->{'config'}->{'FTPD_SQL_USER'} = $dbUser;
     $self->{'config'}->{'FTPD_SQL_PASSWORD'} = $dbPass;
-    0;
 }
 
 =item _createFtpUserConffile( \%moduleData )
@@ -752,7 +732,7 @@ sub _setupSqlUser
  Create VsFTPd user configuration file
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::FtpUser module
- Return int 0, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -773,7 +753,7 @@ sub _createFtpUserConffile
  Delete VsFTPd user configuration file
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::FtpUser module
- Return int 0, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -781,16 +761,14 @@ sub _deleteFtpUserConffile
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless -f "$self->{'config'}->{'FTPD_USER_CONF_DIR'}/$moduleData->{'USERNAME'}";
-
-    iMSCP::File->new( filename => "$self->{'config'}->{'FTPD_USER_CONF_DIR'}/$moduleData->{'USERNAME'}" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'FTPD_USER_CONF_DIR'}/$moduleData->{'USERNAME'}" )->remove();
 }
 
 =item _dropSqlUser( )
 
  Drop SQL user
 
- Return int 0 on success, 1 on failure
+ Return void, die on failure
 
 =cut
 
@@ -798,18 +776,12 @@ sub _dropSqlUser
 {
     my ($self) = @_;
 
-    # In setup context, take value from old conffile, else take value from current conffile
+    # In installer context, take value from old conffile, else take value from current conffile
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer' ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
 
-    return 0 unless $self->{'config'}->{'FTPD_SQL_USER'} && $dbUserHost;
+    return unless $self->{'config'}->{'FTPD_SQL_USER'} && $dbUserHost;
 
-    eval { iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $dbUserHost ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $dbUserHost );
 }
 
 =back

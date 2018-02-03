@@ -30,7 +30,7 @@ use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStrin
 use Carp qw/ croak /;
 use Class::Autouse  qw/ :nostat iMSCP::Getopt /;
 use File::Basename;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -61,13 +61,7 @@ sub registerSetupListeners
 
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
-        sub {
-            push @{$_[0]},
-                sub { $self->askDnsServerMode( @_ ) },
-                sub { $self->askIPv6Support( @_ ) },
-                sub { $self->askLocalDnsResolver( @_ ) };
-            0;
-        },
+        sub { push @{$_[0]}, sub { $self->askDnsServerMode( @_ ) }, sub { $self->askIPv6Support( @_ ) }, sub { $self->askLocalDnsResolver( @_ ) }; },
         $self->getPriority()
     );
 }
@@ -98,7 +92,6 @@ EOF
 
     main::setupSetQuestion( 'NAMED_MODE', $value );
     $self->{'config'}->{'NAMED_MODE'} = $value;
-
     $self->askDnsServerIps( $dialog );
 }
 
@@ -276,9 +269,7 @@ EOF
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::install()
 
 =cut
 
@@ -288,21 +279,17 @@ sub install
 
     for my $conffile( 'NAMED_CONF_FILE', 'NAMED_LOCAL_CONF_FILE', 'NAMED_OPTIONS_CONF_FILE' ) {
         next if $self->{'config'}->{$conffile} eq '';
-
-        my $rs = $self->_bkpConfFile( $self->{'config'}->{$conffile} );
-        return $rs if $rs;
+        $self->_bkpConfFile( $self->{'config'}->{$conffile} );
     }
 
-    my $rs = $self->_setVersion();
-    $rs ||= $self->_makeDirs();
-    $rs ||= $self->_configure();
+    $self->_setVersion();
+    $self->_makeDirs();
+    $self->_configure();
 }
 
 =item setEnginePermissions( )
 
- Set engine permissions
-
- Return int 0 on success, other on failure
+ See iMSCP::Servers::Abstract::setEnginePermissions()
 
 =cut
 
@@ -310,7 +297,7 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    my $rs = setRights( $self->{'config'}->{'NAMED_CONF_DIR'},
+    setRights( $self->{'config'}->{'NAMED_CONF_DIR'},
         {
             user      => $main::imscpConfig{'ROOT_USER'},
             group     => $self->{'config'}->{'NAMED_GROUP'},
@@ -319,7 +306,7 @@ sub setEnginePermissions
             recursive => 1
         }
     );
-    $rs ||= setRights( $self->{'config'}->{'NAMED_DB_ROOT_DIR'},
+    setRights( $self->{'config'}->{'NAMED_DB_ROOT_DIR'},
         {
             user      => $self->{'config'}->{'NAMED_USER'},
             group     => $self->{'config'}->{'NAMED_GROUP'},
@@ -381,17 +368,11 @@ sub addDomain
 
     # Never process the same zone twice
     # Occurs only in few contexts (eg. when using BASE_SERVER_VHOST as customer domain)
-    return 0 if $self->{'seen_zones'}->{$moduleData->{'DOMAIN_NAME'}};
+    return if $self->{'seen_zones'}->{$moduleData->{'DOMAIN_NAME'}};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindAddDomain', $moduleData );
-    $rs ||= $self->_addDmnConfig( $moduleData );
-    return $rs if $rs;
-
-    if ( $self->{'config'}->{'NAMED_MODE'} eq 'master' ) {
-        $rs = $self->_addDmnDb( $moduleData );
-        return $rs if $rs;
-    }
-
+    $self->{'eventManager'}->trigger( 'beforeBindAddDomain', $moduleData );
+    $self->_addDmnConfig( $moduleData );
+    $self->_addDmnDb( $moduleData ) if $self->{'config'}->{'NAMED_MODE'} eq 'master';
     $self->{'seen_zones'}->{$moduleData->{'DOMAIN_NAME'}} ||= 1;
     $self->{'eventManager'}->trigger( 'afterBindAddDomain', $moduleData );
 }
@@ -406,11 +387,10 @@ sub postaddDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostAddDomain', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeBindPostAddDomain', $moduleData );
 
     if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
-        $rs = $self->addSubdomain( {
+        $self->addSubdomain( {
             # Listeners want probably know real parent domain name for the
             # DNS name being added even if that entry is added in another
             # zone. For instance, see the 20_named_dualstack.pl listener
@@ -427,7 +407,6 @@ sub postaddDomain
             OPTIONAL_ENTRIES        => 0,
             STATUS                  => $moduleData->{'STATUS'} # (since 1.6.0)
         } );
-        return $rs if $rs;
     }
 
     $self->{'reload'} ||= 1;
@@ -448,9 +427,9 @@ sub disableDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDisableDomain', $moduleData );
-    $rs ||= $self->addDomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterBindDisableDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindDisableDomain', $moduleData );
+    $self->addDomain( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindDisableDomain', $moduleData );
 }
 
 =item postdisableDomain( \%moduleData )
@@ -465,9 +444,9 @@ sub postdisableDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostDisableDomain', $moduleData );
-    $rs ||= $self->postaddDomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterBindPostDisableDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindPostDisableDomain', $moduleData );
+    $self->postaddDomain( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindPostDisableDomain', $moduleData );
 }
 
 =item deleteDomain( \%moduleData )
@@ -480,18 +459,14 @@ sub deleteDomain
 {
     my ($self, $moduleData) = @_;
 
-    return 0 if $moduleData->{'PARENT_DOMAIN_NAME'} eq $main::imscpConfig{'BASE_SERVER_VHOST'} && !$moduleData->{'FORCE_DELETION'};
+    return if $moduleData->{'PARENT_DOMAIN_NAME'} eq $main::imscpConfig{'BASE_SERVER_VHOST'} && !$moduleData->{'FORCE_DELETION'};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDeleteDomain', $moduleData );
-    $rs ||= $self->_deleteDmnConfig( $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeBindDeleteDomain', $moduleData );
+    $self->_deleteDmnConfig( $moduleData );
 
     if ( $self->{'config'}->{'NAMED_MODE'} eq 'master' ) {
         for ( "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db", "$self->{'config'}->{'NAMED_DB_MASTER_DIR'}/$moduleData->{'DOMAIN_NAME'}.db" ) {
-            next unless -f;
-
-            $rs = iMSCP::File->new( filename => $_ )->delFile();
-            return $rs if $rs;
+            iMSCP::File->new( filename => $_ )->remove();
         }
     }
 
@@ -508,17 +483,15 @@ sub postdeleteDomain
 {
     my ($self, $moduleData) = @_;
 
-    return 0 if $moduleData->{'PARENT_DOMAIN_NAME'} eq $main::imscpConfig{'BASE_SERVER_VHOST'} && !$moduleData->{'FORCE_DELETION'};
+    return if $moduleData->{'PARENT_DOMAIN_NAME'} eq $main::imscpConfig{'BASE_SERVER_VHOST'} && !$moduleData->{'FORCE_DELETION'};
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostDeleteDomain', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeBindPostDeleteDomain', $moduleData );
 
     if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
-        $rs = $self->deleteSubdomain( {
+        $self->deleteSubdomain( {
             PARENT_DOMAIN_NAME => $main::imscpConfig{'BASE_SERVER_VHOST'},
             DOMAIN_NAME        => $moduleData->{'ALIAS'} . '.' . $main::imscpConfig{'BASE_SERVER_VHOST'}
         } );
-        return $rs if $rs;
     }
 
     $self->{'reload'} ||= 1;
@@ -535,38 +508,23 @@ sub addSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
+    return unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
     my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'PARENT_DOMAIN_NAME'}.db";
-    unless ( -f $wrkDbFile ) {
-        error( sprintf( 'File %s not found. Run imscp-reconfigure script.', $wrkDbFile ));
-        return 1;
-    }
+    -f $wrkDbFile or die( sprintf( 'File %s not found. Run imscp-reconfigure script.', $wrkDbFile ));
 
     $wrkDbFile = iMSCP::File->new( filename => $wrkDbFile );
-    my $wrkDbFileContent = $wrkDbFile->get();
-    unless ( defined $wrkDbFileContent ) {
-        error( sprintf( "Couldn't read the %s file", $wrkDbFile->{'filename'} ));
-        return 1;
-    }
+    my $wrkDbFileContentRef = $wrkDbFile->getAsRef();
 
-    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', 'db_sub.tpl', \ my $subEntry, $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', 'db_sub.tpl', \ my $subEntry, $moduleData );
 
-    unless ( defined $subEntry ) {
-        $subEntry = iMSCP::File->new( filename => "$self->{'tplDir'}/db_sub.tpl" )->get();
-        unless ( defined $subEntry ) {
-            error( sprintf( "Couldn't read the %s file", "$self->{'tplDir'}/db_sub.tpl file" ));
-            return 1;
-        }
-    }
+    $subEntry = iMSCP::File->new( filename => "$self->{'tplDir'}/db_sub.tpl" )->get() unless defined $subEntry;
 
     unless ( $self->{'serials'}->{$moduleData->{'PARENT_DOMAIN_NAME'}} ) {
-        $rs = $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, \$wrkDbFileContent, \$wrkDbFileContent );
+        $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFileContentRef, $wrkDbFileContentRef );
     }
 
-    $rs ||= $self->{'eventManager'}->trigger( 'beforeBindAddSubdomain', \$wrkDbFileContent, \$subEntry, $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeBindAddSubdomain', $wrkDbFileContentRef, \$subEntry, $moduleData );
 
     my $net = iMSCP::Net->getInstance();
 
@@ -601,18 +559,16 @@ sub addSubdomain
         },
         \$subEntry
     );
-
     replaceBlocByRef(
-        "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', \$wrkDbFileContent
+        "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', $wrkDbFileContentRef
     );
     replaceBlocByRef(
-        "; sub [{SUBDOMAIN_NAME}] entry BEGIN\n", "; sub [{SUBDOMAIN_NAME}] entry ENDING\n", $subEntry, \$wrkDbFileContent, 'preserve'
+        "; sub [{SUBDOMAIN_NAME}] entry BEGIN\n", "; sub [{SUBDOMAIN_NAME}] entry ENDING\n", $subEntry, $wrkDbFileContentRef, 'preserve'
     );
+    $self->{'eventManager'}->trigger( 'afterBindAddSubdomain', $wrkDbFileContentRef, $moduleData );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBindAddSubdomain', \$wrkDbFileContent, $moduleData );
-    $rs ||= $wrkDbFile->set( $wrkDbFileContent );
-    $rs ||= $wrkDbFile->save();
-    $rs ||= $self->_compileZone( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
+    $wrkDbFile->save();
+    $self->_compileZone( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
 }
 
 =item postaddSubdomain( \%moduleData )
@@ -625,11 +581,10 @@ sub postaddSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostAddSubdomain', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeBindPostAddSubdomain', $moduleData );
 
     if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
-        $rs = $self->addSubdomain( {
+        $self->addSubdomain( {
             # Listeners want probably know real parent domain name for the
             # DNS name being added even if that entry is added in another
             # zone. For instance, see the 20_named_dualstack.pl listener
@@ -646,7 +601,6 @@ sub postaddSubdomain
             OPTIONAL_ENTRIES        => 0,
             STATUS                  => $moduleData->{'STATUS'} # (since 1.6.0)
         } );
-        return $rs if $rs;
     }
 
     $self->{'reload'} ||= 1;
@@ -666,9 +620,9 @@ sub disableSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDisableSubdomain', $moduleData );
-    $rs ||= $self->addSubdomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterBindDisableSubdomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindDisableSubdomain', $moduleData );
+    $self->addSubdomain( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindDisableSubdomain', $moduleData );
 }
 
 =item postdisableSubdomain( \%moduleData )
@@ -683,9 +637,9 @@ sub postdisableSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostDisableSubdomain', $moduleData );
-    $rs ||= $self->postaddSubdomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterBindPostDisableSubdomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindPostDisableSubdomain', $moduleData );
+    $self->postaddSubdomain( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterBindPostDisableSubdomain', $moduleData );
 }
 
 =item deleteSubdomain( \%moduleData )
@@ -698,37 +652,25 @@ sub deleteSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
+    return unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
     my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'PARENT_DOMAIN_NAME'}.db";
-    unless ( -f $wrkDbFile ) {
-        error( sprintf( 'File %s not found. Run imscp-reconfigure script.', $wrkDbFile ));
-        return 1;
-    }
+    -f $wrkDbFile or die( sprintf( 'File %s not found. Run imscp-reconfigure script.', $wrkDbFile ));
 
     $wrkDbFile = iMSCP::File->new( filename => $wrkDbFile );
-    my $wrkDbFileContent = $wrkDbFile->get();
-    unless ( defined $wrkDbFileContent ) {
-        error( sprintf( "Couldn't read the %s file", $wrkDbFile->{'filename'} ));
-        return 1;
-    }
+    my $wrkDbFileContentRef = $wrkDbFile->getAsRef();
 
     unless ( $self->{'serials'}->{$moduleData->{'PARENT_DOMAIN_NAME'}} ) {
-        my $rs = $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, \$wrkDbFileContent, \$wrkDbFileContent );
-        return $rs if $rs;
+        $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFileContentRef, $wrkDbFileContentRef );
     }
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDeleteSubdomain', \$wrkDbFileContent, $moduleData );
-    return $rs if $rs;
-
+    $self->{'eventManager'}->trigger( 'beforeBindDeleteSubdomain', $wrkDbFileContentRef, $moduleData );
     replaceBlocByRef(
-        "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', \$wrkDbFileContent
+        "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', $wrkDbFileContentRef
     );
-
-    $rs = $self->{'eventManager'}->trigger( 'afterBindDeleteSubdomain', \$wrkDbFileContent, $moduleData );
-    $rs ||= $wrkDbFile->set( $wrkDbFileContent );
-    $rs ||= $wrkDbFile->save();
-    $rs ||= $self->_compileZone( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
+    $self->{'eventManager'}->trigger( 'afterBindDeleteSubdomain', $wrkDbFileContentRef, $moduleData );
+    $wrkDbFile->save();
+    $self->_compileZone( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
 }
 
 =item postdeleteSubdomain( \%moduleData )
@@ -741,15 +683,13 @@ sub postdeleteSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindPostDeleteSubdomain', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeBindPostDeleteSubdomain', $moduleData );
 
     if ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
-        $rs = $self->deleteSubdomain( {
+        $self->deleteSubdomain( {
             PARENT_DOMAIN_NAME => $main::imscpConfig{'BASE_SERVER_VHOST'},
             DOMAIN_NAME        => $moduleData->{'ALIAS'} . '.' . $main::imscpConfig{'BASE_SERVER_VHOST'}
         } );
-        return $rs if $rs;
     }
 
     $self->{'reload'} ||= 1;
@@ -766,38 +706,24 @@ sub addCustomDNS
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
+    return unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
     my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db";
-    unless ( -f $wrkDbFile ) {
-        error( sprintf( 'File %s not found. Run imscp-reconfigure script.', $wrkDbFile ));
-        return 1;
-    }
+    -f $wrkDbFile or die( sprintf( 'File %s not found. Run imscp-reconfigure script.', $wrkDbFile ));
 
     $wrkDbFile = iMSCP::File->new( filename => $wrkDbFile );
-    my $wrkDbFileContent = $wrkDbFile->get();
-    unless ( defined $wrkDbFileContent ) {
-        error( sprintf( "Couldn't read the %s file", $wrkDbFile->{'filename'} ));
-        return 1;
-    }
+    my $wrkDbFileContentRef = $wrkDbFile->getAsRef();
 
     unless ( $self->{'serials'}->{$moduleData->{'DOMAIN_NAME'}} ) {
-        my $rs = $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$wrkDbFileContent, \$wrkDbFileContent );
-        return $rs if $rs;
+        $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, $wrkDbFileContentRef, $wrkDbFileContentRef );
     }
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindAddCustomDNS', \$wrkDbFileContent, $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeBindAddCustomDNS', $wrkDbFileContentRef, $moduleData );
 
     my @customDNS = ();
     push @customDNS, join "\t", @{$_} for @{$moduleData->{'DNS_RECORDS'}};
 
-    my $fh;
-    unless ( open( $fh, '<', \$wrkDbFileContent ) ) {
-        error( sprintf( "Couldn't open in-memory file handle: %s", $! ));
-        return 1;
-    }
-
+    open my $fh, '<', $wrkDbFileContentRef or die( sprintf( "Couldn't open in-memory file handle: %s", $! ));
     my ($newWrkDbFileContent, $origin) = ( '', '' );
     while ( my $line = <$fh> ) {
         my $isOrigin = $line =~ /^\$ORIGIN\s+([^\s;]+).*\n$/;
@@ -814,7 +740,7 @@ sub addCustomDNS
         $newWrkDbFileContent .= $line;
     }
     close( $fh );
-    undef $wrkDbFileContent;
+    undef $wrkDbFileContentRef;
 
     replaceBlocByRef(
         "; custom DNS entries BEGIN\n",
@@ -822,13 +748,11 @@ sub addCustomDNS
         "; custom DNS entries BEGIN\n" . ( join "\n", @customDNS, '' ) . "; custom DNS entries ENDING\n",
         \$newWrkDbFileContent
     );
+    $self->{'eventManager'}->trigger( 'afterBindAddCustomDNS', \$newWrkDbFileContent, $moduleData );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBindAddCustomDNS', \$newWrkDbFileContent, $moduleData );
-    $rs ||= $wrkDbFile->set( $newWrkDbFileContent );
-    $rs ||= $wrkDbFile->save();
-    $rs ||= $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
-    $self->{'reload'} ||= 1 unless $rs;
-    $rs;
+    $wrkDbFile->set( $newWrkDbFileContent )->save();
+    $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
+    $self->{'reload'} ||= 1;
 }
 
 =back
@@ -851,7 +775,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload serials seen_zones cfgDir /} = (0, 0, {}, {}, "$main::imscpConfig{'CONF_DIR'}/bind" );
+    @{$self}{qw/ restart reload serials seen_zones cfgDir /} = ( 0, 0, {}, {}, "$main::imscpConfig{'CONF_DIR'}/bind" );
     @{$self}{qw/ bkpDir wrkDir tplDir /} = ( "$self->{'cfgDir'}/backup", "$self->{'cfgDir'}/working", "$self->{'cfgDir'}/parts" );
     $self->SUPER::_init();
 }
@@ -860,7 +784,7 @@ sub _init
 
  Set Bind version
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -868,7 +792,7 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    croak ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
 }
 
 =item _addDmnConfig( \%moduleData )
@@ -876,7 +800,7 @@ sub _setVersion
  Add domain DNS configuration
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -884,39 +808,16 @@ sub _addDmnConfig
 {
     my ($self, $moduleData) = @_;
 
-    unless ( defined $self->{'config'}->{'NAMED_MODE'} ) {
-        error( 'Bind mode is not defined. Run imscp-reconfigure script.' );
-        return 1;
-    }
+    defined $self->{'config'}->{'NAMED_MODE'} or die( 'Bind mode is not defined. Run imscp-reconfigure script.' );
 
     my ($cfgFileName, $cfgFileDir) = fileparse( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} || $self->{'config'}->{'NAMED_CONF_FILE'} );
-
-    unless ( -f "$self->{'wrkDir'}/$cfgFileName" ) {
-        error( sprintf( 'File %s not found. Run imscp-reconfigure script.', "$self->{'wrkDir'}/$cfgFileName" ));
-        return 1;
-    }
-
     my $cfgFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$cfgFileName" );
-    my $cfgWrkFileContent = $cfgFile->get();
-    unless ( defined $cfgWrkFileContent ) {
-        error( sprintf( "Couldn't read the %s file", "$self->{'wrkDir'}/$cfgFileName" ));
-        return 1;
-    }
-
+    my $cfgWrkFileContentRef = $cfgFile->getAsRef();
     my $tplFileName = "cfg_$self->{'config'}->{'NAMED_MODE'}.tpl";
-    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', $tplFileName, \ my $tplCfgEntryContent, $moduleData );
-    return $rs if $rs;
 
-    unless ( defined $tplCfgEntryContent ) {
-        $tplCfgEntryContent = iMSCP::File->new( filename => "$self->{'tplDir'}/$tplFileName" )->get();
-        unless ( defined $tplCfgEntryContent ) {
-            error( sprintf( "Couldn't read the %s file", "$self->{'tplDir'}/$tplFileName" ));
-            return 1;
-        }
-    }
-
-    $rs = $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', \$cfgWrkFileContent, \$tplCfgEntryContent, $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', $tplFileName, \ my $tplCfgEntryContent, $moduleData );
+    $tplCfgEntryContent = iMSCP::File->new( filename => "$self->{'tplDir'}/$tplFileName" )->get() unless defined $tplCfgEntryContent;
+    $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', $cfgWrkFileContentRef, \$tplCfgEntryContent, $moduleData );
 
     my $tags = {
         NAMED_DB_FORMAT => $self->{'config'}->{'NAMED_DB_FORMAT'} =~ s/=\d//r,
@@ -934,20 +835,17 @@ sub _addDmnConfig
     }
 
     replaceBlocByRef(
-        "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', \$cfgWrkFileContent
+        "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', $cfgWrkFileContentRef
     );
-    replaceBlocByRef( "// imscp [{ENTRY_ID}] entry BEGIN\n", "// imscp [{ENTRY_ID}] entry ENDING\n", <<"EOF", \$cfgWrkFileContent, 'preserve' );
+    replaceBlocByRef( "// imscp [{ENTRY_ID}] entry BEGIN\n", "// imscp [{ENTRY_ID}] entry ENDING\n", <<"EOF", $cfgWrkFileContentRef, 'preserve' );
 // imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN
 @{ [ process( $tags, $tplCfgEntryContent ) ] }
 // imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING
 EOF
-
-    $rs = $self->{'eventManager'}->trigger( 'afterBindAddDmnConfig', \$cfgWrkFileContent, $moduleData );
-    $rs ||= $cfgFile->set( $cfgWrkFileContent );
-    $rs ||= $cfgFile->save();
-    $rs ||= $cfgFile->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} );
-    $rs ||= $cfgFile->mode( 0640 );
-    $rs ||= $cfgFile->copyFile( "$cfgFileDir$cfgFileName" );
+    $self->{'eventManager'}->trigger( 'afterBindAddDmnConfig', $cfgWrkFileContentRef, $moduleData );
+    $cfgFile->save()->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} )->mode( 0640 )->copy(
+        "$cfgFileDir$cfgFileName", { preserve => 1 }
+    );
 }
 
 =item _deleteDmnConfig( \%moduleData )
@@ -955,7 +853,7 @@ EOF
  Delete domain DNS configuration
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -964,32 +862,17 @@ sub _deleteDmnConfig
     my ($self, $moduleData) = @_;
 
     my ($cfgFileName, $cfgFileDir) = fileparse( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} || $self->{'config'}->{'NAMED_CONF_FILE'} );
-
-    unless ( -f "$self->{'wrkDir'}/$cfgFileName" ) {
-        error( sprintf( 'File %s not found. Run imscp-reconfigure script.', "$self->{'wrkDir'}/$cfgFileName" ));
-        return 1;
-    }
-
     my $cfgFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$cfgFileName" );
-    my $cfgWrkFileContent = $cfgFile->get();
-    unless ( defined $cfgWrkFileContent ) {
-        error( sprintf( "Couldn't read the %s file", "$self->{'wrkDir'}/$cfgFileName" ));
-        return 1;
-    }
+    my $cfgWrkFileContentRef = $cfgFile->getAsRef();
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeBindDeleteDomainConfig', \$cfgWrkFileContent, $moduleData );
-    return $rs if $rs;
-
+    $self->{'eventManager'}->trigger( 'beforeBindDeleteDomainConfig', $cfgWrkFileContentRef, $moduleData );
     replaceBlocByRef(
-        "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', \$cfgWrkFileContent
+        "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', $cfgWrkFileContentRef
     );
-
-    $rs = $self->{'eventManager'}->trigger( 'afterBindDeleteDomainConfig', \$cfgWrkFileContent, $moduleData );
-    $rs ||= $cfgFile->set( $cfgWrkFileContent );
-    $rs ||= $cfgFile->save();
-    $rs ||= $cfgFile->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} );
-    $rs ||= $cfgFile->mode( 0640 );
-    $rs ||= $cfgFile->copyFile( "$cfgFileDir$cfgFileName" );
+    $self->{'eventManager'}->trigger( 'afterBindDeleteDomainConfig', $cfgWrkFileContentRef, $moduleData );
+    $cfgFile->save()->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} )->mode( 0640 )->copy(
+        "$cfgFileDir$cfgFileName", { preserve => 1 }
+    );
 }
 
 =item _addDmnDb( \%moduleData )
@@ -997,7 +880,7 @@ sub _deleteDmnConfig
  Add domain DNS zone file
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1006,27 +889,12 @@ sub _addDmnDb
     my ($self, $moduleData) = @_;
 
     my $wrkDbFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db" );
-    my $wrkDbFileContent;
+    my $wrkDbFileContent = -f $wrkDbFile ? $wrkDbFile->get() : '';
 
-    if ( -f $wrkDbFile->{'filename'} && !defined ( $wrkDbFileContent = $wrkDbFile->get()) ) {
-        error( sprintf( "Couldn't read the %s file", $wrkDbFile->{'filename'} ));
-        return 1;
-    }
-
-    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', 'db.tpl', \ my $tplDbFileC, $moduleData );
-    return $rs if $rs;
-
-    unless ( defined $tplDbFileC ) {
-        $tplDbFileC = iMSCP::File->new( filename => "$self->{'tplDir'}/db.tpl" )->get();
-        unless ( defined $tplDbFileC ) {
-            error( sprintf( "Couldn't read the %s file", "$self->{'tplDir'}/db.tpl" ));
-            return 1;
-        }
-    }
-
-    $rs = $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$tplDbFileC, \$wrkDbFileContent );
-    $rs ||= $self->{'eventManager'}->trigger( 'beforeBindAddDomainDb', \$tplDbFileC, $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', 'db.tpl', \ my $tplDbFileC, $moduleData );
+    $tplDbFileC = iMSCP::File->new( filename => "$self->{'tplDir'}/db.tpl" )->get() unless defined $tplDbFileC;
+    $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$tplDbFileC, \$wrkDbFileContent );
+    $self->{'eventManager'}->trigger( 'beforeBindAddDomainDb', \$tplDbFileC, $moduleData );
 
     my $nsRecordB = getBlocByRef( "; dmn NS RECORD entry BEGIN\n", "; dmn NS RECORD entry ENDING\n", \$tplDbFileC );
     my $glueRecordB = getBlocByRef( "; dmn NS GLUE RECORD entry BEGIN\n", "; dmn NS GLUE RECORD entry ENDING\n", \$tplDbFileC );
@@ -1042,7 +910,6 @@ sub _addDmnDb
 
         for my $ipAddrType( qw/ ipv4 ipv6 / ) {
             my $nsNumber = 1;
-
             for my $ipAddr( @nsIPs ) {
                 next unless $net->getAddrVersion( $ipAddr ) eq $ipAddrType;
                 $nsRecords .= process( { NS_NAME => 'ns' . $nsNumber }, $nsRecordB ) if $nsRecordB ne '';
@@ -1106,10 +973,9 @@ sub _addDmnDb
         );
     }
 
-    $rs = $self->{'eventManager'}->trigger( 'afterBindAddDomainDb', \$tplDbFileC, $moduleData );
-    $rs ||= $wrkDbFile->set( $tplDbFileC );
-    $rs ||= $wrkDbFile->save();
-    $rs ||= $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
+    $self->{'eventManager'}->trigger( 'afterBindAddDomainDb', \$tplDbFileC, $moduleData );
+    $wrkDbFile->set( $tplDbFileC )->save();
+    $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
 }
 
 =item _updateSOAserialNumber( $zone, \$zoneFileContent, \$oldZoneFileContent )
@@ -1121,7 +987,7 @@ sub _addDmnDb
  Param string zone Zone name
  Param scalarref \$zoneFileContent Reference to zone file content
  Param scalarref \$oldZoneFileContent Reference to old zone file content
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1131,10 +997,9 @@ sub _updateSOAserialNumber
 
     $oldZoneFileContent = $zoneFileContent unless defined ${$oldZoneFileContent};
 
-    if ( ${$oldZoneFileContent} !~ /^\s+(?:(?<date>\d{8})(?<nn>\d{2})|(?<placeholder>\{TIMESTAMP\}))\s*;[^\n]*\n/m ) {
-        error( sprintf( "Couldn't update SOA serial number for the %s DNS zone", $zone ));
-        return 1;
-    }
+    ${$oldZoneFileContent} =~ /^\s+(?:(?<date>\d{8})(?<nn>\d{2})|(?<placeholder>\{TIMESTAMP\}))\s*;[^\n]*\n/m or die(
+        sprintf( "Couldn't update SOA serial number for the %s DNS zone: Serial data not found", $zone )
+    );
 
     my %rc = %+;
     my ($d, $m, $y) = ( gmtime() )[3 .. 5];
@@ -1143,7 +1008,7 @@ sub _updateSOAserialNumber
     if ( exists $+{'placeholder'} ) {
         $self->{'serials'}->{$zone} = $nowDate . '00';
         processByRef( { TIMESTAMP => $self->{'serials'}->{$zone} }, $zoneFileContent );
-        return 0;
+        return;
     }
 
     if ( $rc{'date'} >= $nowDate ) {
@@ -1160,7 +1025,6 @@ sub _updateSOAserialNumber
 
     $self->{'serials'}->{$zone} = $rc{'date'} . $rc{'nn'};
     ${$zoneFileContent} =~ s/^(\s+)(?:\d{10}|\{TIMESTAMP\})(\s*;[^\n]*\n)/$1$self->{'serials'}->{$zone}$2/m;
-    0;
 }
 
 =item _compileZone( $zonename, $filename )
@@ -1169,7 +1033,7 @@ sub _updateSOAserialNumber
  
  Param string $zonename Zone name
  Param string $filename Path to zone filename (zone in text format)
- Return int 0 on success, other on error
+ Return void, die on failure
  
 =cut
 
@@ -1177,7 +1041,7 @@ sub _compileZone
 {
     my ($self, $zonename, $filename) = @_;
 
-    local $UMASK = 027;
+    local $UMASK = 0027;
     my $rs = execute(
         [
             'named-compilezone', '-i', 'full', '-f', 'text', '-F', $self->{'config'}->{'NAMED_DB_FORMAT'}, '-s', 'relative', '-o',
@@ -1187,8 +1051,7 @@ sub _compileZone
         \ my $stderr
     );
     debug( $stdout ) if $stdout;
-    error( sprintf( "Couldn't compile the %s zone: %s", $zonename, $stderr || 'Unknown error' )) if $rs;
-    $rs;
+    !$rs or die( sprintf( "Couldn't compile the %s zone: %s", $zonename, $stderr || 'Unknown error' ));
 }
 
 =item _bkpConfFile($cfgFile)
@@ -1196,7 +1059,7 @@ sub _compileZone
  Backup configuration file
 
  Param string $cfgFile Configuration file path
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1204,24 +1067,24 @@ sub _bkpConfFile
 {
     my ($self, $cfgFile) = @_;
 
-    return 0 unless -f $cfgFile;
+    return unless -f $cfgFile;
 
     my $file = iMSCP::File->new( filename => $cfgFile );
-    my $filename = basename( $cfgFile );
+    my $filename = basename( $file );
 
     unless ( -f "$self->{'bkpDir'}/$filename.system" ) {
-        my $rs = $file->copyFile( "$self->{'bkpDir'}/$filename.system", { preserve => 'no' } );
-        return $rs;
+        $file->copy( "$self->{'bkpDir'}/$filename.system" );
+        return;
     }
 
-    $file->copyFile( "$self->{'bkpDir'}/$filename." . time, { preserve => 'no' } );
+    $file->copy( "$self->{'bkpDir'}/$filename." . time );
 }
 
 =item _makeDirs( )
 
  Create directories
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1229,36 +1092,28 @@ sub _makeDirs
 {
     my ($self) = @_;
 
-    eval {
-        my @directories = (
-            [ $self->{'config'}->{'NAMED_DB_MASTER_DIR'}, $self->{'config'}->{'NAMED_USER'}, $self->{'config'}->{'NAMED_GROUP'}, 02750 ],
-            [ $self->{'config'}->{'NAMED_DB_SLAVE_DIR'}, $self->{'config'}->{'NAMED_USER'}, $self->{'config'}->{'NAMED_GROUP'}, 02750 ]
-        );
+    my @directories = (
+        [ $self->{'config'}->{'NAMED_DB_MASTER_DIR'}, $self->{'config'}->{'NAMED_USER'}, $self->{'config'}->{'NAMED_GROUP'}, 02750 ],
+        [ $self->{'config'}->{'NAMED_DB_SLAVE_DIR'}, $self->{'config'}->{'NAMED_USER'}, $self->{'config'}->{'NAMED_GROUP'}, 02750 ]
+    );
 
-        for my $directory( @directories ) {
-            iMSCP::Dir->new( dirname => $directory->[0] )->make( {
-                user  => $directory->[1],
-                group => $directory->[2],
-                mode  => $directory->[3]
-            } );
-        }
-
-        iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_MASTER_DIR'} )->clear();
-        iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_SLAVE_DIR'} )->clear() if $self->{'config'}->{'NAMED_MODE'} ne 'slave';
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    for my $directory( @directories ) {
+        iMSCP::Dir->new( dirname => $directory->[0] )->make( {
+            user  => $directory->[1],
+            group => $directory->[2],
+            mode  => $directory->[3]
+        } );
     }
 
-    0;
+    iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_MASTER_DIR'} )->clear();
+    iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_SLAVE_DIR'} )->clear() if $self->{'config'}->{'NAMED_MODE'} ne 'slave';
 }
 
 =item _configure( )
 
  Configure Bind9
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1276,20 +1131,19 @@ sub _configure
             sub {
                 ${$_[0]} =~ s/listen-on-v6\s+\{\s+any;\s+\};/listen-on-v6 { none; };/ if $_[5]->{'NAMED_IPV6_SUPPORT'} eq 'no';
                 ${$_[0]} =~ s%//\s+(check-spf\s+ignore;)%$1% if version->parse( $self->getVersion()) >= version->parse( '9.9.3' );
-                0;
             }
         );
 
         my $tplName = basename( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
-        $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
+        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
                 group => $self->{'config'}->{'NAMED_GROUP'}
             }
         );
-        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
-        return $rs if $rs;
+
+        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'}, { preserve => 1 } );
     }
 
     # master configuration file
@@ -1297,36 +1151,35 @@ sub _configure
         $self->{'eventManager'}->registerOne(
             'beforeBindBuildConfFile',
             sub {
-                return 0 if -f "$_[5]->{'NAMED_CONF_DIR'}/bind.keys";
+                return if -f "$_[5]->{'NAMED_CONF_DIR'}/bind.keys";
                 ${$_[0]} =~ s%include\s+\Q"$_[5]->{'NAMED_CONF_DIR'}\E/bind.keys";\n%%;
-                0;
             }
         );
 
         my $tplName = basename( $self->{'config'}->{'NAMED_CONF_FILE'} );
-        $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
+        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
                 group => $self->{'config'}->{'NAMED_GROUP'}
             }
         );
-        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'NAMED_CONF_FILE'} );
-        return $rs if $rs;
+
+        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_CONF_FILE'}, { preserve => 1 } );
     }
 
     # local configuration file
     if ( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} ) {
         my $tplName = basename( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} );
-        $rs = $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
+        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
             {
                 umask => 0027,
                 mode  => 0640,
                 group => $self->{'config'}->{'NAMED_GROUP'}
             }
         );
-        $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copyFile( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} );
-        return $rs if $rs;
+
+        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'}, { preserve => 1 } );
     }
 
     $self->{'eventManager'}->trigger( 'afterBindConfigure' );
@@ -1346,7 +1199,6 @@ sub _checkIps
     my (undef, @ips) = @_;
 
     my $net = iMSCP::Net->getInstance();
-
     my $ValidationRegexp = main::setupGetQuestion( $main::imscpConfig{'IPV6_SUPPORT'} ) eq 'yes'
         ? qr/^(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)$/ : qr/^(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)$/;
 
@@ -1361,7 +1213,7 @@ sub _checkIps
 
  Remove configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1376,26 +1228,15 @@ sub _removeConfig
 
         next unless -d $dirname && -f "$self->{'bkpDir'}/$filename.system";
 
-        my $rs = iMSCP::File->new( filename => "$self->{'bkpDir'}/$filename.system" )->copyFile( $self->{'config'}->{$_}, { preserve => 'no' } );
-        return $rs if $rs;
-
-        my $file = iMSCP::File->new( filename => $self->{'config'}->{$_} );
-        $rs = $file->mode( 0640 );
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} );
-        return $rs if $rs;
+        iMSCP::File->new( filename => "$self->{'bkpDir'}/$filename.system" )->copy( $self->{'config'}->{$_} );
+        iMSCP::File->new( filename => $self->{'config'}->{$_} )->mode( 0640 )->owner(
+            $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'}
+        );
     }
 
-    eval {
-        iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_MASTER_DIR'} )->remove();
-        iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_SLAVE_DIR'} )->remove();
-        iMSCP::Dir->new( dirname => $self->{'wrkDir'} )->clear();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_MASTER_DIR'} )->remove();
+    iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_SLAVE_DIR'} )->remove();
+    iMSCP::Dir->new( dirname => $self->{'wrkDir'} )->clear();
 }
 
 =back

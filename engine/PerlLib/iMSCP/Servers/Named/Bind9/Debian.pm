@@ -284,7 +284,7 @@ sub _setVersion
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -294,24 +294,16 @@ sub _cleanup
 
     return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    if ( -f "$self->{'cfgDir'}/bind.old.data" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/bind.old.data" )->delFile();
-        return $rs if $rs;
-    }
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/bind.old.data" )->remove();
 
-    if ( iMSCP::ProgramFinder::find( 'resolvconf' ) ) {
-        my $rs = execute( 'resolvconf -d lo.imscp', \ my $stdout, \ my $stderr );
+    if ( my $resolvconf = iMSCP::ProgramFinder::find( 'resolvconf' ) ) {
+        my $rs = execute( [ $resolvconf, '-d', 'lo.imscp' ], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
     }
 
-    eval { iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_ROOT_DIR'} )->clear( undef, qr/\.db$/ ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_ROOT_DIR'} )->clear( qr/\.db$/ );
     0;
 }
 

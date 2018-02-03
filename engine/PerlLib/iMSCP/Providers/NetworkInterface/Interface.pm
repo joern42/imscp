@@ -35,34 +35,6 @@ use Carp qw/ croak /;
 
 =over 4
 
-=item addNetworkCard( \%data )
-
- Add a network card
-
- Param hash \%data Network card data
- Return iMSCP::Providers::NetworkInterface::Interface, croak on failure
-
-=cut
-
-sub addNetworkCard
-{
-    croak 'not implemented';
-}
-
-=item removeNetworkCard( \%data )
-
- Remove a network card
-
- Param hash \%data Network card data
- Return iMSCP::Providers::NetworkInterface::Interface, croak on failure
-
-=cut
-
-sub removeNetworkCard
-{
-    croak 'not implemented';
-}
-
 =item addIpAddr( \%data )
 
  Add an IP address
@@ -73,13 +45,15 @@ sub removeNetworkCard
    ip_address     : Either an IPv4 or IPv6 address
    ip_netmask     : OPTIONAL Netmask (default: 32 for IPv4, 128 for IPv6)
    ip_config_mode : IP configuration mode (auto|manual)
- Return iMSCP::Providers::NetworkInterface::Interface, croak on failure
+ Return iMSCP::Providers::NetworkInterface::Interface, die on failure
 
 =cut
 
 sub addIpAddr
 {
-    croak 'not implemented';
+    my ($self) = @_;
+
+    die( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
 }
 
 =item removeIpAddr( \%data )
@@ -92,13 +66,15 @@ sub addIpAddr
    ip_address     : Either an IPv4 or IPv6 address
    ip_netmask     : OPTIONAL Netmask (default: 32 for IPv4, 128 for IPv6)
    ip_config_mode : IP configuration mode (auto|manual)
- Return iMSCP::Providers::NetworkInterface::Interface, croak on failure
+ Return iMSCP::Providers::NetworkInterface::Interface, die on failure
 
 =cut
 
 sub removeIpAddr
 {
-    croak 'not implemented';
+    my ($self) = @_;
+
+    die( sprintf( 'The %s class must implement the removeIpAddr() method', ref $self ));
 }
 
 =back

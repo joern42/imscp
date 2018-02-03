@@ -264,7 +264,6 @@ class VirtualFileSystem
     /**
      * Create a FTP user for accessing this virtual file system
      *
-     * @throws DatabaseException
      * @return bool TRUE on success, FALSE on failure
      */
     protected function createFtpUser()

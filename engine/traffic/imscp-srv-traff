@@ -84,10 +84,10 @@ sub run
         _parseTrafficData( \$outputTraffic, \$smtpOut, \$poOut, \$httpOut, \$allOut ) if defined $outputTraffic;
     }
 
-    return 0 unless $smtpIn || $poIn || $httpIn || $allIn || $smtpOut || $poOut || $httpOut || $allOut;
+    return unless $smtpIn || $poIn || $httpIn || $allIn || $smtpOut || $poOut || $httpOut || $allOut;
 
     # Update traffic data in database
-    my $dbh = iMSCP::Database->getInstance()->getRawDb();
+    my $dbh = iMSCP::Database->getInstance();
     $dbh->do(
         '
             INSERT INTO server_traffic (
@@ -155,7 +155,7 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     ( $main::imscpConfig{'IPV6_SUPPORT'} eq 'yes' ? iMSCP::ProgramFinder::find( 'ip6tables' ) : undef )
 );
 
-exit run();
+run();
 
 =head1 AUTHOR
 

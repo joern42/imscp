@@ -70,13 +70,10 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     
 } )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 
-my $rs = 0;
 my @items = ();
-
 for my $server(iMSCP::Servers->getInstance()->getListWithFullNames()) {
     push @items, [ $server, sub { $server->factory()->setGuiPermissions(); } ];
 }
-
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setGuiPermissions' ) ) or next;
     push @items, [ $package, sub { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); } ];
@@ -88,14 +85,11 @@ my $totalItems = @items;
 my $count = 1;
 for ( @items ) {
     debug( sprintf( 'Setting %s frontEnd permissions', $_->[0] ));
-    printf( "Setting %s frontEnd permissions\t%s\t%s\n", $_->[0], $totalItems, $count ) if iMSCP::Getopt->context() eq 'installer';
-    $rs |= $_->[1]->();
-    $count++;
+    printf( "Setting %s frontEnd permissions\t%s\t%s\n", $_->[0], $totalItems, $count++ ) if iMSCP::Getopt->context() eq 'installer';
+    $_->[1]->();
 }
 
 iMSCP::EventManager->getInstance()->trigger( 'afterSetGuiPermissions' );
-
-exit $rs;
 
 =head1 AUTHOR
 

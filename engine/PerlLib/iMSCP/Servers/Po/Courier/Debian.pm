@@ -25,8 +25,7 @@ package iMSCP::Servers::Po::Courier::Debian;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug error /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ umount /;
@@ -56,8 +55,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::install();
-    $rs ||= $self->_cleanup();
+    $self->SUPER::install();
+    $self->_cleanup();
 }
 
 =item postinstall( )
@@ -70,27 +69,21 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval {
-        my @toEnableServices = ( 'courier-authdaemon', 'courier-pop', 'courier-pop' );
-        my @toDisableServices = ();
+    my @toEnableServices = ( 'courier-authdaemon', 'courier-pop', 'courier-pop' );
+    my @toDisableServices = ();
 
-        if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
-            push @toEnableServices, 'courier-pop-ssl', 'courier-imap-ssl';
-        } else {
-            push @toDisableServices, 'courier-pop-ssl', 'courier-imap-ssl';
-        }
+    if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+        push @toEnableServices, 'courier-pop-ssl', 'courier-imap-ssl';
+    } else {
+        push @toDisableServices, 'courier-pop-ssl', 'courier-imap-ssl';
+    }
 
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->enable( $_ ) for @toEnableServices;
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->enable( $_ ) for @toEnableServices;
 
-        for ( @toDisableServices ) {
-            $srvProvider->stop( $_ );
-            $srvProvider->disable( $_ );
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    for ( @toDisableServices ) {
+        $srvProvider->stop( $_ );
+        $srvProvider->disable( $_ );
     }
 
     $self->SUPER::postinstall();
@@ -106,21 +99,12 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::uninstall();
-    return $rs if $rs;
+    $self->SUPER::uninstall();
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        for ( 'courier-authdaemon', 'courier-pop', 'courier-pop-ssl', 'courier-imap', 'courier-imap-ssl' ) {
-            $srvProvider->restart( $_ ) if $srvProvider->hasService( $_ ) && $srvProvider->isRunning( $_ );
-        };
+    my $srvProvider = iMSCP::Service->getInstance();
+    for ( 'courier-authdaemon', 'courier-pop', 'courier-pop-ssl', 'courier-imap', 'courier-imap-ssl' ) {
+        $srvProvider->restart( $_ ) if $srvProvider->hasService( $_ ) && $srvProvider->isRunning( $_ );
     };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
 }
 
 =item dpkgPostInvokeTasks()
@@ -132,8 +116,6 @@ sub uninstall
 sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
-
-    return 0 unless -x '';
 
     $self->_setVersion();
 }
@@ -148,20 +130,12 @@ sub start
 {
     my ($self) = @_;
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->start( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->start( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
-        if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
-            $srvProvider->start( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+        $srvProvider->start( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
     }
-
-    0;
 }
 
 =item stop( )
@@ -174,20 +148,9 @@ sub stop
 {
     my ($self) = @_;
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
+    my $srvProvider = iMSCP::Service->getInstance();
 
-        for ( 'courier-authdaemon', 'courier-pop', 'courier-imap', 'courier-pop-ssl', 'courier-imap-ssl' ) {
-            $srvProvider->stop( $_ );
-        }
-
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    $srvProvider->stop( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap', 'courier-pop-ssl', 'courier-imap-ssl';
 }
 
 =item restart( )
@@ -200,20 +163,12 @@ sub restart
 {
     my ($self) = @_;
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->restart( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->restart( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
-        if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
-            $srvProvider->restart( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+        $srvProvider->restart( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
     }
-
-    0;
 }
 
 =item reload( )
@@ -226,20 +181,12 @@ sub reload
 {
     my ($self) = @_;
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->reload( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->reload( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
-        if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
-            $srvProvider->reload( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+        $srvProvider->reload( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
     }
-
-    0;
 }
 
 =back
@@ -258,25 +205,17 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $rs = execute( 'dpkg -s courier-base | grep -i \'^version\'', \ my $stdout, \ my $stderr );
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    if ( $stdout !~ /version:\s+([\d.]+)/i ) {
-        error( "Couldn't guess Courier version from the `dpkg -s courier-base | grep -i '^version'` command output" );
-        return 1;
-    }
-
+    execute( 'dpkg -s courier-base | grep -i \'^version\'', \ my $stdout, \ my $stderr ) == 0 or die( $stderr || 'Unknown error' ) if $rs;
+    $stdout =~ /version:\s+([\d.]+)/i or die( "Couldn't guess Courier version from the `dpkg -s courier-base | grep -i '^version'` command output" );
     $self->{'config'}->{'PO_VERSION'} = $1;
     debug( sprintf( 'Courier version set to: %s', $1 ));
-    0;
 }
 
 =item _cleanup( )
 
  Processc cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -293,10 +232,6 @@ sub _cleanup
 
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$_" );
         my $fileContentRef = $file->getAsRef();
-        unless ( defined $fileContentRef ) {
-            error( sprintf( "Couldn't read the %s file", $file->{'filename'} ));
-            return 1;
-        }
 
         replaceBlocByRef(
             qr/(:?^\n)?# Servers::po::courier::installer - BEGIN\n/m, qr/# Servers::po::courier::installer - ENDING\n/, '', $fileContentRef
@@ -305,42 +240,26 @@ sub _cleanup
 
     return unless $oldPluginApiVersion < version->parse( '1.5.1' );
 
-    if ( -f "$self->{'cfgDir'}/courier.old.data" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.old.data" )->delFile();
-        return $rs if $rs;
-    }
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.old.data" )->remove();
 
     if ( -f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ) {
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" );
-        $file->set( '' );
-        my $rs = $file->save();
-        $rs ||= $file->mode( 0600 );
-        return $rs if $rs;
+        iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" )->set( '' )->save()->mode( 0600 );
 
-        $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ], \ my $stdout, \ my $stderr );
+        my $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        error( $stderr || 'Unknown error' ) if $rs;
-        return $rs if $rs;
+        !$rs or die( $stderr || 'Unknown error' ) if $rs;
     }
 
     # Remove postfix user from authdaemon group.
     # It is now added in mail group (since 1.5.0)
-    my $rs = iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'PO_AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
-    return $rs if $rs;
+    iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'PO_AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
 
     # Remove old authdaemon socket private/authdaemon mount directory.
     # Replaced by var/run/courier/authdaemon (since 1.5.0)
     my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/private/authdaemon" );
-    $rs ||= umount( $fsFile );
-    return $rs if $rs;
+    umount( $fsFile );
 
-    eval { iMSCP::Dir->new( dirname => $fsFile )->remove(); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Dir->new( dirname => $fsFile )->remove();
 }
 
 =item _shutdown( $priority )

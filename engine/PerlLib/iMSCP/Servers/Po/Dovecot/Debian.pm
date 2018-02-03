@@ -25,7 +25,6 @@ package iMSCP::Servers::Po::Dovecot::Debian;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::Service;
@@ -53,8 +52,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::install();
-    $rs ||= $self->_cleanup();
+    $self->SUPER::install();
+    $self->_cleanup();
 }
 
 =item preinstall( )
@@ -67,22 +66,16 @@ sub preinstall
 {
     my ($self) = @_;
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
+    my $srvProvider = iMSCP::Service->getInstance();
 
-        # Disable dovecot.socket unit if any
-        # Dovecot as configured by i-MSCP doesn't rely on systemd activation socket
-        # This also solve problem on boxes where IPv6 is not available; default dovecot.socket unit file make
-        # assumption that IPv6 is available without further checks...
-        # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=814999
-        if ( $srvProvider->isSystemd() && $srvProvider->hasService( 'dovecot.socket' ) ) {
-            $srvProvider->stop( 'dovecot.socket' );
-            $srvProvider->disable( 'dovecot.socket' );
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    # Disable dovecot.socket unit if any
+    # Dovecot as configured by i-MSCP doesn't rely on systemd activation socket
+    # This also solve problem on boxes where IPv6 is not available; default dovecot.socket unit file make
+    # assumption that IPv6 is available without further checks...
+    # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=814999
+    if ( $srvProvider->isSystemd() && $srvProvider->hasService( 'dovecot.socket' ) ) {
+        $srvProvider->stop( 'dovecot.socket' );
+        $srvProvider->disable( 'dovecot.socket' );
     }
 
     $self->SUPER::preinstall();
@@ -100,11 +93,7 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->enable( 'dovecot' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( 'dovecot' );
 
     $self->SUPER::postinstall();
 }
@@ -119,19 +108,10 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::uninstall();
-    return $rs if $rs;
+    $self->SUPER::uninstall();
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->restart( 'dovecot' ) if $srvProvider->hasService( 'dovecot' ) && $srvProvider->isRunning( 'dovecot' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->restart( 'dovecot' ) if $srvProvider->hasService( 'dovecot' ) && $srvProvider->isRunning( 'dovecot' );
 }
 
 =item dpkgPostInvokeTasks()
@@ -144,7 +124,7 @@ sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
 
-    return 0 unless -x $self->{'config'}->{'PO_BIN'};
+    return unless -x $self->{'config'}->{'PO_BIN'};
 
     $self->_setVersion();
 }
@@ -159,13 +139,7 @@ sub start
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->start( 'dovecot' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->start( 'dovecot' );
 }
 
 =item stop( )
@@ -178,13 +152,7 @@ sub stop
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->stop( 'dovecot' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->stop( 'dovecot' );
 }
 
 =item restart( )
@@ -197,13 +165,7 @@ sub restart
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->restart( 'dovecot' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->restart( 'dovecot' );
 }
 
 =item reload( )
@@ -216,13 +178,7 @@ sub reload
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->reload( 'dovecot' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->reload( 'dovecot' );
 }
 
 =back
@@ -235,7 +191,7 @@ sub reload
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -243,22 +199,11 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    if ( -f "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-dict-sql.conf" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-dict-sql.conf" )->delFile();
-        return $rs if $rs;
-    }
-
-    eval { iMSCP::Dir->new( dirname => "$self->{'cfgDir'}/$_" ) for qw/ backup working /; };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    return 0 unless -f "$self->{'cfgDir'}/dovecot.old.data";
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/dovecot.old.data" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-dict-sql.conf" )->remove();
+    iMSCP::Dir->new( dirname => "$self->{'cfgDir'}/$_" )->remove() for qw/ backup working /;
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/dovecot.old.data" )->remove();
 }
 
 =item _shutdown( $priority )

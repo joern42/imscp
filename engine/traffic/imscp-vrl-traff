@@ -51,7 +51,7 @@ sub run
     my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeVrlTraffic' );
     return $rs if $rs;
 
-    my $dbh = iMSCP::Database->getInstance()->getRawDb();
+    my $dbh = iMSCP::Database->getInstance();
 
     # Get list of domains for which traffic must be collected
     my $sth = $dbh->prepare(
@@ -151,7 +151,8 @@ sub run
 
     for ( @servers ) {
         untie( %{$trafficDb{$_}} );
-        $rs |= iMSCP::File->new( filename => "$main::imscpConfig{'IMSCP_HOMEDIR'}/$_-vrl-traff.db" )->delFile();
+        eval { iMSCP::File->new( filename => "$main::imscpConfig{'IMSCP_HOMEDIR'}/$_-vrl-traff.db" )->remove() };
+        $rs = 1 if $@;
     }
 
     $rs |= iMSCP::EventManager->getInstance()->trigger( 'afterVrlTraffic' );
@@ -175,7 +176,7 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     nolock          => 1
 } )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-vrl-traff.lock", 'nowait' );
 
-exit run();
+run();
 
 =head1 AUTHOR
 

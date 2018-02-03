@@ -46,11 +46,9 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 sub run
 {
-    my $dbh = iMSCP::Database->getInstance()->getRawDb();
+    my $dbh = iMSCP::Database->getInstance();
 
     eval {
-        local $dbh->{'RaiseError'} = 1;
-
         my $row = $dbh->selectrow_hashref( "SELECT value FROM config WHERE name = 'HARD_MAIL_SUSPENSION'" );
         $row = { value => 0 } unless $row;
 
@@ -65,7 +63,7 @@ sub run
             'domain_id'
         );
 
-        return 0 unless %{$rows};
+        return unless %{$rows};
 
         for ( keys %{$rows} ) {
             eval {
@@ -91,18 +89,13 @@ sub run
             };
             if ( $@ ) {
                 $dbh->rollback();
-                die;
+                error( $@ );
             }
         }
 
-        iMSCP::DbTasksProcessor->getInstance( mode => 'backend' )->processDbTasks();
+        iMSCP::DbTasksProcessor->getInstance()->processDbTasks();
     };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    !$@ or error( $@ );
 }
 
 newDebug( 'imscp-disable-accounts.log' );
@@ -122,7 +115,7 @@ exit unless iMSCP::Bootstrapper->getInstance()->getInstance()->boot( {
     config_readonly => 1
 } )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-disable-accounts.lock', 'nowait" );
 
-exit run();
+run();
 
 =head1 AUTHOR
 

@@ -34,7 +34,7 @@ use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Servers::Sqld /;
 use File::Basename;
 use File::Spec;
 use File::Temp;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Ext2Attributes qw/ setImmutable clearImmutable isImmutable /;
@@ -140,9 +140,9 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_setVersion();
-    $rs ||= $self->_copyDomainDisablePages();
-    $rs ||= $self->_setupVlogger();
+    $self->_setVersion();
+    $self->_copyDomainDisablePages();
+    $self->_setupVlogger();
 }
 
 =item uninstall( )
@@ -168,14 +168,14 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    my $rs ||= setRights( "$main::imscpConfig{'TRAFF_ROOT_DIR'}/vlogger",
+    setRights( "$main::imscpConfig{'TRAFF_ROOT_DIR'}/vlogger",
         {
             user  => $main::imscpConfig{'ROOT_USER'},
             group => $main::imscpConfig{'ROOT_GROUP'},
             mode  => '0750'
         }
     );
-    $rs = setRights( $self->{'config'}->{'HTTPD_LOG_DIR'},
+    setRights( $self->{'config'}->{'HTTPD_LOG_DIR'},
         {
             user      => $main::imscpConfig{'ROOT_USER'},
             group     => $main::imscpConfig{'ADM_GROUP'},
@@ -184,7 +184,7 @@ sub setEnginePermissions
             recursive => iMSCP::Getopt->fixPermissions
         }
     );
-    $rs ||= setRights( "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages",
+    setRights( "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages",
         {
             user      => $main::imscpConfig{'ROOT_USER'},
             group     => $self->{'config'}->{'HTTPD_GROUP'},
@@ -244,11 +244,11 @@ sub addUser
 {
     my ($self, $moduleData) = @_;
 
-    return 0 if $moduleData->{'STATUS'} eq 'tochangepwd';
+    return if $moduleData->{'STATUS'} eq 'tochangepwd';
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheAddUser', $moduleData );
-    $rs ||= iMSCP::SystemUser->new( username => $self->getRunningUser())->addToGroup( $moduleData->{'GROUP'} );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheAddUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheAddUser', $moduleData );
+    iMSCP::SystemUser->new( username => $self->getRunningUser())->addToGroup( $moduleData->{'GROUP'} );
+    $self->{'eventManager'}->trigger( 'afterApacheAddUser', $moduleData );
 }
 
 =item deleteUser( \%moduleData )
@@ -261,9 +261,9 @@ sub deleteUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheDeleteUser', $moduleData );
-    $rs ||= iMSCP::SystemUser->new( username => $self->getRunningUser())->removeFromGroup( $moduleData->{'GROUP'} );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheDeleteUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheDeleteUser', $moduleData );
+    iMSCP::SystemUser->new( username => $self->getRunningUser())->removeFromGroup( $moduleData->{'GROUP'} );
+    $self->{'eventManager'}->trigger( 'afterApacheDeleteUser', $moduleData );
 }
 
 =item addDomain( \%moduleData )
@@ -276,10 +276,10 @@ sub addDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheAddDomain', $moduleData );
-    $rs ||= $self->_addCfg( $moduleData );
-    $rs ||= $self->_addFiles( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheAddDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheAddDomain', $moduleData );
+    $self->_addCfg( $moduleData );
+    $self->_addFiles( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheAddDomain', $moduleData );
 }
 
 =item restoreDomain( \%moduleData )
@@ -292,7 +292,7 @@ sub restoreDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheRestoreDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheRestoreDomain', $moduleData );
 
     unless ( $moduleData->{'DOMAIN_TYPE'} eq 'als' ) {
         eval {
@@ -330,12 +330,11 @@ sub restoreDomain
                     $cmd = [ 'tar', '-x', '-p', '-C', $moduleData->{'HOME_DIR'}, '-f', "$moduleData->{'HOME_DIR'}/backups/$_" ];
                 }
 
-                $rs = execute( $cmd, \ my $stdout, \ my $stderr );
+                my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
                 debug( $stdout ) if $stdout;
-                $rs == 0 or die( $stderr || 'Unknown error' );
+                !$rs or die( $stderr || 'Unknown error' );
 
-                my $dbh = iMSCP::Database->getInstance()->getRawDb();
-                local $dbh->{'RaiseError'} = 1;
+                my $dbh = iMSCP::Database->getInstance();
 
                 eval {
                     $dbh->begin_work();
@@ -363,8 +362,8 @@ sub restoreDomain
         }
     }
 
-    $rs = $self->_addFiles( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheRestoreDomain', $moduleData );
+    $self->_addFiles( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheRestoreDomain', $moduleData );
 }
 
 =item disableDomain( \%moduleData )
@@ -377,36 +376,28 @@ sub disableDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheDisableDomain', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeApacheDisableDomain', $moduleData );
 
-    eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
+    my $dbh = iMSCP::Database->getInstance();
 
-        if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
-            # Sets the status of any subdomain that belongs to this domain to 'todisable'.
-            $dbh->do(
-                "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'",
-                undef,
-                $moduleData->{'DOMAIN_ID'}
-            );
-        } else {
-            # Sets the status of any subdomain that belongs to this domain alias to 'todisable'.
-            $dbh->do(
-                "UPDATE subdomain_alias SET subdomain_alias_status = 'todisable' WHERE alias_id = ? AND subdomain_alias_status <> 'todelete'",
-                undef,
-                $self->{'DOMAIN_ID'}
-            );
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
+        # Sets the status of any subdomain that belongs to this domain to 'todisable'.
+        $dbh->do(
+            "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'",
+            undef,
+            $moduleData->{'DOMAIN_ID'}
+        );
+    } else {
+        # Sets the status of any subdomain that belongs to this domain alias to 'todisable'.
+        $dbh->do(
+            "UPDATE subdomain_alias SET subdomain_alias_status = 'todisable' WHERE alias_id = ? AND subdomain_alias_status <> 'todelete'",
+            undef,
+            $self->{'DOMAIN_ID'}
+        );
     }
 
-    $rs = $self->_disableDomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheDisableDomain', $moduleData );
+    $self->_disableDomain( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheDisableDomain', $moduleData );
 }
 
 =item deleteDomain( \%moduleData )
@@ -419,9 +410,9 @@ sub deleteDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheDeleteDomain', $moduleData );
-    $rs ||= $self->_deleteDomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheDeleteDomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheDeleteDomain', $moduleData );
+    $self->_deleteDomain( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheDeleteDomain', $moduleData );
 }
 
 =item addSubdomain( \%moduleData )
@@ -434,10 +425,10 @@ sub addSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheAddSubdomain', $moduleData );
-    $rs ||= $self->_addCfg( $moduleData );
-    $rs ||= $self->_addFiles( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheAddSubdomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheAddSubdomain', $moduleData );
+    $self->_addCfg( $moduleData );
+    $self->_addFiles( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheAddSubdomain', $moduleData );
 }
 
 =item restoreSubdomain( \%moduleData )
@@ -450,9 +441,9 @@ sub restoreSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheRestoreSubdomain', $moduleData );
-    $rs ||= $self->_addFiles( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheRestoreSubdomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheRestoreSubdomain', $moduleData );
+    $self->_addFiles( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheRestoreSubdomain', $moduleData );
 }
 
 =item disableSubdomain( \%moduleData )
@@ -465,9 +456,9 @@ sub disableSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheDisableSubdomain', $moduleData );
-    $rs ||= $self->_disableDomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheDisableSubdomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheDisableSubdomain', $moduleData );
+    $self->_disableDomain( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheDisableSubdomain', $moduleData );
 }
 
 =item deleteSubdomain( \%moduleData )
@@ -480,9 +471,9 @@ sub deleteSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheDeleteSubdomain', $moduleData );
-    $rs ||= $self->_deleteDomain( $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheDeleteSubdomain', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeApacheDeleteSubdomain', $moduleData );
+    $self->_deleteDomain( $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheDeleteSubdomain', $moduleData );
 }
 
 =item addHtpasswd( \%moduleData )
@@ -502,38 +493,23 @@ sub addHtpasswd
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheAddHtpasswd', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
+        $self->{'eventManager'}->trigger( 'beforeApacheAddHtpasswd', $fileContentRef, $moduleData );
         ${$fileContentRef} =~ s/^$moduleData->{'HTUSER_NAME'}:[^\n]*\n//gim;
         ${$fileContentRef} .= "$moduleData->{'HTUSER_NAME'}:$moduleData->{'HTUSER_PASS'}\n";
-
-        $self->{'eventManager'}->trigger( 'afterApacheAddHtpasswd', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
-        my $rs = $file->save( 0027 );
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
-        $rs ||= $file->mode( 0640 );
-        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-
+        $self->{'eventManager'}->trigger( 'afterApacheAddHtpasswd', $fileContentRef, $moduleData );
+        $file->save( 0027 )->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
-        error( $@ );
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
-        return 1;
+        die;
     }
-
-    0;
 }
 
 =item deleteHtpasswd( \%moduleData )
@@ -555,37 +531,22 @@ sub deleteHtpasswd
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtpasswd', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
+        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtpasswd', $fileContentRef, $moduleData );
         ${$fileContentRef} =~ s/^$moduleData->{'HTUSER_NAME'}:[^\n]*\n//gim;
-
-        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtpasswd', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
-        my $rs = $file->save();
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
-        $rs ||= $file->mode( 0640 );
-        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-
+        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtpasswd', $fileContentRef, $moduleData );
+        $file->save()->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
-        error( $@ );
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
-        return 1;
+        die;
     }
-
-    0;
 }
 
 =item addHtgroup( \%moduleData )
@@ -605,38 +566,23 @@ sub addHtgroup
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheAddHtgroup', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
+        $self->{'eventManager'}->trigger( 'beforeApacheAddHtgroup', $fileContentRef, $moduleData );
         ${$fileContentRef} =~ s/^$moduleData->{'HTGROUP_NAME'}:[^\n]*\n//gim;
         ${$fileContentRef} .= "$moduleData->{'HTGROUP_NAME'}:$moduleData->{'HTGROUP_USERS'}\n";
-
-        $self->{'eventManager'}->trigger( 'afterApacheAddHtgroup', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
-        my $rs = $file->save( 0027 );
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
-        $rs ||= $file->mode( 0640 );
-        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-
+        $self->{'eventManager'}->trigger( 'afterApacheAddHtgroup', $fileContentRef, $moduleData );
+        $file->save( 0027 )->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
-        error( $@ );
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
-        return 1;
+        die;
     }
-
-    0;
 }
 
 =item deleteHtgroup( \%moduleData )
@@ -650,7 +596,7 @@ sub deleteHtgroup
     my ($self, $moduleData) = @_;
 
     eval {
-        return 0 unless -f "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}";
+        return unless -f "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}";
 
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
@@ -658,37 +604,22 @@ sub deleteHtgroup
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtgroup', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
+        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtgroup', $fileContentRef, $moduleData );
         ${$fileContentRef} =~ s/^$moduleData->{'HTGROUP_NAME'}:[^\n]*\n//gim;
-
-        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtgroup', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
-        my $rs = $file->save();
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
-        $rs ||= $file->mode( 0640 );
-        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-
+        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtgroup', $fileContentRef, $moduleData );
+        $file->save()->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
-        error( $@ );
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
-        return 1;
+        die;
     }
-
-    0;
 }
 
 =item addHtaccess( \%moduleData )
@@ -701,7 +632,7 @@ sub addHtaccess
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless -d $moduleData->{'AUTH_PATH'};
+    return unless -d $moduleData->{'AUTH_PATH'};
 
     my $isImmutable = isImmutable( $moduleData->{'AUTH_PATH'} );
 
@@ -712,15 +643,12 @@ sub addHtaccess
         my $fileContentRef;
         if ( -f $file->{'filename'} ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheAddHtaccess', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
+        $self->{'eventManager'}->trigger( 'beforeApacheAddHtaccess', $fileContentRef, $moduleData );
 
         my $bTag = "### START i-MSCP PROTECTION ###\n";
         my $eTag = "### END i-MSCP PROTECTION ###\n";
@@ -744,26 +672,15 @@ EOF
 
         replaceBlocByRef( $bTag, $eTag, '', $fileContentRef );
         ${$fileContentRef} = $bTag . $tagContent . $eTag . ${$fileContentRef};
-
-        $self->{'eventManager'}->trigger( 'afterApacheAddHtaccess', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
-        my $rs = $file->save( 0027 );
-        $rs ||= $file->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} );
-        $rs ||= $file->mode( 0640 );
-        $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
-
+        $self->{'eventManager'}->trigger( 'afterApacheAddHtaccess', $fileContentRef, $moduleData );
+        $file->save( 0027 )->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
     };
     if ( $@ ) {
-        error( $@ );
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
-        return 1;
+        die;
     }
-
-    0;
 }
 
 =item deleteHtaccess( \%moduleData )
@@ -776,7 +693,7 @@ sub deleteHtaccess
 {
     my ($self, $moduleData) = @_;
 
-    return 0 unless -d $moduleData->{'AUTH_PATH'} && -f "$moduleData->{'AUTH_PATH'}/.htaccess";
+    return unless -d $moduleData->{'AUTH_PATH'} && -f "$moduleData->{'AUTH_PATH'}/.htaccess";
 
     my $isImmutable = isImmutable( $moduleData->{'AUTH_PATH'} );
 
@@ -789,41 +706,28 @@ sub deleteHtaccess
 
         if ( $fileExist ) {
             $fileContentRef = $file->getAsRef();
-            defined $fileContentRef or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
         } else {
             my $stamp = '';
             $fileContentRef = \$stamp;
         }
 
-        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtaccess', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
-
+        $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtaccess', $fileContentRef, $moduleData );
         replaceBlocByRef( "### START i-MSCP PROTECTION ###\n", "### END i-MSCP PROTECTION ###\n", '', $fileContentRef );
-
-        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtaccess', $fileContentRef, $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
+        $self->{'eventManager'}->trigger( 'afterApacheDeleteHtaccess', $fileContentRef, $moduleData );
 
         if ( ${$fileContentRef} ne '' ) {
-            my $rs = $file->save();
-            $rs ||= $file->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} );
-            $rs ||= $file->mode( 0640 );
-            $rs == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $file->save()->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} )->mode( 0640 );
         } elsif ( $fileExist ) {
-            $file->delFile() == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $file->remove();
         }
 
         setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
     };
     if ( $@ ) {
-        error( $@ );
         # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
-        return 1;
+        die;
     }
-
-    0;
 }
 
 =item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
@@ -836,10 +740,10 @@ sub buildConfFile
 {
     my ($self, $srcFile, $trgFile, $mdata, $sdata, $params) = @_;
 
-    my $rs = $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->registerOne(
         'beforeApacheBuildConfFile',
         sub {
-            return 0 unless grep( $_ eq $_[1], ( 'domain.tpl', 'domain_disabled.tpl' ) );
+            return unless grep( $_ eq $_[1], ( 'domain.tpl', 'domain_disabled.tpl' ) );
 
             if ( grep( $_ eq $sdata->{'VHOST_TYPE'}, 'domain', 'domain_disabled' ) ) {
                 replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', $_[0] );
@@ -853,16 +757,11 @@ sub buildConfFile
             } elsif ( grep( $_ eq $sdata->{'VHOST_TYPE'}, 'domain_ssl', 'domain_disabled_ssl' ) ) {
                 replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', $_[0] );
             }
-
-            0;
         },
         100
     );
-    $rs ||= $self->SUPER::buildConfFile( $srcFile, $trgFile, $mdata, $sdata, $params );
-
-    # On configuration file change, schedule server reload
-    $self->{'reload'} ||= 1 unless $rs;
-    $rs;
+    $self->SUPER::buildConfFile( $srcFile, $trgFile, $mdata, $sdata, $params );
+    $self->{'reload'} ||= 1;
 }
 
 =item getTraffic( \%trafficDb )
@@ -876,12 +775,11 @@ sub getTraffic
     my (undef, $trafficDb) = @_;
 
     my $ldate = time2str( '%Y%m%d', time());
-    my $dbh = iMSCP::Database->getInstance()->getRawDb();
+    my $dbh = iMSCP::Database->getInstance();
 
     debug( sprintf( 'Collecting HTTP traffic data' ));
 
     eval {
-        local $dbh->{'RaiseError'} = 1;
         $dbh->begin_work();
         my $sth = $dbh->prepare( 'SELECT vhost, bytes FROM httpd_vlogger WHERE ldate <= ? FOR UPDATE' );
         $sth->execute( $ldate );
@@ -899,8 +797,6 @@ sub getTraffic
         %{$trafficDb} = ();
         die( sprintf( "Couldn't collect traffic data: %s", $@ ));
     }
-
-    0;
 }
 
 =item getRunningUser( )
@@ -956,7 +852,7 @@ sub _init
 
  Set Apache version
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -972,7 +868,7 @@ sub _setVersion
  Process deleteDomain tasks
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -980,9 +876,8 @@ sub _deleteDomain
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->removeSites( $moduleData->{'DOMAIN_NAME'}, $moduleData->{'DOMAIN_NAME'} . '_ssl' );
-    $rs ||= $self->_umountLogsFolder( $moduleData );
-    return $rs if $rs;
+    $self->removeSites( $moduleData->{'DOMAIN_NAME'}, $moduleData->{'DOMAIN_NAME'} . '_ssl' );
+    $self->_umountLogsFolder( $moduleData );
 
     unless ( $moduleData->{'SHARED_MOUNT_POINT'} || !-d $moduleData->{'WEB_DIR'} ) {
         my $userWebDir = File::Spec->canonpath( $main::imscpConfig{'USER_WEB_DIR'} );
@@ -991,46 +886,27 @@ sub _deleteDomain
         clearImmutable( $parentDir );
         clearImmutable( $moduleData->{'WEB_DIR'}, 'recursive' );
 
-        eval { iMSCP::Dir->new( dirname => $moduleData->{'WEB_DIR'} )->remove(); };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
+        iMSCP::Dir->new( dirname => $moduleData->{'WEB_DIR'} )->remove();
 
         if ( $parentDir ne $userWebDir ) {
-            eval {
-                my $dir = iMSCP::Dir->new( dirname => $parentDir );
-                if ( $dir->isEmpty() ) {
-                    clearImmutable( dirname( $parentDir ));
-                    $dir->remove();
-                }
-            };
-            if ( $@ ) {
-                error( $@ );
-                return 1;
+            my $dir = iMSCP::Dir->new( dirname => $parentDir );
+
+            if ( $dir->isEmpty() ) {
+                clearImmutable( dirname( $parentDir ));
+                $dir->remove();
             }
         }
 
         if ( $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes' && $parentDir ne $userWebDir ) {
-            do {
-                setImmutable( $parentDir ) if -d $parentDir;
-            } while ( $parentDir = dirname( $parentDir ) ) ne $userWebDir;
+            do { setImmutable( $parentDir ) if -d $parentDir; } while ( $parentDir = dirname( $parentDir ) ) ne $userWebDir;
         }
     }
 
-    eval {
-        for ( "$moduleData->{'HOME_DIR'}/logs/$moduleData->{'DOMAIN_NAME'}",
-            "$self->{'config'}->{'HTTPD_LOG_DIR'}/moduleDatadata->{'DOMAIN_NAME'}"
-        ) {
-            iMSCP::Dir->new( dirname => $_ )->remove();
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    for ( "$moduleData->{'HOME_DIR'}/logs/$moduleData->{'DOMAIN_NAME'}",
+        "$self->{'config'}->{'HTTPD_LOG_DIR'}/moduleDatadata->{'DOMAIN_NAME'}"
+    ) {
+        iMSCP::Dir->new( dirname => $_ )->remove();
     }
-
-    0;
 }
 
 =item _mountLogsFolder( \%moduleData )
@@ -1038,7 +914,7 @@ sub _deleteDomain
  Mount logs folder which belong to the given domain into customer's logs folder
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1051,21 +927,15 @@ sub _mountLogsFolder
     my $fields = { fs_spec => $fsSpec, fs_file => $fsFile, fs_vfstype => 'none', fs_mntops => 'bind' };
 
     unless ( -d $fsFile ) {
-        eval {
-            iMSCP::Dir->new( dirname => $fsFile )->make( {
-                user  => $main::imscpConfig{'ROOT_USER'},
-                group => $moduleData->{'GROUP'},
-                mode  => 0750
-            } );
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
+        iMSCP::Dir->new( dirname => $fsFile )->make( {
+            user  => $main::imscpConfig{'ROOT_USER'},
+            group => $moduleData->{'GROUP'},
+            mode  => 0750
+        } );
     }
 
-    my $rs = addMountEntry( "$fields->{'fs_spec'} $fields->{'fs_file'} $fields->{'fs_vfstype'} $fields->{'fs_mntops'}" );
-    $rs ||= mount( $fields ) unless isMountpoint( $fields->{'fs_file'} );
+    addMountEntry( "$fields->{'fs_spec'} $fields->{'fs_file'} $fields->{'fs_vfstype'} $fields->{'fs_mntops'}" );
+    mount( $fields ) unless isMountpoint( $fields->{'fs_file'} );
 }
 
 =item _umountLogsFolder( \%moduleData )
@@ -1073,7 +943,7 @@ sub _mountLogsFolder
  Umount logs folder which belong to the given domain from customer's logs folder
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1100,7 +970,7 @@ sub _umountLogsFolder
  Disable a domain
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1108,23 +978,16 @@ sub _disableDomain
 {
     my ($self, $moduleData) = @_;
 
-    eval {
-        iMSCP::Dir->new( dirname => "$self->{'config'}->{'HTTPD_LOG_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ADM_GROUP'},
-            mode  => 0755
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Dir->new( dirname => "$self->{'config'}->{'HTTPD_LOG_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->make( {
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $main::imscpConfig{'ADM_GROUP'},
+        mode  => 0755
+    } );
 
     my $net = iMSCP::Net->getInstance();
     my @domainIPs = ( $moduleData->{'DOMAIN_IP'}, ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
 
-    my $rs = $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
 
     # If INADDR_ANY is found, map it to the wildcard sign and discard any other
     # IP, else, remove any duplicate IP address from the list
@@ -1148,12 +1011,10 @@ sub _disableDomain
         $serverData->{'VHOST_TYPE'} = 'domain_disabled';
     }
 
-    $rs = $self->buildConfFile( 'parts/domain_disabled.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
+    $self->buildConfFile( 'parts/domain_disabled.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
         $moduleData, $serverData, { cached => 1 }
     );
-
-    $rs ||= $self->enableSites( $moduleData->{'DOMAIN_NAME'} );
-    return $rs if $rs;
+    $self->enableSites( $moduleData->{'DOMAIN_NAME'} );
 
     # Create https vhost (or delete it if SSL is disabled)
 
@@ -1164,41 +1025,34 @@ sub _disableDomain
             'https://',
             'domain_disabled_ssl'
         );
-
-        $rs = $self->buildConfFile( 'parts/domain_disabled.tpl',
+        $self->buildConfFile( 'parts/domain_disabled.tpl',
             "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf", $moduleData, $serverData, { cached => 1 }
         );
-        $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
-        return $rs if $rs;
+        $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
     } else {
-        $rs = $self->removeSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
-        return $rs if $rs;
+        $self->removeSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
     }
 
     # Make sure that custom httpd conffile exists (cover case where file has been removed for any reasons)
     unless ( -f "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf" ) {
         $serverData->{'SKIP_TEMPLATE_CLEANER'} = 1;
-        $rs = $self->buildConfFile( 'parts/custom.conf.tpl', "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
+        $self->buildConfFile( 'parts/custom.conf.tpl', "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
             $moduleData, $serverData, { cached => 1 }
         );
-        return $rs if $rs;
     }
 
-    # Transitional - Remove deprecated `domain_disable_page' directory if any
+    # FIXME Transitional - Remove deprecated `domain_disable_page' directory if any
     if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' && -d $moduleData->{'WEB_DIR'} ) {
         clearImmutable( $moduleData->{'WEB_DIR'} );
         eval { iMSCP::Dir->new( dirname => "$moduleData->{'WEB_DIR'}/domain_disable_page" )->remove(); };
         if ( $@ ) {
-            error( $@ );
-            $rs = 1;
+            # Set immutable bit if needed (even on error)
+            setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
+            die;
         }
 
-        # Set immutable bit if needed (even on error)
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
-        return $rs if $rs;
     }
-
-    0;
 }
 
 =item _addCfg( \%data )
@@ -1206,7 +1060,7 @@ sub _disableDomain
  Add configuration files for the given domain
 
  Param hashref \%data Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1214,14 +1068,12 @@ sub _addCfg
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeApacheAddCfg', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeApacheAddCfg', $moduleData );
 
     my $net = iMSCP::Net->getInstance();
     my @domainIPs = ( $moduleData->{'DOMAIN_IP'}, ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
 
-    $rs = $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
 
     # If INADDR_ANY is found, map it to the wildcard sign and discard any other
     # IP, else, remove any duplicate IP address from the list
@@ -1247,12 +1099,10 @@ sub _addCfg
         $serverData->{'VHOST_TYPE'} = 'domain';
     }
 
-    $rs = $self->buildConfFile( 'parts/domain.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf", $moduleData,
+    $self->buildConfFile( 'parts/domain.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf", $moduleData,
         $serverData, { cached => 1 }
     );
-
-    $rs ||= $self->enableSites( $moduleData->{'DOMAIN_NAME'} );
-    return $rs if $rs;
+    $self->enableSites( $moduleData->{'DOMAIN_NAME'} );
 
     # Create https vhost (or delete it if SSL is disabled)
 
@@ -1269,24 +1119,22 @@ sub _addCfg
             $serverData->{'VHOST_TYPE'} = 'domain_ssl';
         }
 
-        $rs = $self->buildConfFile( 'parts/domain.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf",
+        $self->buildConfFile( 'parts/domain.tpl', "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$moduleData->{'DOMAIN_NAME'}_ssl.conf",
             $moduleData, $serverData, { cached => 1 }
         );
-        $rs ||= $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
-        return $rs if $rs;
+        $self->enableSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
     } else {
-        $rs = $self->removeSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
-        return $rs if $rs;
+        $self->removeSites( "$moduleData->{'DOMAIN_NAME'}_ssl" );
     }
 
     unless ( -f "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf" ) {
         $serverData->{'SKIP_TEMPLATE_CLEANER'} = 1;
-        $rs = $self->buildConfFile( 'parts/custom.conf.tpl', "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
+        $self->buildConfFile( 'parts/custom.conf.tpl', "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$moduleData->{'DOMAIN_NAME'}.conf",
             $moduleData, $serverData, { cached => 1 }
         );
     }
 
-    $rs ||= $self->{'eventManager'}->trigger( 'afterApacheAddCfg', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterApacheAddCfg', $moduleData );
 }
 
 
@@ -1295,7 +1143,7 @@ sub _addCfg
  Get Web folder skeleton
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return string Path to Web folder skeleton on success, croak on failure
+ Return string Path to Web folder skeleton on success, die on failure
 
 =cut
 
@@ -1306,9 +1154,7 @@ sub _getWebfolderSkeleton
     my $webFolderSkeleton = $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ? 'domain' : ( $moduleData->{'DOMAIN_TYPE'} eq 'als' ? 'alias' : 'subdomain' );
 
     unless ( -d "$TMPFS/$webFolderSkeleton" ) {
-        iMSCP::Dir->new(
-            dirname => "$main::imscpConfig{'CONF_DIR'}/skel/$webFolderSkeleton" )->rcopy( "$TMPFS/$webFolderSkeleton", { preserve => 'no' }
-        );
+        iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/skel/$webFolderSkeleton" )->copy( "$TMPFS/$webFolderSkeleton" );
 
         if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
             for ( qw/ errors logs / ) {
@@ -1328,7 +1174,7 @@ sub _getWebfolderSkeleton
  Add default directories and files for the given domain
 
  Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
- Return int 0 on sucess, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1337,9 +1183,7 @@ sub _addFiles
     my ($self, $moduleData) = @_;
 
     eval {
-        $self->{'eventManager'}->trigger( 'beforeApacheAddFiles', $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
+        $self->{'eventManager'}->trigger( 'beforeApacheAddFiles', $moduleData );
 
         iMSCP::Dir->new( dirname => "$self->{'config'}->{'HTTPD_LOG_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->make( {
             user  => $main::imscpConfig{'ROOT_USER'},
@@ -1348,7 +1192,7 @@ sub _addFiles
         } );
 
         # Whether or not permissions must be fixed recursively
-        my $fixPermissions = iMSCP::Getopt->fixPermissions || grep( $moduleData->{'ACTION'} eq $_, 'restoreDomain', 'restoreSubdomain' );
+        my $fixPermissions = iMSCP::Getopt->fixPermissions || index( $moduleData->{'ACTION'}, 'restore' ) != -1;
 
         #
         ## Prepare Web folder
@@ -1357,7 +1201,7 @@ sub _addFiles
         my $webFolderSkeleton = $self->_getWebfolderSkeleton( $moduleData );
         my $workingWebFolder = File::Temp->newdir( DIR => $TMPFS );
 
-        iMSCP::Dir->new( dirname => $webFolderSkeleton )->rcopy( $workingWebFolder );
+        iMSCP::Dir->new( dirname => $webFolderSkeleton )->copy( $workingWebFolder );
 
         if ( -d "$moduleData->{'WEB_DIR'}/htdocs" ) {
             iMSCP::Dir->new( dirname => "$workingWebFolder/htdocs" )->remove();
@@ -1386,7 +1230,7 @@ sub _addFiles
         clearImmutable( $moduleData->{'WEB_DIR'} ) if -d $moduleData->{'WEB_DIR'};
 
         if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
-            $self->_umountLogsFolder( $moduleData ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $self->_umountLogsFolder( $moduleData );
 
             if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} ne 'yes' ) {
                 iMSCP::Dir->new( dirname => "$moduleData->{'WEB_DIR'}/logs" )->remove();
@@ -1398,7 +1242,7 @@ sub _addFiles
         ## Create Web folder
         #
 
-        iMSCP::Dir->new( dirname => $workingWebFolder )->rcopy( $moduleData->{'WEB_DIR'}, { preserve => 'no' } );
+        iMSCP::Dir->new( dirname => $workingWebFolder )->copy( $moduleData->{'WEB_DIR'} );
 
         # Set ownership and permissions
 
@@ -1410,7 +1254,7 @@ sub _addFiles
                 group => $moduleData->{'GROUP'},
                 mode  => '0750'
             }
-        ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+        );
 
         # Get list of possible files inside Web folder root
         my @files = iMSCP::Dir->new( dirname => $webFolderSkeleton )->getAll();
@@ -1424,7 +1268,7 @@ sub _addFiles
                     group     => $moduleData->{'GROUP'},
                     recursive => $fixPermissions
                 }
-            ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            );
         }
 
         if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
@@ -1437,7 +1281,7 @@ sub _addFiles
                         group => $self->getRunningGroup(),
                         mode  => '0640'
                     }
-                ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+                );
             }
 
             # Set ownership for logs directory
@@ -1448,7 +1292,7 @@ sub _addFiles
                         group     => $moduleData->{'GROUP'},
                         recursive => $fixPermissions
                     }
-                ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+                );
             }
         }
 
@@ -1461,42 +1305,32 @@ sub _addFiles
                     filemode  => '0640',
                     recursive => $file =~ /^(?:00_private|cgi-bin|htdocs)$/ ? 0 : $fixPermissions
                 }
-            ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            );
         }
 
         if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} eq 'yes' ) {
-            $self->_mountLogsFolder( $moduleData ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error' );
+            $self->_mountLogsFolder( $moduleData );
         }
 
-        $self->{'eventManager'}->trigger( 'afterApacheAddFiles', $moduleData ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        );
+        $self->{'eventManager'}->trigger( 'afterApacheAddFiles', $moduleData );
 
         # Set immutable bit if needed
         if ( $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes' ) {
             my $dir = $moduleData->{'WEB_DIR'};
             my $userWebDir = File::Spec->canonpath( $main::imscpConfig{'USER_WEB_DIR'} );
-            do {
-                setImmutable( $dir );
-            } while ( $dir = dirname( $dir ) ) ne $userWebDir;
+            do { setImmutable( $dir ); } while ( $dir = dirname( $dir ) ) ne $userWebDir;
         }
     };
     if ( $@ ) {
-        error( $@ );
-
         # Set immutable bit if needed (even on error)
         if ( $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes' ) {
             my $dir = $moduleData->{'WEB_DIR'};
             my $userWebDir = File::Spec->canonpath( $main::imscpConfig{'USER_WEB_DIR'} );
-            do {
-                setImmutable( $dir );
-            } while ( $dir = dirname( $dir ) ) ne $userWebDir;
+            do { setImmutable( $dir ); } while ( $dir = dirname( $dir ) ) ne $userWebDir;
         }
 
-        return 1;
+        die;
     }
-
-    0;
 }
 
 =item _copyDomainDisablePages( )
@@ -1509,24 +1343,17 @@ sub _addFiles
 
 sub _copyDomainDisablePages
 {
-    eval {
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->rcopy(
-            "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages", { preserve => 'no' }
-        );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
-    0;
+    iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->copy(
+        "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages"
+    );
 }
 
 =item _setupVlogger( )
 
  Setup vlogger
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1547,10 +1374,9 @@ CREATE TABLE IF NOT EXISTS httpd_vlogger (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 EOF
         $dbSchemaFile->close();
-        my $rs = $self->buildConfFile( $dbSchemaFile, $dbSchemaFile, undef, { DATABASE_NAME => main::setupGetQuestion( 'DATABASE_NAME' ) },
+        $self->buildConfFile( $dbSchemaFile, $dbSchemaFile, undef, { DATABASE_NAME => main::setupGetQuestion( 'DATABASE_NAME' ) },
             { srcname => 'vlogger.sql' }
         );
-        return $rs if $rs;
 
         my $defaultsExtraFile = File::Temp->new();
         print $defaultsExtraFile <<"EOF";
@@ -1561,7 +1387,7 @@ user = "{USER}"
 password = "{PASSWORD}"
 EOF
         $defaultsExtraFile->close();
-        $rs = $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
+        $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
                 HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
@@ -1570,12 +1396,10 @@ EOF
             },
             { srcname => 'defaults-extra-file' }
         );
-        return $rs if $rs;
 
-        $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \ my $stdout, \ my $stderr );
+        my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        error( $stderr || 'Unknown error' ) if $rs;
-        return $rs if $rs;
+        !$rs or die( $stderr || 'Unknown error' );
     }
 
     my $dbHost = main::setupGetQuestion( 'DATABASE_HOST' );
@@ -1588,27 +1412,20 @@ EOF
     my $oldUserHost = $main::imscpOldConfig{'DATABASE_USER_HOST'};
     my $dbPass = randomStr( 16, ALNUM );
 
-    eval {
-        my $sqlServer = iMSCP::Servers::Sqld->factory();
+    my $sqlServer = iMSCP::Servers::Sqld->factory();
 
-        for ( $dbUserHost, $oldUserHost, 'localhost' ) {
-            next unless $_;
-            $sqlServer->dropUser( $dbUser, $_ );
-        }
-
-        $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-
-        # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
-        my $qDbName = $dbh->quote_identifier( $dbName );
-        $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $qDbName.httpd_vlogger TO ?\@?", undef, $dbUser, $dbUserHost );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    for ( $dbUserHost, $oldUserHost, 'localhost' ) {
+        next unless $_;
+        $sqlServer->dropUser( $dbUser, $_ );
     }
+
+    $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
+
+    my $dbh = iMSCP::Database->getInstance();
+
+    # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
+    my $qDbName = $dbh->quote_identifier( $dbName );
+    $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $qDbName.httpd_vlogger TO ?\@?", undef, $dbUser, $dbUserHost );
 
     my $conffile = File::Temp->new();
     print $conffile <<'EOF';
@@ -1641,7 +1458,7 @@ EOF
 
  Remove vlogger SQL user
 
- Return int 0
+ Return void, die on failure
 
 =cut
 
@@ -1676,7 +1493,7 @@ sub _removeVloggerSqlUser
   - group : File group (default: root
   - mode  : File mode (default: 0644)
   - cached : Whether or not loaded file must be cached in memory
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -1684,7 +1501,10 @@ sub afterApacheBuildConfFile
 {
     my ($self, $cfgTpl, $filename, undef, $moduleData, $apacheServerData) = @_;
 
-    return $apacheServerData->{'SKIP_TEMPLATE_CLEANER'} = 0 if $apacheServerData->{'SKIP_TEMPLATE_CLEANER'};
+    if ( $apacheServerData->{'SKIP_TEMPLATE_CLEANER'} ) {
+        $apacheServerData->{'SKIP_TEMPLATE_CLEANER'} = 0;
+        return;
+    }
 
     if ( $filename eq 'domain.tpl' ) {
         if ( index( $apacheServerData->{'VHOST_TYPE'}, 'fwd' ) == -1 ) {
@@ -1715,7 +1535,6 @@ sub afterApacheBuildConfFile
     }
 
     ${$cfgTpl} =~ s/^\s*(?:[#;].*)?\n//gm;
-    0;
 }
 
 =back

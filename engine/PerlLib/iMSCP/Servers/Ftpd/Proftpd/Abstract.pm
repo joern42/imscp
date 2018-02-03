@@ -31,11 +31,10 @@ use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isNumberI
         isValidPassword isValidUsername /;
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
-use autouse 'iMSCP::TemplateParser' => qw/ processByRef /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Servers::Sqld /;
+use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Getopt iMSCP::Servers::Sqld /;
 use iMSCP::Config;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use parent 'iMSCP::Servers::Ftpd';
 
 %main::sqlUsers = () unless %main::sqlUsers;
@@ -315,8 +314,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->_setVersion();
-    $rs ||= $self->_configure();
+    $self->_setVersion();
+    $self->_configure();
 }
 
 =item uninstall( )
@@ -400,28 +399,24 @@ sub addUser
 {
     my ($self, $moduleData) = @_;
 
-    return 0 if $moduleData->{'STATUS'} eq 'tochangepwd';
+    return if $moduleData->{'STATUS'} eq 'tochangepwd';
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeProftpdAddUser', $moduleData );
-    return $rs if $rs;
+    $self->{'eventManager'}->trigger( 'beforeProftpdAddUser', $moduleData );
 
-    my $dbh = iMSCP::Database->getInstance()->getRawDb();
+    my $dbh = iMSCP::Database->getInstance();
 
     eval {
-        local $dbh->{'RaiseError'} = 1;
         $dbh->begin_work();
         $dbh->do(
             'UPDATE ftp_users SET uid = ?, gid = ? WHERE admin_id = ?',
             undef, $moduleData->{'USER_SYS_UID'}, $moduleData->{'USER_SYS_GID'}, $moduleData->{'USER_ID'}
         );
-        $dbh->do( 'UPDATE ftp_group SET gid = ? WHERE groupname = ?',
-            undef, $moduleData->{'USER_SYS_GID'}, $moduleData->{'USERNAME'} );
+        $dbh->do( 'UPDATE ftp_group SET gid = ? WHERE groupname = ?', undef, $moduleData->{'USER_SYS_GID'}, $moduleData->{'USERNAME'} );
         $dbh->commit();
     };
     if ( $@ ) {
         $dbh->rollback();
-        error( $@ );
-        return 1;
+        die;
     }
 
     $self->{'eventManager'}->trigger( 'AfterProftpdAddUser', $moduleData );
@@ -437,8 +432,8 @@ sub addFtpUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeProftpdAddFtpUser', $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterProftpdAddFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeProftpdAddFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterProftpdAddFtpUser', $moduleData );
 }
 
 =item disableFtpUser( \%moduleData )
@@ -451,8 +446,8 @@ sub disableFtpUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeProftpdDisableFtpUser', $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterProftpdDisableFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeProftpdDisableFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterProftpdDisableFtpUser', $moduleData );
 }
 
 =item deleteFtpUser( \%moduleData )
@@ -465,8 +460,8 @@ sub deleteFtpUser
 {
     my ($self, $moduleData) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeProftpdDeleteFtpUser', $moduleData );
-    $rs ||= $self->{'eventManager'}->trigger( 'afterProftpdDeleteFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeProftpdDeleteFtpUser', $moduleData );
+    $self->{'eventManager'}->trigger( 'afterProftpdDeleteFtpUser', $moduleData );
 }
 
 =item getTraffic( $trafficDb [, $logFile, $trafficIndexDb ] )
@@ -552,7 +547,7 @@ sub _init
 
  Set ProFTPD version
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -562,24 +557,17 @@ sub _setVersion
 
     my $rs = execute( [ $self->{'config'}->{'FTPD_BIN'}, '-v' ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    if ( $stdout !~ /([\d.]+)/ ) {
-        error( "Couldn't find ProFTPD version from the `$self->{'config'}->{'FTPD_BIN'} -v` command output" );
-        return 1;
-    }
-
+    !$rs or die( $stderr || 'Unknown error' );
+    $stdout =~ /([\d.]+)/ or die( "Couldn't find ProFTPD version from the `$self->{'config'}->{'FTPD_BIN'} -v` command output" );
     $self->{'config'}->{'FTPD_VERSION'} = $1;
     debug( "ProFTPD version set to: $1" );
-    0;
 }
 
 =item _configure( )
 
  Configure ProFTPD
 
- return int 0 on succes, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -587,9 +575,9 @@ sub _configure
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeProftpdConfigure' );
-    $rs ||= $self->_setupSqlUser();
-    $rs ||= $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->trigger( 'beforeProftpdConfigure' );
+    $self->_setupSqlUser();
+    $self->{'eventManager'}->registerOne(
         'beforeProftpdBuildConfFile',
         sub {
             if ( main::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes' ) {
@@ -616,12 +604,13 @@ EOF
             my $baseServerIp = main::setupGetQuestion( 'BASE_SERVER_IP' );
             my $baseServerPublicIp = main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
 
-            if ( $baseServerIp ne $baseServerPublicIp ) {
-                my @virtualHostIps = grep(
-                    $_ ne '0.0.0.0', ( '127.0.0.1', ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? '::1' : () ), $baseServerIp )
-                );
+            return unless $baseServerIp ne $baseServerPublicIp;
 
-                ${$_[0]} .= <<"EOF";
+            my @virtualHostIps = grep(
+                $_ ne '0.0.0.0', ( '127.0.0.1', ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? '::1' : () ), $baseServerIp )
+            );
+
+            ${$_[0]} .= <<"EOF";
 
 # Server behind NAT - Advertise public IP address
 MasqueradeAddress $baseServerPublicIp
@@ -631,12 +620,10 @@ MasqueradeAddress $baseServerPublicIp
     ServerName "{FTPD_HOSTNAME}.local"
 </VirtualHost>
 EOF
-            }
 
-            0;
         }
     );
-    $rs ||= $self->buildConfFile( 'proftpd.conf', "$self->{'config'}->{'FTPD_CONF_DIR'}/proftpd.conf", undef,
+    $self->buildConfFile( 'proftpd.conf', "$self->{'config'}->{'FTPD_CONF_DIR'}/proftpd.conf", undef,
         {
             FTPD_BANNER             => $self->{'config'}->{'FTPD_BANNER'},
             FTPD_CERTIFICATE        => "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem",
@@ -662,20 +649,18 @@ EOF
             mode  => 0640
         }
     );
-    return $rs if $rs;
 
     if ( -f "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf" ) {
-        $rs = $self->{'eventManager'}->registerOne(
+        $self->{'eventManager'}->registerOne(
             'beforeProftpdBuildConfFile',
             sub {
                 ${$_[0]} =~ s/^(LoadModule\s+mod_tls_memcache.c)/#$1/m;
                 0;
             }
         );
-        $rs = $self->buildConfFile( "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", undef,
+        $self->buildConfFile( "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", undef,
             undef, { mode => 0644 }
         );
-        return $rs if $rs;
     }
 
     $self->{'eventManager'}->trigger( 'afterProftpdConfigure' );
@@ -685,7 +670,7 @@ EOF
 
  Setup SQL user for ProFTPD
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -698,51 +683,42 @@ sub _setupSqlUser
     my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = main::setupGetQuestion( 'FTPD_SQL_PASSWORD' );
 
-    eval {
-        my $sqlServer = iMSCP::Servers::Sqld->factory();
+    my $sqlServer = iMSCP::Servers::Sqld->factory();
 
-        # Drop old SQL user if required
-        if ( ( $self->{'config'}->{'FTPD_SQL_USER'} ne '' && $self->{'config'}->{'FTPD_SQL_USER'} ne $dbUser )
-            || ( $main::imscpOldConfig{'DATABASE_USER_HOST'} ne '' && $main::imscpOldConfig{'DATABASE_USER_HOST'} ne $dbUserHost )
-        ) {
-            for ( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-                next if $_ eq '' || exists $main::sqlUsers{$self->{'config'}->{'FTPD_SQL_USER'} . '@' . $_};
-                $sqlServer->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $_ );
-            }
+    # Drop old SQL user if required
+    if ( ( $self->{'config'}->{'FTPD_SQL_USER'} ne '' && $self->{'config'}->{'FTPD_SQL_USER'} ne $dbUser )
+        || ( $main::imscpOldConfig{'DATABASE_USER_HOST'} ne '' && $main::imscpOldConfig{'DATABASE_USER_HOST'} ne $dbUserHost )
+    ) {
+        for ( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+            next if $_ eq '' || exists $main::sqlUsers{$self->{'config'}->{'FTPD_SQL_USER'} . '@' . $_};
+            $sqlServer->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $_ );
         }
-
-        # Create/update SQL user if needed
-        if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-            $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
-        }
-
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-
-        # GRANT privileges to the SQL user
-        # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
-        my $quotedDbName = $dbh->quote_identifier( $dbName );
-
-        $dbh->do( "GRANT SELECT ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw / ftp_users ftp_group /;
-        $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw/ quotalimits quotatallies /;
-
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
+
+    # Create/update SQL user if needed
+    if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
+        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+    }
+
+    my $dbh = iMSCP::Database->getInstance();
+
+    # GRANT privileges to the SQL user
+    # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
+    my $quotedDbName = $dbh->quote_identifier( $dbName );
+
+    $dbh->do( "GRANT SELECT ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw / ftp_users ftp_group /;
+    $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw/ quotalimits quotatallies /;
 
     $self->{'config'}->{'FTPD_SQL_USER'} = $dbUser;
     $self->{'config'}->{'FTPD_SQL_PASSWORD'} = $dbPass;
-    0;
 }
 
 =item _dropSqlUser( )
 
  Drop SQL user
 
- Return int 0 on success, 1 on failure
+ Return void, die on failure
 
 =cut
 
@@ -750,19 +726,12 @@ sub _dropSqlUser
 {
     my ($self) = @_;
 
-    # In setup context, take value from old conffile, else take value from current conffile
-    my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
-        ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
+    # In installer context, take value from old conffile, else take value from current conffile
+    my $dbUserHost = iMSCP::Getopt->context() eq 'installer' ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
 
-    return 0 unless $self->{'config'}->{'FTPD_SQL_USER'} && $dbUserHost;
+    return unless $self->{'config'}->{'FTPD_SQL_USER'} && $dbUserHost;
 
-    eval { iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $dbUserHost ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $dbUserHost );
 }
 
 =back

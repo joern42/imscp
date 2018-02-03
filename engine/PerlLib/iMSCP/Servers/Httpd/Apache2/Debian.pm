@@ -60,12 +60,12 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::install();
-    $rs ||= $self->_makeDirs();
-    $rs ||= $self->_setupModules();
-    $rs ||= $self->_configure();
-    $rs ||= $self->_installLogrotate();
-    $rs ||= $self->_cleanup();
+    $self->SUPER::install();
+    $self->_makeDirs();
+    $self->_setupModules();
+    $self->_configure();
+    $self->_installLogrotate();
+    $self->_cleanup();
 }
 
 =item postinstall( )
@@ -78,19 +78,10 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->enable( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( 'apache2' );
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ];
-            0;
-        },
-        3
+        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ]; }, 3
     );
 }
 
@@ -104,18 +95,11 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::uninstall();
-    $rs ||= $self->_restoreDefaultConfig();
-    return $rs if $rs;
+    $self->SUPER::uninstall();
+    $self->_restoreDefaultConfig();
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->restart( 'apache2' ) if $srvProvider->hasService( 'apache2' ) && $srvProvider->isRunning( 'apache2' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->restart( 'apache2' ) if $srvProvider->hasService( 'apache2' ) && $srvProvider->isRunning( 'apache2' );
 }
 
 =item dpkgPostInvokeTasks()
@@ -128,7 +112,7 @@ sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
 
-    return 0 unless iMSCP::ProgramFinder::find( 'apache2ctl' );
+    return unless iMSCP::ProgramFinder::find( 'apache2ctl' );
 
     $self->_setVersion();
 }
@@ -143,13 +127,7 @@ sub start
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->start( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->start( 'apache2' );
 }
 
 =item stop( )
@@ -162,13 +140,7 @@ sub stop
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->stop( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->stop( 'apache2' );
 }
 
 =item restart( )
@@ -181,13 +153,7 @@ sub restart
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->restart( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->restart( 'apache2' );
 }
 
 =item reload( )
@@ -200,13 +166,7 @@ sub reload
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->reload( 'apache2' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->reload( 'apache2' );
 }
 
 =item enableSites( @sites )
@@ -219,41 +179,31 @@ sub enableSites
 {
     my ($self, @sites) = @_;
 
-    eval {
-        my $caller = ( caller( 1 ) )[3];
+    for ( unique @sites ) {
+        my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
+        my $tgt = "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site.conf";
+        my $lnk = "$self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}/$site.conf";
 
-        for ( unique @sites ) {
-            my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
-            my $tgt = "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site.conf";
-            my $lnk = "$self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}/$site.conf";
-
-            unless ( -e $tgt ) {
-                warning( sprintf( '%s is a dangling symlink', $lnk ), $caller ) if -l $lnk && !-e $lnk;
-                die( sprintf( "Site %s doesn't exist", $site ), $caller );
-            }
-
-            # FIXME: Not sure that this is really needed for a 'site' object but
-            # this is done like this in the a2ensite script...
-            #$self->_checkModuleDeps( $self->_getModDeps( $tgt ));
-
-            my $check = $self->_checkSymlink( $tgt, $lnk );
-            if ( $check eq 'ok' ) {
-                debug( sprintf( 'Site %s already enabled', $site ), $caller );
-            } elsif ( $check eq 'missing' ) {
-                debug( sprintf( 'Enabling site %s', $site ), $caller );
-                $self->_createSymlink( $tgt, $lnk );
-                $self->_switchMarker( 'site', 'enable', $site );
-            } else {
-                die( sprintf( "Site %s isn't properly enabled: %s", $site, $check ));
-            }
+        unless ( -e $tgt ) {
+            warning( sprintf( '%s is a dangling symlink', $lnk )) if -l $lnk && !-e $lnk;
+            die( sprintf( "Site %s doesn't exist", $site ));
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
-    0;
+        # FIXME: Not sure that this is really needed for a 'site' object but
+        # this is done like this in the a2ensite script...
+        #$self->_checkModuleDeps( $self->_getModDeps( $tgt ));
+
+        my $check = $self->_checkSymlink( $tgt, $lnk );
+        if ( $check eq 'ok' ) {
+            debug( sprintf( 'Site %s already enabled', $site ));
+        } elsif ( $check eq 'missing' ) {
+            debug( sprintf( 'Enabling site %s', $site ));
+            $self->_createSymlink( $tgt, $lnk );
+            $self->_switchMarker( 'site', 'enable', $site );
+        } else {
+            die( sprintf( "Site %s isn't properly enabled: %s", $site, $check ));
+        }
+    }
 }
 
 =item disableSites( @sites )
@@ -266,44 +216,34 @@ sub disableSites
 {
     my ($self, @sites) = @_;
 
-    eval {
-        my $caller = ( caller( 1 ) )[3];
+    for ( unique @sites ) {
+        my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
+        my $tgt = "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site.conf";
+        my $lnk = "$self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}/$site.conf";
 
-        for ( unique @sites ) {
-            my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
-            my $tgt = "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site.conf";
-            my $lnk = "$self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}/$site.conf";
-
-            unless ( -e $tgt ) {
-                if ( -l $lnk && !-e $lnk ) {
-                    debug( sprintf( 'Removing dangling symlink: %s', $lnk ), $caller );
-                    unlink( $lnk ) or die( sprintf( "Couldn't remove the %s symlink: %s", $lnk, $! ));
-                    next;
-                }
-
-                # Unlike a2dissite script behavior, we don't raise an error when
-                # the site that we try to disable doesn't exists
-                $self->_switchMarker( 'site', 'disable', $site ) if $self->{'_remove_obj'};
-                debug( sprintf( "Site %s doesn't exist. Skipping...", $site ), $caller );
+        unless ( -e $tgt ) {
+            if ( -l $lnk && !-e $lnk ) {
+                debug( sprintf( 'Removing dangling symlink: %s', $lnk ));
+                unlink( $lnk ) or die( sprintf( "Couldn't remove the %s symlink: %s", $lnk, $! ));
                 next;
             }
 
-            if ( -e $lnk || -l $lnk ) {
-                debug( sprintf( 'Disabling site %s', $site ), $caller );
-                $self->_removeSymlink( $lnk );
-                $self->_switchMarker( 'site', 'disable', $site );
-            } else {
-                debug( sprintf( 'Site %s already disabled', $site ), $caller );
-                $self->_switchMarker( 'site', 'disable', $site ) if $self->{'_remove_obj'};
-            }
+            # Unlike a2dissite script behavior, we don't raise an error when
+            # the site that we try to disable doesn't exists
+            $self->_switchMarker( 'site', 'disable', $site ) if $self->{'_remove_obj'};
+            debug( sprintf( "Site %s doesn't exist. Skipping...", $site ));
+            next;
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
-    0;
+        if ( -e $lnk || -l $lnk ) {
+            debug( sprintf( 'Disabling site %s', $site ));
+            $self->_removeSymlink( $lnk );
+            $self->_switchMarker( 'site', 'disable', $site );
+        } else {
+            debug( sprintf( 'Site %s already disabled', $site ));
+            $self->_switchMarker( 'site', 'disable', $site ) if $self->{'_remove_obj'};
+        }
+    }
 }
 
 =item removeSites( @sites )
@@ -316,32 +256,23 @@ sub removeSites
 {
     my ($self, @sites) = @_;
 
-    eval {
-        local $self->{'_remove_obj'} = 1;
-        my $caller = ( caller( 1 ) )[3];
+    local $self->{'_remove_obj'} = 1;
 
-        for ( unique @sites ) {
-            my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
+    for ( unique @sites ) {
+        my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
 
-            # Make sure that the site is disabled before removing it
-            $self->disableSites( $site ) == 0 or die( getMessageByType( 'error ', { amount => 1, remove => 1 } ));
+        # Make sure that the site is disabled before removing it
+        $self->disableSites( $site );
 
-            my $file = "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site.conf";
-            unless ( -f $file ) {
-                debug( sprintf( "Conf %s doesn't exist. Skipping...", $site ), $caller );
-                next;
-            }
-
-            debug( sprintf( 'Removing site %s', $site ), $caller );
-            unlink( $file ) or die( sprintf( "Couldn't remove the %s site: %s", $site, $! ));
+        my $file = "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site.conf";
+        unless ( -f $file ) {
+            debug( sprintf( "Conf %s doesn't exist. Skipping...", $site ));
+            next;
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
-    0;
+        debug( sprintf( 'Removing site %s', $site ));
+        unlink( $file ) or die( sprintf( "Couldn't remove the %s site: %s", $site, $! ));
+    }
 }
 
 =item enableConfs( @confs )
@@ -354,41 +285,31 @@ sub enableConfs
 {
     my ($self, @confs) = @_;
 
-    eval {
-        my $caller = ( caller( 1 ) )[3];
+    for ( unique @confs ) {
+        my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
+        my $tgt = "$self->{'config'}->{'HTTPD_CONF_AVAILABLE_DIR'}/$conf.conf";
+        my $lnk = "$self->{'config'}->{'HTTPD_CONF_ENABLED_DIR'}/$conf.conf";
 
-        for ( unique @confs ) {
-            my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
-            my $tgt = "$self->{'config'}->{'HTTPD_CONF_AVAILABLE_DIR'}/$conf.conf";
-            my $lnk = "$self->{'config'}->{'HTTPD_CONF_ENABLED_DIR'}/$conf.conf";
-
-            unless ( -e $tgt ) {
-                warning( sprintf( '%s is a dangling symlink', $lnk ), $caller ) if -l $lnk && !-e $lnk;
-                die( sprintf( "Conf %s doesn't exist", $conf ));
-            }
-
-            # FIXME: Not sure that this is really needed for a 'conf' object but
-            # this is done like this in the a2ensite script...
-            #$self->_checkModuleDeps( $self->_getModDeps( $tgt ));
-
-            my $check = $self->_checkSymlink( $tgt, $lnk );
-            if ( $check eq 'ok' ) {
-                debug( sprintf( 'Conf %s already enabled', $conf ), $caller );
-            } elsif ( $check eq 'missing' ) {
-                debug( sprintf( 'Enabling conf %s', $conf ), $caller );
-                $self->_createSymlink( $tgt, $lnk );
-                $self->_switchMarker( 'conf', 'enable', $conf );
-            } else {
-                die( sprintf( "Conf %s isn't properly enabled: %s", $conf, $check ));
-            }
+        unless ( -e $tgt ) {
+            warning( sprintf( '%s is a dangling symlink', $lnk )) if -l $lnk && !-e $lnk;
+            die( sprintf( "Conf %s doesn't exist", $conf ));
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
-    0;
+        # FIXME: Not sure that this is really needed for a 'conf' object but
+        # this is done like this in the a2ensite script...
+        #$self->_checkModuleDeps( $self->_getModDeps( $tgt ));
+
+        my $check = $self->_checkSymlink( $tgt, $lnk );
+        if ( $check eq 'ok' ) {
+            debug( sprintf( 'Conf %s already enabled', $conf ));
+        } elsif ( $check eq 'missing' ) {
+            debug( sprintf( 'Enabling conf %s', $conf ));
+            $self->_createSymlink( $tgt, $lnk );
+            $self->_switchMarker( 'conf', 'enable', $conf );
+        } else {
+            die( sprintf( "Conf %s isn't properly enabled: %s", $conf, $check ));
+        }
+    }
 }
 
 =item disableConfs( @confs )
@@ -401,44 +322,34 @@ sub disableConfs
 {
     my ($self, @confs) = @_;
 
-    eval {
-        my $caller = ( caller( 1 ) )[3];
+    for ( unique @confs ) {
+        my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
+        my $tgt = "$self->{'config'}->{'HTTPD_CONF_AVAILABLE_DIR'}/$conf.conf";
+        my $lnk = "$self->{'config'}->{'HTTPD_CONF_ENABLED_DIR'}/$conf.conf";
 
-        for ( unique @confs ) {
-            my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
-            my $tgt = "$self->{'config'}->{'HTTPD_CONF_AVAILABLE_DIR'}/$conf.conf";
-            my $lnk = "$self->{'config'}->{'HTTPD_CONF_ENABLED_DIR'}/$conf.conf";
-
-            unless ( -e $tgt ) {
-                if ( -l $lnk && !-e $lnk ) {
-                    debug( sprintf( 'Removing dangling symlink: %s', $lnk ), $caller );
-                    unlink( $lnk ) or die( sprintf( "Couldn't remove the %s symlink: %s", $lnk, $! ));
-                    next;
-                }
-
-                # Unlike a2disconf script behavior, we don't raise an error when
-                # the configuration that we try to disable doesn't exists
-                $self->_switchMarker( 'conf', 'disable', $conf ) if $self->{'_remove_obj'};
-                debug( sprintf( "Conf %s doesn't exist. Skipping...", $conf ), $caller );
+        unless ( -e $tgt ) {
+            if ( -l $lnk && !-e $lnk ) {
+                debug( sprintf( 'Removing dangling symlink: %s', $lnk ));
+                unlink( $lnk ) or die( sprintf( "Couldn't remove the %s symlink: %s", $lnk, $! ));
                 next;
             }
 
-            if ( -e $lnk || -l $lnk ) {
-                debug( sprintf( 'Disabling conf %s', $conf ), $caller );
-                $self->_removeSymlink( $lnk );
-                $self->_switchMarker( 'conf', 'disable', $conf );
-            } else {
-                debug( sprintf( 'Conf %s already disabled', $conf ), $caller );
-                $self->_switchMarker( 'conf', 'disable', $conf ) if $self->{'_remove_obj'};
-            }
+            # Unlike a2disconf script behavior, we don't raise an error when
+            # the configuration that we try to disable doesn't exists
+            $self->_switchMarker( 'conf', 'disable', $conf ) if $self->{'_remove_obj'};
+            debug( sprintf( "Conf %s doesn't exist. Skipping...", $conf ));
+            next;
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
-    0;
+        if ( -e $lnk || -l $lnk ) {
+            debug( sprintf( 'Disabling conf %s', $conf ));
+            $self->_removeSymlink( $lnk );
+            $self->_switchMarker( 'conf', 'disable', $conf );
+        } else {
+            debug( sprintf( 'Conf %s already disabled', $conf ));
+            $self->_switchMarker( 'conf', 'disable', $conf ) if $self->{'_remove_obj'};
+        }
+    }
 }
 
 =item removeConfs( @confs )
@@ -451,32 +362,23 @@ sub removeConfs
 {
     my ($self, @confs) = @_;
 
-    eval {
-        local $self->{'_remove_obj'} = 1;
-        my $caller = ( caller( 1 ) )[3];
+    local $self->{'_remove_obj'} = 1;
 
-        for ( unique @confs ) {
-            my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
+    for ( unique @confs ) {
+        my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
 
-            # Make sure that the conf is disabled before removing it
-            $self->disableConfs( $conf ) or die( getMessageByType( 'error ', { amount => 1, remove => 1 } ));
+        # Make sure that the conf is disabled before removing it
+        $self->disableConfs( $conf );
 
-            my $file = "$self->{'config'}->{'HTTPD_CONF_AVAILABLE_DIR'}/$conf.conf";
-            unless ( -f $file ) {
-                debug( sprintf( "Conf %s doesn't exist. Skipping...", $conf ), $caller );
-                next;
-            }
-
-            debug( sprintf( 'Removing conf %s', $conf ), $caller );
-            unlink( $file ) or die( sprintf( "Couldn't remove the %s conf: %s", $conf, $! ));
+        my $file = "$self->{'config'}->{'HTTPD_CONF_AVAILABLE_DIR'}/$conf.conf";
+        unless ( -f $file ) {
+            debug( sprintf( "Conf %s doesn't exist. Skipping...", $conf ));
+            next;
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
-    0;
+        debug( sprintf( 'Removing conf %s', $conf ));
+        unlink( $file ) or die( sprintf( "Couldn't remove the %s conf: %s", $conf, $! ));
+    }
 }
 
 =item enableModules( @mods )
@@ -489,75 +391,64 @@ sub enableModules
 {
     my ($self, @mods) = @_;
 
-    eval {
-        my $caller = ( caller( 1 ) )[3];
+    for ( unique @mods ) {
+        my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
 
-        for ( unique @mods ) {
-            my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
-
-            if ( $mod eq 'cgi' && grep( $self->{'config'}->{'HTTPD_MPM'} eq $_, qw/ event worker / ) ) {
-                debug( sprintf(
-                        "The Apache %s MPM is threaded. Selecting the cgid module instead of the cgi module", $self->{'config'}->{'HTTPD_MPM'}
-                    ), $caller );
-                $mod = 'cgid';
-            }
-
-            my $conftgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod.conf";
-            my $conflink = -e $conftgt ? "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.conf" : undef;
-            my $tgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod.load";
-            my $lnk = "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.load";
-
-            unless ( -e $tgt ) {
-                warning( sprintf( '%s is a dangling symlink', $lnk )) if -l $lnk && !-e $lnk;
-                die( sprintf( "Module %s doesn't exist", $mod ), $caller );
-            }
-
-            # Handle module dependencies
-            $self->_doModDeps( 'enable', $mod, $self->_getModDeps( $tgt ));
-            $self->_checkModConflicts( $mod, $self->_getModDeps( $tgt, 'Conflicts' ));
-
-            my $check = $self->_checkSymlink( $tgt, $lnk );
-            if ( $check eq 'ok' ) {
-                if ( $conflink ) {
-                    # handle module .conf file
-                    my $confcheck = $self->_checkSymlink( $conftgt, $conflink );
-                    if ( $confcheck eq 'ok' ) {
-                        debug( sprintf( 'Module %s already enabled', $mod ), $caller );
-                    } elsif ( $confcheck eq 'missing' ) {
-                        debug( sprintf( 'Enabling config file %s', "$mod.conf" ), $caller );
-                        $self->_createSymlink( $conftgt, $conflink );
-                    } else {
-                        die( sprintf( "Config file %s isn't properly enabled: %s", "$mod.conf", $confcheck ));
-                    }
-                } else {
-                    debug( sprintf( 'Module %s already enabled', $mod ), $caller );
-                }
-            } elsif ( $check eq 'missing' ) {
-                if ( $conflink ) {
-                    # handle module .conf file
-                    my $confcheck = $self->_checkSymlink( $conftgt, $conflink );
-                    if ( $confcheck eq 'missing' ) {
-                        $self->_createSymlink( $conftgt, $conflink );
-                    } elsif ( $confcheck ne 'ok' ) {
-                        die( sprintf( "Config file %s isn't properly enabled: %s", "$mod.conf", $confcheck ));
-                    }
-                }
-
-                debug( sprintf( 'Enabling module %s', $mod ), $caller );
-                $self->_createSymlink( $tgt, $lnk );
-                $self->_switchMarker( 'module', 'enable', $mod );
-            } else {
-                die( sprintf( "Module %s isn't properly enabled: %s", $mod, $check ));
-            }
+        if ( $mod eq 'cgi' && grep( $self->{'config'}->{'HTTPD_MPM'} eq $_, qw/ event worker / ) ) {
+            debug( sprintf( "The Apache %s MPM is threaded. Selecting the cgid module instead of the cgi module", $self->{'config'}->{'HTTPD_MPM'} ));
+            $mod = 'cgid';
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+
+        my $conftgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod.conf";
+        my $conflink = -e $conftgt ? "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.conf" : undef;
+        my $tgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod.load";
+        my $lnk = "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.load";
+
+        unless ( -e $tgt ) {
+            warning( sprintf( '%s is a dangling symlink', $lnk )) if -l $lnk && !-e $lnk;
+            die( sprintf( "Module %s doesn't exist", $mod ));
+        }
+
+        # Handle module dependencies
+        $self->_doModDeps( 'enable', $mod, $self->_getModDeps( $tgt ));
+        $self->_checkModConflicts( $mod, $self->_getModDeps( $tgt, 'Conflicts' ));
+
+        my $check = $self->_checkSymlink( $tgt, $lnk );
+        if ( $check eq 'ok' ) {
+            if ( $conflink ) {
+                # handle module .conf file
+                my $confcheck = $self->_checkSymlink( $conftgt, $conflink );
+                if ( $confcheck eq 'ok' ) {
+                    debug( sprintf( 'Module %s already enabled', $mod ));
+                } elsif ( $confcheck eq 'missing' ) {
+                    debug( sprintf( 'Enabling config file %s', "$mod.conf" ));
+                    $self->_createSymlink( $conftgt, $conflink );
+                } else {
+                    die( sprintf( "Config file %s isn't properly enabled: %s", "$mod.conf", $confcheck ));
+                }
+            } else {
+                debug( sprintf( 'Module %s already enabled', $mod ));
+            }
+        } elsif ( $check eq 'missing' ) {
+            if ( $conflink ) {
+                # handle module .conf file
+                my $confcheck = $self->_checkSymlink( $conftgt, $conflink );
+                if ( $confcheck eq 'missing' ) {
+                    $self->_createSymlink( $conftgt, $conflink );
+                } elsif ( $confcheck ne 'ok' ) {
+                    die( sprintf( "Config file %s isn't properly enabled: %s", "$mod.conf", $confcheck ));
+                }
+            }
+
+            debug( sprintf( 'Enabling module %s', $mod ));
+            $self->_createSymlink( $tgt, $lnk );
+            $self->_switchMarker( 'module', 'enable', $mod );
+        } else {
+            die( sprintf( "Module %s isn't properly enabled: %s", $mod, $check ));
+        }
     }
 
     $self->{'restart'} ||= 1;
-    0;
 }
 
 =item disableModules( @mods )
@@ -570,76 +461,67 @@ sub disableModules
 {
     my ($self, @mods) = @_;
 
-    eval {
-        my $caller = ( caller( 1 ) )[3];
+    for ( unique @mods ) {
+        my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
+        my $conftgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod.conf";
+        my $conflink = -e $conftgt ? "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.conf" : undef;
+        my $tgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod.load";
+        my $lnk = "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.load";
 
-        for ( unique @mods ) {
-            my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
-            my $conftgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod.conf";
-            my $conflink = -e $conftgt ? "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.conf" : undef;
-            my $tgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod.load";
-            my $lnk = "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.load";
+        unless ( -e $tgt ) {
+            if ( -l $lnk && !-e $lnk ) {
+                debug( sprintf( 'Removing dangling symlink: %s', $lnk ));
+                unlink( $lnk ) or die( sprintf( "Couldn't remove the %s symlink: %s", $lnk, $! ));
 
-            unless ( -e $tgt ) {
-                if ( -l $lnk && !-e $lnk ) {
-                    debug( sprintf( 'Removing dangling symlink: %s', $lnk ), $caller );
-                    unlink( $lnk ) or die( sprintf( "Couldn't remove the %s symlink: %s", $lnk, $! ));
-
-                    # Force a .conf path. It may exist as dangling link, too
-                    $conflink = "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.conf";
-                    if ( -l $conflink && !-e $conflink ) {
-                        debug( sprintf( 'Removing dangling symlink: %s', $conflink ), $caller );
-                        unlink( $conflink ) or die( sprintf( "Couldn't remove the %s symlink: %s", $conflink, $! ));
-                    }
-
-                    next;
+                # Force a .conf path. It may exist as dangling link, too
+                $conflink = "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$mod.conf";
+                if ( -l $conflink && !-e $conflink ) {
+                    debug( sprintf( 'Removing dangling symlink: %s', $conflink ));
+                    unlink( $conflink ) or die( sprintf( "Couldn't remove the %s symlink: %s", $conflink, $! ));
                 }
 
-                # Unlike a2dismod script behavior, we don't raise an error when
-                # the module that we try to disable doesn't exists
-                $self->_switchMarker( 'module', 'disable', $mod ) if $self->{'_remove_obj'};
-                debug( sprintf( "Module %s doesn't exist. Skipping...", $mod ), $caller );
                 next;
             }
 
-            # Handle module dependencies
-            my @deps;
-            for ( glob( "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/*.load" ) ) {
-                if ( grep($mod eq $_, $self->_getModDeps( $_ )) ) {
-                    m%/([^/]+).load$%;
-                    push @deps, $1;
-                }
-            }
-            if ( scalar @deps ) {
-                if ( $self->{'_remove_obj'} ) {
-                    $self->_doModDeps( 'disable', $mod, @deps );
-                } else {
-                    die( sprintf( "The following modules depend on %s and need to be disabled first: %s\n", $mod, "@deps" ));
-                }
-            }
-            undef @deps;
+            # Unlike a2dismod script behavior, we don't raise an error when
+            # the module that we try to disable doesn't exists
+            $self->_switchMarker( 'module', 'disable', $mod ) if $self->{'_remove_obj'};
+            debug( sprintf( "Module %s doesn't exist. Skipping...", $mod ));
+            next;
+        }
 
-            if ( -e $lnk || -l $lnk ) {
-                debug( sprintf( 'Disabling module %s', $mod ), $caller );
-                $self->_removeSymlink( $lnk );
-                $self->_removeSymlink( $conflink ) if $conflink && -e $conflink;
-                $self->_switchMarker( 'module', 'disable', $mod );
-            } elsif ( $conflink && -e $conflink ) {
-                debug( sprintf( 'Disabling stale config file %s', "$mod.conf" ), $caller );
-                $self->_removeSymlink( $conflink );
-            } else {
-                debug( sprintf( 'Module %s already disabled', $mod ), $caller );
-                $self->_switchMarker( 'module', 'disable', $mod ) if $self->{'_remove_obj'};
+        # Handle module dependencies
+        my @deps;
+        for ( glob( "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/*.load" ) ) {
+            if ( grep($mod eq $_, $self->_getModDeps( $_ )) ) {
+                m%/([^/]+).load$%;
+                push @deps, $1;
             }
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+        if ( scalar @deps ) {
+            if ( $self->{'_remove_obj'} ) {
+                $self->_doModDeps( 'disable', $mod, @deps );
+            } else {
+                die( sprintf( "The following modules depend on %s and need to be disabled first: %s\n", $mod, "@deps" ));
+            }
+        }
+        undef @deps;
+
+        if ( -e $lnk || -l $lnk ) {
+            debug( sprintf( 'Disabling module %s', $mod ));
+            $self->_removeSymlink( $lnk );
+            $self->_removeSymlink( $conflink ) if $conflink && -e $conflink;
+            $self->_switchMarker( 'module', 'disable', $mod );
+        } elsif ( $conflink && -e $conflink ) {
+            debug( sprintf( 'Disabling stale config file %s', "$mod.conf" ));
+            $self->_removeSymlink( $conflink );
+        } else {
+            debug( sprintf( 'Module %s already disabled', $mod ));
+            $self->_switchMarker( 'module', 'disable', $mod ) if $self->{'_remove_obj'};
+        }
     }
 
     $self->{'restart'} ||= 1;
-    0;
 }
 
 =item removeModules( @mods )
@@ -652,34 +534,25 @@ sub removeModules
 {
     my ($self, @mods) = @_;
 
-    eval {
-        local $self->{'_remove_obj'} = 1;
-        my $caller = ( caller( 1 ) )[3];
+    local $self->{'_remove_obj'} = 1;
 
-        for ( unique @mods ) {
-            my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
+    for ( unique @mods ) {
+        my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
 
-            # Make sure that the module is disabled before removing it
-            $self->disableModules( $mod ) or die( getMessageByType( 'error ', { amount => 1, remove => 1 } ));
+        # Make sure that the module is disabled before removing it
+        $self->disableModules( $mod );
 
-            for ( qw / .load .conf / ) {
-                my $file = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod$_";
-                unless ( -f $file ) {
-                    debug( sprintf( "Module %s file doesn't exist. Skipping...", "$mod$_" ), $caller );
-                    next;
-                }
-
-                debug( sprintf( 'Removing module %s', $mod ), $caller );
-                unlink( $file ) or die( sprintf( "Couldn't remove the %s module file: %s", "$mod$_", $! ));
+        for ( qw / .load .conf / ) {
+            my $file = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod$_";
+            unless ( -f $file ) {
+                debug( sprintf( "Module %s file doesn't exist. Skipping...", "$mod$_" ));
+                next;
             }
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
-    0;
+            debug( sprintf( 'Removing module %s', $mod ));
+            unlink( $file ) or die( sprintf( "Couldn't remove the %s module file: %s", "$mod$_", $! ));
+        }
+    }
 }
 
 =back
@@ -713,47 +586,35 @@ sub _setVersion
     my ($self) = @_;
 
     my $rs = execute( [ 'apache2ctl', '-v' ], \ my $stdout, \ my $stderr );
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    if ( $stdout !~ /apache\/([\d.]+)/i ) {
-        error( "Couldn't guess Apache version from the `apache2ctl -v` command output" );
-        return 1;
-    }
-
+    !$rs or die( $stderr || 'Unknown error' ) if $rs;
+    $stdout =~ /apache\/([\d.]+)/i or die( "Couldn't guess Apache version from the `apache2ctl -v` command output" );
     $self->{'config'}->{'HTTPD_VERSION'} = $1;
     debug( sprintf( 'Apache version set to: %s', $1 ));
-    0;
 }
 
 =item _makeDirs( )
 
  Create directories
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub _makeDirs
 {
-    eval {
-        iMSCP::Dir->new( dirname => '/var/log/apache2' )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ADM_GROUP'},
-            mode  => 0750
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+
+    iMSCP::Dir->new( dirname => '/var/log/apache2' )->make( {
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $main::imscpConfig{'ADM_GROUP'},
+        mode  => 0750
+    } );
 }
 
 =item _setupModules( )
 
  Setup Apache modules according selected MPM
 
- return 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -762,50 +623,49 @@ sub _setupModules
     my ($self) = @_;
 
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'event' ) {
-        my $rs = $self->disableModules( qw/ mpm_itk mpm_prefork mpm_worker cgi / );
-        $rs ||= $self->enableModules(
+        $self->disableModules( qw/ mpm_itk mpm_prefork mpm_worker cgi / );
+        $self->enableModules(
             qw/ mpm_event access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex
             cgid deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
         );
-        return $rs;
+        return;
     }
 
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
-        my $rs = $self->disableModules( qw/ mpm_event mpm_worker cgid suexec / );
-        $rs ||= $self->enableModules(
+        $self->disableModules( qw/ mpm_event mpm_worker cgid suexec / );
+        $self->enableModules(
             qw/ mpm_prefork mpm_itk access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host
             authz_user autoindex cgi deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl /
         );
-        return $rs;
+        return;
     }
 
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'prefork' ) {
-        my $rs = $self->disableModules( qw/ mpm_event mpm_itk mpm_worker cgid / );
-        $rs ||= $self->enableModules(
+        $self->disableModules( qw/ mpm_event mpm_itk mpm_worker cgid / );
+        $self->enableModules(
             qw/ mpm_prefork access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user
             autoindex cgi deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
         );
-        return $rs;
+        return;
     }
 
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'worker' ) {
-        my $rs = $self->disableModules( qw/ mpm_event mpm_itk mpm_prefork cgi / );
-        $rs ||= $self->enableModules(
+        $self->disableModules( qw/ mpm_event mpm_itk mpm_prefork cgi / );
+        $self->enableModules(
             qw/ mpm_worker access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex
             cgid deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
         );
-        return $rs;
+        return;
     }
 
-    error( 'Unknown Apache MPM' );
-    1;
+    die( 'Unknown Apache MPM' );
 }
 
 =item _configure( )
 
  Configure Apache
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -813,7 +673,7 @@ sub _configure
 {
     my ($self) = @_;
 
-    my $rs = $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->registerOne(
         'beforeApacheBuildConfFile',
         sub {
             my ($cfgTpl) = @_;
@@ -824,21 +684,14 @@ sub _configure
             } else {
                 ${$cfgTpl} =~ s/^(\s*Listen)\s+(80|443)\n/$1 0.0.0.0:$2\n/gim;
             }
-
-            0;
         }
     );
-    $rs ||= $self->buildConfFile( '/etc/apache2/ports.conf', '/etc/apache2/ports.conf' );
-
+    $self->buildConfFile( '/etc/apache2/ports.conf', '/etc/apache2/ports.conf' );
     # Turn off default access log provided by Debian package
-    $rs = $self->disableConfs( 'other-vhosts-access-log.conf' );
-    return $rs if $rs;
+    $self->disableConfs( 'other-vhosts-access-log.conf' );
 
     # Remove default access log file provided by Debian package
-    if ( -f "/var/log/apache2/other_vhosts_access.log" ) {
-        $rs = iMSCP::File->new( filename => "/var/log/apache2/other_vhosts_access.log" )->delFile();
-        return $rs if $rs;
-    }
+    iMSCP::File->new( filename => "/var/log/apache2/other_vhosts_access.log" )->remove();
 
     my $serverData = {
         HTTPD_CUSTOM_SITES_DIR => '/etc/apache2/imscp',
@@ -848,18 +701,18 @@ sub _configure
         VLOGGER_CONF_PATH      => "/etc/apache2/vlogger.conf"
     };
 
-    $rs = $self->buildConfFile( '00_nameserver.conf', '/etc/apache2/sites-available/00_nameserver.conf', undef, $serverData );
-    $rs ||= $self->enableSites( '00_nameserver.conf' );
-    $rs ||= $self->buildConfFile( '00_imscp.conf', '/etc/apache2/conf-available/00_imscp.conf', undef, $serverData );
-    $rs ||= $self->enableConfs( '00_imscp.conf' );
-    $rs ||= $self->disableSites( qw/ default default-ssl 000-default / ); # FIXME: 'default' provided by?
+    $self->buildConfFile( '00_nameserver.conf', '/etc/apache2/sites-available/00_nameserver.conf', undef, $serverData );
+    $self->enableSites( '00_nameserver.conf' );
+    $self->buildConfFile( '00_imscp.conf', '/etc/apache2/conf-available/00_imscp.conf', undef, $serverData );
+    $self->enableConfs( '00_imscp.conf' );
+    $self->disableSites( qw/ default default-ssl 000-default / ); # FIXME: 'default' provided by?
 }
 
 =item _installLogrotate( )
 
  Install Apache logrotate file
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -880,7 +733,7 @@ sub _installLogrotate
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -888,50 +741,34 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    if ( -f "$self->{'cfgDir'}/vlogger.conf" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/vlogger.conf" )->delFile();
-        return $rs if $rs;
-    }
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/vlogger.conf" )->remove();
 
-    my $rs = $self->disableSites( 'imscp.conf', '00_modcband.conf', '00_master.conf', '00_master_ssl.conf' );
-    return $rs if $rs;
+    $self->disableSites( 'imscp.conf', '00_modcband.conf', '00_master.conf', '00_master_ssl.conf' );
 
     for ( "$self->{'cfgDir'}/apache.old.data", "$self->{'cfgDir'}/vlogger.conf.tpl", "$self->{'cfgDir'}/vlogger.conf", '/usr/local/sbin/vlogger' ) {
-        next unless -f;
-        $rs = iMSCP::File->new( filename => $_ )->delFile();
-        return $rs if $rs;
+        iMSCP::File->new( filename => $_ )->remove();
     }
 
     for ( 'imscp.conf', '00_modcband.conf', '00_master.conf', '00_master_ssl.conf' ) {
-        next unless -f "/etc/apache2/sites-availables/$_";
-        $rs = iMSCP::File->new( filename => "/etc/apache2/sites-availables/$_" )->delFile();
-        return $rs if $rs;
+        iMSCP::File->new( filename => "/etc/apache2/sites-availables/$_" )->remove();
     }
 
-    eval { iMSCP::Dir->new( dirname => $_ )->remove() for '/var/log/apache2/backup', '/var/log/apache2/users', '/var/www/scoreboards'; };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Dir->new( dirname => $_ )->remove() for '/var/log/apache2/backup', '/var/log/apache2/users', '/var/www/scoreboards';
 
-    for ( glob "$main::imscpConfig{'USER_WEB_DIR'}/*/logs" ) {
-        $rs = umount( $_ );
-        return $rs if $rs;
+    for ( iMSCP::Dir->new( dirname => $main::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
+        next unless -d "$main::imscpConfig{'USER_WEB_DIR'}/$_/logs";
+        umount( "$main::imscpConfig{'USER_WEB_DIR'}/$_/logs" );
+        iMSCP::Dir->new( dirname => "$main::imscpConfig{'USER_WEB_DIR'}/$_/logs" )->clear( qr/.*\.log$/ );
     }
-
-    $rs = execute( "rm -f $main::imscpConfig{'USER_WEB_DIR'}/*/logs/*.log", \ my $stdout, \ my $stderr );
-    debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs;
 }
 
 =item _restoreDefaultConfig( )
 
  Restore default Apache configuration
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -939,51 +776,21 @@ sub _restoreDefaultConfig
 {
     my ($self) = @_;
 
-    eval { iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove(); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    if ( -f '/etc/apache2/vlogger.conf' ) {
-        my $rs = iMSCP::File->new( filename => '/etc/apache2/vlogger.conf' )->delFile();
-        return $rs if $rs;
-    }
-
-    if ( -f '/etc/apache2/sites-available/00_nameserver.conf' ) {
-        my $rs = $self->disableSites( '00_nameserver.conf' );
-        $rs ||= iMSCP::File->new( filename => '/etc/apache2/sites-available/00_nameserver.conf' )->delFile();
-        return $rs if $rs;
-    }
-
-    my $confDir = -d '/etc/apache2/conf-available' ? '/etc/apache2/conf-available' : 'etc/apache2/conf.d';
-
-    if ( -f "$confDir/00_imscp.conf" ) {
-        my $rs = $self->disableConfs( '00_imscp.conf' );
-        $rs ||= iMSCP::File->new( filename => "$confDir/00_imscp.conf" )->delFile();
-        return $rs if $rs;
-    }
-
-    eval {
-        for ( glob( "$main::imscpConfig{'USER_WEB_DIR'}/*/domain_disable_page" ) ) {
-            iMSCP::Dir->new( dirname => $_ )->remove();
-        }
-
-        iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove();
+    iMSCP::File->new( filename => '/etc/apache2/vlogger.conf' )->remove();
+    $self->disableSites( '00_nameserver.conf' );
+    iMSCP::File->new( filename => '/etc/apache2/sites-available/00_nameserver.conf' )->remove();
+    $self->disableConfs( '00_imscp.conf' );
+    iMSCP::File->new( filename => "/etc/apache2/conf-available/00_imscp.conf" )->remove();
+    iMSCP::Dir->new( dirname => $_ )->remove() for glob( "$main::imscpConfig{'USER_WEB_DIR'}/*/domain_disable_page" );
+    iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove();
 
     for ( '000-default', 'default' ) {
         next unless -f "/etc/apache2/sites-available/$_";
-        my $rs = $self->enableSites( $_ );
-        return $rs if $rs;
+        $self->enableSites( $_ );
     }
-
-    0;
 }
+
 =item _shutdown( $priority )
 
  See iMSCP::Servers::Abstract::_shutdown()
@@ -1035,7 +842,7 @@ sub _checkSymlink
 
  Param $string $tgt Link target
  Param $string $lnk Link path
- Return int 0 on success, die on failure
+ Return void, die on failure
 
 =cut
 
@@ -1043,12 +850,8 @@ sub _createSymlink
 {
     my ($self, $tgt, $lnk) = @_;
 
-    symlink( File::Spec->abs2rel( $tgt, dirname( $lnk )), $lnk ) or die(
-        sprintf( "Couldn't create the %s symlink: %s", $lnk, $! )
-    );
-
+    symlink( File::Spec->abs2rel( $tgt, dirname( $lnk )), $lnk ) or die( sprintf( "Couldn't create the %s symlink: %s", $lnk, $! ));
     $self->{'reload'} ||= 1;
-    0;
 }
 
 =item _removeSymlink( $lnk )
@@ -1117,11 +920,7 @@ sub _switchMarker
 
     return if $self->{'_remove_obj'};
 
-    iMSCP::File->new( filename => $stateMarker )->save() == 0 or die( sprintf(
-        "Failed to create the %s marker: %s",
-        $stateMarker,
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-    ));
+    iMSCP::File->new( filename => $stateMarker )->save();
 }
 
 =item _getModDeps( $file [, $type = 'Depends' ] )
@@ -1173,7 +972,6 @@ sub _doModDeps
 
     for ( @deps ) {
         debug( sprintf( 'Considering dependency %s for %s', $_, $mod ));
-
         ( $context eq 'enable' ? $self->enableModules( $_ ) : $self->disableModules( $_ ) ) == 0 or die(
             sprintf( "Couldn't %s dependency %s for %s", $context, $_, $mod )
         );
@@ -1200,7 +998,7 @@ sub _checkModuleDeps
     for ( @deps ) {
         debug( sprintf( 'Checking dependency %s for the %s module', $_, $mod ));
         -e "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$_.load" or die(
-            sprintf( "The module %s is not enabled, but %s depends on it." )
+            sprintf( 'The module %s is not enabled, but %s depends on it.', $_, $mod )
         );
     }
 }

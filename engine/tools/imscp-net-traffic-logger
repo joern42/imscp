@@ -32,14 +32,14 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
 use File::Basename;
-use iMSCP::Debug qw/ newDebug debug error /;
+use iMSCP::Debug qw/ newDebug debug /;
 use iMSCP::Bootstrapper;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
 use POSIX qw / locale_h /;
 
-setlocale( LC_MESSAGES, "C.UTF-8" );
+setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
 $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
@@ -54,61 +54,52 @@ sub start
     for my $exec( @EXECS ) {
         defined $exec or next;
 
-        # Creating IMSCP_INPUT and IMSCP_OUTPUT chains for incoming/outgoing traffic logging
+        # IMSCP_INPUT and IMSCP_OUTPUT chains for incoming/outgoing traffic logging
         for ( qw/ IMSCP_INPUT IMSCP_OUTPUT / ) {
             my $rs = execute( "$exec -t filter -N $_", \ my $stdout, \ my $stderr );
             debug( $stdout ) if $stdout;
-            error( $stderr || 'Unknown error' ) if $rs;
-            return $rs if $rs;
+            !$rs or die( $stderr || 'Unknown error' );
         }
 
-        # Adding rules to pass incoming/outgoing traffic through our chains, excluding traffic from/to `lo' interface
+        # Rules to pass incoming/outgoing traffic through our chains, excluding traffic from/to `lo' interface
         for ( '-I INPUT ! -i lo -j IMSCP_INPUT', '-I OUTPUT ! -o lo -j IMSCP_OUTPUT' ) {
             my $rs = execute( "$exec -t filter $_", \ my $stdout, \ my $stderr );
             debug( $stdout ) if $stdout;
-            error( $stderr || 'Unknown error' ) if $rs;
-            return $rs if $rs;
+            !$rs or die( $stderr || 'Unknown error' );
         }
 
         for ( $panelHttpPort, $panelHttpsPort, 80, 443, 110, 143, 25, 465, 587, 995, 993, 20, 21 ) {
             defined or next;
 
-            # Adding rule for logging incoming traffic to the given port
+            # Rule for logging incoming traffic to the given port
             my $rs = execute( "$exec -t filter -I IMSCP_INPUT -p tcp --dport $_", \ my $stdout, \ my $stderr );
             debug( $stdout ) if $stdout;
-            error( $stderr || 'Unknown error' ) if $rs;
-            return $rs if $rs;
+            !$rs or die( $stderr || 'Unknown error' );
 
-            # Adding rule for logging outgoing traffic from the given port
+            # Rule for logging outgoing traffic from the given port
             $rs = execute( "$exec -t filter -I IMSCP_OUTPUT -p tcp --sport $_", \$stdout, \$stderr );
             debug( $stdout ) if $stdout;
-            error( $stderr || 'Unknown error' ) if $rs;
-            return $rs if $rs;
+            !$rs or die( $stderr || 'Unknown error' );
         }
 
         for ( qw/ 25 465 587 / ) {
-            # Adding a rule for logging incoming traffic from the given port
+            # Rule for logging incoming traffic from the given port
             my $rs = execute( "$exec -t filter -I IMSCP_INPUT -p tcp --sport $_", \ my $stdout, \ my $stderr );
             debug( $stdout ) if $stdout;
-            error( $stderr || 'Unknown error' ) if $rs;
-            return $rs if $rs;
+            !$rs or die( $stderr || 'Unknown error' );
 
-            # Adding a rule for logging outgoing traffic to the given port
+            # Rule for logging outgoing traffic to the given port
             $rs = execute( "$exec -t filter -I IMSCP_OUTPUT -p tcp --dport $_", \$stdout, \$stderr );
             debug( $stdout ) if $stdout;
-            error( $stderr || 'Unknown error' ) if $rs;
-            return $rs if $rs;
+            !$rs or die( $stderr || 'Unknown error' );
         }
 
         for ( qw/ IMSCP_INPUT IMSCP_OUTPUT / ) {
             my $rs = execute( "$exec -t filter -A $_ -j RETURN", \ my $stdout, \ my $stderr );
             debug( $stdout ) if $stdout;
-            error( $stderr || 'Unknown error' ) if $rs;
-            return $rs if $rs;
+            !$rs or die( $stderr || 'Unknown error' );
         }
     }
-
-    0;
 }
 
 sub stop
@@ -118,10 +109,8 @@ sub stop
 
         my $rs = execute( "$exec -S | grep 'IMSCP_'", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        error( $stderr || 'Unknown error' ) if $rs > 1;
-        return $rs if $rs > 1;
-
-        next unless $stdout;
+        $rs < 2 or die( $stderr || 'Unknown error' );
+        $stdout ne '' or next;
 
         my %data;
         while ( $stdout =~ /^-(A|N)\s+(((?:IMSCP_)?(?:INPUT|OUTPUT)).*)/gmi ) {
@@ -130,7 +119,7 @@ sub stop
                 next;
             }
 
-            $data{'flush'}->{$3} = 1 unless $data{'flush'}->{$3};
+            $data{'flush'}->{$3} ||= 1;
         };
 
         # Delete i-MSCP rules on INPUT and OUTPUT chains if any
@@ -138,28 +127,22 @@ sub stop
             for ( @{$data{'delete'}} ) {
                 $rs = execute( "$exec -t filter -D $_", \$stdout, \$stderr );
                 debug( $stdout ) if $stdout;
-                error( $stderr || 'Unknown error' ) if $rs;
-                return $rs if $rs;
+                !$rs or die( $stderr || 'Unknown error' );
             }
         }
 
         # Flush and delete i-MSCP chains if any
-        if ( $data{'flush'} ) {
-            for ( keys %{$data{'flush'}} ) {
-                $rs = execute( "$exec -t filter -F $_", \$stdout, \$stderr );
-                debug( $stdout ) if $stdout;
-                error( $stderr || 'Unknown error' ) if $rs;
-                return $rs if $rs;
+        %{$data{'flush'}} or next;
+        for ( keys %{$data{'flush'}} ) {
+            $rs = execute( "$exec -t filter -F $_", \$stdout, \$stderr );
+            debug( $stdout ) if $stdout;
+            !$rs or die( $stderr || 'Unknown error' );
 
-                $rs ||= execute( "$exec -t filter -X $_", \$stdout, \$stderr );
-                debug( $stdout ) if $stdout;
-                error( $stderr || 'Unknown error' ) if $rs;
-                return $rs if $rs;
-            }
+            $rs = execute( "$exec -t filter -X $_", \$stdout, \$stderr );
+            debug( $stdout ) if $stdout;
+            !$rs or die( $stderr || 'Unknown error' );
         }
     }
-
-    0;
 }
 
 newDebug( 'imscp-net-traffic-logger.log' );
@@ -191,11 +174,14 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
 );
 
 my %dispatch = (
-    start => sub { stop() || start() },
+    start => sub {
+        stop();
+        start();
+    },
     stop  => \&stop
 );
 
-exit $dispatch{ $action }->();
+$dispatch{ $action }->();
 
 =head1 AUTHOR
 

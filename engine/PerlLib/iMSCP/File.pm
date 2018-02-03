@@ -134,7 +134,7 @@ sub remove
 {
     my ($self) = @_;
 
-    return unless -f $self->{'filename'};
+    return $self unless -f $self->{'filename'};
 
     unlink $self->{'filename'} or die( sprintf( 'Failed to delete %s: %s', $self->{'filename'}, $! ));
     $self;
@@ -297,7 +297,6 @@ sub move
         # Update the 'filename' attribute to make us able to continue working with
         # this file regardless of its new location.
         $self->{'filename'} = -d $target ? File::Spec->catfile( $target, basename( $self->{'filename'} )) : $target;
-
         return $self;
     };
 

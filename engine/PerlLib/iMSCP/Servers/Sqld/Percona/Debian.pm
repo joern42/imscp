@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use Class::Autouse qw/ :nostat iMSCP::Dir /;
 use File::Temp;
-use iMSCP::Debug qw/ debug error /;
+use iMSCP::Debug qw/ debug /;
 use version;
 use parent 'iMSCP::Servers::Sqld::Mysql::Debian';
 
@@ -72,7 +72,6 @@ sub _setVendor
 
     debug( sprintf( 'SQL server vendor set to: %s', 'Percona' ));
     $self->{'config'}->{'SQLD_VENDOR'} = 'Percona';
-    0;
 }
 
 =item _buildConf( )
@@ -85,21 +84,15 @@ sub _buildConf
 {
     my ($self) = @_;
 
-    eval {
-        # Make sure that the conf.d directory exists
-        iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => 0755
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    # Make sure that the conf.d directory exists
+    iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $main::imscpConfig{'ROOT_GROUP'},
+        mode  => 0755
+    } );
 
     # Build the my.cnf file
-    my $rs = $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
             unless ( defined ${$_[0]} ) {
@@ -107,15 +100,12 @@ sub _buildConf
             } elsif ( ${$_[0]} !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
                 ${$_[0]} .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
             }
-
-            0;
         }
     );
-    $rs ||= $self->buildConfFile(
+    $self->buildConfFile(
         ( -f "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" ? "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" : File::Temp->new() ),
         "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf", undef, undef, { srcname => 'my.cnf' }
     );
-    return $rs if $rs;
 
     # Build the imscp.cnf file
     my $conffile = File::Temp->new();
@@ -134,7 +124,7 @@ performance_schema = {PERFORMANCE_SCHEMA}
 sql_mode = {SQL_MODE}
 EOF
     $conffile->close();
-    $rs ||= $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
             my $version = version->parse( $self->getVersion());
@@ -148,10 +138,9 @@ EOF
             # Fix For: The 'INFORMATION_SCHEMA.SESSION_VARIABLES' feature is disabled; see the documentation for
             # 'show_compatibility_56' (3167) - Occurs when executing mysqldump with Percona server 5.7.x
             ${$_[0]} .= "show_compatibility_56 = ON\n" if $version >= version->parse( '5.7.6' );
-            0;
         }
     );
-    $rs ||= $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
+    $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
         {
             EVENT_SCHEDULER       => 'DISABLED',
             INNODB_USE_NATIVE_AIO => $main::imscpConfig{'SYSTEM_VIRTUALIZER'} eq 'physical' ? 'ON' : 'OFF',

@@ -121,7 +121,7 @@ function hasConflict($rrName, $rrType, $isNewRecord, &$errorString)
             return false;
         }
 
-        $errorString = tr("Conflict with the `%s' DNS resource record.", $response->answer[0]);
+        $errorString = tr("Conflict with the %s DNS resource record.", $response->answer[0]);
         return true;
     } catch (DnsResolverException $e) {
         // In case of failure, we just go ahead.

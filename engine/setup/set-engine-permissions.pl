@@ -70,13 +70,10 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     nolock          => 1
 } )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 
-my $rs = 0;
 my @items = ();
-
 for my $server(iMSCP::Servers->getInstance()->getListWithFullNames()) {
     push @items, [ $server, sub { $server->factory()->setEnginePermissions(); } ];
 }
-
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;
     push @items, [ $package, sub { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); } ];
@@ -89,7 +86,7 @@ debug( 'Setting base (engine) permissions' );
 printf( "Setting base (engine) permissions\t%s\t%s\n", $totalItems, $count ) if iMSCP::Getopt->context() eq 'installer';
 
 # e.g: /etc/imscp
-$rs = setRights( $main::imscpConfig{'CONF_DIR'},
+setRights( $main::imscpConfig{'CONF_DIR'},
     {
         user      => $main::imscpConfig{'ROOT_USER'},
         group     => $main::imscpConfig{'IMSCP_GROUP'},
@@ -99,7 +96,7 @@ $rs = setRights( $main::imscpConfig{'CONF_DIR'},
     }
 );
 # e.g: /var/www/imscp
-$rs |= setRights( $main::imscpConfig{'ROOT_DIR'},
+setRights( $main::imscpConfig{'ROOT_DIR'},
     {
         user  => $main::imscpConfig{'ROOT_USER'},
         group => $main::imscpConfig{'ROOT_GROUP'},
@@ -107,7 +104,7 @@ $rs |= setRights( $main::imscpConfig{'ROOT_DIR'},
     }
 );
 # e.g: /var/www/imscp/engine
-$rs |= setRights( "$main::imscpConfig{'ROOT_DIR'}/engine",
+setRights( "$main::imscpConfig{'ROOT_DIR'}/engine",
     {
         user      => $main::imscpConfig{'ROOT_USER'},
         group     => $main::imscpConfig{'IMSCP_GROUP'},
@@ -116,7 +113,7 @@ $rs |= setRights( "$main::imscpConfig{'ROOT_DIR'}/engine",
     }
 );
 # e.g: /var/www/virtual
-$rs |= setRights( $main::imscpConfig{'USER_WEB_DIR'},
+setRights( $main::imscpConfig{'USER_WEB_DIR'},
     {
         user  => $main::imscpConfig{'ROOT_USER'},
         group => $main::imscpConfig{'ROOT_GROUP'},
@@ -124,7 +121,7 @@ $rs |= setRights( $main::imscpConfig{'USER_WEB_DIR'},
     }
 );
 # e.g: /var/log/imscp
-$rs |= setRights( $main::imscpConfig{'LOG_DIR'},
+setRights( $main::imscpConfig{'LOG_DIR'},
     {
         user  => $main::imscpConfig{'ROOT_USER'},
         group => $main::imscpConfig{'IMSCP_GROUP'},
@@ -136,12 +133,9 @@ $count++;
 
 for ( @items ) {
     debug( sprintf( 'Setting %s engine permissions', $_->[0] ));
-    printf( "Setting %s engine permissions\t%s\t%s\n", $_->[0], $totalItems, $count ) if iMSCP::Getopt->context() eq 'installer';
-    $rs |= $_->[1]->();
-    $count++;
+    printf( "Setting %s engine permissions\t%s\t%s\n", $_->[0], $totalItems, $count++ ) if iMSCP::Getopt->context() eq 'installer';
+    $_->[1]->();
 }
-
-exit $rs;
 
 =head1 AUTHOR
 

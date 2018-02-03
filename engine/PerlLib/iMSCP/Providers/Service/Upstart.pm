@@ -26,7 +26,7 @@ package iMSCP::Providers::Service::Upstart;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use File::Basename;
 use File::Spec;
 use iMSCP::File;
@@ -157,9 +157,7 @@ sub remove
     for ( qw/ conf override / ) {
         if ( my $jobFilePath = eval { $self->getJobFilePath( $job, $_ ); } ) {
             debug( sprintf ( "Removing the %s upstart file", $jobFilePath ));
-            iMSCP::File->new( filename => $jobFilePath )->delFile() or die(
-                getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-            );
+            iMSCP::File->new( filename => $jobFilePath )->remove();
         }
     }
 
@@ -848,7 +846,7 @@ sub _searchJobFile
         return $filepath if -f $filepath;
     }
 
-    croak( sprintf( "Couldn't find the upstart `%s' job file", $jobFile ));
+    croak( sprintf( "Couldn't find the upstart %s job file", $jobFile ));
 }
 
 =item _readJobFile( $job )
@@ -856,7 +854,7 @@ sub _searchJobFile
  Read the job file which belongs to the given job
 
  Param string $job Job name
- Return string Job file content on success, croak on failure
+ Return string Job file content on success, die on failure
 
 =cut
 
@@ -866,8 +864,7 @@ sub _readJobFile
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
-    my $filepath = $self->getJobFilePath( $job );
-    iMSCP::File->new( filename => $filepath )->get() or die( sprintf( "Couldn't read the `%s' file", $filepath ));
+    iMSCP::File->new( filename => $self->getJobFilePath( $job ))->get();
 }
 
 =item _readJobOverrideFile( $job )
@@ -875,7 +872,7 @@ sub _readJobFile
  Read the job override file which belongs to the given job
 
  Param string job Job name
- Return string Job override file content on success, croak on failure
+ Return string Job override file content on success, die on failure
 
 =cut
 
@@ -888,9 +885,7 @@ sub _readJobOverrideFile
     my $filepath = eval { $self->getJobFilePath( $job, 'override' ) };
     return '' unless defined $filepath;
 
-    my $fileContent = iMSCP::File->new( filename => $filepath )->get();
-    defined $fileContent or croak( sprintf( "Couldn't read the `%s' file", $filepath ));
-    $fileContent;
+    iMSCP::File->new( filename => $filepath )->get();
 }
 
 =item _writeFile( $filename, $fileContent )
@@ -915,13 +910,12 @@ sub _writeFile
     my $file = iMSCP::File->new( filename => $filepath );
 
     if ( $fileContent ne '' ) {
-        $file->set( $fileContent );
-        $file->save() == 0 && $file->mode( 0644 ) == 0 or die( sprintf( "Couldn't write the `%s' file", $filepath ));
-    } elsif ( $filepath =~ /\.override$/ && -f $filepath ) {
-        $file->delFile() == 0 or die( sprintf( "Couldn't unlink the `%s' file", $filepath ));
-    } else {
-        1;
+        $file->set( $fileContent )->save()->mode( 0644 );
+    } elsif ( $filepath =~ /\.override$/ ) {
+        $file->remove();
     }
+
+    1;
 }
 
 =back

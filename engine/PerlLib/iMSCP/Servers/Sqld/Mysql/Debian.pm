@@ -31,7 +31,7 @@ use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use File::Temp;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Sqld::Mysql::Abstract';
@@ -58,8 +58,8 @@ sub preinstall
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::preinstall();
-    $rs ||= $self->_cleanup();
+    $self->SUPER::preinstall();
+    $self->_cleanup();
 }
 
 =item postinstall( )
@@ -72,12 +72,7 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->enable( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::Service->getInstance()->enable( 'mysql' );
     $self->SUPER::postinstall();
 }
 
@@ -93,19 +88,10 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_removeConfig();
-    return $rs if $rs;
+    $self->_removeConfig();
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->restart( 'mysql' ) if $srvProvider->hasService( 'mysql' ) && $srvProvider->isRunning( 'mysql' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->restart( 'mysql' ) if $srvProvider->hasService( 'mysql' ) && $srvProvider->isRunning( 'mysql' );
 }
 
 =item start( )
@@ -118,13 +104,7 @@ sub start
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->start( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->start( 'mysql' );
 }
 
 =item stop( )
@@ -137,13 +117,7 @@ sub stop
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->stop( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->stop( 'mysql' );
 }
 
 =item restart( )
@@ -156,13 +130,7 @@ sub restart
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->restart( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->restart( 'mysql' );
 }
 
 =item reload( )
@@ -175,13 +143,7 @@ sub reload
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->reload( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->reload( 'mysql' );
 }
 
 =back
@@ -200,21 +162,15 @@ sub _buildConf
 {
     my ($self) = @_;
 
-    eval {
-        # Make sure that the conf.d directory exists
-        iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => 0755
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    # Make sure that the conf.d directory exists
+    iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $main::imscpConfig{'ROOT_GROUP'},
+        mode  => 0755
+    } );
 
     # Build the my.cnf file
-    my $rs = $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
             unless ( defined ${$_[0]} ) {
@@ -222,15 +178,12 @@ sub _buildConf
             } elsif ( ${$_[0]} !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
                 ${$_[0]} .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
             }
-
-            0;
         }
     );
-    $rs ||= $self->buildConfFile(
+    $self->buildConfFile(
         ( -f "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" ? "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" : File::Temp->new() ),
         "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf", undef, undef, { srcname => 'my.cnf' }
     );
-    return $rs if $rs;
 
     # Build the imscp.cnf file
     my $conffile = File::Temp->new();
@@ -248,18 +201,17 @@ performance_schema = {PERFORMANCE_SCHEMA}
 sql_mode = {SQL_MODE}
 EOF
     $conffile->close();
-    $rs ||= $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
-            return 0 unless version->parse( $self->getVersion()) >= version->parse( '5.7.4' );
+            return unless version->parse( $self->getVersion()) >= version->parse( '5.7.4' );
 
             # For backward compatibility - We will review this in later version
             ${$_[0]} .= "default_password_lifetime = {DEFAULT_PASSWORD_LIFETIME}\n";
             $_[4]->{'DEFAULT_PASSWORD_LIFETIME'} = 0;
-            0;
         }
     );
-    $rs ||= $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
+    $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
         {
             EVENT_SCHEDULER       => 'DISABLED',
             INNODB_USE_NATIVE_AIO => $main::imscpConfig{'SYSTEM_VIRTUALIZER'} eq 'physical' ? 'ON' : 'OFF',
@@ -286,7 +238,6 @@ sub _updateServerConfig
     my ($self) = @_;
 
     # Upgrade MySQL tables if necessary
-
     {
         my $defaultsExtraFile = File::Temp->new();
         print $defaultsExtraFile <<'EOF';
@@ -297,7 +248,7 @@ user = "{USER}"
 password = "{PASSWORD}"
 EOF
         $defaultsExtraFile->close();
-        my $rs = $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
+        $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
                 HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
@@ -307,42 +258,27 @@ EOF
             { srcname => 'defaults-extra-file' }
         );
         # Simply mimic Debian behavior (/usr/share/mysql/debian-start.inc.sh)
-        $rs ||= execute(
+        my $rs = execute(
             "mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'", \my $stdout, \my $stderr
         );
         debug( $stdout ) if $stdout;
-        error( sprintf(
-            "Couldn't upgrade SQL server system tables: %s", $stderr || getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        )) if $rs;
-        return $rs if $rs;
+        !$rs or die( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' ));
     }
 
-    # Disable unwanted plugins
+    return if version->parse( $self->getVersion()) < version->parse( '5.6.6' );
 
-    return 0 if version->parse( $self->getVersion()) < version->parse( '5.6.6' );
-
-    eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'};
-
-        # Disable unwanted plugins (bc reasons)
-        for ( qw/ cracklib_password_check simple_password_check validate_password / ) {
-            $dbh->do( "UNINSTALL PLUGIN $_" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$_'" );
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    # Disable unwanted plugins (bc reasons)
+    my $dbh = iMSCP::Database->getInstance();
+    for ( qw/ cracklib_password_check simple_password_check validate_password / ) {
+        $dbh->do( "UNINSTALL PLUGIN $_" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$_'" );
     }
-
-    0;
 }
 
 =item _cleanup( )
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -350,23 +286,17 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    if ( -f "$self->{'cfgDir'}/imscp.cnf" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'cfgDir'}/imscp.cnf" )->delFile();
-        return $rs if $rs;
-    }
-
-    return 0 unless -f "$self->{'cfgDir'}/mysql.old.data";
-
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/mysql.old.data" )->delFile();
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/imscp.cnf" )->remove();
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/mysql.old.data" )->remove();
 }
 
 =item _removeConfig( )
 
  Remove imscp configuration file
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -374,9 +304,7 @@ sub _removeConfig
 {
     my ($self) = @_;
 
-    return 0 unless -f "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf";
-
-    iMSCP::File->new( filename => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf" )->delFile();
+    iMSCP::File->new( filename => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf" )->remove();
 }
 
 =back

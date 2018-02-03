@@ -64,7 +64,7 @@ sub errmsg
     chomp( $message );
 
     $self->_sendMail( 'i-MSCP - An error has been raised', <<"EOF", 'error' );
-An unexpected error has been raised :
+One or many unexpected errors were raised in i-MSCP backend:
 
 $message
 EOF
@@ -91,7 +91,7 @@ sub warnMsg
     chomp( $message );
 
     $self->_sendMail( 'i-MSCP - A warning has been raised', <<"EOF", 'warning' );
-An unexpected warning has been raised:
+One or many unexpected warnings were raised in i-MSCP backend:
 
 $message
 EOF

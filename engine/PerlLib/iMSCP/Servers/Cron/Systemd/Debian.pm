@@ -25,8 +25,7 @@ package iMSCP::Servers::Cron::Systemd::Debian;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug error /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Cron::Vixie::Debian';
@@ -53,12 +52,7 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->enable( 'cron.target' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::Service->getInstance()->enable( 'cron.target' );
     $self->iMSCP::Servers::Cron::postinstall();
 }
 
@@ -85,13 +79,7 @@ sub start
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->start( 'cron.target' ); };
-    if ( $@ ) {
-        die( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->start( 'cron.target' );
 }
 
 =item stop( )
@@ -104,13 +92,7 @@ sub stop
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->stop( 'cron.target' ); };
-    if ( $@ ) {
-        die( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->stop( 'cron.target' );
 }
 
 =item restart( )
@@ -123,13 +105,7 @@ sub restart
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->restart( 'cron.target' ); };
-    if ( $@ ) {
-        die( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->restart( 'cron.target' );
 }
 
 =item reload( )
@@ -163,14 +139,10 @@ sub _setVersion
     my ($self) = @_;
 
     my $rs = execute( 'dpkg -s systemd-cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    if ( $stdout !~ /version:\s+([\d.]+)/i ) {
-        error( "Couldn't guess Cron (Systemd) version from the `dpkg -s systemd-cron | grep -i '^version'` command output" );
-        return 1;
-    }
-
+    !$rs or die( $stderr || 'Unknown error' );
+    $stdout =~ /version:\s+([\d.]+)/i or die(
+        "Couldn't guess Cron (Systemd) version from the `dpkg -s systemd-cron | grep -i '^version'` command output"
+    );
     $self->{'config'}->{'CRON_VERSION'} = $1;
     debug( sprintf( 'Cron (Systemd) version set to: %s', $1 ));
     0;

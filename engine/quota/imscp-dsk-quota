@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- imscp-dsk-quota Computes customer's quota.
+ imscp-disk-quota Calculate quota for customers data (mail, Web and sql data)
 
 =head1 SYNOPSIS
 
@@ -33,7 +33,7 @@ use File::Basename;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
 use iMSCP::Bootstrapper;
-use iMSCP::Debug qw/ debug error getMessageByType newDebug /;
+use iMSCP::Debug qw/ debug error newDebug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
 use iMSCP::Mail;
@@ -47,7 +47,7 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 =head1 DESCRIPTION
 
- Computes customer's quota.
+ Calculate quota for customers data (mail, Web and sql data).
 
 =head1 PUBLIC METHODS
 
@@ -55,7 +55,7 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 =item quotaFiles( )
 
- Computes customer's mail and web quota
+ Calculate quota for customer's mail and Web data
 
  Return void
 
@@ -64,9 +64,7 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 sub quotaFiles
 {
     eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-
+        my $dbh = iMSCP::Database->getInstance();
         my $rows = $dbh->selectall_hashref(
             "SELECT domain_id, domain_name FROM domain WHERE domain_status NOT IN ('disabled', 'todelete')", 'domain_id'
         );
@@ -151,7 +149,7 @@ sub quotaFiles
 
 =item quotaSql( )
 
- Computes customer's SQL quota
+ Calculate quota for customer's SQL data
 
  Return void
 
@@ -160,14 +158,12 @@ sub quotaFiles
 sub quotaSql
 {
     eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-
+        my $dbh = iMSCP::Database->getInstance();
         my $rows = $dbh->selectall_hashref(
             "SELECT domain_id, domain_name, domain_disk_usage FROM domain WHERE domain_status NOT IN ('disabled', 'todelete')", 'domain_id'
         );
 
-        return 0 unless %{$rows};
+        return unless %{$rows};
 
         my $databases = $dbh->selectcol_arrayref( 'SHOW DATABASES' );
 
@@ -186,7 +182,7 @@ sub quotaSql
             $size += $dmnData->{'domain_disk_usage'};
 
             eval {
-                local $dbh->{'AutoCommit'} = 0;
+                $dbh->begin_work();
                 $dbh->do( 'UPDATE domain SET domain_disk_usage = ?, domain_disk_sql = ? WHERE domain_id = ?', undef, $size, $sqlSize, $dmnId );
                 $dbh->do( 'UPDATE quotatallies SET bytes_in_used = ? WHERE name = ?', undef, $size, $dmnData->{'domain_name'} );
                 $dbh->commit();
@@ -204,7 +200,7 @@ newDebug( 'imscp-dsk-quota.log' );
 
 iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
 
-Script which computes customer's quota.
+Calculate quota for customers data (mail, Web and sql data).
 
 OPTIONS:
  -d,    --debug         Enable debug mode.
@@ -220,9 +216,6 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
 
 quotaFiles();
 quotaSql();
-
-my @errors = getMessageByType( 'error' );
-iMSCP::Mail->new()->errmsg( "@errors" ) if @errors;
 
 =back
 

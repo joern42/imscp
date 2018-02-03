@@ -32,7 +32,7 @@ use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use File::Temp;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Service;
 use version;
 use parent 'iMSCP::Servers::Sqld::Mysql::Debian';
@@ -57,19 +57,10 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->enable( 'mariadb' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( 'mariadb' );
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ];
-            0;
-        },
-        $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ]; }, $self->getPriority()
     );
 }
 
@@ -85,19 +76,10 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_removeConfig();
-    return $rs if $rs;
+    $self->_removeConfig();
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->restart( 'mariadb' ) if $srvProvider->hasService( 'mariadb' ) && $srvProvider->isRunning( 'mariadb' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->restart( 'mariadb' ) if $srvProvider->hasService( 'mariadb' ) && $srvProvider->isRunning( 'mariadb' );
 }
 
 =item start( )
@@ -110,13 +92,7 @@ sub start
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->start( 'mariadb' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->start( 'mariadb' );
 }
 
 =item stop( )
@@ -129,13 +105,7 @@ sub stop
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->stop( 'mariadb' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->stop( 'mariadb' );
 }
 
 =item restart( )
@@ -148,13 +118,7 @@ sub restart
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->restart( 'mariadb' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->restart( 'mariadb' );
 }
 
 =item reload( )
@@ -167,13 +131,7 @@ sub reload
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->reload( 'mariadb' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->reload( 'mariadb' );
 }
 
 =item getHumanServerName( )
@@ -203,19 +161,15 @@ sub createUser
     defined $host or croak( '$host parameter is not defined' );
     defined $password or croak( '$password parameter is not defined' );
 
-    eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
+    my $dbh = iMSCP::Database->getInstance();
 
-        unless ( $dbh->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
-            # User doesn't already exist. We create it
-            $dbh->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
-        } else {
-            $dbh->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
-        }
-    };
-    !$@ or die( sprintf( "Couldn't create/update the %s\@%s SQL user: %s", $user, $host, $@ ));
-    0;
+    unless ( $dbh->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
+        # User doesn't already exist. We create it
+        $dbh->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
+        return;
+    }
+
+    $dbh->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
 }
 
 =back
@@ -236,7 +190,6 @@ sub _setVendor
 
     debug( sprintf( 'SQL server vendor set to: %s', 'MariaDB' ));
     $self->{'config'}->{'SQLD_VENDOR'} = 'MariaDB';
-    0;
 }
 
 =item _buildConf( )
@@ -249,21 +202,15 @@ sub _buildConf
 {
     my ($self) = @_;
 
-    eval {
-        # Make sure that the conf.d directory exists
-        iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => 0755
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    # Make sure that the conf.d directory exists
+    iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $main::imscpConfig{'ROOT_GROUP'},
+        mode  => 0755
+    } );
 
     # Build the my.cnf file
-    my $rs = $self->{'eventManager'}->registerOne(
+    $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
             unless ( defined ${$_[0]} ) {
@@ -271,15 +218,12 @@ sub _buildConf
             } elsif ( ${$_[0]} !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
                 ${$_[0]} .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
             }
-
-            0;
         }
     );
-    $rs ||= $self->buildConfFile(
+    $self->buildConfFile(
         ( -f "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" ? "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" : File::Temp->new() ),
         "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf", undef, undef, { srcname => 'my.cnf' }
     );
-    return $rs if $rs;
 
     # Build the imscp.cnf file
     my $conffile = File::Temp->new();
@@ -297,7 +241,7 @@ performance_schema = {PERFORMANCE_SCHEMA}
 sql_mode = {SQL_MODE}
 EOF
     $conffile->close();
-    $rs ||= $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
+    $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
         {
             EVENT_SCHEDULER       => 'DISABLED',
             INNODB_USE_NATIVE_AIO => $main::imscpConfig{'SYSTEM_VIRTUALIZER'} eq 'physical' ? 'ON' : 'OFF',
@@ -324,7 +268,6 @@ sub _updateServerConfig
     my ($self) = @_;
 
     # Upgrade MySQL tables if necessary
-
     {
         my $defaultsExtraFile = File::Temp->new();
         print $defaultsExtraFile <<'EOF';
@@ -335,7 +278,7 @@ user = "{USER}"
 password = "{PASSWORD}"
 EOF
         $defaultsExtraFile->close();
-        my $rs = $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
+        $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
                 HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
@@ -345,35 +288,21 @@ EOF
             { srcname => 'defaults-extra-file' }
         );
         # Simply mimic Debian behavior (/usr/share/mysql/debian-start.inc.sh)
-        $rs ||= execute(
+        my $rs = execute(
             "/mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'", \my $stdout, \my $stderr
         );
         debug( $stdout ) if $stdout;
-        error( sprintf(
-            "Couldn't upgrade SQL server system tables: %s", $stderr || getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
-        )) if $rs;
-        return $rs if $rs;
+        !$rs or die( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' ));
     }
 
-    # Disable unwanted plugins
+    return if version->parse( $self->getVersion()) < version->parse( '10.0' );
 
-    return 0 if version->parse( $self->getVersion()) < version->parse( '10.0' );
-
-    eval {
-        my $dbh = iMSCP::Database->getInstance()->getRawDb();
-        local $dbh->{'RaiseError'};
-
-        # Disable unwanted plugins (bc reasons)
-        for ( qw/ cracklib_password_check simple_password_check unix_socket validate_password / ) {
-            $dbh->do( "UNINSTALL PLUGIN $_" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$_'" );
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    # Disable unwanted plugins (bc reasons)
+    my $dbh = iMSCP::Database->getInstance();
+    for ( qw/ cracklib_password_check simple_password_check unix_socket validate_password / ) {
+        $dbh->do( "UNINSTALL PLUGIN $_" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$_'" );
     }
 
-    0;
 }
 
 =back

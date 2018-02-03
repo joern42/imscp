@@ -506,7 +506,7 @@ sub AUTOLOAD
     $method =~ /^
         (?:pre|post)?
         (?:add|disable|restore|delete)
-        (?:(?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddr|Mail|SSLcertificate|Subdomain|User)
+        (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddr|Mail|SSLcertificate|Subdomain|User)
         $/x or die( sprintf( 'Unknown %s method' ), $method );
 
     # Define the subroutine to prevent further evaluation

@@ -47,9 +47,8 @@ sub run
 {
     my ($action) = @_;
 
-    my $rs = 0;
     my $fstab = "$main::imscpConfig{'CONF_DIR'}/mounts/mounts.conf";
-    return $rs unless -f $fstab;
+    return unless -f $fstab;
 
     open my $fh, '<', $fstab or die( sprintf( "Couldn't open %s: %s", $fstab, $! ));
 
@@ -61,15 +60,11 @@ sub run
 
         if ( $action eq 'start' ) {
             next if $fields->{'fs_mntops'} =~ /\bnoauto\b/;
-            $rs = mount( $fields );
-            $rs ? last : next;
+            mount( $fields );
         }
 
-        $rs = umount( $fields->{'fs_file'} );
-        last if $rs;
+        umount( $fields->{'fs_file'} );
     }
-
-    $rs;
 }
 
 newDebug( 'imscp_mountall.log' );
@@ -100,7 +95,7 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     nolock          => 1
 } )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-mountall.lock", 'nowait' );
 
-exit run( $action );
+run( $action );
 
 =head1 AUTHOR
 

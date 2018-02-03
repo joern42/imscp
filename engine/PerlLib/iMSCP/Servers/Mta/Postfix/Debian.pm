@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use Class::Autouse qw/ :nostat iMSCP::ProgramFinder /;
 use File::Basename;
-use iMSCP::Debug qw/ debug error /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Service;
@@ -54,8 +54,8 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::install();
-    $rs ||= $self->_cleanup();
+    $self->SUPER::install();
+    $self->_cleanup();
 }
 
 =item postinstall( )
@@ -68,12 +68,7 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->enable( 'postfix' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::Service->getInstance()->enable( 'postfix' );
     $self->SUPER::postinstall();
 }
 
@@ -87,20 +82,11 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::uninstall();
-    $rs ||= $self->_restoreConffiles();
-    return $rs if $rs;
+    $self->SUPER::uninstall();
+    $self->_restoreConffiles();
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->restart( 'postfix' ) if $srvProvider->hasService( 'postfix' ) && $srvProvider->isRunning( 'postfix' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->restart( 'postfix' ) if $srvProvider->hasService( 'postfix' ) && $srvProvider->isRunning( 'postfix' );
 }
 
 =item dpkgPostInvokeTasks()
@@ -113,7 +99,7 @@ sub dpkgPostInvokeTasks
 {
     my ($self) = @_;
 
-    return 0 unless iMSCP::ProgramFinder::find( 'postconf' );
+    return unless iMSCP::ProgramFinder::find( 'postconf' );
 
     $self->_setVersion();
 }
@@ -128,13 +114,7 @@ sub start
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->start( 'postfix' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->start( 'postfix' );
 }
 
 =item stop( )
@@ -147,13 +127,7 @@ sub stop
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->stop( 'postfix' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->stop( 'postfix' );
 }
 
 =item restart( )
@@ -166,13 +140,7 @@ sub restart
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->restart( 'postfix' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->restart( 'postfix' );
 }
 
 =item reload( )
@@ -185,13 +153,7 @@ sub reload
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->reload( 'postfix' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->reload( 'postfix' );
 }
 
 =back
@@ -204,7 +166,7 @@ sub reload
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -212,16 +174,16 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' ) && -f "$self->{'cfgDir'}/postfix.old.data";
+    return unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/postfix.old.data" )->delFile();
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/postfix.old.data" )->remove();
 }
 
 =item _restoreConffiles( )
 
  Restore configuration files
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -231,14 +193,12 @@ sub _restoreConffiles
 
     for ( '/usr/share/postfix/main.cf.debian', '/usr/share/postfix/master.cf.dist' ) {
         next unless -f;
-        my $rs = iMSCP::File->new( filename => $_ )->copyFile( '/etc/postfix/' . basename( $_, '.debian', '.dist' ), { preserve => 'no' } );
-        return $rs if $rs;
+        iMSCP::File->new( filename => $_ )->copy( '/etc/postfix/' . basename( $_, '.debian', '.dist' ));
     }
 
     my $rs = execute( 'newaliases', \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    $rs;
+    !$rs or die( $stderr || 'Unknown error' );
 }
 
 =back

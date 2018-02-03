@@ -37,9 +37,7 @@ use parent 'iMSCP::Servers::Abstract';
 
 =item getPriority( )
 
- Get server priority
-
- Return int Server priority
+ See iMSCP::Servers::Abstract::getPriority()
 
 =cut
 

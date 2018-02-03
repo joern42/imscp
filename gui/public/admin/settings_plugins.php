@@ -94,7 +94,7 @@ function uploadPlugin($pluginManager)
         # Backup current plugin directory in temporary directory if exists
         if ($pluginManager->pluginIsKnown($pluginName)) {
             if (!@rename("$pluginDirectory/$pluginName", "$tmpDirectory/$pluginName" . '-old')) {
-                throw new iMSCPException(tr("Could not backup current `%s' plugin directory.", $pluginName));
+                throw new iMSCPException(tr("Could not backup current %s plugin directory.", $pluginName));
             }
         }
 

@@ -48,7 +48,7 @@ use warnings;
 use File::Basename;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
-use iMSCP::Debug qw/ output newDebug /;
+use iMSCP::Debug qw/ newDebug output /;
 use iMSCP::Dialog;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
@@ -93,10 +93,9 @@ sub run
 {
     require "$FindBin::Bin/imscp-setup-methods.pl";
 
-    my $rs = setupBoot();
-    $rs ||= iMSCP::EventManager->getInstance()->trigger( 'beforeSetup' );
-    $rs ||= setupRegisterListeners();
-    return $rs if $rs;
+    setupBoot();
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetup' );
+    setupRegisterListeners();
 
     unless ( iMSCP::Getopt->noprompt ) {
         my $dialog = iMSCP::Dialog->getInstance();
@@ -118,10 +117,12 @@ EOF
         $dialog->resetLabels();
     }
 
-    $rs ||= setupDialog();
-    $rs = setupTasks();
-    $rs ||= iMSCP::EventManager->getInstance()->trigger( 'afterSetup' );
-    return $rs if $rs || iMSCP::Getopt->noprompt;
+    setupDialog();
+    setupTasks();
+
+    iMSCP::EventManager->getInstance()->trigger( 'afterSetup' );
+
+    return if iMSCP::Getopt->noprompt;
 
     my $port = $main::imscpConfig{'BASE_SERVER_VHOST_PREFIX'} eq 'http://'
         ? $main::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $main::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
@@ -137,11 +138,7 @@ Please connect to $main::imscpConfig{'BASE_SERVER_VHOST_PREFIX'}$vhost:$port and
 
 Thank you for choosing i-MSCP.
 EOF
-
-    0;
 }
-
-exit run();
 
 =head1 AUTHOR
 

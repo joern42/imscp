@@ -362,7 +362,7 @@ function send_mail($data)
 
     foreach (['mail_id', 'username', 'email', 'subject', 'message'] as $parameter) {
         if (!isset($data[$parameter]) || !is_string($data[$parameter])) {
-            throw new  iMSCPException(sprintf("`%s' parameter is not defined or not a string", $parameter));
+            throw new  iMSCPException(sprintf("%s parameter is not defined or not a string", $parameter));
         }
     }
 
