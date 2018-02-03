@@ -89,7 +89,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|torestore|toenable|todisable domain tasks
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::Domain',
         "
@@ -102,7 +102,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|torestore|toenable|todisable subdomains tasks
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::Subdomain',
         "
@@ -115,7 +115,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|torestore|toenable|todisable domain aliases tasks
-    # (for each entitty, process only if the parent entity is in a consistent state)
+    # (for each entity, process only if the parent entity is in a consistent state)
     $self->_processDbTasks(
         'iMSCP::Modules::Alias',
         "
@@ -128,7 +128,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|torestore|toenable|todisable subdomains of domain aliases tasks
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::SubAlias',
         "
@@ -141,7 +141,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|toenable||todisable|todelete custom DNS records group which belong to domains
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::CustomDNS',
         "
@@ -155,7 +155,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|toenable|todisable|todelete custom DNS records group which belong to domain aliases
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::CustomDNS',
         "
@@ -169,7 +169,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|toenable|todisable|todelete ftp users tasks
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::FtpUser',
         "
@@ -182,7 +182,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|toenable|todisable|todelete mail tasks
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::Mail',
         "
@@ -195,7 +195,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|toenable|todisable|todelete Htusers tasks
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::Htpasswd',
         "
@@ -208,7 +208,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|toenable|todisable|todelete Htgroups tasks
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::Htgroup',
         "
@@ -221,7 +221,7 @@ sub processDbTasks
         "
     );
     # Process toadd|tochange|toenable|todisable|todelete Htaccess tasks
-    # For each entitty, process only if the parent entity is in a consistent state
+    # For each entity, process only if the parent entity is in a consistent state
     $self->_processDbTasks(
         'iMSCP::Modules::Htaccess',
         "
@@ -433,11 +433,11 @@ sub _processDbTasks
 
         if ( $self->{'_needStepper'} ) {
             step(
-                sub { $module->new()->handleEntity( $row->{'id'} ) },
+                sub { $module->getInstance()->handleEntity( $row->{'id'} ) },
                 sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ), $countRows, $nStep++
             );
         } else {
-            $module->new()->handleEntity( $row->{'id'} );
+            $module->getInstance()->handleEntity( $row->{'id'} );
         }
 
         endDebug();
