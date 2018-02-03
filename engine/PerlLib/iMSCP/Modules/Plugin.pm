@@ -334,7 +334,7 @@ sub _run
  Execute the given plugin action
 
  Note that an exception that is raised in the context of the plugin run()
- action is ignored by default because it is normaly the plugin responsability
+ action is ignored by default because it is normally the plugin responsability
  to update the entity for which the exception has been raised. However a plugin
  can force this module to bubble up the exception by setting the 'BUBBLE_EXCEPTIONS'
  property to a TRUE value, in which case the error will used to update the plugin
@@ -387,7 +387,7 @@ sub _executePluginAction
 
     # In context of the run() action, exception are not bubbled up by default, unless
     # the plugin 'BUBBLE_EXCEPTIONS' property is set with a TRUE value.
-    die if $@ && ( $action ne 'run' || $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}}->{'BUBBLE_EXCEPTIONS'} )
+    die if $@ && ( $action ne 'run' || $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}}->{'BUBBLE_EXCEPTIONS'} );
 }
 
 =back
