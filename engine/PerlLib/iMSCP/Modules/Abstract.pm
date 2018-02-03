@@ -30,7 +30,7 @@ use iMSCP::Debug qw/ debug /;
 use iMSCP::EventManager;
 use iMSCP::Packages;
 use iMSCP::Servers;
-use parent 'iMSCP::Common::Object';
+use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
@@ -39,6 +39,25 @@ use parent 'iMSCP::Common::Object';
 =head1 PUBLIC METHODS
 
 =over 4
+
+=item getPriority( )
+
+ Get module priority
+
+ Not used yet. Will be when the modules responsibility will be extended:
+  Installer -- *Modules -- *Servers -- *InstallationRoutines
+  Installer -- *Servers -- *InstallationRoutines (current)
+
+ Return int module priority
+
+=cut
+
+sub getPriority
+{
+    my ($self) = @_;
+
+    0;
+}
 
 =item getEntityType( )
 
@@ -208,7 +227,7 @@ sub _execActions
             my $moduleData = $self->_getModuleData( $method );
 
             debug( sprintf( "Executing %s action on i-MSCP servers...", $method ));
-            $_->factory()->$actionReal( $self ) for iMSCP::Servers->getInstance()->getListWithFullNames();
+            $_->factory()->$method( $self ) for iMSCP::Servers->getInstance()->getListWithFullNames();
 
             debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
             for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {

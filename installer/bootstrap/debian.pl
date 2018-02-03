@@ -54,7 +54,7 @@ system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "couldn't update APT ind
 prntInfo "Upgrading distribution packages (upgrade)...";
 system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgrade' ) == 0 or die( "couldn't upgrade distribution packages" );
 
-prntInfo 'Installing pre-required distribution package...';
+prntInfo 'Installing pre-required distribution packages...';
 system(
     'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
     'ca-certificates', 'cpanminus', 'debconf-utils', 'dialog', 'dirmngr', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
@@ -84,7 +84,7 @@ if ( eval "require Module::Load::Conditional; 1;" ) {
         system( 'cpanm', '--notest', '--quiet', keys %perlModules ) == 0 or die( "couldn't install pre-reuired Perl module(s) from CPAN" );
     }
 } else {
-    die( 'the Module::Load::Conditional Perl module not available' );
+    die( 'the Module::Load::Conditional Perl module is not available' );
 }
 
 1;

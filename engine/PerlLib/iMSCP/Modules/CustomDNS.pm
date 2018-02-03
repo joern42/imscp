@@ -203,7 +203,6 @@ sub _loadEntityData
     }
 
     $self->{'_data'} = {
-        ACTION                => $action,
         BASE_SERVER_PUBLIC_IP => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
         DOMAIN_NAME           => $self->{'domain_name'},
         DOMAIN_IP             => $self->{'domain_ip'},

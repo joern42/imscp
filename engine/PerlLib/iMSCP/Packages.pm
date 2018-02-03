@@ -72,7 +72,7 @@ sub getListWithFullNames
 
  Initialize instance
  
- Return iMSCP::Packages
+ Return iMSCP::Packages, die on failure
 
 =cut
 

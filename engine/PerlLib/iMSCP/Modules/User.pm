@@ -141,7 +141,7 @@ sub _add
                 shell        => $shell
             )->addSystemUser( $usergroup, $usergroup );
 
-            my ( $uid, $gid ) = ( getpwnam( $user ) )[2, 3];
+            my ( $uid, $gid ) = ( getpwnam( $usergroup ) )[2, 3];
             $self->{'_dbh'}->do(
                 'UPDATE admin SET admin_sys_name = ?, admin_sys_uid = ?, admin_sys_gname = ?, admin_sys_gid = ? WHERE admin_id = ?',
                 undef, $usergroup, $uid, $usergroup, $gid, $self->{'_data'}->{'USER_ID'},

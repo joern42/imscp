@@ -26,26 +26,24 @@ package iMSCP::Modules::Plugin;
 use strict;
 use warnings;
 use Hash::Merge qw/ merge /;
-use iMSCP::Database;
-use iMSCP::Debug qw/ debug /;
-use iMSCP::EventManager;
+use iMSCP::Debug qw/ debug warning /;
 use iMSCP::Getopt;
 use iMSCP::Plugins;
 use JSON;
 use LWP::Simple qw/ $ua get /;
 use version;
-use parent 'iMSCP::Common::Object';
+use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
  This module provides the backend side of the i-MSCP plugin manager. It is
- responsible to execute one or many actions on a particular plugin according
- its current state.
+ responsible to execute one or many actions on the plugins according their
+ current status.
  
- The plugin is instantiated with the following parameters:
+ The plugins are instantiated with the following parameters:
   action      : Plugin master action
-  config      : Plugin current configuration
-  config_prev : Plugin previous configuration
+  config      : Plugin current configuration, that is, the new plugin configuration
+  config_prev : Plugin previous configuration, that is, the older plugin configuration
   eventManager: EventManager instance
   info        : Plugin info
 
@@ -76,27 +74,25 @@ sub handleEntity
 {
     my ($self, $entityId) = @_;
 
-    $self->{'pluginId'} = $entityId;
-
     eval {
         $self->_loadEntityData( $entityId );
 
         my $method;
-        if ( $self->{'pluginStatus'} eq 'enabled' ) {
-            $self->{'pluginAction'} = 'run';
+        if ( $self->{'_data'}->{'plugin_status'} eq 'enabled' ) {
+            $self->{'_data'}->{'plugin_action'} = 'run';
             $method = '_run'
-        } elsif ( $self->{'pluginStatus'} =~ /^to(install|change|update|uninstall|enable|disable)$/ ) {
-            $self->{'pluginAction'} = $1;
-            $method = '_' . $self->{'pluginAction'};
+        } elsif ( $self->{'_data'}->{'plugin_status'} =~ /^to(install|change|update|uninstall|enable|disable)$/ ) {
+            $self->{'_data'}->{'plugin_action'} = $1;
+            $method = '_' . $self->{'_data'}->{'plugin_action'};
         } else {
-            die( sprintf( 'Unknown plugin status: %s', $self->{'pluginStatus'} ));
+            die( sprintf( 'Unknown plugin status: %s', $self->{'_data'}->{'plugin_status'} ));
         }
 
         $self->$method();
-        $self->{'eventManager'}->trigger( 'onBeforeSetPluginStatus', $self->{'pluginName'}, \$self->{'pluginStatus'} );
+        $self->{'eventManager'}->trigger( 'onBeforeSetPluginStatus', $self->{'_data'}->{'plugin_name'}, \$self->{'_data'}->{'plugin_status'} );
     };
 
-    return $self unless $@ || $self->{'pluginAction'} ne 'run';
+    return $self unless $@ || $self->{'_data'}->{'plugin_action'} ne 'run';
 
     my %pluginNextStateMap = (
         toinstall   => 'enabled',
@@ -110,19 +106,20 @@ sub handleEntity
     $self->{'dbh'}->do(
         "UPDATE plugin SET " . ( $@ ? 'plugin_error' : 'plugin_status' ) . " = ? WHERE plugin_id = ?",
         undef,
-        ( $@ ? $@ : $pluginNextStateMap{$self->{'pluginStatus'}} ),
+        ( $@ ? $@ : $pluginNextStateMap{$self->{'plugin_status'}} ),
         $entityId
     );
 
     return $self if iMSCP::Getopt->context() eq 'installer';
 
     my $cacheIds = 'iMSCP_Plugin_Manager_Metadata';
-    $cacheIds .= ";$self->{'pluginInfo'}->{'require_cache_flush'}" if $self->{'pluginInfo'}->{'require_cache_flush'};
+    $cacheIds .= ";$self->{'_data'}->{'plugin_info'}->{'require_cache_flush'}" if $self->{'_data'}->{'plugin_info'}->{'require_cache_flush'};
     my $httpScheme = $main::imscpConfig{'BASE_SERVER_VHOST_PREFIX'};
     my $url = "${httpScheme}127.0.0.1:" . ( $httpScheme eq 'http://'
         ? $main::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $main::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'}
     ) . "/fcache.php?ids=$cacheIds";
-    get( $url ) or warn( "Couldn't trigger flush of frontEnd cache" );
+    get( $url ) or warning( "Couldn't trigger flush of frontEnd cache" );
+
     $self;
 }
 
@@ -134,9 +131,7 @@ sub handleEntity
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Modules::Plugin
+ See iMSCP::Modules::Abstract::_init()
 
 =cut
 
@@ -145,15 +140,10 @@ sub _init
     my ($self) = @_;
 
     $ua->timeout( 5 );
-    $ua->agent( "i-MSCP/1.6 (+https://i-mscp.net/)" );
-    $ua->ssl_opts(
-        verify_hostname => 0,
-        SSL_verify_mode => 0x00
-    );
-    $self->{'dbh'} = iMSCP::Database->getInstance();
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    @{$self}{qw/ pluginId pluginAction pluginInstance pluginName pluginInfo pluginConfig pluginConfigPrev pluginStatus /} = undef;
-    $self;
+    $ua->agent( 'i-MSCP/1.6 (+https://i-mscp.net/)' );
+    $ua->ssl_opts( verify_hostname => 0, SSL_verify_mode => 0x00 );
+    $self->{'_plugin_instances'} = {};
+    $self->SUPER::_init();
 }
 
 =item _loadEntityData( $entityId )
@@ -166,15 +156,19 @@ sub _loadEntityData
 {
     my ($self, $entityId) = @_;
 
-    my $row = $self->{'dbh'}->selectrow_hashref(
+    my $row = $self->{'_dbh'}->selectrow_hashref(
         'SELECT plugin_name, plugin_info, plugin_config, plugin_config_prev, plugin_status FROM plugin WHERE plugin_id = ?', undef, $entityId
     );
     $row or die( sprintf( 'Data not found for plugin with ID %d', $entityId ));
-    $self->{'pluginName'} = $row->{'plugin_name'};
-    $self->{'pluginInfo'} = decode_json( $row->{'plugin_info'} );
-    $self->{'pluginConfig'} = decode_json( $row->{'plugin_config'} );
-    $self->{'pluginConfigPrev'} = decode_json( $row->{'plugin_config_prev'} );
-    $self->{'pluginStatus'} = $row->{'plugin_status'};
+
+    $self->{'_data'} = {
+        plugin_id          => $entityId,
+        plugin_name        => $row->{'plugin_name'},
+        plugin_info        => decode_json( $row->{'plugin_info'} ),
+        plugin_config      => decode_json( $row->{'plugin_config'} ),
+        plugin_config_prev => decode_json( $row->{'plugin_config_prev'} ),
+        plugin_status      => $row->{'plugin_status'}
+    };
 }
 
 =item _install( )
@@ -189,9 +183,9 @@ sub _install
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeInstallPlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onBeforeInstallPlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'install' );
-    $self->{'eventManager'}->trigger( 'onAfterInstallPlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onAfterInstallPlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_enable();
 }
 
@@ -207,9 +201,9 @@ sub _uninstall
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeUninstallPlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onBeforeUninstallPlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'uninstall' );
-    $self->{'eventManager'}->trigger( 'onAfterUninstallPlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onAfterUninstallPlugin', $self->{'_data'}->{'plugin_name'} );
 }
 
 =item _enable( )
@@ -224,9 +218,9 @@ sub _enable
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeEnablePlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onBeforeEnablePlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'enable' );
-    $self->{'eventManager'}->trigger( 'onAfterEnablePlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onAfterEnablePlugin', $self->{'_data'}->{'plugin_name'} );
 }
 
 =item _disable( )
@@ -241,9 +235,9 @@ sub _disable
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeDisablePlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onBeforeDisablePlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'disable' );
-    $self->{'eventManager'}->trigger( 'onAfterDisablePlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onAfterDisablePlugin', $self->{'_data'}->{'plugin_name'} );
 }
 
 =item _change( )
@@ -259,16 +253,18 @@ sub _change
     my ($self) = @_;
 
     $self->_disable();
-    $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'change' );
-    $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'_data'}->{'plugin_name'} );
 
-    if ( $self->{'pluginInfo'}->{'__need_change__'} ) {
-        $self->{'pluginConfigPrev'} = $self->{'pluginConfig'};
-        $self->{'pluginInfo'}->{'__need_change__'} = JSON::false;
-        $self->{'dbh'}->do(
+    if ( $self->{'plugin_info'}->{'__need_change__'} ) {
+        $self->{'_data'}->{'plugin_config_prev'} = $self->{'_data'}->{'plugin_config'};
+        $self->{'_data'}->{'plugin_info'}->{'__need_change__'} = JSON::false;
+        $self->{'_data'}->{'_dbh'}->do(
             'UPDATE plugin SET plugin_info = ?, plugin_config_prev = plugin_config WHERE plugin_id = ?',
-            undef, encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'}
+            undef,
+            encode_json( $self->{'_data'}->{'plugin_info'} ),
+            $self->{'_data'}->{'pluginId'}
         );
     }
 
@@ -288,23 +284,29 @@ sub _update
     my ($self) = @_;
 
     $self->_disable();
-    $self->{'eventManager'}->trigger( 'onBeforeUpdatePlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onBeforeUpdatePlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'update' );
-    $self->{'pluginInfo'}->{'version'} = $self->{'pluginInfo'}->{'__nversion__'};
-    $self->{'dbh'}->do( 'UPDATE plugin SET plugin_info = ? WHERE plugin_id = ?', undef, encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'} );
-    $self->{'eventManager'}->trigger( 'onAfterUpdatePlugin', $self->{'pluginName'} );
+    $self->{'_data'}->{'plugin_info'}->{'version'} = $self->{'_data'}->{'plugin_info'}->{'__nversion__'};
+    $self->{'_dbh'}->do(
+        'UPDATE plugin SET plugin_info = ? WHERE plugin_id = ?',
+        undef,
+        encode_json( $self->{'_data'}->{'plugin_info'} ),
+        $self->{'_data'}->{'pluginId'}
+    );
+    $self->{'eventManager'}->trigger( 'onAfterUpdatePlugin', $self->{'_data'}->{'plugin_name'} );
 
-    if ( $self->{'pluginInfo'}->{'__need_change__'} ) {
-        $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'pluginName'} );
+    if ( $self->{'_data'}->{'plugin_info'}->{'__need_change__'} ) {
+        $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'_data'}->{'plugin_name'} );
         $self->_executePluginAction( 'change' );
-        $self->{'pluginConfigPrev'} = $self->{'pluginConfig'};
-        $self->{'pluginInfo'}->{'__need_change__'} = JSON::false;
-        $self->{'dbh'}->do(
+        $self->{'_data'}->{'plugin_config_prev'} = $self->{'_data'}->{'plugin_config'};
+        $self->{'_data'}->{'plugin_info'}->{'__need_change__'} = JSON::false;
+        $self->{'_dbh'}->do(
             'UPDATE plugin SET plugin_info = ?, plugin_config_prev = plugin_config WHERE plugin_id = ?',
             undef,
-            encode_json( $self->{'pluginInfo'} ), $self->{'pluginId'}
+            encode_json( $self->{'_data'}->{'plugin_info'} ),
+            $self->{'_data'}->{'pluginId'}
         );
-        $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'pluginName'} );
+        $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'_data'}->{'plugin_name'} );
     }
 
     $self->_enable();
@@ -322,21 +324,21 @@ sub _run
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onBeforeRunPlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onBeforeRunPlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'run' );
-    $self->{'eventManager'}->trigger( 'onAfterRunPlugin', $self->{'pluginName'} );
+    $self->{'eventManager'}->trigger( 'onAfterRunPlugin', $self->{'_data'}->{'plugin_name'} );
 }
 
 =item _executePluginAction( $action )
 
  Execute the given plugin action
 
- Note that an exception that is raised in the context of the run() action is
- ignored by default because it is normaly the plugin responsability to update
- the entity for which the exception has been raised. However a plugin can force
- this module to bubble up the exception by setting the 'BUBBLE_EXCEPTIONS'
- property on the plugin package to a TRUE value, in which case the error will
- used tol update the plugin status.
+ Note that an exception that is raised in the context of the plugin run()
+ action is ignored by default because it is normaly the plugin responsability
+ to update the entity for which the exception has been raised. However a plugin
+ can force this module to bubble up the exception by setting the 'BUBBLE_EXCEPTIONS'
+ property to a TRUE value, in which case the error will used to update the plugin
+ status.
 
  Param string $action Action to execute on the plugin
  Return void, die on failure
@@ -347,36 +349,45 @@ sub _executePluginAction
 {
     my ($self, $action) = @_;
 
-    unless ( $self->{'pluginInstance'} ) {
+    unless ( $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}} ) {
         local $SIG{'__WARN__'} = sub { die @_ }; # Turn any warning from plugin into exception
-        my $pluginClass = iMSCP::Plugins->getInstance()->getClass( $self->{'pluginName'} );
-        return undef unless $pluginClass->can( $action ); # Do not instantiate plugin when not necessary
 
-        $self->{'pluginInstance'} = ( $pluginClass->can( 'getInstance' ) || $pluginClass->can( 'new' ) || die( 'Bad plugin class' ) )->(
+        my $pluginClass = iMSCP::Plugins->getInstance()->getClass( $self->{'_data'}->{'plugin_name'} );
+        return unless $pluginClass->can( $action ); # Do not instantiate plugin when not necessary
+
+        # A plugin must be either of type iMSCP::Common::Singleton or of type iMSCP::Common::Object
+        $pluginClass-isa( 'iMSCP::Common::Singleton' ) xor $pluginClass-isa( 'iMSCP::Common::Object' ) or die(
+            sprintf( 'The %s plugin must be either of type iMSCP::Common::Singleton or of type iMSCP::Common::Object' )
+        );
+
+        $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}} = (
+            $pluginClass->can( 'getInstance' ) || $pluginClass->can( 'new' ) || die( 'Bad plugin class' )
+        )->(
             $pluginClass,
-            action       => $self->{'pluginAction'},
-            config       => $self->{'pluginConfig'},
-            config_prev  => ( $self->{'pluginAction'} =~ /^(?:change|update)$/
+            action       => $self->{'_data'}->{'plugin_action'},
+            config       => $self->{'_data'}->{'plugin_config'},
+            config_prev  => ( $self->{'_data'}->{'plugin_action'} =~ /^(?:change|update)$/
                 # On plugin change/update, make sure that prev config also contains any new parameter
-                ? merge( $self->{'pluginConfigPrev'}, $self->{'pluginConfig'} ) : $self->{'pluginConfigPrev'} ),
+                ? merge( $self->{'_data'}->{'plugin_config_prev'}, $self->{'_data'}->{'plugin_config'} ) : $self->{'_data'}->{'plugin_config_prev'} ),
             eventManager => $self->{'eventManager'},
-            info         => $self->{'pluginInfo'}
+            info         => $self->{'_data'}->{'plugin_info'}
         );
     }
 
-    my $subref = $self->{'pluginInstance'}->can( $action ) or return;
-    debug( sprintf( "Executing %s( ) action on %s", $action, ref $self->{'pluginInstance'} ));
+    my $subref = $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}}->can( $action ) or return;
+    debug( sprintf( "Executing %s( ) action on %s", $action, ref $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}} ));
 
     local $@;
     eval {
         $subref->(
-            $self->{'pluginInstance'}, $action eq 'update' ? ( $self->{'pluginInfo'}->{'version'}, $self->{'pluginInfo'}->{'__nversion__'} ) : ()
+            $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}},
+            ( $action eq 'update' ? ( $self->{'_data'}->{'plugin_info'}->{'version'}, $self->{'_data'}->{'plugin_info'}->{'__nversion__'} ) : () )
         );
     };
 
     # In context of the run() action, exception are not bubbled up by default, unless
     # the plugin 'BUBBLE_EXCEPTIONS' property is set with a TRUE value.
-    die if $@ && ( $action ne 'run' || $self->{'pluginInstance'}->{'BUBBLE_EXCEPTIONS'} )
+    die if $@ && ( $action ne 'run' || $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}}->{'BUBBLE_EXCEPTIONS'} )
 }
 
 =back

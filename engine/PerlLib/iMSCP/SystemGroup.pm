@@ -72,7 +72,7 @@ sub addSystemGroup
 
 sub delSystemGroup
 {
-    my (undef, $groupname) = @_;
+    my ($self, $groupname) = @_;
 
     defined $groupname or croak( '$groupname parameter is not defined' );
     $groupname ne $main::imscpConfig{'ROOT_GROUP'} or croak( sprintf( '%s group deletion is prohibited', $main::imscpConfig{'ROOT_GROUP'} ));
