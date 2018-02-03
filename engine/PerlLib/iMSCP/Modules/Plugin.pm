@@ -53,23 +53,33 @@ use parent 'iMSCP::Common::Object';
 
 =over 4
 
-=item handleEntity( $pluginId )
+=item getEntityType( )
 
- Handle the given plugin entity
+ See iMSCP::Modules::Abstract::getEntityType()
 
- Param int Plugin unique identifier
- Return self, die on failure
+=cut
+
+sub getEntityType
+{
+    my ($self) = @_;
+
+    'Plugin';
+}
+
+=item handleEntity( $entityId )
+
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $pluginId) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->{'pluginId'} = $pluginId;
+    $self->{'pluginId'} = $entityId;
 
     eval {
-        $self->_loadData( $pluginId );
+        $self->_loadEntityData( $entityId );
 
         my $method;
         if ( $self->{'pluginStatus'} eq 'enabled' ) {
@@ -99,7 +109,9 @@ sub handleEntity
 
     $self->{'dbh'}->do(
         "UPDATE plugin SET " . ( $@ ? 'plugin_error' : 'plugin_status' ) . " = ? WHERE plugin_id = ?",
-        undef, ( $@ ? $@ : $pluginNextStateMap{$self->{'pluginStatus'}} ), $self->{'pluginId'}
+        undef,
+        ( $@ ? $@ : $pluginNextStateMap{$self->{'pluginStatus'}} ),
+        $entityId
     );
 
     return $self if iMSCP::Getopt->context() eq 'installer';
@@ -144,23 +156,20 @@ sub _init
     $self;
 }
 
-=item _loadData( $pluginId )
+=item _loadEntityData( $entityId )
 
- Load plugin data
-
- Param int Plugin unique identifier
- Return void, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _loadData
+sub _loadEntityData
 {
-    my ($self, $pluginId) = @_;
+    my ($self, $entityId) = @_;
 
     my $row = $self->{'dbh'}->selectrow_hashref(
-        'SELECT plugin_name, plugin_info, plugin_config, plugin_config_prev, plugin_status FROM plugin WHERE plugin_id = ?', undef, $pluginId
+        'SELECT plugin_name, plugin_info, plugin_config, plugin_config_prev, plugin_status FROM plugin WHERE plugin_id = ?', undef, $entityId
     );
-    $row or die( sprintf( 'Data not found for plugin with ID %d', $pluginId ));
+    $row or die( sprintf( 'Data not found for plugin with ID %d', $entityId ));
     $self->{'pluginName'} = $row->{'plugin_name'};
     $self->{'pluginInfo'} = decode_json( $row->{'plugin_info'} );
     $self->{'pluginConfig'} = decode_json( $row->{'plugin_config'} );

@@ -38,96 +38,37 @@ use parent 'iMSCP::Modules::Abstract';
 
 =item getEntityType( )
 
- Get entity type
-
- Return string entity type
+ See iMSCP::Modules::Abstract::getEntityType()
 
 =cut
 
 sub getEntityType
 {
+    my ($self) = @_;
+
     'Htgroup';
 }
 
-=item add()
+=item handleEntity( $entityId )
 
- Add, change or enable the htgroup
-
- Return self, die on failure
-
-=cut
-
-sub add
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::add(); };
-    $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@ || 'ok', $self->{'id'} );
-    $self;
-}
-
-=item delete()
-
- Delete the htgroup
-
- Return self, die on failure
-
-=cut
-
-sub delete
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::delete(); };
-    if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@, $self->{'id'} );
-        return $self;
-    }
-
-    $self->{'_dbh'}->do( 'DELETE FROM htaccess_groups WHERE id = ?', undef, $self->{'id'} );
-    $self;
-}
-
-=item disable()
-
- Disable the htgroup
-
- Return self, die on failure
-
-=cut
-
-sub disable
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::disable(); };
-    $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@ || 'disabled', $self->{'id'} );
-    $self;
-}
-
-=item handleEntity( $htgroupId )
-
- Handle the given htgroup entity
-
- Param int $htgroupId Htgroup unique identifier
- Return self, die on failure
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $htgroupId) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->_loadData( $htgroupId );
+    $self->_loadEntityData( $entityId );
 
-    if ( $self->{'status'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->add();
-    } elsif ( $self->{'status'} eq 'todisable' ) {
-        $self->disable();
-    } elsif ( $self->{'status'} eq 'todelete' ) {
-        $self->delete();
+    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
+        $self->_add();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
+        $self->_disable();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
+        $self->_delete();
     } else {
-        die( sprintf( 'Unknown action (%s) for htgroup (ID %d)', $self->{'status'}, $htgroupId ));
+        die( sprintf( 'Unknown action (%s) for htgroup (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
 
     $self;
@@ -139,18 +80,15 @@ sub handleEntity
 
 =over 4
 
-=item _loadData( $htgroupId )
+=item _loadEntityData( $entityId )
 
- Load data
-
- Param int $htgroupId $Htgroup unique identifier
- Return void, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _loadData
+sub _loadEntityData
 {
-    my ($self, $htgroupId) = @_;
+    my ($self, $entityId) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         "
@@ -166,42 +104,76 @@ sub _loadData
             JOIN domain AS t3 ON (t2.dmn_id = t3.domain_id)
             WHERE id = ?
         ",
-        undef, $htgroupId, $htgroupId
+        undef,
+        $entityId,
+        $entityId
     );
-    $row or die( sprintf( 'Data not found for htgroup (ID %d)', $htgroupId ));
-    %{$self} = ( %{$self}, %{$row} );
+    $row or die( sprintf( 'Data not found for htgroup (ID %d)', $entityId ));
+
+    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
+
+    $self->{'_data'} = {
+        ID                    => $row->{'id'},
+        STATUS                => $row->{'status'},
+        DOMAIN_ADMIN_ID       => $row->{'domain_admin_id'},
+        USER                  => $usergroup,
+        GROUP                 => $usergroup,
+        WEB_DIR               => File::Spec->canonpath( "$main::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" ),
+        HTGROUP_NAME          => $row->{'ugroup'},
+        HTGROUP_USERS         => $row->{'users'},
+        HTGROUP_DMN           => $row->{'domain_name'},
+        WEB_FOLDER_PROTECTION => $row->{'web_folder_protection'}
+    };
 }
 
-=item _getData( $action )
+=item _add()
 
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data
+ See iMSCP::Modules::Abstract::_add()
 
 =cut
 
-sub _getData
+sub _add
 {
-    my ($self, $action) = @_;
+    my ($self) = @_;
 
-    return $self->{'_data'} if %{$self->{'_data'}};
+    eval { $self->SUPER::_add(); };
+    $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@ || 'ok', $self->{'_data'}->{'ID'} );
+    $self;
+}
 
-    my $webDir = File::Spec->canonpath( "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'domain_name'}" );
-    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'domain_admin_id'} );
+=item _delete()
 
-    $self->{'_data'} = {
-        ACTION                => $action,
-        STATUS                => $self->{'status'},
-        DOMAIN_ADMIN_ID       => $self->{'domain_admin_id'},
-        USER                  => $usergroup,
-        GROUP                 => $usergroup,
-        WEB_DIR               => $webDir,
-        HTGROUP_NAME          => $self->{'ugroup'},
-        HTGROUP_USERS         => $self->{'users'},
-        HTGROUP_DMN           => $self->{'domain_name'},
-        WEB_FOLDER_PROTECTION => $self->{'web_folder_protection'}
-    };
+ See iMSCP::Modules::Abstract::_delete()
+
+=cut
+
+sub _delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@, $self->{'_data'}->{'ID'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM htaccess_groups WHERE id = ?', undef, $self->{'_data'}->{'ID'} );
+    $self;
+}
+
+=item _disable()
+
+ See iMSCP::Modules::Abstract::_disable()
+
+=cut
+
+sub _disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::disable(); };
+    $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'ID'} );
+    $self;
 }
 
 =back

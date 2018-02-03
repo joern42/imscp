@@ -70,66 +70,6 @@ sub handleEntity
     die( sprintf( 'The %s module must implements the handleEntity( ) method', ref $self ));
 }
 
-=item add( )
-
- Execute the `add' action on servers, packages
-
- Should be executed for entities with 'toadd|tochange|toenable' status.
-
- Return void, die on failure
-
-=cut
-
-sub add
-{
-    $_[0]->_execAllActions( 'add' );
-}
-
-=item delete( )
-
- Execute the `delete' action on servers, packages
-
- Should be executed for entities with 'todelete' status.
-
- Return void, die on failure
-
-=cut
-
-sub delete
-{
-    $_[0]->_execAllActions( 'delete' );
-}
-
-=item restore( )
-
- Execute the `restore' action on servers, packages
-
- Should be executed for entities with 'torestore' status.
-
- Return void, die on failure
-
-=cut
-
-sub restore
-{
-    $_[0]->_execAllActions( 'restore' );
-}
-
-=item disable( )
-
- Execute the `disable' action on servers, packages
-
- Should be executed for entities with 'todisable' status.
-
- Return void, die on failure
-
-=cut
-
-sub disable
-{
-    $_[0]->_execAllActions( 'disable' );
-}
-
 =back
 
 =head1 PRIVATES METHODS
@@ -138,9 +78,7 @@ sub disable
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Modules::Abstract, die on failure
+ See iMSCP::Common::Object::_init()
 
 =cut
 
@@ -154,37 +92,102 @@ sub _init
     $self;
 }
 
-=item _execAction( $action, $pkgType )
+=item _loadEntityData( $entityId )
 
- Execute the given action on all $pkgType that implement it
+ Load entity data
+ 
+ Data must be loaded into the '_data' attribute.
 
- Param string $action Action to execute on servers, packages (<pre|post><action><moduleType>)
- Param string $pkgType Package type (server|package)
+ Param int $entityId Entity unique identifier
+ Return void
+
+=cut
+
+sub _loadEntityData
+{
+    my ($self) = @_;
+
+    die( sprintf( 'The %s module must implements the _loadEntityData( ) method', ref $self ));
+}
+
+=item _getEntityData( $action )
+
+ Return entity data for i-MSCP servers and packages
+
+ Param string $action Action being executed <pre|post>?<action><entityType> on servers/packages
+ Return hashref Reference to a hash containing data, die on failure
+
+=cut
+
+sub _getEntityData
+{
+    my ($self, $action) = @_;
+
+    $self->{'_data'}->{'action'} = $action;
+    $self->{'_data'};
+}
+
+=item _add( )
+
+ Execute the 'add' action on servers, packages
+
+ Should be executed for entities with 'toadd|tochange|toenable' status.
+
  Return void, die on failure
 
 =cut
 
-sub _execAction
+sub _add
 {
-    my ($self, $action, $pkgType) = @_;
-
-    my $moduleData = $self->_getData();
-
-    if ( $pkgType eq 'server' ) {
-        debug( sprintf( "Executing the %s action on i-MSCP servers...", $action ));
-        $_->factory()->$action( $moduleData ) for iMSCP::Servers->getInstance()->getListWithFullNames();
-        return;
-    }
-
-    debug( sprintf( "Executing the %s action on i-MSCP packages...", $action ));
-
-    for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
-        ( my $subref = $_->can( $action ) ) or next;
-        $subref->( $_->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
-    }
+    $_[0]->_execActions( 'add' );
 }
 
-=item _execAllActions( $action )
+=item delete( )
+
+ Execute the 'delete' action on servers, packages
+
+ Should be executed for entities with 'todelete' status.
+
+ Return void, die on failure
+
+=cut
+
+sub _delete
+{
+    $_[0]->_execActions( 'delete' );
+}
+
+=item restore( )
+
+ Execute the 'restore' action on servers, packages
+
+ Should be executed for entities with 'torestore' status.
+
+ Return void, die on failure
+
+=cut
+
+sub _restore
+{
+    $_[0]->_execActions( 'restore' );
+}
+
+=item disable( )
+
+ Execute the 'disable' action on servers, packages
+
+ Should be executed for entities with 'todisable' status.
+
+ Return void, die on failure
+
+=cut
+
+sub _disable
+{
+    $_[0]->_execActions( 'disable' );
+}
+
+=item _execActions( $action )
 
  Execute the pre$action, $action, post$action action on servers and packages
 
@@ -193,7 +196,7 @@ sub _execAction
 
 =cut
 
-sub _execAllActions
+sub _execActions
 {
     my ($self, $action) = @_;
 
@@ -201,31 +204,35 @@ sub _execAllActions
 
     if ( $action =~ /^(?:add|restore)$/ ) {
         for my $actionPrefix( 'pre', '', 'post' ) {
-            $self->_execAction( "$actionPrefix$action$entityType", 'server' );
-            $self->_execAction( "$actionPrefix$action$entityType", 'package' );
+            my $method = "$actionPrefix$action$entityType";
+            my $moduleData = $self->_getModuleData( $method );
+
+            debug( sprintf( "Executing %s action on i-MSCP servers...", $method ));
+            $_->factory()->$actionReal( $self ) for iMSCP::Servers->getInstance()->getListWithFullNames();
+
+            debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
+            for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+                ( my $subref = $_->can( $method ) ) or next;
+                $subref->( $_->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+            }
         }
 
         return;
     }
 
     for my $actionPrefix( 'pre', '', 'post' ) {
-        $self->_execAction( "$actionPrefix$action$entityType", 'package' );
-        $self->_execAction( "$actionPrefix$action$entityType", 'server' );
+        my $method = "$actionPrefix$action$entityType";
+        my $moduleData = $self->_getModuleData( $method );
+
+        debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
+        for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+            ( my $subref = $_->can( $method ) ) or next;
+            $subref->( $_->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+        }
+
+        debug( sprintf( "Executing %s action on i-MSCP servers...", $method ));
+        $_->factory()->$method( $moduleData ) for iMSCP::Servers->getInstance()->getListWithFullNames();
     }
-}
-
-=item _getData( $action )
-
- Data provider method for i-MSCP servers and packages
-
- Param string $action Action being executed (<pre|post><action><entityType>) on servers, packages
- Return hashref Reference to a hash containing data, die on failure
-
-=cut
-
-sub _getData
-{
-    $_[0]->{'_data'};
 }
 
 =back

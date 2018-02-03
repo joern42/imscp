@@ -38,120 +38,39 @@ use parent 'iMSCP::Modules::Abstract';
 
 =item getEntityType( )
 
- Get entity type
-
- Return string entity type
+ See iMSCP::Modules::Abstract::getEntityType()
 
 =cut
 
 sub getEntityType
 {
+    my ($self) = @_;
+
     'Subdomain';
 }
 
-=item add()
+=item handleEntity( $entityId )
 
- Add, change or enable the subdomain alias
-
- Return self, die on failure
-
-=cut
-
-sub add
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::add(); };
-    $self->{'_dbh'}->do(
-        'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'ok', $self->{'subdomain_alias_id'}
-    );
-    $self;
-}
-
-=item delete()
-
- Delete the subdomain alias
-
- Return self, die on failure
-
-=cut
-
-sub delete
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::delete(); };
-    if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE domain_id = ?', undef, $@, $self->{'subdomain_alias_id'} );
-        return $self;
-    }
-
-    $self->{'_dbh'}->do( 'DELETE FROM subdomain_alias WHERE subdomain_alias_id = ?', undef, $self->{'subdomain_alias_id'} );
-    $self;
-}
-
-=item disable()
-
- Disable the subdomain alias
-
- Return self, die on failure
-
-=cut
-
-sub disable
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::disable(); };
-    $self->{'_dbh'}->do(
-        'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'disabled', $self->{'subdomain_alias_id'}
-    );
-    $self;
-}
-
-=item restore()
-
- Restore the subdomain alias
-
- Return self, die on failure
-
-=cut
-
-sub restore
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::restore(); };
-    $self->{'_dbh'}->do( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'ok',
-        $self->{'domain_id'} );
-    $self;
-}
-
-=item handleEntity( $subAliasId )
-
- Handle the given subdomain alias entity
-
- Param int $subAliasId Subdomain alias unique identifier
- Return self, die on failure
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $subAliasId) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->_loadData( $subAliasId );
+    $self->_loadEntityData( $entityId );
 
-    if ( $self->{'subdomain_alias_status'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->add();
-    } elsif ( $self->{'subdomain_alias_status'} eq 'todelete' ) {
-        $self->delete();
-    } elsif ( $self->{'subdomain_alias_status'} eq 'todisable' ) {
-        $self->disable();
-    } elsif ( $self->{'subdomain_alias_status'} eq 'torestore' ) {
-        $self->restore();
+    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
+        $self->_add();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
+        $self->_delete();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
+        $self->_disable();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'torestore' ) {
+        $self->_restore();
     } else {
-        die( sprintf( 'Unknown action (%s) for subdomain alias (ID %d)', $self->{'subdomain_alias_status'}, $subAliasId ));
+        die( sprintf( 'Unknown action (%s) for subdomain alias (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
 
     $self;
@@ -163,23 +82,20 @@ sub handleEntity
 
 =over 4
 
-=item _loadData( $subAliasId )
+=item _loadEntityData( $entityId )
 
- Load data
-
- Param int $subAliasId Subdomain alias unique identifier
- Return void, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _loadData
+sub _loadEntityData
 {
-    my ($self, $subAliasId) = @_;
+    my ($self, $entityId) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         "
             SELECT t1.*,
-                t2.alias_name, t2.external_mail, t3.domain_name AS user_home,
+                t2.alias_id, t2.alias_name, t2.external_mail, t3.domain_name AS user_home,
                 t3.domain_id, t3.domain_admin_id, t3.domain_mailacc_limit, t3.domain_php, t3.domain_cgi,
                 t3.web_folder_protection, t3.phpini_perm_config_level AS php_config_level,
                 IFNULL(t4.ip_number, '0.0.0.0') AS ip_number,
@@ -202,88 +118,69 @@ sub _loadData
             WHERE t1.subdomain_alias_id = ?
         ",
         undef,
-        $subAliasId
+        $entityId
     );
-    $row or die( sprintf( 'Data not found for subdomain alias (ID %d)', $subAliasId ));
-    %{$self} = ( %{$self}, %{$row} );
-}
+    $row or die( sprintf( 'Data not found for subdomain alias (ID %d)', $entityId ));
 
-=item _getData( $action )
-
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data, die on failure
-
-=cut
-
-sub _getData
-{
-    my ($self, $action) = @_;
-
-    return $self->{'_data'} if %{$self->{'_data'}};
-
-    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'domain_admin_id'} );
-    my $homeDir = File::Spec->canonpath( "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'user_home'}" );
-    my $webDir = File::Spec->canonpath( "$homeDir/$self->{'subdomain_alias_mount'}" );
-    my $documentRoot = File::Spec->canonpath( "$webDir/$self->{'subdomain_alias_document_root'}" );
+    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
+    my $homeDir = File::Spec->canonpath( "$main::imscpConfig{'USER_WEB_DIR'}/$row->{'user_home'}" );
+    my $webDir = File::Spec->canonpath( "$homeDir/$row->{'subdomain_alias_mount'}" );
     my ($ssl, $hstsMaxAge, $hstsIncSub, $phpini) = ( 0, 0, 0, {} );
 
-    if ( $self->{'certificate'}
-        && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'subdomain_alias_name'}.$self->{'alias_name'}.pem.pem" ) {
+    if ( $row->{'certificate'} && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'subdomain_alias_name'}.$row->{'alias_name'}.pem.pem" ) {
         $ssl = 1;
-        if ( $self->{'allow_hsts'} eq 'on' ) {
-            $hstsMaxAge = $self->{'hsts_max_age'} || 0;
-            $hstsIncSub = $self->{'hsts_include_subdomains'} eq 'on' ? '; includeSubDomains' : '';
+        if ( $row->{'allow_hsts'} eq 'on' ) {
+            $hstsMaxAge = $row->{'hsts_max_age'} || 0;
+            $hstsIncSub = $row->{'hsts_include_subdomains'} eq 'on' ? '; includeSubDomains' : '';
         }
     }
 
-    if ( $self->{'domain_php'} eq 'yes' ) {
+    if ( $row->{'domain_php'} eq 'yes' ) {
         $phpini = $self->{'_dbh'}->selectrow_hashref(
             'SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?',
             undef,
-            ( $self->{'php_config_level'} eq 'per_user'
-                ? $self->{'domain_id'} : ( $self->{'php_config_level'} eq 'per_domain' ? $self->{'alias_id'} : $self->{'subdomain_alias_id'} )
+            ( $row->{'php_config_level'} eq 'per_user'
+                ? $row->{'domain_id'} : ( $row->{'php_config_level'} eq 'per_domain' ? $row->{'alias_id'} : $row->{'subdomain_alias_id'} )
             ),
-            ( $self->{'php_config_level'} eq 'per_user' ? 'dmn' : ( $self->{'php_config_level'} eq 'per_domain' ? 'als' : 'subals' ) )
+            ( $row->{'php_config_level'} eq 'per_user' ? 'dmn' : ( $row->{'php_config_level'} eq 'per_domain' ? 'als' : 'subals' ) )
         ) || {};
     }
 
     $self->{'_data'} = {
-        ACTION                  => $action,
-        STATUS                  => $self->{'subdomain_alias_status'},
+        STATUS                  => $row->{'subdomain_alias_status'},
         BASE_SERVER_VHOST       => $main::imscpConfig{'BASE_SERVER_VHOST'},
         BASE_SERVER_IP          => $main::imscpConfig{'BASE_SERVER_IP'},
         BASE_SERVER_PUBLIC_IP   => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
-        DOMAIN_ADMIN_ID         => $self->{'domain_admin_id'},
-        DOMAIN_ID               => $self->{'subdomain_alias_id'},
-        DOMAIN_NAME             => $self->{'subdomain_alias_name'} . '.' . $self->{'alias_name'},
-        DOMAIN_IP               => $main::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $self->{'ip_number'},
+        DOMAIN_ADMIN_ID         => $row->{'domain_admin_id'},
+        ROOT_DOMAIN_ID          => $row->{'domain_id'},
+        PARENT_DOMAIN_ID        => $row->{'alias_id'},
+        DOMAIN_ID               => $row->{'subdomain_alias_id'},
+        ROOT_DOMAIN_NAME        => $row->{'user_home'},
+        PARENT_DOMAIN_NAME      => $row->{'alias_name'},
+        DOMAIN_NAME             => $row->{'subdomain_alias_name'} . '.' . $row->{'alias_name'},
         DOMAIN_TYPE             => 'alssub',
-        PARENT_DOMAIN_NAME      => $self->{'alias_name'},
-        ROOT_DOMAIN_NAME        => $self->{'user_home'},
+        DOMAIN_IP               => $main::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $row->{'ip_number'},
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $webDir,
-        MOUNT_POINT             => $self->{'subdomain_alias_mount'},
-        DOCUMENT_ROOT           => $documentRoot,
-        SHARED_MOUNT_POINT      => $self->_sharedMountPoint(),
+        MOUNT_POINT             => $row->{'subdomain_alias_mount'},
+        DOCUMENT_ROOT           => File::Spec->canonpath( "$webDir/$row->{'subdomain_alias_document_root'}" ),
         USER                    => $usergroup,
         GROUP                   => $usergroup,
-        PHP_SUPPORT             => $self->{'domain_php'},
-        PHP_CONFIG_LEVEL        => $self->{'php_config_level'},
-        PHP_CONFIG_LEVEL_DOMAIN => $self->{'php_config_level'} eq 'per_user'
-            ? $self->{'user_home'}
-            : ( $self->{'php_config_level'} eq 'per_domain' ? $self->{'alias_name'} : $self->{'subdomain_alias_name'} . '.' . $self->{'alias_name'} ),
-        CGI_SUPPORT             => $self->{'domain_cgi'},
-        WEB_FOLDER_PROTECTION   => $self->{'web_folder_protection'},
+        PHP_SUPPORT             => $row->{'domain_php'},
+        PHP_CONFIG_LEVEL        => $row->{'php_config_level'},
+        PHP_CONFIG_LEVEL_DOMAIN => $row->{'php_config_level'} eq 'per_user'
+            ? $row->{'user_home'}
+            : ( $row->{'php_config_level'} eq 'per_domain' ? $row->{'alias_name'} : $row->{'subdomain_alias_name'} . '.' . $row->{'alias_name'} ),
+        CGI_SUPPORT             => $row->{'domain_cgi'},
+        WEB_FOLDER_PROTECTION   => $row->{'web_folder_protection'},
         SSL_SUPPORT             => $ssl,
-        HSTS_SUPPORT            => $ssl && $self->{'allow_hsts'} eq 'on',
+        HSTS_SUPPORT            => $ssl && $row->{'allow_hsts'} eq 'on',
         HSTS_MAX_AGE            => $hstsMaxAge,
         HSTS_INCLUDE_SUBDOMAINS => $hstsIncSub,
-        ALIAS                   => 'alssub' . $self->{'subdomain_alias_id'},
-        FORWARD                 => $self->{'subdomain_alias_url_forward'} || 'no',
-        FORWARD_TYPE            => $self->{'subdomain_alias_type_forward'} || '',
-        FORWARD_PRESERVE_HOST   => $self->{'subdomain_alias_host_forward'} || 'Off',
+        ALIAS                   => 'alssub' . $row->{'subdomain_alias_id'},
+        FORWARD                 => $row->{'subdomain_alias_url_forward'} || 'no',
+        FORWARD_TYPE            => $row->{'subdomain_alias_type_forward'} || '',
+        FORWARD_PRESERVE_HOST   => $row->{'subdomain_alias_host_forward'} || 'Off',
         DISABLE_FUNCTIONS       => $phpini->{'disable_functions'}
             || 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
@@ -295,9 +192,83 @@ sub _getData
         UPLOAD_MAX_FILESIZE     => $phpini->{'upload_max_filesize'} || 2,
         ALLOW_URL_FOPEN         => $phpini->{'allow_url_fopen'} || 'off',
         PHP_FPM_LISTEN_PORT     => ( $phpini->{'id'} // 1 )-1,
-        EXTERNAL_MAIL           => $self->{'external_mail'},
-        MAIL_ENABLED            => $self->{'external_mail'} eq 'off' && ( $self->{'mail_on_domain'} || $self->{'domain_mailacc_limit'} >= 0 )
+        EXTERNAL_MAIL           => $row->{'external_mail'},
+        MAIL_ENABLED            => $row->{'external_mail'} eq 'off' && ( $row->{'mail_on_domain'} || $row->{'domain_mailacc_limit'} >= 0 )
     };
+    $self->{'_data'}->{'SHARED_MOUNT_POINT'} = $row->_sharedMountPoint();
+}
+
+=item _add()
+
+ See iMSCP::Modules::Abstract::_add()
+
+=cut
+
+sub _add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_add(); };
+    $self->{'_dbh'}->do(
+        'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'}
+    );
+    $self;
+}
+
+=item _delete()
+
+ See iMSCP::Modules::Abstract::_delete()
+
+=cut
+
+sub _delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do(
+            'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE domain_id = ?', undef, $@, $self->{'_data'}->{'DOMAIN_ID'}
+        );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM subdomain_alias WHERE subdomain_alias_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
+    $self;
+}
+
+=item _disable()
+
+ See iMSCP::Modules::Abstract::_disable()
+
+=cut
+
+sub _disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_disable(); };
+    $self->{'_dbh'}->do(
+        'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'DOMAIN_ID'}
+    );
+    $self;
+}
+
+=item _restore()
+
+ See iMSCP::Modules::Abstract::_restore()
+
+=cut
+
+sub _restore
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_restore(); };
+    $self->{'_dbh'}->do(
+        'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE subdomain_alias_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'}
+    );
+    $self;
 }
 
 =item _sharedMountPoint( )
@@ -312,7 +283,7 @@ sub _sharedMountPoint
 {
     my ($self) = @_;
 
-    my $regexp = "^$self->{'subdomain_alias_mount'}(/.*|\$)";
+    my $regexp = "^$self->{'_data'}->{'MOUNT_POINT'}(/.*|\$)";
     my ($nbSharedMountPoints) = $self->{'_dbh'}->selectrow_array(
         "
             SELECT COUNT(mount_point) AS nb_mount_points FROM (
@@ -328,9 +299,16 @@ sub _sharedMountPoint
                 AND subdomain_alias_mount RLIKE ?
             ) AS tmp
         ",
-        undef, $self->{'domain_id'}, $regexp, $self->{'domain_id'}, $regexp, $self->{'subdomain_alias_id'}, $self->{'domain_id'}, $regexp
+        undef,
+        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
+        $regexp,
+        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
+        $regexp,
+        $self->{'_data'}->{'DOMAIN_ID'},
+        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
+        $regexp
     );
-    $nbSharedMountPoints || $self->{'subdomain_alias_mount'} eq '/';
+    $nbSharedMountPoints || $self->{'_data'}->{'MOUNT_POINT'} eq '/';
 }
 
 =back

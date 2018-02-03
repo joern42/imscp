@@ -37,77 +37,35 @@ use parent 'iMSCP::Modules::Abstract';
 
 =item getEntityType( )
 
- Get entity type
-
- Return string entity type
+ See iMSCP::Modules::Abstract::getEntityType()
 
 =cut
 
 sub getEntityType
 {
+    my ($self) = @_;
+
     'IpAddr';
 }
 
-=item add()
+=item handleEntity( $entityId )
 
- Add or change the server IP address
-
- Return self, die on failure
-
-=cut
-
-sub add
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::add(); };
-    $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@ || 'ok', $self->{'ip_id'} );
-    $self;
-}
-
-=item delete()
-
- Delete the server IP address
-
- Return self, die on failure
-
-=cut
-
-sub delete
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::delete(); };
-    if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@, $self->{'ip_id'} );
-        return $self;
-    }
-
-    $self->{'_dbh'}->do( 'DELETE FROM server_ips WHERE ip_id = ?', undef, $self->{'ip_id'} );
-    $self;
-}
-
-=item handleEntity( $ipId )
-
- Handle the given IP address entitiy
-
- Param string $ipId Server IP unique identifier
- Return self, die on failure
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $ipId) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->_loadData( $ipId );
+    $self->_loadEntityData( $entityId );
 
     if ( $self->{'_data'}->{'ip_status'} =~ /^to(?:add|change)$/ ) {
-        $self->add();
+        $self->_add();
     } elsif ( $self->{'_data'}->{'ip_status'} eq 'todelete' ) {
-        $self->delete();
+        $self->_delete();
     } else {
-        die( sprintf( 'Unknown action (%s) for server IP with ID %s', $self->{'_data'}->{'ip_status'}, $ipId ));
+        die( sprintf( 'Unknown action (%s) for server IP with ID %s', $self->{'_data'}->{'ip_status'}, $entityId ));
     }
 
     $self;
@@ -119,40 +77,55 @@ sub handleEntity
 
 =over 4
 
-=item _loadData( $ipId )
+=item _loadEntityData( $entityId )
 
- Load data
-
- Param int $ipId Server IP unique identifier
- Return void, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _loadData
+sub _loadEntityData
 {
-    my ($self, $ipId) = @_;
+    my ($self, $entityId) = @_;
 
     $self->{'_data'} = $self->{'_dbh'}->selectrow_hashref(
-        'SELECT ip_id, ip_card, ip_number AS ip_address, ip_netmask, ip_config_mode, ip_status FROM server_ips WHERE ip_id = ?', undef, $ipId
+        'SELECT ip_id, ip_card, ip_number AS ip_address, ip_netmask, ip_config_mode, ip_status FROM server_ips WHERE ip_id = ?', undef, $entityId
     );
-    $self->{'_data'} or die( sprintf( 'Data not found for server IP address (ID %d)', $ipId ));
+    $self->{'_data'} or die( sprintf( 'Data not found for server IP address (ID %d)', $entityId ));
 }
 
-=item _getData( $action )
+=item _add()
 
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data
+ See iMSCP::Modules::Abstract::_add()
 
 =cut
 
-sub _getData
+sub _add
 {
-    my ($self, $action) = @_;
+    my ($self) = @_;
 
-    $self->{'_data'}->{'action'} = $action;
-    $self->{'_data'};
+    eval { $self->SUPER::_add(); };
+    $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@ || 'ok', $self->{'ip_id'} );
+    $self;
+}
+
+=item _delete()
+
+ See iMSCP::Modules::Abstract::_delete()
+
+=cut
+
+sub _delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@, $self->{'ip_id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM server_ips WHERE ip_id = ?', undef, $self->{'ip_id'} );
+    $self;
 }
 
 =back

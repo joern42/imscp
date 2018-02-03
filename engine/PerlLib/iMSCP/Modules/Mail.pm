@@ -37,96 +37,37 @@ use parent 'iMSCP::Modules::Abstract';
 
 =item getEntityType( )
 
- Get entity type
-
- Return string entity type
+ See iMSCP::Modules::Abstract::getEntityType()
 
 =cut
 
 sub getEntityType
 {
+    my ($self) = @_;
+
     'Mail';
 }
 
-=item add()
+=item handleEntity( $entityId )
 
- Add, change or enable the mail user
-
- Return self, die on failure
-
-=cut
-
-sub add
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::add(); };
-    $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'ok', $self->{'mail_id'} );
-    $self;
-}
-
-=item delete()
-
- Delete the mail user
-
- Return self, die on failure
-
-=cut
-
-sub delete
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::delete(); };
-    if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@, $self->{'mail_id'} );
-        return $self;
-    }
-
-    $self->{'_dbh'}->do( 'DELETE FROM mail_users WHERE mail_id = ?', undef, $self->{'mail_id'} );
-    $self;
-}
-
-=item disable()
-
- Disable the mail user
-
- Return self, die on failure
-
-=cut
-
-sub disable
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::disable(); };
-    $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'disabled', $self->{'mail_id'} );
-    $self;
-}
-
-=item handleEntity( $mailUserId )
-
- Handle the given mail user entity
-
- Param int $mailUserId Mail user unique identifier
- Return self, die on failure
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $mailId) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->_loadData( $mailUserId );
+    $self->_loadEntityData( $entityId );
 
-    if ( $self->{'status'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->add();
-    } elsif ( $self->{'status'} eq 'todelete' ) {
-        $self->delete();
-    } elsif ( $self->{'status'} eq 'todisable' ) {
-        $self->disable();
+    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
+        $self->_add();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
+        $self->_delete();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
+        $self->_disable();
     } else {
-        die( sprintf( 'Unknown action (%s) for mail user (ID %d)', $self->{'status'}, $mailId ));
+        die( sprintf( 'Unknown action (%s) for mail user (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
 
     $self;
@@ -138,59 +79,89 @@ sub handleEntity
 
 =over 4
 
-=item _loadData( $mailUserId )
+=item _loadEntityData( $entityId )
 
- Load data
-
- Param int $mailUserId Mail unique identifier
- Return void, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _loadData
+sub _loadEntityData
 {
-    my ($self, $mailUserId) = @_;
+    my ($self, $entityId) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
-        ' SELECT mail_id, mail_acc, mail_pass, mail_forward, mail_type, mail_auto_respond, status, quota, mail_addr FROM mail_users WHERE mail_id = ?',
+        'SELECT mail_id, mail_acc, mail_pass, mail_forward, mail_type, mail_auto_respond, status, quota, mail_addr FROM mail_users WHERE mail_id = ?',
         undef,
-        $mailUserId
+        $entityId
     );
-    $row or die( sprintf( 'Data not found for mail user (ID %d)', $mailUserId ));
-    %{$self} = ( %{$self}, %{$row} );
-}
-
-=item _getData( $action )
-
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data
-
-=cut
-
-sub _getData
-{
-    my ($self, $action) = @_;
-
-    return $self->{'_data'} if %{$self->{'_data'}};
+    $row or die( sprintf( 'Data not found for mail user (ID %d)', $entityId ));
 
     my ($user, $domain) = split '@', $self->{'mail_addr'};
 
     $self->{'_data'} = {
-        ACTION                  => $action,
-        STATUS                  => $self->{'status'},
+        STATUS                  => $row->{'status'},
         DOMAIN_NAME             => $domain,
+        MAIL_ID                 => $row->{'mail_id'},
         MAIL_ACC                => $user,
-        MAIL_PASS               => $self->{'mail_pass'},
-        MAIL_FORWARD            => $self->{'mail_forward'},
-        MAIL_TYPE               => $self->{'mail_type'},
-        MAIL_QUOTA              => $self->{'quota'},
-        MAIL_HAS_AUTO_RESPONDER => $self->{'mail_auto_respond'},
-        MAIL_STATUS             => $self->{'status'},
-        MAIL_ADDR               => $self->{'mail_addr'},
-        MAIL_CATCHALL           => ( index( $self->{'mail_type'}, 'catchall' ) != -1 ) ? $self->{'mail_acc'} : undef
+        MAIL_PASS               => $row->{'mail_pass'},
+        MAIL_FORWARD            => $row->{'mail_forward'},
+        MAIL_TYPE               => $row->{'mail_type'},
+        MAIL_QUOTA              => $row->{'quota'},
+        MAIL_HAS_AUTO_RESPONDER => $row->{'mail_auto_respond'},
+        MAIL_STATUS             => $row->{'status'},
+        MAIL_ADDR               => $row->{'mail_addr'},
+        MAIL_CATCHALL           => ( index( $row->{'mail_type'}, 'catchall' ) != -1 ) ? $row->{'mail_acc'} : undef
     };
+}
+
+=item _add()
+
+ See iMSCP::Modules::Abstract::_add()
+
+=cut
+
+sub _add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_add(); };
+    $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'MAIL_ID'} );
+    $self;
+}
+
+=item delete()
+
+ See iMSCP::Modules::Abstract::_delete()
+
+=cut
+
+sub _delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@, $self->{'_data'}->{'MAIL_ID'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM mail_users WHERE mail_id = ?', undef, $self->{'_data'}->{'MAIL_ID'} );
+    $self;
+}
+
+=item disable()
+
+ See iMSCP::Modules::Abstract::_disable()
+
+=cut
+
+sub _disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_disable(); };
+    $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'MAIL_ID'} );
+    $self;
 }
 
 =back

@@ -38,40 +38,34 @@ use parent 'iMSCP::Modules::Abstract';
 
 =item getEntityType( )
 
- Get entity type
-
- Return string entity type
+ See iMSCP::Modules::Abstract::getEntityType()
 
 =cut
 
 sub getEntityType
 {
+    my ($self) = @_;
+
     'CustomDNS';
 }
 
-=item handleEntity( $dnsRecordsGroup )
+=item handleEntity( $entityId )
 
- Handle the given group of custom DNS record entities
-
- Even if a DNS resource record is not valid, we do not raise an error.
- It is the responsability of customers to fix their DNS resource records.
-
- Param string $dnsRecordsGroup DNS record group unique identifier
- Return void, die on failure
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $dnsRecordsGroup) = @_;
+    my ($self, $entityId) = @_;
 
-    my ($domainId, $aliasId ) = split ';', $dnsRecordsGroup;
+    my ($domainId, $aliasId ) = split ';', $entityId;
 
     defined $domainId && defined $aliasId or die( 'Bad input data' );
 
     eval {
-        $self->_loadData( $domainId, $aliasId );
-        $self->add()
+        $self->_loadEntityData( $domainId, $aliasId );
+        $self->_add()
     };
     if ( $@ ) {
         $self->{'_dbh'}->do(
@@ -104,6 +98,8 @@ sub handleEntity
         $self->{'_dbh'}->rollback();
         die;
     }
+
+    $self;
 }
 
 =back
@@ -114,9 +110,7 @@ sub handleEntity
 
 =item init( )
 
- Initialize instance
-
- Return iMSCP::Modules::CustomDNS, die on failure
+ See iMSCP::Modules::Abstract::_init()
 
 =cut
 
@@ -128,17 +122,13 @@ sub _init
     $self->SUPER::_init();
 }
 
-=item _loadData( $domainId, $aliasId )
+=item _loadEntityData( $domainId, $aliasId )
 
- Load data
-
- Param int $domainId Domain unique identifier
- Param int $aliasId Domain alias unique identifier, 0 if DNS records group doesn't belong to a domai alias
- Return void, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _loadData
+sub _loadEntityData
 {
     my ($self, $domainId, $aliasId) = @_;
 
@@ -167,7 +157,9 @@ sub _loadData
             AND alias_id = ?
             AND domain_dns_status NOT IN('todelete', 'todisable', 'disabled')
         ",
-        undef, $domainId, $aliasId
+        undef,
+        $domainId,
+        $aliasId
     );
 
     return unless @{$rows};
@@ -175,6 +167,7 @@ sub _loadData
     # 1. For TXT/SPF records, split data field into several
     #    <character-string>s when <character-string> is longer than 255
     #    bytes. See: https://tools.ietf.org/html/rfc4408#section-3.1.3
+    my @dnsRecords;
     for ( @{$rows} ) {
         if ( $_->[2] eq 'TXT' || $_->[2] eq 'SPF' ) {
             # Turn line-breaks into whitespaces
@@ -206,31 +199,15 @@ sub _loadData
             }
         }
 
-        push @{$self->{'dns_records'}}, [ ( @{$_} )[0 .. 3] ];
+        push @dnsRecords, [ ( @{$_} )[0 .. 3] ];
     }
-}
-
-=item _getData( $action )
-
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data
-
-=cut
-
-sub _getData
-{
-    my ($self, $action) = @_;
-
-    return $self->{'_data'} if %{$self->{'_data'}};
 
     $self->{'_data'} = {
         ACTION                => $action,
         BASE_SERVER_PUBLIC_IP => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
         DOMAIN_NAME           => $self->{'domain_name'},
         DOMAIN_IP             => $self->{'domain_ip'},
-        DNS_RECORDS           => [ @{$self->{'dns_records'}} ]
+        DNS_RECORDS           => [ @dnsRecords ]
     };
 }
 

@@ -39,109 +39,35 @@ use parent 'iMSCP::Modules::Abstract';
 
 =item getEntityType( )
 
- Get entity type
-
- Return string entity type
+ See iMSCP::Modules::Abstract::getEntityType()
 
 =cut
 
 sub getEntityType
 {
+    my ($self) = @_;
+
     'User';
 }
 
-=item add( )
+=item handleEntity( $entityId )
 
- Add or change the user
-
- Return self, die on failure
-
-=cut
-
-sub add
-{
-    my ($self) = @_;
-
-    eval {
-        if ( $self->{'admin_status'} ne 'tochangepwd' ) {
-            my $user = my $group = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'admin_id'} );
-            my $home = "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'admin_name'}";
-            $self->{'eventManager'}->trigger( 'onBeforeAddImscpUnixUser', $self->{'admin_id'}, $user, \my $pwd, $home, \my $skelPath, \my $shell );
-
-            iMSCP::SystemUser->new(
-                username     => $self->{'admin_sys_name'}, # Old username
-                password     => $pwd,
-                comment      => 'i-MSCP Web User',
-                home         => $home,
-                skeletonPath => $skelPath,
-                shell        => $shell
-            )->addSystemUser( $user, $group );
-
-            my ( $uid, $gid ) = ( getpwnam( $user ) )[2, 3];
-            $self->{'_dbh'}->do(
-                'UPDATE admin SET admin_sys_name = ?, admin_sys_uid = ?, admin_sys_gname = ?, admin_sys_gid = ? WHERE admin_id = ?',
-                undef, $user, $uid, $group, $gid, $self->{'admin_id'},
-            );
-            @{$self}{ qw/ admin_sys_name admin_sys_uid admin_sys_gname admin_sys_gid / } = ( $user, $uid, $group, $gid );
-        }
-
-        $self->SUPER::add()
-    };
-
-    $self->{'_dbh'}->do( 'UPDATE admin SET admin_status = ? WHERE admin_id = ?', undef, $@ || 'ok', $self->{'admin_id'} );
-    $self;
-}
-
-=item delete( )
-
- Delete the user
-
- Return self, die on failure
-
-=cut
-
-sub delete
-{
-    my ($self) = @_;
-
-    eval {
-        my $user = my $group = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'admin_id'} );
-        $self->{'eventManager'}->trigger( 'onBeforeDeleteImscpUnixUser', $user );
-        $self->SUPER::delete();
-        iMSCP::SystemUser->new( force => 1 )->delSystemUser( $user );
-        iMSCP::SystemGroup->getInstance()->delSystemGroup( $group );
-        $self->{'eventManager'}->trigger( 'onAfterDeleteImscpUnixUser', $group );
-    };
-    if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE admin SET admin_status = ? WHERE admin_id = ?', undef, $@, $self->{'admin_id'} );
-        return $self;
-    }
-
-    $self->{'_dbh'}->do( 'DELETE FROM admin WHERE admin_id = ?', undef, $self->{'admin_id'} );
-    $self;
-}
-
-=item handleEntity( $userId )
-
- Handle the given user entity
-
- Param int $userId User unique identifier
- Return self, die on failure
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $userId) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->_loadData( $userId );
+    $self->_loadEntityData( $entityId );
 
-    if ( $self->{'admin_status'} =~ /^to(?:add|change(?:pwd)?)$/ ) {
-        $self->add();
-    } elsif ( $self->{'admin_status'} eq 'todelete' ) {
-        $self->delete();
+    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change(?:pwd)?)$/ ) {
+        $self->_add();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
+        $self->_delete();
     } else {
-        die( sprintf( 'Unknown action (%s) for user (ID %d)', $self->{'admin_status'}, $userId ));
+        die( sprintf( 'Unknown action (%s) for user (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
 
     $self;
@@ -153,18 +79,15 @@ sub handleEntity
 
 =over 4
 
-=item _loadData( $userId )
+=item _loadEntityData( $entityId )
 
- Load data
-
- Param int $userId user unique identifier
- Return void, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _loadData
+sub _loadEntityData
 {
-    my ($self, $userId) = @_;
+    my ($self, $entityId) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         '
@@ -173,40 +96,90 @@ sub _loadData
             WHERE admin_id = ?
         ',
         undef,
-        $userId
+        $entityId
     );
-    $row or die( sprintf( 'User (ID %d) has not been found', $userId ));
-    %{$self} = ( %{$self}, %{$row} );
-}
+    $row or die( sprintf( 'User (ID %d) has not been found', $entityId ));
 
-=item _getData( $action )
-
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data
-
-=cut
-
-sub _getData
-{
-    my ($self, $action) = @_;
-
-    return $self->{'_data'} if %{$self->{'_data'}};
-
-    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'admin_id'} );
+    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'admin_id'} );
 
     $self->{'_data'} = {
-        ACTION        => $action,
-        STATUS        => $self->{'admin_status'},
-        USER_ID       => $self->{'admin_id'},
-        USER_SYS_UID  => $self->{'admin_sys_uid'},
-        USER_SYS_GID  => $self->{'admin_sys_gid'},
-        USERNAME      => $self->{'admin_name'},
-        PASSWORD_HASH => $self->{'admin_pass'},
+        STATUS        => $row->{'admin_status'},
+        USER_ID       => $row->{'admin_id'},
+        USER_SYS_UID  => $row->{'admin_sys_uid'},
+        USER_SYS_GID  => $row->{'admin_sys_gid'},
+        USERNAME      => $row->{'admin_name'},
+        PASSWORD_HASH => $row->{'admin_pass'},
         USER          => $usergroup,
         GROUP         => $usergroup
     };
+}
+
+=item _add( )
+
+ See iMSCP::Modules::Abstract::_add()
+
+=cut
+
+sub _add
+{
+    my ($self) = @_;
+
+    eval {
+        if ( $self->{'admin_status'} ne 'tochangepwd' ) {
+            my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'_data'}->{'USER_ID'} );
+            my $home = "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'_data'}->{'USERNAME'} ";
+            $self->{'eventManager'}->trigger(
+                'onBeforeAddImscpUnixUser', $self->{'_data'}->{'USER_ID'}, $usergroup, \my $pwd, $home, \my $skelPath, \my $shell
+            );
+
+            iMSCP::SystemUser->new(
+                username     => $self->{'admin_sys_name'}, # Old username
+                password     => $pwd,
+                comment      => 'i-MSCP Web User',
+                home         => $home,
+                skeletonPath => $skelPath,
+                shell        => $shell
+            )->addSystemUser( $usergroup, $usergroup );
+
+            my ( $uid, $gid ) = ( getpwnam( $user ) )[2, 3];
+            $self->{'_dbh'}->do(
+                'UPDATE admin SET admin_sys_name = ?, admin_sys_uid = ?, admin_sys_gname = ?, admin_sys_gid = ? WHERE admin_id = ?',
+                undef, $usergroup, $uid, $usergroup, $gid, $self->{'_data'}->{'USER_ID'},
+            );
+            @{$self}{ qw/ admin_sys_name admin_sys_uid admin_sys_gname admin_sys_gid / } = ( $usergroup, $uid, $usergroup, $gid );
+        }
+
+        $self->SUPER::_add()
+    };
+    $self->{'_dbh'}->do( 'UPDATE admin SET admin_status = ? WHERE admin_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'USER_ID'} );
+    $self;
+}
+
+=item _delete( )
+
+ See iMSCP::Modules::Abstract::_delete()
+
+=cut
+
+sub _delete
+{
+    my ($self) = @_;
+
+    eval {
+        my $user = my $group = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'_data'}->{'USER_ID'} );
+        $self->{'eventManager'}->trigger( 'onBeforeDeleteImscpUnixUser', $user );
+        $self->SUPER::_delete();
+        iMSCP::SystemUser->new( force => 1 )->delSystemUser( $user );
+        iMSCP::SystemGroup->getInstance()->delSystemGroup( $group );
+        $self->{'eventManager'}->trigger( 'onAfterDeleteImscpUnixUser', $group );
+    };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE admin SET admin_status = ? WHERE admin_id = ?', undef, $@, $self->{'_data'}->{'USER_ID'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM admin WHERE admin_id = ?', undef, $self->{'_data'}->{'USER_ID'} );
+    $self;
 }
 
 =back

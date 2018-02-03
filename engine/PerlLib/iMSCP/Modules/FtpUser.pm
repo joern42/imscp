@@ -37,96 +37,37 @@ use parent 'iMSCP::Modules::Abstract';
 
 =item getEntityType( )
 
- Get entity type
-
- Return string entity type
+ See iMSCP::Modules::Abstract::getEntityType()
 
 =cut
 
 sub getEntityType
 {
+    my ($self) = @_;
+
     'FtpUser';
 }
 
-=item add()
+=item handleEntity( $entityId )
 
- Add, change or enable the ftp user
-
- Return self, die on failure
-
-=cut
-
-sub add
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::add(); };
-    $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'ok', $self->{'userid'} );
-    $self;
-}
-
-=item delete()
-
- Delete the ftp user
-
- Return self, die on failure
-
-=cut
-
-sub delete
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::delete(); };
-    if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@, $self->{'userid'} );
-        return $self;
-    }
-
-    $self->{'_dbh'}->do( 'DELETE FROM ftp_users WHERE userid = ?', undef, $self->{'userid'} );
-    $self;
-}
-
-=item disable()
-
- Disable the ftp user
-
- Return self, die on failure
-
-=cut
-
-sub disable
-{
-    my ($self) = @_;
-
-    eval { $self->SUPER::disable(); };
-    $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'disabled', $self->{'userid'} );
-    $self;
-}
-
-=item handleEntity( $userid )
-
- Handle the given ftp user entity
-
- Param int $userid Ftp user unique identifier
- Return self, die on failure
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $userid) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->_loadData( $userid );
+    $self->_loadEntityData( $entityId );
 
-    if ( $self->{'status'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->add();
-    } elsif ( $self->{'status'} eq 'todisable' ) {
-        $self->disable();
-    } elsif ( $self->{'status'} eq 'todelete' ) {
-        $self->delete();
+    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
+        $self->_add();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
+        $self->_disable();
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
+        $self->_delete();
     } else {
-        die( sprintf( 'Unknown action (%s) for ftp user (ID %d)', $self->{'status'}, $userid ));
+        die( sprintf( 'Unknown action (%s) for ftp user (ID %s)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
 
     $self;
@@ -138,55 +79,84 @@ sub handleEntity
 
 =over 4
 
-=item _loadData( $ftpUserId )
+=item _loadEntityData( $entityId )
 
- Load data
-
- Param int $ftpUserId Ftp user unique identifier
- Return void, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _loadData
+sub _loadEntityData
 {
-    my ($self, $ftpUserId) = @_;
+    my ($self, $entityId) = @_;
 
-    my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ftp_users WHERE userid = ?', undef, $ftpUserId );
-    $row or die( sprintf( 'Data not found for ftp user (ID %d)', $ftpUserId ));
-    %{$self} = ( %{$self}, %{$row} );
-}
+    my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ftp_users WHERE userid = ?', undef, $entityId );
+    $row or die( sprintf( 'Data not found for ftp user (ID %d)', $entityId ));
 
-=item _getData( $action )
-
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data
-
-=cut
-
-sub _getData
-{
-    my ($self, $action) = @_;
-
-    return $self->{'_data'} if %{$self->{'_data'}};
-
-    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'admin_id'} );
+    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'admin_id'} );
 
     $self->{'_data'} = {
-        ACTION         => $action,
-        STATUS         => $self->{'status'},
-        OWNER_ID       => $self->{'admin_id'},
-        USERNAME       => $self->{'userid'},
-        PASSWORD_CRYPT => $self->{'passwd'},
-        PASSWORD_CLEAR => $self->{'rawpasswd'},
-        SHELL          => $self->{'shell'},
-        HOMEDIR        => $self->{'homedir'},
-        USER_SYS_GID   => $self->{'uid'},
-        USER_SYS_GID   => $self->{'gid'},
+        STATUS         => $row->{'status'},
+        OWNER_ID       => $row->{'admin_id'},
+        USERNAME       => $row->{'userid'},
+        PASSWORD_CRYPT => $row->{'passwd'},
+        PASSWORD_CLEAR => $row->{'rawpasswd'},
+        SHELL          => $row->{'shell'},
+        HOMEDIR        => $row->{'homedir'},
+        USER_SYS_GID   => $row->{'uid'},
+        USER_SYS_GID   => $row->{'gid'},
         USER_SYS_NAME  => $usergroup,
         USER_SYS_GNAME => $usergroup
     };
+}
+
+=item _add()
+
+ See iMSCP::Modules::Abstract::_add()
+
+=cut
+
+sub _add
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_add(); };
+    $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'ok', $self->{'_data'}->{'USERNAME'} );
+    $self;
+}
+
+=item _delete()
+
+ See iMSCP::Modules::Abstract::_delete()
+
+=cut
+
+sub _delete
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_delete(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@, $self->{'_data'}->{'USERNAME'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM ftp_users WHERE userid = ?', undef, $self->{'_data'}->{'USERNAME'} );
+    $self;
+}
+
+=item _disable()
+
+ See iMSCP::Modules::Abstract::_disable()
+
+=cut
+
+sub _disable
+{
+    my ($self) = @_;
+
+    eval { $self->SUPER::_disable(); };
+    $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'disabled', $self->{'_data'}->{'USERNAME'} );
+    $self;
 }
 
 =back

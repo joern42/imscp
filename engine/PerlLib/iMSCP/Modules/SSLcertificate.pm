@@ -41,123 +41,40 @@ use parent 'iMSCP::Modules::Abstract';
 
 =item getEntityType( )
 
- Get entity type
-
- Return string entity type
+ See iMSCP::Modules::Abstract::getEntityType()
 
 =cut
 
 sub getEntityType
 {
+    my ($self) = @_;
+
     'SSLcertificate';
 }
 
-=item add()
+=item handleEntity( $entityId )
 
- Add or change the SSL certificate
-
- Return self, die on failure
-
-=cut
-
-sub add
-{
-    my ($self) = @_;
-
-    eval {
-        # Remove previous SSL certificate if any
-        $self->SUPER::delete();
-        iMSCP::File->new( filename => "$self->{'certsDir'}/$self->{'domain_name'}.pem" )->remove();
-
-        my $privateKeyContainer = File::Temp->new();
-        print $privateKeyContainer $self->{'private_key'};
-        $privateKeyContainer->close();
-
-        my $certificateContainer = File::Temp->new();
-        print $certificateContainer $self->{'certificate'};
-        $certificateContainer->close();
-
-        my $caBundleContainer;
-        if ( $self->{'ca_bundle'} ) {
-            $caBundleContainer = File::Temp->new();
-            print $caBundleContainer $self->{'ca_bundle'};
-            $caBundleContainer->close();
-        }
-
-        my $openSSL = iMSCP::OpenSSL->new(
-            certificate_chains_storage_dir => $self->{'certsDir'},
-            certificate_chain_name         => $self->{'domain_name'},
-            private_key_container_path     => $privateKeyContainer->filename,
-            certificate_container_path     => $certificateContainer->filename,
-            ca_bundle_container_path       => $caBundleContainer ? $caBundleContainer->filename : ''
-        );
-
-        $openSSL->validateCertificateChain();
-        $openSSL->createCertificateChain();
-        $self->SUPER::add();
-    };
-
-    $self->{'_dbh'}->do(
-        'UPDATE ssl_certs SET status = ? WHERE cert_id = ?', undef, $@ ? $@ =~ s/iMSCP::OpenSSL::validateCertificate:\s+//r : 'ok', $self->{'cert_id'}
-    );
-    $self;
-}
-
-=item delete()
-
- Delete the SSL certificate
-
- Return self, die on failure
-
-=cut
-
-sub delete
-{
-    my ($self) = @_;
-
-    eval {
-        $self->SUPER::delete();
-        iMSCP::File->new( filename => "$self->{'certsDir'}/$self->{'domain_name'}.pem" )->remove();
-    };
-    if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE ssl_certs SET status = ? WHERE cert_id = ?', undef, $@, $self->{'cert_id'} );
-        return $self;
-    }
-
-    $self->{'_dbh'}->do( 'DELETE FROM ssl_certs WHERE cert_id = ?', undef, $self->{'cert_id'} );
-    $self;
-}
-
-=item handleEntity( $certificateId )
-
- Handle the given SSL certificate entity
-
- Param int $certificateId SSL certificate unique identifier
- Return self, die on failure
+ See iMSCP::Modules::Abstract::handleEntity()
 
 =cut
 
 sub handleEntity
 {
-    my ($self, $certificateId) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->_loadData( $certificateId );
+    $self->_loadEntityData( $entityId );
 
     # Handle case of orphaned SSL certificate which has been removed
     return $self unless $self->{'domain_name'};
 
-    if ( $self->{'status'} =~ /^to(?:add|change)$/ ) {
-        $self->add();
-    } elsif ( $self->{'status'} eq 'todelete' ) {
-        $self->delete();
+    if ( $self->{'_data'}->{'status'} =~ /^to(?:add|change)$/ ) {
+        $self->_add();
+    } elsif ( $self->{'_data'}->{'status'} eq 'todelete' ) {
+        $self->_delete();
     } else {
-        die( sprintf( 'Unknown action (%s) for SSL certificate (ID %d)', $self->{'status'}, $certificateId ));
+        die( sprintf( 'Unknown action (%s) for SSL certificate (ID %d)', $self->{'_data'}->{'status'}, $entityId ));
     }
 
-    # (since 1.2.16 - See #IP-1500)
-    # On toadd and to change actions, return 0 to avoid any failure on update when a customer's SSL certificate is
-    # expired or invalid. It is the customer responsability to update the certificate throught his interface
-    #( $self->{'status'} =~ /^to(?:add|change)$/ ) ? 0 : $rs;
     $self;
 }
 
@@ -167,46 +84,20 @@ sub handleEntity
 
 =over 4
 
-=item _init( )
+=item _loadEntityData( $entityId )
 
- Initialize instance
-
- Return iMSCP::Modules::SSLcertificate, die on failure
+ See iMSCP::Modules::Abstract::_loadEntityData()
 
 =cut
 
-sub _init
+sub _loadEntityData
 {
-    my ($self) = @_;
+    my ($self, $entityId) = @_;
 
-    $self->{'certsDir'} = "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs";
+    $self->{'_data'} = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ssl_certs WHERE cert_id = ?', undef, $entityId );
+    $self->{'_data'} or die( sprintf( 'Data not found for SSL certificate (ID %d)', $entityId ));
 
-    #iMSCP::Dir->new( dirname => $self->{'certsDir'} )->make( {
-    #    user  => $main::imscpConfig{'ROOT_USER'},
-    #    group => $main::imscpConfig{'ROOT_GROUP'},
-    #    mode  => 0750
-    #} );
-
-    $self->SUPER::_init();
-}
-
-=item _loadData( $certificateId )
-
- Load data
-
- Param int $certificateId SSL certificate unique identifier
- Return void, die on failure
-
-=cut
-
-sub _loadData
-{
-    my ($self, $certificateId) = @_;
-
-    my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ssl_certs WHERE cert_id = ?', undef, $certificateId );
-    $row or die( sprintf( 'Data not found for SSL certificate (ID %d)', $certificateId ));
-    %{$self} = ( %{$self}, %{$row} );
-
+    my $row;
     if ( $self->{'domain_type'} eq 'dmn' ) {
         $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT domain_name FROM domain WHERE domain_id = ?', undef, $self->{'domain_id'} );
     } elsif ( $self->{'domain_type'} eq 'als' ) {
@@ -232,11 +123,88 @@ sub _loadData
 
     unless ( $row ) {
         # Delete orphaned SSL certificate
-        $self->{'_dbh'}->do( 'DELETE FROM FROM ssl_certs WHERE cert_id = ?', undef, $certificateId );
+        $self->{'_dbh'}->do( 'DELETE FROM FROM ssl_certs WHERE cert_id = ?', undef, $entityId );
         return;
     }
 
-    %{$self} = ( %{$self}, %{$row} );
+    $self->{'_data'}->{
+        domain_name => $row->{'domain_name'},
+        certsDir    => "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs"
+    }
+}
+
+=item _add()
+
+ See iMSCP::Modules::Abstract::_add()
+
+=cut
+
+sub _add
+{
+    my ($self) = @_;
+
+    eval {
+        iMSCP::File->new( filename => "$self->{'_data'}->{'certsDir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove();
+
+        my $privateKeyContainer = File::Temp->new();
+        print $privateKeyContainer $self->{'_data'}->{'private_key'};
+        $privateKeyContainer->close();
+
+        my $certificateContainer = File::Temp->new();
+        print $certificateContainer $self->{'_data'}->{'certificate'};
+        $certificateContainer->close();
+
+        my $caBundleContainer;
+        if ( $self->{'_data'}->{'ca_bundle'} ) {
+            $caBundleContainer = File::Temp->new();
+            print $caBundleContainer $self->{'_data'}->{'ca_bundle'};
+            $caBundleContainer->close();
+        }
+
+        iMSCP::OpenSSL->new(
+            {
+                certificate_chains_storage_dir => $self->{'_data'}->{'certsDir'},
+                certificate_chain_name         => $self->{'_data'}->{'domain_name'},
+                private_key_container_path     => $privateKeyContainer->filename(),
+                certificate_container_path     => $certificateContainer->filename(),
+                ca_bundle_container_path       => $caBundleContainer->filename()
+            }
+        )
+            ->validateCertificateChain()
+            ->createCertificateChain();
+    };
+
+    # (since 1.2.16 - See #IP-1500)
+    # On to(add|change) actions, do not raise any error when a customer's SSL
+    # certificate is expired or invalid. It is the customer responsability to
+    # update the certificate throught his interface
+    $self->{'_dbh'}->do(
+        'UPDATE ssl_certs SET status = ? WHERE cert_id = ?',
+        undef,
+        ( $@ ? $@ =~ s/iMSCP::OpenSSL::validateCertificate:\s+//r : 'ok' ),
+        $self->{'_data'}->{'cert_id'}
+    );
+    $self;
+}
+
+=item _delete()
+
+ See iMSCP::Modules::Abstract::_delete()
+
+=cut
+
+sub _delete
+{
+    my ($self) = @_;
+
+    eval { iMSCP::File->new( filename => "$self->{'_data'}->{'certsDir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove(); };
+    if ( $@ ) {
+        $self->{'_dbh'}->do( 'UPDATE ssl_certs SET status = ? WHERE cert_id = ?', undef, $@, $self->{'_data'}->{'cert_id'} );
+        return $self;
+    }
+
+    $self->{'_dbh'}->do( 'DELETE FROM ssl_certs WHERE cert_id = ?', undef, $self->{'_data'}->{'cert_id'} );
+    $self;
 }
 
 =back
