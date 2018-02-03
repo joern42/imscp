@@ -171,7 +171,7 @@ sub _disable
 {
     my ($self) = @_;
 
-    eval { $self->SUPER::disable(); };
+    eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'ID'} );
     $self;
 }

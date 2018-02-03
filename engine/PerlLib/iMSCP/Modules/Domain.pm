@@ -197,7 +197,7 @@ sub _add
 {
     my ($self) = @_;
 
-    eval { $self->SUPER::add(); };
+    eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
     $self;
 }
