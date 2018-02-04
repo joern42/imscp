@@ -84,14 +84,7 @@ sub registerSetupListeners
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog',
-        sub {
-            push @{$_[0]}, sub { $self->askForApacheMPM( @_ ) };
-            0;
-        },
-        $self->getPriority()
-    );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->askForApacheMPM( @_ ) }; }, $self->getPriority());
 }
 
 =item askForApacheMPM( \%dialog )
@@ -107,16 +100,20 @@ sub askForApacheMPM
 {
     my ($self, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'HTTPD_MPM', $self->{'config'}->{'HTTPD_MPM'} || ( iMSCP::Getopt->preseed ? 'event' : '' ));
+    my $default = $main::imscpConfig{'DISTRO_CODENAME'} ne 'jessie' ? 'event' : 'worker';
+    my $value = main::setupGetQuestion( 'HTTPD_MPM', $self->{'config'}->{'HTTPD_MPM'} || ( iMSCP::Getopt->preseed ? $default : '' ));
     my %choices = (
-        'event', 'Apache Event MPM',
-        'itk', 'Apache ITK MPM',
-        'prefork', 'Apache Prefork MPM',
-        'worker', 'Apache Worker MPM'
+        # For Debian version prior Stretch we hide the MPM event due to:
+        # - https://bz.apache.org/bugzilla/show_bug.cgi?id=53555
+        # - https://support.plesk.com/hc/en-us/articles/213901685-Apache-crashes-scoreboard-is-full-not-at-MaxRequestWorkers
+        ($main::imscpConfig{'DISTRO_CODENAME'} ne 'jessie' ? ('event', 'MPM Event') : ()),
+        'itk', 'MPM Prefork with ITK module',
+        'prefork', 'MPM Prefork ',
+        'worker', 'MPM Worker '
     );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'event' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || $default);
 \\Z4\\Zb\\ZuApache MPM\\Zn
 
 Please choose the Apache MPM you want use:

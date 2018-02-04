@@ -83,9 +83,7 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{$_[0]},
-                sub { $self->askForPhpVersion( @_ ) },
-                sub { $self->askForPhpSapi( @_ ) },
+            push @{$_[0]}, sub { $self->askForPhpVersion( @_ ) }, sub { $self->askForPhpSapi( @_ ) },
                 sub { $self->askForFastCGIconnectionType( @_ ) };
         },
         # We want show these dialogs after the httpd server dialog because

@@ -43,7 +43,7 @@ Listener sample ( 00_sample.pl ):
 
 Package iMSCP::Listener::Sample;
 
-use iMSCP::Debug;
+use iMSCP::Debug qw/ warning /;
 use iMSCP::EventManager;
 
 # Listener which simply cancel installation

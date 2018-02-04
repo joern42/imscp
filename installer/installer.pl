@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
- installer [option]...
+ installer.pl [OPTION]...
 
 =cut
 
@@ -29,46 +29,13 @@
 
 BEGIN { $0 = 'imscp-installer'; }
 
-END {
-    return unless iMSCP::Getopt->noprompt;
-
-    if ( $? == 5 ) {
-        if ( iMSCP::Getopt->preseed ) {
-            # We exit with status 5 from iMSCP::Dialog in noninteractive mode
-            print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
-            return;
-        }
-
-        print STDERR output( 'Missing or bad entry found in configuration file.', 'fatal' );
-        return;
-    }
-
-    return if $?;
-
-    unless ( iMSCP::Getopt->buildonly ) {
-        print STDOUT output( 'i-MSCP has been successfully installed/updated.', 'ok' );
-        return;
-    }
-
-    print STDOUT output( 'i-MSCP has been successfully built.', 'ok' );
-    print STDOUT output( <<"EOF", 'info' );
-To continue, you must execute the following commands:
-
-  # rm -fR $main::imscpConfig{'ROOT_DIR'}/{engine,gui}
-  # cp -fR $main::{'DESTDIR'}/* /
-  # rm -fR $main::{'DESTDIR'}
-  # perl $main::imscpConfig{'ROOT_DIR'}/engine/setup/imscp-reconfigure -d
-EOF
-}
-
 use strict;
 use warnings;
 use File::Basename;
 use FindBin;
 use lib "$FindBin::Bin/installer", "$FindBin::Bin/engine/PerlLib";
 use iMSCP::Installer::Functions qw/ loadConfig build install /;
-use iMSCP::Debug qw/ newDebug output /;
-use iMSCP::Dialog;
+use iMSCP::Debug qw/ newDebug /;
 use iMSCP::Getopt;
 use iMSCP::Requirements;
 use POSIX qw / locale_h /;
@@ -86,24 +53,19 @@ newDebug( 'imscp-installer.log' );
 # Set execution context
 iMSCP::Getopt->context( 'installer' );
 
-# Init variable that holds questions
-%main::questions = () unless %main::questions;
-
 # Parse installer options
 iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
  -b,    --build-only              Process build steps only.
  -f,    --force-reinstall         Reinstall distribution packages.
  -s,    --skip-distro-packages    Do not install/update distribution packages.},
     'build-only|b'           => \&iMSCP::Getopt::buildonly,
-    'force-reinstall|f'      => \&iMSCP::Getopt::forcereinstall,
     'skip-distro-packages|s' => \&iMSCP::Getopt::skippackages
 );
 
-# Handle preseed option
 if ( iMSCP::Getopt->preseed ) {
-    require iMSCP::Getopt->preseed;
     # The preseed option supersede the reconfigure option
     iMSCP::Getopt->reconfigure( 'none' );
+    # The preseed option involves the noprompt option
     iMSCP::Getopt->noprompt( 1 );
 }
 
@@ -111,29 +73,9 @@ if ( iMSCP::Getopt->preseed ) {
 iMSCP::Getopt->verbose( 0 ) unless iMSCP::Getopt->noprompt;
 
 loadConfig();
-
-if ( iMSCP::Getopt->noprompt ) {
-    if ( iMSCP::Getopt->buildonly ) {
-        print STDOUT output( 'Build steps in progress... Please wait.', 'info' )
-    } else {
-        print STDOUT output( 'Installation in progress... Please wait.', 'info' );
-    }
-}
-
-my $ret = build();
-exit $ret if $ret;
-exit install() unless iMSCP::Getopt->buildonly;
-
-iMSCP::Dialog->getInstance()->msgbox( <<"EOF" );
-\\Z4\\ZuBuild Steps Successful\\Zn
-
-To continue, you must execute the following commands:
-
-  # rm -fR $main::imscpConfig{'ROOT_DIR'}/{engine,gui}
-  # cp -fR $main::{'DESTDIR'}/* /
-  # rm -fR $main::{'DESTDIR'}
-  # perl $main::imscpConfig{'ROOT_DIR'}/engine/setup/imscp-reconfigure -d
-EOF
+build();
+exit if iMSCP::Getopt->buildonly;
+install();
 
 =head1 AUTHOR
 

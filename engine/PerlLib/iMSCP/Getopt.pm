@@ -256,8 +256,11 @@ EOF
 
  Accessor/Mutator for the preseed command line option
 
+ Note that the preseed option can be set only once. For subsequent calls, the
+ routine will always act as accessor, returning TRUE value.
+
  Param string $file OPTIONAL Preseed file path
- Return string Path to preseed file or empty string
+ Return bool TRUE if in preseed mode, FALSE otherwise
 
 =cut
 
@@ -265,10 +268,21 @@ sub preseed
 {
     my (undef, $file) = @_;
 
-    return $options->{'preseed'} unless defined $file;
+    return $options->{'preseed'} if $options->{'preseed'};
+    return 0 unless defined $file;
 
-    -f $file or die( sprintf( 'Preseed file not found: %s', $file ));
-    $options->{'preseed'} = $file;
+    eval {
+        require $file;
+        1;
+    } or die( sprintf( "Couldn't load preseed file: %s\n", $@ ));
+
+    END {
+        return unless $? == 5;
+        print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
+        
+    }
+
+    $options->{'preseed'} = 1;
 }
 
 =item context( [ $context = 'backend' ])

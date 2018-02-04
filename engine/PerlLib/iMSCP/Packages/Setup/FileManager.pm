@@ -338,7 +338,7 @@ sub _installPackages
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
             'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew',
             '--option', 'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
-            ( iMSCP::Getopt->forcereinstall ? '--reinstall' : () ), '--auto-remove', '--purge', '--no-install-recommends',
+            '--auto-remove', '--purge', '--no-install-recommends',
             ( version->parse( `apt-get --version 2>/dev/null` =~ /^apt\s+(\d\.\d)/ ) < version->parse( '1.1' )
                 ? '--force-yes' : '--allow-downgrades' ),
             'install', @packages

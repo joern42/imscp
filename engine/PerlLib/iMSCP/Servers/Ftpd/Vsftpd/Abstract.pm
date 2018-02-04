@@ -62,9 +62,8 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{$_[0]}, sub { $self->sqlUserDialog( @_ ); }, sub { $self->passivePortRangeDialog( @_ ); },
-                sub { $self->maxClientsDialog( @_ ); }, sub { $self->maxCLientsPerIpDialog( @_ ); };
-            0;
+            push @{$_[0]}, sub { $self->sqlUserDialog( @_ ); }, sub { $self->passivePortRangeDialog( @_ ); }, sub { $self->maxClientsDialog( @_ ); },
+                sub { $self->maxCLientsPerIpDialog( @_ ); };
         },
         $self->getPriority()
     );
@@ -110,10 +109,8 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter a username for the VsFTPd SQL user (leave empty for default):
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && ( !isValidUsername( $dbUser )
-            || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
-            || !isAvailableSqlUser( $dbUser )
+        } while $rs < 30 && ( !isValidUsername( $dbUser )
+            || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' ) || !isAvailableSqlUser( $dbUser )
         );
 
         return $rs unless $rs < 30;

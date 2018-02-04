@@ -108,10 +108,8 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter a username for the PhpMyAdmin SQL user (leave empty for default):
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && ( !isValidUsername( $dbUser )
-            || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
-            || !isAvailableSqlUser( $dbUser )
+        } while $rs < 30 && ( !isValidUsername( $dbUser )
+            || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' ) || !isAvailableSqlUser( $dbUser )
         );
 
         return $rs unless $rs < 30;
@@ -134,8 +132,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter a password for the PhpMyAdmin SQL user (leave empty for autogeneration):
 \\Z \\Zn
 EOF
-            } while $rs < 30
-                && !isValidPassword( $dbPass );
+            } while $rs < 30 && !isValidPassword( $dbPass );
 
             return $rs if $rs >= 30;
 
@@ -481,7 +478,7 @@ sub _buildConfig
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', \ my $cfgTpl, $data );
 
-    $cfgTpl = iMSCP::File->new( filename => "$confDir/imscp.config.inc.php" )->get() unless defined $cfgTpl
+    $cfgTpl = iMSCP::File->new( filename => "$confDir/imscp.config.inc.php" )->get() unless defined $cfgTpl;
 
     processByRef( $data, \$cfgTpl );
 

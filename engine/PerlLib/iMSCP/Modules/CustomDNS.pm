@@ -118,7 +118,7 @@ sub _init
 {
     my ($self) = @_;
 
-    @{$self}[qw/ domain_name domain_ip dns_records /] = ( undef, undef, [] );
+    @{$self}{qw/ domain_name domain_ip dns_records /} = ( undef, undef, [] );
     $self->SUPER::_init();
 }
 

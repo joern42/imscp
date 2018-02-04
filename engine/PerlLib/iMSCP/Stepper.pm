@@ -25,10 +25,10 @@ package iMSCP::Stepper;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ debug error getLastError /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Dialog;
 use iMSCP::Getopt;
-use Scalar::Defer;
+use Scalar::Defer qw/ lazy /;
 use parent 'Exporter';
 
 our @EXPORT = qw/ startDetail endDetail step /;
@@ -36,7 +36,7 @@ our @EXPORT = qw/ startDetail endDetail step /;
 my @all = ();
 my $last = '';
 my $dialog = lazy { iMSCP::Dialog->getInstance(); };
-my $step = lazy { iMSCP::Getopt->noprompt ? \&_callback : \&_step; };
+my $stepperRoutine = lazy { iMSCP::Getopt->noprompt ? \&_callback : \&_step; };
 
 =head1 DESCRIPTION
 
@@ -56,7 +56,7 @@ my $step = lazy { iMSCP::Getopt->noprompt ? \&_callback : \&_step; };
 
 sub startDetail
 {
-    return 0 if iMSCP::Getopt->noprompt;
+    return if iMSCP::Getopt->noprompt;
     $dialog->endGauge();
     push @all, $last;
 }
@@ -71,7 +71,7 @@ sub startDetail
 
 sub endDetail
 {
-    return 0 if iMSCP::Getopt->noprompt;
+    return if iMSCP::Getopt->noprompt;
     $last = pop @all;
 }
 
@@ -89,7 +89,7 @@ sub endDetail
 
 sub step
 {
-    $step->( @_ );
+    $stepperRoutine->( @_ );
 }
 
 =back
@@ -129,24 +129,24 @@ sub _step
 {
     my ($callback, $text, $nSteps, $nStep) = @_;
 
-    unless ( iMSCP::Getopt->noprompt ) {
-        use integer;
-        $last = sprintf( "\n\\ZbStep %s of %s\\Zn\n\n%s", $nStep, $nSteps, $text );
-        my $msg = @all ? join( "\n", @all ) . "\n" . $last : $last;
-        my $percent = $nStep * 100 / $nSteps;
-        $dialog->hasGauge ? $dialog->setGauge( $percent, $msg ) : $dialog->startGauge( $msg, $percent );
-    }
+    eval {
+        unless ( iMSCP::Getopt->noprompt ) {
+            use integer;
+            $last = sprintf( "\n\\ZbStep %s of %s\\Zn\n\n%s", $nStep, $nSteps, $text );
+            my $msg = @all ? join( "\n", @all ) . "\n" . $last : $last;
+            my $percent = $nStep * 100 / $nSteps;
+            $dialog->hasGauge ? $dialog->setGauge( $percent, $msg ) : $dialog->startGauge( $msg, $percent );
+        }
 
-    my $rs = _callback( $callback, iMSCP::Getopt->noprompt ? $text : undef );
-    return $rs unless defined $callback;
-    return $rs unless $rs && $rs != 50;
+        _callback( $callback, iMSCP::Getopt->noprompt ? $text : undef );
+    };
+    return unless defined $callback && $@;
 
     # Make error message free of most ANSI sequences
-    ( my $errorMessage = getLastError() ) =~ s/\x1b\[[0-9;]*[mGKH]//g;
-    $errorMessage = 'An unexpected error occurred.' unless $errorMessage;
+    ( my $errorMessage = $@ ) =~ s/\x1b\[[0-9;]*[mGKH]//g;
     $errorMessage =~ s/^[\s\n]+|[\s\n+]+$//g;
     $dialog->endGauge();
-    $dialog->msgbox( <<"EOF" );
+    $dialog->infobox( <<"EOF" );
 \\Z1[ERROR]\\Zn
 
 Error while performing step:
@@ -159,8 +159,7 @@ Error was:
 
 Please have a look at https://i-mscp.net/ if you need help.
 EOF
-
-    $rs;
+    exit 1;
 }
 
 =back

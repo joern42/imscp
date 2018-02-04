@@ -201,7 +201,7 @@ sub msgbox
     ( $self->_textbox( $text, 'msgbox' ) )[0];
 }
 
-=item yesno( $text [, $defaultno =  FALSE, [ $backbutton = FALSE] ] )
+=item yesno( $text [, $defaultno =  FALSE [, $backbutton = FALSE] ] )
 
  Show boolean dialog box
 

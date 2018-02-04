@@ -214,8 +214,10 @@ sub _pkt_add_data
         }
         }
 
-        sub endElement
-        { my ( $parseinst, $element ) = @_; }
+        sub endElement {
+            my ( $parseinst, $element ) = @_;
+        }
+
         sub characterData
         {
             my ( $parseinst, $data ) = @_;
@@ -238,8 +240,7 @@ sub _pkt_add_data
             }
         }
 
-        if (
-            $INSTALL_DATA{'software_installtype'} ne '' && $INSTALL_DATA{'software_installfile'} ne '' &&
+        if ( $INSTALL_DATA{'software_installtype'} ne '' && $INSTALL_DATA{'software_installfile'} ne '' &&
                 -f "$sw_tmp_path/$INSTALL_DATA{'software_installfile'}" && $INSTALL_DATA{'software_name'} ne '' &&
                 $INSTALL_DATA{'software_version'} ne '' && $INSTALL_DATA{'software_language'} ne '' &&
                 $INSTALL_DATA{'software_type'} ne '' && $INSTALL_DATA{'software_db'} ne '' &&

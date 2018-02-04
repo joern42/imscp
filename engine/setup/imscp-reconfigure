@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
- imscp-reconfigure [option]...
+ imscp-reconfigure [OPTION]...
 
 =cut
 
@@ -27,22 +27,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-END {
-    return unless iMSCP::Getopt->noprompt;
-
-    print STDOUT output( 'i-MSCP has been successfully installed/updated.', 'ok' ) unless $?;
-
-    if ( $? == 5 ) {
-        # We exit with status 5 from iMSCP::Dialog in noninteractive mode
-        if ( iMSCP::Getopt->preseed ) {
-            print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
-            return;
-        }
-
-        print STDERR output( 'Missing or bad entry found in configuration file.', 'fatal' );
-    }
-}
-
 use strict;
 use warnings;
 use File::Basename;
@@ -62,11 +46,11 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 newDebug( 'imscp-setup.log' );
 
-# Set execution context
-iMSCP::Getopt->context( 'installer' );
-
 # Init variable that holds questions
 %main::questions = () unless %main::questions;
+
+# Set execution context
+iMSCP::Getopt->context( 'installer' );
 
 # Parse command line options
 iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
@@ -74,11 +58,10 @@ iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . q
     'skip-distro-packages|s' => \&iMSCP::Getopt::skippackages
 );
 
-# Handle preseed option
 if ( iMSCP::Getopt->preseed ) {
-    require iMSCP::Getopt->preseed;
     # The preseed option supersede the reconfigure option
     iMSCP::Getopt->reconfigure( 'none' );
+    # The preseed option involves the noprompt option
     iMSCP::Getopt->noprompt( 1 );
 }
 
@@ -89,21 +72,18 @@ system( 'clear 2>/dev/null' );
 
 print STDOUT output( 'Reconfiguration in progress... Please wait.', 'info' ) if iMSCP::Getopt->noprompt;
 
-sub run
-{
-    require "$FindBin::Bin/imscp-setup-methods.pl";
+require "$FindBin::Bin/imscp-setup-methods.pl";
 
-    setupBoot();
-    iMSCP::EventManager->getInstance()->trigger( 'beforeSetup' );
-    setupRegisterListeners();
+setupBoot();
+setupRegisterListeners();
 
-    unless ( iMSCP::Getopt->noprompt ) {
-        my $dialog = iMSCP::Dialog->getInstance();
-        $dialog->set( 'title', 'i-MSCP Reconfiguration Dialog' );
-        $dialog->set( 'yes-label', 'Continue' );
-        $dialog->set( 'no-label', 'Abort' );
+unless ( iMSCP::Getopt->noprompt ) {
+    my $dialog = iMSCP::Dialog->getInstance();
+    $dialog->set( 'title', 'i-MSCP Reconfiguration Dialog' );
+    $dialog->set( 'yes-label', 'Continue' );
+    $dialog->set( 'no-label', 'Abort' );
 
-        exit 0 if $dialog->yesno( <<"EOF", 'abort_by_default' );
+    exit 0 if $dialog->yesno( <<"EOF", 'abort_by_default' );
 
 Welcome to the \\Z1i-MSCP $main::imscpConfig{'Version'}\\Zn reconfiguration dialog.
 
@@ -114,21 +94,21 @@ During the process, some or all services might require to be shutdown or restart
 You can now either continue or abort.
 EOF
 
-        $dialog->resetLabels();
-    }
+    $dialog->resetLabels();
+}
 
-    setupDialog();
-    setupTasks();
+setupDialog();
+setupTasks();
 
-    iMSCP::EventManager->getInstance()->trigger( 'afterSetup' );
+iMSCP::EventManager->getInstance()->trigger( 'afterSetup' );
 
-    return if iMSCP::Getopt->noprompt;
+return if iMSCP::Getopt->noprompt;
 
-    my $port = $main::imscpConfig{'BASE_SERVER_VHOST_PREFIX'} eq 'http://'
-        ? $main::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $main::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
-    my $vhost = idn_to_unicode( $main::imscpConfig{'BASE_SERVER_VHOST'}, 'utf-8' ) // '';
+my $port = $main::imscpConfig{'BASE_SERVER_VHOST_PREFIX'} eq 'http://'
+    ? $main::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $main::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
+my $vhost = idn_to_unicode( $main::imscpConfig{'BASE_SERVER_VHOST'}, 'utf-8' ) // '';
 
-    iMSCP::Dialog->getInstance()->infobox( <<"EOF" );
+iMSCP::Dialog->getInstance()->infobox( <<"EOF" );
 
 \\Z1Congratulations\\Zn
 
@@ -138,7 +118,6 @@ Please connect to $main::imscpConfig{'BASE_SERVER_VHOST_PREFIX'}$vhost:$port and
 
 Thank you for choosing i-MSCP.
 EOF
-}
 
 =head1 AUTHOR
 

@@ -93,7 +93,7 @@ EOF
         [ \&_removeFiles, 'Removing i-MSCP files' ],
     );
 
-    my ($step, $nbSteps) = ( 1, @steps );
+    my ($step, $nbSteps) = ( 1, scalar @steps );
     step( @{$_}, $nbSteps, $step++ ) for @steps;
 
     iMSCP::Dialog->getInstance()->endGauge();
@@ -116,7 +116,7 @@ sub _userDialog
     my $dialog = iMSCP::Dialog->getInstance();
     $dialog->set( 'title', 'i-MSCP Uninstaller Dialog' );
 
-    exit if $dialog->yesno( <<"EOF", 1 );
+    exit if $dialog->yesno( <<"EOF", 'no_by_default' );
 
 Welcome to the \\Z4i-MSCP $main::imscpConfig{'Version'}\\Zn uninstaller dialog.
 
@@ -172,7 +172,7 @@ sub _uninstallPackages
 
     # For uninstallation, we reverse package priorities
     my @packages = reverse iMSCP::Packages->getInstance()->getListWithFullNames();
-    my ($step, $nbSteps) = ( 1, @packages );
+    my ($step, $nbSteps) = ( 1, scalar @packages );
     for my $package( @packages ) {
         ( my $subref = $package->can( 'uninstall' ) ) or $step++ && next;
         step( sub { $subref->( $package->getInstance()) }, sprintf( 'Executing %s uninstall tasks...', $package ), $nbSteps, $step );
@@ -185,7 +185,7 @@ sub _uninstallServers
 {
     # For uninstallation, we reverse servers priorities
     my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
-    my ($step, $nbSteps) = ( 1, @servers );
+    my ($step, $nbSteps) = ( 1, scalar @servers );
 
     startDetail();
     for my $task( qw/ preuninstall uninstall postuninstall / ) {

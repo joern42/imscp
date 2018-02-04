@@ -54,60 +54,50 @@ sub setupBoot
 
     # If we are not in installer context, we need first create the imscpOld.conf file if it doesn't already exist
     unless ( -f "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
-        local $UMASK = 027;
-        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp.conf" )->copyFile(
-            "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf", { preserve => 'no' }
-        );
-        return $rs if $rs;
+        local $UMASK = 0027;
+        iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp.conf" )->copy( "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" );
     }
 
     # We open the imscpOld.conf file in write mode. This is needed because some servers will update it after processing tasks
     # that must be done once, such as uninstallation tasks (older server alternatives)
     tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf";
-    
-    if(iMSCP::Getopt->context() eq 'installer' && iMSCP::Service->getInstance()->isSystemd()) {
+
+    if ( iMSCP::Getopt->context() eq 'installer' && iMSCP::Service->getInstance()->isSystemd() ) {
         # Unit files could have been updated. We need make systemd aware of changes
         iMSCP::Service->getInstance()->getProvider()->daemonReload();
     }
-    
-    0;
 }
 
 sub setupRegisterListeners
 {
-    for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-        my $rs = $_->factory()->registerSetupListeners();
-        return $rs if $rs;
-    }
+
+    $_->factory()->registerSetupListeners() for iMSCP::Servers->getInstance()->getListWithFullNames();
 
     my $eventManager = iMSCP::EventManager->getInstance();
 
     for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
         ( my $subref = $_->can( 'registerSetupListeners' ) ) or next;
-        my $rs = $subref->( $_->getInstance( eventManager => $eventManager ));
-        return $rs if $rs;
+        $subref->( $_->getInstance( eventManager => $eventManager ));
     }
-
-    0;
 }
 
 sub setupDialog
 {
     my $dialogStack = [];
 
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDialog', $dialogStack );
-    return $rs if $rs;
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDialog', $dialogStack );
 
     # Implements a simple state machine (backup capability)
-    # Any dialog subroutine *should* allow user to step back by returning 30 when 'back' button is pushed
-    # In case of yesno dialog box, there is no back button. Instead, user can back up using the ESC keystroke
-    # In any other context, the ESC keystroke allows user to abort.
+    # Any dialog subroutine *should* allow user to step back by returning 30
+    # when the 'back' button is pushed In case of a 'yesno' dialog box, there
+    # is no 'back' button. Instead, user can back up using the ESC keystroke.
+    # In other contexts, the ESC keystroke make user able to abort.
     my ($state, $nbDialog, $dialog) = ( 0, scalar @{$dialogStack}, iMSCP::Dialog->getInstance() );
     while ( $state < $nbDialog ) {
         $dialog->set( 'no-cancel', $state == 0 ? '' : undef );
 
-        $rs = $dialogStack->[$state]->( $dialog );
-        exit( $rs ) if $rs > 30;
+        my $rs = $dialogStack->[$state]->( $dialog );
+        exit $rs if $rs == 50;
         return $rs if $rs && $rs < 30;
 
         if ( $rs == 30 ) {
@@ -125,8 +115,7 @@ sub setupDialog
 
 sub setupTasks
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupTasks' );
-    return $rs if $rs;
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupTasks' );
 
     my @steps = (
         [ \&setupSaveConfig, 'Saving configuration' ],
@@ -141,30 +130,17 @@ sub setupTasks
         [ \&setupRemoveOldConfig, 'Removing old configuration ' ]
     );
 
-    my $step = 1;
-    my $nbSteps = @steps;
-
-    for ( @steps ) {
-        $rs = step( @{$_}, $nbSteps, $step );
-        last if $rs;
-        $step++;
-    }
+    my ($step, $nbSteps) = ( 1, scalar @steps );
+    step( @{$_}, $nbSteps, $step++ ) for @steps;
 
     iMSCP::Dialog->getInstance()->endGauge();
-    $rs ||= iMSCP::EventManager->getInstance()->trigger( 'afterSetupTasks' );
+    iMSCP::EventManager->getInstance()->trigger( 'afterSetupTasks' );
 }
 
 sub setupDeleteBuildDir
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDeleteBuildDir', $main::{'DESTDIR'} );
-    return $rs if $rs;
-
-    eval { iMSCP::Dir->new( dirname => $main::{'DESTDIR'} )->remove(); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDeleteBuildDir', $main::{'DESTDIR'} );
+    iMSCP::Dir->new( dirname => $main::{'DESTDIR'} )->remove();
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupDeleteBuildDir', $main::{'DESTDIR'} );
 }
 
@@ -174,8 +150,7 @@ sub setupDeleteBuildDir
 
 sub setupSaveConfig
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupSaveConfig' );
-    return $rs if $rs;
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupSaveConfig' );
 
     # Re-open main configuration file in read/write mode
     iMSCP::Bootstrapper->getInstance()->loadMainConfig( {
@@ -195,31 +170,20 @@ sub setupSaveConfig
 # FIXME: Should be done by a the Local server
 sub setupCreateMasterUser
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupCreateMasterUser' );
-
-    $rs ||= iMSCP::SystemGroup->getInstance()->addSystemGroup( $main::imscpConfig{'IMSCP_GROUP'} );
-    $rs ||= iMSCP::SystemUser->new(
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupCreateMasterUser' );
+    iMSCP::SystemGroup->getInstance()->addSystemGroup( $main::imscpConfig{'IMSCP_GROUP'} );
+    iMSCP::SystemUser->new(
         username => $main::imscpConfig{'IMSCP_USER'},
         group    => $main::imscpConfig{'IMSCP_GROUP'},
         comment  => 'i-MSCP master user',
         home     => $main::imscpConfig{'IMSCP_HOMEDIR'}
     )->addSystemUser();
-    return $rs if $rs;
-
-    eval {
-        # Ensure that correct permissions are set on i-MSCP master user homedir (handle upgrade case)
-        iMSCP::Dir->new( dirname => $main::imscpConfig{'IMSCP_HOMEDIR'} )->make( {
-            user           => $main::imscpConfig{'IMSCP_USER'},
-            group          => $main::imscpConfig{'IMSCP_GROUP'},
-            mode           => 0755,
-            fixpermissions => 1 # We fix permissions in any case
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::Dir->new( dirname => $main::imscpConfig{'IMSCP_HOMEDIR'} )->make( {
+        user           => $main::imscpConfig{'IMSCP_USER'},
+        group          => $main::imscpConfig{'IMSCP_GROUP'},
+        mode           => 0755,
+        fixpermissions => 1 # We fix permissions in any case
+    } );
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupCreateMasterUser' );
 }
 
@@ -231,7 +195,6 @@ sub setupCoreServices
     # iMSCP::Packages::Mounts
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->enable( $_ ) for 'imscp_traffic', 'imscp_mountall';
-    0;
 }
 
 # Should be through by the iMSCP::Composer class
@@ -265,12 +228,10 @@ EOT
         );
     }
 
-    unless ( symlink(
-        File::Spec->abs2rel( '/usr/local/bin/composer', $main::imscpConfig{'IMSCP_HOMEDIR'} ), "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar"
-    ) ) {
-        error( sprintf( "Couldn't create backward compatibility symlink for composer.phar: %s", $! ));
-        return 1;
-    }
+    symlink File::Spec->abs2rel( '/usr/local/bin/composer', $main::imscpConfig{'IMSCP_HOMEDIR'} ),
+        "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" or die(
+        sprintf( "Couldn't create backward compatibility symlink for composer.phar: %s", $! )
+    );
 
     iMSCP::File->new( filename => "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" )->owner(
         $main::imscpConfig{'IMSCP_USER'}, $main::imscpConfig{'IMSCP_GROUP'}
@@ -279,8 +240,7 @@ EOT
 
 sub setupSetPermissions
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupSetPermissions' );
-    return $rs if $rs;
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupSetPermissions' );
 
     for my $script ( 'set-engine-permissions.pl', 'set-gui-permissions.pl' ) {
         startDetail();
@@ -292,7 +252,7 @@ sub setupSetPermissions
         );
 
         my $stderr;
-        $rs = executeNoWait(
+        my $rs = executeNoWait(
             [ 'perl', "$main::imscpConfig{'ENGINE_ROOT_DIR'}/setup/$script", @options ],
             ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose
                 ? sub {}
@@ -305,110 +265,85 @@ sub setupSetPermissions
         );
 
         endDetail();
-
-        if ( $rs ) {
-            error( sprintf( 'Error while setting permissions: %s', $stderr || 'Unknown error' ));
-            last;
-        }
+        !$rs or die ( sprintf( 'Error while setting permissions: %s', $stderr || 'Unknown error' ));
     }
 
-    $rs |= iMSCP::EventManager->getInstance()->trigger( 'afterSetupSetPermissions' );
+    iMSCP::EventManager->getInstance()->trigger( 'afterSetupSetPermissions' );
 }
 
 # Should be done through the iMSCP::DbTasksProcessor, even status changes
 sub setupDbTasks
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDbTasks' );
-    return $rs if $rs;
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDbTasks' );
 
-    eval {
-        {
-            my $tables = {
-                ssl_certs       => 'status',
-                admin           => [ 'admin_status', "AND admin_type = 'user'" ],
-                domain          => 'domain_status',
-                subdomain       => 'subdomain_status',
-                domain_aliasses => 'alias_status',
-                subdomain_alias => 'subdomain_alias_status',
-                domain_dns      => 'domain_dns_status',
-                ftp_users       => 'status',
-                mail_users      => 'status',
-                htaccess        => 'status',
-                htaccess_groups => 'status',
-                htaccess_users  => 'status',
-                server_ips      => 'ip_status'
-            };
-            my $aditionalCondition;
+    my $tables = {
+        ssl_certs       => 'status',
+        admin           => [ 'admin_status', "AND admin_type = 'user'" ],
+        domain          => 'domain_status',
+        subdomain       => 'subdomain_status',
+        domain_aliasses => 'alias_status',
+        subdomain_alias => 'subdomain_alias_status',
+        domain_dns      => 'domain_dns_status',
+        ftp_users       => 'status',
+        mail_users      => 'status',
+        htaccess        => 'status',
+        htaccess_groups => 'status',
+        htaccess_users  => 'status',
+        server_ips      => 'ip_status'
+    };
+    my $aditionalCondition;
 
-            my $db = iMSCP::Database->getInstance();
-            my $oldDbName = $db->useDatabase( setupGetQuestion( 'DATABASE_NAME' ));
+    my $db = iMSCP::Database->getInstance();
+    my $oldDbName = $db->useDatabase( setupGetQuestion( 'DATABASE_NAME' ));
 
-            my $dbh = $db->getRawDb();
-            local $dbh->{'RaiseError'};
-
-            while ( my ($table, $field) = each %{$tables} ) {
-                if ( ref $field eq 'ARRAY' ) {
-                    $aditionalCondition = $field->[1];
-                    $field = $field->[0];
-                } else {
-                    $aditionalCondition = ''
-                }
-
-                ( $table, $field ) = ( $dbh->quote_identifier( $table ), $dbh->quote_identifier( $field ) );
-                $dbh->do(
-                    "
-                        UPDATE $table
-                        SET $field = 'tochange'
-                        WHERE $field NOT IN('toadd', 'torestore', 'toenable', 'todisable', 'disabled', 'ordered', 'todelete')
-                        $aditionalCondition
-                    "
-                );
-                $dbh->do( "UPDATE $table SET $field = 'todisable' WHERE $field = 'disabled' $aditionalCondition" );
-            }
-
-            $dbh->do(
-                "
-                    UPDATE plugin
-                    SET plugin_status = 'tochange', plugin_error = NULL
-                    WHERE plugin_status IN ('tochange', 'enabled')
-                    AND plugin_backend = 'yes'
-                "
-            );
-
-            $db->useDatabase( $oldDbName ) if $oldDbName;
+    while ( my ($table, $field) = each %{$tables} ) {
+        if ( ref $field eq 'ARRAY' ) {
+            $aditionalCondition = $field->[1];
+            $field = $field->[0];
+        } else {
+            $aditionalCondition = ''
         }
 
-        startDetail();
-        iMSCP::DbTasksProcessor->getInstance( mode => 'setup' )->processDbTasks();
-        endDetail();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+        ( $table, $field ) = ( $db->quote_identifier( $table ), $db->quote_identifier( $field ) );
+        $db->do(
+            "
+                UPDATE $table
+                SET $field = 'tochange'
+                WHERE $field NOT IN('toadd', 'torestore', 'toenable', 'todisable', 'disabled', 'ordered', 'todelete')
+                $aditionalCondition
+            "
+        );
+        $db->do( "UPDATE $table SET $field = 'todisable' WHERE $field = 'disabled' $aditionalCondition" );
     }
+
+    $db->do(
+        "
+            UPDATE plugin
+            SET plugin_status = 'tochange', plugin_error = NULL
+            WHERE plugin_status IN ('tochange', 'enabled')
+            AND plugin_backend = 'yes'
+        "
+    );
+
+    $db->useDatabase( $oldDbName ) if $oldDbName;
+
+    startDetail();
+    iMSCP::DbTasksProcessor->getInstance()->processDbTasks();
+    endDetail();
 
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupDbTasks' );
 }
 
 sub setupRegisterPluginListeners
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupRegisterPluginListeners' );
-    return $rs if $rs;
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupRegisterPluginListeners' );
 
     my ($db, $pluginNames) = ( iMSCP::Database->getInstance(), undef );
     my $oldDbName = eval { $db->useDatabase( setupGetQuestion( 'DATABASE_NAME' )); };
-    return 0 if $@; # Fresh install case
+    return if $@; # Fresh install case
 
-    eval {
-        my $dbh = $db->getRawDb();
-        $dbh->{'RaiseError'} = 1;
-        $pluginNames = $dbh->selectcol_arrayref( "SELECT plugin_name FROM plugin WHERE plugin_status = 'enabled'" );
-        $db->useDatabase( $oldDbName ) if $oldDbName;
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    $pluginNames = $db->selectcol_arrayref( "SELECT plugin_name FROM plugin WHERE plugin_status = 'enabled'" );
+    $db->useDatabase( $oldDbName ) if $oldDbName;
 
     if ( @{$pluginNames} ) {
         my $eventManager = iMSCP::EventManager->getInstance();
@@ -418,12 +353,11 @@ sub setupRegisterPluginListeners
             next unless grep( $_ eq $pluginName, @{$pluginNames} );
             my $pluginClass = $plugins->getClass( $pluginName );
             ( my $subref = $pluginClass->can( 'registerSetupListeners' ) ) or next;
-            $rs = $subref->( $pluginClass, $eventManager );
-            last if $rs;
+            $subref->( $pluginClass, $eventManager );
         }
     }
 
-    $rs ||= iMSCP::EventManager->getInstance()->trigger( 'afterSetupRegisterPluginListeners' );
+    iMSCP::EventManager->getInstance()->trigger( 'afterSetupRegisterPluginListeners' );
 }
 
 sub setupServersAndPackages
@@ -432,81 +366,49 @@ sub setupServersAndPackages
     my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
     my @packages = iMSCP::Packages->getInstance()->getListWithFullNames();
     my $nSteps = @servers;
-    my $rs = 0;
 
     # First, we need to uninstall older servers  (switch to another alternative)
     for my $task( qw/ PreUninstall Uninstall PostUninstall / ) {
         my $lcTask = lc( $task );
-
-        $rs = $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
-        last if $rs;
-
+        $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
         startDetail();
-
         my $nStep = 1;
         # For uninstallation, we reverse server priorities
         for my $server( reverse @servers ) {
             next if $main::imscpOldConfig{$server} eq $main::imscpConfig{$server} || $main::imscpOldConfig{$server} eq '';
 
-            $rs = step(
+            step(
                 sub { $server->factory( $main::imscpOdlConfig{$server} )->$lcTask(); },
-                sprintf( "Executing %s %s tasks...", $server, $lcTask ),
-                $nSteps,
-                $nStep
+                sprintf( "Executing %s %s tasks...", $server, $lcTask ), $nSteps, $nStep++
             );
-            last if $rs;
 
             $main::imscpOdlConfig{$server} = $main::imscpConfig{$server};
-            $nStep++;
         }
-
         endDetail();
-
-        $rs ||= $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
-        last if $rs;
+        $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
     }
-
-    return $rs if $rs;
 
     $nSteps = @servers+@packages;
 
     for my $task( qw/ PreInstall Install PostInstall / ) {
         my $lcTask = lc( $task );
-
-        $rs ||= $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
-        return $rs if $rs;
-
+        $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
         startDetail();
-
         my $nStep = 1;
-        for ( @servers ) {
-            $rs = step( sub { $_->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep );
-            last if $rs;
-            $nStep++;
+        step( sub { $_->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep++ ) for @servers;
+        $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
+        $eventManager->trigger( 'beforeSetup' . $task . 'Packages' );
+
+        for ( @packages ) {
+            ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
+            step(
+                sub { $subref->( $_->getInstance( eventManager => $eventManager )) },
+                sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep++
+            );
         }
-
-        $rs ||= $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
-        $rs ||= $eventManager->trigger( 'beforeSetup' . $task . 'Packages' );
-
-        unless ( $rs ) {
-            for ( @packages ) {
-                ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
-                $rs = step(
-                    sub { $subref->( $_->getInstance( eventManager => $eventManager )) },
-                    sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep
-                );
-                last if $rs;
-                $nStep++;
-            }
-        }
-
         endDetail();
-
-        $rs ||= $eventManager->trigger( 'afterSetup' . $task . 'Packages' );
-        last if $rs;
+        $eventManager->trigger( 'afterSetup' . $task . 'Packages' );
     }
-
-    $rs;
 }
 
 sub setupRestartServices
@@ -516,59 +418,30 @@ sub setupRestartServices
 
     # This is a bit annoying but we have not choice.
     # Not doing this would prevent propagation of upstream changes (eg: static mount entries)
-    my $rs = $eventManager->registerOne(
+    $eventManager->registerOne(
         'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]},
-                [
-                    sub {
-                        iMSCP::Service->getInstance()->restart( 'imscp_mountall' );
-                        0;
-                    },
-                    'i-MSCP mounts'
-                ];
-            0;
-        },
+        sub { push @{$_[0]}, [ sub { iMSCP::Service->getInstance()->restart( 'imscp_mountall' ); }, 'i-MSCP mounts' ]; },
         999
     );
-
-    $rs ||= $eventManager->registerOne(
+    $eventManager->registerOne(
         'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]},
-                [
-                    sub {
-                        iMSCP::Service->getInstance()->restart( 'imscp_traffic' );
-                        0;
-                    },
-                    'i-MSCP Traffic Logger'
-                ];
-            0;
-        },
+        sub { push @{$_[0]}, [ sub { iMSCP::Service->getInstance()->restart( 'imscp_traffic' ); }, 'i-MSCP Traffic Logger' ]; },
         99
     );
-    $rs ||= $eventManager->trigger( 'beforeSetupRestartServices', \@services );
-    return $rs if $rs;
+    $eventManager->trigger( 'beforeSetupRestartServices', \@services );
 
     startDetail();
-
-    my $nbSteps = @services;
-    my $step = 1;
-    for ( @services ) {
-        $rs = step( $_->[0], sprintf( 'Starting/Restarting %s service...', $_->[1] ), $nbSteps, $step );
-        last if $rs;
-        $step++;
-    }
-
+    my ($step, $nbSteps) = (1, scalar @services);
+    step( $_->[0], sprintf( 'Starting/Restarting %s service...', $_->[1] ), $nbSteps, $step++ ) for @services;
     endDetail();
 
-    $rs ||= $eventManager->trigger( 'afterSetupRestartServices' );
+    $eventManager->trigger( 'afterSetupRestartServices' );
 }
 
 sub setupRemoveOldConfig
 {
     untie %main::imscpOldConfig;
-    iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" )->delFile();
+    iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" )->remove();
 }
 
 sub setupGetQuestion

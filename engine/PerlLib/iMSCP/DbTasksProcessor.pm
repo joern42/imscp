@@ -31,6 +31,7 @@ use iMSCP::Debug qw/ debug newDebug endDebug /;
 use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::Getopt;
 use iMSCP::Stepper qw/ step /;
+use iMSCP::Modules;
 use JSON;
 use MIME::Base64 qw/ encode_base64 /;
 use parent 'iMSCP::Common::Singleton';
@@ -66,7 +67,7 @@ sub processDbTasks
             AND plugin_error IS NULL AND plugin_backend = 'yes'
             ORDER BY plugin_priority DESC
         ",
-        'per_item_log_file'
+        'per_entity_log_file'
     );
     # Process IP addresses
     $self->_processDbTasks(
@@ -391,6 +392,9 @@ sub _init
 {
     my ($self) = @_;
 
+    # Load all modules
+    iMSCP::Modules->getInstance();
+
     $self->{'_dbh'} = iMSCP::Database->getInstance();
     $self->{'_needStepper'} = !iMSCP::Getopt->noprompt && iMSCP::Getopt->context() =~ /^(?:un)?installer$/;
     $self;
@@ -402,7 +406,7 @@ sub _init
 
  Param string $module Module responsible to handle the db task
  Param string $sql SQL statement for retrieval of list of entities to process by the given module
- Param bool $perItemLogFile Enable per item log file (default is per module log file)
+ Param bool $perItemLogFile Enable per entity log file (default is per module log file)
  Return void, die on failure
 
 =cut
@@ -417,15 +421,12 @@ sub _processDbTasks
     $sth->execute();
 
     my $countRows = $sth->rows();
-
     unless ( $countRows ) {
         debug( sprintf( 'No DB task to process for %s', $module ), ( caller( 2 ) )[3] );
         return;
     }
 
-    eval "require $module; 1" or die;
-
-    my $nStep = 1;
+    my ($moduleInstance, $nStep) = ( $module->getInstance(), 1);
     while ( my $row = $sth->fetchrow_hashref() ) {
         my $name = encode_utf8( $row->{'name'} );
         debug( sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ), ( caller( 2 ) )[3] );
@@ -433,17 +434,15 @@ sub _processDbTasks
 
         if ( $self->{'_needStepper'} ) {
             step(
-                sub { $module->getInstance()->handleEntity( $row->{'id'} ) },
+                sub { $moduleInstance->handleEntity( $row->{'id'} ) },
                 sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ), $countRows, $nStep++
             );
         } else {
-            $module->getInstance()->handleEntity( $row->{'id'} );
+            $moduleInstance->handleEntity( $row->{'id'} );
         }
 
         endDebug();
     }
-
-    1;
 }
 
 =back

@@ -57,13 +57,8 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{$_[0]},
-                sub { $self->hostnameDialog( @_ ); },
-                sub { $self->askIPv6Support( @_ ) },
-                sub { $self->primaryIpDialog( @_ ); },
+            push @{$_[0]}, sub { $self->hostnameDialog( @_ ); }, sub { $self->askIPv6Support( @_ ) }, sub { $self->primaryIpDialog( @_ ); },
                 sub { $self->timezoneDialog( @_ ); };
-
-            0;
         },
         # We want show these dialog before the sqld server dialogs (sqld priority + 10)
         iMSCP::Servers::Sqld->getPriority()+10

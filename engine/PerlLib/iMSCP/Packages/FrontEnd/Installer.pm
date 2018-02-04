@@ -73,12 +73,8 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne( 'beforeSetupDialog',
         sub {
             push @{$_[0]},
-                sub { $self->askMasterAdminCredentials( @_ ) },
-                sub { $self->askMasterAdminEmail( @_ ) },
-                sub { $self->askDomain( @_ ) },
-                sub { $self->askSsl( @_ ) },
-                sub { $self->askHttpPorts( @_ ) },
-                sub { $self->askAltUrlsFeature( @_ ) };
+                sub { $self->askMasterAdminCredentials( @_ ) }, sub { $self->askMasterAdminEmail( @_ ) }, sub { $self->askDomain( @_ ) },
+                sub { $self->askSsl( @_ ) }, sub { $self->askHttpPorts( @_ ) }, sub { $self->askAltUrlsFeature( @_ ) };
 
         }
     )->registerOne( 'beforeSetupPreInstallServers',
@@ -132,7 +128,7 @@ sub askMasterAdminCredentials
     my $db = iMSCP::Database->getInstance();
 
     eval { $db->useDatabase( main::setupGetQuestion( 'DATABASE_NAME' )); };
-    $db = undef if $@;
+    $db = undef if $@; # Fresh installation case
 
     if ( iMSCP::Getopt->preseed ) {
         $username = main::setupGetQuestion( 'ADMIN_LOGIN_NAME', 'admin' );
@@ -148,6 +144,8 @@ sub askMasterAdminCredentials
     main::setupSetQuestion( 'ADMIN_OLD_LOGIN_NAME', $username );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
+
+    ADMIN_LOGIN_NAME:
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'admin', 'admin_credentials', 'all', 'forced' ] )
         || !isValidUsername( $username )
@@ -194,7 +192,9 @@ Please enter a password for the master administrator (leave empty for autogenera
 EOF
         } while $rs < 30 && !isValidPassword( $password );
 
-        return $rs unless $rs < 30;
+        goto ADMIN_LOGIN_NAME if $rs == 30; # Go back
+        return $rs if $rs != 0;             # Abort or error
+        #return $rs unless $rs < 30;
     } else {
         $password = '' unless iMSCP::Getopt->preseed
     }
@@ -342,8 +342,7 @@ Please select your private key in next dialog.
 EOF
                     do {
                         ( $rs, $privateKeyPath ) = $dialog->fselect( $privateKeyPath );
-                    } while $rs < 30
-                        && !( $privateKeyPath && -f $privateKeyPath );
+                    } while $rs < 30 && !( $privateKeyPath && -f $privateKeyPath );
 
                     return $rs unless $rs < 30;
 

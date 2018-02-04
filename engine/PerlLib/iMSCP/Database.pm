@@ -30,6 +30,7 @@ use DBI;
 use File::Temp;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw / execute escapeShell /;
+use Carp::Always;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -73,7 +74,7 @@ sub connect
 {
     my ($self) = @_;
 
-    my $dsn = "dbi:mysql:mysql_connect_timeout=5;database=$self->{'db'}->{'DATABASE_NAME'}"
+    my $dsn = "dbi:mysql:mysql_connect_timeout=30;database=$self->{'db'}->{'DATABASE_NAME'}"
         . ( $self->{'db'}->{'DATABASE_HOST'} ? ';host=' . $self->{'db'}->{'DATABASE_HOST'} : '' ) .
         ( $self->{'db'}->{'DATABASE_PORT'} ? ';port=' . $self->{'db'}->{'DATABASE_PORT'} : '' );
 

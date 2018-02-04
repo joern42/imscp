@@ -473,7 +473,8 @@ sub _setupDatabase
         !$rs or die( $stderr || 'Unknown error' );
 
         # Ensure tha users.mail_host entries are set with expected hostname (default to 'localhost')
-        $self->{'eventManager'}->trigger( 'beforeUpdateRoundCubeMailHostEntries', \my $hostname = 'localhost' );
+        my $hostname = 'localhost';
+        $self->{'eventManager'}->trigger( 'beforeUpdateRoundCubeMailHostEntries', \$hostname );
 
         my $oldDbName = $db->useDatabase( $rcDbName );
         $db->do( 'UPDATE IGNORE users SET mail_host = ?', undef, $hostname );

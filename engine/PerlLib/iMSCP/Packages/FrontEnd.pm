@@ -634,7 +634,7 @@ sub _init
 {
     my ($self) = @_;
 
-    @{$self}[qw/ start reload restart cfgDir / ] = ( 0, 0, 0, "$main::imscpConfig{'CONF_DIR'}/frontend" );
+    @{$self}{qw/ start reload restart cfgDir / } = ( 0, 0, 0, "$main::imscpConfig{'CONF_DIR'}/frontend" );
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/frontend.data.dist";
     tie %{$self->{'config'}},
         'iMSCP::Config',

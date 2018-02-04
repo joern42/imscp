@@ -84,7 +84,7 @@ sub servicesSslDialog
         || ( $sslEnabled eq 'yes' && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'system_hostname', 'hostnames' ] ) )
     ) {
         my $rs = $dialog->yesno( <<'EOF', $sslEnabled eq 'no' ? 1 : 0 );
-Do you want to enable SSL for FTP and MAIL services?
+Do you want to enable SSL for FTP, IMAP/POP and SMTP services?
 EOF
         if ( $rs == 0 ) {
             $sslEnabled = 'yes';

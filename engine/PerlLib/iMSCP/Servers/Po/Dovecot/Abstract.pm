@@ -64,7 +64,6 @@ sub registerSetupListeners
 {
     my ($self) = @_;
 
-    $self->SUPER::registerSetupListeners();
     $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->showSqlUserDialog( @_ ) }; }, $self->getPriority());
 
     return if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) == -1;
@@ -112,10 +111,8 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter a username for the Dovecot SQL user (leave empty for default):
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && ( !isValidUsername( $dbUser )
-            || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
-            || !isAvailableSqlUser( $dbUser )
+        } while $rs < 30 && ( !isValidUsername( $dbUser )
+            || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' ) || !isAvailableSqlUser( $dbUser )
         );
 
         return $rs unless $rs < 30;

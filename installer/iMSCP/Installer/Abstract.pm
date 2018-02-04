@@ -40,52 +40,48 @@ use parent 'iMSCP::Common::Object';
  Process preBuild tasks
 
  Param array \@steps List of build steps
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub preBuild
 {
-    0;
 }
 
 =item installPackages( )
 
  Install distribution packages
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub installPackages
 {
-    0;
 }
 
 =item uninstallPackages( )
 
  Uninstall distribution packages no longer needed
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub uninstallPackages
 {
-    0;
 }
 
 =item postBuild( )
 
  Process postBuild tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub postBuild
 {
-    0;
 }
 
 =item preInstall( \@steps )
@@ -93,26 +89,24 @@ sub postBuild
  Process preInstall tasks
 
  Param array \@steps List of install steps
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub preInstall
 {
-    0;
 }
 
 =item postInstall( )
 
  Process postInstall tasks
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
 sub postInstall()
 {
-    0;
 }
 
 =back
