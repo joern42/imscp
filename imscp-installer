@@ -72,7 +72,7 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
     eval { require "$bootstrapDir/$bootstrapFile"; } or prntError( "Couldn't bootstrap the i-MSCP installer: $@" );
 } else {
     prntInfo( 'Checking newest requirements for the i-MSCP installer...' );
-    unshift @INC, "engine/PerlLib";
+    unshift @INC, 'engine/PerlLib';
     eval {
         require iMSCP::Requirements;
         iMSCP::Requirements->new()->all();
@@ -84,6 +84,6 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
 }
 
 # Execute the real installer
-exec( '/usr/bin/perl', "installer/installer.pl", @ARGV );
+exec( '/usr/bin/perl', 'installer/installer.pl', @ARGV );
 
 __END__

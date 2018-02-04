@@ -56,7 +56,6 @@ iMSCP::Getopt->context( 'installer' );
 # Parse installer options
 iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
  -b,    --build-only              Process build steps only.
- -f,    --force-reinstall         Reinstall distribution packages.
  -s,    --skip-distro-packages    Do not install/update distribution packages.},
     'build-only|b'           => \&iMSCP::Getopt::buildonly,
     'skip-distro-packages|s' => \&iMSCP::Getopt::skippackages
