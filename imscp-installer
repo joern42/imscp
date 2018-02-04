@@ -41,9 +41,13 @@ $< == 0 or prntError( 'the i-MSCP installer must be run as root user.' );
 
 chomp( our $ROOTDIR = `dirname @{ [ __FILE__ ]} 2>/dev/null` );
 chdir( $ROOTDIR ) or prntError( sprintf( "couldn't chdir: %s", $! || 'Unknown error' ));
+system( 'clear 2>/dev/null' );
 
-if ( !-f '/etc/imscp/imscp.conf' || !grep (/^-(?:[^-]*?[hs?][^-]*|-(?:help|skip-distro-packages))$/, @ARGV) ) {
-    my ($bootstrapDir, $bootstrapFile) = ( "$ROOTDIR/installer/bootstrap" );
+DIST_BOOTSTRAP:
+
+my $forceDistBootstrap;
+if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
+    my ($bootstrapDir, $bootstrapFile) = ( 'installer/bootstrap' );
 
     if ( -f '/etc/debian_version' || -f '/etc/devuan_version' ) {
         $bootstrapFile = 'debian.pl';
@@ -66,9 +70,20 @@ if ( !-f '/etc/imscp/imscp.conf' || !grep (/^-(?:[^-]*?[hs?][^-]*|-(?:help|skip-
     );
 
     eval { require "$bootstrapDir/$bootstrapFile"; } or prntError( "Couldn't bootstrap the i-MSCP installer: $@" );
+} else {
+    prntInfo( 'Checking newest requirements for the i-MSCP installer...' );
+    unshift @INC, "engine/PerlLib";
+    eval {
+        require iMSCP::Requirements;
+        iMSCP::Requirements->new()->all();
+    };
+    if ( $@ ) {
+        $forceDistBootstrap = 1;
+        goto DIST_BOOTSTRAP;
+    }
 }
 
 # Execute the real installer
-exec( '/usr/bin/perl', "$ROOTDIR/installer/installer.pl", @ARGV );
+exec( '/usr/bin/perl', "installer/installer.pl", @ARGV );
 
 __END__
