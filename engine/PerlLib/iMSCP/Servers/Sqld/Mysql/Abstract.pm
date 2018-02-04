@@ -105,7 +105,7 @@ sub masterSqlUserDialog
         || !isNotEmpty( $user )
         || !isStringNotInList( lc $user, 'debian-sys-maint', 'imscp_srv_user', 'mysql.user', 'root', 'vlogger_user' )
         || !isNotEmpty( $pwd )
-        || ( !iMSCP::Getopt->preseed && $self->_tryDbConnect( $hostname, $port, $user, $pwd ) )
+        || ( !iMSCP::Getopt->preseed && !eval { $self->_tryDbConnect( $hostname, $port, $user, $pwd ); } )
     ) {
         $rs = $self->_askSqlRootUser( $dialog ) unless iMSCP::Getopt->preseed;
         return $rs unless $rs < 30;
@@ -123,8 +123,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter a username for the i-MSCP master SQL user (leave empty for default):
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && ( !isValidUsername( $user )
+        } while $rs < 30 && ( !isValidUsername( $user )
             || !isStringNotInList( lc $user, 'debian-sys-maint', 'imscp_srv_user', 'mysql.user', 'root', 'vlogger_user' )
         );
 
@@ -256,7 +255,7 @@ EOF
         my $oldDbName = main::setupGetQuestion( 'DATABASE_NAME' );
 
         if ( $oldDbName && $dbName ne $oldDbName && $self->setupIsImscpDb( $oldDbName ) ) {
-            if ( $dialog->yesno( <<"EOF", 1 ) ) {
+            if ( $dialog->yesno( <<"EOF", 'no_by_default' ) ) {
 A database '$main::imscpConfig{'DATABASE_NAME'}' for i-MSCP already exists.
 
 Are you sure you want to create a new database for i-MSCP?
@@ -512,7 +511,9 @@ sub _askSqlRootUser
 
     if ( $hostname eq 'localhost' ) {
         for ( 'localhost', '127.0.0.1' ) {
-            next if $self->_tryDbConnect( $_, $port, $user, $pwd );
+            eval { $self->_tryDbConnect( $_, $port, $user, $pwd ); };
+            next if $@;
+
             main::setupSetQuestion( 'DATABASE_HOST', $_ );
             main::setupSetQuestion( 'DATABASE_PORT', $port );
             main::setupSetQuestion( 'SQL_ROOT_USER', $user );
@@ -571,10 +572,13 @@ EOF
     main::setupSetQuestion( 'SQL_ROOT_PASSWORD', $pwd );
     return $rs if $rs >= 30;
 
-    if ( my $connectError = $self->_tryDbConnect( $hostname, $port, $user, $pwd ) ) {
-        chomp( $connectError );
-
-        $rs = $dialog->msgbox( <<"EOF" );
+    unless ( eval { $self->_tryDbConnect( $hostname, $port, $user, $pwd ); } ) {
+        chomp( $@ );
+        local $dialog->{'opts'}->{'ok-label'} = 'Retry';
+        local $dialog->{'opts'}->{'extra-button'} = '';
+        local $dialog->{'opts'}->{'extra-label'} = 'Abort';
+        local $ENV{'DIALOG_EXTRA'} = 1;
+        exit if $dialog->msgbox( <<"EOF" );
 \\Z1Connection to SQL server failed\\Zn
 
 i-MSCP installer couldn't connect to SQL server using the following data:
@@ -584,7 +588,7 @@ i-MSCP installer couldn't connect to SQL server using the following data:
 \\Z4Username:\\Zn $user
 \\Z4Password:\\Zn $pwd
 
-Error was: \\Z1$connectError\\Zn
+Error was: \\Z1$@\\Zn
 EOF
         goto &{_askSqlRootUser};
     }
@@ -815,7 +819,7 @@ sub _setupIsImscpDb
 
  Try database connection
 
- Return bool TRUE on success, FALSE otherwise
+ Return void, die on failure
 
 =cut
 
