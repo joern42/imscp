@@ -59,7 +59,7 @@ sub resetLabels
         help   => 'Help',
         extra  => undef
     );
-    $_[0]->{'_opts'}->{"$_-label"} = $defaultLabels{$_} for keys %defaultLabels;
+    $_[0]->{'opts'}->{"$_-label"} = $defaultLabels{$_} for keys %defaultLabels;
 }
 
 =item fselect( $file )
@@ -75,9 +75,8 @@ sub fselect
 {
     my ($self, $file) = @_;
 
-    $self->{'lines'} = $self->{'lines'}-8;
+    local $self->{'lines'} = $self->{'lines'}-8;
     my ($ret, $output) = $self->_execute( $file, undef, 'fselect' );
-    $self->{'lines'} = $self->{'lines'}+8;
     wantarray ? ( $ret, $output ) : $output;
 }
 
@@ -105,10 +104,8 @@ sub radiolist
         push @init, escapeShell( $choices{$item} ), escapeShell( $item ), $defaultTag eq $choices{$item} ? 'on' : 'off';
     }
 
-    $self->{'_opts'}->{'no-tags'} = ''; # Don't display tags in dialog
+    local $self->{'opts'}->{'no-tags'} = ''; # Don't display tags in dialog
     my ($ret, $tag) = $self->_textbox( $text, 'radiolist', "@{[scalar keys %{$choices}]} @init" );
-    $self->{'_opts'}->{'no-tags'} = undef;
-
     wantarray ? ( $ret, $tag ) : $tag;
 }
 
@@ -133,10 +130,8 @@ sub checkbox
         push @init, escapeShell( $choices{$item} ), escapeShell( $item ), grep( $choices{$item} eq $_, @defaultTags ) ? 'on' : 'off';
     }
 
-    $self->{'_opts'}->{'no-tags'} = ''; # Don't display tags in dialog
+    local $self->{'opts'}->{'no-tags'} = ''; # Don't display tags in dialog
     my ($ret, $tags) = $self->_textbox( $text, 'checklist', "@{[scalar keys %{$choices}]} @init" );
-    $self->{'_opts'}->{'no-tags'} = undef;
-
     wantarray ? ( $ret, [ split /\n/, $tags ] ) : [ split /\n/, $tags ];
 }
 
@@ -185,9 +180,8 @@ sub dselect
 {
     my ($self, $directory) = @_;
 
-    $self->{'lines'} = $self->{'lines'}-8;
+    local $self->{'lines'} = $self->{'lines'}-8;
     my ($ret, $output) = $self->_execute( $directory, undef, 'dselect' );
-    $self->{'lines'} = $self->{'lines'}+8;
     wantarray ? ( $ret, $output ) : $output;
 }
 
@@ -207,24 +201,40 @@ sub msgbox
     ( $self->_textbox( $text, 'msgbox' ) )[0];
 }
 
-=item yesno( $text [, $defaultno =  FALSE ] )
+=item yesno( $text [, $defaultno =  FALSE, [ $backbutton = FALSE] ] )
 
  Show boolean dialog box
 
+ For the 'yesno' dialog box, the code used for 'Yes' and 'No' match those used
+ for 'Ok' and 'Cancel'. See dialog man page. We do not want this behavior. To
+ workaround, we process as follow:
+  - If not 'Back' button is needed:
+   we temporary change 'Cancel' code to 1. So 'Yes' = 0, 'No' = 1, ESC = 50 
+ - If a "Back" button is needed:
+   We make use of an extra button (code 1) which replace default 'No' and we
+   change 'Cancel' label to 'Back'. So 'Yes' = 0, 'No' = 1, 'Back' = 30, ESC = 50
+
  Param string $text Text to show
  Param bool $defaultno If TRUE, set the default value of the box to 'No'
+ Param bool $backbutton Whether or not a back button must be added in the dialog box
  Return int Dialog exit code
 
 =cut
 
 sub yesno
 {
-    my ($self, $text, $defaultno) = @_;
+    my ($self, $text, $defaultno, $backbutton) = @_;
 
-    $self->{'_opts'}->{'defaultno'} = $defaultno ? '' : undef;
-    my $ret = ( $self->_textbox( $text, 'yesno' ) )[0];
-    $self->{'_opts'}->{'defaultno'} = undef;
-    $ret;
+    local $self->{'opts'}->{'defaultno'} = $defaultno ? '' : undef;
+    unless ( $backbutton ) {
+        local $ENV{'DIALOG_CANCEL'} = 1;
+        return ( $self->_textbox( $text, 'yesno' ) )[0];
+    }
+
+    local $ENV{'DIALOG_EXTRA'} = 1;
+    local $self->{'opts'}->{'extra-label'} = 'No';
+    local $self->{'opts'}->{'extra-button'} = '';
+    ( $self->_textbox( $text, 'yesno' ) )[0];
 }
 
 =item inputbox( $text [, $init = '' ] )
@@ -260,7 +270,7 @@ sub passwordbox
     my ($self, $text, $init) = @_;
     $init //= '';
 
-    $self->{'_opts'}->{'insecure'} = '';
+    local $self->{'opts'}->{'insecure'} = '';
     $self->_textbox( $text, 'passwordbox', escapeShell( $init ));
 }
 
@@ -277,11 +287,8 @@ sub infobox
 {
     my ($self, $text) = @_;
 
-    my $clear = $self->{'_opts'}->{'clear'};
-    $self->{'_opts'}->{'clear'} = undef;
-    my ($ret) = $self->_textbox( $text, 'infobox' );
-    $self->{'_opts'}->{'clear'} = $clear;
-    $ret;
+    local $self->{'opts'}->{'clear'} = undef;
+    ( $self->_textbox( $text, 'infobox' ) )[0];
 }
 
 =item startGauge( $text [, $percent = 0 ] )
@@ -290,7 +297,7 @@ sub infobox
 
  Param string $text Text to show
  Param int $percent OPTIONAL Initial percentage show in the meter
- Return int 0, croak/die on failure
+ Return void, die on failure
 
 =cut
 
@@ -298,9 +305,9 @@ sub startGauge
 {
     my ($self, $text, $percent) = @_;
 
-    return 0 if iMSCP::Getopt->noprompt || $self->{'gauge'};
+    return if iMSCP::Getopt->noprompt || $self->{'gauge'};
 
-    defined $_[0] or croak( '$text parameter is undefined' );
+    defined $text or croak( '$text parameter is undefined' );
 
     open $self->{'gauge'}, '|-',
         $self->{'bin'}, $self->_buildCommonCommandOptions( 'noEscape' ),
@@ -310,7 +317,6 @@ sub startGauge
         $percent // 0 or die( "Couldn't start gauge" );
 
     $self->{'gauge'}->autoflush( 1 );
-    0;
 }
 
 =item setGauge( $percent, $text )
@@ -375,10 +381,10 @@ sub set
 {
     my ($self, $option, $value) = @_;
 
-    return undef unless $option && exists $self->{'_opts'}->{$option};
+    return undef unless $option && exists $self->{'opts'}->{$option};
 
-    my $return = $self->{'_opts'}->{$option};
-    $self->{'_opts'}->{$option} = $value;
+    my $return = $self->{'opts'}->{$option};
+    $self->{'opts'}->{$option} = $value;
     $return;
 }
 
@@ -427,43 +433,43 @@ sub _init
     $self->{'autoreset'} = 0;
     $self->{'lines'} = undef;
     $self->{'columns'} = undef;
-    $self->{'_opts'}->{'backtitle'} ||= "i-MSCP - internet Multi Server Control Panel ($main::imscpConfig{'Version'})";
-    $self->{'_opts'}->{'title'} ||= 'i-MSCP Installer Dialog';
-    $self->{'_opts'}->{'colors'} = '';
-    $self->{'_opts'}->{'ok-label'} ||= 'Ok';
-    $self->{'_opts'}->{'yes-label'} ||= 'Yes';
-    $self->{'_opts'}->{'no-label'} ||= 'No';
-    $self->{'_opts'}->{'cancel-label'} ||= 'Back';
-    $self->{'_opts'}->{'exit-label'} ||= 'Abort';
-    $self->{'_opts'}->{'help-label'} ||= 'Help';
-    $self->{'_opts'}->{'extra-label'} ||= undef;
-    $self->{'_opts'}->{'extra-button'} //= undef;
-    $self->{'_opts'}->{'help-button'} //= undef;
-    $self->{'_opts'}->{'defaultno'} ||= undef;
-    $self->{'_opts'}->{'default-item'} ||= undef;
-    $self->{'_opts'}->{'no-cancel'} ||= undef;
-    $self->{'_opts'}->{'no-ok'} ||= undef;
-    $self->{'_opts'}->{'clear'} ||= undef;
-    $self->{'_opts'}->{'column-separator'} = undef;
-    $self->{'_opts'}->{'cr-wrap'} = undef;
-    $self->{'_opts'}->{'no-collapse'} = undef;
-    $self->{'_opts'}->{'trim'} = undef;
-    $self->{'_opts'}->{'date-format'} = undef;
-    $self->{'_opts'}->{'help-status'} = undef;
-    $self->{'_opts'}->{'insecure'} = undef;
-    $self->{'_opts'}->{'item-help'} = undef;
-    $self->{'_opts'}->{'max-input'} = undef;
-    $self->{'_opts'}->{'no-shadow'} = undef;
-    $self->{'_opts'}->{'shadow'} = '';
-    $self->{'_opts'}->{'single-quoted'} = undef;
-    $self->{'_opts'}->{'tab-correct'} = undef;
-    $self->{'_opts'}->{'tab-len'} = undef;
-    $self->{'_opts'}->{'timeout'} = undef;
-    $self->{'_opts'}->{'height'} = undef;
-    $self->{'_opts'}->{'width'} = undef;
-    $self->{'_opts'}->{'aspect'} = undef;
-    $self->{'_opts'}->{'separate-output'} = undef;
-    $self->{'_opts'}->{'no-tags'} = undef;
+    $self->{'opts'}->{'backtitle'} ||= "i-MSCP - internet Multi Server Control Panel ($main::imscpConfig{'Version'})";
+    $self->{'opts'}->{'title'} ||= 'i-MSCP Installer Dialog';
+    $self->{'opts'}->{'colors'} = '';
+    $self->{'opts'}->{'ok-label'} ||= 'Ok';
+    $self->{'opts'}->{'yes-label'} ||= 'Yes';
+    $self->{'opts'}->{'no-label'} ||= 'No';
+    $self->{'opts'}->{'cancel-label'} ||= 'Back';
+    $self->{'opts'}->{'exit-label'} ||= 'Abort';
+    $self->{'opts'}->{'help-label'} ||= 'Help';
+    $self->{'opts'}->{'extra-label'} ||= undef;
+    $self->{'opts'}->{'extra-button'} //= undef;
+    $self->{'opts'}->{'help-button'} //= undef;
+    $self->{'opts'}->{'defaultno'} ||= undef;
+    $self->{'opts'}->{'default-item'} ||= undef;
+    $self->{'opts'}->{'no-cancel'} ||= undef;
+    $self->{'opts'}->{'no-ok'} ||= undef;
+    $self->{'opts'}->{'clear'} ||= undef;
+    $self->{'opts'}->{'column-separator'} = undef;
+    $self->{'opts'}->{'cr-wrap'} = undef;
+    $self->{'opts'}->{'no-collapse'} = undef;
+    $self->{'opts'}->{'trim'} = undef;
+    $self->{'opts'}->{'date-format'} = undef;
+    $self->{'opts'}->{'help-status'} = undef;
+    $self->{'opts'}->{'insecure'} = undef;
+    $self->{'opts'}->{'item-help'} = undef;
+    $self->{'opts'}->{'max-input'} = undef;
+    $self->{'opts'}->{'no-shadow'} = undef;
+    $self->{'opts'}->{'shadow'} = '';
+    $self->{'opts'}->{'single-quoted'} = undef;
+    $self->{'opts'}->{'tab-correct'} = undef;
+    $self->{'opts'}->{'tab-len'} = undef;
+    $self->{'opts'}->{'timeout'} = undef;
+    $self->{'opts'}->{'height'} = undef;
+    $self->{'opts'}->{'width'} = undef;
+    $self->{'opts'}->{'aspect'} = undef;
+    $self->{'opts'}->{'separate-output'} = undef;
+    $self->{'opts'}->{'no-tags'} = undef;
     $self->_findBin( $^O =~ /bsd$/ ? 'cdialog' : 'dialog' );
     $self->_resize();
     $SIG{'WINCH'} = sub { $self->_resize(); };
@@ -496,10 +502,7 @@ sub _resize
         $cols ||= 80;
     }
 
-    if ( $lines < 24 || $cols < 80 ) {
-        die ( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
-    }
-
+    $lines > 23 && $cols > 79 or die ( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
     $self->{'lines'} = $lines-10;
     $self->{'columns'} = $cols-4;
 
@@ -554,12 +557,12 @@ sub _buildCommonCommandOptions
     my ($self, $noEscape) = @_;
 
     my @options = map {
-        defined $self->{'_opts'}->{$_}
+        defined $self->{'opts'}->{$_}
             ? ( "--$_", ( $noEscape )
-                ? ( $self->{'_opts'}->{$_} eq '' ? () : $self->{'_opts'}->{$_} )
-                : ( $self->{'_opts'}->{$_} eq '' ? () : escapeShell( $self->{'_opts'}->{$_} ) ) )
+                ? ( $self->{'opts'}->{$_} eq '' ? () : $self->{'opts'}->{$_} )
+                : ( $self->{'opts'}->{$_} eq '' ? () : escapeShell( $self->{'opts'}->{$_} ) ) )
             : ()
-    } keys %{$self->{'_opts'}};
+    } keys %{$self->{'opts'}};
 
     wantarray ? @options : "@options";
 }
@@ -576,8 +579,8 @@ sub _restoreDefaults
 {
     my ($self) = @_;
 
-    for my $prop ( keys %{$self->{'_opts'}} ) {
-        $self->{'_opts'}->{$prop} = undef unless $prop =~ /^(?:title|backtitle|colors)$/;
+    for my $prop ( keys %{$self->{'opts'}} ) {
+        $self->{'opts'}->{$prop} = undef unless $prop =~ /^(?:title|backtitle|colors)$/;
     }
 
     $self;
@@ -590,7 +593,7 @@ sub _restoreDefaults
  Param string $text Dialog text
  Param string $init Default value
  Param string $type Dialog box type
- Return string|array Dialog output or array containing both dialog exit code and dialog output
+ Return string|array Dialog output or array containing both dialog exit code and dialog output, die on failure
 
 =cut
 
@@ -603,17 +606,20 @@ sub _execute
 
     if ( iMSCP::Getopt->noprompt ) {
         unless ( grep($type eq $_, 'infobox', 'msgbox') ) {
-            error( sprintf( 'Failed dialog: %s', $text ));
-            exit 5
+            if ( iMSCP::Getopt->preseed() ) {
+                die( "Missing or bad entry in your preseed file for the '%s' question", $text );
+            } else {
+                die( 'Missing or bad entry found in i-MSCP configuration file. Please rerun the installer in interactive mode.' );
+            }
         }
 
         return 0;
     }
 
-    $text = $self->_stripFormats( $text ) unless defined $self->{'_opts'}->{'colors'};
+    $text = $self->_stripFormats( $text ) unless defined $self->{'opts'}->{'colors'};
     $text = escapeShell( $text );
 
-    $self->{'_opts'}->{'separate-output'} = '' if $type eq 'checklist';
+    $self->{'opts'}->{'separate-output'} = '' if $type eq 'checklist';
 
     my $command = $self->_buildCommonCommandOptions();
     my $height = ( $self->{'autosize'} ) ? 0 : $self->{'lines'};
@@ -621,18 +627,8 @@ sub _execute
 
     my $ret = execute( "$self->{'bin'} $command --$type $text $height $width $init", undef, \ my $output );
 
-    $self->{'_opts'}->{'separate-output'} = undef;
+    $self->{'opts'}->{'separate-output'} = undef;
     $self->_init() if $self->{'autoreset'};
-
-    # The exit status returned when pressing the "No" button matches the exit status returned for the "Cancel" button.
-    # Internally, no distinction is made... Therefore, for the "yesno" dialog box, we map exit status 30 to 1
-    # and we make the backup feature available through the ESC keystroke. This necessarily means that user cannot abort
-    # through a "yesno" dialog box
-    if ( $ret == 50 && $type eq 'yesno' ) {
-        $ret = 30;
-    } elsif ( $ret == 30 && $type eq 'yesno' ) {
-        $ret = 1;
-    }
 
     wantarray ? ( $ret, $output ) : $output;
 }
