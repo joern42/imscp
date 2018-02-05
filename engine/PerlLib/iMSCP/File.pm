@@ -82,7 +82,8 @@ sub getAsRef
 {
     my ($self) = @_;
 
-    \$self->get();
+    $self->get() unless defined $self->{'file_content'};
+    \ $self->{'file_content'};
 }
 
 =item set( $content )
