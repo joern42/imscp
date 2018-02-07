@@ -1,0 +1,192 @@
+<packages>
+    <cron class="iMSCP::Servers::Cron" description="Cron daemon">
+        <vixie default="1" class="iMSCP::Servers::Cron::Vixie::Debian">
+            <package>cron</package>
+        </vixie>
+        <systemd class="iMSCP::Servers::Cron::Systemd::Debian" required_init="Systemd">
+            <package>systemd-cron</package>
+        </systemd>
+    </cron>
+    <server class="iMSCP::Servers::Server">
+        <local default="1" class="iMSCP::Servers::Server::Local::Debian"/>
+    </server>
+    <httpd class="iMSCP::Servers::Httpd" description="Web server">
+        <apache2 default="1" description="Apache2 server" class="iMSCP::Servers::Httpd::Apache2::Debian">
+            <package>apache2</package>
+            <package>apache2-bin</package>
+            <package>apache2-data</package>
+            <package>apache2-dev</package>
+            <package>libapache2-mod-fcgid</package>
+            <package>libapache2-mpm-itk</package>
+            <package>apache2-suexec-pristine</package>
+            <post_install_task>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_task>
+            <post_install_task>sh debian_apache2_postinst.sh</post_install_task>
+        </apache2>
+        <nginx description="Nginx server" class="iMSCP::Servers::Httpd::Nginx::Debian" install_always="1">
+            <package>fcgiwrap</package>
+            <package>nginx</package>
+            <package>nginx-full</package>
+        </nginx>
+    </httpd>
+    <php class="iMSCP::Servers::Php">
+        <php class="iMSCP::Servers::Php::Debian">
+            <package>libapache2-mod-php7.1</package>
+            <package>php7.1</package>
+            <package>php7.1-cli</package>
+            <package>php7.1-cgi</package>
+            <package>php7.1-fpm</package>
+            <package>php7.1-common</package>
+            <package>php7.1-curl</package>
+            <package>php7.1-gd</package>
+            <package>php7.1-gmp</package>
+            <package>php7.1-imap</package>
+            <package>php7.1-intl</package>
+            <package>php7.1-json</package>
+            <package>php7.1-mbstring</package>
+            <package>php7.1-mcrypt</package>
+            <package>php7.1-mysql</package>
+            <package>php7.1-opcache</package>
+            <package>php7.1-pspell</package>
+            <package>php7.1-xml</package>
+            <package>php7.1-zip</package>
+            <package>php-apcu</package>
+            <package>php-apcu-bc</package>
+            <package>php-pear</package>
+            <package_conflict>libapache2-mod-php5</package_conflict>
+            <package_conflict>php5-common</package_conflict>
+            <post_install_task>update-alternatives --set php /usr/bin/php7.1</post_install_task>
+            <post_install_task>update-alternatives --set phar /usr/bin/phar7.1</post_install_task>
+            <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar7.1</post_install_task>
+            <post_install_task>
+                phpenmod ctype fileinfo ftp gettext iconv pdo phar posix sockets curl gd gmp imap intl json mbstring mcrypt mysqlnd mysqli pdo_mysql
+                opcache pspell dom xml xmlreader xmlwriter zip
+            </post_install_task>
+        </php>
+    </php>
+    <po class="iMSCP::Servers::Po" description="IMAP/POP server">
+        <courier description="Courier IMAP/POP3 servers" class="iMSCP::Servers::Po::Courier::Debian">
+            <package>courier-authlib-mysql</package>
+            <package>courier-imap</package>
+            <package>courier-imap-ssl</package>
+            <package>courier-pop</package>
+            <package>courier-pop-ssl</package>
+            <package>libsasl2-modules</package>
+            <package>maildrop</package>
+            <package_conflict>libsasl2-modules-sql</package_conflict>
+            <package_conflict>sasl2-bin</package_conflict>
+        </courier>
+        <dovecot default="1" description="Dovecot IMAP/POP3 servers" class="iMSCP::Servers::Po::Dovecot::Debian">
+            <package>dovecot-core</package>
+            <package>dovecot-imapd</package>
+            <package>dovecot-pop3d</package>
+            <package>dovecot-mysql</package>
+        </dovecot>
+    </po>
+    <mta class="iMSCP::Servers::Mta" description="SMTP server">
+        <postfix default="1" description="Postfix server" class="iMSCP::Servers::Mta::Postfix::Debian">
+            <package>postfix</package>
+            <package_conflict>procmail</package_conflict>
+            <package_conflict>sendmail</package_conflict>
+            <package_conflict>sendmail-base</package_conflict>
+            <package_conflict>sendmail-bin</package_conflict>
+            <package_conflict>sendmail-cf</package_conflict>
+            <package_conflict>sendmail-doc</package_conflict>
+        </postfix>
+    </mta>
+    <ftpd class="iMSCP::Servers::Ftpd" description="FTP server">
+        <proftpd default="1" description="ProFTPD server" class="iMSCP::Servers::Ftpd::Proftpd::Debian">
+            <package>proftpd-basic</package>
+            <package>proftpd-mod-mysql</package>
+            <package_conflict>vsftpd</package_conflict>
+        </proftpd>
+        <vsftpd description="VsFTPd server" class="iMSCP::Servers::Ftpd::Vsftpd::Debian">
+            <package rebuild_with_patches="libpam-mysql/patches/dpatch" patch_sys_type="dpatch" pkg_src_name="pam-mysql">libpam-mysql</package>
+            <package>vsftpd</package>
+            <package_conflict>proftpd-basic</package_conflict>
+        </vsftpd>
+    </ftpd>
+    <named class="iMSCP::Servers::Named" description="DNS server">
+        <bind default="1" description="Bind9 server" class="iMSCP::Servers::Named::Bind9::Debian">
+            <package>bind9</package>
+        </bind>
+        <no_server description="No local DNS server" class="iMSCP::Servers::NoServer"/>
+        <package>resolvconf</package>
+    </named>
+    <sqld class="iMSCP::Servers::Sqld" description="SQL server">
+        <mysql_5.7
+                default="1"
+                description="MySQL 5.7 server"
+                class="iMSCP::Servers::Sqld::Mysql::Debian"
+                pinning_package="libmysqlclient20 mysql-client-5.7 mysql-common mysql-server-5.7"
+                pinning_pin="release o=Ubuntu,n=bionic"
+                pinning_pin_priority="1001"
+        >
+            <package>mysql-client-5.7</package>
+            <package>mysql-server-5.7</package>
+        </mysql_5.7>
+        <mariadb_10.1
+                description="MariaDB 10.1 server"
+                class="iMSCP::Servers::Sqld::Mariadb::Debian"
+                repository="http://mirror.netcologne.de/mariadb/repo/10.1/ubuntu bionic main"
+                pinning_package="libmariadbclient18 mariadb-client-10.1 mariadb-common mariadb-server-core-10.1 mysql-common"
+                pinning_pin="release o=Ubuntu,n=bionic"
+                pinning_pin_priority="1001"
+        >
+            <package>libmariadbclient18</package>
+            <package>libmysqlclient18</package>
+            <package>mariadb-client-10.1</package>
+            <package>mariadb-common</package>
+            <package>mariadb-server-10.1</package>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
+        </mariadb_10.1>
+        <remote_server
+                description="Remote MySQL server"
+                class="iMSCP::Servers::Sqld::Remote::Debian"
+                pinning_package="libmysqlclient20 mysql-client-5.7 mysql-common"
+                pinning_pin="release o=Ubuntu,n=bionic"
+                pinning_pin_priority="1001"
+        >
+            <package>mysql-client-5.7</package>
+        </remote_server>
+        <package>libmysqlclient20</package>
+        <package>mysql-common</package>
+    </sqld>
+    <perl>
+        <package>libcrypt-blowfish-perl</package>
+        <package>libcrypt-cbc-perl</package>
+        <package>libcrypt-eksblowfish-perl</package>
+        <package>libcrypt-rijndael-perl</package>
+        <package>libdbd-mysql-perl</package>
+        <package>libdbi-perl</package>
+        <package>libdigest-md5-perl</package>
+        <package>libfile-chmod-perl</package>
+        <package>libhash-merge-perl</package>
+        <package>libmailtools-perl</package>
+        <package>libmime-tools-perl</package>
+        <package>libnet-libidn-perl</package>
+        <package>libsort-naturally-perl</package>
+        <package>libtimedate-perl</package>
+        <package>libwww-perl</package>
+        <package>libxml-parser-perl</package>
+    </perl>
+    <other>
+        <package>apt-src</package>
+        <package>at</package>
+        <package>bash</package>
+        <package>bash-completion</package>
+        <package>bzip2</package>
+        <package>curl</package>
+        <package>devscripts</package>
+        <package>git</package>
+        <package>gzip</package>
+        <package>ifupdown</package>
+        <package>iptables</package>
+        <package>lzma</package>
+        <package>net-tools</package>
+        <package>pbuilder</package>
+        <package>pbzip2</package>
+        <package>pigz</package>
+        <package>tar</package>
+        <package>unzip</package>
+    </other>
+</packages>
