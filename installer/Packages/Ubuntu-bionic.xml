@@ -3,7 +3,7 @@
         <vixie default="1" class="iMSCP::Servers::Cron::Vixie::Debian">
             <package>cron</package>
         </vixie>
-        <systemd class="iMSCP::Servers::Cron::Systemd::Debian" required_init="Systemd">
+        <systemd class="iMSCP::Servers::Cron::Systemd::Debian" condition="'${SYSTEM_INIT}' eq 'Systemd'">
             <package>systemd-cron</package>
         </systemd>
     </cron>
