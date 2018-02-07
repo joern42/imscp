@@ -1,19 +1,25 @@
+=head1 NAME
+
+ iMSCP::Requirements - Check for i-MSCP requirements
+
+=cut
+
 # i-MSCP - internet Multi Server Control Panel
-# Copyright 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Requirements;
 
@@ -25,7 +31,7 @@ use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
 
- Requirement library
+ Check for i-MSCP requirements.
 
 =head1 PUBLIC METHODS
 
@@ -35,7 +41,7 @@ use parent 'iMSCP::Common::Object';
 
  Process check for all requirements
 
- Return undef on success, die on failure
+ Return void, die if requirements are not met
 
 =cut
 
@@ -47,21 +53,19 @@ sub all
     $self->_checkPrograms();
     $self->_checkPhpModules();
     $self->_checkPerlModules();
-    undef;
 }
 
 =item user( )
 
- Check user under which the script is running
+ Check user under which the script is running with privileges of super user
 
- Return undef on success, die on failure
+ Return void, die if EUID is not 0;
 
 =cut
 
 sub user
 {
-    $< == 0 or die( 'This script must be run as root user.' );
-    undef;
+    $> == 0 or die( 'This script must be run with the privileges of super user.' );
 }
 
 =item checkVersion( $version, $minVersion [, $maxVersion ] )
@@ -71,7 +75,7 @@ sub user
  Param string $version Version to match
  Param string $minVersion Min required version
  Param string $maxVersion Max required version
- Return undef on success, die on failure
+ Return void, die if $version version doesn't met $minVersion and $maxVersion  requirements
 
 =cut
 
@@ -109,8 +113,14 @@ sub _init
     my ($self) = @_;
 
     $self->{'programs'} = {
+        facter => {
+            version_command => "%s --version 2>/dev/null",
+            version_regexp  => qr/([\d.]+)/,
+            min_version     => '2.5.1',
+            max_version     => '2.5.999' # Arbitrary minor version is intentional. We only want reject Facter > 2.5.x
+        },
         # We only check the PHP version that is required for the i-MSCP frontEnd
-        php  => {
+        php    => {
             version_command => "%s -nv 2> /dev/null",
             version_regexp  => qr/PHP\s+([\d.]+)/,
             min_version     => '5.6.0',
@@ -122,7 +132,7 @@ sub _init
                 'Reflection', 'session', 'SimpleXML', 'sockets', 'SPL', 'xml', 'xmlreader', 'xmlwriter', 'zip', 'zlib', 'Zend OPcache'
             ]
         },
-        perl => {
+        perl   => {
             version_command => "%s -V:version 2> /dev/null",
             version_regexp  => qr/version='([\d.]+)'/,
             min_version     => '5.18.2',
@@ -169,6 +179,7 @@ sub _init
                 'JSON::XS'                   => 2.340,
                 Lchown                       => 1.01,
                 'List::Util'                 => 1.27, # Core module
+                'Linux::ACL'                 => 0.0.5,
                 'LWP::Simple'                => 6.00,
                 'Mail::Address'              => 2.12,
                 'MIME::Base64'               => 3.13, # Core module
@@ -197,7 +208,7 @@ sub _init
 
  Checks program requirements
 
- Return undef on success, die on failure
+ Return void, die if program requirements are not met
 
 =cut
 
@@ -205,26 +216,24 @@ sub _checkPrograms
 {
     my ($self) = @_;
 
-    for ( keys %{$self->{'programs'}} ) {
-        $self->{'programs'}->{$_}->{'command_path'} = iMSCP::ProgramFinder::find( $_ ) or die(
-            sprintf( "Couldn't find %s executable in \$PATH", $_ )
+    for my $program( keys %{$self->{'programs'}} ) {
+        $self->{'programs'}->{$program}->{'command_path'} = iMSCP::ProgramFinder::find( $program ) or die(
+            sprintf( "Couldn't find %s executable in \$PATH", $program )
         );
 
-        next unless $self->{'programs'}->{$_}->{'version_command'};
+        next unless $self->{'programs'}->{$program}->{'version_command'};
 
         eval {
             $self->_programVersions(
-                sprintf( $self->{'programs'}->{$_}->{'version_command'}, $self->{'programs'}->{$_}->{'command_path'} ),
-                $self->{'programs'}->{$_}->{'version_regexp'},
-                $self->{'programs'}->{$_}->{'min_version'},
-                $self->{'programs'}->{$_}->{'max_version'}
+                sprintf( $self->{'programs'}->{$program}->{'version_command'}, $self->{'programs'}->{$program}->{'command_path'} ),
+                $self->{'programs'}->{$program}->{'version_regexp'},
+                $self->{'programs'}->{$program}->{'min_version'},
+                $self->{'programs'}->{$program}->{'max_version'}
             );
         };
 
-        die( sprintf( "%s: %s\n", $_, $@ )) if $@;
+        !$@ or die( sprintf( "%s: %s\n", $program, $@ ));
     }
-
-    undef;
 }
 
 =item _programVersions( $versionCommand, $versionRegexp, $minVersion [, $maxVersion ] )
@@ -235,7 +244,7 @@ sub _checkPrograms
  Param regexp $versionRegexp Regexp to find version in command version output string
  Param $minVersion Min required version
  Param $maxVersion Max required version
- Return undef on success, die on failure
+ Return void, die if program versionr requirements are not met
 
 =cut
 
@@ -243,9 +252,7 @@ sub _programVersions
 {
     my ($self, $versionCommand, $versionRegexp, $minversion, $maxVersion) = @_;
 
-    my $stdout = `$versionCommand 2>/dev/null`;
-
-    $stdout or die( "Couldn't find version. No output\n" );
+    ( my $stdout = `$versionCommand` ) or die( "Couldn't find version. No output\n" );
 
     if ( $versionRegexp ) {
         $stdout =~ /$versionRegexp/m or die( sprintf( "Couldn't find version. Output was: %s\n", $stdout ));
@@ -260,7 +267,7 @@ sub _programVersions
  Checks that the given PHP modules are available
 
  Param array \@modules List of modules
- Return undef on success, die on failure
+ Return void, die if PHP module requirements are not met
 
 =cut
 
@@ -279,7 +286,7 @@ sub _checkPhpModules
         push @missingModules, $module unless grep(lc( $_ ) eq lc( $module ), @modules);
     }
 
-    return undef unless @missingModules;
+    return unless @missingModules;
 
     @missingModules < 2 or die( sprintf( "The following PHP modules are not installed or not enabled: %s\n", join ', ', @missingModules ));
     die( sprintf( "The PHP module %s is not installed or not enabled.\n", pop @missingModules ));
@@ -290,7 +297,7 @@ sub _checkPhpModules
  Checks that the given Perl modules are availables at the minimum specified version
 
  params hashref \%modules OPTIOANL Reference to a hash of module name and module minimum version pairs
- Return undef on success, die on failure
+ Return void, die if Perl module requirements are not met
 
 =cut
 
@@ -318,7 +325,7 @@ EOF
             }
         }
 
-        return undef unless @missingModules;
+        return unless @missingModules;
     } else {
         push @missingModules, "Module::Load::Conditional module\n";
     }
