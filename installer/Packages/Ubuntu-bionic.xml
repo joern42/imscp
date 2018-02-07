@@ -23,9 +23,9 @@
             <post_install_task>sh debian_apache2_postinst.sh</post_install_task>
         </apache2>
         <nginx description="Nginx server" class="iMSCP::Servers::Httpd::Nginx::Debian" install_always="1">
-            <package>fcgiwrap</package>
             <package>nginx</package>
             <package>nginx-full</package>
+            <package>uwsgi</package>
         </nginx>
     </httpd>
     <php class="iMSCP::Servers::Php">
