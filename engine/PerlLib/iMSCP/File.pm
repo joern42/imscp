@@ -291,13 +291,13 @@ sub copy
         # If preserving owner and group was not possible the setuid and/or setgid bits must be cleared
         $mode &= ~06000 if $ownershipFailed;
     } else {
-        # Change current umask if needed
-        local $UMASK = $self->{'umask'} if defined $options->{'umask'};
-
         # We do not want preserve permissions and file was not existent
         # In such case, we set original permissions (excluding setuid/setgid bits), applying current umask on them
         $mode = ( $sst[2] & ~( umask || 0 ) ) & ~06000;
     }
+
+    # Change current umask if needed
+    local $UMASK = $self->{'umask'} if defined $options->{'umask'};
 
     chmod S_IMODE( $mode ), $target or die( sprintf( "Failed to preserve permissions for '%s': %s", $target, $! ));
     $self;
