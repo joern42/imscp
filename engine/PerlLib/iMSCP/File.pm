@@ -70,7 +70,7 @@ sub get
 
     my (@sst) = stat $self->{'filename'} or croak( sprintf( "Failed to stat '%s': %s", $self->{'filename'}, $! ));
     S_ISREG( $sst[2] ) or die( sprintf( "Failed to get '%s' content: Not a file", $self->{'filename'} ));
-    -s _ < $SLURP_SIZE_LIMIT or croak( sprintf( "Failed to get '%s' content: File too big", $self->{'filename'} ));
+    -s _ <= $SLURP_SIZE_LIMIT or croak( sprintf( "Failed to get '%s' content: File too big", $self->{'filename'} ));
 
     open( my $fh, '<', $self->{'filename'} ) or die( sprintf( "Failed to open '%s' for reading: %s", $self->{'filename'}, $! ));
     local $/;
