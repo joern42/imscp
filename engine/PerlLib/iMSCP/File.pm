@@ -39,6 +39,10 @@ use Lchown;
 use overload '""' => \&__toString, fallback => 1;
 use parent 'iMSCP::Common::Object';
 
+# Upper limit for file slurping (2MiB)
+# If really needed caller can always change default value
+our $SLURP_SIZE_LIMIT = 1024 * 1024 * 2;
+
 =head1 DESCRIPTION
 
  Perform common operations on files
@@ -63,6 +67,10 @@ sub get
     my ($self) = @_;
 
     return $self->{'file_content'} if defined $self->{'file_content'};
+
+    my (@sst) = stat $self->{'filename'} or croak( sprintf( "Failed to stat '%s': %s", $self->{'filename'}, $! ));
+    S_ISREG( $sst[2] ) or die( sprintf( "Failed to get '%s' content: Not a file", $self->{'filename'} ));
+    -s _ < $SLURP_SIZE_LIMIT or croak( sprintf( "Failed to get '%s' content: File too big", $self->{'filename'} ));
 
     open( my $fh, '<', $self->{'filename'} ) or die( sprintf( "Failed to open '%s' for reading: %s", $self->{'filename'}, $! ));
     local $/;
@@ -176,7 +184,7 @@ sub mode
     $self;
 }
 
-=item owner( $owner, $group )
+=item owner( $owner = -1, $group = -1 )
 
  Set ownership of this file
 
@@ -194,13 +202,14 @@ sub owner
 
     defined $owner or croak( '$owner parameter is missing.' );
     defined $group or croak( '$group parameter is missing.' );
+
     my $uid = ( ( $owner =~ /^\d+$/ ) ? $owner : getpwnam( $owner ) ) // -1;
     my $gid = ( ( $group =~ /^\d+$/ ) ? $group : getgrnam( $group ) ) // -1;
     lchown $uid, $gid, $self->{'filename'} or die ( sprintf( "Failed to set ownership for '%s': %s", $self->{'filename'}, $! ));
     $self;
 }
 
-=item copy( $dest [, \%options = { preserve => FALSE, no-dereference => TRUE, no-target-directory = FALSE } ] )
+=item copy( $dest [, \%options = { umask => UMASK(2),  preserve => FALSE, no-target-directory = FALSE } ] )
 
  Copy this file to the given destination
 
@@ -342,7 +351,7 @@ sub move
 {
     my ($self, $dest) = @_;
 
-    defined $dest or croak( 'dest parameter is missing.' );
+    defined $dest or croak( '$dest parameter is missing.' );
 
     my (@sst) = lstat $self->{'filename'} or croak( sprintf( "Failed to stat '%s': %s", $self->{'filename'}, $! ));
     !S_ISDIR( $sst[2] ) or die( sprintf( "Failed to move '%s' to '%s': Not a file", $self->{'filename'}, $dest, $self->{'filename'} ));
