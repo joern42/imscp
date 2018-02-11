@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Debug;
 
@@ -27,6 +27,7 @@ use strict;
 use warnings;
 use File::Spec;
 use iMSCP::Log;
+use iMSCP::Boolean;
 use iMSCP::Getopt;
 use POSIX qw/ isatty /;
 use parent 'Exporter';
@@ -36,11 +37,11 @@ our @EXPORT_OK = qw/ debug warning error newDebug endDebug getMessage getLastErr
 BEGIN {
     $SIG{'__DIE__'} = sub {
         return unless defined $^S && $^S == 0;
-        error( "@_" =~ s/\n$//r, ( caller( 1 ) )[3] || 'main' );
+        error( shift =~ s/\n$//r, ( caller( 1 ) )[3] || 'main' );
         exit 1;
     };
     $SIG{'__WARN__'} = sub {
-        warning( "@_" =~ s/\n$//r, ( caller( 1 ) )[3] || 'main' );
+        warning( shift =~ s/\n$//r, ( caller( 1 ) )[3] || 'main' );
     };
 }
 
@@ -69,7 +70,7 @@ $self = {
 
 =cut
 
-sub newDebug
+sub newDebug :prototype($)
 {
     my ($logFileId) = @_;
 
@@ -97,17 +98,17 @@ sub endDebug
 
     # warn, error and fatal log messages must be always stored in default
     # logger for later processing
-    for ( $logger->retrieve( tag => qr/(?:warn|error|fatal)/ ) ) {
-        $self->{'loggers'}->[0]->store( %{$_} );
+    for my $log( $logger->retrieve( tag => qr/(?:warn|error|fatal)/ ) ) {
+        $self->{'loggers'}->[0]->store( %{$log} );
     }
 
-    my $logDir = $main::imscpConfig{'LOG_DIR'} || '/tmp';
+    my $logDir = $::imscpConfig{'LOG_DIR'} || '/tmp';
     if ( $logDir ne '/tmp' && !-d $logDir ) {
         require iMSCP::Dir;
         eval {
             iMSCP::Dir->new( dirname => $logDir )->make( {
-                user  => $main::imscpConfig{'ROOT_USER'},
-                group => $main::imscpConfig{'ROOT_GROUP'},
+                user  => $::imscpConfig{'ROOT_USER'},
+                group => $::imscpConfig{'ROOT_GROUP'},
                 mode  => 0750
             } );
         };
@@ -117,59 +118,62 @@ sub endDebug
     _writeLogfile( $logger, File::Spec->catfile( $logDir, $logger->getId()));
 }
 
-=item debug( $message [, $caller ] )
+=item debug( $message [, $caller = ( caller( 1 ) )[3] || 'main' ] )
 
  Log a debug message in the current logger
 
  Param string $message Debug message
- Param string $caller OPTIONAL Caller
+ Param string $caller OPTIONAL OPTIONAL Caller info as returned by caller(). Pass an empty string to discard caller string.
  Return void
 
 =cut
 
-sub debug
+sub debug :prototype($;$)
 {
     my ($message, $caller) = @_;
-
     $caller //= ( caller( 1 ) )[3] || 'main';
-    $self->{'logger'}()->store( message => "$caller: $message", tag => 'debug' ) if iMSCP::Getopt->debug;
-    print STDOUT output( "$caller: $message", 'debug' ) if iMSCP::Getopt->verbose;
+    $caller .= ': ' if $caller ne '';
+
+    $self->{'logger'}()->store( message => $caller . $message, tag => 'debug' ) if iMSCP::Getopt->debug;
+    print STDOUT output( $caller . $message, 'debug' ) if iMSCP::Getopt->verbose;
 }
 
-=item warning( $message [, $caller ] )
+=item warning( $message [, $caller = ( caller( 1 ) )[3] || 'main' ] )
 
  Log a warning message in the current logger
 
  Param string $message Warning message
- Param string $caller OPTIONAL Caller
+ Param string $caller OPTIONAL OPTIONAL Caller info as returned by caller(). Pass an empty string to discard caller string.
  Return void
 
 =cut
 
-sub warning
+sub warning :prototype($;$)
 {
     my ($message, $caller) = @_;
-
     $caller //= ( caller( 1 ) )[3] || 'main';
-    $self->{'logger'}()->store( message => "$caller: $message", tag => 'warn' );
+    $caller .= ': ' if $caller ne '';
+
+    $self->{'logger'}()->store( message => $caller . $message, tag => 'warn' );
 }
 
-=item error( $message [, $caller ] )
+=item error( $message [, $caller = ( caller( 1 ) )[3] || 'main' ] )
 
  Log an error message in the current logger
 
  Param string $message Error message
- Param string $caller OPTIONAL Caller
+ Param string $caller OPTIONAL Caller info as returned by caller(). Pass an empty string to discard caller string.
  Return void
 
 =cut
 
-sub error
+sub error :prototype($;$)
 {
     my ($message, $caller) = @_;
-
     $caller //= ( caller( 1 ) )[3] || 'main';
-    $self->{'logger'}()->store( message => "$caller: $message", tag => 'error' );
+    $caller .= ': ' if $caller ne '';
+
+    $self->{'logger'}()->store( message => $caller . $message, tag => 'error' );
 }
 
 =item getLastError()
@@ -182,29 +186,34 @@ sub error
 
 sub getLastError
 {
-    scalar getMessageByType( 'error' );
+    scalar getMessageByType( 'error', { chrono => FALSE } );
 }
 
-=item getMessageByType( $type [, \%options ] )
+=item getMessageByType( [ $type [, \%options = { amount => ALL, chrono => FALSE, message => qw/.*/ remove => FALSE } ] )
 
  Get message by type from current logger, according given options
 
- Param string $type Type or regexp
- Param hash %option|\%options Hash containing options (amount, chrono, remove)
- Return array|string An array of messages or a string of messages
+ Param string $type Type (debug, warning, error) or a Regexp such as qr/error|warning/ ...
+ Param hash \%options OPTIONAL Option for message retrieval
+  - amount: Number of message to retrieve (default all)
+  - chrono: If true, retrieve messages in chronological order (default TRUE)
+  - message: A Regexp for retrieving messages with specific string
+  - remove: If TRUE, delete messages upon retrieval
+ Return array|string List of of messages in list context, string of joined messages in scalar context
 
 =cut
 
-sub getMessageByType
+sub getMessageByType :prototype($;$)
 {
     my ($type, $options) = @_;
     $options ||= {};
 
     my @messages = map { $_->{'message'} } $self->{'logger'}()->retrieve(
-        tag    => ref $type eq 'Regexp' ? $type : qr/$type/i,
-        amount => $options->{'amount'},
-        chrono => $options->{'chrono'} // 1,
-        remove => $options->{'remove'} // 0
+        tag     => ref $type eq 'Regexp' ? $type : qr/$type/i,
+        amount  => $options->{'amount'},
+        chrono  => $options->{'chrono'},
+        message => $options->{'message'},
+        remove  => $options->{'remove'} // FALSE
     );
 
     wantarray ? @messages : join "\n", @messages;
@@ -220,7 +229,7 @@ sub getMessageByType
 
 =cut
 
-sub output
+sub output :prototype($;$)
 {
     my ($text, $level) = @_;
 
@@ -246,7 +255,7 @@ sub output
 
 =cut
 
-sub debugRegisterCallBack
+sub debugRegisterCallBack :prototype($;$)
 {
     my ($callback) = @_;
 
@@ -261,7 +270,7 @@ sub debugRegisterCallBack
 
 =item _writeLogfile($logger, $logfilePath)
 
- Write all log messages from the given logger
+ Write all log messages from the given logger into the given file in chronological order
 
  Param iMSCP::Log $logger Logger
  Param string $logfilePath Logfile path in which log messages must be writen
@@ -284,7 +293,7 @@ sub _writeLogfile
 
 =item _getMessages( $logger )
 
- Flush and return all log messages from the given logger as a string
+ Flush and return all log messages from the given logger as a string, joined in chronological order
 
  Param Param iMSCP::Log $logger Logger
  Return string Concatenation of all messages found in the given log object
@@ -317,12 +326,16 @@ END {
         }
 
         if ( isatty( \*STDERR ) ) {
-            print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
+            print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve(
+                tag => qr/(?:warn|error)/, chrono => FALSE
+            );
             return;
         }
 
         require iMSCP::Mail;
-        iMSCP::Mail->new()->warnMsg( scalar getMessageByType( 'warn' ))->errmsg( scalar getMessageByType( 'error' ));
+        iMSCP::Mail->new()
+            ->warnMsg( scalar getMessageByType( 'warn', { chrono => FALSE } ))
+            ->errmsg( scalar getMessageByType( 'error', { chrono => FALSE } ));
     };
 
     print STDERR output( $@, 'fatal' ) if $@;
