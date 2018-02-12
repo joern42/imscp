@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Getopt;
 
@@ -82,7 +82,8 @@ $usage
  -p,    --preseed <file>          Path to preseed file.
  -r,    --reconfigure [item,...]  Type `help` for list of allowed items.
  -v,    --verbose                 Enable verbose mode.
- -x,    --fix-permissions         Fix permissions.
+ -x,    --fix-permissions         Ask installer to fix permissions recursively.
+ -z     --no-ansi                 Disable ANSI output
 EOF
         }
     };
@@ -99,15 +100,16 @@ EOF
     require Getopt::Long;
     Getopt::Long::Configure( 'bundling' );
     Getopt::Long::GetOptions(
-        'clean-package-cache|c', sub { $options->{'clearPackageCache'} = 1 },
-        'debug|d', sub { $options->{'debug'} = 1 },
-        'help|?|h', sub { $class->showUsage() },
-        'fix-permissions|x', sub { $options->{'fixPermissions'} = 1 },
-        'noprompt|n', sub { $options->{'noprompt'} = 1 },
-        'preseed|p=s', sub { $class->preseed( $_[1] ) },
-        'reconfigure|r:s', sub { $class->reconfigure( $_[1] ) },
-        'skip-package-update|a', sub { $options->{'skipPackageUpdate'} = 1 },
-        'verbose|v', sub { $options->{'verbose'} = 1 },
+        'clean-package-cache|c', \&iMSCP::Getopt::clearPackageCache,
+        'debug|d', \&iMSCP::Getopt::debug,
+        'help|?|h', \&iMSCP::Getopt::showUsage,
+        'fix-permissions|x', \&iMSCP::Getopt::fixPermissions,
+        'noprompt|n', \&iMSCP::Getopt::noprompt,
+        'preseed|p=s', \&iMSCP::Getopt::preseed,
+        'reconfigure|r:s', \&iMSCP::Getopt::reconfigure,
+        'skip-package-update|a', \&iMSCP::Getopt::skipPackageUpdate,
+        'verbose|v', \&iMSCP::Getopt::verbose,
+        'no-ansi|z', \&iMSCP::Getopt::noansi,
         @options,
     ) or $class->showUsage();
 }
@@ -236,7 +238,6 @@ Each item belong to one i-MSCP package/server.
 The following items are available:
 
 EOF
-
         $OPTION_HELP .= " - $_" . ( ' ' x ( 17-length( $_ ) ) ) . " : $RECONFIGURATION_ITEMS{$_}\n" for sort keys %RECONFIGURATION_ITEMS;
         die();
     } elsif ( !@items ) {
@@ -279,7 +280,6 @@ sub preseed
     END {
         return unless $? == 5;
         print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
-        
     }
 
     $options->{'preseed'} = 1;
