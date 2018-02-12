@@ -320,7 +320,7 @@ END {
         endDebug for @{$self->{'loggers'}};
 
         if ( isatty( \*STDERR ) ) {
-            if ( !iMSCP::Getopt->noansi ) {
+            if ( iMSCP::Getopt->noansi ) {
                 print STDERR "@{ [ '[' . uc $_->{'tag'} . ']' ] } $_->{'message'}\n" for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
             } else {
                 print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
