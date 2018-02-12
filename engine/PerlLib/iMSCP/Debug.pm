@@ -29,6 +29,7 @@ use File::Spec;
 use iMSCP::Log;
 use iMSCP::Boolean;
 use iMSCP::Getopt;
+use Fcntl;
 use POSIX qw/ isatty /;
 use parent 'Exporter';
 
@@ -37,26 +38,25 @@ our @EXPORT_OK = qw/ debug warning error newDebug endDebug getMessage getLastErr
 BEGIN {
     $SIG{'__DIE__'} = sub {
         return unless defined $^S && $^S == 0;
-        error( shift =~ s/\n$//r, ( caller( 1 ) )[3] || 'main' );
+        error( shift =~ s/\n$//r, getCaller());
         exit 1;
     };
     $SIG{'__WARN__'} = sub {
-        warning( shift =~ s/\n$//r, ( caller( 1 ) )[3] || 'main' );
+        warning( shift =~ s/\n$//r, getCaller());
     };
 }
 
 my $self;
 $self = {
-    debug_callbacks => [],
-    loggers         => [ iMSCP::Log->new( id => 'default' ) ],
-    logger          => sub { $self->{'loggers'}->[$#{$self->{'loggers'}}] }
+    loggers => [ iMSCP::Log->new( id => 'default' ) ],
+    logger  => sub { $self->{'loggers'}->[$#{$self->{'loggers'}}] }
 };
 
 =head1 DESCRIPTION
 
  Debug library
 
-=head1 CLASS METHODS
+=head1 FUNCTIONS
 
 =over 4
 
@@ -102,6 +102,7 @@ sub endDebug
         $self->{'loggers'}->[0]->store( %{$log} );
     }
 
+    # FIXME Should not be done there
     my $logDir = $::imscpConfig{'LOG_DIR'} || '/tmp';
     if ( $logDir ne '/tmp' && !-d $logDir ) {
         require iMSCP::Dir;
@@ -118,12 +119,12 @@ sub endDebug
     _writeLogfile( $logger, File::Spec->catfile( $logDir, $logger->getId()));
 }
 
-=item debug( $message [, $caller = ( caller( 1 ) )[3] || 'main' ] )
+=item debug( $message [, $caller TRUE ] )
 
  Log a debug message in the current logger
 
  Param string $message Debug message
- Param string $caller OPTIONAL OPTIONAL Caller info as returned by caller(). Pass an empty string to discard caller string.
+ Param bool $caller OPTIONAL Flag indicating whether or not $message must be prefixed with caller
  Return void
 
 =cut
@@ -131,19 +132,18 @@ sub endDebug
 sub debug :prototype($;$)
 {
     my ($message, $caller) = @_;
-    $caller //= ( caller( 1 ) )[3] || 'main';
-    $caller .= ': ' if $caller ne '';
 
+    $caller = !defined $caller || $caller ? getCaller() : '';
     $self->{'logger'}()->store( message => $caller . $message, tag => 'debug' ) if iMSCP::Getopt->debug;
     print STDOUT output( $caller . $message, 'debug' ) if iMSCP::Getopt->verbose;
 }
 
-=item warning( $message [, $caller = ( caller( 1 ) )[3] || 'main' ] )
+=item warning( $message [, $caller TRUE ] )
 
  Log a warning message in the current logger
 
  Param string $message Warning message
- Param string $caller OPTIONAL OPTIONAL Caller info as returned by caller(). Pass an empty string to discard caller string.
+ Param bool $caller OPTIONAL Flag indicating whether or not $message must be prefixed with caller
  Return void
 
 =cut
@@ -151,18 +151,17 @@ sub debug :prototype($;$)
 sub warning :prototype($;$)
 {
     my ($message, $caller) = @_;
-    $caller //= ( caller( 1 ) )[3] || 'main';
-    $caller .= ': ' if $caller ne '';
 
+    $caller = !defined $caller || $caller ? getCaller() : '';
     $self->{'logger'}()->store( message => $caller . $message, tag => 'warn' );
 }
 
-=item error( $message [, $caller = ( caller( 1 ) )[3] || 'main' ] )
+=item error( $message [, $caller TRUE ] )
 
  Log an error message in the current logger
 
  Param string $message Error message
- Param string $caller OPTIONAL Caller info as returned by caller(). Pass an empty string to discard caller string.
+ Param bool $caller OPTIONAL Flag indicating whether or not $message must be prefixed with caller
  Return void
 
 =cut
@@ -170,9 +169,8 @@ sub warning :prototype($;$)
 sub error :prototype($;$)
 {
     my ($message, $caller) = @_;
-    $caller //= ( caller( 1 ) )[3] || 'main';
-    $caller .= ': ' if $caller ne '';
 
+    $caller = !defined $caller || $caller ? getCaller() : '';
     $self->{'logger'}()->store( message => $caller . $message, tag => 'error' );
 }
 
@@ -186,7 +184,7 @@ sub error :prototype($;$)
 
 sub getLastError
 {
-    scalar getMessageByType( 'error', { chrono => FALSE } );
+    scalar getMessageByType( 'error' );
 }
 
 =item getMessageByType( [ $type [, \%options = { amount => ALL, chrono => FALSE, message => qw/.*/ remove => FALSE } ] )
@@ -196,7 +194,7 @@ sub getLastError
  Param string $type Type (debug, warning, error) or a Regexp such as qr/error|warning/ ...
  Param hash \%options OPTIONAL Option for message retrieval
   - amount: Number of message to retrieve (default all)
-  - chrono: If true, retrieve messages in chronological order (default TRUE)
+  - chrono: If TRUE, retrieve messages in chronological order (default TRUE)
   - message: A Regexp for retrieving messages with specific string
   - remove: If TRUE, delete messages upon retrieval
  Return array|string List of of messages in list context, string of joined messages in scalar context
@@ -243,28 +241,9 @@ sub output :prototype($;$)
     "$text\n";
 }
 
-=item debugRegisterCallBack( $callback )
-
- Register the given debug callback
-
- This function is deprecated and will be removed in a later release.
- kept for backward compatibility.
-
- Param callback Callback to register
- Return void
-
-=cut
-
-sub debugRegisterCallBack :prototype($;$)
-{
-    my ($callback) = @_;
-
-    push @{$self->{'debug_callbacks'}}, $callback;
-}
-
 =back
 
-=head1 PRIVATE METHODS
+=head1 PRIVATE FUNCTIONS
 
 =over 4
 
@@ -282,14 +261,35 @@ sub _writeLogfile
 {
     my ($logger, $logfilePath) = @_;
 
-    if ( open( my $fh, '>', $logfilePath ) ) {
-        print { $fh } _getMessages( $logger ) =~ s/\x1b\[[0-9;]*[mGKH]//gr;
-        close $fh;
-        return;
-    }
+    local $SIG{'__WARN__'} = sub { die @_; };
 
-    print output( sprintf( "Couldn't open `%s` log file for writing: %s", $logfilePath, $! ), 'error' );
+    my $bf = '';
+    $bf .= "[$_->{'when'}] [$_->{'tag'}] $_->{'message'}\n" for $logger->flush();
+    sysopen( my $fh, $logfilePath, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY ) or die(
+        sprintf( "Failed to open '%s' logfile for writing: %s", $logfilePath, $! )
+    );
+    print $fh $bf =~ s/\x1b\[[0-9;]*[mGKH]//gr;
+    close $fh;
 }
+
+=item getCaller
+
+ Return first subroutine caller or main
+
+ Return string
+
+=cut
+
+sub getCaller
+{
+    my $caller;
+    my $stackIDX = 2;
+    do {
+        $caller = ( ( caller $stackIDX++ )[3] || 'main' );
+    } while $caller eq '(eval)';
+    $caller . ': ';
+}
+
 
 =item _getMessages( $logger )
 
@@ -317,25 +317,21 @@ sub _getMessages
 
 END {
     eval {
-        &{$_} for @{$self->{'debug_callbacks'}};
-
-        my $countLoggers = @{$self->{'loggers'}};
-        while ( $countLoggers > 0 ) {
-            endDebug();
-            $countLoggers--;
-        }
+        endDebug for @{$self->{'loggers'}};
 
         if ( isatty( \*STDERR ) ) {
-            print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve(
-                tag => qr/(?:warn|error)/, chrono => FALSE
-            );
+            if ( !iMSCP::Getopt->noansi ) {
+                print STDERR "@{ [ '[' . uc $_->{'tag'} . ']' ] } $_->{'message'}\n" for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
+            } else {
+                print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
+            }
             return;
         }
 
         require iMSCP::Mail;
         iMSCP::Mail->new()
-            ->warnMsg( scalar getMessageByType( 'warn', { chrono => FALSE } ))
-            ->errmsg( scalar getMessageByType( 'error', { chrono => FALSE } ));
+            ->warnMsg( scalar getMessageByType( 'warn' ))
+            ->errmsg( scalar getMessageByType( 'error' ));
     };
 
     print STDERR output( $@, 'fatal' ) if $@;
