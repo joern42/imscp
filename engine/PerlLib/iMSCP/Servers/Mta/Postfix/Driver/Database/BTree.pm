@@ -29,7 +29,7 @@ use parent 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash';
 
 =head1 DESCRIPTION
 
- i-MSCP BTree database driver for Postfix
+ i-MSCP BTree database driver for Postfix.
  
  See http://www.postfix.org/DB_README.html
 

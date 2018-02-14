@@ -44,7 +44,7 @@ use parent 'iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract';
 
 =item preinstall( )
 
- See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::deleteEntry()
+ See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::preinstall()
 
  TODO: Load file into hash for faster processing (using Config::General module?)
 
@@ -59,7 +59,7 @@ sub install
 
 =item uninstall( )
 
- See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::deleteEntry()
+ See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::uninstall()
 
 =cut
 
@@ -72,7 +72,7 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::deleteEntry()
+ See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::setEnginePermissions()
 
 =cut
 
@@ -93,7 +93,7 @@ sub setEnginePermissions
 
 =item add( $path [, $key [, $value ] ] )
 
- See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::addEntry()
+ See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::add()
 
 =cut
 
@@ -115,7 +115,7 @@ sub add
 
 =item delete( $path [, $key ] )
 
- See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::deleteEntry()
+ See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::delete()
 
 =cut
 
@@ -160,9 +160,7 @@ sub getDbType
 
 =item _init( )
 
- Initialize instance
-
- See iMSCP::Servers::Mta::_init()
+ See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::_init()
 
 =cut
 

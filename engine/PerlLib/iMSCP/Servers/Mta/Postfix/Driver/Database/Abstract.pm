@@ -178,9 +178,7 @@ sub getDbType
 
 =item _init( )
 
- Initialize instance
-
- See iMSCP::Servers::Mta::_init()
+ See iMSCP::Common::Object
 
 =cut
 
