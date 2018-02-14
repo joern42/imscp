@@ -238,6 +238,7 @@ sub _setupDefaultDatabases
     }
 
     # Add configuration in the main.cf file
+    my $dbType = $self->getDbType();
     $self->{'mta'}->postconf(
         virtual_alias_domains   => {
             action => 'replace',
@@ -245,23 +246,23 @@ sub _setupDefaultDatabases
         },
         virtual_mailbox_domains => {
             action => 'replace',
-            values => [ "hash:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/virtual_mailbox_domains" ]
+            values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/virtual_mailbox_domains" ]
         },
         virtual_mailbox_maps    => {
             action => 'replace',
-            values => [ "hash:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/virtual_mailbox_maps" ]
+            values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/virtual_mailbox_maps" ]
         },
         virtual_alias_maps      => {
             action => 'replace',
-            values => [ "hash:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/virtual_alias_maps" ]
+            values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/virtual_alias_maps" ]
         },
         relay_domains           => {
             action => 'replace',
-            values => [ "hash:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/relay_domains" ]
+            values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/relay_domains" ]
         },
         transport_maps          => {
             action => 'replace',
-            values => [ "hash:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/transport_maps" ]
+            values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}/transport_maps" ]
         },
     );
 }
