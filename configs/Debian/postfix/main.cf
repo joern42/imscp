@@ -31,10 +31,6 @@ mailbox_size_limit = 0
 # Virtual delivery parameters
 virtual_mailbox_base = {MTA_VIRTUAL_MAIL_DIR}
 virtual_mailbox_limit = 0
-virtual_mailbox_domains = hash:{MTA_VIRTUAL_DMN_HASH}
-virtual_mailbox_maps = hash:{MTA_VIRTUAL_MAILBOX_HASH}
-virtual_alias_domains =
-virtual_alias_maps = hash:{MTA_VIRTUAL_ALIAS_HASH}
 virtual_transport = virtual
 virtual_destination_concurrency_limit = 2
 virtual_destination_recipient_limit = 1
@@ -43,13 +39,9 @@ virtual_uid_maps = static:{MTA_MAILBOX_UID}
 virtual_gid_maps = static:{MTA_MAILBOX_GID}
 
 # Relay parameters
-relay_domains = hash:{MTA_RELAY_HASH}
 relay_recipient_maps =
 relay_transport = relay
 relayhost =
-
-# Transport parameters
-transport_maps = hash:{MTA_TRANSPORT_HASH}
 
 # SMTP restrictions
 smtpd_helo_required = yes

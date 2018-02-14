@@ -3,9 +3,9 @@
 # See the documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.01.18
+# Last update: 2018.02.14
 
-%main::questions = (
+%::questions = (
     # Mandatory parameters
     #
     # Parameters below must be filled. There is no default value for them.
@@ -407,6 +407,13 @@
     #
     # Leave empty for default: postfix
     'iMSCP::Servers::Mta'               => '',
+
+    # MTA database driver (only relevant for postfix)
+    #
+    # Possible values: BTree, CDB, Hash
+    #
+    # Leave empty for default: CDB
+    MTA_DB_DRIVER                       => '',
 
     # POP/IMAP servers implementation
     #
