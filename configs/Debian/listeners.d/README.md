@@ -4,13 +4,15 @@ i-MSCP listener files
 ### Introduction
 
 This directory is meant to hold the listener files which are responsible to
-register your own event listeners on the i-MSCP event manager. Any listener
-file found in this directory is loaded automatically by i-MSCP at runtime,
-in any context.
+register your own event listeners on the i-MSCP event manager. Any file found
+in this directory is loaded automatically by i-MSCP at runtime, in all
+contexts.
 
-There is also the **installer** sub-directory that meant to hold listener files
-that act in installer context only. It should be useless to load those listener
-files outside of the installer context.
+There is also the **installer** sub-directory. That directory meant to hold
+listener files that act in installer context only. It is best avoided to load
+those listener in context other than installer as this would involve a useless
+performance penality, even though registration of event listeners is relatively
+cheap.
 
 ### Listener file namespaces
 
