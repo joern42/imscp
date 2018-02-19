@@ -37,6 +37,28 @@ use parent 'iMSCP::Common::Object';
 
 =over 4
 
+=items getPhpModuleRequirements
+
+ Return hash List of PHP module requirements
+ 
+=cut
+
+sub getPhpModuleRequirements
+{
+    $_[0]->{'programs'}->{'php'}->{'modules'};
+}
+
+=items getPerlModuleRequirements
+
+ Return array List of Perl module requirements
+ 
+=cut
+
+sub getPerlModuleRequirements
+{
+    $_[0]->{'programs'}->{'perl'}->{'modules'};
+}
+
 =item all( )
 
  Process check for all requirements
@@ -157,6 +179,8 @@ sub _init
                 'DBD::mysql'                 => 4.025,
                 'Digest::SHA'                => 5.84_01, # Core module
                 'Digest::MD5'                => 2.52, # Core module
+                'Directory::Iterator'        => 1.001,
+                'Directory::Iterator::XS'    => 1.001002,
                 'Email::Valid'               => 1.192,
                 Encode                       => 2.49, # Core module
                 Errno                        => 1.18, # Core module
@@ -177,7 +201,6 @@ sub _init
                 'IPC::Open3'                 => 1.13, # Core module
                 JSON                         => 2.61,
                 'JSON::XS'                   => 2.340,
-                Lchown                       => 1.01,
                 'List::Util'                 => 1.27, # Core module
                 'Linux::ACL'                 => 0.0.5,
                 'LWP::Simple'                => 6.00,
