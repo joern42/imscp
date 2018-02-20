@@ -42,7 +42,7 @@ tie $UMASK, 'iMSCP::Umask::SCALAR' or croak "Can't tie \$UMASK";
     BEGIN {
         *CORE::GLOBAL::umask = sub {
             my $oldMask = $_UMASK;
-            umask( $_UMASK = $_[0] ) if defined $_[0] && $_[0] ne $oldMask;
+            umask( $_UMASK = $_[0] ) if defined $_[0] && $_[0] != $oldMask;
             $oldMask;
         };
     }
