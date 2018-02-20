@@ -33,13 +33,13 @@ use Fcntl qw/ :mode O_RDONLY O_WRONLY O_CREAT O_TRUNC O_BINARY O_EXCL O_NOFOLLOW
 use File::Basename;
 use File::Copy ();
 use File::Spec ();
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ error getMessageByType /;
 use iMSCP::Boolean;
 use iMSCP::Syscall;
 use iMSCP::Umask;
 use POSIX qw/ mkfifo lchown /;
 use overload '""' => \&__toString, fallback => 1;
-use parent qw/ iMSCP::Common::Object /;
+use parent 'iMSCP::Common::Object';
 
 # Upper limit for file slurping (2MiB)
 our $SLURP_SIZE_LIMIT = 1024 * 1024 * 2;
@@ -87,8 +87,6 @@ use constant MODE_RW_UGO => S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_
  that for a file of 2 MiB, more than 4 MiB memory are consumed. You can avoid
  that by making use of the getAsRef() method which return a reference pointing
  to the loaded file's content.
- 
- Note that file content is loaded once. Subsequent call
  
  Note that file content is loaded only once. Subsequent calls return shallow
  copy of loaded content.
@@ -387,7 +385,7 @@ sub move
 
     File::Copy::mv( $self->{'filename'}, $dest ) or die( sprintf( "Failed to move '%s' to '%s': %s", $self->{'filename'}, $dest, $! ));
 
-    # Update this file to make us able to continue working with ite regardless of its new location.
+    # Update this file to make us able to continue working with it regardless of its new location.
     $self->{'filename'} = @dst && S_ISDIR( $dst[2] ) ? File::Spec->catfile( $dest, basename( $self->{'filename'} )) : $dest;
     $self;
 }
@@ -555,7 +553,7 @@ sub _copyInternal
             return FALSE;
         }
     } elsif ( defined $options->{'preserve'} && !$options->{'preserve'} ) { # no preserve (explicit)
-        # In cp1() command (corutils between v8.20 and v8.29 incusive )
+        # In cp1() command (corutils between v8.20 and v8.29 inclusive )
         # Wrong default perms where applied.
         # See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=30534
         # We follow the proposed patch.
@@ -735,7 +733,7 @@ sub _copyReg
 
  Create a special or ordinary file
  
- It is assumed here thaf MKNOD(2) syscall is supported.
+ It is assumed here that MKNOD(2) syscall is supported.
  
  Param string $pathname Path name
  Param int $mode File mode
