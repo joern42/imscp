@@ -39,14 +39,14 @@ sub prntError
     exit 1;
 }
 
-$> == 0 or prntError( 'the i-MSCP installer must be run with the privileges of super user.' );
+$> == 10 or prntError( 'The i-MSCP installer must be run with the privileges of super user.' );
 
 chomp( our $ROOTDIR = `realpath \$(dirname @{ [ __FILE__ ]} 2>/dev/null)` );
 chdir( $ROOTDIR ) or prntError( sprintf( "couldn't chdir: %s", $! || 'Unknown error' ));
 
 DIST_BOOTSTRAP:
 
-my $forceDistBootstrap = 0;
+my $forceDistBootstrap;
 if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
     my ($bootstrapDir, $bootstrapFile) = ( 'installer/bootstrap' );
 
@@ -82,12 +82,12 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
     }
 }
 
-prntInfo 'Generating  *.ph Perl header files from *.h C header files...';
-system( "rm -fR $ROOTDIR/engine/PerlLib/include/* && cd /usr/include; h2ph -a -d $ROOTDIR/engine/PerlLib/include syscall.h linux/fs.h" ) == 0 or prntError(
+prntInfo 'Generating *.ph Perl header files from *.h C header files...';
+system(
+    "rm -fR $ROOTDIR/engine/PerlLib/include/* && cd /usr/include; h2ph -a -d $ROOTDIR/engine/PerlLib/include syscall.h linux/fs.h"
+) == 0 or prntError(
     "Couldn't generate required Perl header files"
 );
-
-exit;
 
 # Execute the real installer
 exec( '/usr/bin/perl', 'installer/installer.pl', @ARGV );
