@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Umask - Allows to restrict scope UMASK(2)
+ iMSCP::Umask - Allows to restrict UMASK(2) scope
 
 =cut
 
@@ -42,7 +42,7 @@ tie $UMASK, 'iMSCP::Umask::SCALAR' or croak "Can't tie \$UMASK";
     BEGIN {
         *CORE::GLOBAL::umask = sub {
             my $oldMask = $_UMASK;
-            umask( $_UMASK = $_[0] ) if defined $_[0];
+            umask( $_UMASK = $_[0] ) if defined $_[0] && $_[0] ne $oldMask;
             $oldMask;
         };
     }
