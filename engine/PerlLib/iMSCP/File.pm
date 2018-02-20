@@ -47,8 +47,9 @@ our $SLURP_SIZE_LIMIT = 1024 * 1024 * 2;
 # All the mode bits that can be affected by chmod.
 use constant CHMOD_MODE_BITS => S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO;
 
-# Commonly used file permission combination (0666).
+# Commonly used file permission combination.
 use constant MODE_RW_UGO => S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+use constant S_IRWXUGO => S_IRWXU | S_IRWXG | S_IRWXO;
 
 =head1 DESCRIPTION
 
