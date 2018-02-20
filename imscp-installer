@@ -1,27 +1,29 @@
 #!/usr/bin/perl
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 # Wrap real i-MSCP installer for satisfying pre-requisites
 
 use strict;
 use warnings;
 use POSIX qw/ locale_h /;
+
+unshift @INC, 'engine/PerlLib';
 
 $ENV{'LANG'} = 'C.UTF-8';
 setlocale( LC_MESSAGES, 'C.UTF-8' );
@@ -37,15 +39,14 @@ sub prntError
     exit 1;
 }
 
-$< == 0 or prntError( 'the i-MSCP installer must be run as root user.' );
+$> == 0 or prntError( 'the i-MSCP installer must be run with the privileges of super user.' );
 
-chomp( our $ROOTDIR = `dirname @{ [ __FILE__ ]} 2>/dev/null` );
+chomp( our $ROOTDIR = `realpath \$(dirname @{ [ __FILE__ ]} 2>/dev/null)` );
 chdir( $ROOTDIR ) or prntError( sprintf( "couldn't chdir: %s", $! || 'Unknown error' ));
-system( 'clear 2>/dev/null' );
 
 DIST_BOOTSTRAP:
 
-my $forceDistBootstrap;
+my $forceDistBootstrap = 0;
 if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
     my ($bootstrapDir, $bootstrapFile) = ( 'installer/bootstrap' );
 
@@ -69,10 +70,8 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
         "No installer bootstrap file found for your distribution. You need first implement the $bootstrapDir/$bootstrapFile bootstrap file."
     );
 
-    eval { require "$bootstrapDir/$bootstrapFile"; } or prntError( "Couldn't bootstrap the i-MSCP installer: $@" );
+    do "$bootstrapDir/$bootstrapFile" or prntError( sprintf( "Couldn't bootstrap the i-MSCP installer: %s", $@ || $! ));
 } else {
-    prntInfo( 'Checking newest requirements for the i-MSCP installer...' );
-    unshift @INC, 'engine/PerlLib';
     eval {
         require iMSCP::Requirements;
         iMSCP::Requirements->new()->all();
@@ -82,6 +81,13 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
         goto DIST_BOOTSTRAP;
     }
 }
+
+prntInfo 'Generating  *.ph Perl header files from *.h C header files...';
+system( "rm -fR $ROOTDIR/engine/PerlLib/include/* && cd /usr/include; h2ph -a -d $ROOTDIR/engine/PerlLib/include syscall.h linux/fs.h" ) == 0 or prntError(
+    "Couldn't generate required Perl header files"
+);
+
+exit;
 
 # Execute the real installer
 exec( '/usr/bin/perl', 'installer/installer.pl', @ARGV );
