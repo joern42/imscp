@@ -47,8 +47,8 @@ int main(int argc, char **argv) {
   printf("    no warnings 'portable';\n");
   printf("    require 'sys/syscall.ph';\n");
   printf("    require 'linux/fs.ph';\n");
-  printf("}\n");
-  printf("\n");
+  printf("}\n\n");
+  printf("our %%sizeof;\n\n");
 
 #if DEBUG
 
@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
   printf("    'long double'            => 0x%lx,\n", sizeof(long double));
   /* size_t typedef */
   printf("    size_t                   => 0x%lx\n",  sizeof(size_t));
-  printf(");\n\n1;\n");
+  printf(");\n\n1;\n__END__\n");
 
   return 0;
 }
