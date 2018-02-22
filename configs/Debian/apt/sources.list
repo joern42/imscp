@@ -5,8 +5,8 @@
 # /etc/apt/sources.list.d/ directory or make use of the iMSCP::Listener::APT::Source::List
 # i-MSCP listener file to provide your own /etc/apt/sources.list file.
 
-deb http://deb.debian.org//debian/ {codename} main contrib non-free
-deb-src http://deb.debian.org/debian/ {codename} main contrib contrib non-free
+deb http://deb.debian.org/debian/ {codename} main contrib non-free
+deb-src http://deb.debian.org/debian/ {codename} main contrib non-free
 
 deb http://deb.debian.org/debian/ {codename}-updates main contrib non-free
 deb-src http://deb.debian.org/debian/ {codename}-updates main contrib non-free
