@@ -20,7 +20,7 @@
 CC = gcc
 CFLAGS = -DDEBUG=0 -s -ansi -Wall -Wextra -std=c11 -Wstrict-prototypes -pedantic-errors -O2
 
-headers = sys/syscall.h linux/fs.h ext2fs/ext2_fs.h
+headers = sys/syscall.h linux/fs.h
 
 # Debian specific (Multiarch)
 -include /usr/share/dpkg/architecture.mk
