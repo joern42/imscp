@@ -17,8 +17,19 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-headers = syscall.h linux/fs.h
-CFLAGS=-D DEBUG=0 -s -ansi -Wall -Wstrict-prototypes -pedantic -O2
+CC = gcc
+CFLAGS = -DDEBUG=0 -s -ansi -Wall -Wextra -std=c11 -Wstrict-prototypes -pedantic-errors -O2
+
+headers = sys/syscall.h linux/fs.h ext2fs/ext2_fs.h
+
+# Debian specific (Multiarch)
+-include /usr/share/dpkg/architecture.mk
+ifdef DEB_HOST_MULTIARCH
+    headers += $(DEB_HOST_MULTIARCH)/sys/mount.h
+    CFLAGS += -DMULTIARCH='"$(DEB_HOST_MULTIARCH)"'
+else
+    headers += sys/mount.h
+endif
 
 default: H2ph.pm
 all: default

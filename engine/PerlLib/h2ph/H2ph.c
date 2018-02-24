@@ -19,7 +19,7 @@
 
 #include "stdio.h"
 
-int main(int argc, char **argv) {
+int main(void) {
 
   printf("# i-MSCP - internet Multi Server Control Panel\n");
   printf("# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>\n");
@@ -47,6 +47,13 @@ int main(int argc, char **argv) {
   printf("    no warnings 'portable';\n");
   printf("    require 'sys/syscall.ph';\n");
   printf("    require 'linux/fs.ph';\n");
+
+#ifdef MULTIARCH
+  printf("    require '%s/sys/mount.ph';\n", MULTIARCH);
+#else
+  printf("    require 'sys/mount.ph';\n");
+#endif
+
   printf("}\n\n");
   printf("our %%sizeof;\n\n");
 
@@ -78,14 +85,16 @@ int main(int argc, char **argv) {
   printf("    char                     => 0x%lx,\n", sizeof(char));
   printf("    'signed char'            => 0x%lx,\n", sizeof(signed char));
   printf("    'unsigned char'          => 0x%lx,\n", sizeof(unsigned char));
+  printf("    'char unsigned'          => 0x%lx,\n", sizeof(char unsigned));
   /* interger */
   printf("     short                   => 0x%lx,\n", sizeof(short));
   printf("    'short int'              => 0x%lx,\n", sizeof(short int));
   printf("    'signed short'           => 0x%lx,\n", sizeof(signed short));
   printf("    'signed short int'       => 0x%lx,\n", sizeof(signed short int));
   printf("    'unsigned short'         => 0x%lx,\n", sizeof(unsigned short));
+  printf("    'short unsigned'         => 0x%lx,\n", sizeof(short unsigned));
   printf("    'unsigned short int'     => 0x%lx,\n", sizeof(unsigned short int));
-  printf("    'short unsigned int'     => 0x%lx,\n", sizeof(unsigned short int));
+  printf("    'short unsigned int'     => 0x%lx,\n", sizeof(short unsigned int));
   printf("    int                      => 0x%lx,\n", sizeof(int));
   printf("     signed                  => 0x%lx,\n", sizeof(signed));
   printf("    'signed int'             => 0x%lx,\n", sizeof(signed int));
@@ -94,16 +103,18 @@ int main(int argc, char **argv) {
   printf("    'signed long'            => 0x%lx,\n", sizeof(signed long));
   printf("    'signed long int'        => 0x%lx,\n", sizeof(signed long int));
   printf("    'unsigned long'          => 0x%lx,\n", sizeof(unsigned long));
+  printf("    'long unsigned'          => 0x%lx,\n", sizeof(long unsigned));
   printf("    'unsigned long int'      => 0x%lx,\n", sizeof(unsigned long int));
   printf("    'long unsigned int'      => 0x%lx,\n", sizeof(long unsigned int));
   /* ISO C90 does not support ‘long long’ C type */
-  /*printf("    'long long'              => 0x%lx,\n", sizeof(long long));
+  printf("    'long long'              => 0x%lx,\n", sizeof(long long));
   printf("    'long long int'          => 0x%lx,\n", sizeof(long long int));
   printf("    'signed long long'       => 0x%lx,\n", sizeof(signed long long));
   printf("    'signed long long int'   => 0x%lx,\n", sizeof(signed long long int));
   printf("    'unsigned long long'     => 0x%lx,\n", sizeof(unsigned long long));
+  printf("    'long long unsigned'     => 0x%lx,\n", sizeof(long long unsigned));
   printf("    'unsigned long long int' => 0x%lx,\n", sizeof(unsigned long long int));
-  */
+  printf("    'long long unsigned int' => 0x%lx,\n", sizeof(long long unsigned int));
   /* Real floating-point */
   printf("    float                    => 0x%lx,\n", sizeof(float));
   printf("    double                   => 0x%lx,\n", sizeof(double));
