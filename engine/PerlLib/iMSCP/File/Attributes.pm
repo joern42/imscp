@@ -27,11 +27,11 @@ use strict;
 use warnings;
 use Errno qw/ ENOTTY /;
 use File::Find 'find';
-use iMSCP::Boolean;
-use Fcntl qw/ O_RDONLY O_NONBLOCK /;
-use parent 'Exporter';
-
 no warnings 'File::Find';
+use Fcntl qw/ O_RDONLY O_NONBLOCK /;
+use iMSCP::Boolean;
+use iMSCP::H2ph;
+use parent 'Exporter';
 
 our @EXPORT_OK = qw/
     setAppendOnly clearAppendOnly isAppendOnly
@@ -78,7 +78,7 @@ our %EXPORT_TAGS = (
  and modified using the functions exported by this package.
 
  The functions are made to abort silently if the target filesystem doesn't
- support flags-attributes.
+ support inode flags-attributes.
 
  See also: IOCTL_IFLAGS(2) 
 
