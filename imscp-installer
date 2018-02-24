@@ -82,12 +82,8 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
     }
 }
 
-prntInfo 'Generating *.ph Perl header files from *.h C header files...';
-system(
-    "rm -fR $ROOTDIR/engine/PerlLib/include/* && cd /usr/include; h2ph -a -d $ROOTDIR/engine/PerlLib/include syscall.h linux/fs.h"
-) == 0 or prntError(
-    "Couldn't generate required Perl header files"
-);
+prntInfo 'Generating iMSCP::H2ph Perl package...';
+system( "cd engine/PerlLib/h2ph; make clean all" ) == 0 or prntError( "Couldn't generate iMSCP::H2ph Perl package." );
 
 # Execute the real installer
 exec( '/usr/bin/perl', 'installer/installer.pl', @ARGV );
