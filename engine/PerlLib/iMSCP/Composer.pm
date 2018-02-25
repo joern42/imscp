@@ -5,27 +5,28 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Composer;
 
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use English;
 use File::HomeDir;
 use File::Spec;
 use File::Temp;
@@ -36,7 +37,7 @@ use iMSCP::File;
 use iMSCP::ProgramFinder;
 use JSON qw/ from_json to_json /;
 use version;
-use fields qw/ _php_cmd _stdout _stderr _attrs /;
+use fields qw/ _euid _egid _php_cmd _stdout _stderr _attrs /;
 
 =head1 DESCRIPTION
 
@@ -51,8 +52,8 @@ use fields qw/ _php_cmd _stdout _stderr _attrs /;
  Constructor
 
  Optional arguments:
-    user:           Unix user under which composer should run (default: $main::imscpConfig{'ROOT_USER'})
-    group:          Unix group under which composer should run (default: <user> group)
+    user:           Name of unix user under which composer should run (default: EUID)
+    group:          Name of unix group under which composer should run (default: EGID)
     home_dir:       Unix user homedir (default: <user> homedir)
     working_dir:    Composer working directory (default: <home_dir>)
     composer_path:  Composer path (default: <home_dir>/composer.phar)
@@ -68,22 +69,34 @@ sub new
     unless ( ref $self ) {
         $self = fields::new( $self );
         %{$self->{'_attrs'}} = ref $_[0] eq 'HASH' ? %{$_[0]} : @_ if @_;
-        $self->{'_attrs'}->{'user'} ||= getpwuid( $< );
-        $self->{'_attrs'}->{'group'} ||= getgrgid( ( getpwnam( $self->{'_attrs'}->{'user'} ) )[3] // croak(
-            sprintf( "Couldn't find `%s` user", $self->{'_attrs'}->{'user'} )
-        )) // croak( sprintf( "Couldn't find `%s` user group", $self->{'_attrs'}->{'user'} ));
-        $self->{'_attrs'}->{'home_dir'} = File::Spec->canonpath(
-            $self->{'_attrs'}->{'home_dir'} || File::HomeDir->users_home( $self->{'_attrs'}->{'user'} )
+
+        my (@pwent) = ( defined $self->{'_attrs'}->{'user'} ? getpwnam( $self->{'_attrs'}->{'user'} ) : getpwuid( $EUID ) ) or croak(
+            ( defined $self->{'_attrs'}->{'user'}
+                ? sprintf( "Couldn't find %s user in password database", $self->{'_attrs'}->{'user'} )
+                : sprintf( "Couldn't find user with ID %d in password database", $EUID )
+            )
         );
-        $self->{'_attrs'}->{'working_dir'} = File::Spec->canonpath( $self->{'_attrs'}->{'working_dir'} || $self->{'_attrs'}->{'home_dir'} );
-        $self->{'_attrs'}->{'composer_path'} ||= File::Spec->canonpath( "$self->{'_attrs'}->{'home_dir'}/composer.phar" );
-        $self->{'_attrs'}->{'composer_json'} = from_json(
-            $self->{'_attrs'}->{'composer_json'} || <<"EOT", { utf8 => 1 } );
+        $self->{'_attrs'}->{'user'} //= $pwent[0];
+        $self->{'_euid'} = $pwent[3];
+
+        if ( defined $self->{'_attrs'}->{'group'} ) {
+            $self->{'_egid'} = getgrnam( $self->{'_attrs'}->{'group'} ) or croak( "Couldn't find %s group in group database" );
+        } else {
+            $self->{'_egid'} = ( split /\s+/, $EGID )[0];
+            $self->{'_attrs'}->{'group'} = getgrgid( $EGID ) or croak( "Couldn't find group with ID %d in group database" );
+        }
+        undef @pwent;
+
+        $self->{'_attrs'}->{'home_dir'} = File::Spec->canonpath(
+            $self->{'_attrs'}->{'home_dir'} // File::HomeDir->users_home( $self->{'_attrs'}->{'user'} )
+        );
+
+        $self->{'_attrs'}->{'working_dir'} //= File::Spec->canonpath( $self->{'_attrs'}->{'working_dir'} || $self->{'_attrs'}->{'home_dir'} );
+        $self->{'_attrs'}->{'composer_path'} //= File::Spec->canonpath( "$self->{'_attrs'}->{'home_dir'}/composer.phar" );
+        $self->{'_attrs'}->{'composer_json'} = from_json( $self->{'_attrs'}->{'composer_json'} || <<"EOT", { utf8 => 1 } );
 {
     "config": {
         "cache-files-ttl":15780000,
-        "cafile":"$main::imscpConfig{'DISTRO_CA_BUNDLE'}",
-        "capath":"$main::imscpConfig{'DISTRO_CA_PATH'}",
         "discard-changes":true,
         "htaccess-protect":false,
         "preferred-install":"dist",
@@ -93,10 +106,8 @@ sub new
     "prefer-stable":true
 }
 EOT
-
         $self->{'_php_cmd'} = [
-            ( iMSCP::ProgramFinder::find( 'php' ) or croak( "Couldn't find php executable in \$PATH" ) ),
-            '-d', "date.timezone=$main::imscpConfig{'TIMEZONE'}", '-d', 'allow_url_fopen=1'
+            ( iMSCP::ProgramFinder::find( 'php' ) or croak( "Couldn't find php executable in \$PATH" ) ), '-d', 'allow_url_fopen=1'
         ];
         # Set default STD routines
         $self->setStdRoutines();
@@ -216,8 +227,8 @@ sub installPackages
 
     if ( $self->{'_attrs'}->{'home_dir'} ne $self->{'_attrs'}->{'working_dir'} ) {
         iMSCP::Dir->new( dirname => $self->{'_attrs'}->{'working_dir'} )->make( {
-            user           => $self->{'_attrs'}->{'user'},
-            group          => $self->{'_attrs'}->{'group'},
+            user           => $self->{'_euid'},
+            group          => $self->{'_egid'},
             mode           => 0750,
             fixpermissions => 0 # Set permissions only on creation
         } );
@@ -226,8 +237,8 @@ sub installPackages
     iMSCP::File
         ->new( filename => "$self->{'_attrs'}->{'working_dir'}/composer.json" )
         ->set( $self->getComposerJson())
-        ->save()
-        ->owner( $self->{'_attrs'}->{'user'}, $self->{'_attrs'}->{'group'} )
+        ->save( 0027 )
+        ->owner( $self->{'_euid'}, $self->{'_egid'} )
         ->mode( 0640 );
 
     executeNoWait(
@@ -268,8 +279,8 @@ sub updatePackages
 
     if ( $self->{'_attrs'}->{'home_dir'} ne $self->{'_attrs'}->{'working_dir'} ) {
         iMSCP::Dir->new( dirname => $self->{'_attrs'}->{'working_dir'} )->make( {
-            user           => $self->{'_attrs'}->{'user'},
-            group          => $self->{'_attrs'}->{'group'},
+            user           => $self->{'_euid'},
+            group          => $self->{'_egid'},
             mode           => 0750,
             fixpermissions => 0 # Set permissions only on creation
         } );
@@ -278,8 +289,8 @@ sub updatePackages
     iMSCP::File
         ->new( filename => "$self->{'_attrs'}->{'working_dir'}/composer.json" )
         ->set( $self->getComposerJson())
-        ->save()
-        ->owner( $self->{'_attrs'}->{'user'}, $self->{'_attrs'}->{'group'} )
+        ->save( 0027 )
+        ->owner( $self->{'_euid'}, $self->{'_egid'} )
         ->mode( 0640 );
 
     executeNoWait(

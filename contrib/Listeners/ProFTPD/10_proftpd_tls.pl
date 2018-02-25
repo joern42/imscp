@@ -34,7 +34,7 @@ use version;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 10_proftpd_serverident.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -46,7 +46,7 @@ iMSCP::EventManager->getInstance()->register(
         return unless $tplName eq 'proftpd.conf';
         ${$tplContent} =~ s/(TLSRequired\s+)off/${1}on/im;
     }
-) if index( $main::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
 
 1;
 __END__

@@ -36,7 +36,6 @@ use POSIX qw / locale_h /;
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 defined $ARGV[0] or die( 'Expects a base64 encoded string containing JSON data as first argument' );
 
@@ -49,13 +48,13 @@ my (
 
 sub sw_mngr_start_up
 {
-    push_el( \@main::el, 'sw_mngr_start_up()', 'Starting software manager...' );
+    push_el( \@::el, 'sw_mngr_start_up()', 'Starting software manager...' );
 
     my $rs = 0;
 
     # Let's clear Execution Logs, if any.
-    if ( -f $main::imscp_sw_mngr_el ) {
-        $rs = del_file( $main::imscp_sw_mngr_el );
+    if ( -f $::imscp_sw_mngr_el ) {
+        $rs = del_file( $::imscp_sw_mngr_el );
         return $rs if $rs;
     }
 
@@ -66,7 +65,7 @@ sub sw_mngr_start_up
 
 sub sw_mngr_engine
 {
-    push_el( \@main::el, 'sw_mngr_engine()', 'Starting software manager engine...' );
+    push_el( \@::el, 'sw_mngr_engine()', 'Starting software manager engine...' );
 
     my ($rs, $rows, $rdata, $rowsdomainname);
 
@@ -131,10 +130,10 @@ sub sw_mngr_engine
     }
 
     my $sw_src_path = '';
-    my $gui_software_dir = $main::cfg{'GUI_APS_DIR'};
-    my $gui_software_depot_dir = $main::cfg{'GUI_APS_DEPOT_DIR'};
-    my $apache_www_dir = $main::cfg{'USER_WEB_DIR'};
-    my $software_tmp_dir = $main::cfg{'SOFTWARE_TMP_DIR'};
+    my $gui_software_dir = $::cfg{'GUI_APS_DIR'};
+    my $gui_software_depot_dir = $::cfg{'GUI_APS_DEPOT_DIR'};
+    my $apache_www_dir = $::cfg{'USER_WEB_DIR'};
+    my $software_tmp_dir = $::cfg{'SOFTWARE_TMP_DIR'};
 
     if ( $sw_software_depot eq 'yes' ) {
         $sw_src_path = "$gui_software_depot_dir/$sw_software_archive";
@@ -173,21 +172,21 @@ sub sw_mngr_engine
         }
     }
 
-    push_el( \@main::el, 'sw_mngr_engine()', 'Ending software manager engine...' );
+    push_el( \@::el, 'sw_mngr_engine()', 'Ending software manager engine...' );
 
     0;
 }
 
 sub sw_mngr_shut_down
 {
-    push_el( \@main::el, 'sw_mngr_shut_down()', 'Ending software manager...' );
+    push_el( \@::el, 'sw_mngr_shut_down()', 'Ending software manager...' );
 
     0;
 }
 
 sub _sw_add_data
 {
-    push_el( \@main::el, '_sw_add_data()', 'Starting adding software...' );
+    push_el( \@::el, '_sw_add_data()', 'Starting adding software...' );
 
     my (
         $sw_software_archive, $sw_software_installfile, $sw_software_db, $sw_software_prefix, $sw_database, $sw_database_user, $sw_database_tmp_pwd,
@@ -226,7 +225,7 @@ sub _sw_add_data
 
     # Change directory to software temporary directory
     unless ( chdir( $sw_tmp_path ) ) {
-        push_el( \@main::el, '_sw_add_data()', sprintf( "[ERROR] Couldn't change dir to %s", $sw_tmp_path ));
+        push_el( \@::el, '_sw_add_data()', sprintf( "[ERROR] Couldn't change dir to %s", $sw_tmp_path ));
         return 1;
     }
 
@@ -296,14 +295,14 @@ sub _sw_add_data
     $rs = sys_command_rs( "@cmd" );
     return $rs if $rs;
 
-    push_el( \@main::el, '_sw_add_data()', 'Ending adding software...' );
+    push_el( \@::el, '_sw_add_data()', 'Ending adding software...' );
 
     0;
 }
 
 sub _sw_del_data
 {
-    push_el( \@main::el, '_sw_del_data()', 'Starting deleting software...' );
+    push_el( \@::el, '_sw_del_data()', 'Starting deleting software...' );
 
     my (
         $sw_software_archive, $sw_software_installfile, $sw_software_db, $sw_software_prefix, $sw_database, $sw_database_user, $sw_database_tmp_pwd,
@@ -323,7 +322,7 @@ sub _sw_del_data
     return $rs if $rs;
 
     unless ( chdir( $sw_tmp_path ) ) {
-        push_el( \@main::el, '_sw_add_data()', sprintf( "[ERROR] Couldn't change dir to %s", $sw_tmp_path ));
+        push_el( \@::el, '_sw_add_data()', sprintf( "[ERROR] Couldn't change dir to %s", $sw_tmp_path ));
         return 1;
     }
 
@@ -381,13 +380,13 @@ sub _sw_del_data
         if ( $tag eq 'software_deldirs' || $tag eq 'software_delfiles' ) {
             $data =~ s/\n|\t//g;
 
-            if ( $data ne '' ) {
+            if ( length $data ) {
                 $UNINSTALL_DATA{$tag} .= $data;
             }
         }
     }
 
-    if ( $UNINSTALL_DATA{'software_deldirs'} ne '' && $UNINSTALL_DATA{'software_delfiles'} ne '' ) {
+    if ( length $UNINSTALL_DATA{'software_deldirs'} && length $UNINSTALL_DATA{'software_delfiles'} ) {
         my @uninstalldirs = split( ',', $UNINSTALL_DATA{'software_deldirs'} );
         my @uninstallfiles = split( ',', $UNINSTALL_DATA{'software_delfiles'} );
 
@@ -433,7 +432,7 @@ sub _sw_del_data
         }
     }
 
-    push_el( \@main::el, '_sw_del_data()', 'Ending deleting software...' );
+    push_el( \@::el, '_sw_del_data()', 'Ending deleting software...' );
 
     0;
 }
@@ -441,7 +440,7 @@ sub _sw_del_data
 my $rs = sw_mngr_start_up();
 
 if ( $rs ) {
-    dump_el( \@main::el, $main::imscp_sw_mngr_el );
+    dump_el( \@::el, $::imscp_sw_mngr_el );
     sw_mngr_shut_down();
     exit 1;
 }
@@ -449,7 +448,7 @@ if ( $rs ) {
 $rs = sw_mngr_engine();
 
 if ( $rs ) {
-    dump_el( \@main::el, $main::imscp_sw_mngr_el );
+    dump_el( \@::el, $::imscp_sw_mngr_el );
     sw_mngr_shut_down();
     exit 1;
 }
@@ -457,7 +456,7 @@ if ( $rs ) {
 $rs = sw_mngr_shut_down();
 
 if ( $rs ) {
-    dump_el( \@main::el, $main::imscp_sw_mngr_el );
+    dump_el( \@::el, $::imscp_sw_mngr_el );
     exit 1;
 }
 

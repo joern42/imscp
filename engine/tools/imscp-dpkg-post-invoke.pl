@@ -11,21 +11,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 use strict;
 use warnings;
@@ -43,7 +43,6 @@ use POSIX qw / locale_h /;
 setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 newDebug( 'imscp-dpkg-post-invoke.log' );
 
@@ -67,18 +66,18 @@ iMSCP::Getopt->context( 'installer' );
 exit unless iMSCP::Bootstrapper->getInstance()->getInstance()->boot( {
     config_readonly => 1,
     nolock          => 1
-} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-dpkg-post-invoke.lock", 'nowait' );
+} )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-dpkg-post-invoke.lock", 'nowait' );
 
 debug( 'Executing servers dpkg(1) post-invoke tasks' );
-for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-    eval { $_->factory()->dpkgPostInvokeTasks(); };
+for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+    eval { $server->factory()->dpkgPostInvokeTasks(); };
     !$@ or error( $@ )
 }
 
 debug( 'Executing packages dpkg(1) post-invoke tasks' );
-for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
-    next unless my $subref = $_->can( 'dpkgPostInvokeTasks' );
-    eval { $subref->( $_->getInstance( eventManager => iMSCP::EventManager->getInstance())); };
+for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+    next unless my $subref = $package_->can( 'dpkgPostInvokeTasks' );
+    eval { $subref->( $package_->getInstance( eventManager => iMSCP::EventManager->getInstance())); };
     !$@ or error( $@ )
 }
 

@@ -1,21 +1,21 @@
 #!/usr/bin/perl
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 # i-MSCP installer bootstrap file for Debian like distributions
 #
@@ -26,7 +26,7 @@
 
 system( 'clear 2>/dev/null' );
 
-unless ( -f '/etc/imscp/listener.d/10_apt_sources_list.pl' ) {
+unless (-f '/etc/imscp/listener.d/10_apt_sources_list.pl' || -f '/etc/imscp/imscp.conf' ) {
     prntInfo 'Updating distribution package index files...';
     system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "couldn't update APT index" );
 
@@ -57,9 +57,9 @@ system( 'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'upgr
 prntInfo 'Installing pre-required distribution packages...';
 system(
     'apt-get', '--assume-yes', '--no-install-recommends', '--quiet=1', 'install', 'apt-transport-https', 'apt-utils', 'build-essential',
-    'ca-certificates', 'cpanminus', 'debconf-utils', 'dialog', 'dirmngr', 'libbit-vector-perl', 'libcapture-tiny-perl', 'libcarp-always-perl',
-    'libclass-autouse-perl', 'libdata-compare-perl', 'libdata-validate-domain-perl', 'libfile-homedir-perl', 'libjson-perl', 'libjson-xs-perl',
-    'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libnet-ip-perl', 'libnet-domain-tld-perl', 'libnet-libidn-perl',
+    'ca-certificates', 'cpanminus', 'debconf-utils', 'dialog', 'dirmngr', 'libacl1-dev', 'libbit-vector-perl', 'libcapture-tiny-perl',
+    'libcarp-always-perl', 'libclass-autouse-perl', 'libdata-compare-perl', 'libdata-validate-domain-perl', 'libfile-homedir-perl', 'libjson-perl',
+    'libjson-xs-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libnet-ip-perl', 'libnet-domain-tld-perl', 'libnet-libidn-perl',
     'libscalar-defer-perl', 'libsort-versions-perl', 'libxml-simple-perl', 'policyrcd-script-zg2', 'wget', 'whiptail', 'virt-what',
     'libdatetime-perl', 'libemail-valid-perl', 'libdata-validate-ip-perl', 'lsb-release', 'ruby'
 ) == 0 or die( "couldn't install pre-required distribution packages" );
@@ -69,19 +69,28 @@ prntInfo "Installing pre-required facter program (RubyGem)...";
 system( 'gem', 'install', 'facter', '--quiet', '--conservative', '--minimal-deps', '--version', '2.5.1' ) == 0 or die(
     "couldn't install pre-required distribution packages"
 );
-
+    
 if ( eval "require Module::Load::Conditional; 1;" ) {
     Module::Load::Conditional->import( 'check_install' );
-    my %perlModules = ( 'Array::Utils', 0.5, 'Data::Clone', 0.004 );
+    require iMSCP::Requirements;
+    my $perlModules = iMSCP::Requirements->new()->getPerlModuleRequirements();
 
-    while ( my ($module, $version) = each %perlModules ) {
+    use Data::Dumper;
+    
+    while ( my ($module, $version) = each %{$perlModules} ) {
         my $rv = check_install( module => $module, version => $version );
-        delete $perlModules{$module} if $rv && $rv->{'uptodate'};
+
+        if($rv && $rv->{'uptodate'}) {
+            delete $perlModules->{$module} if $rv && $rv->{'uptodate'};
+            next;
+        }
+
+        $perlModules->{$module} .= "~$version'";
     }
 
-    if ( %perlModules ) {
+    if ( %{$perlModules} ) {
         prntInfo "Installing pre-required Perl module(s) from CPAN...";
-        system( 'cpanm', '--notest', '--quiet', keys %perlModules ) == 0 or die( "couldn't install pre-reuired Perl module(s) from CPAN" );
+        system( 'cpanm', '--notest', '--quiet', keys %{$perlModules} ) == 0 or die( "couldn't install all required Perl module(s) from CPAN" );
     }
 } else {
     die( 'the Module::Load::Conditional Perl module is not available' );

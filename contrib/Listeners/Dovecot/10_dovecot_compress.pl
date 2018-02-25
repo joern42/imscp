@@ -46,7 +46,7 @@ my $COMPRESSION_LEVEL = 6;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 10_dovecot_compress.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -67,7 +67,7 @@ protocol imap {
 }
 EOT
     }
-) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;
 
 1;
 __END__

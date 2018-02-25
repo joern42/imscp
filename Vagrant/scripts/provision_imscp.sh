@@ -26,7 +26,7 @@ if [ -f /vagrant/preseed.pl ]; then
     head -n -1 /vagrant/preseed.pl > /tmp/preseed.pl
     cat <<'EOT' >> /tmp/preseed.pl
 
-unless($main::questions{'BASE_SERVER_IP'} eq 'None') {
+unless($::questions{'BASE_SERVER_IP'} eq 'None') {
     require iMSCP::Net;
     my $net = iMSCP::Net->getInstance();
     my @serverIPs = reverse sort grep {
@@ -34,7 +34,7 @@ unless($main::questions{'BASE_SERVER_IP'} eq 'None') {
     } $net->getAddresses();
 
     @serverIPs or die( "Couldn't get list of server IP addresses. At least one IP address must be configured." );
-    $main::questions{'BASE_SERVER_IP'} = $serverIPs[0];
+    $::questions{'BASE_SERVER_IP'} = $serverIPs[0];
 }
 
 1;

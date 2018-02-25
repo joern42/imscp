@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Httpd::Apache2::Abstract;
 
@@ -37,8 +37,8 @@ use File::Temp;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
-use iMSCP::Ext2Attributes qw/ setImmutable clearImmutable isImmutable /;
 use iMSCP::File;
+use iMSCP::File::Attributes qw/ :immutable /;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ mount umount isMountpoint addMountEntry removeMountEntry /;
 use iMSCP::Net;
@@ -50,7 +50,7 @@ use parent qw/ iMSCP::Servers::Httpd /;
 
 my $TMPFS = lazy
     {
-        my $tmpfs = iMSCP::Dir->new( dirname => "$main::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache_tmpfs" )->make( { umask => 0027 } );
+        my $tmpfs = iMSCP::Dir->new( dirname => "$::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache_tmpfs" )->make( { umask => 0027 } );
         return $tmpfs if isMountpoint( $tmpfs );
 
         mount(
@@ -100,20 +100,20 @@ sub askForApacheMPM
 {
     my ($self, $dialog) = @_;
 
-    my $default = $main::imscpConfig{'DISTRO_CODENAME'} ne 'jessie' ? 'event' : 'worker';
-    my $value = main::setupGetQuestion( 'HTTPD_MPM', $self->{'config'}->{'HTTPD_MPM'} || ( iMSCP::Getopt->preseed ? $default : '' ));
+    my $default = $::imscpConfig{'DISTRO_CODENAME'} ne 'jessie' ? 'event' : 'worker';
+    my $value = ::setupGetQuestion( 'HTTPD_MPM', $self->{'config'}->{'HTTPD_MPM'} || ( iMSCP::Getopt->preseed ? $default : '' ));
     my %choices = (
         # For Debian version prior Stretch we hide the MPM event due to:
         # - https://bz.apache.org/bugzilla/show_bug.cgi?id=53555
         # - https://support.plesk.com/hc/en-us/articles/213901685-Apache-crashes-scoreboard-is-full-not-at-MaxRequestWorkers
-        ($main::imscpConfig{'DISTRO_CODENAME'} ne 'jessie' ? ('event', 'MPM Event') : ()),
+        ( $::imscpConfig{'DISTRO_CODENAME'} ne 'jessie' ? ( 'event', 'MPM Event' ) : () ),
         'itk', 'MPM Prefork with ITK module',
         'prefork', 'MPM Prefork ',
         'worker', 'MPM Worker '
     );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || $default);
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || $default );
 \\Z4\\Zb\\ZuApache MPM\\Zn
 
 Please choose the Apache MPM you want use:
@@ -122,7 +122,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'HTTPD_MPM', $value );
+    ::setupSetQuestion( 'HTTPD_MPM', $value );
     $self->{'config'}->{'HTTPD_MPM'} = $value;
     0;
 }
@@ -139,7 +139,7 @@ sub install
 
     $self->_setVersion();
     $self->_copyDomainDisablePages();
-    $self->_setupVlogger();
+    #$self->_setupVlogger();
 }
 
 =item uninstall( )
@@ -165,25 +165,25 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    setRights( "$main::imscpConfig{'TRAFF_ROOT_DIR'}/vlogger",
+    setRights( "$::imscpConfig{'TRAFF_ROOT_DIR'}/vlogger",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => '0750'
         }
     );
     setRights( $self->{'config'}->{'HTTPD_LOG_DIR'},
         {
-            user      => $main::imscpConfig{'ROOT_USER'},
-            group     => $main::imscpConfig{'ADM_GROUP'},
+            user      => $::imscpConfig{'ROOT_USER'},
+            group     => $::imscpConfig{'ADM_GROUP'},
             dirmode   => '0755',
             filemode  => '0644',
             recursive => iMSCP::Getopt->fixPermissions
         }
     );
-    setRights( "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages",
+    setRights( "$::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages",
         {
-            user      => $main::imscpConfig{'ROOT_USER'},
+            user      => $::imscpConfig{'ROOT_USER'},
             group     => $self->{'config'}->{'HTTPD_GROUP'},
             dirmode   => '0550',
             filemode  => '0440',
@@ -292,70 +292,66 @@ sub restoreDomain
     $self->{'eventManager'}->trigger( 'beforeApacheRestoreDomain', $moduleData );
 
     unless ( $moduleData->{'DOMAIN_TYPE'} eq 'als' ) {
-        eval {
-            # Restore the first backup found
-            for ( iMSCP::Dir->new( dirname => "$moduleData->{'HOME_DIR'}/backups" )->getFiles() ) {
-                next if -l "$moduleData->{'HOME_DIR'}/backups/$_"; # Don't follow symlinks (See #IP-990)
-                next unless /^web-backup-.+?\.tar(?:\.(bz2|gz|lzma|xz))?$/;
+        # Restore the first backup found
+        for my $file( iMSCP::Dir->new( dirname => "$moduleData->{'HOME_DIR'}/backups" )->getFiles() ) {
+            next if $file !~ /^web-backup-.+?\.tar(?:\.(bz2|gz|lzma|xz))?$/ # Do not look like backup archive
+                || -l "$moduleData->{'HOME_DIR'}/backups/$file"; # Don't follow symlinks (See #IP-990)
 
-                my $archFormat = $1 || '';
+            my $archFormat = $1 || '';
 
-                # Since we are now using immutable bit to protect some folders, we
-                # must in order do the following to restore a backup archive:
-                #
-                # - Un-protect user homedir (clear immutable flag recursively)
-                # - Restore web files
-                # - Update status of sub, als and alssub, entities linked to the
-                #   domain to 'torestore'
-                #
-                # The third and last task allow to set correct permissions and set
-                # immutable flag on folders if needed for each entity
+            # Since we are now using immutable bit to protect some folders, we
+            # must in order do the following to restore a backup archive:
+            #
+            # - Un-protect user homedir (clear immutable flag recursively)
+            # - Restore web files
+            # - Update status of sub, als and alssub, entities linked to the
+            #   domain to 'torestore'
+            #
+            # The third and last task allow to set correct permissions and set
+            # immutable flag on folders if needed for each entity
 
-                if ( $archFormat eq 'bz2' ) {
-                    $archFormat = 'bzip2';
-                } elsif ( $archFormat eq 'gz' ) {
-                    $archFormat = 'gzip';
-                }
-
-                # Un-protect homedir recursively
-                clearImmutable( $moduleData->{'HOME_DIR'}, 1 );
-
-                my $cmd;
-                if ( $archFormat ne '' ) {
-                    $cmd = [ 'tar', '-x', '-p', "--$archFormat", '-C', $moduleData->{'HOME_DIR'}, '-f', "$moduleData->{'HOME_DIR'}/backups/$_" ];
-                } else {
-                    $cmd = [ 'tar', '-x', '-p', '-C', $moduleData->{'HOME_DIR'}, '-f', "$moduleData->{'HOME_DIR'}/backups/$_" ];
-                }
-
-                my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
-                debug( $stdout ) if $stdout;
-                !$rs or die( $stderr || 'Unknown error' );
-
-                my $dbh = iMSCP::Database->getInstance();
-
-                eval {
-                    $dbh->begin_work();
-                    $dbh->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
-                    $dbh->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
-                    $dbh->do(
-                        "
-                            UPDATE subdomain_alias
-                            SET subdomain_alias_status = 'torestore'
-                            WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
-                        ",
-                        undef,
-                        $self->{'domain_id'}
-                    );
-                    $dbh->commit();
-                };
-
-                $dbh->rollback() if $@;
-                last;
+            if ( $archFormat eq 'bz2' ) {
+                $archFormat = 'bzip2';
+            } elsif ( $archFormat eq 'gz' ) {
+                $archFormat = 'gzip';
             }
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
+
+            # Un-protect homedir recursively
+            clearImmutable( $moduleData->{'HOME_DIR'}, 1 );
+
+            my $cmd;
+            if ( length $archFormat ) {
+                $cmd = [ 'tar', '-x', '-p', "--$archFormat", '-C', $moduleData->{'HOME_DIR'}, '-f', "$moduleData->{'HOME_DIR'}/backups/$file" ];
+            } else {
+                $cmd = [ 'tar', '-x', '-p', '-C', $moduleData->{'HOME_DIR'}, '-f', "$moduleData->{'HOME_DIR'}/backups/$file" ];
+            }
+
+            my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
+            debug( $stdout ) if $stdout;
+            !$rs or die( $stderr || 'Unknown error' );
+
+            my $dbh = iMSCP::Database->getInstance();
+            eval {
+                $dbh->begin_work();
+                $dbh->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
+                $dbh->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
+                $dbh->do(
+                    "
+                        UPDATE subdomain_alias
+                        SET subdomain_alias_status = 'torestore'
+                        WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                    ",
+                    undef,
+                    $self->{'domain_id'}
+                );
+                $dbh->commit();
+            };
+            if ( $@ ) {
+                $dbh->rollback();
+                die;
+            }
+
+            last;
         }
     }
 
@@ -487,19 +483,13 @@ sub addHtpasswd
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}" );
-        my $fileContentRef;
-        if ( -f $file->{'filename'} ) {
-            $fileContentRef = $file->getAsRef();
-        } else {
-            my $stamp = '';
-            $fileContentRef = \$stamp;
-        }
+        my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheAddHtpasswd', $fileContentRef, $moduleData );
         ${$fileContentRef} =~ s/^$moduleData->{'HTUSER_NAME'}:[^\n]*\n//gim;
         ${$fileContentRef} .= "$moduleData->{'HTUSER_NAME'}:$moduleData->{'HTUSER_PASS'}\n";
         $self->{'eventManager'}->trigger( 'afterApacheAddHtpasswd', $fileContentRef, $moduleData );
-        $file->save( 0027 )->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
+        $file->save( 0027 )->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
@@ -520,23 +510,16 @@ sub deleteHtpasswd
     my ($self, $moduleData) = @_;
 
     eval {
-        return unless -f "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}";
-
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}" );
-        my $fileContentRef;
-        if ( -f $file->{'filename'} ) {
-            $fileContentRef = $file->getAsRef();
-        } else {
-            my $stamp = '';
-            $fileContentRef = \$stamp;
-        }
+        my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtpasswd', $fileContentRef, $moduleData );
         ${$fileContentRef} =~ s/^$moduleData->{'HTUSER_NAME'}:[^\n]*\n//gim;
         $self->{'eventManager'}->trigger( 'afterApacheDeleteHtpasswd', $fileContentRef, $moduleData );
-        $file->save()->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
+
+        $file->save()->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
@@ -560,19 +543,14 @@ sub addHtgroup
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}" );
-        my $fileContentRef;
-        if ( -f $file->{'filename'} ) {
-            $fileContentRef = $file->getAsRef();
-        } else {
-            my $stamp = '';
-            $fileContentRef = \$stamp;
-        }
+        my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheAddHtgroup', $fileContentRef, $moduleData );
         ${$fileContentRef} =~ s/^$moduleData->{'HTGROUP_NAME'}:[^\n]*\n//gim;
         ${$fileContentRef} .= "$moduleData->{'HTGROUP_NAME'}:$moduleData->{'HTGROUP_USERS'}\n";
         $self->{'eventManager'}->trigger( 'afterApacheAddHtgroup', $fileContentRef, $moduleData );
-        $file->save( 0027 )->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
+
+        $file->save( 0027 )->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
@@ -593,23 +571,16 @@ sub deleteHtgroup
     my ($self, $moduleData) = @_;
 
     eval {
-        return unless -f "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}";
-
         clearImmutable( $moduleData->{'WEB_DIR'} );
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}" );
-        my $fileContentRef;
-        if ( -f $file->{'filename'} ) {
-            $fileContentRef = $file->getAsRef();
-        } else {
-            my $stamp = '';
-            $fileContentRef = \$stamp;
-        }
+        my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtgroup', $fileContentRef, $moduleData );
         ${$fileContentRef} =~ s/^$moduleData->{'HTGROUP_NAME'}:[^\n]*\n//gim;
         $self->{'eventManager'}->trigger( 'afterApacheDeleteHtgroup', $fileContentRef, $moduleData );
-        $file->save()->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
+
+        $file->save()->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} )->mode( 0640 );
         setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     };
     if ( $@ ) {
@@ -637,13 +608,7 @@ sub addHtaccess
         clearImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
 
         my $file = iMSCP::File->new( filename => "$moduleData->{'AUTH_PATH'}/.htaccess" );
-        my $fileContentRef;
-        if ( -f $file->{'filename'} ) {
-            $fileContentRef = $file->getAsRef();
-        } else {
-            my $stamp = '';
-            $fileContentRef = \$stamp;
-        }
+        my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheAddHtaccess', $fileContentRef, $moduleData );
 
@@ -656,7 +621,7 @@ AuthBasicProvider file
 AuthUserFile $moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}
 EOF
 
-        if ( $moduleData->{'HTUSERS'} eq '' ) {
+        unless ( length $moduleData->{'HTUSERS'} ) {
             $tagContent .= <<"EOF";
 AuthGroupFile $moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}
 Require group $moduleData->{'HTGROUPS'}
@@ -712,7 +677,7 @@ sub deleteHtaccess
         replaceBlocByRef( "### START i-MSCP PROTECTION ###\n", "### END i-MSCP PROTECTION ###\n", '', $fileContentRef );
         $self->{'eventManager'}->trigger( 'afterApacheDeleteHtaccess', $fileContentRef, $moduleData );
 
-        if ( ${$fileContentRef} ne '' ) {
+        if ( length ${$fileContentRef} ) {
             $file->save()->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} )->mode( 0640 );
         } elsif ( $fileExist ) {
             $file->remove();
@@ -840,7 +805,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload _templates cfgDir _web_folder_skeleton /} = ( 0, 0, {}, "$main::imscpConfig{'CONF_DIR'}/apache", undef );
+    @{$self}{qw/ restart reload _templates cfgDir _web_folder_skeleton /} = ( 0, 0, {}, "$::imscpConfig{'CONF_DIR'}/apache", undef );
     $self->{'eventManager'}->register( 'afterApacheBuildConfFile', $self, -999 );
     $self->SUPER::_init();
 }
@@ -877,7 +842,7 @@ sub _deleteDomain
     $self->_umountLogsFolder( $moduleData );
 
     unless ( $moduleData->{'SHARED_MOUNT_POINT'} || !-d $moduleData->{'WEB_DIR'} ) {
-        my $userWebDir = File::Spec->canonpath( $main::imscpConfig{'USER_WEB_DIR'} );
+        my $userWebDir = File::Spec->canonpath( $::imscpConfig{'USER_WEB_DIR'} );
         my $parentDir = dirname( $moduleData->{'WEB_DIR'} );
 
         clearImmutable( $parentDir );
@@ -899,10 +864,10 @@ sub _deleteDomain
         }
     }
 
-    for ( "$moduleData->{'HOME_DIR'}/logs/$moduleData->{'DOMAIN_NAME'}",
+    for my $dir( "$moduleData->{'HOME_DIR'}/logs/$moduleData->{'DOMAIN_NAME'}",
         "$self->{'config'}->{'HTTPD_LOG_DIR'}/moduleDatadata->{'DOMAIN_NAME'}"
     ) {
-        iMSCP::Dir->new( dirname => $_ )->remove();
+        iMSCP::Dir->new( dirname => $dir )->remove();
     }
 }
 
@@ -925,7 +890,7 @@ sub _mountLogsFolder
 
     unless ( -d $fsFile ) {
         iMSCP::Dir->new( dirname => $fsFile )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
+            user  => $::imscpConfig{'ROOT_USER'},
             group => $moduleData->{'GROUP'},
             mode  => 0750
         } );
@@ -976,13 +941,13 @@ sub _disableDomain
     my ($self, $moduleData) = @_;
 
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'HTTPD_LOG_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->make( {
-        user  => $main::imscpConfig{'ROOT_USER'},
-        group => $main::imscpConfig{'ADM_GROUP'},
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ADM_GROUP'},
         mode  => 0755
     } );
 
     my $net = iMSCP::Net->getInstance();
-    my @domainIPs = ( $moduleData->{'DOMAIN_IP'}, ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
+    my @domainIPs = ( $moduleData->{'DOMAIN_IP'}, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
 
     $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
 
@@ -994,9 +959,9 @@ sub _disableDomain
         DOMAIN_IPS      => join( ' ', map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':80' } @domainIPs ),
         HTTP_URI_SCHEME => 'http://',
         HTTPD_LOG_DIR   => $self->{'config'}->{'HTTPD_LOG_DIR'},
-        USER_WEB_DIR    => $main::imscpConfig{'USER_WEB_DIR'},
-        SERVER_ALIASES  => "www.$moduleData->{'DOMAIN_NAME'}" . ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes'
-            ? " $moduleData->{'ALIAS'}.$main::imscpConfig{'BASE_SERVER_VHOST'}" : ''
+        USER_WEB_DIR    => $::imscpConfig{'USER_WEB_DIR'},
+        SERVER_ALIASES  => "www.$moduleData->{'DOMAIN_NAME'}" . ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes'
+            ? " $moduleData->{'ALIAS'}.$::imscpConfig{'BASE_SERVER_VHOST'}" : ''
         )
     };
 
@@ -1017,7 +982,7 @@ sub _disableDomain
 
     if ( $moduleData->{'SSL_SUPPORT'} ) {
         @{$serverData}{qw/ CERTIFICATE DOMAIN_IPS HTTP_URI_SCHEME VHOST_TYPE /} = (
-            "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$moduleData->{'DOMAIN_NAME'}.pem",
+            "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$moduleData->{'DOMAIN_NAME'}.pem",
             join( ' ', map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':443' } @domainIPs ),
             'https://',
             'domain_disabled_ssl'
@@ -1068,7 +1033,7 @@ sub _addCfg
     $self->{'eventManager'}->trigger( 'beforeApacheAddCfg', $moduleData );
 
     my $net = iMSCP::Net->getInstance();
-    my @domainIPs = ( $moduleData->{'DOMAIN_IP'}, ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
+    my @domainIPs = ( $moduleData->{'DOMAIN_IP'}, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
 
     $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
 
@@ -1081,7 +1046,7 @@ sub _addCfg
         HTTPD_CUSTOM_SITES_DIR => $self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'},
         HTTPD_LOG_DIR          => $self->{'config'}->{'HTTPD_LOG_DIR'},
         SERVER_ALIASES         => "www.$moduleData->{'DOMAIN_NAME'}" . (
-                $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? " $moduleData->{'ALIAS'}.$main::imscpConfig{'BASE_SERVER_VHOST'}" : ''
+                $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? " $moduleData->{'ALIAS'}.$::imscpConfig{'BASE_SERVER_VHOST'}" : ''
         )
     };
 
@@ -1105,7 +1070,7 @@ sub _addCfg
 
     if ( $moduleData->{'SSL_SUPPORT'} ) {
         @{$serverData}{qw/ CERTIFICATE DOMAIN_IPS /} = (
-            "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$moduleData->{'DOMAIN_NAME'}.pem",
+            "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$moduleData->{'DOMAIN_NAME'}.pem",
             join( ' ', map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':443' } @domainIPs )
         );
 
@@ -1151,12 +1116,12 @@ sub _getWebfolderSkeleton
     my $webFolderSkeleton = $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ? 'domain' : ( $moduleData->{'DOMAIN_TYPE'} eq 'als' ? 'alias' : 'subdomain' );
 
     unless ( -d "$TMPFS/$webFolderSkeleton" ) {
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/skel/$webFolderSkeleton" )->copy( "$TMPFS/$webFolderSkeleton" );
+        iMSCP::Dir->new( dirname => "$::imscpConfig{'CONF_DIR'}/skel/$webFolderSkeleton" )->copy( "$TMPFS/$webFolderSkeleton" );
 
         if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
-            for ( qw/ errors logs / ) {
-                next if -d "$TMPFS/$webFolderSkeleton/$_";
-                iMSCP::Dir->new( dirname => "$TMPFS/$webFolderSkeleton/$_" )->make();
+            for my $dir( qw/ errors logs / ) {
+                next if -d "$TMPFS/$webFolderSkeleton/$dir";
+                iMSCP::Dir->new( dirname => "$TMPFS/$webFolderSkeleton/$dir" )->make();
             }
         }
 
@@ -1183,8 +1148,8 @@ sub _addFiles
         $self->{'eventManager'}->trigger( 'beforeApacheAddFiles', $moduleData );
 
         iMSCP::Dir->new( dirname => "$self->{'config'}->{'HTTPD_LOG_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ADM_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ADM_GROUP'},
             mode  => 0755
         } );
 
@@ -1257,9 +1222,9 @@ sub _addFiles
         my @files = iMSCP::Dir->new( dirname => $webFolderSkeleton )->getAll();
 
         # Set ownership for Web folder
-        for ( @files ) {
-            next unless -e "$moduleData->{'WEB_DIR'}/$_";
-            setRights( "$moduleData->{'WEB_DIR'}/$_",
+        for my $file( @files ) {
+            next unless -e "$moduleData->{'WEB_DIR'}/$file";
+            setRights( "$moduleData->{'WEB_DIR'}/$file",
                 {
                     user      => $moduleData->{'USER'},
                     group     => $moduleData->{'GROUP'},
@@ -1270,11 +1235,11 @@ sub _addFiles
 
         if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
             # Set ownership and permissions for .htgroup and .htpasswd files
-            for ( qw/ .htgroup .htpasswd / ) {
-                next unless -f "$moduleData->{'WEB_DIR'}/$_";
-                setRights( "$moduleData->{'WEB_DIR'}/$_",
+            for my $file( qw/ .htgroup .htpasswd / ) {
+                next unless -f "$moduleData->{'WEB_DIR'}/$file";
+                setRights( "$moduleData->{'WEB_DIR'}/$file",
                     {
-                        user  => $main::imscpConfig{'ROOT_USER'},
+                        user  => $::imscpConfig{'ROOT_USER'},
                         group => $self->getRunningGroup(),
                         mode  => '0640'
                     }
@@ -1285,7 +1250,7 @@ sub _addFiles
             if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} eq 'yes' ) {
                 setRights( "$moduleData->{'WEB_DIR'}/logs",
                     {
-                        user      => $main::imscpConfig{'ROOT_USER'},
+                        user      => $::imscpConfig{'ROOT_USER'},
                         group     => $moduleData->{'GROUP'},
                         recursive => $fixPermissions
                     }
@@ -1314,7 +1279,7 @@ sub _addFiles
         # Set immutable bit if needed
         if ( $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes' ) {
             my $dir = $moduleData->{'WEB_DIR'};
-            my $userWebDir = File::Spec->canonpath( $main::imscpConfig{'USER_WEB_DIR'} );
+            my $userWebDir = File::Spec->canonpath( $::imscpConfig{'USER_WEB_DIR'} );
             do { setImmutable( $dir ); } while ( $dir = dirname( $dir ) ) ne $userWebDir;
         }
     };
@@ -1322,7 +1287,7 @@ sub _addFiles
         # Set immutable bit if needed (even on error)
         if ( $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes' ) {
             my $dir = $moduleData->{'WEB_DIR'};
-            my $userWebDir = File::Spec->canonpath( $main::imscpConfig{'USER_WEB_DIR'} );
+            my $userWebDir = File::Spec->canonpath( $::imscpConfig{'USER_WEB_DIR'} );
             do { setImmutable( $dir ); } while ( $dir = dirname( $dir ) ) ne $userWebDir;
         }
 
@@ -1340,9 +1305,8 @@ sub _addFiles
 
 sub _copyDomainDisablePages
 {
-
-    iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->copy(
-        "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages"
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->copy(
+        "$::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages"
     );
 }
 
@@ -1371,7 +1335,7 @@ CREATE TABLE IF NOT EXISTS httpd_vlogger (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 EOF
         $dbSchemaFile->close();
-        $self->buildConfFile( $dbSchemaFile, $dbSchemaFile, undef, { DATABASE_NAME => main::setupGetQuestion( 'DATABASE_NAME' ) },
+        $self->buildConfFile( $dbSchemaFile, $dbSchemaFile, undef, { DATABASE_NAME => ::setupGetQuestion( 'DATABASE_NAME' ) },
             { srcname => 'vlogger.sql' }
         );
 
@@ -1386,10 +1350,10 @@ EOF
         $defaultsExtraFile->close();
         $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
-                HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
-                PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
-                USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
-                PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
+                HOST     => ::setupGetQuestion( 'DATABASE_HOST' ),
+                PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
+                USER     => ::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
+                PASSWORD => decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
             { srcname => 'defaults-extra-file' }
         );
@@ -1399,21 +1363,21 @@ EOF
         !$rs or die( $stderr || 'Unknown error' );
     }
 
-    my $dbHost = main::setupGetQuestion( 'DATABASE_HOST' );
+    my $dbHost = ::setupGetQuestion( 'DATABASE_HOST' );
     $dbHost = '127.0.0.1' if $dbHost eq 'localhost';
-    my $dbPort = main::setupGetQuestion( 'DATABASE_PORT' );
-    my $dbName = main::setupGetQuestion( 'DATABASE_NAME' );
+    my $dbPort = ::setupGetQuestion( 'DATABASE_PORT' );
+    my $dbName = ::setupGetQuestion( 'DATABASE_NAME' );
     my $dbUser = 'vlogger_user';
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     $dbUserHost = '127.0.0.1' if $dbUserHost eq 'localhost';
-    my $oldUserHost = $main::imscpOldConfig{'DATABASE_USER_HOST'};
+    my $oldUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
     my $dbPass = randomStr( 16, ALNUM );
 
     my $sqlServer = iMSCP::Servers::Sqld->factory();
 
-    for ( $dbUserHost, $oldUserHost, 'localhost' ) {
-        next unless $_;
-        $sqlServer->dropUser( $dbUser, $_ );
+    for my $host( $dbUserHost, $oldUserHost, 'localhost' ) {
+        next unless $host;
+        $sqlServer->dropUser( $dbUser, $host );
     }
 
     $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
@@ -1461,11 +1425,11 @@ EOF
 
 sub _removeVloggerSqlUser
 {
-    if ( $main::imscpConfig{'DATABASE_USER_HOST'} eq 'localhost' ) {
+    if ( $::imscpConfig{'DATABASE_USER_HOST'} eq 'localhost' ) {
         return iMSCP::Servers::Sqld->factory()->dropUser( 'vlogger_user', '127.0.0.1' );
     }
 
-    iMSCP::Servers::Sqld->factory()->dropUser( 'vlogger_user', $main::imscpConfig{'DATABASE_USER_HOST'} );
+    iMSCP::Servers::Sqld->factory()->dropUser( 'vlogger_user', $::imscpConfig{'DATABASE_USER_HOST'} );
 }
 
 =back
@@ -1548,7 +1512,7 @@ sub afterApacheBuildConfFile
 
 END
     {
-        my $tmpfs = "$main::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache_tmpfs";
+        my $tmpfs = "$::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache_tmpfs";
         umount( $tmpfs ) if isMountpoint( $tmpfs );
         iMSCP::Dir->new( dirname => $tmpfs )->remove();
     }

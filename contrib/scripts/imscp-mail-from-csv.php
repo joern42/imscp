@@ -1,20 +1,21 @@
 <?php
 /**
- * Copyright (C) 2010-2018 by Laurent Declercq
+ * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
 use iMSCP_Registry as Registry;
@@ -51,13 +52,7 @@ function cli_getMailData($domainName)
     }
 
     $stmt = exec_query(
-        "
-            SELECT domain_id, subdomain_id
-            FROM subdomain
-            JOIN domain USING(domain_id)
-            WHERE CONCAT(subdomain_name, '.', domain_name) = ?
-        ",
-        [$domainName]
+        "SELECT domain_id, subdomain_id FROM subdomain JOIN domain USING(domain_id) WHERE CONCAT(subdomain_name, '.', domain_name) = ?", [$domainName]
     );
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
@@ -118,8 +113,7 @@ $db = Registry::get('iMSCP_Application')->getDatabase();
 $stmt = $db->prepare(
     "
         INSERT INTO mail_users (
-            mail_acc, mail_pass, mail_forward, domain_id, mail_type, sub_id, status, mail_auto_respond,
-            mail_auto_respond_text, quota, mail_addr
+            mail_acc, mail_pass, mail_forward, domain_id, mail_type, sub_id, status, mail_auto_respond, mail_auto_respond_text, quota, mail_addr
         ) VALUES (
             ?, ?, '_no_', ?, ?, ?, 'toadd', '0', NULL, 0, ?
         )

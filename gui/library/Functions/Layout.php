@@ -445,10 +445,10 @@ function layout_updateUserLogo()
         }
 
         // Building an unique file name
-        $fileName = sha1(\iMSCP\Crypt::randomStr(15) . '-' . $_SESSION['user_id']) . '.' . $fileExtension;
+        $filename = sha1(\iMSCP\Crypt::randomStr(15) . '-' . $_SESSION['user_id']) . '.' . $fileExtension;
 
         // Return destination file path
-        return $cfg['GUI_ROOT_DIR'] . '/data/persistent/ispLogos/' . $fileName;
+        return $cfg['GUI_ROOT_DIR'] . '/data/persistent/ispLogos/' . $filename;
     };
 
     if (($logoPath = utils_uploadFile('logoFile', [$beforeMove, $cfg])) === false) {

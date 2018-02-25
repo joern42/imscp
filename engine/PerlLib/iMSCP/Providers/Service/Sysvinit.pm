@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Providers::Service::Sysvinit;
 
@@ -229,13 +229,13 @@ sub _init
 {
     my ($self) = @_;
 
-    exists $main::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
+    exists $::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
 
-    if ( $main::imscpConfig{'DISTRO_FAMILY'} =~ /^(?:FreeBSD|DragonFly)$/ ) {
+    if ( $::imscpConfig{'DISTRO_FAMILY'} =~ /^(?:FreeBSD|DragonFly)$/ ) {
         $self->{'sysvinitscriptpaths'} = [ '/etc/rc.d', '/usr/local/etc/rc.d' ];
-    } elsif ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'HP-UX' ) {
+    } elsif ( $::imscpConfig{'DISTRO_FAMILY'} eq 'HP-UX' ) {
         $self->{'sysvinitscriptpaths'} = [ '/sbin/init.d' ];
-    } elsif ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'Archlinux' ) {
+    } elsif ( $::imscpConfig{'DISTRO_FAMILY'} eq 'Archlinux' ) {
         $self->{'sysvinitscriptpaths'} = [ '/etc/rc.d' ];
     } else {
         $self->{'sysvinitscriptpaths'} = [ '/etc/init.d' ];
@@ -285,8 +285,8 @@ sub _searchInitScript
         return $initScripts{$service};
     }
 
-    for ( @{$self->{'sysvinitscriptpaths'}} ) {
-        my $initScriptPath = File::Spec->join( $_, $service );
+    for my $path( @{$self->{'sysvinitscriptpaths'}} ) {
+        my $initScriptPath = File::Spec->join( $path, $service );
         $initScripts{$service} = $initScriptPath if -f $initScriptPath;
         last if $initScripts{$service};
 
@@ -319,7 +319,7 @@ sub _exec
     my (undef, $command, $stdout, $stderr) = @_;
 
     my $ret = execute( $command, ref $stdout eq 'SCALAR' ? $stdout : \$stdout, ref $stderr eq 'SCALAR' ? $stderr : \ $stderr );
-    ref $stdout ? ${$stdout} eq '' || debug( ${$stdout} ) : $stdout eq '' || debug( $stdout );
+    ref $stdout ? !length ${$stdout} || debug( ${$stdout} ) : !length $stdout || debug( $stdout );
 
     # Raise a failure if command status is other than 0 and if no scalar
     # reference has been provided for STDERR, giving choice to callers
@@ -356,9 +356,9 @@ sub _getLastExecOutput
 
 sub _getPs
 {
-    if ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'OpenWrt' ) {
+    if ( $::imscpConfig{'DISTRO_FAMILY'} eq 'OpenWrt' ) {
         'ps www';
-    } elsif ( grep( $main::imscpConfig{'DISTRO_FAMILY'} eq $_, qw/ FreeBSD NetBSD OpenBSD Darwin DragonFly / ) ) {
+    } elsif ( grep( $::imscpConfig{'DISTRO_FAMILY'} eq $_, qw/ FreeBSD NetBSD OpenBSD Darwin DragonFly / ) ) {
         'ps auxwww';
     } else {
         'ps -ef'

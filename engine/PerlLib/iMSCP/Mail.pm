@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Mail;
 
@@ -59,7 +59,7 @@ sub errmsg
 
     defined $message or croak( '$message parameter is not defined' );
 
-    return $self if $message eq '';
+    return $self unless length $message;
 
     chomp( $message );
 
@@ -86,7 +86,7 @@ sub warnMsg
 
     defined $message or croak( '$message parameter is not defined' );
 
-    return $self if $message eq '';
+    return $self unless length $message;
 
     chomp( $message );
 
@@ -120,11 +120,11 @@ sub _sendMail
     my (undef, $subject, $message, $severity) = @_;
 
     my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or die( "Couldn't find sendmail executable in \$PATH" );
-    my $hostname = $main::imscpConfig{'BASE_SERVER_VHOST'} || `hostname -f`;
+    my $hostname = $::imscpConfig{'BASE_SERVER_VHOST'} || `hostname -f`;
     chomp( $hostname );
     my $out = MIME::Entity->new()->build(
         From       => "i-MSCP ($hostname) <noreply\@$hostname>",
-        To         => $main::imscpConfig{'DEFAULT_ADMIN_ADDRESS'} || 'root',
+        To         => $::imscpConfig{'DEFAULT_ADMIN_ADDRESS'} || 'root',
         Subject    => $subject,
         Type       => 'text/plain; charset=utf-8',
         Encoding   => '8bit',
@@ -133,10 +133,10 @@ Dear administrator,
 
 This is an automatic email sent by the i-MSCP backend:
  
-Server name: $main::imscpConfig{'SERVER_HOSTNAME'}
-Server IP: $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'}
-Version: $main::imscpConfig{'Version'}
-Build: $main::imscpConfig{'BuildDate'}
+Server name: $::imscpConfig{'SERVER_HOSTNAME'}
+Server IP: $::imscpConfig{'BASE_SERVER_PUBLIC_IP'}
+Version: $::imscpConfig{'Version'}
+Build: $::imscpConfig{'BuildDate'}
 Message severity: $severity
 
 ==========================================================================

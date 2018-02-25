@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Php;
 
@@ -112,7 +112,7 @@ sub askForPhpVersion
     my %choices;
     @{choices}{@availablePhpVersions} = map { "PHP $_" } @availablePhpVersions;
 
-    my $value = main::setupGetQuestion(
+    my $value = ::setupGetQuestion(
         'PHP_VERSION', $self->{'config'}->{'PHP_VERSION'} || ( iMSCP::Getopt->preseed ? ( sort keys %choices )[0] : '' )
     );
 
@@ -128,7 +128,7 @@ EOF
 
     $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} = "@availablePhpVersions";
 
-    main::setupSetQuestion( 'PHP_VERSION', $value );
+    ::setupSetQuestion( 'PHP_VERSION', $value );
     $self->{'config'}->{'PHP_VERSION'} = $value;
     0;
 }
@@ -146,13 +146,13 @@ sub askForPhpSapi
 {
     my ($self, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'PHP_SAPI', $self->{'config'}->{'PHP_SAPI'} || ( iMSCP::Getopt->preseed ? 'fpm' : '' ));
+    my $value = ::setupGetQuestion( 'PHP_SAPI', $self->{'config'}->{'PHP_SAPI'} || ( iMSCP::Getopt->preseed ? 'fpm' : '' ));
     my %choices = ( 'fpm', 'PHP through PHP FastCGI Process Manager (fpm SAPI)' );
 
     my $httpd = iMSCP::Servers::Httpd->factory();
 
     if ( $httpd->getServerName() eq 'Nginx' ) {
-        main::setupSetQuestion( 'PHP_SAPI', 'fpm' );
+        ::setupSetQuestion( 'PHP_SAPI', 'fpm' );
         $self->{'config'}->{'PHP_SAPI'} = 'fpm';
         return 0;
     }
@@ -183,7 +183,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'PHP_SAPI', $value );
+    ::setupSetQuestion( 'PHP_SAPI', $value );
     $self->{'config'}->{'PHP_SAPI'} = $value;
     0;
 }
@@ -203,7 +203,7 @@ sub askForFastCGIconnectionType
 
     return 0 unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
 
-    my $value = main::setupGetQuestion( 'PHP_FPM_LISTEN_MODE', $self->{'config'}->{'PHP_FPM_LISTEN_MODE'} || ( iMSCP::Getopt->preseed ? 'uds' : '' ));
+    my $value = ::setupGetQuestion( 'PHP_FPM_LISTEN_MODE', $self->{'config'}->{'PHP_FPM_LISTEN_MODE'} || ( iMSCP::Getopt->preseed ? 'uds' : '' ));
     my %choices = ( 'tcp', 'TCP sockets over the loopback interface', 'uds', 'Unix Domain Sockets (recommended)' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -216,7 +216,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'PHP_FPM_LISTEN_MODE', $value );
+    ::setupSetQuestion( 'PHP_FPM_LISTEN_MODE', $value );
     $self->{'config'}->{'PHP_FPM_LISTEN_MODE'} = $value;
     0;
 }
@@ -254,8 +254,8 @@ sub setEnginePermissions
 
     setRights( $self->{'config'}->{'PHP_FCGI_STARTER_DIR'},
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => '0555'
         }
     );
@@ -476,11 +476,11 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     # Check for properties that must be defined in concret server implementations
-    for ( qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR / ) {
-        defined $self->{$_ } or die( sprintf( 'The %s package must define the %s property', ref $self, $_ ));
+    for my $prop( qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR / ) {
+        defined $self->{$prop } or die( sprintf( 'The %s package must define the %s property', ref $self, $prop ));
     }
 
-    @{$self}{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$main::imscpConfig{'CONF_DIR'}/php" );
+    @{$self}{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php" );
     $self->SUPER::_init();
 }
 
@@ -552,15 +552,15 @@ sub _buildCgiConfig
 
     #iMSCP::Dir->new( dirname => "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}" )->remove();
     iMSCP::Dir->new( dirname => $self->{'config'}->{'PHP_FCGI_STARTER_DIR'} )->make( {
-        user  => $main::imscpConfig{'ROOT_USER'},
-        group => $main::imscpConfig{'ROOT_GROUP'},
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
         mode  => 0555
     } );
 
-    for ( "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}",
+    for my $dir( "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}",
         "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}/php$self->{'config'}->{'PHP_VERSION'}"
     ) {
-        iMSCP::Dir->new( dirname => $_ )->make( {
+        iMSCP::Dir->new( dirname => $dir )->make( {
             user  => $moduleData->{'USER'},
             group => $moduleData->{'GROUP'},
             mode  => 0550

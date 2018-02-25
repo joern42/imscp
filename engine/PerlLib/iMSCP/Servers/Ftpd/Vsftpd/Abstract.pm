@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Ftpd::Vsftpd::Abstract;
 
@@ -39,7 +39,7 @@ use iMSCP::Debug qw/ debug /;
 use iMSCP::File;
 use parent 'iMSCP::Servers::Ftpd';
 
-%main::sqlUsers = () unless %main::sqlUsers;
+%::sqlUsers = () unless %::sqlUsers;
 
 =head1 DESCRIPTION
 
@@ -82,10 +82,10 @@ sub sqlUserDialog
 {
     my ($self, $dialog) = @_;
 
-    my $masterSqlUser = main::setupGetQuestion( 'DATABASE_USER' );
-    my $dbUser = main::setupGetQuestion( 'FTPD_SQL_USER', $self->{'config'}->{'FTPD_SQL_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' ));
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion(
+    my $masterSqlUser = ::setupGetQuestion( 'DATABASE_USER' );
+    my $dbUser = ::setupGetQuestion( 'FTPD_SQL_USER', $self->{'config'}->{'FTPD_SQL_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' ));
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $dbPass = ::setupGetQuestion(
         'FTPD_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'FTPD_SQL_PASSWORD'} )
     );
 
@@ -99,7 +99,7 @@ sub sqlUserDialog
         my $rs = 0;
 
         do {
-            if ( $dbUser eq '' ) {
+            unless ( length $dbUser ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $dbUser = 'imscp_srv_user';
             }
@@ -116,14 +116,14 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'FTPD_SQL_USER', $dbUser );
+    ::setupSetQuestion( 'FTPD_SQL_USER', $dbUser );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] ) || !isValidPassword( $dbPass ) ) {
-        unless ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        unless ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
             my $rs = 0;
 
             do {
-                if ( $dbPass eq '' ) {
+                unless ( length $dbPass ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = '';
                     $dbPass = randomStr( 16, ALNUM );
                 }
@@ -137,17 +137,17 @@ EOF
 
             return $rs unless $rs < 30;
 
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+            $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
         } else {
-            $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+            $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
         }
-    } elsif ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-        $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+    } elsif ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
     } else {
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
     }
 
-    main::setupSetQuestion( 'FTPD_SQL_PASSWORD', $dbPass );
+    ::setupSetQuestion( 'FTPD_SQL_PASSWORD', $dbPass );
     0;
 }
 
@@ -164,7 +164,7 @@ sub passivePortRangeDialog
 {
     my ($self, $dialog) = @_;
 
-    my $passivePortRange = main::setupGetQuestion(
+    my $passivePortRange = ::setupGetQuestion(
         'FTPD_PASSIVE_PORT_RANGE', $self->{'config'}->{'FTPD_PASSIVE_PORT_RANGE'} || ( iMSCP::Getopt->preseed ? '32768 60999' : '' )
     );
     my ($startOfRange, $endOfRange);
@@ -179,7 +179,7 @@ sub passivePortRangeDialog
         my $rs = 0;
 
         do {
-            if ( $passivePortRange eq '' ) {
+            unless ( length $passivePortRange ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $passivePortRange = '32768 60999';
             }
@@ -202,7 +202,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'FTPD_PASSIVE_PORT_RANGE', $passivePortRange );
+    ::setupSetQuestion( 'FTPD_PASSIVE_PORT_RANGE', $passivePortRange );
     $self->{'config'}->{'FTPD_PASSIVE_PORT_RANGE'} = $passivePortRange;
     0;
 }
@@ -220,7 +220,7 @@ sub maxClientsDialog
 {
     my ($self, $dialog) = @_;
 
-    my $maxClients = main::setupGetQuestion( 'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} // ( iMSCP::Getopt->preseed ? 100 : '' ));
+    my $maxClients = ::setupGetQuestion( 'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} // ( iMSCP::Getopt->preseed ? 100 : '' ));
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
@@ -230,7 +230,7 @@ sub maxClientsDialog
         my $rs = 0;
 
         do {
-            if ( $maxClients eq '' ) {
+            unless ( length $maxClients ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $maxClients = 100;
             }
@@ -249,7 +249,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'FTPD_MAX_CLIENTS', $maxClients );
+    ::setupSetQuestion( 'FTPD_MAX_CLIENTS', $maxClients );
     $self->{'config'}->{'FTPD_MAX_CLIENTS'} = $maxClients;
     0;
 }
@@ -267,7 +267,7 @@ sub maxCLientsPerIpDialog
 {
     my ($self, $dialog) = @_;
 
-    my $maxClientsPerIp = main::setupGetQuestion(
+    my $maxClientsPerIp = ::setupGetQuestion(
         'FTPD_MAX_CLIENTS_PER_IP', $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} // ( iMSCP::Getopt->preseed ? 5 : '' )
     );
 
@@ -279,7 +279,7 @@ sub maxCLientsPerIpDialog
         my $rs = 0;
 
         do {
-            if ( $maxClientsPerIp eq '' ) {
+            unless ( length $maxClientsPerIp ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $maxClientsPerIp = 5;
             }
@@ -298,7 +298,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'FTPD_MAX_CLIENTS_PER_IP', $maxClientsPerIp );
+    ::setupSetQuestion( 'FTPD_MAX_CLIENTS_PER_IP', $maxClientsPerIp );
     $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} = $maxClientsPerIp;
     0;
 }
@@ -344,8 +344,8 @@ sub setEnginePermissions
 
     setRights( "$self->{'config'}->{'FTPD_USER_CONF_DIR'}",
         {
-            user      => $main::imscpConfig{'ROOT_USER'},
-            group     => $main::imscpConfig{'ROOT_GROUP'},
+            user      => $::imscpConfig{'ROOT_USER'},
+            group     => $::imscpConfig{'ROOT_GROUP'},
             dirmode   => '0750',
             filemode  => '0640',
             recursive => 1
@@ -353,8 +353,8 @@ sub setEnginePermissions
     );
     setRights( "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => '0640'
         }
     );
@@ -496,7 +496,7 @@ sub getTraffic
     debug( sprintf( 'Processing VsFTPd traffic %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
     my ($idx, $idxContent) = ( $trafficIndexDb->{'vsftpd_lineNo'} || 0, $trafficIndexDb->{'vsftpd_lineContent'} );
 
     tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
@@ -506,7 +506,7 @@ sub getTraffic
 
     if ( exists $logs[$idx] && $logs[$idx] eq $idxContent ) {
         debug( sprintf( 'Skipping VsFTPd traffic logs that were already processed (lines %d to %d)', 1, ++$idx ));
-    } elsif ( $idxContent ne '' && substr( $logFile, -2 ) ne '.1' ) {
+    } elsif ( length $idxContent && substr( $logFile, -2 ) ne '.1' ) {
         debug( 'Log rotation has been detected. Processing last rotated log file first' );
         $self->getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
         $idx = 0;
@@ -554,7 +554,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$main::imscpConfig{'CONF_DIR'}/vsftpd" );
+    @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/vsftpd" );
     $self->SUPER::_init();
 }
 
@@ -605,7 +605,7 @@ sub _configure
         sub {
             my ($cfgTpl) = @_;
 
-            if ( $main::imscpConfig{'SYSTEM_VIRTUALIZER'} ne 'physical' ) {
+            if ( $::imscpConfig{'SYSTEM_VIRTUALIZER'} ne 'physical' ) {
                 $cfgTpl .= <<'EOF';
 
 # VsFTPd run inside unprivileged VE
@@ -614,8 +614,8 @@ seccomp_sandbox=NO
 EOF
             }
 
-            my $baseServerPublicIp = main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
-            if ( $main::imscpConfig{'BASE_SERVER_IP'} ne $baseServerPublicIp ) {
+            my $baseServerPublicIp = ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
+            if ( $::imscpConfig{'BASE_SERVER_IP'} ne $baseServerPublicIp ) {
                 $cfgTpl .= <<"EOF";
 
 # Server behind NAT - Advertise public IP address
@@ -624,7 +624,7 @@ pasv_promiscuous=YES
 EOF
             }
 
-            if ( main::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes' ) {
+            if ( ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes' ) {
                 $cfgTpl .= <<"EOF";
 
 # SSL support
@@ -636,8 +636,8 @@ ssl_sslv3=NO
 ssl_tlsv1=YES
 require_ssl_reuse=NO
 ssl_ciphers=HIGH
-rsa_cert_file=$main::imscpConfig{'CONF_DIR'}/imscp_services.pem
-rsa_private_key_file=$main::imscpConfig{'CONF_DIR'}/imscp_services.pem
+rsa_cert_file=$::imscpConfig{'CONF_DIR'}/imscp_services.pem
+rsa_private_key_file=$::imscpConfig{'CONF_DIR'}/imscp_services.pem
 EOF
             }
         }
@@ -646,10 +646,10 @@ EOF
     $self->buildConfFile( 'vsftpd.conf', "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf", undef,
         {
             FTPD_BANNER             => $self->{'config'}->{'FTPD_BANNER'},
-            FTPD_GUEST_USERNAME     => $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'},
-            FTPD_IPV4_ONLY          => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'NO' : 'YES',
-            FTPD_IPV6_SUPPORT       => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'YES' : 'NO',
-            FTPD_LOCAL_ROOT         => $main::imscpConfig{'USER_WEB_DIR'},
+            FTPD_GUEST_USERNAME     => $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'},
+            FTPD_IPV4_ONLY          => ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'NO' : 'YES',
+            FTPD_IPV6_SUPPORT       => ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? 'YES' : 'NO',
+            FTPD_LOCAL_ROOT         => $::imscpConfig{'USER_WEB_DIR'},
             FTPD_PASSV_MIN_PORT     => $passvMinPort,
             FTPD_PASSV_MAX_PORT     => $passvMaxPort,
             FTPD_MAX_CLIENTS        => $self->{'config'}->{'FTPD_MAX_CLIENTS'},
@@ -664,9 +664,9 @@ EOF
     );
     $self->buildConfFile( 'vsftpd_pam.conf', "$self->{'config'}->{'FTPD_PAM_CONF_DIR'}/vsftpd", undef,
         {
-            FTPD_DATABASE_HOST => main::setupGetQuestion( 'DATABASE_HOST' ),
-            FTPD_DATABASE_NAME => main::setupGetQuestion( 'DATABASE_NAME' ),
-            FTPD_DATABASE_PORT => main::setupGetQuestion( 'DATABASE_PORT' ),
+            FTPD_DATABASE_HOST => ::setupGetQuestion( 'DATABASE_HOST' ),
+            FTPD_DATABASE_NAME => ::setupGetQuestion( 'DATABASE_NAME' ),
+            FTPD_DATABASE_PORT => ::setupGetQuestion( 'DATABASE_PORT' ),
             FTPD_SQL_PASSWORD  => $self->{'config'}->{'FTPD_SQL_PASSWORD'},
             FTPD_SQL_USER      => $self->{'config'}->{'FTPD_SQL_USER'}
         },
@@ -690,27 +690,27 @@ sub _setupSqlUser
 {
     my ($self) = @_;
 
-    my $dbName = main::setupGetQuestion( 'DATABASE_NAME' );
-    my $dbUser = main::setupGetQuestion( 'FTPD_SQL_USER' );
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion( 'FTPD_SQL_PASSWORD' );
+    my $dbName = ::setupGetQuestion( 'DATABASE_NAME' );
+    my $dbUser = ::setupGetQuestion( 'FTPD_SQL_USER' );
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $dbPass = ::setupGetQuestion( 'FTPD_SQL_PASSWORD' );
 
     my $sqlServer = iMSCP::Servers::Sqld->factory();
 
     # Drop old SQL user if required
-    if ( ( $self->{'config'}->{'FTPD_SQL_USER'} ne '' && $self->{'config'}->{'FTPD_SQL_USER'} ne $dbUser )
-        || ( $main::imscpOldConfig{'DATABASE_USER_HOST'} ne '' && $main::imscpOldConfig{'DATABASE_USER_HOST'} ne $dbUserHost )
+    if ( ( length $self->{'config'}->{'FTPD_SQL_USER'} && $self->{'config'}->{'FTPD_SQL_USER'} ne $dbUser )
+        || ( length $::imscpOldConfig{'DATABASE_USER_HOST'} && $::imscpOldConfig{'DATABASE_USER_HOST'} ne $dbUserHost )
     ) {
-        for ( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-            next if $_ eq '' || exists $main::sqlUsers{$self->{'config'}->{'FTPD_SQL_USER'} . '@' . $_};
-            $sqlServer->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $_ );
+        for my $host( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+            next if !length $host || exists $::sqlUsers{$self->{'config'}->{'FTPD_SQL_USER'} . '@' . $host};
+            $sqlServer->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $host );
         }
     }
 
     # Create/update SQL user if needed
-    if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+    if ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
         $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
     }
 
     my $dbh = iMSCP::Database->getInstance();
@@ -774,7 +774,7 @@ sub _dropSqlUser
     my ($self) = @_;
 
     # In installer context, take value from old conffile, else take value from current conffile
-    my $dbUserHost = iMSCP::Getopt->context() eq 'installer' ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
+    my $dbUserHost = iMSCP::Getopt->context() eq 'installer' ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
     return unless $self->{'config'}->{'FTPD_SQL_USER'} && $dbUserHost;
 

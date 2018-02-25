@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Webstats::Awstats::Awstats;
 
@@ -106,16 +106,16 @@ sub setEnginePermissions
 {
     my $httpd = iMSCP::Servers::Httpd->factory();
 
-    setRights( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/awstats_updateall.pl",
+    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/awstats_updateall.pl",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_USER'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_USER'},
             mode  => '0700'
         }
     );
-    setRights( $main::imscpConfig{'AWSTATS_CACHE_DIR'},
+    setRights( $::imscpConfig{'AWSTATS_CACHE_DIR'},
         {
-            user      => $main::imscpConfig{'ROOT_USER'},
+            user      => $::imscpConfig{'ROOT_USER'},
             group     => $httpd->getRunningGroup(),
             dirmode   => '02750',
             filemode  => '0640',
@@ -124,7 +124,7 @@ sub setEnginePermissions
     );
     setRights( "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
+            user  => $::imscpConfig{'ROOT_USER'},
             group => $httpd->getRunningGroup(),
             mode  => '0640'
         }
@@ -222,12 +222,12 @@ sub deleteDomain
 {
     my (undef, $moduleData) = @_;
 
-    iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
+    iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
-    return unless -d $main::imscpConfig{'AWSTATS_CACHE_DIR'};
+    return unless -d $::imscpConfig{'AWSTATS_CACHE_DIR'};
 
-    iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CACHE_DIR'}/$_" )->remove() for iMSCP::Dir->new(
-        dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'}
+    iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CACHE_DIR'}/$_" )->remove() for iMSCP::Dir->new(
+        dirname => $::imscpConfig{'AWSTATS_CACHE_DIR'}
     )->getFiles( qr/^(?:awstats[0-9]+|dnscachelastupdate)\Q.$moduleData->{'DOMAIN_NAME'}.txt\E$/ );
 }
 
@@ -279,12 +279,12 @@ sub deleteSubdomain
 {
     my (undef, $moduleData) = @_;
 
-    iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
+    iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
-    return unless -d $main::imscpConfig{'AWSTATS_CACHE_DIR'};
+    return unless -d $::imscpConfig{'AWSTATS_CACHE_DIR'};
 
-    iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CACHE_DIR'}/$_" )->remove() for iMSCP::Dir->new(
-        dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'}
+    iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CACHE_DIR'}/$_" )->remove() for iMSCP::Dir->new(
+        dirname => $::imscpConfig{'AWSTATS_CACHE_DIR'}
     )->getFiles( qr/^(?:awstats[0-9]+|dnscachelastupdate)\Q.$moduleData->{'DOMAIN_NAME'}.txt\E$/ );
 }
 
@@ -333,7 +333,7 @@ sub _addAwstatsConfig
     }
 
     my $file = iMSCP::File->new(
-        filename => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Config/awstats.imscp_tpl.conf"
+        filename => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Config/awstats.imscp_tpl.conf"
     );
     my $fileContentRef = $file->getAsRef();
 
@@ -343,10 +343,10 @@ sub _addAwstatsConfig
         {
             ALIAS               => $moduleData->{'ALIAS'},
             AUTH_USER           => "$self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}}->{'admin_name'}",
-            AWSTATS_CACHE_DIR   => $main::imscpConfig{'AWSTATS_CACHE_DIR'},
-            AWSTATS_ENGINE_DIR  => $main::imscpConfig{'AWSTATS_ENGINE_DIR'},
-            AWSTATS_WEB_DIR     => $main::imscpConfig{'AWSTATS_WEB_DIR'},
-            CMD_LOGRESOLVEMERGE => "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/logresolvemerge.pl",
+            AWSTATS_CACHE_DIR   => $::imscpConfig{'AWSTATS_CACHE_DIR'},
+            AWSTATS_ENGINE_DIR  => $::imscpConfig{'AWSTATS_ENGINE_DIR'},
+            AWSTATS_WEB_DIR     => $::imscpConfig{'AWSTATS_WEB_DIR'},
+            CMD_LOGRESOLVEMERGE => "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/logresolvemerge.pl",
             DOMAIN_NAME         => $moduleData->{'DOMAIN_NAME'},
             LOG_DIR             => "$httpd->{'config'}->{'HTTPD_LOG_DIR'}/$moduleData->{'DOMAIN_NAME'}"
         },
@@ -354,10 +354,10 @@ sub _addAwstatsConfig
     );
 
     iMSCP::File
-        ->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )
+        ->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )
         ->set( $file->get )
         ->save()
-        ->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} )
+        ->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )
         ->mode( 0644 );
 }
 

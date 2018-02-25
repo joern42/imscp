@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Webstats;
 
@@ -76,7 +76,7 @@ sub showDialog
     my ($self, $dialog) = @_;
 
     @{$self->{'SELECTED_PACKAGES'}} = split (
-        ',', main::setupGetQuestion( 'WEBSTATS_PACKAGES', iMSCP::Getopt->preseed ? join( ',', @{$self->{'AVAILABLE_PACKAGES'}} ) : '' )
+        ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES', iMSCP::Getopt->preseed ? join( ',', @{$self->{'AVAILABLE_PACKAGES'}} ) : '' )
     );
 
     my %choices;
@@ -95,16 +95,16 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'WEBSTATS_PACKAGES', join ',', @{$self->{'SELECTED_PACKAGES'}} );
+    ::setupSetQuestion( 'WEBSTATS_PACKAGES', join ',', @{$self->{'SELECTED_PACKAGES'}} );
 
     return 0 if $self->{'SELECTED_PACKAGES'}->[0] eq 'no';
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'showDialog' ) ) or next;
-        debug( sprintf( 'Executing showDialog action on %s', $package ));
-        my $rs = $subref->( $package->getInstance(), $dialog );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'showDialog' ) ) or next;
+        debug( sprintf( 'Executing showDialog action on %s', $fpackage ));
+        my $rs = $subref->( $fpackage->getInstance(), $dialog );
         return $rs if $rs;
     }
 
@@ -144,18 +144,18 @@ sub preinstall
     $self->_removePackages( @distroPackages );
 
     @distroPackages = ();
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
 
-        if ( my $subref = $package->can( 'preinstall' ) ) {
-            debug( sprintf( 'Executing preinstall action on %s', $package ));
-            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+        if ( my $subref = $fpackage->can( 'preinstall' ) ) {
+            debug( sprintf( 'Executing preinstall action on %s', $fpackage ));
+            $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
         }
 
-        ( my $subref = $package->can( 'getDistroPackages' ) ) or next;
-        debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
-        push @distroPackages, $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+        ( my $subref = $fpackage->can( 'getDistroPackages' ) ) or next;
+        debug( sprintf( 'Executing getDistroPackages action on %s', $fpackage ));
+        push @distroPackages, $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
     }
 
     $self->_installPackages( @distroPackages );
@@ -173,12 +173,12 @@ sub install
 {
     my ($self) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'install' ) ) or next;
-        debug( sprintf( 'Executing install action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'install' ) ) or next;
+        debug( sprintf( 'Executing install action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
     }
 }
 
@@ -194,12 +194,12 @@ sub postinstall
 {
     my ($self) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'postinstall' ) ) or next;
-        debug( sprintf( 'Executing postinstall action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'postinstall' ) ) or next;
+        debug( sprintf( 'Executing postinstall action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
     }
 }
 
@@ -216,18 +216,18 @@ sub uninstall
     my ($self) = @_;
 
     my @distroPackages = ();
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $package; 1" or die( $@ );
 
-        if ( my $subref = $package->can( 'uninstall' ) ) {
-            debug( sprintf( 'Executing uninstall action on %s', $package ));
-            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+        if ( my $subref = $fpackage->can( 'uninstall' ) ) {
+            debug( sprintf( 'Executing uninstall action on %s', $fpackage ));
+            $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
         }
 
-        ( my $subref = $package->can( 'getDistroPackages' ) ) or next;
-        debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
-        push @distroPackages, $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+        ( my $subref = $fpackage->can( 'getDistroPackages' ) ) or next;
+        debug( sprintf( 'Executing getDistroPackages action on %s', $fpackage ));
+        push @distroPackages, $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
     }
 
     $self->_removePackages( @distroPackages );
@@ -258,12 +258,12 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;
-        debug( sprintf( 'Executing setEnginePermissions action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'setEnginePermissions' ) ) or next;
+        debug( sprintf( 'Executing setEnginePermissions action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
     }
 }
 
@@ -279,12 +279,12 @@ sub setGuiPermissions
 {
     my ($self) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'setGuiPermissions' ) ) or next;
-        debug( sprintf( 'Executing setGuiPermissions action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'setGuiPermissions' ) ) or next;
+        debug( sprintf( 'Executing setGuiPermissions action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
     }
 }
 
@@ -301,12 +301,12 @@ sub addUser
 {
     my ($self, $moduleData) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'addUser' ) ) or next;
-        debug( sprintf( 'Executing addUser action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'addUser' ) ) or next;
+        debug( sprintf( 'Executing addUser action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
     }
 }
 
@@ -323,12 +323,12 @@ sub preaddDomain
 {
     my ($self, $moduleData) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'preaddDomain' ) ) or next;
-        debug( sprintf( 'Executing preaddDomain action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'preaddDomain' ) ) or next;
+        debug( sprintf( 'Executing preaddDomain action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
     }
 }
 
@@ -345,12 +345,12 @@ sub addDomain
 {
     my ($self, $moduleData) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'addDomain' ) ) or next;
-        debug( sprintf( 'Executing addDomain action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'addDomain' ) ) or next;
+        debug( sprintf( 'Executing addDomain action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
     }
 }
 
@@ -367,12 +367,12 @@ sub deleteDomain
 {
     my ($self, $moduleData) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'deleteDomain' ) ) or next;
-        debug( sprintf( 'Executing deleteDomain action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'deleteDomain' ) ) or next;
+        debug( sprintf( 'Executing deleteDomain action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
     }
 }
 
@@ -389,12 +389,12 @@ sub preaddSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'preaddSubdomain' ) ) or next;
-        debug( sprintf( 'Executing preaddSubdomain action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'preaddSubdomain' ) ) or next;
+        debug( sprintf( 'Executing preaddSubdomain action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
     }
 }
 
@@ -411,12 +411,12 @@ sub addSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'addSubdomain' ) ) or next;
-        debug( sprintf( 'Executing addSubdomain action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'addSubdomain' ) ) or next;
+        debug( sprintf( 'Executing addSubdomain action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
     }
 }
 
@@ -433,12 +433,12 @@ sub deleteSubdomain
 {
     my ($self, $moduleData) = @_;
 
-    for ( @{$self->{'SELECTED_PACKAGES'}} ) {
-        my $package = "iMSCP::Packages::Webstats::${_}::${_}";
-        eval "require $package; 1" or die( $@ );
-        ( my $subref = $package->can( 'deleteSubdomain' ) ) or next;
-        debug( sprintf( 'Executing deleteSubdomain action on %s', $package ));
-        $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
+    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+        my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
+        eval "require $fpackage; 1" or die( $@ );
+        ( my $subref = $fpackage->can( 'deleteSubdomain' ) ) or next;
+        debug( sprintf( 'Executing deleteSubdomain action on %s', $fpackage ));
+        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
     }
 }
 
@@ -461,7 +461,7 @@ sub _init
     my ($self) = @_;
 
     @{$self->{'AVAILABLE_PACKAGES'}} = iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/Webstats' )->getDirs();
-    @{$self->{'SELECTED_PACKAGES'}} = grep( $_ ne 'no', split( ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} ));
+    @{$self->{'SELECTED_PACKAGES'}} = grep( $_ ne 'no', split( ',', $::imscpConfig{'WEBSTATS_PACKAGES'} ));
     $self;
 }
 
@@ -482,7 +482,6 @@ sub _installPackages
 
     iMSCP::Dialog->getInstance->endGauge() unless iMSCP::Getopt->noprompt;
 
-    local $ENV{'LANG'} = 'C';
     local $ENV{'UCF_FORCE_CONFFNEW'} = 1;
     local $ENV{'UCF_FORCE_CONFFMISS'} = 1;
 

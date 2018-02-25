@@ -5,17 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Installer::Debian;
 
@@ -128,11 +132,11 @@ EOF
             my $subjectH = $subject =~ s/_/ /gr;
             my ($cTask, $nTasks) = ( 1, scalar @{$self->{'packagesPreInstallTasks'}->{$subject}} );
 
-            for ( @{$self->{'packagesPreInstallTasks'}->{$subject}} ) {
+            for my $task( @{$self->{'packagesPreInstallTasks'}->{$subject}} ) {
                 step(
                     sub {
                         my ($stdout, $stderr);
-                        execute( $_, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \ $stdout ), \$stderr ) == 0 or die(
+                        execute( $task, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \ $stdout ), \$stderr ) == 0 or die(
                             sprintf( 'Error while executing pre-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )
                         );
                     },
@@ -151,6 +155,8 @@ EOF
     {
         local $ENV{'UCF_FORCE_CONFFNEW'} = 1;
         local $ENV{'UCF_FORCE_CONFFMISS'} = 1;
+        local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
+        local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
 
         my @cmd = (
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
@@ -162,9 +168,9 @@ EOF
             'install'
         );
 
-        for ( $self->{'packagesToInstall'}, $self->{'packagesToInstallDelayed'} ) {
-            next unless @{$_};
-            execute( [ @cmd, @{$_} ], ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \ $stdout : undef ), \$stderr ) == 0 or die(
+        for my $packages( $self->{'packagesToInstall'}, $self->{'packagesToInstallDelayed'} ) {
+            next unless @{$packages};
+            execute( [ @cmd, @{$packages} ], ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \ $stdout : undef ), \$stderr ) == 0 or die(
                 sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' )
             );
         }
@@ -178,10 +184,10 @@ EOF
             my $subjectH = $subject =~ s/_/ /gr;
             my ($cTask, $nTasks) = ( 1, scalar @{$self->{'packagesPostInstallTasks'}->{$subject}} );
 
-            for ( @{$self->{'packagesPostInstallTasks'}->{$subject}} ) {
+            for my $task( @{$self->{'packagesPostInstallTasks'}->{$subject}} ) {
                 step(
                     sub {
-                        execute( $_, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \ $stdout ), \ $stderr ) == 0 or die(
+                        execute( $task, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \ $stdout ), \ $stderr ) == 0 or die(
                             sprintf( 'Error while executing post-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )
                         );
                     },
@@ -249,6 +255,9 @@ sub uninstallPackages
 
                 iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
 
+                local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
+                local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
+
                 execute(
                     [
                         ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
@@ -301,7 +310,7 @@ sub _init
     $self->{'packagesPostInstallTasks'} = {};
     $self->{'need_pbuilder_update'} = 1;
 
-    delete $ENV{'DEBCONF_FORCE_DIALOG'};
+    #delete $ENV{'DEBCONF_FORCE_DIALOG'};
 
     $ENV{'DEBIAN_FRONTEND'} = iMSCP::Getopt->noprompt ? 'noninteractive' : 'dialog';
     $ENV{'DEBFULLNAME'} = 'i-MSCP Installer';
@@ -322,16 +331,14 @@ sub _init
 sub _setupGetAddrinfoPrecedence
 {
     my $file = iMSCP::File->new( filename => '/etc/gai.conf' );
-    my $fileContent = '';
 
     if ( -f '/etc/gai.conf' ) {
-        $fileContent = $file->get();
-        return if $fileContent =~ m%^precedence\s+::ffff:0:0/96\s+100\n%m;
+        return if ${$file->getAsRef()} =~ m%^precedence\s+::ffff:0:0/96\s+100\n%m;
     }
 
     # Prefer IPv4
-    $fileContent .= "precedence ::ffff:0:0/96  100\n";
-    $file->set( $fileContent )->save();
+    ${$file->getAsRef()} .= "precedence ::ffff:0:0/96  100\n";
+    $file->save();
 }
 
 =item _parsePackageNode( \%node|$node, \@target )
@@ -414,7 +421,7 @@ sub _processPackagesFile
 
     my $xml = XML::Simple->new( NoEscape => 1 );
     my $pkgData = $xml->XMLin(
-        $pkgFile || "$FindBin::Bin/installer/Packages/$main::imscpConfig{'DISTRO_ID'}-$main::imscpConfig{'DISTRO_CODENAME'}.xml",
+        $pkgFile || "$FindBin::Bin/installer/Packages/$::imscpConfig{'DISTRO_ID'}-$::imscpConfig{'DISTRO_CODENAME'}.xml",
         ForceArray     => [ 'package', 'package_delayed', 'package_conflict', 'pre_install_task', 'post_install_task' ],
         NormaliseSpace => 2
     );
@@ -422,27 +429,29 @@ sub _processPackagesFile
     my $dialog = iMSCP::Dialog->getInstance();
 
     # Make sure that all mandatory sections are defined in the packages file
-    for ( qw/ cron server httpd php po mta ftpd sqld / ) {
-        defined $pkgData->{$_} or die( sprintf( 'Missing %s section in the distribution packages file.', $_ ));
+    for my $section( qw/ cron server httpd php po mta ftpd sqld / ) {
+        defined $pkgData->{$section} or die( sprintf( 'Missing %s section in the distribution packages file.', $section ));
     }
 
     while ( my ($section, $data) = each( %{$pkgData} ) ) {
         # Packages to install
         if ( defined $data->{'package'} ) {
-            for ( @{$data->{'package'}} ) {
-                $self->_parsePackageNode( $_, $self->{'packagesToInstall'} );
+            for my $node( @{$data->{'package'}} ) {
+                $self->_parsePackageNode( $node, $self->{'packagesToInstall'} );
             }
         }
 
         # Packages to install (delayed)
         if ( defined $data->{'package_delayed'} ) {
-            $self->_parsePackageNode( $_, $self->{'packagesToInstallDelayed'} ) for @{$data->{'package_delayed'}};
+            for my $node( @{$data->{'package_delayed'}} ) {
+                $self->_parsePackageNode( $node, $self->{'packagesToInstallDelayed'} );
+            }
         }
 
         # Conflicting packages to pre-remove
         if ( defined $data->{'package_conflict'} ) {
-            for ( @{$data->{'package_conflict'}} ) {
-                push @{$self->{'packagesToPreUninstall'}}, ref $_ eq 'HASH' ? $_->{'content'} : $_;
+            for my $node( @{$data->{'package_conflict'}} ) {
+                push @{$self->{'packagesToPreUninstall'}}, ref $node eq 'HASH' ? $node->{'content'} : $node;
             }
         }
 
@@ -493,7 +502,7 @@ sub _processPackagesFile
         );
 
         # Retrieve current alternative
-        my $sAlt = $main::questions{ $sectionClass } || $main::imscpConfig{ $sectionClass };
+        my $sAlt = $::questions{ $sectionClass } || $::imscpConfig{ $sectionClass };
 
         # Build list of supported alternatives
         # Discard those alternatives for which evaluation of the 'condition' attribute expression if any is not TRUE
@@ -503,31 +512,31 @@ sub _processPackagesFile
             # The sqld section need a specific treatment
             processSqldSection( $data, \$sAlt, \@supportedAlts, $dialog, \$showDialog );
         } else {
-            if ( $sAlt ne '' && !grep($data->{$_}->{'class'} eq $sAlt, @supportedAlts) ) {
+            if ( length $sAlt && !grep($data->{$_}->{'class'} eq $sAlt, @supportedAlts) ) {
                 # The selected alternative isn't longer available (or simply invalid). In such case, we reset it.
                 # In preseed mode, we set the dialog flag to raise an error (preseed entry is not valid and user must be informed)
                 $showDialog = 1 if iMSCP::Getopt->preseed;
                 $sAlt = '';
             }
 
-            if ( $sAlt eq '' ) {
+            unless ( length $sAlt ) {
                 # There is no alternative selected
                 if ( @supportedAlts > 1 ) {
                     # There are many alternatives available, we select the default as defined in the packages file and we set the dialog flag to make
                     # user able to change it, unless we are in preseed mode, in which case the default alternative will be enforced.
                     $showDialog = 1 unless iMSCP::Getopt->preseed;
 
-                    for ( @supportedAlts ) {
-                        next unless $data->{$_}->{'default'};
-                        $sAlt = $_;
+                    for my $supportedAlt( @supportedAlts ) {
+                        next unless $data->{$supportedAlt}->{'default'};
+                        $sAlt = $supportedAlt;
                         last;
                     }
 
                     # There are no default alternative defined in the packages file. We set it to the first entry.
-                    $sAlt = $supportedAlts[0] if $sAlt eq '';
+                    $sAlt = $supportedAlts[0] unless length $sAlt;
                 } else {
                     # There is only one alternative available. We set it wihtout setting the dialog flag
-                    $sAlt = $supportedAlts[0] if $sAlt eq '';
+                    $sAlt = $supportedAlts[0] unless length $sAlt;
                 }
             } else {
                 # We make use of real alternative name for processing
@@ -547,7 +556,7 @@ sub _processPackagesFile
 Please make your choice for the $altDesc:
 \\Z \\Zn
 EOF
-            return $ret if $ret; # Handle ESC case
+            exit $ret if $ret; # Handle ESC case
         }
 
         # Process alternatives data
@@ -557,22 +566,22 @@ EOF
             if ( $alt eq $sAlt || $altData->{'install_always'} ) {
                 # Packages to install
                 if ( defined $altData->{'package'} ) {
-                    for ( @{$altData->{'package'}} ) {
-                        $self->_parsePackageNode( $_, $self->{'packagesToInstall'} );
+                    for my $node( @{$altData->{'package'}} ) {
+                        $self->_parsePackageNode( $node, $self->{'packagesToInstall'} );
                     }
                 }
 
                 # Package to install (delayed)
                 if ( defined $altData->{'package_delayed'} ) {
-                    for ( @{$altData->{'package_delayed'}} ) {
-                        $self->_parsePackageNode( $_, $self->{'packagesToInstallDelayed'} );
+                    for my $node( @{$altData->{'package_delayed'}} ) {
+                        $self->_parsePackageNode( $node, $self->{'packagesToInstallDelayed'} );
                     }
                 }
 
-                # Conflicting packages to pre-removed
+                # Conflicting packages to pre-remove
                 if ( defined $altData->{'package_conflict'} ) {
-                    for ( @{$altData->{'package_conflict'}} ) {
-                        push @{$self->{'packagesToPreUninstall'}}, ref $_ eq 'HASH' ? $_->{'content'} : $_;
+                    for my $node( @{$altData->{'package_conflict'}} ) {
+                        push @{$self->{'packagesToPreUninstall'}}, ref $node eq 'HASH' ? $node->{'content'} : $node;
                     }
                 }
 
@@ -599,12 +608,16 @@ EOF
 
                 # Pre-install tasks
                 if ( defined $altData->{'pre_install_task'} ) {
-                    push @{$self->{'packagesPreInstallTasks'}->{$sAlt}}, $_ for @{$altData->{'pre_install_task'}};
+                    for my $task( @{$altData->{'pre_install_task'}} ) {
+                        push @{$self->{'packagesPreInstallTasks'}->{$sAlt}}, $task;
+                    }
                 }
 
                 # Post-install tasks
                 if ( defined $altData->{'post_install_task'} ) {
-                    push @{$self->{'packagesPostInstallTasks'}->{$sAlt}}, $_ for @{$altData->{'post_install_task'}};
+                    for my $task( @{$altData->{'post_install_task'}} ) {
+                        push @{$self->{'packagesPostInstallTasks'}->{$sAlt}}, $task;
+                    }
                 }
 
                 next;
@@ -623,9 +636,9 @@ EOF
         }
 
         # Set server/package class name for the selected alternative
-        $main::imscpConfig{$sectionClass} = $data->{$sAlt}->{'class'} || 'iMSCP::Servers::NoServer';
+        $::imscpConfig{$sectionClass} = $data->{$sAlt}->{'class'} || 'iMSCP::Servers::NoServer';
         # Set alternative name for installer use
-        $main::questions{'_' . $section} = $sAlt;
+        $::questions{'_' . $section} = $sAlt;
     }
 
     @{$self->{'packagesToPreUninstall'}} = sort( unique( @{$self->{'packagesToPreUninstall'}} ) );
@@ -648,15 +661,13 @@ sub _installAPTsourcesList
 {
     my ($self) = @_;
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'apt', 'sources.list', \ my $fileContent );
+    my $file = iMSCP::File->new( filename => "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/apt/sources.list" );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'apt', 'sources.list', $file->getAsRef( TRUE ));
 
-    unless ( defined $fileContent ) {
-        $fileContent = iMSCP::File->new( filename => "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}/apt/sources.list" )->get();
-    }
+    processByRef( { codename => $::imscpConfig{'DISTRO_CODENAME'} }, $file->getAsRef());
 
-    processByRef( { codename => $main::imscpConfig{'DISTRO_CODENAME'} }, \$fileContent );
-
-    iMSCP::File->new( filename => '/etc/apt/sources.list' )->set( $fileContent )->save();
+    $file->{'filename'} = '/etc/apt/sources.list';
+    $file->save();
 }
 
 =item _addAPTrepositories( )
@@ -674,13 +685,13 @@ sub _addAPTrepositories
     return unless @{$self->{'aptRepositoriesToAdd'}};
 
     my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' )->copy( '/etc/apt/sources.list.bkp', { preserve => 1 } );
-    my $fileContent = $file->get();
+    my $fileContent = $file->getAsRef();
 
     # Add APT repositories
     for my $repository( @{$self->{'aptRepositoriesToAdd'}} ) {
-        next if $fileContent =~ /^deb\s+$repository->{'repository'}/m;
+        next if ${$fileContent} =~ /^deb\s+$repository->{'repository'}/m;
 
-        $fileContent .= <<"EOF";
+        ${$fileContent} .= <<"EOF";
 
 deb $repository->{'repository'}
 deb-src $repository->{'repository'}
@@ -713,11 +724,11 @@ EOF
 
             $rs = execute( [ 'apt-key', 'add', $keyFile ], \ $stdout, \ $stderr );
             debug( $stdout ) if $stdout;
-            !$rs or die($stderr || 'Unknown error' );
+            !$rs or die( $stderr || 'Unknown error' );
         }
     }
 
-    $file->set( $fileContent )->save();
+    $file->save();
 }
 
 =item _processAptPreferences( )
@@ -770,7 +781,8 @@ sub _updatePackagesIndex
 {
     iMSCP::Dialog->getInstance()->endGauge() if !iMSCP::Getopt->noprompt;
 
-    local $ENV{'LANG'} = 'C';
+    local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
+    local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
 
     my $stdout;
     my $rs = execute(
@@ -795,7 +807,7 @@ sub _prefillDebconfDatabase
 
     my $fileContent = '';
 
-    if ( $main::questions{'_mta'} eq 'postfix' ) {
+    if ( $::questions{'_mta'} eq 'postfix' ) {
         chomp( my $mailname = `hostname --fqdn 2>/dev/null` || 'localdomain' );
         my $hostname = ( $mailname ne 'localdomain' ) ? $mailname : 'localhost';
         chomp( my $domain = `hostname --domain 2>/dev/null` || 'localdomain' );
@@ -813,12 +825,12 @@ postfix postfix/destinations string $destinations
 EOF
     }
 
-    if ( $main::questions{'_ftpd'} eq 'proftpd' ) {
+    if ( $::questions{'_ftpd'} eq 'proftpd' ) {
         # Pre-fill debconf database for Proftpd
         $fileContent .= "proftpd-basic shared/proftpd/inetd_or_standalone select standalone\n";
     }
 
-    if ( $main::questions{'_po'} eq 'courier' ) {
+    if ( $::questions{'_po'} eq 'courier' ) {
         # Pre-fill debconf database for Courier
         $fileContent .= <<'EOF';
 courier-base courier-base/webadmin-configmode boolean false
@@ -827,7 +839,7 @@ courier-base courier-base/certnotice note
 courier-base courier-base/courier-user note
 courier-base courier-base/maildir string Maildir
 EOF
-        if ( grep( $main::imscpConfig{'DISTRO_CODENAME'} eq $_, 'jessie', 'trusty', 'xenial' ) ) {
+        if ( grep( $::imscpConfig{'DISTRO_CODENAME'} eq $_, 'jessie', 'trusty', 'xenial' ) ) {
             # Only for the old courier-ssl package. It is a transitional
             # package in latest Debian like distributons.
             $fileContent .= "courier-ssl courier-ssl/certnotice note\n";
@@ -835,7 +847,7 @@ EOF
     }
 
     # Pre-fill debconf database for Dovecot
-    if ( $main::questions{'_po'} eq 'dovecot' ) {
+    if ( $::questions{'_po'} eq 'dovecot' ) {
         # Pre-fill debconf database for Dovecot
         $fileContent .= <<'EOF';
 dovecot-core dovecot-core/ssl-cert-name string localhost
@@ -848,7 +860,7 @@ EOF
         $fileContent .= "sasl2-bin cyrus-sasl2/purge-sasldb2 boolean true\n";
     }
 
-    if ( my ($sqldVendor, $sqldVersion) = $main::questions{'_sqld'} =~ /^(mysql|mariadb|percona)_(\d+\.\d+)/ ) {
+    if ( my ($sqldVendor, $sqldVersion) = $::questions{'_sqld'} =~ /^(mysql|mariadb|percona)_(\d+\.\d+)/ ) {
         my ($package);
         if ( $sqldVendor eq 'mysql' ) {
             $package = grep($_ eq 'mysql-community-server', @{$self->{'packagesToInstall'}}) ? 'mysql-community-server' : "mysql-server-$sqldVersion";
@@ -884,10 +896,10 @@ EOF
                 );
             }
 
-            local $ENV{'LANG'} = 'C';
             local $CWD = $tmpDir;
 
             # Download the package into a temporary directory
+            startDetail;
             my $rs = execute( [ 'apt-get', '--quiet=1', 'download', $package ], \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
 
@@ -900,6 +912,7 @@ EOF
             $rs || debug( $stdout ) if $stdout;
 
             !$rs or die( $stderr || 'Unknown errror' );
+            endDetail;
 
             $isManualTplLoading++;
             goto READ_DEBCONF_DB;
@@ -912,11 +925,10 @@ EOF
                     # We do not want ask user for databases removal (we want avoid mistakes as much as possible)
                     $fileContent .= "$qOwner $qNamePrefix/$qName boolean false\n";
                 } elsif ( grep($qName eq $_, 'root_password', 'root-pass', 'root_password_again', 're-root-pass')
-                    && iMSCP::Getopt->preseed
-                    && $main::questions{'SQL_ROOT_PASSWORD'} ne ''
+                    && iMSCP::Getopt->preseed && length $::questions{'SQL_ROOT_PASSWORD'}
                 ) {
                     # Preset root SQL password using value from preseed file if required
-                    $fileContent .= "$qOwner $qNamePrefix/$qName password $main::questions{'SQL_ROOT_PASSWORD'}\n";
+                    $fileContent .= "$qOwner $qNamePrefix/$qName password $::questions{'SQL_ROOT_PASSWORD'}\n";
 
                     # Register an event listener to empty the password field in the debconf database after package installation
                     #$self->{'eventManager'}->registerOne(
@@ -934,7 +946,7 @@ EOF
         close( $fh );
     }
 
-    return if $fileContent eq '';
+    return unless length $fileContent;
 
     my $debconfSelectionsFile = File::Temp->new();
     print $debconfSelectionsFile $fileContent;
@@ -971,9 +983,7 @@ sub _rebuildAndInstallPackage
     defined $pkgSrc or die( '$pkgSrc parameter is not defined' );
     $patchFormat =~ /^(?:quilt|dpatch)$/ or die( 'Unsupported patch format.' );
 
-    local $ENV{'LANG'} = 'C';
-
-    $patchesDir = "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}/$patchesDir";
+    $patchesDir = "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/$patchesDir";
     -d $patchesDir or die( sprintf( '%s is not a valid patches directory', $patchesDir ));
 
     my $srcDownloadDir = File::Temp->newdir( CLEANUP => 1 );
@@ -987,7 +997,7 @@ sub _rebuildAndInstallPackage
     local $CWD = $srcDownloadDir;
 
     # Avoid pbuilder warning due to missing $HOME/.pbuilderrc file
-    iMSCP::File->new( filename => File::HomeDir->my_home . '/.pbuilderrc' )->save();
+    iMSCP::File->new( filename File::HomeDir->my_home . '/.pbuilderrc' )->save();
 
     startDetail();
     step(
@@ -1001,8 +1011,8 @@ sub _rebuildAndInstallPackage
                 my $cmd = [
                     'pbuilder',
                     ( -f '/var/cache/pbuilder/base.tgz' ? ( '--update', '--autocleanaptcache' ) : '--create' ),
-                    '--distribution', $main::imscpConfig{'DISTRO_CODENAME'},
-                    '--configfile', "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}/pbuilder/pbuilderrc",
+                    '--distribution', $::imscpConfig{'DISTRO_CODENAME'},
+                    '--configfile', "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/pbuilder/pbuilderrc",
                     '--override-config'
                 ];
 
@@ -1023,7 +1033,7 @@ sub _rebuildAndInstallPackage
     );
     step(
         sub {
-            my $msgHeader = sprintf( "Downloading %s %s source package\n\n - ", $pkgSrc, $main::imscpConfig{'DISTRO_ID'} );
+            my $msgHeader = sprintf( "Downloading %s %s source package\n\n - ", $pkgSrc, $::imscpConfig{'DISTRO_ID'} );
             my $msgFooter = "\nDepending on your system this may take few seconds...";
             my $stderr = '';
             executeNoWait(
@@ -1034,7 +1044,7 @@ sub _rebuildAndInstallPackage
                 sub { $stderr .= shift }
             ) == 0 or die( sprintf( "Couldn't download %s Debian source package: %s", $pkgSrc, $stderr || 'Unknown error' ));
         },
-        sprintf( 'Downloading %s %s source package', $pkgSrc, $main::imscpConfig{'DISTRO_ID'} ), 5, 2
+        sprintf( 'Downloading %s %s source package', $pkgSrc, $::imscpConfig{'DISTRO_ID'} ), 5, 2
     );
 
     {
@@ -1044,15 +1054,15 @@ sub _rebuildAndInstallPackage
         step(
             sub {
                 my $serieFile = iMSCP::File->new( filename => "debian/patches/" . ( $patchFormat eq 'quilt' ? 'series' : '00list' ));
-                my $serieFileContent = $serieFile->get();
+                my $serieFileContent = $serieFile->getAsRef();
 
                 for my $patch( sort { $a cmp $b } iMSCP::Dir->new( dirname => $patchesDir )->getFiles() ) {
                     next if grep( $_ eq $patch, @{$patchesToDiscard} );
-                    $serieFileContent .= "$patch\n";
+                    ${$serieFileContent} .= "$patch\n";
                     iMSCP::File->new( filename => "$patchesDir/$patch" )->copy( "debian/patches/$patch" );
                 }
 
-                $serieFile->set( $serieFileContent )->save();
+                $serieFile->save();
 
                 my $stderr;
                 my $rs = execute(
@@ -1063,18 +1073,18 @@ sub _rebuildAndInstallPackage
                 debug( $stdout ) if $stdout;
                 !$rs or die( sprintf( "Couldn't add `imscp' local suffix: %s", $stderr || 'Unknown error' ));
             },
-            sprintf( 'Patching %s %s source package...', $pkgSrc, $main::imscpConfig{'DISTRO_ID'} ), 5, 3
+            sprintf( 'Patching %s %s source package...', $pkgSrc, $::imscpConfig{'DISTRO_ID'} ), 5, 3
         );
         step(
             sub {
-                my $msgHeader = sprintf( "Building new %s %s package\n\n - ", $pkg, $main::imscpConfig{'DISTRO_ID'} );
+                my $msgHeader = sprintf( "Building new %s %s package\n\n - ", $pkg, $::imscpConfig{'DISTRO_ID'} );
                 my $msgFooter = "\n\nPlease be patient. This may take few seconds...";
                 my $stderr;
                 executeNoWait(
                     [
                         'pdebuild',
                         '--use-pdebuild-internal',
-                        '--configfile', "$FindBin::Bin/configs/$main::imscpConfig{'DISTRO_ID'}/pbuilder/pbuilderrc"
+                        '--configfile', "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/pbuilder/pbuilderrc"
                     ],
                     ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose
                         ? sub {}
@@ -1085,10 +1095,10 @@ sub _rebuildAndInstallPackage
                     ),
                     sub { $stderr .= shift }
                 ) == 0 or die(
-                    sprintf( "Couldn't build local %s %s package: %s", $pkg, $main::imscpConfig{'DISTRO_ID'}, $stderr || 'Unknown error' )
+                    sprintf( "Couldn't build local %s %s package: %s", $pkg, $::imscpConfig{'DISTRO_ID'}, $stderr || 'Unknown error' )
                 );
             },
-            sprintf( 'Building local %s %s package', $pkg, $main::imscpConfig{'DISTRO_ID'} ), 5, 4
+            sprintf( 'Building local %s %s package', $pkg, $::imscpConfig{'DISTRO_ID'} ), 5, 4
         );
     }
 
@@ -1098,7 +1108,7 @@ sub _rebuildAndInstallPackage
             execute( [ 'apt-mark', 'unhold', $pkg ], \my $stdout, \my $stderr );
             debug( $stderr ) if $stderr;
 
-            my $msgHeader = sprintf( "Installing local %s %s package\n\n", $pkg, $main::imscpConfig{'DISTRO_ID'} );
+            my $msgHeader = sprintf( "Installing local %s %s package\n\n", $pkg, $::imscpConfig{'DISTRO_ID'} );
             $stderr = '';
 
             executeNoWait(
@@ -1106,7 +1116,7 @@ sub _rebuildAndInstallPackage
                 ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? sub {} : sub { step( undef, $msgHeader . ( shift ), 5, 5 ) } ),
                 sub { $stderr .= shift }
             ) == 0 or die(
-                sprintf( "Couldn't install local %s %s package: %s", $pkg, $main::imscpConfig{'DISTRO_ID'}, $stderr || 'Unknown error' )
+                sprintf( "Couldn't install local %s %s package: %s", $pkg, $::imscpConfig{'DISTRO_ID'}, $stderr || 'Unknown error' )
             );
 
             # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
@@ -1114,7 +1124,7 @@ sub _rebuildAndInstallPackage
             debug( $stdout ) if $stdout;
             debug( $stderr ) if $stderr;
         },
-        sprintf( 'Installing local %s %s package', $pkg, $main::imscpConfig{'DISTRO_ID'} ), 5, 5
+        sprintf( 'Installing local %s %s package', $pkg, $::imscpConfig{'DISTRO_ID'} ), 5, 5
     );
     endDetail();
 }
@@ -1209,18 +1219,18 @@ EOF
             }
         }
 
-        ${$sAlt} = $supportedAlts->[0] if ${$sAlt} eq '';
+        ${$sAlt} = $supportedAlts->[0] unless length ${$sAlt};
     } else {
         # There is no SQL server installed.
 
-        if ( ${$sAlt} ne '' && !grep($data->{$_}->{'class'} eq ${$sAlt}, @{$supportedAlts}) ) {
+        if ( length ${$sAlt} && !grep($data->{$_}->{'class'} eq ${$sAlt}, @{$supportedAlts}) ) {
             # The selected alternative isn't longer available (or simply invalid). In such case, we reset it.
             # In preseed mode, we set the dialog flag to raise an error (preseed entry is wrong and user must be informed)
             ${$showDialog} = 1 if iMSCP::Getopt->preseed; # We want raise an error in preseed mode
             ${$sAlt} = '';
         }
 
-        if ( ${$sAlt} eq '' ) {
+        unless ( length ${$sAlt} ) {
             # There is no alternative selected
             if ( @{$supportedAlts} > 2 ) {
                 # If there are many available, we select the default as defined in the packages file and we force dialog to make user able to
@@ -1233,10 +1243,10 @@ EOF
                     last;
                 }
 
-                ${$sAlt} = $supportedAlts->[0] if ${$sAlt} eq '';
+                ${$sAlt} = $supportedAlts->[0] unless length ${$sAlt};
             } else {
                 # There is only one alternative available. We select it wihtout showing dialog
-                ${$sAlt} = $supportedAlts->[0] if ${$sAlt} eq '';
+                ${$sAlt} = $supportedAlts->[0] unless length ${$sAlt};
             }
         } else {
             # We make use of alternative name for processing

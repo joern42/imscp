@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Setup::ServicesSSL;
 
@@ -69,14 +69,14 @@ sub servicesSslDialog
 {
     my (undef, $dialog) = @_;
 
-    my $hostname = main::setupGetQuestion( 'SERVER_HOSTNAME' );
+    my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $hostnameUnicode = idn_to_unicode( $hostname, 'utf-8' ) // '';
-    my $sslEnabled = main::setupGetQuestion( 'SERVICES_SSL_ENABLED', iMSCP::Getopt->preseed ? 'yes' : '' );
-    my $selfSignedCertificate = main::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE', iMSCP::Getopt->preseed ? 'yes' : 'no' );
-    my $privateKeyPath = main::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH', '/root' );
-    my $passphrase = main::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' );
-    my $certificatePath = main::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH', '/root' );
-    my $caBundlePath = main::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH', '/root' );
+    my $sslEnabled = ::setupGetQuestion( 'SERVICES_SSL_ENABLED', iMSCP::Getopt->preseed ? 'yes' : '' );
+    my $selfSignedCertificate = ::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE', iMSCP::Getopt->preseed ? 'yes' : 'no' );
+    my $privateKeyPath = ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH', '/root' );
+    my $passphrase = ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' );
+    my $certificatePath = ::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH', '/root' );
+    my $caBundlePath = ::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH', '/root' );
     my $openSSL = iMSCP::OpenSSL->new();
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'servers_ssl', 'ssl', 'all', 'forced' ] )
@@ -168,29 +168,29 @@ EOF
             $sslEnabled = 'no';
         }
     } elsif ( $sslEnabled eq 'yes' && !iMSCP::Getopt->preseed ) {
-        $openSSL->{'private_key_container_path'} = "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem";
-        $openSSL->{'ca_bundle_container_path'} = "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem";
-        $openSSL->{'certificate_container_path'} = "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem";
+        $openSSL->{'private_key_container_path'} = "$::imscpConfig{'CONF_DIR'}/imscp_services.pem";
+        $openSSL->{'ca_bundle_container_path'} = "$::imscpConfig{'CONF_DIR'}/imscp_services.pem";
+        $openSSL->{'certificate_container_path'} = "$::imscpConfig{'CONF_DIR'}/imscp_services.pem";
 
         if ( $openSSL->validateCertificateChain() ) {
             getMessageByType( 'error', { amount => 1, remove => 1 } );
             $dialog->getInstance()->msgbox( <<'EOF' );
 Your SSL certificate for the FTP and MAIL services is missing or invalid.
 EOF
-            main::setupSetQuestion( 'SERVICES_SSL_ENABLED', '' );
+            ::setupSetQuestion( 'SERVICES_SSL_ENABLED', '' );
             goto &{servicesSslDialog};
         }
 
         # In case the certificate is valid, we skip SSL setup process
-        main::setupSetQuestion( 'SERVICES_SSL_SETUP', 'no' );
+        ::setupSetQuestion( 'SERVICES_SSL_SETUP', 'no' );
     }
 
-    main::setupSetQuestion( 'SERVICES_SSL_ENABLED', $sslEnabled );
-    main::setupSetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE', $selfSignedCertificate );
-    main::setupSetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH', $privateKeyPath );
-    main::setupSetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE', $passphrase );
-    main::setupSetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH', $certificatePath );
-    main::setupSetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH', $caBundlePath );
+    ::setupSetQuestion( 'SERVICES_SSL_ENABLED', $sslEnabled );
+    ::setupSetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE', $selfSignedCertificate );
+    ::setupSetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH', $privateKeyPath );
+    ::setupSetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE', $passphrase );
+    ::setupSetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH', $certificatePath );
+    ::setupSetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH', $caBundlePath );
     0;
 }
 
@@ -204,33 +204,33 @@ EOF
 
 sub preinstall
 {
-    my $sslEnabled = main::setupGetQuestion( 'SERVICES_SSL_ENABLED' );
+    my $sslEnabled = ::setupGetQuestion( 'SERVICES_SSL_ENABLED' );
 
-    if ( $sslEnabled eq 'no' || main::setupGetQuestion( 'SERVICES_SSL_SETUP', 'yes' ) eq 'no' ) {
-        iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem" )->remove() if $sslEnabled eq 'no';
+    if ( $sslEnabled eq 'no' || ::setupGetQuestion( 'SERVICES_SSL_SETUP', 'yes' ) eq 'no' ) {
+        iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" )->remove() if $sslEnabled eq 'no';
         return;
     }
 
-    if ( main::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE' ) eq 'yes' ) {
+    if ( ::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE' ) eq 'yes' ) {
         iMSCP::OpenSSL->new(
-            certificate_chains_storage_dir => $main::imscpConfig{'CONF_DIR'},
+            certificate_chains_storage_dir => $::imscpConfig{'CONF_DIR'},
             certificate_chain_name         => 'imscp_services'
         )->createSelfSignedCertificate(
             {
-                common_name => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
-                email       => main::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' )
+                common_name => ::setupGetQuestion( 'SERVER_HOSTNAME' ),
+                email       => ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' )
             }
         );
         return;
     }
 
     iMSCP::OpenSSL->new(
-        certificate_chains_storage_dir => $main::imscpConfig{'CONF_DIR'},
+        certificate_chains_storage_dir => $::imscpConfig{'CONF_DIR'},
         certificate_chain_name         => 'imscp_services',
-        private_key_container_path     => main::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH' ),
-        private_key_passphrase         => main::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' ),
-        certificate_container_path     => main::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH' ),
-        ca_bundle_container_path       => main::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH' )
+        private_key_container_path     => ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH' ),
+        private_key_passphrase         => ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' ),
+        certificate_container_path     => ::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH' ),
+        ca_bundle_container_path       => ::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH' )
     )->createCertificateChain();
 }
 

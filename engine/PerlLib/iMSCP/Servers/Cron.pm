@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Cron;
 
@@ -54,12 +54,12 @@ sub install
     $self->_setVersion();
     $self->buildConfFile( 'imscp', "$self->{'config'}->{'CRON_D_DIR'}/imscp", undef,
         {
-            QUOTA_ROOT_DIR  => $main::imscpConfig{'QUOTA_ROOT_DIR'},
-            LOG_DIR         => $main::imscpConfig{'LOG_DIR'},
-            TRAFF_ROOT_DIR  => $main::imscpConfig{'TRAFF_ROOT_DIR'},
-            TOOLS_ROOT_DIR  => $main::imscpConfig{'TOOLS_ROOT_DIR'},
-            CONF_DIR        => $main::imscpConfig{'CONF_DIR'},
-            BACKUP_FILE_DIR => $main::imscpConfig{'BACKUP_FILE_DIR'}
+            QUOTA_ROOT_DIR  => $::imscpConfig{'QUOTA_ROOT_DIR'},
+            LOG_DIR         => $::imscpConfig{'LOG_DIR'},
+            TRAFF_ROOT_DIR  => $::imscpConfig{'TRAFF_ROOT_DIR'},
+            TOOLS_ROOT_DIR  => $::imscpConfig{'TOOLS_ROOT_DIR'},
+            CONF_DIR        => $::imscpConfig{'CONF_DIR'},
+            BACKUP_FILE_DIR => $::imscpConfig{'BACKUP_FILE_DIR'}
         },
         {
             umask => 0027,
@@ -95,8 +95,8 @@ sub setEnginePermissions
 
     setRights( "$self->{'config'}->{'CRON_D_DIR'}/imscp",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => '0640'
         }
     );
@@ -159,7 +159,7 @@ sub addTask
     $data->{'DAY'} //= '*';
     $data->{'MONTH'} //= '*';
     $data->{'DWEEK'} //= '*';
-    $data->{'USER'} //= $main::imscpConfig{'ROOT_USER'};
+    $data->{'USER'} //= $::imscpConfig{'ROOT_USER'};
 
     $self->_validateCronTask( $data );
     $self->buildConfFile( $filepath, $filepath, undef, $data );
@@ -186,7 +186,7 @@ sub deleteTask
     $self->buildConfFile( $filepath, $filepath, undef, $data );
 }
 
-=item enableSystemCronTask( $cronTask [, $directory = ALL ] )
+=item enableSystemTask( $cronTask [, $directory = ALL ] )
 
  Enables a system cron task, that is, a cron task provided by a distribution package
 
@@ -196,14 +196,14 @@ sub deleteTask
 
 =cut
 
-sub enableSystemCronTask
+sub enableSystemTask
 {
     my ($self) = @_;
 
-    die ( sprintf( 'The %s class must implement the enableSystemCronTask() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the enableSystemTask() method', ref $self ));
 }
 
-=item disableSystemCronTask( $cronTask [, $directory = ALL ] )
+=item disableSystemTask( $cronTask [, $directory = ALL ] )
 
  Disables a system cron task, that is, a cron task provided by a distribution package that has been previously disabled
  
@@ -213,11 +213,11 @@ sub enableSystemCronTask
 
 =cut
 
-sub disableSystemCronTask
+sub disableSystemTask
 {
     my ($self) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableSystemCronTask() method', ref $self ));
+    die ( sprintf( 'The %s class must implement the disableSystemTask() method', ref $self ));
 }
 
 =back
@@ -238,7 +238,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ cfgDir _templates /} = ( "$main::imscpConfig{'CONF_DIR'}/cron", {} );
+    @{$self}{qw/ cfgDir _templates /} = ( "$::imscpConfig{'CONF_DIR'}/cron", {} );
     $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
     $self->SUPER::_init();
 }
@@ -294,8 +294,7 @@ sub _validateField
     my (undef, $name, $value) = @_;
 
     defined $name or croak( '$name is undefined' );
-    defined $value or croak( '$value is undefined' );
-    $value ne '' or croak( sprintf( "Value for the '%s' cron task field cannot be empty", $name ));
+    length $value or croak( sprintf( "Value for the '%s' cron task field cannot be empty", $name ));
     return if $value eq '*';
 
     my $step = '[1-9]?[0-9]';

@@ -5,28 +5,28 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Named::Bind9::Debian;
 
 use strict;
 use warnings;
 use File::Basename;
-use iMSCP::Debug qw/ debug error /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -55,7 +55,7 @@ sub preinstall
 {
     my ($self) = @_;
 
-    0; # We do not want stop the service while installation/reconfiguration
+    # We do not want stop the service while installation/reconfiguration
 }
 
 =item install( )
@@ -68,28 +68,25 @@ sub install
 {
     my ($self) = @_;
 
-    my $rs = $self->SUPER::install();
-    return $rs if $rs;
+    $self->SUPER::install();
 
     # Update /etc/default/bind9 file (only if exist)
     if ( -f '/etc/default/bind9' ) {
-        $rs = $self->{'eventManager'}->registerOne(
+        $self->{'eventManager'}->registerOne(
             'beforeBindBuildConfFile',
             sub {
                 # Enable/disable local DNS resolver
                 ${$_[0]} =~ s/RESOLVCONF=(?:no|yes)/RESOLVCONF=$self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'}/i;
 
-                return 0 unless ${$_[0]} =~ /OPTIONS="(.*)"/;
+                return unless ${$_[0]} =~ /OPTIONS="(.*)"/;
 
                 # Enable/disable IPV6 support
                 ( my $options = $1 ) =~ s/\s*-[46]\s*//g;
                 $options = '-4 ' . $options unless $self->{'config'}->{'NAMED_IPV6_SUPPORT'} eq 'yes';
                 ${$_[0]} =~ s/OPTIONS=".*"/OPTIONS="$options"/;
-                0;
             }
         );
-        $rs ||= $self->buildConfFile( '/etc/default/bind9', '/etc/default/bind9' );
-        return $rs if $rs;
+        $self->buildConfFile( '/etc/default/bind9', '/etc/default/bind9' );
     }
 
     $self->_cleanup();
@@ -105,34 +102,23 @@ sub postinstall
 {
     my ($self) = @_;
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
+    my $srvProvider = iMSCP::Service->getInstance();
 
-        # Fix for #IP-1333
-        # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=744304
-        if ( $self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'} eq 'yes' ) {
-            # Service will be started automatically when Bind9 will be restarted
-            $srvProvider->enable( 'bind9-resolvconf' );
-        } else {
-            $srvProvider->stop( 'bind9-resolvconf' );
-            $srvProvider->disable( 'bind9-resolvconf' );
-        }
-
-        $srvProvider->enable( 'bind9' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    # Fix for #IP-1333
+    # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=744304
+    if ( $self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'} eq 'yes' ) {
+        # Service will be started automatically when Bind9 will be restarted
+        $srvProvider->enable( 'bind9-resolvconf' );
+    } else {
+        $srvProvider->stop( 'bind9-resolvconf' );
+        $srvProvider->disable( 'bind9-resolvconf' );
     }
+
+    $srvProvider->enable( 'bind9' );
 
     # We need restart the service since it is already started
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub {
-            push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ];
-            0;
-        },
-        $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ]; }, $self->getPriority()
     );
 }
 
@@ -146,19 +132,10 @@ sub uninstall
 {
     my ($self) = @_;
 
-    my $rs = $self->_removeConfig();
-    return $rs if $rs;
+    $self->_removeConfig();
 
-    eval {
-        my $srvProvider = iMSCP::Service->getInstance();
-        $srvProvider->restart( 'bind9' ) if $srvProvider->hasService( 'bind9' ) && $srvProvider->isRunning( 'bind9' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    my $srvProvider = iMSCP::Service->getInstance();
+    $srvProvider->restart( 'bind9' ) if $srvProvider->hasService( 'bind9' ) && $srvProvider->isRunning( 'bind9' );
 }
 
 =item dpkgPostInvokeTasks()
@@ -184,13 +161,7 @@ sub start
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->start( 'bind9' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->start( 'bind9' );
 }
 
 =item stop( )
@@ -203,13 +174,7 @@ sub stop
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->stop( 'bind9' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->stop( 'bind9' );
 }
 
 =item restart( )
@@ -222,13 +187,7 @@ sub restart
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->restart( 'bind9' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->restart( 'bind9' );
 }
 
 =item reload( )
@@ -241,13 +200,7 @@ sub reload
 {
     my ($self) = @_;
 
-    eval { iMSCP::Service->getInstance()->reload( 'bind9' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    iMSCP::Service->getInstance()->reload( 'bind9' );
 }
 
 =back
@@ -267,24 +220,17 @@ sub _setVersion
     my ($self) = @_;
 
     my $rs = execute( [ 'bind9-config', '--version' ], \ my $stdout, \ my $stderr );
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    if ( $stdout !~ /version=([\d.]+)/i ) {
-        error( "Couldn't guess Bind version from the `bind9-config --version` command output" );
-        return 1;
-    }
-
+    !$rs or die( $stderr || 'Unknown error' );
+    $stdout =~ /version=([\d.]+)/i or die( "Couldn't guess Bind version from the `bind9-config --version` command output" );
     $self->{'config'}->{'NAMED_VERSION'} = $1;
     debug( sprintf( 'Bind version set to: %s', $1 ));
-    0;
 }
 
 =item _cleanup( )
 
  Process cleanup tasks
 
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -292,19 +238,17 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return 0 unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/bind.old.data" )->remove();
 
     if ( my $resolvconf = iMSCP::ProgramFinder::find( 'resolvconf' ) ) {
         my $rs = execute( [ $resolvconf, '-d', 'lo.imscp' ], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        error( $stderr || 'Unknown error' ) if $rs;
-        return $rs if $rs;
+        !$rs or die( $stderr || 'Unknown error' ) if $rs;
     }
 
     iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_ROOT_DIR'} )->clear( qr/\.db$/ );
-    0;
 }
 
 =item _shutdown( $priority )

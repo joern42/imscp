@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Server::Local::Abstract;
 
@@ -31,7 +31,7 @@ use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Providers::NetworkInterface
-iMSCP::Servers::Sqld /;
+    iMSCP::Servers::Sqld /;
 use File::Temp;
 use LWP::Simple qw/ $ua get /;
 use parent 'iMSCP::Servers::Server';
@@ -78,7 +78,7 @@ sub hostnameDialog
 {
     my (undef, $dialog) = @_;
 
-    my $hostname = main::setupGetQuestion( 'SERVER_HOSTNAME', iMSCP::Getopt->preseed ? `hostname --fqdn 2>/dev/null` || '' : '' );
+    my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME', iMSCP::Getopt->preseed ? `hostname --fqdn 2>/dev/null` || '' : '' );
     chomp( $hostname );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -89,9 +89,9 @@ sub hostnameDialog
         my $rs = 0;
 
         do {
-            if ( $hostname eq '' ) {
+            unless ( length $hostname ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
-                chomp( $hostname = $hostname || `hostname --fqdn 2>/dev/null` || '' );
+                chomp( $hostname = `hostname --fqdn 2>/dev/null` || '' );
             }
 
             $hostname = idn_to_unicode( $hostname, 'utf-8' ) // '';
@@ -106,7 +106,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'SERVER_HOSTNAME', idn_to_ascii( $hostname, 'utf-8' ) // '' );
+    ::setupSetQuestion( 'SERVER_HOSTNAME', idn_to_ascii( $hostname, 'utf-8' ) // '' );
     0;
 }
 
@@ -124,11 +124,11 @@ sub askIPv6Support
     my ($self, $dialog) = @_;
 
     unless ( -f '/proc/net/if_inet6' ) {
-        main::setupSetQuestion( 'IPV6_SUPPORT', 'no' );
+        ::setupSetQuestion( 'IPV6_SUPPORT', 'no' );
         return 0;
     }
 
-    my $value = main::setupGetQuestion( 'IPV6_SUPPORT', iMSCP::Getopt->preseed ? 'yes' : '' );
+    my $value = ::setupGetQuestion( 'IPV6_SUPPORT', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'ipv6', 'servers', 'all', 'forced' ] )
@@ -144,7 +144,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'IPV6_SUPPORT', $value );
+    ::setupSetQuestion( 'IPV6_SUPPORT', $value );
     0;
 }
 
@@ -161,7 +161,7 @@ sub primaryIpDialog
 {
     my (undef, $dialog) = @_;
 
-    my @ipList = ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes'
+    my @ipList = ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes'
             ? grep(isValidIpAddr( $_, qr/(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)/ ), iMSCP::Net->getInstance()->getAddresses())
             : grep(isValidIpAddr( $_, qr/(?:PRIVATE|PUBLIC)/ ), iMSCP::Net->getInstance()->getAddresses())
         ,
@@ -173,10 +173,10 @@ sub primaryIpDialog
         return 1;
     }
 
-    my $lanIP = main::setupGetQuestion( 'BASE_SERVER_IP', iMSCP::Getopt->preseed ? 'None' : '' );
+    my $lanIP = ::setupGetQuestion( 'BASE_SERVER_IP', iMSCP::Getopt->preseed ? 'None' : '' );
     $lanIP = 'None' if $lanIP eq '0.0.0.0';
 
-    my $wanIP = main::setupGetQuestion(
+    my $wanIP = ::setupGetQuestion(
         'BASE_SERVER_PUBLIC_IP',
         ( iMSCP::Getopt->preseed
             ? do {
@@ -210,7 +210,7 @@ EOF
         $lanIP = '0.0.0.0';
     }
 
-    main::setupSetQuestion( 'BASE_SERVER_IP', $lanIP );
+    ::setupSetQuestion( 'BASE_SERVER_IP', $lanIP );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
@@ -220,7 +220,7 @@ EOF
         my $rs = 0;
 
         do {
-            if ( $wanIP eq '' || $wanIP eq 'None' ) {
+            if ( !length $wanIP || $wanIP eq 'None' ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 chomp( $wanIP = get( 'https://api.ipify.org/' ) || get( 'https://ipinfo.io/ip/' ) || $lanIP );
                 $wanIP = '' if $wanIP eq '0.0.0.0';
@@ -240,15 +240,15 @@ EOF
         if ( $dialog->yesno( <<"EOF", 'no_by_default' ) == 0 ) {
 Do you want to replace the IP address of all clients with the new primary IP address?
 EOF
-            main::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 1 );
+            ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 1 );
         } else {
-            main::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 0 );
+            ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 0 );
         }
     } else {
-        main::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 0 );
+        ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 0 );
     }
 
-    main::setupSetQuestion( 'BASE_SERVER_PUBLIC_IP', $wanIP );
+    ::setupSetQuestion( 'BASE_SERVER_PUBLIC_IP', $wanIP );
     0;
 }
 
@@ -265,7 +265,7 @@ sub timezoneDialog
 {
     my (undef, $dialog) = @_;
 
-    my $timezone = main::setupGetQuestion( 'TIMEZONE', iMSCP::Getopt->preseed ? DateTime::TimeZone->new( name => 'local' )->name() : '' );
+    my $timezone = ::setupGetQuestion( 'TIMEZONE', iMSCP::Getopt->preseed ? DateTime::TimeZone->new( name => 'local' )->name() : '' );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
@@ -275,7 +275,7 @@ sub timezoneDialog
         my $rs = 0;
 
         do {
-            if ( $timezone eq '' ) {
+            unless ( length $timezone ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $timezone = DateTime::TimeZone->new( name => 'local' )->name();
             }
@@ -290,7 +290,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'TIMEZONE', $timezone );
+    ::setupSetQuestion( 'TIMEZONE', $timezone );
     0;
 }
 
@@ -521,7 +521,7 @@ sub _loadConfig
 {
     my ($self) = @_;
 
-    $self->{'config'} = \%main::imscpConfig;
+    $self->{'config'} = \%::imscpConfig;
     $self->{'cfgDir'} = $self->{'config'}->{'CONF_DIR'};
 }
 
@@ -537,8 +537,8 @@ sub _setupHostname
 {
     my ($self) = @_;
 
-    my $hostname = main::setupGetQuestion( 'SERVER_HOSTNAME' );
-    my $lanIP = main::setupGetQuestion( 'BASE_SERVER_IP' );
+    my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
+    my $lanIP = ::setupGetQuestion( 'BASE_SERVER_IP' );
 
     my @labels = split /\./, $hostname;
     my $host = shift @labels;
@@ -630,14 +630,14 @@ sub _setupPrimaryIP
 {
     my ($self) = @_;
 
-    my $primaryIP = main::setupGetQuestion( 'BASE_SERVER_IP' );
+    my $primaryIP = ::setupGetQuestion( 'BASE_SERVER_IP' );
     $self->{'eventManager'}->trigger( 'beforeLocalServerSetupPrimaryIP', $primaryIP );
 
     my $netCard = ( $primaryIP eq '0.0.0.0' ) ? 'any' : iMSCP::Net->getInstance()->getAddrDevice( $primaryIP );
     defined $netCard or die( sprintf( "Couldn't find network card for the %s IP address", $primaryIP ));
 
     my $db = iMSCP::Database->getInstance();
-    my $oldDbName = $db->useDatabase( main::setupGetQuestion( 'DATABASE_NAME' ));
+    my $oldDbName = $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
 
     $db->selectrow_hashref( 'SELECT 1 FROM server_ips WHERE ip_number = ?', undef, $primaryIP )
         ? $db->do( 'UPDATE server_ips SET ip_card = ? WHERE ip_number = ?', undef, $netCard, $primaryIP )
@@ -645,7 +645,7 @@ sub _setupPrimaryIP
         'INSERT INTO server_ips (ip_number, ip_card, ip_config_mode, ip_status) VALUES(?, ?, ?, ?)', undef, $primaryIP, $netCard, 'manual', 'ok'
     );
 
-    if ( main::setupGetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP' ) ) {
+    if ( ::setupGetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP' ) ) {
         my $resellers = $db->selectall_arrayref( 'SELECT reseller_id, reseller_ips FROM reseller_props', { Slice => {} } );
         if ( @{$resellers} ) {
             my $primaryIpID = $db->selectrow_array( 'SELECT ip_id FROM server_ips WHERE ip_number = ?', undef, $primaryIP );

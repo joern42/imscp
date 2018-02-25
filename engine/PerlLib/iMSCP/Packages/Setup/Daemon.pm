@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Setup::Daemon;
 
@@ -74,7 +74,7 @@ sub imscpDaemonTypeDialog
 {
     my ($self, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'DAEMON_TYPE', iMSCP::Getopt->preseed ? 'imscp' : '' );
+    my $value = ::setupGetQuestion( 'DAEMON_TYPE', iMSCP::Getopt->preseed ? 'imscp' : '' );
     my %choices = ( 'imscp', 'Via the i-MSCP daemon (real time)', 'cron', 'Via cron (every 5 minutes)' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'daemon', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -87,7 +87,7 @@ EOF
         return $rs if $rs >= 30;
     }
 
-    main::setupSetQuestion( 'DAEMON_TYPE', $value );
+    ::setupSetQuestion( 'DAEMON_TYPE', $value );
     0;
 }
 
@@ -124,8 +124,8 @@ sub install
     return iMSCP::Servers::Cron->factory()->addTask( {
         TASKID  => __PACKAGE__,
         MINUTE  => '*/5',
-        COMMAND => "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-rqst-mngr > /dev/null 2>&1"
-    } ) if main::setupGetQuestion( 'DAEMON_TYPE' ) eq 'cron';
+        COMMAND => "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-rqst-mngr > /dev/null 2>&1"
+    } ) if ::setupGetQuestion( 'DAEMON_TYPE' ) eq 'cron';
 
     $self->_compileDaemon();
 
@@ -150,7 +150,7 @@ sub uninstall
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
-    $cronServer->deleteTasks( { TASKID => __PACKAGE__ } );
+    $cronServer->deleteTask( { TASKID => __PACKAGE__ } );
 
     my $srvProvider = iMSCP::Service->getInstance();
     if ( iMSCP::Getopt->context() eq 'installer' ) {
@@ -173,7 +173,7 @@ sub uninstall
     }
 
     # Remove daemon directory
-    iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/daemon" )->remove();
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/daemon" )->remove();
 }
 
 =item setEnginePermissions( )
@@ -188,14 +188,14 @@ sub setEnginePermissions
 {
     my ($self) = @_;
 
-    setRights( "$main::imscpConfig{'ROOT_DIR'}/daemon",
+    setRights( "$::imscpConfig{'ROOT_DIR'}/daemon",
         {
-            user      => $main::imscpConfig{'ROOT_USER'},
-            group     => $main::imscpConfig{'IMSCP_GROUP'},
+            user      => $::imscpConfig{'ROOT_USER'},
+            group     => $::imscpConfig{'IMSCP_GROUP'},
             mode      => '0750',
             recursive => 1
         }
-    ) if -d "$main::imscpConfig{'ROOT_DIR'}/daemon";
+    ) if -d "$::imscpConfig{'ROOT_DIR'}/daemon";
 }
 
 =back
@@ -223,8 +223,8 @@ sub _compileDaemon
     !$rs or die( $stderr || 'Unknown error' );
 
     # Install the daemon
-    iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/daemon" )->make();
-    iMSCP::File->new( filename => 'imscp_daemon' )->copy( "$main::imscpConfig{'ROOT_DIR'}/daemon", { preserve => 1 } );
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/daemon" )->make();
+    iMSCP::File->new( filename => 'imscp_daemon' )->copy( "$::imscpConfig{'ROOT_DIR'}/daemon", { preserve => 1 } );
 
     # Leave the directory clean
     $rs = execute( 'make clean', \ $stdout, \ $stderr );

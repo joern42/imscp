@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Dialog;
 
@@ -414,7 +414,7 @@ sub _init
 
     # Detect all the ways people have managed to screw up their
     # terminals (so far...)
-    if ( !exists $ENV{'TERM'} || !defined $ENV{'TERM'} || $ENV{'TERM'} eq '' ) {
+    if ( !exists $ENV{'TERM'} || !defined $ENV{'TERM'} ||  length $ENV{'TERM'} == 0 ) {
         die ( 'TERM is not set, so the dialog frontend is not usable.' );
     } elsif ( $ENV{'TERM'} =~ /emacs/i ) {
         die ( 'Dialog frontend is incompatible with emacs shell buffers' );
@@ -433,7 +433,7 @@ sub _init
     $self->{'autoreset'} = 0;
     $self->{'lines'} = undef;
     $self->{'columns'} = undef;
-    $self->{'opts'}->{'backtitle'} ||= "i-MSCP - internet Multi Server Control Panel ($main::imscpConfig{'Version'})";
+    $self->{'opts'}->{'backtitle'} ||= "i-MSCP - internet Multi Server Control Panel ($::imscpConfig{'Version'})";
     $self->{'opts'}->{'title'} ||= 'i-MSCP Installer Dialog';
     $self->{'opts'}->{'colors'} = '';
     $self->{'opts'}->{'ok-label'} ||= 'Ok';
@@ -559,8 +559,8 @@ sub _buildCommonCommandOptions
     my @options = map {
         defined $self->{'opts'}->{$_}
             ? ( "--$_", ( $noEscape )
-                ? ( $self->{'opts'}->{$_} eq '' ? () : $self->{'opts'}->{$_} )
-                : ( $self->{'opts'}->{$_} eq '' ? () : escapeShell( $self->{'opts'}->{$_} ) ) )
+                ? ( !length $self->{'opts'}->{$_} ? () : $self->{'opts'}->{$_} )
+                : ( !length $self->{'opts'}->{$_} ? () : escapeShell( $self->{'opts'}->{$_} ) ) )
             : ()
     } keys %{$self->{'opts'}};
 

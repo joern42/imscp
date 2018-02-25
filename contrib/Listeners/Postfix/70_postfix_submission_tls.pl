@@ -34,11 +34,11 @@ use version;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 70_postfix_submission_tls.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 ) {
+if ( index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 ) {
     iMSCP::EventManager->getInstance()->register(
         'afterPostfixBuildConfFile',
         sub {
@@ -62,12 +62,9 @@ EOF
         sub {
             # smtpd_tls_security_level=encrypt means mandatory.
             # Make sure to disable vulnerable SSL versions
-            iMSCP::Servers::Mta->factory()->postconf( (
-                smtpd_tls_mandatory_protocols => {
-                    action => 'replace',
-                    values => [ '!SSLv2', '!SSLv3' ]
-                }
-            ));
+            iMSCP::Servers::Mta->factory()->postconf(
+                smtpd_tls_mandatory_protocols => { values => [ '!SSLv2', '!SSLv3' ] }
+            );
         },
         -99
     );

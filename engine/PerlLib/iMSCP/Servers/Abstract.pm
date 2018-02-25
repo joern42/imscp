@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Abstract;
 
@@ -68,7 +68,7 @@ sub getPriority
     0;
 }
 
-=item factory( [ $serverClass = $main::imscpConfig{$class} ] )
+=item factory( [ $serverClass = $::imscpConfig{$class} ] )
 
  Creates and returns an iMSCP::Servers::Abstract server instance
 
@@ -87,13 +87,13 @@ sub factory
     # Restrict call of the factory to iMSCP::Servers::* abstract classes
     $class =~ tr/:// < 5 or croak( sprintf( 'The factory() method cannot be called on the %s server class', $class ));
 
-    $serverClass //= $main::imscpConfig{$class} || 'iMSCP::Servers::NoServer';
+    $serverClass //= $::imscpConfig{$class} || 'iMSCP::Servers::NoServer';
 
     return $_SERVER_INSTANCES{$class} if exists $_SERVER_INSTANCES{$class};
 
     eval "require $serverClass; 1" or confess( $@ );
 
-    if ( $serverClass ne $main::imscpConfig{$class} ) {
+    if ( $serverClass ne $::imscpConfig{$class} ) {
         # We don't keep trace of server instances that were asked explicitly as
         # this would prevent load of those which are implicit.
         # This also means that the _shutdown() method on those server instances
@@ -126,6 +126,12 @@ sub factory
 sub registerSetupListeners
 {
     my ($self) = @_;
+
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupDialog',
+        sub { push @{$_[0]}, sub { $self->askDnsServerMode( @_ ) }, sub { $self->askIPv6Support( @_ ) }, sub { $self->askLocalDnsResolver( @_ ) }; },
+        $self->getPriority()
+    );
 }
 
 =item preinstall( )
@@ -183,9 +189,7 @@ sub postinstall
     my ($self) = @_;
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices',
-        sub { push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ]; },
-        $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ]; }, $self->getPriority()
     );
 }
 
@@ -427,7 +431,7 @@ sub reload
 
   where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param string $srcFile Absolute source filepath or source filepath relative to the i-MSCP server configuration directory
+ Param string|iMSCP::File $srcFile An iMSCP::File object, an absolute filepath or a filepath relative to the i-MSCP server configuration directory
  Param string $trgFile Target file path
  Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules, none if outside of an i-MSCP module context
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
@@ -456,35 +460,49 @@ sub buildConfFile
     my ($filename, $path) = fileparse( $srcFile );
     $params->{'srcname'} //= $filename;
 
-    if ( $params->{'cached'} && exists $self->{'_templates'}->{$srcFile} ) {
-        $cfgTpl = $self->{'_templates'}->{$srcFile};
+    my $file;
+    if ( $params->{'cached'} && exists $self->{'_templates'}->{"$srcFile"} ) {
+        $file = $self->{'_templates'}->{$srcFile};
     } else {
-        $self->{'eventManager'}->trigger(
-            'onLoadTemplate', lc $sname, $params->{'srcname'}, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params
-        );
+        $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $sname, $params->{'srcname'}, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
 
-        unless ( defined $cfgTpl ) {
+        if ( defined $cfgTpl ) {
+            if ( ref $srcFile eq 'iMSCP::File' ) {
+                $file = $srcFile->set( $cfgTpl );
+            } else {
+                $file = iMSCP::File->new( filename => $srcFile )->set( $cfgTpl );
+            }
+
+            undef $cfgTpl;
+        } elsif ( ref $srcFile eq 'iMSCP::File' ) {
+            $file = $srcFile;
+        } else {
             $srcFile = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
-            $cfgTpl = iMSCP::File->new( filename => $srcFile )->get();
+            $file = iMSCP::File->new( filename => $srcFile );
         }
 
-        $self->{'_templates'}->{$srcFile} = $cfgTpl if $params->{'cached'};
+        $self->{'_templates'}->{"$srcFile"} = $file if $params->{'cached'};
     }
 
-    $self->{'eventManager'}->trigger(
-        "before${sname}BuildConfFile", \$cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
-    );
-
-    processByRef( $sdata, \$cfgTpl ) if %{$sdata};
-    processByRef( $mdata, \$cfgTpl ) if %{$mdata};
+    # Localize changes as we want keep the template clean for further processing (caching)
+    local $file->{'file_content'};
+    
+    $cfgTpl = $file->getAsRef();
 
     $self->{'eventManager'}->trigger(
-        "after${sname}dBuildConfFile", \$cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+        "before${sname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
     );
 
-    my $file = iMSCP::File->new( filename => $trgFile )->set( $cfgTpl )->save( $params->{'umask'} // undef );
-    $file->owner( $params->{'user'} // $main::imscpConfig{'ROOT_USER'}, $params->{'group'} // $main::imscpConfig{'ROOT_GROUP'} )
-        if defined $params->{'user'} || defined $params->{'group'};
+    processByRef( $sdata, $cfgTpl ) if %{$sdata}; # Process server data (highter priority
+    processByRef( $mdata, $cfgTpl ) if %{$mdata}; # Process module data
+
+    $self->{'eventManager'}->trigger(
+        "after${sname}dBuildConfFile", $cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+    );
+
+    $file->{'filename'} = File::Spec->canonpath( $trgFile );
+    $file->save( $params->{'umask'} );
+    $file->owner( $params->{'user'} // -1, $params->{'group'} // -1 ) if defined $params->{'user'} || defined $params->{'group'};
     $file->mode( $params->{'mode'} ) if defined $params->{'mode'};
 }
 
@@ -507,12 +525,12 @@ sub AUTOLOAD
         (?:pre|post)?
         (?:add|disable|restore|delete)
         (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddr|Mail|SSLcertificate|Subdomain|User)
-        $/x or die( sprintf( 'Unknown %s method' ), $method );
+        $/x or die( sprintf( 'Unknown %s method', $method ));
 
     # Define the subroutine to prevent further evaluation
     no strict 'refs';
     *{$AUTOLOAD} = sub {};
-    
+
     # Errase stack frame
     goto &{$AUTOLOAD};
 }
@@ -564,7 +582,7 @@ sub _loadConfig
             debug( sprintf( 'Merging old %s server configuration with new %s server configuration...', $filename, "$filename.dist" ));
 
             tie my %oldConfig, 'iMSCP::Config',
-                fileName => "$self->{'cfgDir'}/$filename",
+                filename => "$self->{'cfgDir'}/$filename",
                 readonly => 1,
                 # We do not want croak when accessing non-existing parameters
                 # in old configuration file. The new configuration file can
@@ -592,7 +610,7 @@ sub _loadConfig
             $file->save();
             undef( $file );
 
-            tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename.dist";
+            tie my %newConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/$filename.dist";
 
             while ( my ($key, $value) = each( %oldConfig ) ) {
                 $newConfig{$key} = $value if exists $newConfig{$key};
@@ -600,7 +618,7 @@ sub _loadConfig
 
             # Make the old configuration available through the 'old_config'
             # attribute
-            #tie %{$self->{'old_config'}}, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$filename";
+            #tie %{$self->{'old_config'}}, 'iMSCP::Config', filename => "$self->{'cfgDir'}/$filename";
             #%{$self->{'old_config'}} = %oldConfig;
 
             untie( %newConfig );
@@ -622,7 +640,7 @@ sub _loadConfig
 
     tie %{$self->{'config'}},
         'iMSCP::Config',
-        fileName    => "$self->{'cfgDir'}/$filename",
+        filename    => "$self->{'cfgDir'}/$filename",
         readonly    => iMSCP::Getopt->context() ne 'installer',
         nodeferring => iMSCP::Getopt->context() eq 'installer';
 

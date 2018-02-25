@@ -45,7 +45,6 @@ use POSIX qw/ strftime locale_h /;
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 our $command = {
     pbzip2 => {
@@ -92,25 +91,25 @@ sub backupDatabase
 {
     eval {
         my $db = iMSCP::Database->getInstance();
-        $db->dumpdb( $main::imscpConfig{'DATABASE_NAME'}, $main::imscpConfig{'BACKUP_FILE_DIR'} );
+        $db->dumpdb( $::imscpConfig{'DATABASE_NAME'}, $::imscpConfig{'BACKUP_FILE_DIR'} );
 
         # Encode slashes as SOLIDUS unicode character
         # Encode dots as Full stop unicode character
-        ( my $encodedDbName = $main::imscpConfig{'DATABASE_NAME'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
+        ( my $encodedDbName = $::imscpConfig{'DATABASE_NAME'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
         my $date = strftime "%Y.%m.%d-%H-%M", localtime;
 
-        iMSCP::File->new( filename => $main::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '.sql' )->move(
-            $main::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '-' . $date . '.sql'
+        iMSCP::File->new( filename => $::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '.sql' )->move(
+            $::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '-' . $date . '.sql'
         );
 
-        my $algo = lc( $main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
-        my $level = $main::imscpConfig{'BACKUP_COMPRESS_LEVEL'};
+        my $algo = lc( $::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
+        my $level = $::imscpConfig{'BACKUP_COMPRESS_LEVEL'};
         $level = 1 unless $level =~ /^[1-9]$/;
 
         if ( $algo ne 'no' ) {
             my @cmd = (
                 $command->{$algo}->{'command'}, "-$level", '--force',
-                escapeShell( $main::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '-' . $date . '.sql' )
+                escapeShell( $::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '-' . $date . '.sql' )
             );
             my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
             debug( $stdout ) if $stdout;
@@ -133,14 +132,14 @@ sub backupConfig
 {
     eval {
         my $date = strftime "%Y.%m.%d-%H-%M", localtime;
-        my $archivePath = "$main::imscpConfig{'BACKUP_FILE_DIR'}/config-backup-$date.tar";
-        my $algo = lc( $main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
-        my $level = $main::imscpConfig{'BACKUP_COMPRESS_LEVEL'};
+        my $archivePath = "$::imscpConfig{'BACKUP_FILE_DIR'}/config-backup-$date.tar";
+        my $algo = lc( $::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
+        my $level = $::imscpConfig{'BACKUP_COMPRESS_LEVEL'};
         $level = 1 unless $level =~ /^[1-9]$/;
-        $archivePath .= '.' . $command->{$main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'}}->{'extension'} if $algo ne 'no';
+        $archivePath .= '.' . $command->{$::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'}}->{'extension'} if $algo ne 'no';
 
         my @backupCommand = (
-            "nice -n 19 ionice -c2 -n7 tar -c -C $main::imscpConfig{'CONF_DIR'}",
+            "nice -n 19 ionice -c2 -n7 tar -c -C $::imscpConfig{'CONF_DIR'}",
             '--exclude=?*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]',
             '--preserve-permissions', '.', ( $algo eq 'no' ? "-f $archivePath" : "| $command->{$algo}->{'command'} -$level > $archivePath" )
         );
@@ -163,14 +162,14 @@ sub backupConfig
 sub backupAll
 {
     eval {
-        my $algo = lc( $main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
+        my $algo = lc( $::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
 
         exists $command->{$algo} || $algo eq 'no' or die( sprintf( 'Backup algorithm not supported: %s', $algo ));
 
         # Make sure that backup directory exists
-        iMSCP::Dir->new( dirname => $main::imscpConfig{'BACKUP_FILE_DIR'} )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+        iMSCP::Dir->new( dirname => $::imscpConfig{'BACKUP_FILE_DIR'} )->make( {
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => 0750
         } );
 
@@ -178,7 +177,7 @@ sub backupAll
         backupConfig();
 
         # Remove any backup older than 7 days
-        my $rs = execute( "find $main::imscpConfig{'BACKUP_FILE_DIR'}/* -maxdepth 0 -type f -mtime +7 -print | xargs -r rm", \ my $stdout,
+        my $rs = execute( "find $::imscpConfig{'BACKUP_FILE_DIR'}/* -maxdepth 0 -type f -mtime +7 -print | xargs -r rm", \ my $stdout,
             \ my $stderr );
         debug( $stdout ) if $stdout;
         !$rs or die( $stderr || 'Unknown error' );
@@ -202,7 +201,7 @@ OPTIONS:
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
     nolock          => 1
-} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-backup-imscp.lock", 'nowait' );
+} )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-backup-imscp.lock", 'nowait' );
 
 backupAll();
 

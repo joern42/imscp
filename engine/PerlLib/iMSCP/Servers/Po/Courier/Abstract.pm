@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Po::Courier::Abstract;
 
@@ -33,6 +33,7 @@ use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
 use File::Spec;
 use File::Temp;
+use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug /;
@@ -51,7 +52,7 @@ use Sort::Naturally;
 use Tie::File;
 use parent 'iMSCP::Servers::Po';
 
-%main::sqlUsers = () unless %main::sqlUsers;
+%::sqlUsers = () unless %::sqlUsers;
 
 =head1 DESCRIPTION
 
@@ -75,7 +76,7 @@ sub registerSetupListeners
         'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->authdaemonSqlUserDialog( @_ ) }; }, $self->getPriority()
     );
 
-    return if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) == -1;
+    return if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) == -1;
 
     $self->{'eventManager'}->registerOne( 'beforePostfixConfigure', $self );
 }
@@ -93,12 +94,12 @@ sub authdaemonSqlUserDialog
 {
     my ($self, $dialog) = @_;
 
-    my $masterSqlUser = main::setupGetQuestion( 'DATABASE_USER' );
-    my $dbUser = main::setupGetQuestion(
+    my $masterSqlUser = ::setupGetQuestion( 'DATABASE_USER' );
+    my $dbUser = ::setupGetQuestion(
         'PO_AUTHDAEMON_SQL_USER', $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' )
     );
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion(
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $dbPass = ::setupGetQuestion(
         'PO_AUTHDAEMON_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_PASSWORD'} )
     );
 
@@ -112,7 +113,7 @@ sub authdaemonSqlUserDialog
         my $rs = 0;
 
         do {
-            if ( $dbUser eq '' ) {
+            unless ( length $dbUser ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $dbUser = 'imscp_srv_user';
             }
@@ -129,14 +130,14 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'PO_AUTHDAEMON_SQL_USER', $dbUser );
+    ::setupSetQuestion( 'PO_AUTHDAEMON_SQL_USER', $dbUser );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] ) || !isValidPassword( $dbPass ) ) {
-        unless ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        unless ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
             my $rs = 0;
 
             do {
-                if ( $dbPass eq '' ) {
+                unless ( length $dbPass ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = '';
                     $dbPass = randomStr( 16, ALNUM );
                 }
@@ -150,17 +151,17 @@ EOF
 
             return $rs unless $rs < 30;
 
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+            $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
         } else {
-            $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+            $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
         }
-    } elsif ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-        $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+    } elsif ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
     } else {
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
     }
 
-    main::setupSetQuestion( 'PO_AUTHDAEMON_SQL_PASSWORD', $dbPass );
+    ::setupSetQuestion( 'PO_AUTHDAEMON_SQL_PASSWORD', $dbPass );
     0;
 }
 
@@ -176,7 +177,7 @@ sub install
 
     $self->_setVersion();
     $self->_configure();
-    $self->_setupPostfixSasl() if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+    $self->_setupPostfixSasl() if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
     $self->_migrateFromDovecot();
 }
 
@@ -221,7 +222,7 @@ sub setEnginePermissions
     setRights( $self->{'config'}->{'QUOTA_WARN_MSG_PATH'},
         {
             user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => '0640'
         }
     );
@@ -297,9 +298,9 @@ sub addMail
             fixpermissions => iMSCP::Getopt->fixPermissions
         } );
 
-        for ( 'cur', 'new', 'tmp' ) {
-            iMSCP::Dir->new( dirname => "$mailDir/$mailbox/$_" )->make( {
-                user           => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},,
+        for my $dir( 'cur', 'new', 'tmp' ) {
+            iMSCP::Dir->new( dirname => "$mailDir/$mailbox/$dir" )->make( {
+                user           => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
                 group          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
                 mode           => 0750,
                 fixpermissions => iMSCP::Getopt->fixPermissions
@@ -307,19 +308,13 @@ sub addMail
         }
     }
 
-    my @subscribedFolders = ( 'INBOX.Drafts', 'INBOX.Junk', 'INBOX.Sent', 'INBOX.Trash' );
-    my $subscriptionsFile = iMSCP::File->new( filename => "$mailDir/courierimapsubscribed" );
-
-    if ( -f $subscriptionsFile ) {
-        my $subscriptionsFileContent = $subscriptionsFile->get();
-        @subscribedFolders = nsort unique ( @subscribedFolders, split( /\n/, $subscriptionsFileContent )) if $subscriptionsFileContent ne '';
-    }
-
-    $subscriptionsFile
-        ->set( ( join "\n", @subscribedFolders ) . "\n" )
-        ->save()
-        ->owner( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} )
-        ->mode( 0640 );
+    my $file = iMSCP::File->new( filename => "$mailDir/courierimapsubscribed" );
+    my $fileContent = $file->getAsRef( !-f $file );
+    ${$fileContent} = join(
+        "\n", nsort unique ( 'INBOX.Drafts', 'INBOX.Junk', 'INBOX.Sent', 'INBOX.Trash', ( length ${$fileContent} ? split /\n/, ${$fileContent} : () ))
+    ) . "\n";
+    $file->save()->owner( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} )->mode( 0640 );
+    undef $file;
 
     if ( $moduleData->{'MAIL_QUOTA'} ) {
         if ( $self->{'quotaRecalc'}
@@ -352,7 +347,7 @@ sub addMail
 sub getTraffic
 {
     my ($self, $trafficDb, $logFile, $trafficIndexDb) = @_;
-    $logFile ||= "$main::imscpConfig{'TRAFF_LOG_DIR'}/$main::imscpConfig{'MAIL_TRAFF_LOG'}";
+    $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
 
     unless ( -f $logFile ) {
         debug( sprintf( "IMAP/POP3 %s log file doesn't exist. Skipping...", $logFile ));
@@ -362,7 +357,7 @@ sub getTraffic
     debug( sprintf( 'Processing IMAP/POP3 %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
     my ($idx, $idxContent) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
 
     tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
@@ -372,7 +367,7 @@ sub getTraffic
 
     if ( exists $logs[$idx] && $logs[$idx] eq $idxContent ) {
         debug( sprintf( 'Skipping IMAP/POP3 logs that were already processed (lines %d to %d)', 1, ++$idx ));
-    } elsif ( $idxContent ne '' && substr( $logFile, -2 ) ne '.1' ) {
+    } elsif ( length $idxContent && substr( $logFile, -2 ) ne '.1' ) {
         debug( 'Log rotation has been detected. Processing last rotated log file first' );
         $self->getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
         $idx = 0;
@@ -425,7 +420,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$main::imscpConfig{'CONF_DIR'}/courier" );
+    @{$self}{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$::imscpConfig{'CONF_DIR'}/courier" );
     $self->SUPER::_init();
 }
 
@@ -456,27 +451,27 @@ sub _setupSqlUser
 {
     my ($self) = @_;
 
-    my $dbName = main::setupGetQuestion( 'DATABASE_NAME' );
-    my $dbUser = main::setupGetQuestion( 'PO_AUTHDAEMON_SQL_USER' );
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion( 'PO_AUTHDAEMON_SQL_PASSWORD' );
+    my $dbName = ::setupGetQuestion( 'DATABASE_NAME' );
+    my $dbUser = ::setupGetQuestion( 'PO_AUTHDAEMON_SQL_USER' );
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $dbPass = ::setupGetQuestion( 'PO_AUTHDAEMON_SQL_PASSWORD' );
     my $sqlServer = iMSCP::Servers::Sqld->factory();
 
     # Drop old SQL user if required
     for my $sqlUser ( $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'}, $dbUser ) {
         next unless $sqlUser;
 
-        for my $host( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-            next if !$host || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
+        for my $host( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+            next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
     }
 
     # Create SQL user if required
-    if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+    if ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
         debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
         $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
     }
 
     my $dbh = iMSCP::Database->getInstance();
@@ -509,11 +504,11 @@ sub _configure
     $self->_buildSslConfFiles();
     $self->buildConfFile( 'authmysqlrc', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authmysqlrc", undef,
         {
-            DATABASE_HOST        => main::setupGetQuestion( 'DATABASE_HOST' ),
-            DATABASE_PORT        => main::setupGetQuestion( 'DATABASE_PORT' ),
+            DATABASE_HOST        => ::setupGetQuestion( 'DATABASE_HOST' ),
+            DATABASE_PORT        => ::setupGetQuestion( 'DATABASE_PORT' ),
             DATABASE_USER        => $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'},
             DATABASE_PASSWORD    => $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_PASSWORD'},
-            DATABASE_NAME        => main::setupGetQuestion( 'DATABASE_NAME' ),
+            DATABASE_NAME        => ::setupGetQuestion( 'DATABASE_NAME' ),
             MTA_MAILBOX_UID      => ( scalar getpwnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'} ) ),
             MTA_MAILBOX_GID      => ( scalar getgrnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} ) ),
             MTA_VIRTUAL_MAIL_DIR => $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
@@ -526,11 +521,11 @@ sub _configure
         }
     );
     $self->buildConfFile( 'quota-warning', $self->{'config'}->{'QUOTA_WARN_MSG_PATH'}, undef,
-        { HOSTNAME => main::setupGetQuestion( 'SERVER_HOSTNAME' ), },
+        { HOSTNAME => ::setupGetQuestion( 'SERVER_HOSTNAME' ), },
         {
             umask => 0027,
             user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => 0640
         }
     );
@@ -555,20 +550,20 @@ sub _configure
 . $self->{'cfgDir'}/$sname.local
 # iMSCP::Servers::Po::Courier::Abstract::installer - ENDING
 EOF
-        $file->save()->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} )->mode( 0644 );
+        $file->save()->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )->mode( 0644 );
 
-        tie my %localConf, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/$sname.local", nospaces => 1;
+        tie my %localConf, 'iMSCP::Config', filename => "$self->{'cfgDir'}/$sname.local", nospaces => 1;
 
-        if ( main::setupGetQuestion( 'IPV6_SUPPORT' ) ne 'yes' ) {
+        if ( ::setupGetQuestion( 'IPV6_SUPPORT' ) ne 'yes' ) {
             if ( grep( $sname eq $_, 'imapd', 'pop3d' ) ) {
                 $localConf{'ADDRESS'} = '0.0.0.0';
             } else {
                 $localConf{'SSLADDRESS'} = '0.0.0.0';
             }
         } else {
-            for ( qw/ ADDRESS SSLADDRESS / ) {
-                next unless exists $localConf{$_} && $localConf{$_} eq '0.0.0.0';
-                delete $localConf{$_};
+            for my $param( qw/ ADDRESS SSLADDRESS / ) {
+                next unless exists $localConf{$param} && $localConf{$param} eq '0.0.0.0';
+                delete $localConf{$param};
             }
         }
 
@@ -608,9 +603,10 @@ sub _setupPostfixSasl
 
     # Build Cyrus SASL smtpd.conf configuration file
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', 'smtpd.conf', \ my $cfgTpl );
-
-    $cfgTpl = iMSCP::File->new( filename => "$self->{'cfgDir'}/sasl/smtpd.conf" )->get() unless defined $cfgTpl;
+    my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/sasl/smtpd.conf" );
+    my $cfgTpl = $file->getAsRef( TRUE );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', 'smtpd.conf', $cfgTpl );
+    $file->getAsRef();
 
     processByRef(
         {
@@ -619,15 +615,11 @@ sub _setupPostfixSasl
             MECH_LIST          => $self->{'config'}->{'MECH_LIST'},
             PO_AUTHDAEMON_PATH => $self->{'config'}->{'PO_AUTHDAEMON_PATH'}
         },
-        \$cfgTpl
+        $cfgTpl
     );
 
-    iMSCP::File
-        ->new( filename => "$self->{'config'}->{'SASL_CONF_DIR'}/smtpd.conf" )
-        ->set( $cfgTpl )
-        ->save( 0027 )
-        ->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} )
-        ->mode( 0640 );
+    $file->{'filename'} = "$self->{'config'}->{'SASL_CONF_DIR'}/smtpd.conf";
+    $file->save( 0027 )->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )->mode( 0640 );
 }
 
 =item _buildDHparametersFile( )
@@ -720,27 +712,26 @@ sub _buildSslConfFiles
 {
     my ($self) = @_;
 
-    return unless main::setupGetQuestion( 'SERVICES_SSL_ENABLED', 'no' ) eq 'yes';
+    return unless ::setupGetQuestion( 'SERVICES_SSL_ENABLED', 'no' ) eq 'yes';
 
-    for ( $self->{'config'}->{'PO_IMAP_SSL'}, $self->{'config'}->{'PO_POP_SSL'} ) {
-        $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', $_, \ my $cfgTpl, {} );
-        $cfgTpl = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/$_" )->get() unless $cfgTpl;
-        $self->{'eventManager'}->trigger( 'beforeCourierBuildSslConfFile', \ $cfgTpl, $_ );
+    for my $filename( $self->{'config'}->{'PO_IMAP_SSL'}, $self->{'config'}->{'PO_POP_SSL'} ) {
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/$filename" );
+        my $cfgTpl = $file->getAsRef( TRUE );
 
-        if ( $cfgTpl =~ /^TLS_CERTFILE=/gm ) {
-            $cfgTpl =~ s!^(TLS_CERTFILE=).*!$1$main::imscpConfig{'CONF_DIR'}/imscp_services.pem!gm;
+        $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', $filename, $cfgTpl, {} );
+        $file->getAsRef();
+
+        $self->{'eventManager'}->trigger( 'beforeCourierBuildSslConfFile', $cfgTpl, $filename );
+
+        if ( ${$cfgTpl} =~ /^TLS_CERTFILE=/gm ) {
+            ${$cfgTpl} =~ s!^(TLS_CERTFILE=).*!$1$::imscpConfig{'CONF_DIR'}/imscp_services.pem!gm;
         } else {
-            $cfgTpl .= "TLS_CERTFILE=$main::imscpConfig{'CONF_DIR'}/imscp_services.pem\n";
+            ${$cfgTpl} .= "TLS_CERTFILE=$::imscpConfig{'CONF_DIR'}/imscp_services.pem\n";
         }
 
-        $self->{'eventManager'}->trigger( 'afterCourierBuildSslConfFile', \ $cfgTpl, $_ );
+        $self->{'eventManager'}->trigger( 'afterCourierBuildSslConfFile', $cfgTpl, $filename );
 
-        iMSCP::File
-            ->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/$_" )
-            ->set( $cfgTpl )
-            ->save()
-            ->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} )
-            ->mode( 0644 );
+        $file->save()->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )->mode( 0644 );
     }
 }
 
@@ -756,11 +747,11 @@ sub _migrateFromDovecot
 {
     my ($self) = @_;
 
-    return unless index( $main::imscpOldConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;
+    return unless index( $::imscpOldConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;
 
     my $rs = execute(
         [
-            'perl', "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/courier-dovecot-migrate.pl", '--to-courier', '--quiet', '--convert',
+            'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/courier-dovecot-migrate.pl", '--to-courier', '--quiet', '--convert',
             '--overwrite', '--recursive', $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
         ],
         \ my $stdout,
@@ -770,7 +761,7 @@ sub _migrateFromDovecot
     !$rs or die( $stderr || 'Unknown error' );
 
     $self->{'quotaRecalc'} = 1;
-    $main::imscpOldConfig{'iMSCP::Servers::Po'} = $main::imscpConfig{'iMSCP::Servers::Po'};
+    $::imscpOldConfig{'iMSCP::Servers::Po'} = $::imscpConfig{'iMSCP::Servers::Po'};
 }
 
 =item _dropSqlUser( )
@@ -787,7 +778,7 @@ sub _dropSqlUser
 
     # In setup context, take value from old conffile, else take value from current conffile
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
-        ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
+        ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
     return unless $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'} && $dbUserHost;
 
@@ -829,7 +820,7 @@ sub _removeConfig
             $fileContentRef
         );
 
-        $file->save()->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} )->mode( 0644 );
+        $file->save()->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )->mode( 0644 );
     }
 
     iMSCP::File->new( filename => "$self->{'config'}->{'SASL_CONF_DIR'}/smtpd.conf" )->remove();
@@ -871,7 +862,7 @@ EOF
     $rs ||= $courierServer->{'eventManager'}->registerOne(
         'afterPostfixConfigure',
         sub {
-            $courierServer->{'mta'}->postconf( (
+            $courierServer->{'mta'}->postconf(
                 # Maildrop MDA parameters
                 virtual_transport                      => {
                     action => 'replace',
@@ -926,7 +917,7 @@ EOF
                     values => [ 'permit_sasl_authenticated' ],
                     after  => qr/permit_mynetworks/
                 }
-            ));
+            );
         }
     );
 }

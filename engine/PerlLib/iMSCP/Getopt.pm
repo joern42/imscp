@@ -65,7 +65,7 @@ sub parse
     my ($class, $usage, @options) = @_;
 
     $SHOW_USAGE = sub {
-        if ( $OPTION_HELP ne '' ) {
+        if ( length $OPTION_HELP ) {
             print STDERR wrap( '', '', <<"EOF" );
 $OPTION_HELP
 EOF
@@ -304,7 +304,7 @@ sub context
 
     if ( grep($context eq $_, 'installer', 'uninstaller') ) {
         # Needed to make sub processes aware of i-MSCP setup context
-        $ENV{'IMSCP_SETUP'} = 1;
+        $ENV{'IMSCP_INSTALLER'} = 1;
     }
 
     $options->{'context'} = $context;

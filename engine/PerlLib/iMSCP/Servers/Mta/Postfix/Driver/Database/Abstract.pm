@@ -113,46 +113,51 @@ sub uninstall
 sub setEnginePermissions
 {
     my ($self) = @_;
-
 }
 
-=item add( $path [, $key [, $value = 'OK' ] ] )
+=item add( $database [, $key [, $value = 'OK' [, $storagePath = $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} ] ] ] )
 
- Add the given entry into the given Postfix map
+ Add the given entry into the given database
 
  Without $key passed-in, the database *SHOULD* be created.
  
  This method *MUST* be implemented by any database driver that rely on files.
 
- Param string $mapPath Database path
+ Param string $database Database name
  Param string $key OPTIONAL Database entry key
  Param string $value OPTIONAL Database entry value
- Return void, die on failure
+ Param string $storagePath OPTIONAL Storage path
+ Return self, die on failure
 
 =cut
 
 sub add
 {
     my ($self) = @_;
+
+    $self;
 }
 
-=item delete( $path [, $key ] )
+=item delete( $database [, $key [, $storagePath = $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} ] ] )
 
- Delete the given entry from the given Postfix database
+ Delete the given entry from the given database
  
  Without $key passed-in, the database *SHOULD* be deleted.
  
  This method *MUST* be implemented by any database driver that rely on files
 
- Param string $path Database path
- Param string $entry OPTIONAL Database entry key
- Return void, die on failure
+ Param string database Database name
+ Param string $key OPTIONAL Database entry key
+ Param string $storagePath OPTIONAL Storage path
+ Return self, die on failure
 
 =cut
 
 sub delete
 {
     my ($self) = @_;
+
+    $self;
 }
 
 =item getDbType( )

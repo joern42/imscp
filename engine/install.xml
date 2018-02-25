@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
     <folder export="IMSCP_ENGINE_DIR">${IMSCP_ROOT_DIR}/engine</folder>
-    <copy>${IMSCP_ENGINE_DIR}/PerlLib</copy>
     <copy>${IMSCP_ENGINE_DIR}/PerlVendor</copy>
     <copy>${IMSCP_ENGINE_DIR}/imscp-pkt-mngr</copy>
     <copy>${IMSCP_ENGINE_DIR}/imscp-rqst-mngr</copy>

@@ -36,7 +36,7 @@ use version;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 30_dovecot_namespace.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -60,7 +60,7 @@ namespace compat {
 }
 EOT
     }
-) if index( $main::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
+) if index( $::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 
 1;
 __END__

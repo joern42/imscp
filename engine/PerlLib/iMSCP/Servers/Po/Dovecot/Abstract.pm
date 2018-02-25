@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Po::Dovecot::Abstract;
 
@@ -44,7 +44,7 @@ use Sort::Naturally;
 use Tie::File;
 use parent 'iMSCP::Servers::Po';
 
-%main::sqlUsers = () unless %main::sqlUsers;
+%::sqlUsers = () unless %::sqlUsers;
 
 =head1 DESCRIPTION
 
@@ -66,7 +66,7 @@ sub registerSetupListeners
 
     $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->showSqlUserDialog( @_ ) }; }, $self->getPriority());
 
-    return if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) == -1;
+    return if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) == -1;
 
     $self->{'eventManager'}->registerOne( 'beforePostfixConfigure', $self );
 }
@@ -84,10 +84,10 @@ sub showSqlUserDialog
 {
     my ($self, $dialog) = @_;
 
-    my $masterSqlUser = main::setupGetQuestion( 'DATABASE_USER' );
-    my $dbUser = main::setupGetQuestion( 'PO_SQL_USER', $self->{'config'}->{'PO_SQL_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' ));
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion(
+    my $masterSqlUser = ::setupGetQuestion( 'DATABASE_USER' );
+    my $dbUser = ::setupGetQuestion( 'PO_SQL_USER', $self->{'config'}->{'PO_SQL_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' ));
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $dbPass = ::setupGetQuestion(
         'PO_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'PO_SQL_PASSWORD'} )
     );
 
@@ -101,7 +101,7 @@ sub showSqlUserDialog
         my $rs = 0;
 
         do {
-            if ( $dbUser eq '' ) {
+            unless ( length $dbUser ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $dbUser = 'imscp_srv_user';
             }
@@ -118,14 +118,14 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'PO_SQL_USER', $dbUser );
+    ::setupSetQuestion( 'PO_SQL_USER', $dbUser );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] ) || !isValidPassword( $dbPass ) ) {
-        unless ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        unless ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
             my $rs = 0;
 
             do {
-                if ( $dbPass eq '' ) {
+                unless ( length $dbPass ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = '';
                     $dbPass = randomStr( 16, ALNUM );
                 }
@@ -139,17 +139,17 @@ EOF
 
             return $rs unless $rs < 30;
 
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+            $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
         } else {
-            $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+            $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
         }
-    } elsif ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-        $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+    } elsif ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
     } else {
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
     }
 
-    main::setupSetQuestion( 'PO_SQL_PASSWORD', $dbPass );
+    ::setupSetQuestion( 'PO_SQL_PASSWORD', $dbPass );
     0;
 }
 
@@ -196,26 +196,26 @@ sub setEnginePermissions
 
     setRights( $self->{'config'}->{'PO_CONF_DIR'},
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => '0755'
         }
     );
     setRights( "$self->{'config'}->{'PO_CONF_DIR'}/dovecot.conf",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
+            user  => $::imscpConfig{'ROOT_USER'},
             group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
             mode  => '0640'
         }
     );
     setRights( "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-sql.conf",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
+            user  => $::imscpConfig{'ROOT_USER'},
             group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
             mode  => '0640'
         }
     );
-    setRights( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh",
+    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh",
         {
             user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
             group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -290,8 +290,8 @@ sub addMail
             fixpermissions => iMSCP::Getopt->fixPermissions
         } );
 
-        for ( 'cur', 'new', 'tmp' ) {
-            iMSCP::Dir->new( dirname => "$mailDir/$mailbox/$_" )->make( {
+        for my $dir( 'cur', 'new', 'tmp' ) {
+            iMSCP::Dir->new( dirname => "$mailDir/$mailbox/$dir" )->make( {
                 user           => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
                 group          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
                 mode           => 0750,
@@ -300,19 +300,13 @@ sub addMail
         }
     }
 
-    my @subscribedFolders = ( 'Drafts', 'Junk', 'Sent', 'Trash' );
-    my $subscriptionsFile = iMSCP::File->new( filename => "$mailDir/subscriptions" );
-
-    if ( -f subscriptionsFile ) {
-        my $subscriptionsFileContent = $subscriptionsFile->get();
-        @subscribedFolders = nsort unique ( @subscribedFolders, split( /\n/, $subscriptionsFileContent )) if $subscriptionsFileContent ne '';
-    }
-
-    $subscriptionsFile
-        ->set( ( join "\n", @subscribedFolders ) . "\n" )
-        ->save()
-        ->owner( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} )
-        ->mode( 0640 );
+    my $file = iMSCP::File->new( filename => "$mailDir/subscriptions" );
+    my $fileContent = $file->getAsRef( !-f $file );
+    ${$fileContent} = join(
+        "\n", nsort unique ( 'Drafts', 'Junk', 'Sent', 'Trash', ( length ${$fileContent} ? split /\n/, ${$fileContent} : () ))
+    ) . "\n";
+    $file->save()->owner( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} )->mode( 0640 );
+    undef $file;
 
     if ( $moduleData->{'MAIL_QUOTA'} ) {
         if ( $self->{'quotaRecalc'}
@@ -345,7 +339,7 @@ sub addMail
 sub getTraffic
 {
     my ($self, $trafficDb, $logFile, $trafficIndexDb) = @_;
-    $logFile ||= "$main::imscpConfig{'TRAFF_LOG_DIR'}/$main::imscpConfig{'MAIL_TRAFF_LOG'}";
+    $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
 
     unless ( -f $logFile ) {
         debug( sprintf( "IMAP/POP3 %s log file doesn't exist. Skipping...", $logFile ));
@@ -355,7 +349,7 @@ sub getTraffic
     debug( sprintf( 'Processing IMAP/POP3 %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
     my ($idx, $idxContent) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
 
     tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
@@ -365,7 +359,7 @@ sub getTraffic
 
     if ( exists $logs[$idx] && $logs[$idx] eq $idxContent ) {
         debug( sprintf( 'Skipping IMAP/POP3 logs that were already processed (lines %d to %d)', 1, ++$idx ));
-    } elsif ( $idxContent ne '' && substr( $logFile, -2 ) ne '.1' ) {
+    } elsif ( length $idxContent && substr( $logFile, -2 ) ne '.1' ) {
         debug( 'Log rotation has been detected. Processing last rotated log file first' );
         $self->getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
         $idx = 0;
@@ -416,7 +410,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$main::imscpConfig{'CONF_DIR'}/dovecot" );
+    @{$self}{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$::imscpConfig{'CONF_DIR'}/dovecot" );
     $self->SUPER::_init();
 }
 
@@ -465,10 +459,10 @@ sub _configure
 
 # SSL
 
-ssl = @{[ main::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) ]}
+ssl = @{[ ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) ]}
 EOF
             # FIXME Find a better way to guess libssl version (dovecot --build-options ???)
-            if ( main::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes' ) {
+            if ( ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes' ) {
                 unless ( `ldd /usr/lib/dovecot/libdovecot-login.so | grep libssl.so` =~ /libssl.so.(\d.\d)/ ) {
                     error( "Couldn't guess libssl version against which Dovecot has been built" );
                     return 1;
@@ -476,8 +470,8 @@ EOF
 
                 ${$_[0]} .= <<"EOF";
 ssl_protocols = @{[ version->parse( $1 ) >= version->parse( '1.1' ) ? '!SSLv3' : '!SSLv2 !SSLv3' ]}
-ssl_cert = <$main::imscpConfig{'CONF_DIR'}/imscp_services.pem
-ssl_key = <$main::imscpConfig{'CONF_DIR'}/imscp_services.pem
+ssl_cert = <$::imscpConfig{'CONF_DIR'}/imscp_services.pem
+ssl_key = <$::imscpConfig{'CONF_DIR'}/imscp_services.pem
 EOF
             }
         }
@@ -486,26 +480,26 @@ EOF
         {
             PO_CONF_DIR              => $self->{'config'}->{'PO_CONF_DIR'},
             PO_SASL_AUTH_SOCKET_PATH => $self->{'config'}->{'PO_SASL_AUTH_SOCKET_PATH'},
-            PO_LISTEN_INTERFACES     => main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? '*, [::]' : '*',
-            ENGINE_ROOT_DIR          => $main::imscpConfig{'ENGINE_ROOT_DIR'},
-            IMSCP_GROUP              => $main::imscpConfig{'IMSCP_GROUP'},
+            PO_LISTEN_INTERFACES     => ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? '*, [::]' : '*',
+            ENGINE_ROOT_DIR          => $::imscpConfig{'ENGINE_ROOT_DIR'},
+            IMSCP_GROUP              => $::imscpConfig{'IMSCP_GROUP'},
             MTA_MAILBOX_UID_NAME     => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
             MTA_USER                 => $self->{'mta'}->{'config'}->{'MTA_USER'},
             MTA_GROUP                => $self->{'mta'}->{'config'}->{'MTA_GROUP'},
-            SERVER_HOSTNAME          => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
+            SERVER_HOSTNAME          => ::setupGetQuestion( 'SERVER_HOSTNAME' ),
         },
         {
             umask => 0027,
-            user  => $main::imscpConfig{'ROOT_USER'},
+            user  => $::imscpConfig{'ROOT_USER'},
             group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
             mode  => 0640
         }
     );
     $self->buildConfFile( 'dovecot-sql.conf', "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-sql.conf", undef,
         {
-            PO_DATABASE_HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
-            PO_DATABASE_NAME     => main::setupGetQuestion( 'DATABASE_NAME' ) =~ s%('|"|\\)%\\$1%gr,
-            PO_DATABASE_PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
+            PO_DATABASE_HOST     => ::setupGetQuestion( 'DATABASE_HOST' ),
+            PO_DATABASE_NAME     => ::setupGetQuestion( 'DATABASE_NAME' ) =~ s%('|"|\\)%\\$1%gr,
+            PO_DATABASE_PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
             PO_SQL_USER          => $self->{'config'}->{'PO_SQL_USER'} =~ s%('|"|\\)%\\$1%gr,
             PO_SQL_PASSWORD      => $self->{'config'}->{'PO_SQL_PASSWORD'} =~ s%('|"|\\)%\\$1%gr,
             MTA_MAILBOX_GID      => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -514,15 +508,15 @@ EOF
         },
         {
             umask => 0027,
-            user  => $main::imscpConfig{'ROOT_USER'},
+            user  => $::imscpConfig{'ROOT_USER'},
             group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
             mode  => 0640
         }
     );
-    $self->buildConfFile( 'quota-warning', "$main::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh", undef,
+    $self->buildConfFile( 'quota-warning', "$::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh", undef,
         {
             PO_DELIVER_PATH => $self->{'config'}->{'PO_DELIVER_PATH'},
-            HOSTNAME        => main::setupGetQuestion( 'SERVER_HOSTNAME' )
+            HOSTNAME        => ::setupGetQuestion( 'SERVER_HOSTNAME' )
         },
         {
             umask => 0027,
@@ -546,27 +540,27 @@ sub _setupSqlUser
 {
     my ($self) = @_;
 
-    my $dbName = main::setupGetQuestion( 'DATABASE_NAME' );
-    my $dbUser = main::setupGetQuestion( 'PO_SQL_USER' );
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion( 'PO_SQL_PASSWORD' );
+    my $dbName = ::setupGetQuestion( 'DATABASE_NAME' );
+    my $dbUser = ::setupGetQuestion( 'PO_SQL_USER' );
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $dbPass = ::setupGetQuestion( 'PO_SQL_PASSWORD' );
     my $sqlServer = iMSCP::Servers::Sqld->factory();
 
     # Drop old SQL user if required
     for my $sqlUser ( $self->{'config'}->{'PO_SQL_USER'}, $dbUser ) {
         next unless $sqlUser;
 
-        for my $host( $dbUserHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-            next if !$host || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
+        for my $host( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+            next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
     }
 
     # Create SQL user if required
-    if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+    if ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
         debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
         $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
     }
 
     my $dbh = iMSCP::Database->getInstance();
@@ -592,11 +586,11 @@ sub _migrateFromCourier
 {
     my ($self) = @_;
 
-    return unless index( $main::imscpOldConfig{'iMSCP::Servers::Po'}, '::Courier::' ) != -1;
+    return unless index( $::imscpOldConfig{'iMSCP::Servers::Po'}, '::Courier::' ) != -1;
 
     my $rs = execute(
         [
-            'perl', "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/courier-dovecot-migrate.pl", '--to-dovecot', '--quiet', '--convert',
+            'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/courier-dovecot-migrate.pl", '--to-dovecot', '--quiet', '--convert',
             '--overwrite', '--recursive', $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
         ],
         \ my $stdout,
@@ -606,7 +600,7 @@ sub _migrateFromCourier
     !$rs or die( $stderr || 'Unknown error' );
 
     $self->{'quotaRecalc'} = 1;
-    $main::imscpOldConfig{'iMSCP::Servers::Po'} = $main::imscpConfig{'iMSCP::Servers::Po'};
+    $::imscpOldConfig{'iMSCP::Servers::Po'} = $::imscpConfig{'iMSCP::Servers::Po'};
 }
 
 =item _dropSqlUser( )
@@ -623,7 +617,7 @@ sub _dropSqlUser
 
     # In setup context, take value from old conffile, else take value from current conffile
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
-        ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
+        ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
     return unless $self->{'config'}->{'PO_SQL_USER'} && $dbUserHost;
 
@@ -679,7 +673,7 @@ EOF
     $dovecotServer->{'eventManager'}->registerOne(
         'afterPostfixConfigure',
         sub {
-            $dovecotServer->{'mta'}->postconf( (
+            $dovecotServer->{'mta'}->postconf(
                 # Dovecot LDA parameters
                 virtual_transport                     => {
                     action => 'replace',
@@ -734,7 +728,7 @@ EOF
                     values => [ 'permit_sasl_authenticated' ],
                     after  => qr/permit_mynetworks/
                 }
-            ));
+            );
         }
     );
 }

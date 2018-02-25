@@ -5,30 +5,31 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::SystemUser;
 
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
-use iMSCP::Ext2Attributes qw/ clearImmutable isImmutable setImmutable /;
+use iMSCP::File::Attributes qw/ :immutable /;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
@@ -56,10 +57,10 @@ sub addSystemUser
     my $oldUsername = $self->{'username'} // $username;
 
     defined $username or croak( 'Missing $username parameter' );
-    $username ne $main::imscpConfig{'ROOT_USER'} or croak( sprintf( '%s user is prohibited', $main::imscpConfig{'ROOT_USER'} ));
+    $username ne $::imscpConfig{'ROOT_USER'} or croak( sprintf( '%s user is prohibited', $::imscpConfig{'ROOT_USER'} ));
 
     $self->{'username'} = $username;
-    my $home = $self->{'home'} // "$main::imscpConfig{'USER_WEB_DIR'}/$username";
+    my $home = $self->{'home'} // "$::imscpConfig{'USER_WEB_DIR'}/$username";
     my $isImmutableHome = -d $home && isImmutable( $home );
 
     clearImmutable( $home ) if $isImmutableHome;
@@ -86,7 +87,7 @@ sub addSystemUser
                 [ 0, 12 ]
             ];
     } else {
-        $userProps[2] != 0 or croak( sprintf( '%s user modification is prohibited', $main::imscpConfig{'ROOT_USER'} ));
+        $userProps[2] != 0 or croak( sprintf( '%s user modification is prohibited', $::imscpConfig{'ROOT_USER'} ));
 
         # If we attempt to modify user' login or home, we must ensure
         # that there is no process running for the user
@@ -103,7 +104,7 @@ sub addSystemUser
             ( defined $self->{'group'} && ( ( $self->{'group'} =~ /^(\d+)$/ && $1 != $userProps[3] )
                     || getgrnam( $self->{'group'} ) ne $userProps[3] ) ? ( '-g', $self->{'group'} ) : () ),
             ( defined $self->{'home'} && $self->{'home'} ne $userProps[7]
-                ? ( '-d', $self->{'home'} // "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'username'}", '-m' ) : () ),
+                ? ( '-d', $self->{'home'} // "$::imscpConfig{'USER_WEB_DIR'}/$self->{'username'}", '-m' ) : () ),
             ( defined $self->{'shell'} && $self->{'shell'} ne $userProps[8] ? ( '-s', $self->{'shell'} ) : () ),
             ( $username ne $oldUsername ? ( '-l', $username ) : () ),
             $oldUsername,
@@ -112,10 +113,10 @@ sub addSystemUser
         push @commands, [ $usermodCmd, [ 0 ] ] if @{$usermodCmd} > 2;
     }
 
-    for ( @commands ) {
-        my $rs = execute( $_->[0], \ my $stdout, \ my $stderr );
+    for my $command( @commands ) {
+        my $rs = execute( $command->[0], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        grep($_ == $rs, @{$_->[1]}) or die( $stderr || 'Unknown error' );
+        grep($_ == $rs, @{$command->[1]}) || $command->[3] or die( $stderr || 'Unknown error' );
     }
 
     if ( @userProps && $oldUsername ne $username && defined $newGroupname ) {
@@ -143,7 +144,7 @@ sub delSystemUser
     $username //= $self->{'username'};
 
     defined $username or croak( '$username parameter is not defined' );
-    $username ne $main::imscpConfig{'ROOT_USER'} or croak( sprintf( '%s user deletion is prohibited', $main::imscpConfig{'ROOT_USER'} ));
+    $username ne $::imscpConfig{'ROOT_USER'} or croak( sprintf( '%s user deletion is prohibited', $::imscpConfig{'ROOT_USER'} ));
 
     $self->{'username'} = $username;
 
@@ -151,31 +152,38 @@ sub delSystemUser
 
     clearImmutable( $userProps[7] ) if -d $userProps[7] && isImmutable( $userProps[7] );
 
+    # For each command, an array containing:
+    # Array containing the command to execute
+    # Array containing command status codes that must be considered success, default 0
+    # Optional Flag indicating whether the command can fails, default FALSE
+    # Optional Flag indicating that command must be run only if the previous failed, default FALSE
     my @commands = (
         # Delete user' CRON(8) jobs
         [ [ 'crontab', '-r', '-u', $username ], [ 0, 1 ] ],
         # Delete any user' AT(1) jobs
         [ [ 'find', '/var/spool/cron/atjobs', '-type', 'f', '-user', $username, '-delete' ], [ 0 ] ],
         # Remove user' LPQ(1) jobs
-        ( -x '/usr/bin/lprm' ? [ [ '/usr/bin/lprm', $username ], [ 0 ] ] : () ),
+        # There are different implementation of the lprm program...
+        ( -x '/usr/bin/lprm' ? [ [ '/usr/bin/lprm', '-U', $username ], [ 0, 1 ], TRUE ] : () ),
+        ( -x '/usr/bin/lprm' ? [ [ '/usr/bin/lprm', $username, ], [ 0 ], FALSE, TRUE ] : () ),
         # Kill user' processes
         [ [ 'pkill', '-KILL', '-u', $username ], [ 0, 1 ] ],
         # Remove user
-        [
-            [
-                'userdel',
-                ( $self->{'keepHome'} ? '' : '-r' ),
-                ( $self->{'force'} && !$self->{'keepHome'} ? '-f' : '' ),
-                $username
-            ],
-            [ 0, 6, 12 ]
-        ]
+        [ [ 'userdel', ( $self->{'keepHome'} ? '' : '-r' ), ( $self->{'force'} && !$self->{'keepHome'} ? '-f' : '' ), $username ], [ 0, 6, 12 ] ]
     );
 
-    for ( @commands ) {
-        my $rs = execute( $_->[0], \ my $stdout, \ my $stderr );
+    my $prevFailed = FALSE;
+    for my $command( @commands ) {
+        next if $command->[4] && !$prevFailed;
+        $prevFailed = FALSE;
+
+        my $rs = execute( $command->[0], \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        grep( $_ == $rs, @{$_->[1]} ) or die( $stderr || 'Unknown error' );
+
+        unless ( grep( $_ == $rs, @{$command->[1]} ) ) {
+            $prevFailed = TRUE && next if $command->[3];
+            die( $stderr || 'Unknown error' );
+        }
     }
 
     $self;

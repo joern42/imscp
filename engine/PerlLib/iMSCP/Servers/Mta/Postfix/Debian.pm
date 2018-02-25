@@ -156,6 +156,19 @@ sub reload
     iMSCP::Service->getInstance()->reload( 'postfix' );
 }
 
+=item getAvailableDbDrivers
+
+ See iMSCP::Servers::Mta::Abstract::getAvailableDbDrivers()
+
+=cut
+
+sub getAvailableDbDrivers
+{
+    my ($self) = @_;
+
+    qw/ hash btreee cdb /;
+}
+
 =back
 
 =head1 PRIVATE METHODS

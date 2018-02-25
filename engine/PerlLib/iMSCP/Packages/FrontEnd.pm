@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::FrontEnd;
 
@@ -30,6 +30,7 @@ use Class::Autouse qw/ :nostat iMSCP::Packages::FrontEnd::Installer iMSCP::Packa
 use Cwd qw/ realpath /;
 use File::Basename;
 use File::Spec;
+use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Getopt;
@@ -194,8 +195,8 @@ sub setEnginePermissions
 
     setRights( $self->{'config'}->{'HTTPD_CONF_DIR'},
         {
-            user      => $main::imscpConfig{'ROOT_USER'},
-            group     => $main::imscpConfig{'ROOT_GROUP'},
+            user      => $::imscpConfig{'ROOT_USER'},
+            group     => $::imscpConfig{'ROOT_GROUP'},
             dirmode   => '0755',
             filemode  => '0644',
             recursive => 1
@@ -204,8 +205,8 @@ sub setEnginePermissions
     setRights(
         $self->{'config'}->{'HTTPD_LOG_DIR'},
         {
-            user      => $main::imscpConfig{'ROOT_USER'},
-            group     => $main::imscpConfig{'ROOT_GROUP'},
+            user      => $::imscpConfig{'ROOT_USER'},
+            group     => $::imscpConfig{'ROOT_GROUP'},
             dirmode   => '0755',
             filemode  => '0640',
             recursive => 1
@@ -217,8 +218,8 @@ sub setEnginePermissions
         setRights(
             $self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'},
             {
-                user  => $main::imscpConfig{'ROOT_USER'},
-                group => $main::imscpConfig{'ROOT_GROUP'}
+                user  => $::imscpConfig{'ROOT_USER'},
+                group => $::imscpConfig{'ROOT_GROUP'}
             }
         );
 
@@ -239,7 +240,7 @@ sub setEnginePermissions
                 "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp",
                 {
                     user  => $self->{'config'}->{'HTTPD_USER'},
-                    group => $main::imscpConfig{'ROOT_GROUP'},
+                    group => $::imscpConfig{'ROOT_GROUP'},
                     mode  => '0700'
                 }
             );
@@ -252,8 +253,8 @@ sub setEnginePermissions
     setRights(
         $self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'},
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'}
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'}
         }
     );
 
@@ -274,7 +275,7 @@ sub setEnginePermissions
             "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp",
             {
                 user  => $self->{'config'}->{'HTTPD_USER'},
-                group => $main::imscpConfig{'ROOT_GROUP'},
+                group => $::imscpConfig{'ROOT_GROUP'},
                 mode  => '0700'
             }
         );
@@ -291,10 +292,10 @@ sub setEnginePermissions
 
 sub setGuiPermissions
 {
-    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
     setRights(
-        $main::imscpConfig{'GUI_ROOT_DIR'},
+        $::imscpConfig{'GUI_ROOT_DIR'},
         {
             user      => $usergroup,
             group     => $usergroup,
@@ -320,7 +321,7 @@ sub addUser
 
     return if $data->{'STATUS'} eq 'tochangepwd';
 
-    iMSCP::SystemUser->new( username => $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'} )->addToGroup(
+    iMSCP::SystemUser->new( username => $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'} )->addToGroup(
         $data->{'GROUP'}
     );
 }
@@ -344,7 +345,7 @@ sub enableSites
         -f $target or die( sprintf( "Site `%s` doesn't exist", $site ));
         next if -l $symlink && realpath( $symlink ) eq $target;
         unlink $symlink or die( sprintf( "Couldn't unlink the %s file: %s", $! )) if -e _;
-        symlink ile::Spec->abs2rel( $target, $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'} ), $symlink or die(
+        symlink File::Spec->abs2rel( $target, $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'} ), $symlink or die(
             sprintf( "Couldn't enable the `%s` site: %s", $site, $! )
         );
 
@@ -576,29 +577,21 @@ sub buildConfFile
     $options ||= {};
 
     my ($filename, $path) = fileparse( $file );
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'frontend', $filename, \ my $cfgTpl, $tplVars );
+    $file = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
+    $file = iMSCP::File->new( filename => $file );
 
-    unless ( defined $cfgTpl ) {
-        $file = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
-        $cfgTpl = iMSCP::File->new( filename => $file )->get();
-    }
+    my $cfgTpl = $file->getAsRef( TRUE );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'frontend', $filename, $cfgTpl, $tplVars );
+    $file->getAsRef();
 
-    $self->{'eventManager'}->trigger( 'beforeFrontEndBuildConfFile', \$cfgTpl, $filename, $tplVars, $options );
-    $cfgTpl = $self->_buildConf( $cfgTpl, $filename, $tplVars );
-    $self->{'eventManager'}->trigger( 'afterFrontEndBuildConfFile', \$cfgTpl, $filename, $tplVars, $options );
+    $self->{'eventManager'}->trigger( 'beforeFrontEndBuildConfFile', $cfgTpl, $filename, $tplVars, $options );
+    $self->_buildConf( $cfgTpl, $filename, $tplVars );
+    $self->{'eventManager'}->trigger( 'afterFrontEndBuildConfFile', $cfgTpl, $filename, $tplVars, $options );
 
-    $cfgTpl =~ s/^\s*(?:[#;].*)?\n//gmi; # Final cleanup
+    ${$cfgTpl} =~ s/^\s*(?:[#;].*)?\n//gmi; # Final cleanup
 
-    $options->{'destination'} ||= "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$filename";
-
-    iMSCP::File
-        ->new( filename => $options->{'destination'} )
-        ->set( $cfgTpl )
-        ->save()
-        ->owner(
-        ( $options->{'user'} ? $options->{'user'} : $main::imscpConfig{'ROOT_USER'} ),
-        ( $options->{'group'} ? $options->{'group'} : $main::imscpConfig{'ROOT_GROUP'} ))
-        ->mode( $options->{'mode'} ? $options->{'mode'} : 0644 );
+    $file->{'filename'} = $options->{'destination'} // "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$filename";
+    $file->save()->owner( $options->{'user'}, $options->{'group'} )->mode( $options->{'mode'} );
 }
 
 =item getComposer( )
@@ -634,11 +627,11 @@ sub _init
 {
     my ($self) = @_;
 
-    @{$self}{qw/ start reload restart cfgDir / } = ( 0, 0, 0, "$main::imscpConfig{'CONF_DIR'}/frontend" );
+    @{$self}{qw/ start reload restart cfgDir / } = ( 0, 0, 0, "$::imscpConfig{'CONF_DIR'}/frontend" );
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/frontend.data.dist";
     tie %{$self->{'config'}},
         'iMSCP::Config',
-        fileName    => "$self->{'cfgDir'}/frontend.data",
+        filename    => "$self->{'cfgDir'}/frontend.data",
         readonly    => iMSCP::Getopt->context() ne 'installer',
         nodeferring => iMSCP::Getopt->context() eq 'installer';
     $self;
@@ -657,8 +650,8 @@ sub _mergeConfig
     my ($self) = @_;
 
     if ( -f "$self->{'cfgDir'}/frontend.data" ) {
-        tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/frontend.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/frontend.data", readonly => 1;
+        tie my %newConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/frontend.data.dist";
+        tie my %oldConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/frontend.data", readonly => 1;
         debug( 'Merging old configuration with new configuration...' );
 
         while ( my ($key, $value) = each( %oldConfig ) ) {
@@ -673,14 +666,14 @@ sub _mergeConfig
     iMSCP::File->new( filename => "$self->{'cfgDir'}/frontend.data.dist" )->move( "$self->{'cfgDir'}/frontend.data" );
 }
 
-=item _buildConf( $cfgTpl, $filename [, \%tplVars ] )
+=item _buildConf( \$cfgTpl, $filename [, \%tplVars ] )
 
  Build the given configuration template
 
- Param string $cfgTpl Temmplate content
+ Param scalarref \$cfgTpl Reference to Temmplate's content
  Param string $filename Template filename
  Param hash OPTIONAL \%tplVars Template variables
- Return string Template content
+ Return void, die on failure
 
 =cut
 
@@ -689,10 +682,9 @@ sub _buildConf
     my ($self, $cfgTpl, $filename, $tplVars) = @_;
 
     $tplVars ||= {};
-    $self->{'eventManager'}->trigger( 'beforeFrontEndBuildConf', \$cfgTpl, $filename, $tplVars );
-    processByRef( $tplVars, \$cfgTpl );
-    $self->{'eventManager'}->trigger( 'afterFrontEndBuildConf', \$cfgTpl, $filename, $tplVars );
-    $cfgTpl;
+    $self->{'eventManager'}->trigger( 'beforeFrontEndBuildConf', $cfgTpl, $filename, $tplVars );
+    processByRef( $tplVars, $cfgTpl );
+    $self->{'eventManager'}->trigger( 'afterFrontEndBuildConf', $cfgTpl, $filename, $tplVars );
 }
 
 =item END

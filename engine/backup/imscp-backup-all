@@ -37,7 +37,7 @@ use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug error newDebug /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
-use iMSCP::Ext2Attributes qw/ isImmutable setImmutable clearImmutable /;
+use iMSCP::File::Attributes qw/ :immutable /;
 use iMSCP::Getopt;
 use iMSCP::Mail;
 use iMSCP::Servers::Mta;
@@ -46,7 +46,6 @@ use POSIX qw/ strftime locale_h /;
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 my $command = {
     bzip2  => {
@@ -209,12 +208,12 @@ sub backupMaildirs
 
     my $virtualMailDir = iMSCP::Servers::Mta->factory()->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'};
 
-    for ( keys %{$rows} ) {
-        my $mailDirPath = "$virtualMailDir/$_";
+    for my $dir( keys %{$rows} ) {
+        my $mailDirPath = "$virtualMailDir/$dir";
         next unless -d $mailDirPath;
 
         my $bkpDate = strftime "%Y.%m.%d-%H-%M", localtime();
-        my $bkpArchName = "mail-backup-$_-$bkpDate.tar$bkpExt";
+        my $bkpArchName = "mail-backup-$dir-$bkpDate.tar$bkpExt";
         my @cmd = (
             "nice -n 19 ionice -c2 -n7 tar -c -C $mailDirPath .",
             ( $cmpAlgo eq 'no' ? "-f $bkpDir/$bkpArchName" : "| $command->{$cmpAlgo}->{'command'} -$cmpLevel > $bkpDir/$bkpArchName" )
@@ -243,9 +242,9 @@ sub backupMaildirs
 
 sub backupAll
 {
-    my $cmpAlgo = lc( $main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
+    my $cmpAlgo = lc( $::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
     $cmpAlgo = 'no' unless $cmpAlgo eq 'no' || exists $command->{$cmpAlgo};
-    my ($cmpLevel) = $main::imscpConfig{'BACKUP_COMPRESS_LEVEL'} =~ /^([1-9])$/;
+    my ($cmpLevel) = $::imscpConfig{'BACKUP_COMPRESS_LEVEL'} =~ /^([1-9])$/;
     $cmpLevel ||= 1;
     my $bkpExt = ( $cmpAlgo ne 'no' ) ? '.' . $command->{$cmpAlgo}->{'extension'} : '';
 
@@ -264,7 +263,7 @@ sub backupAll
         eval {
             next unless $dmnData->{'allowbackup'} && $dmnData->{'allowbackup'} =~ /\b(?:dmn|sql|mail)\b/;
 
-            my $homeDir = "$main::imscpConfig{'USER_WEB_DIR'}/$dmnData->{'domain_name'}";
+            my $homeDir = "$::imscpConfig{'USER_WEB_DIR'}/$dmnData->{'domain_name'}";
             next unless -d $homeDir;
 
             my $bkpDir = "$homeDir/backups";
@@ -315,7 +314,7 @@ OPTIONS:
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
     nolock          => 1
-} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-backup-all.lock", 'nowait' );
+} )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-backup-all.lock", 'nowait' );
 
 backupAll();
 

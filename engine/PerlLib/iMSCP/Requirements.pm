@@ -179,8 +179,6 @@ sub _init
                 'DBD::mysql'                 => 4.025,
                 'Digest::SHA'                => 5.84_01, # Core module
                 'Digest::MD5'                => 2.52, # Core module
-                'Directory::Iterator'        => 1.001,
-                'Directory::Iterator::XS'    => 1.001002,
                 'Email::Valid'               => 1.192,
                 Encode                       => 2.49, # Core module
                 Errno                        => 1.18, # Core module

@@ -1,6 +1,12 @@
+#!/usr/bin/perl
+
 =head1 NAME
 
- iMSCP::Cwd - Allows to restrict scope of chdir() calls to enclosing block
+ imscp-check-requirements.pl Check i-MSCP requirements
+
+=head1 SYNOPSIS
+
+ imscp-check-requirements.pl
 
 =cut
 
@@ -21,39 +27,19 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Cwd;
+use lib '/usr/local/src/imscp/engine/PerlLib';
+use iMSCP::Requirements;
+use iMSCP::Debug qw/ output /;
 
-use strict;
-use warnings;
-use Exporter qw/ import /;
+iMSCP::Requirements->new()->all();
 
-our $CWD;
+print output(' All i-MSCP requirements are met.', 'ok');
 
-our @EXPORT = qw/ $CWD /;
+=head1 AUTHOR
 
-tie $CWD, 'iMSCP::Cwd::SCALAR' or die "Can't tie \$CWD";
+ Laurent Declercq <l.declercq@nuxwin.com>
 
-{
-    package iMSCP::Cwd::SCALAR;
-
-    use Cwd;
-
-    sub TIESCALAR
-    {
-        bless [], $_[0];
-    }
-
-    sub FETCH
-    {
-        getcwd();
-    }
-
-    sub STORE
-    {
-        return unless defined $_[1];
-        chdir( $_[1] ) or die( sprintf( "Couldn't change directory to %s: %s:", $_[1], $! ));
-    }
-}
+=cut
 
 1;
 __END__

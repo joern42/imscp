@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Sqld::Mysql::Abstract;
 
@@ -86,14 +86,14 @@ sub masterSqlUserDialog
     $rs = $self->_askSqlRootUser( $dialog ) if iMSCP::Getopt->preseed;
     return $rs if $rs;
 
-    my $hostname = main::setupGetQuestion( 'DATABASE_HOST' );
-    my $port = main::setupGetQuestion( 'DATABASE_PORT' );
-    my $user = main::setupGetQuestion( 'DATABASE_USER', iMSCP::Getopt->preseed ? 'imscp_user' : '' );
+    my $hostname = ::setupGetQuestion( 'DATABASE_HOST' );
+    my $port = ::setupGetQuestion( 'DATABASE_PORT' );
+    my $user = ::setupGetQuestion( 'DATABASE_USER', iMSCP::Getopt->preseed ? 'imscp_user' : '' );
     $user = 'imscp_user' if lc( $user ) eq 'root'; # Handle upgrade case
-    my $pwd = main::setupGetQuestion( 'DATABASE_PASSWORD', iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : '' );
+    my $pwd = ::setupGetQuestion( 'DATABASE_PASSWORD', iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : '' );
 
-    if ( $pwd ne '' && !iMSCP::Getopt->preseed ) {
-        $pwd = decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, $pwd );
+    if ( length $pwd && !iMSCP::Getopt->preseed ) {
+        $pwd = decryptRijndaelCBC( $::imscpKEY, $::imscpIV, $pwd );
         $pwd = '' unless isValidPassword( $pwd ); # Handle case of badly decrypted password
     }
 
@@ -113,7 +113,7 @@ sub masterSqlUserDialog
         $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
         do {
-            if ( $user eq '' ) {
+            unless ( length $user ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $user = 'imscp_user';
             }
@@ -130,7 +130,7 @@ EOF
         return $rs unless $rs < 30;
 
         do {
-            if ( $pwd eq '' ) {
+            unless ( length $pwd ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $pwd = randomStr( 16, ALNUM );
             }
@@ -145,8 +145,8 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'DATABASE_USER', $user );
-    main::setupSetQuestion( 'DATABASE_PASSWORD', encryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, $pwd ));
+    ::setupSetQuestion( 'DATABASE_USER', $user );
+    ::setupSetQuestion( 'DATABASE_PASSWORD', encryptRijndaelCBC( $::imscpKEY, $::imscpIV, $pwd ));
     0;
 }
 
@@ -163,15 +163,15 @@ sub sqlUserHostDialog
 {
     my (undef, $dialog) = @_;
 
-    if ( index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ) {
-        main::setupSetQuestion( 'DATABASE_USER_HOST', 'localhost' );
+    if ( index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ) {
+        ::setupSetQuestion( 'DATABASE_USER_HOST', 'localhost' );
         return 0;
     }
 
-    my $hostname = main::setupGetQuestion( 'DATABASE_USER_HOST', main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' ));
+    my $hostname = ::setupGetQuestion( 'DATABASE_USER_HOST', ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' ));
 
     if ( grep($hostname eq $_, ( 'localhost', '127.0.0.1', '::1' )) ) {
-        $hostname = main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
+        $hostname = ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
     }
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -180,7 +180,7 @@ sub sqlUserHostDialog
         || ( $hostname ne '%'
         && !isValidHostname( $hostname )
         && !isValidIpAddr( $hostname,
-            ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
+            ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
             ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ ) )
     ) {
         my $rs = 0;
@@ -195,14 +195,14 @@ EOF
             && ( $hostname ne '%'
             && !isValidHostname( $hostname )
             && !isValidIpAddr( $hostname,
-                ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
+                ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
                 ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ )
         );
 
         return unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'DATABASE_USER_HOST', idn_to_ascii( $hostname, 'utf-8' ));
+    ::setupSetQuestion( 'DATABASE_USER_HOST', idn_to_ascii( $hostname, 'utf-8' ));
     0;
 }
 
@@ -219,7 +219,7 @@ sub databaseNameDialog
 {
     my ($self, $dialog) = @_;
 
-    my $dbName = main::setupGetQuestion( 'DATABASE_NAME', iMSCP::Getopt->preseed ? 'imscp' : '' );
+    my $dbName = ::setupGetQuestion( 'DATABASE_NAME', iMSCP::Getopt->preseed ? 'imscp' : '' );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
@@ -229,7 +229,7 @@ sub databaseNameDialog
         my $rs = 0;
 
         do {
-            if ( $dbName eq '' ) {
+            unless ( length $dbName ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $dbName = 'imscp';
             }
@@ -252,11 +252,11 @@ EOF
 
         return $rs unless $rs < 30;
 
-        my $oldDbName = main::setupGetQuestion( 'DATABASE_NAME' );
+        my $oldDbName = ::setupGetQuestion( 'DATABASE_NAME' );
 
         if ( $oldDbName && $dbName ne $oldDbName && $self->setupIsImscpDb( $oldDbName ) ) {
             if ( $dialog->yesno( <<"EOF", 'no_by_default' ) ) {
-A database '$main::imscpConfig{'DATABASE_NAME'}' for i-MSCP already exists.
+A database '$::imscpConfig{'DATABASE_NAME'}' for i-MSCP already exists.
 
 Are you sure you want to create a new database for i-MSCP?
 Keep in mind that the new database will be free of any reseller and customer data.
@@ -268,7 +268,7 @@ EOF
         }
     }
 
-    main::setupSetQuestion( 'DATABASE_NAME', $dbName );
+    ::setupSetQuestion( 'DATABASE_NAME', $dbName );
     0;
 }
 
@@ -285,7 +285,7 @@ sub databasePrefixDialog
 {
     my (undef, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'MYSQL_PREFIX', iMSCP::Getopt->preseed ? 'none' : '' );
+    my $value = ::setupGetQuestion( 'MYSQL_PREFIX', iMSCP::Getopt->preseed ? 'none' : '' );
     my %choices = ( 'behind', 'Behind', 'infront', 'Infront', 'none', 'None' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqld', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -302,7 +302,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'MYSQL_PREFIX', $value );
+    ::setupSetQuestion( 'MYSQL_PREFIX', $value );
     0;
 }
 
@@ -337,15 +337,15 @@ sub setEnginePermissions
 
     setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => '0644'
         }
     );
     setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf",
         {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => '0644'
         }
     );
@@ -455,8 +455,8 @@ sub restoreDomain
         # Encode dots as Full stop unicode character
         ( my $encodedDbName = $row->{'sqld_name'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
 
-        for ( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
-            my $dbDumpFilePath = File::Spec->catfile( "$moduleData->{'HOME_DIR'}/backups", $encodedDbName . $_ );
+        for my $ext( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
+            my $dbDumpFilePath = File::Spec->catfile( "$moduleData->{'HOME_DIR'}/backups", $encodedDbName . $ext );
             debug( $dbDumpFilePath );
             next unless -f $dbDumpFilePath;
             $self->_restoreDatabase( $row->{'sqld_name'}, $dbDumpFilePath );
@@ -483,7 +483,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/mysql";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/mysql";
     $self->SUPER::_init();
 }
 
@@ -497,27 +497,27 @@ sub _askSqlRootUser
 {
     my ($self, $dialog) = @_;
 
-    my $hostname = main::setupGetQuestion(
-        'DATABASE_HOST', index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? '' : 'localhost'
+    my $hostname = ::setupGetQuestion(
+        'DATABASE_HOST', index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? '' : 'localhost'
     );
 
-    if ( index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 && grep { $hostname eq $_ } ( 'localhost', '127.0.0.1', '::1' ) ) {
+    if ( index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 && grep { $hostname eq $_ } ( 'localhost', '127.0.0.1', '::1' ) ) {
         $hostname = '';
     }
 
-    my $port = main::setupGetQuestion( 'DATABASE_PORT', 3306 );
-    my $user = main::setupGetQuestion( 'SQL_ROOT_USER', 'root' );
-    my $pwd = main::setupGetQuestion( 'SQL_ROOT_PASSWORD' );
+    my $port = ::setupGetQuestion( 'DATABASE_PORT', 3306 );
+    my $user = ::setupGetQuestion( 'SQL_ROOT_USER', 'root' );
+    my $pwd = ::setupGetQuestion( 'SQL_ROOT_PASSWORD' );
 
     if ( $hostname eq 'localhost' ) {
-        for ( 'localhost', '127.0.0.1' ) {
-            eval { $self->_tryDbConnect( $_, $port, $user, $pwd ); };
+        for my $host( 'localhost', '127.0.0.1' ) {
+            eval { $self->_tryDbConnect( $host, $port, $user, $pwd ); };
             next if $@;
 
-            main::setupSetQuestion( 'DATABASE_HOST', $_ );
-            main::setupSetQuestion( 'DATABASE_PORT', $port );
-            main::setupSetQuestion( 'SQL_ROOT_USER', $user );
-            main::setupSetQuestion( 'SQL_ROOT_PASSWORD', $pwd );
+            ::setupSetQuestion( 'DATABASE_HOST', $host );
+            ::setupSetQuestion( 'DATABASE_PORT', $port );
+            ::setupSetQuestion( 'SQL_ROOT_USER', $user );
+            ::setupSetQuestion( 'SQL_ROOT_PASSWORD', $pwd );
             return 0;
         }
     }
@@ -533,7 +533,7 @@ Please enter your SQL server hostname or IP address:
 EOF
     } while $rs < 30 && ( $hostname ne 'localhost' && !isValidHostname( $hostname ) && !isValidIpAddr( $hostname ) );
 
-    main::setupSetQuestion( 'DATABASE_HOST', idn_to_ascii( $hostname, 'utf-8' ) // '' );
+    ::setupSetQuestion( 'DATABASE_HOST', idn_to_ascii( $hostname, 'utf-8' ) // '' );
     return $rs if $rs >= 30;
 
     do {
@@ -544,7 +544,7 @@ Please enter your SQL server port:
 EOF
     } while $rs < 30 && !isNumber( $port ) || !isNumberInRange( $port, 1025, 65535 );
 
-    main::setupSetQuestion( 'DATABASE_PORT', $port );
+    ::setupSetQuestion( 'DATABASE_PORT', $port );
     return $rs if $rs >= 30;
 
     do {
@@ -558,7 +558,7 @@ i-MSCP only uses that user while installation or reconfiguration.
 EOF
     } while $rs < 30 && !isNotEmpty( $user );
 
-    main::setupSetQuestion( 'SQL_ROOT_USER', $user );
+    ::setupSetQuestion( 'SQL_ROOT_USER', $user );
     return $rs if $rs >= 30;
 
     do {
@@ -569,7 +569,7 @@ Please enter your SQL root user password:
 EOF
     } while $rs < 30 && !isNotEmpty( $pwd );
 
-    main::setupSetQuestion( 'SQL_ROOT_PASSWORD', $pwd );
+    ::setupSetQuestion( 'SQL_ROOT_PASSWORD', $pwd );
     return $rs if $rs >= 30;
 
     unless ( eval { $self->_tryDbConnect( $hostname, $port, $user, $pwd ); } ) {
@@ -659,15 +659,15 @@ sub _setupMasterSqlUser
 {
     my ($self) = @_;
 
-    my $user = main::setupGetQuestion( 'DATABASE_USER' );
-    my $userHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $pwd = decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' ));
+    my $user = ::setupGetQuestion( 'DATABASE_USER' );
+    my $userHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $pwd = decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' ));
 
     # Remove old user if any
-    for my $sqlUser ( $main::imscpOldConfig{'DATABASE_USER'}, $user ) {
+    for my $sqlUser ( $::imscpOldConfig{'DATABASE_USER'}, $user ) {
         next unless $sqlUser;
 
-        for my $host( $userHost, $main::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+        for my $host( $userHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
             next unless $host;
             $self->dropUser( $sqlUser, $host );
         }
@@ -723,7 +723,7 @@ sub _secureInstallation
     $db->do( "DELETE FROM db WHERE Db = 'test' OR Db = 'test\\_%'" ); # Remove privileges on test database
 
     # Disallow remote root login
-    if ( index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ) {
+    if ( index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ) {
         $db->do( "DELETE FROM user WHERE User = 'root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" );
     }
 
@@ -743,11 +743,11 @@ sub _setupDatabase
 {
     my ($self) = @_;
 
-    my $dbName = main::setupGetQuestion( 'DATABASE_NAME' );
+    my $dbName = ::setupGetQuestion( 'DATABASE_NAME' );
 
     unless ( $self->_setupIsImscpDb( $dbName ) ) {
         my $dbSchemaFile = File::Temp->new();
-        $self->buildConfFile( "$main::imscpConfig{'CONF_DIR'}/database/database.sql", $dbSchemaFile, undef, { DATABASE_NAME => $dbName } );
+        $self->buildConfFile( "$::imscpConfig{'CONF_DIR'}/database/database.sql", $dbSchemaFile, undef, { DATABASE_NAME => $dbName } );
 
         my $defaultsExtraFile = File::Temp->new();
         print $defaultsExtraFile <<'EOF';
@@ -760,10 +760,10 @@ EOF
         $defaultsExtraFile->close();
         $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
-                HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
-                PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
-                USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
-                PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
+                HOST     => ::setupGetQuestion( 'DATABASE_HOST' ),
+                PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
+                USER     => ::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
+                PASSWORD => decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
             { srcname => 'defaults-extra-file' }
         );
@@ -778,7 +778,7 @@ EOF
     my $rs = execute(
         [
             ( iMSCP::ProgramFinder::find( 'php' ) or die( "Couldn't find php executable in \$PATH" ) )
-            , '-d', 'date.timezone=UTC', "$main::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php"
+            , '-d', 'date.timezone=UTC', "$::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php"
         ],
         \ my $stdout,
         \ my $stderr
@@ -799,7 +799,7 @@ sub _setupIsImscpDb
 {
     my (undef, $dbName) = @_;
 
-    return 0 unless defined $dbName && $dbName ne '';
+    return 0 unless length $dbName;
 
     my $db = iMSCP::Database->getInstance();
 
@@ -876,7 +876,7 @@ sub _restoreDatabase
 
     my $tmpUser = randomStr( 16, ALNUM );
     my $tmpPassword = randomStr( 16, ALNUM );
-    $self->createUser( $tmpUser, $main::imscpConfig{'DATABASE_USER_HOST'}, $tmpPassword );
+    $self->createUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'}, $tmpPassword );
     my $dbh = iMSCP::Database->getInstance();
 
     # According MySQL documentation (http://dev.mysql.com/doc/refman/5.5/en/grant.html#grant-accounts-passwords)
@@ -897,8 +897,8 @@ sub _restoreDatabase
     my $defaultsExtraFile = File::Temp->new();
     print $defaultsExtraFile <<"EOF";
 [mysql]
-host = $main::imscpConfig{'DATABASE_HOST'}
-port = $main::imscpConfig{'DATABASE_PORT'}
+host = $::imscpConfig{'DATABASE_HOST'}
+port = $::imscpConfig{'DATABASE_PORT'}
 user = @{ [ $tmpUser =~ s/"/\\"/gr ] }
 password = @{ [ $tmpPassword =~ s/"/\\"/gr ] }
 max_allowed_packet = 500M
@@ -909,7 +909,7 @@ EOF
     my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' ));
-    $self->dropUser( $tmpUser, $main::imscpConfig{'DATABASE_USER_HOST'} );
+    $self->dropUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} );
 }
 
 =back

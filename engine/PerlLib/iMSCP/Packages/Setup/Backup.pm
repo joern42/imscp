@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Setup::Backup;
 
@@ -68,7 +68,7 @@ sub imscpBackupDialog
 {
     my ($self, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'BACKUP_IMSCP', iMSCP::Getopt->preseed ? 'yes' : '' );
+    my $value = ::setupGetQuestion( 'BACKUP_IMSCP', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -81,7 +81,7 @@ EOF
         return $rs if $rs >= 30;
     }
 
-    main::setupSetQuestion( 'BACKUP_IMSCP', $value );
+    ::setupSetQuestion( 'BACKUP_IMSCP', $value );
     0;
 }
 
@@ -98,7 +98,7 @@ sub customersBackupDialog
 {
     my ($self, $dialog) = @_;
 
-    my $value = main::setupGetQuestion( 'BACKUP_DOMAINS', iMSCP::Getopt->preseed ? 'yes' : '' );
+    my $value = ::setupGetQuestion( 'BACKUP_DOMAINS', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -111,7 +111,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'BACKUP_DOMAINS', $value );
+    ::setupSetQuestion( 'BACKUP_DOMAINS', $value );
     0;
 }
 
@@ -144,20 +144,20 @@ sub install
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
-    if ( main::setupGetQuestion( 'BACKUP_IMSCP' ) eq 'yes' ) {
+    if ( ::setupGetQuestion( 'BACKUP_IMSCP' ) eq 'yes' ) {
         $cronServer->addTask( {
             TASKID  => __PACKAGE__ . '::iMSCP',
             MINUTE  => '@daily',
-            COMMAND => "perl $main::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-imscp > $main::imscpConfig{'LOG_DIR'}/imscp-backup-imscp.log 2>&1"
+            COMMAND => "perl $::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-imscp > $::imscpConfig{'LOG_DIR'}/imscp-backup-imscp.log 2>&1"
         } );
     }
 
-    if ( main::setupGetQuestion( 'BACKUP_DOMAINS' ) eq 'yes' ) {
+    if ( ::setupGetQuestion( 'BACKUP_DOMAINS' ) eq 'yes' ) {
         $cronServer->addTask( {
             TASKID  => __PACKAGE__ . '::Customers',
-            MINUTE  => $main::imscpConfig{'BACKUP_MINUTE'} ne '' ? $main::imscpConfig{'BACKUP_MINUTE'} : 40,
-            HOUR    => $main::imscpConfig{'BACKUP_HOUR'} ne '' ? $main::imscpConfig{'BACKUP_HOUR'} : 23,
-            COMMAND => "perl $main::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-all > $main::imscpConfig{'LOG_DIR'}/imscp-backup-all.log 2>&1"
+            MINUTE  => length $::imscpConfig{'BACKUP_MINUTE'} ? $::imscpConfig{'BACKUP_MINUTE'} : 40,
+            HOUR    => length $::imscpConfig{'BACKUP_HOUR'} ? $::imscpConfig{'BACKUP_HOUR'} : 23,
+            COMMAND => "perl $::imscpConfig{'BACKUP_ROOT_DIR'}/imscp-backup-all > $::imscpConfig{'LOG_DIR'}/imscp-backup-all.log 2>&1"
         } );
     }
 }
@@ -176,8 +176,8 @@ sub uninstall
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
-    $cronServer->deleteTasks( { TASKID => __PACKAGE__ . '::iMSCP' } );
-    $cronServer->deleteTasks( { TASKID => __PACKAGE__ . '::Customers' } );
+    $cronServer->deleteTask( { TASKID => __PACKAGE__ . '::iMSCP' } );
+    $cronServer->deleteTask( { TASKID => __PACKAGE__ . '::Customers' } );
 }
 
 =back

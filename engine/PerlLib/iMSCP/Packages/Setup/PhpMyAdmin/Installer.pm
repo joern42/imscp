@@ -5,27 +5,28 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Setup::PhpMyAdmin::Installer;
 
 use strict;
 use warnings;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Composer;
 use iMSCP::Crypt qw/ decryptRijndaelCBC randomStr ALNUM /;
 use iMSCP::Database;
@@ -43,7 +44,7 @@ use JSON;
 use version;
 use parent 'iMSCP::Common::Singleton';
 
-%main::sqlUsers = () unless %main::sqlUsers;
+%::sqlUsers = () unless %::sqlUsers;
 
 =head1 DESCRIPTION
 
@@ -81,12 +82,12 @@ sub showDialog
 {
     my ($self, $dialog) = @_;
 
-    my $masterSqlUser = main::setupGetQuestion( 'DATABASE_USER' );
-    my $dbUser = main::setupGetQuestion(
+    my $masterSqlUser = ::setupGetQuestion( 'DATABASE_USER' );
+    my $dbUser = ::setupGetQuestion(
         'PHPMYADMIN_SQL_USER', ( $self->{'config'}->{'DATABASE_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' ) )
     );
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $dbPass = main::setupGetQuestion(
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $dbPass = ::setupGetQuestion(
         'PHPMYADMIN_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'} )
     );
 
@@ -98,7 +99,7 @@ sub showDialog
         my $rs = 0;
 
         do {
-            if ( $dbUser eq '' ) {
+            unless ( length $dbUser ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
                 $dbUser = 'imscp_srv_user';
             }
@@ -115,14 +116,14 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    main::setupSetQuestion( 'PHPMYADMIN_SQL_USER', $dbUser );
+    ::setupSetQuestion( 'PHPMYADMIN_SQL_USER', $dbUser );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqlmanager', 'all', 'forced' ] ) || !isValidPassword( $dbPass ) ) {
-        unless ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        unless ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
             my $rs = 0;
 
             do {
-                if ( $dbPass eq '' ) {
+                unless ( length $dbPass ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = '';
                     $dbPass = randomStr( 16, ALNUM );
                 }
@@ -136,17 +137,17 @@ EOF
 
             return $rs if $rs >= 30;
 
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+            $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
         } else {
-            $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+            $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
         }
-    } elsif ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-        $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+    } elsif ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
     } else {
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
     }
 
-    main::setupSetQuestion( 'PHPMYADMIN_SQL_PASSWORD', $dbPass );
+    ::setupSetQuestion( 'PHPMYADMIN_SQL_PASSWORD', $dbPass );
     0;
 }
 
@@ -178,7 +179,7 @@ sub install
 {
     my ($self) = @_;
 
-    $self->_backupConfigFile( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}/config.inc.php" );
+    $self->_backupConfigFile( "$::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}/config.inc.php" );
     $self->_installFiles();
     $self->_setupDatabase();
     $self->_setupSqlUser();
@@ -209,7 +210,7 @@ sub afterFrontEndBuildConfFile
 {
     my ($tplContent, $tplName) = @_;
 
-    return unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
+    return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
     replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
@@ -274,12 +275,12 @@ sub _backupConfigFile
 
 sub _installFiles
 {
-    my $packageDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/phpmyadmin";
+    my $packageDir = "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/phpmyadmin";
 
     -d $packageDir or die( "Couldn't find the imscp/phpmyadmin package into the packages cache directory" );
 
-    iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma" )->remove();
-    iMSCP::Dir->new( dirname => "$packageDir" )->copy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma" );
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma" )->remove();
+    iMSCP::Dir->new( dirname => "$packageDir" )->copy( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma" );
 }
 
 =item _setupSqlUser( )
@@ -294,11 +295,11 @@ sub _setupSqlUser
 {
     my ($self) = @_;
 
-    my $phpmyadminDbName = main::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
-    my $dbUser = main::setupGetQuestion( 'PHPMYADMIN_SQL_USER' );
-    my $dbUserHost = main::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $oldDbUserHost = $main::imscpOldConfig{'DATABASE_USER_HOST'};
-    my $dbPass = main::setupGetQuestion( 'PHPMYADMIN_SQL_PASSWORD' );
+    my $phpmyadminDbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
+    my $dbUser = ::setupGetQuestion( 'PHPMYADMIN_SQL_USER' );
+    my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
+    my $oldDbUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
+    my $dbPass = ::setupGetQuestion( 'PHPMYADMIN_SQL_PASSWORD' );
     my $dbOldUser = $self->{'config'}->{'DATABASE_USER'};
 
     my $sqlServer = iMSCP::Servers::Sqld->factory();
@@ -308,16 +309,16 @@ sub _setupSqlUser
         next unless $sqlUser;
 
         for my $host( $dbUserHost, $oldDbUserHost ) {
-            next if !$host || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
+            next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
     }
 
     # Create SQL user if required
-    if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+    if ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
         debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
         $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
     }
 
     my $dbh = iMSCP::Database->getInstance();
@@ -361,8 +362,8 @@ sub _setupSqlUser
 
 sub _setupDatabase
 {
-    my $phpmyadminDir = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma";
-    my $phpmyadminDbName = main::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
+    my $phpmyadminDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma";
+    my $phpmyadminDbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
 
     my $dbh = iMSCP::Database->getInstance();
     # Drop previous database
@@ -383,10 +384,10 @@ sub _setupDatabase
     my $mysqlConffile = File::Temp->new();
     print $mysqlConffile <<"EOF";
 [mysql]
-host = @{[ main::setupGetQuestion( 'DATABASE_HOST' ) ]}
-port = @{[ main::setupGetQuestion( 'DATABASE_PORT' ) ]}
-user = "@{ [ main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr ] }"
-password = "@{ [ decryptRijndaelCBC($main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr ] }"
+host = @{[ ::setupGetQuestion( 'DATABASE_HOST' ) ]}
+port = @{[ ::setupGetQuestion( 'DATABASE_PORT' ) ]}
+user = "@{ [ ::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr ] }"
+password = "@{ [ decryptRijndaelCBC($::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr ] }"
 EOF
     $mysqlConffile->close();
 
@@ -408,8 +409,8 @@ sub _buildHttpdConfig
     my ($self) = @_;
 
     $self->{'frontend'}->buildConfFile(
-        "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/PhpMyAdmin/config/nginx/imscp_pma.nginx",
-        { GUI_PUBLIC_DIR => $main::imscpConfig{'GUI_PUBLIC_DIR'} },
+        "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/PhpMyAdmin/config/nginx/imscp_pma.nginx",
+        { GUI_PUBLIC_DIR => $::imscpConfig{'GUI_PUBLIC_DIR'} },
         { destination => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_pma.conf" }
     );
 }
@@ -426,7 +427,7 @@ sub _setVersion
 {
     my ($self) = @_;
 
-    my $json = decode_json( iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma/composer.json" )->get());
+    my $json = decode_json( iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma/composer.json" )->get());
     debug( sprintf( 'Set new phpMyAdmin version to %s', $json->{'version'} ));
     $self->{'config'}->{'PHPMYADMIN_VERSION'} = $json->{'version'};
 }
@@ -456,13 +457,13 @@ sub _buildConfig
 {
     my ($self) = @_;
 
-    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'};
-    my $confDir = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}";
-    my $dbName = main::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
-    ( my $dbUser = main::setupGetQuestion( 'PHPMYADMIN_SQL_USER' ) ) =~ s%('|\\)%\\$1%g;
-    my $dbHost = main::setupGetQuestion( 'DATABASE_HOST' );
-    my $dbPort = main::setupGetQuestion( 'DATABASE_PORT' );
-    ( my $dbPass = main::setupGetQuestion( 'PHPMYADMIN_SQL_PASSWORD' ) ) =~ s%('|\\)%\\$1%g;
+    my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $confDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}";
+    my $dbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
+    ( my $dbUser = ::setupGetQuestion( 'PHPMYADMIN_SQL_USER' ) ) =~ s%('|\\)%\\$1%g;
+    my $dbHost = ::setupGetQuestion( 'DATABASE_HOST' );
+    my $dbPort = ::setupGetQuestion( 'DATABASE_PORT' );
+    ( my $dbPass = ::setupGetQuestion( 'PHPMYADMIN_SQL_PASSWORD' ) ) =~ s%('|\\)%\\$1%g;
     ( my $blowfishSecret = $self->{'config'}->{'BLOWFISH_SECRET'} ) =~ s%('|\\)%\\$1%g;
 
     my $data = {
@@ -471,24 +472,21 @@ sub _buildConfig
         PMA_PASS     => $dbPass,
         HOSTNAME     => $dbHost,
         PORT         => $dbPort,
-        UPLOADS_DIR  => "$main::imscpConfig{'GUI_ROOT_DIR'}/data/uploads",
-        TMP_DIR      => "$main::imscpConfig{'GUI_ROOT_DIR'}/data/tmp",
+        UPLOADS_DIR  => "$::imscpConfig{'GUI_ROOT_DIR'}/data/uploads",
+        TMP_DIR      => "$::imscpConfig{'GUI_ROOT_DIR'}/data/tmp",
         BLOWFISH     => $blowfishSecret
     };
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', \ my $cfgTpl, $data );
+    my $file = iMSCP::File->new( filename => "$self->{'wrkDir'}/config.inc.php" );
+    my $cfgTpl = $file->getAsRef( TRUE );
 
-    $cfgTpl = iMSCP::File->new( filename => "$confDir/imscp.config.inc.php" )->get() unless defined $cfgTpl;
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', $cfgTpl, $data );
+    $file->getAsRef() unless length ${$cfgTpl};
 
-    processByRef( $data, \$cfgTpl );
+    processByRef( $data, $cfgTpl );
 
-    iMSCP::File
-        ->new( filename => "$self->{'wrkDir'}/config.inc.php" )
-        ->set( $cfgTpl )
-        ->save()
-        ->owner( $usergroup, $usergroup )
-        ->mode( 0640 )
-        ->copy( "$confDir/config.inc.php", { preserve => 1 } );
+    $file->{'filename'} = "$self->{'wrkDir'}/config.inc.php";
+    $file->save()->owner( $usergroup, $usergroup )->mode( 0640 )->copy( "$confDir/config.inc.php", { preserve => 1 } );
 }
 
 =item _cleanup( )

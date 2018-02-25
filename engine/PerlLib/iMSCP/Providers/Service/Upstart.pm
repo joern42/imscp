@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Providers::Service::Upstart;
 
@@ -154,8 +154,8 @@ sub remove
     # Even if there is no job file, there can be still orphaned job override
     # file which we need to remove.
 
-    for ( qw/ conf override / ) {
-        if ( my $jobFilePath = eval { $self->getJobFilePath( $job, $_ ); } ) {
+    for my $type( qw/ conf override / ) {
+        if ( my $jobFilePath = eval { $self->getJobFilePath( $job, $type ); } ) {
             debug( sprintf ( "Removing the %s upstart file", $jobFilePath ));
             iMSCP::File->new( filename => $jobFilePath )->remove();
         }
@@ -470,8 +470,8 @@ sub _isEnabledPost090
     # `manual' stanza is the last one in the conf file and any
     # override files. The last one in the file wins.
     my $enabled = 0;
-    for ( \$jobFileContent, \$jobOverrideFileContent ) {
-        open my $fh, '<', $_ or croak ( sprintf( "Couldn't open in-memory file handle: %s", $! ));
+    for my $fcontent( \$jobFileContent, \$jobOverrideFileContent ) {
+        open my $fh, '<', $fcontent or croak ( sprintf( "Couldn't open in-memory file handle: %s", $! ));
         while ( <$fh> ) {
             if ( /$START_ON/ ) {
                 $enabled = 1;
@@ -909,7 +909,7 @@ sub _writeFile
     my $filepath = File::Spec->join( $jobDir, $filename );
     my $file = iMSCP::File->new( filename => $filepath );
 
-    if ( $fileContent ne '' ) {
+    if ( length $fileContent ) {
         $file->set( $fileContent )->save()->mode( 0644 );
     } elsif ( $filepath =~ /\.override$/ ) {
         $file->remove();

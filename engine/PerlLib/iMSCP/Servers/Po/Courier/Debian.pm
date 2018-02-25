@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Po::Courier::Debian;
 
@@ -72,7 +72,7 @@ sub postinstall
     my @toEnableServices = ( 'courier-authdaemon', 'courier-pop', 'courier-pop' );
     my @toDisableServices = ();
 
-    if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+    if ( $::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
         push @toEnableServices, 'courier-pop-ssl', 'courier-imap-ssl';
     } else {
         push @toDisableServices, 'courier-pop-ssl', 'courier-imap-ssl';
@@ -81,9 +81,9 @@ sub postinstall
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->enable( $_ ) for @toEnableServices;
 
-    for ( @toDisableServices ) {
-        $srvProvider->stop( $_ );
-        $srvProvider->disable( $_ );
+    for my $service( @toDisableServices ) {
+        $srvProvider->stop( $service );
+        $srvProvider->disable( $service );
     }
 
     $self->SUPER::postinstall();
@@ -102,8 +102,8 @@ sub uninstall
     $self->SUPER::uninstall();
 
     my $srvProvider = iMSCP::Service->getInstance();
-    for ( 'courier-authdaemon', 'courier-pop', 'courier-pop-ssl', 'courier-imap', 'courier-imap-ssl' ) {
-        $srvProvider->restart( $_ ) if $srvProvider->hasService( $_ ) && $srvProvider->isRunning( $_ );
+    for my $service( 'courier-authdaemon', 'courier-pop', 'courier-pop-ssl', 'courier-imap', 'courier-imap-ssl' ) {
+        $srvProvider->restart( $service ) if $srvProvider->hasService( $service ) && $srvProvider->isRunning( $service );
     };
 }
 
@@ -133,7 +133,7 @@ sub start
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->start( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
-    if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+    if ( $::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
         $srvProvider->start( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
     }
 }
@@ -166,7 +166,7 @@ sub restart
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->restart( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
-    if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+    if ( $::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
         $srvProvider->restart( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
     }
 }
@@ -184,7 +184,7 @@ sub reload
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->reload( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
 
-    if ( $main::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
+    if ( $::imscpConfig{'SERVICES_SSL_ENABLED'} eq 'yes' ) {
         $srvProvider->reload( $_ ) for 'courier-pop-ssl', 'courier-imap-ssl';
     }
 }
@@ -223,14 +223,14 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    my $oldPluginApiVersion = version->parse( $main::imscpOldConfig{'PluginApi'} );
+    my $oldPluginApiVersion = version->parse( $::imscpOldConfig{'PluginApi'} );
 
     return unless $oldPluginApiVersion < version->parse( '1.5.2' );
 
-    for ( qw/ pop3d pop3d-ssl imapd imapd-ssl / ) {
-        next unless -f "$self->{'config'}->{'PO_CONF_DIR'}/$_";
+    for my $service( qw/ pop3d pop3d-ssl imapd imapd-ssl / ) {
+        next unless -f "$self->{'config'}->{'PO_CONF_DIR'}/$service";
 
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$_" );
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$service" );
         my $fileContentRef = $file->getAsRef();
 
         replaceBlocByRef(

@@ -2,30 +2,30 @@
 
 =head1 NAME
 
- imscp-srv-traff - Collects i-MSCP server' traffic data.
+ imscp-srv-traff - Collects i-MSCP server traffic data.
 
 =head1 SYNOPSIS
 
- imscp-srv-traff [options]...
+ imscp-srv-traff [OPTION]...
 
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 use strict;
 use warnings;
@@ -44,25 +44,26 @@ use POSIX qw / locale_h /;
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
-
-my @EXECS;
 
 sub run
 {
+    my @execs = (
+        iMSCP::ProgramFinder::find( 'iptables' ),
+        ( $::imscpConfig{'IPV6_SUPPORT'} eq 'yes' ? iMSCP::ProgramFinder::find( 'ip6tables' ) : undef )
+    );
+
     my ( $smtpIn, $poIn, $httpIn, $allIn ) = ( 0, 0, 0, 0 );
     my ( $smtpOut, $poOut, $httpOut, $allOut ) = ( 0, 0, 0, 0 );
     my $timestamp = time;
     $timestamp -= ( $timestamp % 1800 ); # Floor down for the last half'n hour
 
-    for my $exec( @EXECS ) {
+    for my $exec( @execs ) {
         defined $exec or next;
 
         # Make sure that at least one of IMSCP_INPUT or IMSCP_OUTPUT chain exists
         my $rs = execute( "$exec -S | grep -P -- '-N\\s+IMSCP_'", \ my $stdout, \ my $stderr );
         debug( $stdout ) if $stdout;
-        error( $stderr || 'Unknown error' ) if $rs > 1;
-        return $rs if $rs > 1;
+        $rs < 2 or die( $stderr || 'Unknown error' ) if $rs > 1;
 
         next unless $stdout;
 
@@ -75,8 +76,7 @@ sub run
         while ( $stdout =~ /-N\s+(.*)/gm ) {
             $rs = execute( "$exec -t filter -nvxL $1", $chains{$1}, \$stderr );
             debug( ${$chains{$1}} ) if ${$chains{$1}};
-            error( $stderr || 'Unknown error' ) if $rs;
-            return $rs if $rs;
+            !$rs or die( $stderr || 'Unknown error' ) if $rs;
         }
 
         # Parse input and output traffic data
@@ -87,8 +87,7 @@ sub run
     return unless $smtpIn || $poIn || $httpIn || $allIn || $smtpOut || $poOut || $httpOut || $allOut;
 
     # Update traffic data in database
-    my $dbh = iMSCP::Database->getInstance();
-    $dbh->do(
+    iMSCP::Database->getInstance()->do(
         '
             INSERT INTO server_traffic (
                 traff_time, bytes_in, bytes_out, bytes_mail_in, bytes_mail_out, bytes_pop_in, bytes_pop_out,
@@ -105,10 +104,6 @@ sub run
         $allIn, $allOut, $smtpIn, $smtpOut, $poIn, $poOut, $httpIn, $httpOut,
         $allIn, $allOut, $smtpIn, $smtpOut, $poIn, $poOut, $httpIn, $httpOut
     );
-    if ( $dbh->err ) {
-        error( $dbh->errstr );
-        return 1;
-    }
 
     # Reset both input and output i-MSCP chains
     iMSCP::Service->getInstance->restart( 'imscp_traffic' );
@@ -117,8 +112,8 @@ sub run
 sub _parseTrafficData
 {
     my ( $trafficData, $smtp, $po, $http, $all ) = @_;
-    my $frontEndHttpPort = $main::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'};
-    my $frontEndHttpsPort = $main::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
+    my $frontEndHttpPort = $::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'};
+    my $frontEndHttpsPort = $::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
 
     while ( ${$trafficData} =~ /^\s+\d+\s+(\d+).*?(?:(?:dpt|spt):(\d+))?$/gm ) {
         my ($bytes, $port) = ( $1, $2 // 0 );
@@ -136,7 +131,7 @@ newDebug( 'imscp-srv-traff.log' );
 
 iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
 
-Script that collects i-MSCP server' traffic data.
+Collects i-MSCP server traffic data.
 
 OPTIONS:
  -d,    --debug         Enable debug mode.
@@ -148,12 +143,7 @@ OPTIONS:
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
     nolock          => 1
-} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-srv-traff.lock", 'nowait' );
-
-@EXECS = (
-    iMSCP::ProgramFinder::find( 'iptables' ),
-    ( $main::imscpConfig{'IPV6_SUPPORT'} eq 'yes' ? iMSCP::ProgramFinder::find( 'ip6tables' ) : undef )
-);
+} )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-srv-traff.lock", 'nowait' );
 
 run();
 

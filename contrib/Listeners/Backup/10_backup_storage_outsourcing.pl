@@ -32,7 +32,7 @@ use strict;
 use warnings;
 use iMSCP::Debug qw/ error /;
 use iMSCP::EventManager;
-use iMSCP::Ext2Attributes qw/ setImmutable clearImmutable /;
+use iMSCP::File::Attributes qw/ :immutable /;
 use iMSCP::Dir;
 use iMSCP::Mount qw/ addMountEntry removeMountEntry mount umount /;
 use version;
@@ -55,13 +55,13 @@ my $STORAGE_ROOT_PATH = '';
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 10_backup_storage_outsourcing.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
 # Don't register event listeners if the listener file is not configured yet
 # FIXME: We should avoid listening on the onBoot event which is far too generic
-unless ( $STORAGE_ROOT_PATH eq '' ) {
+if ( length $STORAGE_ROOT_PATH ) {
     iMSCP::EventManager->getInstance()->register(
         'onBoot',
         sub {
@@ -73,8 +73,8 @@ unless ( $STORAGE_ROOT_PATH eq '' ) {
             # Make sure that the root path for outsourced backup directories
             # exists and that it is set with expected ownership and permissions
             iMSCP::Dir->new( dirname => $STORAGE_ROOT_PATH )->make( {
-                user  => $main::imscpConfig{'ROOT_USER'},
-                group => $main::imscpConfig{'ROOT_GROUP'},
+                user  => $::imscpConfig{'ROOT_USER'},
+                group => $::imscpConfig{'ROOT_GROUP'},
                 mode  => 0750
             } );
         }

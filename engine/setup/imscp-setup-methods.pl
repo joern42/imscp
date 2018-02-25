@@ -1,21 +1,21 @@
 #!/usr/bin/perl
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declecq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 use strict;
 use warnings;
@@ -50,17 +50,18 @@ sub setupBoot
 
     # FIXME: Should be done through the bootstrapper
 
-    untie( %main::imscpOldConfig ) if %main::imscpOldConfig;
+    untie( %::imscpOldConfig ) if %::imscpOldConfig;
 
     # If we are not in installer context, we need first create the imscpOld.conf file if it doesn't already exist
-    unless ( -f "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
-        local $UMASK = 0027;
-        iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp.conf" )->copy( "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" );
+    unless ( -f "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
+        iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/imscp.conf" )->copy(
+            "$::imscpConfig{'CONF_DIR'}/imscpOld.conf", { umask => 0027 }
+        );
     }
 
     # We open the imscpOld.conf file in write mode. This is needed because some servers will update it after processing tasks
     # that must be done once, such as uninstallation tasks (older server alternatives)
-    tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf";
+    tie %::imscpOldConfig, 'iMSCP::Config', filename => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf";
 
     if ( iMSCP::Getopt->context() eq 'installer' && iMSCP::Service->getInstance()->isSystemd() ) {
         # Unit files could have been updated. We need make systemd aware of changes
@@ -75,9 +76,9 @@ sub setupRegisterListeners
 
     my $eventManager = iMSCP::EventManager->getInstance();
 
-    for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
-        ( my $subref = $_->can( 'registerSetupListeners' ) ) or next;
-        $subref->( $_->getInstance( eventManager => $eventManager ));
+    for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+        ( my $subref = $package->can( 'registerSetupListeners' ) ) or next;
+        $subref->( $package->getInstance( eventManager => $eventManager ));
     }
 }
 
@@ -130,8 +131,10 @@ sub setupTasks
         [ \&setupRemoveOldConfig, 'Removing old configuration ' ]
     );
 
-    my ($step, $nbSteps) = ( 1, scalar @steps );
-    step( @{$_}, $nbSteps, $step++ ) for @steps;
+    my ($nStep, $nbSteps) = ( 1, scalar @steps );
+    for my $step(@steps) {
+        step( @{$step}, $nbSteps, $nStep++);
+    }
 
     iMSCP::Dialog->getInstance()->endGauge();
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupTasks' );
@@ -139,9 +142,9 @@ sub setupTasks
 
 sub setupDeleteBuildDir
 {
-    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDeleteBuildDir', $main::{'DESTDIR'} );
-    iMSCP::Dir->new( dirname => $main::{'DESTDIR'} )->remove();
-    iMSCP::EventManager->getInstance()->trigger( 'afterSetupDeleteBuildDir', $main::{'DESTDIR'} );
+    iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDeleteBuildDir', $::{'DESTDIR'} );
+    iMSCP::Dir->new( dirname => $::{'DESTDIR'} )->remove();
+    iMSCP::EventManager->getInstance()->trigger( 'afterSetupDeleteBuildDir', $::{'DESTDIR'} );
 }
 
 #
@@ -159,9 +162,9 @@ sub setupSaveConfig
         config_readonly => 0
     } );
 
-    while ( my ($key, $value) = each( %main::questions ) ) {
-        next unless exists $main::imscpConfig{$key};
-        $main::imscpConfig{$key} = $value;
+    while ( my ($key, $value) = each( %::questions ) ) {
+        next unless exists $::imscpConfig{$key};
+        $::imscpConfig{$key} = $value;
     }
 
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupSaveConfig' );
@@ -171,16 +174,16 @@ sub setupSaveConfig
 sub setupCreateMasterUser
 {
     iMSCP::EventManager->getInstance()->trigger( 'beforeSetupCreateMasterUser' );
-    iMSCP::SystemGroup->getInstance()->addSystemGroup( $main::imscpConfig{'IMSCP_GROUP'} );
+    iMSCP::SystemGroup->getInstance()->addSystemGroup( $::imscpConfig{'IMSCP_GROUP'} );
     iMSCP::SystemUser->new(
-        username => $main::imscpConfig{'IMSCP_USER'},
-        group    => $main::imscpConfig{'IMSCP_GROUP'},
+        username => $::imscpConfig{'IMSCP_USER'},
+        group    => $::imscpConfig{'IMSCP_GROUP'},
         comment  => 'i-MSCP master user',
-        home     => $main::imscpConfig{'IMSCP_HOMEDIR'}
+        home     => $::imscpConfig{'IMSCP_HOMEDIR'}
     )->addSystemUser();
-    iMSCP::Dir->new( dirname => $main::imscpConfig{'IMSCP_HOMEDIR'} )->make( {
-        user           => $main::imscpConfig{'IMSCP_USER'},
-        group          => $main::imscpConfig{'IMSCP_GROUP'},
+    iMSCP::Dir->new( dirname => $::imscpConfig{'IMSCP_HOMEDIR'} )->make( {
+        user           => $::imscpConfig{'IMSCP_USER'},
+        group          => $::imscpConfig{'IMSCP_GROUP'},
         mode           => 0755,
         fixpermissions => 1 # We fix permissions in any case
     } );
@@ -197,17 +200,17 @@ sub setupCoreServices
     $srvProvider->enable( $_ ) for 'imscp_traffic', 'imscp_mountall';
 }
 
-# Should be through by the iMSCP::Composer class
 sub setupComposer
 {
+    # FIXME: Don't run composer as root user
     my $composer = iMSCP::Composer->new();
     $composer->setStdRoutines(
         sub {
             ( my $line = $_[0] ) =~ s/^\s+|\s+$//g;
-            return if $line eq '';
+            return unless length $line;
 
             step( undef, <<"EOT", 1, 1 );
-Installing composer from https://getcomposer.org
+Installing PHP dependency manager (composer)
 
 $line
 
@@ -218,24 +221,25 @@ EOT
     );
 
     startDetail;
-    $composer->installComposer( '/usr/local/bin', 'composer', '1.5.2' );
+    # For safety reasons, we install the composer version that we know to work well for us.
+    $composer->installComposer( '/usr/local/bin', 'composer', $::imscpConfig{'COMPOSER_VERSION'} );
     endDetail;
 
-    # Create composer.phar compatibility symlink for backward compatibility with plugins
-    if ( -l "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) {
-        unlink ( "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) or die(
-            sprintf( "Couldn't delete %s symlink: %s", "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar", $! )
-        );
-    }
-
-    symlink File::Spec->abs2rel( '/usr/local/bin/composer', $main::imscpConfig{'IMSCP_HOMEDIR'} ),
-        "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" or die(
-        sprintf( "Couldn't create backward compatibility symlink for composer.phar: %s", $! )
-    );
-
-    iMSCP::File->new( filename => "$main::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" )->owner(
-        $main::imscpConfig{'IMSCP_USER'}, $main::imscpConfig{'IMSCP_GROUP'}
-    );
+#    # Create composer.phar compatibility symlink for backward compatibility
+#    if ( -l "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) {
+#        unlink ( "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) or die(
+#            sprintf( "Couldn't delete %s symlink: %s", "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar", $! )
+#        );
+#    }
+#
+#    symlink File::Spec->abs2rel( '/usr/local/bin/composer', $::imscpConfig{'IMSCP_HOMEDIR'} ),
+#        "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" or die(
+#        sprintf( "Couldn't create backward compatibility symlink for composer.phar: %s", $! )
+#    );
+#
+#    iMSCP::File->new( filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" )->owner(
+#        $::imscpConfig{'IMSCP_USER'}, $::imscpConfig{'IMSCP_GROUP'}
+#    );
 }
 
 sub setupSetPermissions
@@ -253,7 +257,7 @@ sub setupSetPermissions
 
         my $stderr;
         my $rs = executeNoWait(
-            [ 'perl', "$main::imscpConfig{'ENGINE_ROOT_DIR'}/setup/$script", @options ],
+            [ 'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/setup/$script", @options ],
             ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose
                 ? sub {}
                 : sub {
@@ -375,14 +379,14 @@ sub setupServersAndPackages
         my $nStep = 1;
         # For uninstallation, we reverse server priorities
         for my $server( reverse @servers ) {
-            next if $main::imscpOldConfig{$server} eq $main::imscpConfig{$server} || $main::imscpOldConfig{$server} eq '';
+            next if $::imscpOldConfig{$server} eq $::imscpConfig{$server} || !length $::imscpOldConfig{$server};
 
             step(
-                sub { $server->factory( $main::imscpOdlConfig{$server} )->$lcTask(); },
+                sub { $server->factory( $::imscpOdlConfig{$server} )->$lcTask(); },
                 sprintf( "Executing %s %s tasks...", $server, $lcTask ), $nSteps, $nStep++
             );
 
-            $main::imscpOdlConfig{$server} = $main::imscpConfig{$server};
+            $::imscpOdlConfig{$server} = $::imscpConfig{$server};
         }
         endDetail();
         $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
@@ -391,23 +395,34 @@ sub setupServersAndPackages
     $nSteps = @servers+@packages;
 
     for my $task( qw/ PreInstall Install PostInstall / ) {
+        if ( $task eq 'PostInstall' ) {
+            iMSCP::Dialog->getInstance()->endGauge();
+            use Data::Dumper;
+            print Dumper( \@servers );
+            print Dumper( \@packages );
+            exit;
+        }
         my $lcTask = lc( $task );
-        $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
         startDetail();
-        my $nStep = 1;
-        step( sub { $_->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep++ ) for @servers;
-        $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
-        $eventManager->trigger( 'beforeSetup' . $task . 'Packages' );
 
-        for ( @packages ) {
-            ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
+        $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
+        my $nStep = 1;
+        for my $server( @servers ) {
+            step( sub { $server->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks...", $server, $lcTask ), $nSteps, $nStep++ );
+            $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
+        }
+
+        $eventManager->trigger( 'beforeSetup' . $task . 'Packages' );
+        for my $package( @packages ) {
+            ( my $subref = $package->can( $lcTask ) ) or $nStep++ && next;
             step(
-                sub { $subref->( $_->getInstance( eventManager => $eventManager )) },
-                sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep++
+                sub { $subref->( $package->getInstance( eventManager => $eventManager )) },
+                sprintf( "Executing %s %s tasks...", $package_, $lcTask ), $nSteps, $nStep++
             );
         }
-        endDetail();
         $eventManager->trigger( 'afterSetup' . $task . 'Packages' );
+
+        endDetail();
     }
 }
 
@@ -431,7 +446,7 @@ sub setupRestartServices
     $eventManager->trigger( 'beforeSetupRestartServices', \@services );
 
     startDetail();
-    my ($step, $nbSteps) = (1, scalar @services);
+    my ($step, $nbSteps) = ( 1, scalar @services );
     step( $_->[0], sprintf( 'Starting/Restarting %s service...', $_->[1] ), $nbSteps, $step++ ) for @services;
     endDetail();
 
@@ -440,8 +455,8 @@ sub setupRestartServices
 
 sub setupRemoveOldConfig
 {
-    untie %main::imscpOldConfig;
-    iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" )->remove();
+    untie %::imscpOldConfig;
+    iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" )->remove();
 }
 
 sub setupGetQuestion
@@ -449,17 +464,17 @@ sub setupGetQuestion
     my ($qname, $default) = @_;
 
     if ( iMSCP::Getopt->preseed ) {
-        return exists $main::questions{$qname} && $main::questions{$qname} ne '' ? $main::questions{$qname} : $default // '';
+        return exists $::questions{$qname} && length $::questions{$qname} ? $::questions{$qname} : $default // '';
     }
 
-    return $main::questions{$qname} if exists $main::questions{$qname};
+    return $::questions{$qname} if exists $::questions{$qname};
 
-    exists $main::imscpConfig{$qname} && $main::imscpConfig{$qname} ne '' ? $main::imscpConfig{$qname} : $default // '';
+    exists $::imscpConfig{$qname} && length $::imscpConfig{$qname} ? $::imscpConfig{$qname} : $default // '';
 }
 
 sub setupSetQuestion
 {
-    $main::questions{$_[0]} = $_[1];
+    $::questions{$_[0]} = $_[1];
 }
 
 1;

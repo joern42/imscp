@@ -44,7 +44,6 @@
 #         - CS fixes
 # 1.11 Version by i-MSCP Team (bugfix release):
 #         - vlogger process not terminated (unpredictable context), leading to high CPU load
-$ENV{'PATH'} = '/bin:/usr/bin:/usr/local/bin';
 
 my $VERSION = '1.11';
 

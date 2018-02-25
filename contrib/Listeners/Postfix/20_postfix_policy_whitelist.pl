@@ -26,8 +26,10 @@ our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
+use File::Basename;
 use iMSCP::EventManager;
 use iMSCP::Servers::Mta;
+
 use version;
 
 #
@@ -41,7 +43,7 @@ my $policyRecipientWhitelistTable = '/etc/postfix/policy_recipient_whitelist';
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 20_postfix_policy_whitelist.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -49,21 +51,26 @@ iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
-        $mta->addMapEntry( $policyClientWhitelistTable );
-        $mta->addMapEntry( $policyRecipientWhitelistTable );
-        $mta->postconf( (
+        my $dbDriver = $mta->getDbDriver( 'hash' );
+
+        for my $table( $policyClientWhitelistTable, $policyRecipientWhitelistTable ) {
+            my ($database, $storage) = fileparse( $table );
+            $dbDriver->add( $database, undef, undef, $storage );
+        }
+
+        $mta->postconf(
             smtpd_recipient_restrictions => {
                 action => 'add',
-                before => qr/permit/,
                 values => [
                     "check_client_access hash:$policyClientWhitelistTable",
                     "check_recipient_access hash:$policyRecipientWhitelistTable"
-                ]
+                ],
+                before => qr/permit/,
             }
-        ));
+        );
     },
     -99
-) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

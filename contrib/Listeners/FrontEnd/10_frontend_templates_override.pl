@@ -36,7 +36,7 @@ my $CUSTOM_THEMES_PATH = '/usr/local/src/imscp-custom/themes/default';
 
 iMSCP::EventManager->getInstance()->register(
     'afterSetupInstallFiles',
-    sub { iMSCP::Dir->new( dirname => $CUSTOM_THEMES_PATH )->copy( "$main::imscpConfig{'GUI_ROOT_DIR'}/themes/default" ); }
+    sub { iMSCP::Dir->new( dirname => $CUSTOM_THEMES_PATH )->copy( "$::imscpConfig{'GUI_ROOT_DIR'}/themes/default" ); }
 );
 
 1;

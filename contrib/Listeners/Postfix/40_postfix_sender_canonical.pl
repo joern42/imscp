@@ -26,6 +26,7 @@ our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
+use File::Basename;
 use iMSCP::EventManager;
 use iMSCP::Servers::Mta;
 use version;
@@ -40,24 +41,25 @@ my $postfixSenderCanoncial = '/etc/postfix/sender_canonical';
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 40_postfix_sender_canonical.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
 iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
+        my ($database, $storage) = fileparse( $postfixSenderCanoncial );
         my $mta = iMSCP::Servers::Mta->factory();
-        $mta->addMapEntry( $postfixSenderCanoncial );
-        $mta->postconf( (
+        $mta->getDbDriver( 'hash' )->add( $database, undef, undef, $storage );
+        $mta->postconf(
             sender_canonical_maps => {
                 action => 'add',
                 values => [ "hash:$postfixSenderCanoncial" ]
             }
-        ));
+        );
     },
     -99
-) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

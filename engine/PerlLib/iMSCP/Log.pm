@@ -5,35 +5,34 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Log;
 
 use strict;
 use warnings;
 use Params::Check qw[ check ];
+use iMSCP::Boolean;
 
-local $Params::Check::VERBOSE = 1;
+local $Params::Check::VERBOSE = TRUE;
 
 =head1 DESCRIPTION
 
  Generic message storage mechanism allowing to store messages on a stack.
-
- Code upon based on the Log-Message module by Chris Williams, which has been simplified for i-MSCP.
 
 =head1 PUBLIC METHODS
 
@@ -54,9 +53,8 @@ sub new
 
     my $tmpl = {
         id    => {
-            default     => 'dummy',
-            strict_type => 1,
-            required    => 1
+            strict_type => TRUE,
+            required    => TRUE
         },
         stack => {
             default => []
@@ -115,14 +113,17 @@ sub store
     my $tmpl = {
         when    => {
             default => scalar localtime,
-                strict_type => 1,
+                strict_type => TRUE, # based no default attribute type, default to SCALAR
         },
         message => {
             default     => 'empty log',
-            strict_type => 1,
-            required    => 1
+            strict_type => TRUE,
+            required    => TRUE # based no default attribute type, default to SCALAR
         },
-        tag     => { default => 'none' }
+        tag     => {
+            default     => 'none',
+            strict_type => TRUE
+        }
     };
 
     if ( @_ == 1 ) {
@@ -133,7 +134,7 @@ sub store
 
     my $args = check( $tmpl, \%hash ) or (
         warn( sprintf( "Couldn't store message: %s", Params::Check->last_error )),
-        return
+        return FALSE
     );
 
     my $item = {
@@ -143,7 +144,7 @@ sub store
     };
 
     push @{$self->{'stack'}}, $item;
-    1;
+    TRUE;
 }
 
 =item retrieve( )
@@ -172,7 +173,7 @@ sub store
 
 =item remove
 
- Remove items from the stack upon retrieval?
+ If TRUE, remove items from the stack upon retrieval. Only returned items are removed.
 
 =back
 
@@ -188,21 +189,11 @@ sub retrieve
 
     my %hash = ();
     my $tmpl = {
-        tag     => {
-            default => qr/.*/
-        },
-        message => {
-            default => qr/.*/
-        },
-        amount  => {
-            default => undef
-        },
-        remove  => {
-            default => 0
-        },
-        chrono  => {
-            default => 1
-        }
+        tag     => { default => qr/.*/ },
+        message => { default => undef },
+        amount  => { default => scalar @{$self->{'stack'}}, strict_type => TRUE },
+        remove  => { default => FALSE },
+        chrono  => { default => TRUE }
     };
 
     # single arg means just the amount otherwise, they are named
@@ -213,19 +204,22 @@ sub retrieve
     }
 
     my $args = check( $tmpl, \%hash ) or ( warn( sprintf( "Couldn't parse input: %s", Params::Check->last_error )), return );
+    
+    # Prevent removal of items which are not effectively returned to caller ( amount > 1 but scalar context)
+    $args->{'amount'} = 1 unless wantarray;
 
     my @list = ();
-    for ( @{$self->{'stack'}} ) {
-        if ( $_->{'tag'} =~ /$args->{'tag'}/ && $_->{'message'} =~ /$args->{'message'}/ ) {
-            push @list, $_;
-            undef $_ if $args->{'remove'};
-        }
+    for my $log( $args->{'chrono'} ? @{$self->{'stack'}} : reverse @{$self->{'stack'}} ) {
+        next unless $log->{'tag'} =~ /$args->{'tag'}/ && ( !defined $args->{'message'} || $log->{'message'} =~ /$args->{'message'}/ );
+        push @list, $log;
+        undef $log if $args->{'remove'};
+        $args->{'amount'}--;
+        last unless $args->{'amount'}; 
     }
 
-    @{$self->{'stack'}} = grep(defined, @{$self->{'stack'}}) if $args->{'remove'};
-    my $amount = $args->{'amount'} || scalar @list;
-    @list = ( $amount >= @list ) ? @list : @list[0 .. $amount-1] if @list;
-    wantarray ? ( $args->{'chrono'} ) ? @list : reverse( @list ) : ( $args->{'chrono'} ) ? $list[0] : $list[$#list];
+    @{$self->{'stack'}} = grep defined, @{$self->{'stack'}} if $args->{'remove'} && @list;
+
+    wantarray ? @list : $list[0];
 }
 
 =item first( )
@@ -243,8 +237,7 @@ sub first
 {
     my $self = shift;
 
-    my $amt = @_ == 1 ? shift : 1;
-    $self->retrieve( amount => $amt, @_, chrono => 1 );
+    $self->retrieve( amount => @_ == 1 ? shift @_ : 1, @_, chrono => TRUE );
 }
 
 =item final( )
@@ -262,8 +255,7 @@ sub final
 {
     my $self = shift;
 
-    my $amt = @_ == 1 ? shift : 1;
-    $self->retrieve( amount => $amt, @_, chrono => 0 );
+    $self->retrieve( amount => @_ == 1 ? shift @_ : 1, @_, chrono => FALSE );
 }
 
 =item flush( )

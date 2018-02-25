@@ -39,7 +39,7 @@ my $MAX_CONNECTION_PER_IP = 20;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 20_courier_connections.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -52,7 +52,7 @@ iMSCP::EventManager->getInstance()->register(
 
         $conffile->{'MAXPERIP'} = $MAX_CONNECTION_PER_IP;
     }
-) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Courier::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Courier::' ) != -1;
 
 1;
 __END__

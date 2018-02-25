@@ -11,21 +11,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 use strict;
 use warnings;
@@ -69,10 +69,10 @@ my $json = {} if iMSCP::Getopt->json;
 
 unless ( iMSCP::Getopt->serverOnly ) {
     if ( iMSCP::Getopt->json ) {
-        $json->{'build_date'} = $main::imscpConfig{'BuildDate'} || 'Unreleased';
-        $json->{'version'} = $main::imscpConfig{'Version'};
-        $json->{'codename'} = $main::imscpConfig{'CodeName'};
-        $json->{'plugin_api'} = $main::imscpConfig{'PluginApi'};
+        $json->{'build_date'} = $::imscpConfig{'BuildDate'} || 'Unreleased';
+        $json->{'version'} = $::imscpConfig{'Version'};
+        $json->{'codename'} = $::imscpConfig{'CodeName'};
+        $json->{'plugin_api'} = $::imscpConfig{'PluginApi'};
     } else {
         print <<'EOF';
 
@@ -81,10 +81,10 @@ unless ( iMSCP::Getopt->serverOnly ) {
 #################################################################
 
 EOF
-        print output "Build date                       : @{ [ $main::imscpConfig{'BuildDate'} || 'Unreleased' ] }", 'info';
-        print output "Version                          : $main::imscpConfig{'Version'}", 'info';
-        print output "Codename                         : $main::imscpConfig{'CodeName'}", 'info';
-        print output "Plugin API                       : $main::imscpConfig{'PluginApi'}", 'info';
+        print output "Build date                       : @{ [ $::imscpConfig{'BuildDate'} || 'Unreleased' ] }", 'info';
+        print output "Version                          : $::imscpConfig{'Version'}", 'info';
+        print output "Codename                         : $::imscpConfig{'CodeName'}", 'info';
+        print output "Plugin API                       : $::imscpConfig{'PluginApi'}", 'info';
     }
 }
 
@@ -102,17 +102,17 @@ unless ( iMSCP::Getopt->json ) {
 
 EOF
 
-    print output "Daemon type for backend requests : $main::imscpConfig{'DAEMON_TYPE'}", 'info';
+    print output "Daemon type for backend requests : $::imscpConfig{'DAEMON_TYPE'}", 'info';
     print "\n";
 } else {
-    $json->{'daemon_type'} = $main::imscpConfig{'DAEMON_TYPE'};
+    $json->{'daemon_type'} = $::imscpConfig{'DAEMON_TYPE'};
 }
 
-for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-    my $srvInstance = $_->factory();
+for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+    my $srvInstance = $server_->factory();
 
     if ( iMSCP::Getopt->json ) {
-        $json->{'servers'}->{$_} = {
+        $json->{'servers'}->{$server} = {
             implementation => ref $srvInstance,
             version        => $srvInstance->getImplVersion(),
             internal_name  => $srvInstance->getServerName(),
@@ -122,7 +122,7 @@ for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
         next;
     }
 
-    print output "Server                           : $_", 'info';
+    print output "Server                           : $server", 'info';
     print output "Server implementation            : @{ [ ref $srvInstance ] }", 'info';
     print output "Server implementation version    : @{ [ $srvInstance->getImplVersion() ] }", 'info';
     print output "Server name for internal use     : @{ [ $srvInstance->getServerName() ] }", 'info';

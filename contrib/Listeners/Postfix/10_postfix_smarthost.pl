@@ -38,13 +38,13 @@ my $relayhost = '[smtp.host.tld]';
 my $relayport = '587';
 my $saslAuthUser = '';
 my $saslAuthPasswd = '';
-my $saslPasswdMapsPath = '/etc/postfix/relay_passwd';
+my $saslPasswdDb = 'relay_passwd';
 
 #
 ## Please, don't edit anything below this line unless you known what you're doing
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 10_postfix_smarthost.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -53,36 +53,19 @@ iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
         my $mta = iMSCP::Servers::Mta->factory();
-        $mta->addMapEntry( $saslPasswdMapsPath, "$relayhost:$relayport\t$saslAuthUser:$saslAuthPasswd" );
+        $mta->getDbDriver( 'cbd' )->add( $saslPasswdMapsName, "$relayhost:$relayport", "$saslAuthUser:$saslAuthPasswd" );
         $mta->postconf(
-            (
-                # Relay parameter
-                relayhost                  => {
-                    action => 'replace',
-                    values => [ "$relayhost:$relayport" ]
-                },
-                # smtp SASL parameters
-                smtp_sasl_type             => {
-                    action => 'replace',
-                    values => [ 'cyrus' ]
-                },
-                smtp_sasl_auth_enable      => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
-                smtp_sasl_password_maps    => {
-                    action => 'add',
-                    values => [ "hash:$saslPasswdMapsPath" ]
-                },
-                smtp_sasl_security_options => {
-                    action => 'replace',
-                    values => [ 'noanonymous' ]
-                }
-            )
+            # Relay parameter
+            relayhost                  => { values => [ "$relayhost:$relayport" ] },
+            # smtp SASL parameters
+            smtp_sasl_type             => { values => [ 'cyrus' ] },
+            smtp_sasl_auth_enable      => { values => [ 'yes' ] },
+            smtp_sasl_password_maps    => { 'add', values => [ "cdb:$mta->{'config'}->{'MTA_DB_DIR'}/$saslPasswdDb" ] },
+            smtp_sasl_security_options => { values => [ 'noanonymous' ] }
         );
     },
     -99
-) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

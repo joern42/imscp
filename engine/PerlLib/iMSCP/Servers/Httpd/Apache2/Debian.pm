@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Httpd::Apache2::Debian;
 
@@ -61,11 +61,11 @@ sub install
     my ($self) = @_;
 
     $self->SUPER::install();
-    $self->_makeDirs();
-    $self->_setupModules();
-    $self->_configure();
-    $self->_installLogrotate();
-    $self->_cleanup();
+    #$self->_makeDirs();
+    #$self->_setupModules();
+    #$self->_configure();
+    #$self->_installLogrotate();
+    #$self->_cleanup();
 }
 
 =item postinstall( )
@@ -604,8 +604,8 @@ sub _makeDirs
 {
 
     iMSCP::Dir->new( dirname => '/var/log/apache2' )->make( {
-        user  => $main::imscpConfig{'ROOT_USER'},
-        group => $main::imscpConfig{'ADM_GROUP'},
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ADM_GROUP'},
         mode  => 0750
     } );
 }
@@ -679,7 +679,7 @@ sub _configure
             my ($cfgTpl) = @_;
             ${$cfgTpl} =~ s/^NameVirtualHost[^\n]+\n//gim;
 
-            if ( main::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ) {
+            if ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ) {
                 ${$cfgTpl} =~ s/^(\s*Listen)\s+0.0.0.0:(80|443)/$1 $2\n/gim;
             } else {
                 ${$cfgTpl} =~ s/^(\s*Listen)\s+(80|443)\n/$1 0.0.0.0:$2\n/gim;
@@ -697,7 +697,7 @@ sub _configure
         HTTPD_CUSTOM_SITES_DIR => '/etc/apache2/imscp',
         HTTPD_LOG_DIR          => '/var/log/apache2',
         HTTPD_ROOT_DIR         => '/var/www',
-        TRAFF_ROOT_DIR         => $main::imscpConfig{'TRAFF_ROOT_DIR'},
+        TRAFF_ROOT_DIR         => $::imscpConfig{'TRAFF_ROOT_DIR'},
         VLOGGER_CONF_PATH      => "/etc/apache2/vlogger.conf"
     };
 
@@ -722,8 +722,8 @@ sub _installLogrotate
 
     $self->buildConfFile( 'logrotate.conf', '/etc/logrotate.d/apache2', undef,
         {
-            ROOT_USER     => $main::imscpConfig{'ROOT_USER'},
-            ADM_GROUP     => $main::imscpConfig{'ADM_GROUP'},
+            ROOT_USER     => $::imscpConfig{'ROOT_USER'},
+            ADM_GROUP     => $::imscpConfig{'ADM_GROUP'},
             HTTPD_LOG_DIR => $self->{'config'}->{'HTTPD_LOG_DIR'}
         }
     );
@@ -741,7 +741,7 @@ sub _cleanup
 {
     my ($self) = @_;
 
-    return unless version->parse( $main::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/vlogger.conf" )->remove();
 
@@ -757,10 +757,10 @@ sub _cleanup
 
     iMSCP::Dir->new( dirname => $_ )->remove() for '/var/log/apache2/backup', '/var/log/apache2/users', '/var/www/scoreboards';
 
-    for ( iMSCP::Dir->new( dirname => $main::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
-        next unless -d "$main::imscpConfig{'USER_WEB_DIR'}/$_/logs";
-        umount( "$main::imscpConfig{'USER_WEB_DIR'}/$_/logs" );
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'USER_WEB_DIR'}/$_/logs" )->clear( qr/.*\.log$/ );
+    for my $dir( iMSCP::Dir->new( dirname => $::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
+        next unless -d "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs";
+        umount( "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs" );
+        iMSCP::Dir->new( dirname => "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs" )->clear( qr/.*\.log$/ );
     }
 }
 
@@ -782,12 +782,12 @@ sub _restoreDefaultConfig
     iMSCP::File->new( filename => '/etc/apache2/sites-available/00_nameserver.conf' )->remove();
     $self->disableConfs( '00_imscp.conf' );
     iMSCP::File->new( filename => "/etc/apache2/conf-available/00_imscp.conf" )->remove();
-    iMSCP::Dir->new( dirname => $_ )->remove() for glob( "$main::imscpConfig{'USER_WEB_DIR'}/*/domain_disable_page" );
+    iMSCP::Dir->new( dirname => $_ )->remove() for glob( "$::imscpConfig{'USER_WEB_DIR'}/*/domain_disable_page" );
     iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove();
 
-    for ( '000-default', 'default' ) {
-        next unless -f "/etc/apache2/sites-available/$_";
-        $self->enableSites( $_ );
+    for my $file( '000-default', 'default' ) {
+        next unless -f "/etc/apache2/sites-available/$file";
+        $self->enableSites( $file );
     }
 }
 
@@ -896,7 +896,7 @@ sub _switchMarker
     defined $what or die( 'Undefined $what parameter' );
     defined $name or die( 'Undefined $name parameter' );
 
-    return unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && $self->getServerName() eq 'Apache';
+    return unless $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && $self->getServerName() eq 'Apache';
 
     my $stateMarkerDir = "$self->{'config'}->{'HTTPD_STATE_DIR'}/$which/${what}d_by_admin";
     my $stateMarker = "$stateMarkerDir/$name";
@@ -972,12 +972,10 @@ sub _doModDeps
 
     for ( @deps ) {
         debug( sprintf( 'Considering dependency %s for %s', $_, $mod ));
-        ( $context eq 'enable' ? $self->enableModules( $_ ) : $self->disableModules( $_ ) ) == 0 or die(
-            sprintf( "Couldn't %s dependency %s for %s", $context, $_, $mod )
-        );
+        eval { ( $context eq 'enable' ? $self->enableModules( $_ ) : $self->disableModules( $_ ) ); };
+        !$@ or die( sprintf( "Couldn't %s dependency %s for %s", $context, $_, $mod ));
     }
 }
-
 
 =item _checkModuleDeps( $mod, @deps)
 
@@ -1022,16 +1020,14 @@ sub _checkModConflicts
     my $countErrors = 0;
 
     eval {
-        my $caller = ( caller( 1 ) )[3];
-
         for ( @conflicts ) {
-            debug( sprintf( "Considering conflict %s for %s", $_, $mod ), $caller );
+            debug( sprintf( "Considering conflict %s for %s", $_, $mod ) );
 
             my $tgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_.load";
             my $lnk = "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$_.load";
 
             if ( $self->_checkSymlink( $tgt, $lnk ) eq 'ok' ) {
-                error( sprintf( 'The module %s conflict with the %s module. It needs to be disabled first.', $_, $mod ), $caller );
+                error( sprintf( 'The module %s conflict with the %s module. It needs to be disabled first.', $_, $mod ) );
                 $countErrors++;
             }
         }

@@ -1,22 +1,5 @@
 #!/usr/bin/perl
 
-# i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
 =head1 NAME
 
  set-engine-permissions Set i-MSCP GUI permission
@@ -26,6 +9,23 @@
  set-engine-permissions [options]...
 
 =cut
+
+# i-MSCP - internet Multi Server Control Panel
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 use strict;
 use warnings;
@@ -43,7 +43,6 @@ use POSIX qw / locale_h /;
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 newDebug( 'imscp-set-gui-permissions.log' );
 
@@ -67,11 +66,11 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     nodatabase      => 1,
     nokeys          => 1,
     nolock          => 1
-    
-} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
+
+} )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 
 my @items = ();
-for my $server(iMSCP::Servers->getInstance()->getListWithFullNames()) {
+for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     push @items, [ $server, sub { $server->factory()->setGuiPermissions(); } ];
 }
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
@@ -83,10 +82,10 @@ iMSCP::EventManager->getInstance()->trigger( 'beforeSetGuiPermissions' );
 
 my $totalItems = @items;
 my $count = 1;
-for ( @items ) {
-    debug( sprintf( 'Setting %s frontEnd permissions', $_->[0] ));
-    printf( "Setting %s frontEnd permissions\t%s\t%s\n", $_->[0], $totalItems, $count++ ) if iMSCP::Getopt->context() eq 'installer';
-    $_->[1]->();
+for my $item( @items ) {
+    debug( sprintf( 'Setting %s frontEnd permissions', $item->[0] ));
+    printf( "Setting %s frontEnd permissions\t%s\t%s\n", $item->[0], $totalItems, $count++ ) if iMSCP::Getopt->context() eq 'installer';
+    $item->[1]->();
 }
 
 iMSCP::EventManager->getInstance()->trigger( 'afterSetGuiPermissions' );

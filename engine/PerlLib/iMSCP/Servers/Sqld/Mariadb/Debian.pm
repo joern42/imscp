@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Servers::Sqld::Mariadb::Debian;
 
@@ -204,8 +204,8 @@ sub _buildConf
 
     # Make sure that the conf.d directory exists
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
-        user  => $main::imscpConfig{'ROOT_USER'},
-        group => $main::imscpConfig{'ROOT_GROUP'},
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
         mode  => 0755
     } );
 
@@ -244,7 +244,7 @@ EOF
     $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,
         {
             EVENT_SCHEDULER       => 'DISABLED',
-            INNODB_USE_NATIVE_AIO => $main::imscpConfig{'SYSTEM_VIRTUALIZER'} eq 'physical' ? 'ON' : 'OFF',
+            INNODB_USE_NATIVE_AIO => $::imscpConfig{'SYSTEM_VIRTUALIZER'} eq 'physical' ? 'ON' : 'OFF',
             MAX_CONNECTIONS       => '500',
             MAX_ALLOWED_PACKET    => '500M',
             PERFORMANCE_SCHEMA    => 'OFF',
@@ -280,10 +280,10 @@ EOF
         $defaultsExtraFile->close();
         $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
             {
-                HOST     => main::setupGetQuestion( 'DATABASE_HOST' ),
-                PORT     => main::setupGetQuestion( 'DATABASE_PORT' ),
-                USER     => main::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
-                PASSWORD => decryptRijndaelCBC( $main::imscpKEY, $main::imscpIV, main::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
+                HOST     => ::setupGetQuestion( 'DATABASE_HOST' ),
+                PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
+                USER     => ::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
+                PASSWORD => decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
             { srcname => 'defaults-extra-file' }
         );
@@ -299,8 +299,8 @@ EOF
 
     # Disable unwanted plugins (bc reasons)
     my $dbh = iMSCP::Database->getInstance();
-    for ( qw/ cracklib_password_check simple_password_check unix_socket validate_password / ) {
-        $dbh->do( "UNINSTALL PLUGIN $_" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$_'" );
+    for my $plugin( qw/ cracklib_password_check simple_password_check unix_socket validate_password / ) {
+        $dbh->do( "UNINSTALL PLUGIN $plugin" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
     }
 
 }

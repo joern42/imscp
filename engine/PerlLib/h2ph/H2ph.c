@@ -76,7 +76,7 @@ int main(void) {
   /* We have to build the %sizeof hash by ourself as the H2PH(1) program
     doesn't do that for us. We provide only Basic C types.
     see https://en.wikipedia.org/wiki/C_data_types
-    See: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887
+    See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887
     TODO: Build %sizeof hash by extracting C types from various *.ph files
   */
   printf("# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887\n");

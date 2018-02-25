@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Database;
 
@@ -103,7 +103,7 @@ sub useDatabase
 {
     my ($self, $dbName) = @_;
 
-    defined $dbName && $dbName ne '' or croak( '$dbName parameter is not defined or invalid' );
+    length $dbName or croak( '$dbName parameter is not defined or invalid' );
 
     my $oldDbName = $self->{'db'}->{'DATABASE_NAME'};
     return $oldDbName if $dbName eq $oldDbName;
@@ -212,7 +212,7 @@ EOF
             # Void tables locking whenever possible
             . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '']}"
             # Compress all information sent between the client and the server (only if remote SQL server).
-            . "@{[ index( $main::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '']}"
+            . "@{[ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '']}"
             . " --databases @{[ escapeShell($dbName) ]}"
             . ' > ' . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
         undef,
@@ -277,12 +277,11 @@ sub _init
 sub AUTOLOAD
 {
     ( my $method = our $AUTOLOAD ) =~ s/.*:://;
-    my $subref = __PACKAGE__->getInstance()->connect()->can( $method ) or die( sprintf( '%s is not a DBI method', $method ));
 
     no strict 'refs';
     *{$AUTOLOAD} = sub {
         shift;
-        $subref->( __PACKAGE__->getInstance()->connect(), @_ );
+        __PACKAGE__->getInstance()->connect()->$method( @_ );
     };
 
     goto &{$AUTOLOAD};

@@ -41,7 +41,7 @@ use version;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 60_postfix_pfs.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -50,19 +50,13 @@ iMSCP::EventManager->getInstance()->register(
     sub {
         return unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
 
-        iMSCP::Servers::Mta->factory()->postconf( (
-            smtpd_tls_dh1024_param_file => {
-                action => 'replace',
-                values => [ '/etc/postfix/dh2048.pem' ]
-            },
-            smtpd_tls_dh512_param_file  => {
-                action => 'replace',
-                values => [ '/etc/postfix/dh512.pem' ]
-            }
-        ));
+        iMSCP::Servers::Mta->factory()->postconf(
+            smtpd_tls_dh1024_param_file => { values => [ '/etc/postfix/dh2048.pem' ] },
+            smtpd_tls_dh512_param_file  => { values => [ '/etc/postfix/dh512.pem' ] }
+        );
     },
     -99
-) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

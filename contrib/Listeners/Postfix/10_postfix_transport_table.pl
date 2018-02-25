@@ -50,12 +50,12 @@ my %transportTableEntries = (
 iMSCP::EventManager->getInstance()->register(
     'afterPostfixConfigure',
     sub {
-        my $mta = iMSCP::Servers::Mta->factory();
+        my $dbDriver = iMSCP::Servers::Mta->factory()->getDbDriver();
         while ( my ($recipient, $transport) = each( %transportTableEntries ) ) {
-            $mta->addMapEntry( $mta->{'config'}->{'MTA_TRANSPORT_HASH'}, "$recipient\t$transport" );
+            $dbDriver->add( 'transport_maps', $recipient, $transport );
         }
     }
-) if index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

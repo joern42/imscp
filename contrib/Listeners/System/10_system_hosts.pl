@@ -41,7 +41,7 @@ my @hostsFileEntries = (
 ## Please don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 10_system_hosts.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -55,7 +55,7 @@ iMSCP::EventManager->getInstance()->register(
 
         ${$cfgTpl} .= join( "\n", @hostsFileEntries ) . "\n";
     }
-) if index( $main::imscpConfig{'iMSCP::Servers::Server'}, '::Local::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Server'}, '::Local::' ) != -1;
 
 1;
 __END__

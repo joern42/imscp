@@ -55,26 +55,20 @@ my @masterCfParameters = (
 ## Please, don't edit anything below this line unless you known what you're doing
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 10_postfix_tuning.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-if ( index( $main::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 ) {
+if ( index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 ) {
     iMSCP::EventManager->getInstance()->register(
         'afterPostfixConfigure',
         sub {
             my %params = ();
             while ( my ($param, $value) = each( %mainCfParameters ) ) {
-                $params{$param} = {
-                    action => 'replace',
-                    values => [ split /,\s+/, $value ]
-                };
+                $params{$param} = { values => [ split /,\s+/, $value ] };
             }
 
-            if ( %params ) {
-                my $rs = iMSCP::Servers::Mta->factory()->postconf( %params );
-                return $rs if $rs;
-            }
+            iMSCP::Servers::Mta->factory()->postconf( %params ) if %params;
         },
         -99
     )->register(

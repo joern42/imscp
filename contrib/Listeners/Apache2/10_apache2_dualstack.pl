@@ -50,7 +50,7 @@ my %PER_DOMAIN_IPS = (
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 10_apache2_dualstack.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -62,7 +62,7 @@ iMSCP::EventManager->getInstance()->register(
         push @{$domainIps}, @GLOBAL_IPS if @GLOBAL_IPS;
         push @{$domainIps}, @{$PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}}} if $PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}};
     }
-) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 
 1;
 __END__

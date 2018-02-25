@@ -29,16 +29,14 @@ use autouse Fcntl => qw/ O_RDONLY /;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::Net iMSCP::SystemGroup iMSCP::SystemUser /;
+use Class::Autouse qw/ :nostat iMSCP::Config iMSCP::Getopt iMSCP::Net iMSCP::SystemGroup iMSCP::SystemUser Tie::File /;
 use File::Basename;
 use File::Temp;
 use File::Spec;
-use iMSCP::Config;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
-use Tie::File;
 use iMSCP::Service;
 use Scalar::Defer qw/ lazy /;
 use parent 'iMSCP::Servers::Mta';
@@ -146,7 +144,6 @@ sub uninstall
 sub setEnginePermissions
 {
     my ($self) = @_;
-    # eg. /etc/postfix/main.cf
     setRights( $self->{'config'}->{'MTA_MAIN_CONF_FILE'},
         {
             user  => $::imscpConfig{'ROOT_USER'},
@@ -154,7 +151,6 @@ sub setEnginePermissions
             mode  => '0644'
         }
     );
-    # eg. /etc/postfix/master.cf
     setRights( $self->{'config'}->{'MTA_MASTER_CONF_FILE'},
         {
             user  => $::imscpConfig{'ROOT_USER'},
@@ -162,7 +158,6 @@ sub setEnginePermissions
             mode  => '0644'
         }
     );
-    # eg. /etc/aliases
     setRights( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'},
         {
             user  => $::imscpConfig{'ROOT_USER'},
@@ -170,7 +165,6 @@ sub setEnginePermissions
             mode  => '0644'
         }
     );
-    # eg. /var/www/imscp/engine/messenger
     setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/messenger",
         {
             user      => $::imscpConfig{'ROOT_USER'},
@@ -180,7 +174,6 @@ sub setEnginePermissions
             recursive => 1
         }
     );
-    # eg. /var/mail/virtual
     setRights( $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
         {
             user      => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
@@ -190,7 +183,6 @@ sub setEnginePermissions
             recursive => iMSCP::Getopt->fixPermissions
         }
     );
-    # eg. /usr/sbin/maillogconvert.pl
     setRights( $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'},
         {
             user  => $::imscpConfig{'ROOT_USER'},
@@ -508,7 +500,7 @@ sub getTraffic
     debug( sprintf( 'Processing SMTP %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or die %{$trafficIndexDb}, 'iMSCP::Config', fileName => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    $trafficIndexDb or die %{$trafficIndexDb}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
     my ($idx, $idxContent) = ( $trafficIndexDb->{'smtp_lineNo'} || 0, $trafficIndexDb->{'smtp_lineContent'} );
 
     # Extract and standardize SMTP logs in temporary file, using
@@ -524,7 +516,7 @@ sub getTraffic
 
     if ( exists $logs[$idx] && $logs[$idx] eq $idxContent ) {
         debug( sprintf( 'Skipping SMTP logs that were already processed (lines %d to %d)', 1, ++$idx ));
-    } elsif ( $idxContent ne '' && substr( $logFile, -2 ) ne '.1' ) {
+    } elsif ( length $idxContent && substr( $logFile, -2 ) ne '.1' ) {
         debug( 'Log rotation has been detected. Processing last rotated log file first' );
         $self->getTraffic( $trafficDb, $logFile . '.1', $trafficIndexDb );
         $idx = 0;
@@ -558,7 +550,7 @@ sub getTraffic
     $trafficIndexDb->{'smtp_lineContent'} = $logs[$#logs];
 }
 
-=item postmap( $mapPath [, $lookupTableType = 'hash', [ $delayed = FALSE ] ] )
+=item postmap( $lookupTable [, $lookupTableType = 'hash', [ $delayed = FALSE ] ] )
 
  Provides an interface to POSTMAP(1) for creating/updating Postfix lookup tables
 
@@ -580,11 +572,11 @@ sub postmap
     );
 
     if ( $delayed ) {
-        $self->{'mta'}->{'_postmap'}->{$path} //= $lookupTableType;
+        $self->{'mta'}->{'_postmap'}->{$lookupTable} //= $lookupTableType;
         return;
     }
 
-    my $rs = execute( "postmap $lookupTableType:$lookupTable", \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'postmap', "$lookupTableType:$lookupTable" ], \ my $stdout, \ my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die ( $stderr || 'Unknown error' );
 }
@@ -593,17 +585,16 @@ sub postmap
 
  Provides an interface to POSTCONF(1) for editing Postfix parameters in the main.cf configuration file
 
- Param hash %params A hash where each key is a Postfix parameter name and the value, a hashes describing in order:
-  - action : Action to be performed (add|replace|remove) -- Default add
+ Param hash %params A hash where each key is a Postfix parameter name and the value, a hash describing in order:
+  - action : Action to be performed (add|replace|remove) -- Default replace
   - values : An array containing parameter value(s) to add, replace or remove. For values to be removed, both strings and Regexp are supported.
   - empty  : OPTIONAL Flag that allows to force adding of empty parameter
-  - before : OPTIONAL Option that allows to add values before the given value (expressed as a Regexp)
-  - after  : OPTIONAL Option that allows to add values after the given value (expressed as a Regexp)
+  - before : OPTIONAL Option that allows to add parameter value(s) before the given value (expressed as a Regexp)
+  - after  : OPTIONAL Option that allows to add parameter value(s) after the given value (expressed as a Regexp)
 
   `replace' action versus `remove' action
-    The `replace' action replace the full value of the given parameter while the `remove' action only remove the specified value portion in the
-    parameter value. Note that when the resulting value is an empty value, the paramerter is removed from the configuration file unless the `empty'
-    flag has been specified.
+    The `replace' action replace all values of the given parameter while the `remove' action only remove the specified values in the parameter.
+    Note that when the result is an empty value, the parameter is removed from the configuration file unless the `empty' flag has been specified.
 
   `before' and `after' options:
     The `before' and `after' options are only relevant for the `add' action. Note also that the `before' option has a highter precedence than the
@@ -614,7 +605,7 @@ sub postmap
 
   Usage example:
 
-    Adding parameters
+    Adding parameter values
 
     Let's assume that we want add both, the `check_client_access <table>' value and the `check_recipient_access <table>' value to the
     `smtpd_recipient_restrictions' parameter, before the `check_policy_service ...' service. The following would do the job:
@@ -629,7 +620,7 @@ sub postmap
         )
     );
  
-    Removing parameters
+    Removing value portion of parameters
 
     iMSCP::Servers::Mta::Postfix::Abstract->getInstance(
         (
@@ -655,7 +646,7 @@ sub postconf
     %params or croak( 'Missing parameters ' );
 
     my @pToDel = ();
-    my $conffile = $self->{'config'}->{'MTA_CONF_DIR'} || '/etc/postfix';
+    my $conffile = $self->{'config'}->{'MTA_CONF_DIR'};
     my $time = time();
 
     # Avoid POSTCONF(1) being slow by waiting 2 seconds before next processing
@@ -668,7 +659,7 @@ sub postconf
     executeNoWait(
         [ 'postconf', '-c', $conffile, keys %params ],
         sub {
-            return unless ( my $p, my $v ) = $_[0] =~ /^([^=]+)\s+=\s*(.*)/;
+            return unless my ( $p, $v ) = $_[0] =~ /^([^=]+)\s+=\s*(.*)/;
 
             my (@vls, @rpls) = ( split( /,\s*/, $v ), () );
 
@@ -677,14 +668,16 @@ sub postconf
             );
 
             for $v( @{$params{$p}->{'values'}} ) {
-                if ( !$params{$p}->{'action'} || $params{$p}->{'action'} eq 'add' ) {
+                $params{$p}->{'action'} //= 'replace';
+
+                if ( $params{$p}->{'action'} eq 'add' ) {
                     unless ( $params{$p}->{'before'} || $params{$p}->{'after'} ) {
                         next if grep( $_ eq $v, @vls );
                         push @vls, $v;
                         next;
                     }
 
-                    # If the parameter already exists, we delete it as someone could want move it
+                    # If the parameter value already exists, we delete it as someone could want move it
                     @vls = grep( $_ ne $v, @vls );
                     my $regexp = $params{$p}->{'before'} || $params{$p}->{'after'};
                     ref $regexp eq 'Regexp' or croak( 'Invalid before|after option. Expects a Regexp' );
@@ -702,7 +695,7 @@ sub postconf
             my $forceEmpty = $params{$p}->{'empty'};
             $params{$p} = join ', ', @rpls ? @rpls : @vls;
 
-            unless ( $forceEmpty || $params{$p} ne '' ) {
+            unless ( $forceEmpty || length $params{$p} ) {
                 push @pToDel, $p;
                 delete $params{$p};
             }
@@ -725,6 +718,43 @@ sub postconf
     $self->{'reload'} ||= 1;
 }
 
+=item getAvailableDbDrivers
+
+ Return list of available Postfix database driver types
+
+ Only database driver types that are supported by the distribution and for
+ which an i-MSCP implementation is available must be reported.
+ 
+ See the iMSCP::Servers::Mta::Postfix::Driver::* classes.
+
+ Return list List of available database driver types
+
+=cut
+
+sub getAvailableDbDrivers
+{
+    my ($self) = @_;
+
+    die ( sprintf( 'The %s class must implement the getAvailableDbDrivers() method', ref $self ));
+}
+
+=item getDbDriver( $driver = $self->{'config'}->{'MTA_DB_DRIVER'} )
+
+ Return instance of the given database driver, default driver if none is provided.
+
+ Param string $driver Database driver name
+ Return iMSCP::Servers::Mta::Postfix::Driver::Abstract
+
+=cut
+
+sub getDbDriver
+{
+    my ($self, $driver) = @_;
+    $driver //= $self->{'config'}->{'MTA_DB_DRIVER'};
+
+    $self->{'db_drivers'}->{$driver} ||= "iMSCP::Servers::Mta::Postfix::Driver::Database::@{ [ ucfirst lc $driver ] }"->new( mta => $self );
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -745,6 +775,7 @@ sub _init
 
     @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/postfix" );
     $self->{'db'} = lazy { "iMSCP::Servers::Mta::Postfix::Driver::Database::$self->{'config'}->{'MTA_DB_DRIVER'}"->new( mta => $self ); };
+    $self->{'db_drivers'}->{$self->{'config'}->{'MTA_DB_DRIVER'}} = $self->{'db'};
     $self->SUPER::_init();
 }
 
@@ -910,24 +941,27 @@ sub _buildMainCfFile
 
     my $baseServerIp = ::setupGetQuestion( 'BASE_SERVER_IP' );
     my $baseServerIpType = iMSCP::Net->getInstance->getAddrVersion( $baseServerIp );
-    my $gid = getgrnam( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} );
-    my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} );
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
+    my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} ); # FIXME or die?
+    my $gid = getgrnam( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} ); # FIXME or die?
 
-    $self->buildConfFile( 'main.cf', $self->{'config'}->{'MTA_MAIN_CONF_FILE'}, undef,
-        {
-            MTA_INET_PROTOCOLS     => $baseServerIpType,
-            MTA_SMTP_BIND_ADDRESS  => ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '',
-            MTA_SMTP_BIND_ADDRESS6 => ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '',
-            MTA_HOSTNAME           => $hostname,
-            MTA_LOCAL_DOMAIN       => "$hostname.local",
-            MTA_VERSION            => $::imscpConfig{'Version'}, # Fake data expected
-            MTA_LOCAL_MAIL_DIR     => $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'},
-            MTA_LOCAL_ALIAS_HASH   => $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'},
-            MTA_MAILBOX_MIN_UID    => $uid,
-            MTA_MAILBOX_UID        => $uid,
-            MTA_MAILBOX_GID        => $gid
-        }
+
+    $self->buildConfFile( 'main.cf', $self->{'config'}->{'MTA_MAIN_CONF_FILE'} );
+    $self->postconf(
+        inet_protocols       => { values => [ $baseServerIpType ] },
+        smtp_bind_address    => { values => [ ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '' ] },
+        smtp_bind_address6   => { values => [ ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '' ] },
+        myhostname           => { values => [ $hostname ] },
+        mydomain             => { values => [ "$hostname.local" ] },
+        myorigin             => { values => [ '$myhostname' ] },
+        smtpd_banner         => { values => [ "\$myhostname ESMTP i-MSCP $::imscpConfig{'Version'} Managed" ] },
+        alias_database       => { values => [ $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ] },
+        alias_maps           => { values => [ '$alias_database' ] },
+        mail_spool_directory => { values => [ $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'} ] },
+        virtual_mailbox_base => { values => [ $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} ] },
+        virtual_minimum_uid  => { values => [ $uid ] },
+        virtual_uid_maps     => { values => [ $uid ] },
+        virtual_gid_maps     => { values => [ $gid ] },
     );
 
     # Add TLS parameters if required
@@ -938,94 +972,33 @@ sub _buildMainCfFile
         sub {
             my %params = (
                 # smtpd TLS parameters (opportunistic)
-                smtpd_tls_security_level         => {
-                    action => 'replace',
-                    values => [ 'may' ]
-                },
-                smtpd_tls_ciphers                => {
-                    action => 'replace',
-                    values => [ 'high' ]
-                },
-                smtpd_tls_exclude_ciphers        => {
-                    action => 'replace',
-                    values => [ 'aNULL', 'MD5' ]
-                },
-                smtpd_tls_protocols              => {
-                    action => 'replace',
-                    values => [ '!SSLv2', '!SSLv3' ]
-                },
-                smtpd_tls_loglevel               => {
-                    action => 'replace',
-                    values => [ '0' ]
-                },
-                smtpd_tls_cert_file              => {
-                    action => 'replace',
-                    values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ]
-                },
-                smtpd_tls_key_file               => {
-                    action => 'replace',
-                    values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ]
-                },
-                smtpd_tls_auth_only              => {
-                    action => 'replace',
-                    values => [ 'no' ]
-                },
-                smtpd_tls_received_header        => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
-                smtpd_tls_session_cache_database => {
-                    action => 'replace',
-                    values => [ 'btree:/var/lib/postfix/smtpd_scache' ]
-                },
-                smtpd_tls_session_cache_timeout  => {
-                    action => 'replace',
-                    values => [ '3600s' ]
-                },
+                smtpd_tls_security_level         => { values => [ 'may' ] },
+                smtpd_tls_ciphers                => { values => [ 'high' ] },
+                smtpd_tls_exclude_ciphers        => { values => [ 'aNULL', 'MD5' ] },
+                smtpd_tls_protocols              => { values => [ '!SSLv2', '!SSLv3' ] },
+                smtpd_tls_loglevel               => { values => [ 0 ] },
+                smtpd_tls_cert_file              => { values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ] },
+                smtpd_tls_key_file               => { values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ] },
+                smtpd_tls_auth_only              => { values => [ 'no' ] },
+                smtpd_tls_received_header        => { values => [ 'yes' ] },
+                smtpd_tls_session_cache_database => { values => [ 'btree:/var/lib/postfix/smtpd_scache' ] },
+                smtpd_tls_session_cache_timeout  => { values => [ '3600s' ] },
                 # smtp TLS parameters (opportunistic)
-                smtp_tls_security_level          => {
-                    action => 'replace',
-                    values => [ 'may' ]
-                },
-                smtp_tls_ciphers                 => {
-                    action => 'replace',
-                    values => [ 'high' ]
-                },
-                smtp_tls_exclude_ciphers         => {
-                    action => 'replace',
-                    values => [ 'aNULL', 'MD5' ]
-                },
-                smtp_tls_protocols               => {
-                    action => 'replace',
-                    values => [ '!SSLv2', '!SSLv3' ]
-                },
-                smtp_tls_loglevel                => {
-                    action => 'replace',
-                    values => [ '0' ]
-                },
-                smtp_tls_CAfile                  => {
-                    action => 'replace',
-                    values => [ '/etc/ssl/certs/ca-certificates.crt' ]
-                },
-                smtp_tls_session_cache_database  => {
-                    action => 'replace',
-                    values => [ 'btree:/var/lib/postfix/smtp_scache' ]
-                }
+                smtp_tls_security_level          => { values => [ 'may' ] },
+                smtp_tls_ciphers                 => { values => [ 'high' ] },
+                smtp_tls_exclude_ciphers         => { values => [ 'aNULL', 'MD5' ] },
+                smtp_tls_protocols               => { values => [ '!SSLv2', '!SSLv3' ] },
+                smtp_tls_loglevel                => { values => [ '0' ] },
+                smtp_tls_CAfile                  => { values => [ '/etc/ssl/certs/ca-certificates.crt' ] },
+                smtp_tls_session_cache_database  => { values => [ 'btree:/var/lib/postfix/smtp_scache' ] }
             );
 
             if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '2.10.0' ) ) {
-                $params{'smtpd_relay_restrictions'} = {
-                    action => 'replace',
-                    values => [ '' ],
-                    empty  => 1
-                };
+                $params{'smtpd_relay_restrictions'} = { values => [ '' ], empty => 1 };
             }
 
             if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '3.0.0' ) ) {
-                $params{'compatibility_level'} = {
-                    action => 'replace',
-                    values => [ '2' ]
-                };
+                $params{'compatibility_level'} = { values => [ '2' ] };
             }
 
             $self->postconf( %params );

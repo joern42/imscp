@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Service;
 
@@ -111,8 +111,8 @@ sub remove
             my $provider = $self->getProvider( 'Systemd' );
 
             # Remove drop-in files if any
-            for ( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
-                my $dropInDir = $_;
+            for my $dir( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
+                my $dropInDir = $dir;
                 ( undef, undef, my $suffix ) = fileparse(
                     $service, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer /
                 );
@@ -133,8 +133,8 @@ sub remove
 
         unless ( $self->{'init'} eq 'Upstart' ) {
             my $provider = $self->getProvider( 'Upstart' );
-            for ( qw / conf override / ) {
-                if ( my $jobfilePath = eval { $provider->getJobFilePath( $service, $_ ); } ) {
+            for my $file( qw / conf override / ) {
+                if ( my $jobfilePath = eval { $provider->getJobFilePath( $service, $file ); } ) {
                     debug( sprintf ( "Removing the %s upstart file", $jobfilePath ));
                     iMSCP::File->new( filename => $jobfilePath )->remove();
                 }
@@ -292,7 +292,7 @@ sub getProvider
     my ($self, $providerName) = @_;
 
     my $provider = 'iMSCP::Providers::Service::'
-        . "@{[ $main::imscpConfig{'DISTRO_FAMILY'} ne '' ? $main::imscpConfig{'DISTRO_FAMILY'}.'::': '' ]}"
+        . "@{[ length $::imscpConfig{'DISTRO_FAMILY'} ? $::imscpConfig{'DISTRO_FAMILY'}.'::': '' ]}"
         . "@{[ $providerName // $self->{'init'} ]}";
 
     unless ( can_load( modules => { $provider => undef } ) ) {
@@ -385,7 +385,7 @@ sub _init
 {
     my ($self) = @_;
 
-    exists $main::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
+    exists $::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
     $self->{'init'} = _detectInit();
     $self->{'provider'} = $self->getProvider();
     $self;
@@ -401,7 +401,7 @@ sub _init
 
 sub _detectInit
 {
-    return $main::imscpConfig{'SYSTEM_INIT'} if exists $main::imscpConfig{'SYSTEM_INIT'} && $main::imscpConfig{'SYSTEM_INIT'} ne '';
+    return $::imscpConfig{'SYSTEM_INIT'} if exists $::imscpConfig{'SYSTEM_INIT'} && length $::imscpConfig{'SYSTEM_INIT'};
     return 'Systemd' if -d '/run/systemd/system';
     return 'Upstart' if iMSCP::ProgramFinder::find( 'initctl' ) && execute( 'initctl version 2>/dev/null | grep -q upstart' ) == 0;
     'Sysvinit';
@@ -473,7 +473,7 @@ sub _executeDelayedActions
 =cut
 
 END {
-    return unless $? == 0 && exists $main::imscpConfig{'DISTRO_FAMILY'};
+    return unless $? == 0 && exists $::imscpConfig{'DISTRO_FAMILY'};
 
     $? = __PACKAGE__->getInstance()->_executeDelayedActions();
 }

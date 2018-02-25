@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Providers::Service::Systemd;
 
@@ -181,8 +181,8 @@ sub remove
     $self->disable( $unit ) if $self->hasService( $unit, 'nocache' );
 
     # Remove drop-in directories if any
-    for ( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
-        my $dropInDir = $_;
+    for my $dir( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
+        my $dropInDir = $dir;
         ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
         $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
         next unless -d $dropInDir;
@@ -406,8 +406,8 @@ sub _searchUnitFile
     ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
     $unit .= '.service' unless $suffix;
 
-    for ( @UNITFILEPATHS ) {
-        my $filepath = File::Spec->join( $_, $unit );
+    for my $path( @UNITFILEPATHS ) {
+        my $filepath = File::Spec->join( $path, $unit );
         # Either a regular file or character special file (Masked units point to /dev/null)
         return $filepath if -f $filepath || -c _;
     }

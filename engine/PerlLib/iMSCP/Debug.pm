@@ -38,11 +38,11 @@ our @EXPORT_OK = qw/ debug warning error newDebug endDebug getMessage getLastErr
 BEGIN {
     $SIG{'__DIE__'} = sub {
         return unless defined $^S && $^S == 0;
-        error( shift =~ s/\n$//r, getCaller());
+        error( shift =~ s/\n$//r );
         exit 1;
     };
     $SIG{'__WARN__'} = sub {
-        warning( shift =~ s/\n$//r, getCaller());
+        warning( shift =~ s/\n$//r);
     };
 }
 
@@ -106,6 +106,7 @@ sub endDebug
     my $logDir = $::imscpConfig{'LOG_DIR'} || '/tmp';
     if ( $logDir ne '/tmp' && !-d $logDir ) {
         require iMSCP::Dir;
+        local $@;
         eval {
             iMSCP::Dir->new( dirname => $logDir )->make( {
                 user  => $::imscpConfig{'ROOT_USER'},
@@ -272,9 +273,9 @@ sub _writeLogfile
     close $fh;
 }
 
-=item getCaller
+=item getCaller()
 
- Return first subroutine caller or main
+ Return first subroutine caller or main, excluding eval and __ANON__
 
  Return string
 
@@ -286,10 +287,9 @@ sub getCaller
     my $stackIDX = 2;
     do {
         $caller = ( ( caller $stackIDX++ )[3] || 'main' );
-    } while $caller eq '(eval)';
+    } while $caller eq '(eval)' || index($caller, '__ANON__') != -1;
     $caller . ': ';
 }
-
 
 =item _getMessages( $logger )
 

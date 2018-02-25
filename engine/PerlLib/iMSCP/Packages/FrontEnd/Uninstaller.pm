@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::FrontEnd::Uninstaller;
 
@@ -109,10 +109,10 @@ sub _deconfigurePHP
 {
     iMSCP::Service->getInstance()->remove( 'imscp_panel' );
 
-    for ( '/etc/default/imscp_panel', '/etc/tmpfiles.d/imscp_panel.conf', "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp_panel",
+    for my $dir( '/etc/default/imscp_panel', '/etc/tmpfiles.d/imscp_panel.conf', "$::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp_panel",
         '/usr/local/sbin/imscp_panel', '/var/log/imscp_panel.log'
     ) {
-        iMSCP::File->new( filename => $_ )->remove();
+        iMSCP::File->new( filename => $dir )->remove();
     }
 
     iMSCP::Dir->new( dirname => '/usr/local/lib/imscp_panel' )->remove();
@@ -144,7 +144,7 @@ sub _deconfigureHTTPD
         return;
     }
 
-    if ( $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && -f "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" ) {
+    if ( $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && -f "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" ) {
         # Nginx package as provided by Nginx
         iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" )->move(
             "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf"
@@ -162,8 +162,8 @@ sub _deconfigureHTTPD
 
 sub _deleteMasterWebUser
 {
-    iMSCP::SystemUser->new( force => 'yes' )->delSystemUser( $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'} );
-    iMSCP::SystemGroup->getInstance()->delSystemGroup( $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'} );
+    iMSCP::SystemUser->new( force => 'yes' )->delSystemUser( $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'} );
+    iMSCP::SystemGroup->getInstance()->delSystemGroup( $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'} );
 }
 
 =back

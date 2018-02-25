@@ -5,26 +5,27 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Setup::FileManager::MonstaFTP::Installer;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Composer;
 use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
@@ -97,7 +98,7 @@ sub afterFrontEndBuildConfFile
 {
     my ($tplContent, $tplName) = @_;
 
-    return unless ( $tplName eq '00_master.nginx' && main::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
+    return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
     replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
@@ -140,12 +141,12 @@ sub _init
 
 sub _installFiles
 {
-    my $packageDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/monsta-ftp";
+    my $packageDir = "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/monsta-ftp";
     -d $packageDir or die( "Couldn't find the imscp/monsta-ftp package into the packages cache directory" );
 
-    iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove();
-    iMSCP::Dir->new( dirname => "$packageDir/src" )->copy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" );
-    iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->copy( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" );
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove();
+    iMSCP::Dir->new( dirname => "$packageDir/src" )->copy( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" );
+    iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->copy( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" );
 }
 
 =item _buildHttpdConfig( )
@@ -161,8 +162,8 @@ sub _buildHttpdConfig
     my ($self) = @_;
 
     $self->{'frontend'}->buildConfFile(
-        "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/monsta-ftp/iMSCP/nginx/imscp_monstaftp.conf",
-        { GUI_PUBLIC_DIR => $main::imscpConfig{'GUI_PUBLIC_DIR'} },
+        "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/monsta-ftp/iMSCP/nginx/imscp_monstaftp.conf",
+        { GUI_PUBLIC_DIR => $::imscpConfig{'GUI_PUBLIC_DIR'} },
         { destination => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_monstaftp.conf" }
     );
 }
@@ -179,25 +180,23 @@ sub _buildConfig
 {
     my ($self) = @_;
 
-    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
     # config.php file
-
-    my $conffile = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp/settings/config.php";
     my $data = {
-        TIMEZONE => main::setupGetQuestion( 'TIMEZONE', 'UTC' ),
-        TMP_PATH => "$main::imscpConfig{'GUI_ROOT_DIR'}/data/tmp"
+        TIMEZONE => ::setupGetQuestion( 'TIMEZONE', 'UTC' ),
+        TMP_PATH => "$::imscpConfig{'GUI_ROOT_DIR'}/data/tmp"
     };
+    my $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp/settings/config.php" );
+    my $cfgTpl = $file->getAsRef( TRUE );
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'config.php', \ my $cfgTpl, $data );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'config.php', $cfgTpl, $data );
+    $file->getAsRef() unless length ${$cfgTpl};
 
-    $cfgTpl = iMSCP::File->new( filename => $conffile )->get() unless defined $cfgTpl;
+    processByRef( $data, $cfgTpl );
+    $file->save()->owner( $usergroup, $usergroup )->mode( 0440 );
 
-    processByRef( $data, \$cfgTpl );
-
-    iMSCP::File->new( filename => $conffile )->set( $cfgTpl )->save()->owner( $usergroup, $usergroup )->mode( 0440 );
-
-    $conffile = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp/settings/settings.json";
+    # settings.json file
     $data = {
         showDotFiles            => JSON::true,
         language                => 'en_us',
@@ -212,23 +211,18 @@ sub _buildConfig
                 port             => 21,
                 # Enable passive mode excepted if the FTP daemon is VsFTPd
                 # VsFTPd doesn't allows to operate on a per IP basic (IP masquerading)
-                passive          => index( $main::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Vsftpd::' ) != -1 ? JSON::false : JSON::true,
-                ssl              => main::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes'
-                    ? JSON::true : JSON::false,
+                passive          => index( $::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Vsftpd::' ) != -1 ? JSON::false : JSON::true,
+                ssl              => ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes' ? JSON::true : JSON::false,
                 initialDirectory => '/' # Home directory as set for the FTP user
             }
         }
     };
-    undef $cfgTpl;
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'settings.json', \ $cfgTpl, $data );
-
-    iMSCP::File
-        ->new( filename => $conffile )
-        ->set( $cfgTpl || JSON->new()->utf8( 1 )->pretty( 1 )->encode( $data ))
-        ->save()
-        ->owner( $usergroup, $usergroup )
-        ->mode( 0440 );
+    $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp/settings/settings.json" );
+    $cfgTpl = $file->getAsRef( TRUE );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'settings.json', $cfgTpl, $data );
+    ${$cfgTpl} = JSON->new()->utf8( 1 )->pretty( 1 )->encode( $data ) unless length ${$cfgTpl};
+    $file->save()->owner( $usergroup, $usergroup )->mode( 0440 );
 }
 
 =back

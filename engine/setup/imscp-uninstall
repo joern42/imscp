@@ -1,21 +1,21 @@
 #!/usr/bin/perl
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by internet Multi Server Control Panel
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 =head1 NAME
 
@@ -53,7 +53,6 @@ use POSIX qw / locale_h /;
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 # Set execution context
 iMSCP::Getopt->context( 'uninstaller' );
@@ -93,8 +92,10 @@ EOF
         [ \&_removeFiles, 'Removing i-MSCP files' ],
     );
 
-    my ($step, $nbSteps) = ( 1, scalar @steps );
-    step( @{$_}, $nbSteps, $step++ ) for @steps;
+    my ($nStep, $nbSteps) = ( 1, scalar @steps );
+    for my $step(@steps) {
+        step( @{$step}, $nbSteps, $nStep++ );
+    }
 
     iMSCP::Dialog->getInstance()->endGauge();
 }
@@ -118,7 +119,7 @@ sub _userDialog
 
     exit if $dialog->yesno( <<"EOF", 'no_by_default' );
 
-Welcome to the \\Z4i-MSCP $main::imscpConfig{'Version'}\\Zn uninstaller dialog.
+Welcome to the \\Z4i-MSCP $::imscpConfig{'Version'}\\Zn uninstaller dialog.
 
 This program will uninstall i-MSCP from your server.
 
@@ -145,7 +146,7 @@ sub _removeCustomers
     my $aditionalCondition;
 
     my $db = iMSCP::Database->getInstance();
-    my $oldDbName = $db->useDatabase( $main::imscpConfig{'DATABASE_NAME'} );
+    my $oldDbName = $db->useDatabase( $::imscpConfig{'DATABASE_NAME'} );
 
     while ( my ($table, $field) = each %{$tables} ) {
         if ( ref $field eq 'ARRAY' ) {
@@ -231,26 +232,29 @@ sub _removeSqlData
     $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $rows->{$_}->{'sqld_name'} )) for keys %{$rows};
 
     # Remove i-MSCP sql database
-    $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $main::imscpConfig{'DATABASE_NAME'} ));
+    $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $::imscpConfig{'DATABASE_NAME'} ));
 
     # Drop i-MSCP master SQL user
-    $sqlServer->dropUser( $main::imscpConfig{'DATABASE_USER'}, $main::imscpConfig{'DATABASE_USER_HOST'} );
+    $sqlServer->dropUser( $::imscpConfig{'DATABASE_USER'}, $::imscpConfig{'DATABASE_USER_HOST'} );
 }
 
 # FIXME: Should be done by the Local server implementation
 sub _removeiMSCPSystemUser
 {
-    iMSCP::SystemUser->new( force => 1 )->delSystemUser( $main::imscpConfig{'IMSCP_USER'} );
+    iMSCP::SystemUser->new( force => 1 )->delSystemUser( $::imscpConfig{'IMSCP_USER'} );
 }
 
 # FIXME: Should be done by the Local server implementation
 sub _removeFiles
 {
     chdir( '/' );
-    iMSCP::File->new( filename => $_ )->remove() for '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp';
 
-    for ( $main::imscpConfig{'CONF_DIR'}, $main::imscpConfig{'USER_WEB_DIR'}, $main::imscpConfig{'LOG_DIR'}, $main::imscpConfig{'ROOT_DIR'} ) {
-        iMSCP::Dir->new( dirname => $_ )->remove();
+    for my $file( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
+        iMSCP::File->new( filename => $file )->remove();
+    }
+
+    for my $dir ( $::imscpConfig{'CONF_DIR'}, $::imscpConfig{'USER_WEB_DIR'}, $::imscpConfig{'LOG_DIR'}, $::imscpConfig{'ROOT_DIR'} ) {
+        iMSCP::Dir->new( dirname => $dir )->remove();
     }
 }
 

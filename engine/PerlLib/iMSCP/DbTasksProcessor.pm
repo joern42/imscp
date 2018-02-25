@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::DbTasksProcessor;
 
@@ -29,6 +29,7 @@ use Encode qw / encode_utf8 /;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug newDebug endDebug /;
 use iMSCP::Execute qw/ execute escapeShell /;
+use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::Stepper qw/ step /;
 use iMSCP::Modules;
@@ -55,6 +56,8 @@ use parent 'iMSCP::Common::Singleton';
 sub processDbTasks
 {
     my ($self) = @_;
+
+    iMSCP::EventManager->getInstance( 'beforeDbTasksProcessing' );
 
     # Process plugins tasks
     # Must always be processed first to allow the plugins registering their listeners on the event manager
@@ -314,24 +317,24 @@ sub processDbTasks
     if ( %{$rows} ) {
         newDebug( 'imscp_sw_mngr_engine' );
 
-        for ( values %{$rows} ) {
+        for my $row( values %{$rows} ) {
             my $pushString = encode_base64(
                 encode_json( [
-                    $_->{'domain_id'}, $_->{'software_id'}, $_->{'path'}, $_->{'software_prefix'}, $_->{'db'},
-                    $_->{'database_user'}, $_->{'database_tmp_pwd'}, $_->{'install_username'},
-                    $_->{'install_password'}, $_->{'install_email'}, $_->{'software_status'},
-                    $_->{'software_depot'}, $_->{'software_master_id'}, $_->{'alias_id'},
-                    $_->{'subdomain_id'}, $_->{'subdomain_alias_id'}
+                    $row->{'domain_id'}, $row->{'software_id'}, $row->{'path'}, $row->{'software_prefix'}, $row->{'db'},
+                    $row->{'database_user'}, $row->{'database_tmp_pwd'}, $row->{'install_username'},
+                    $row->{'install_password'}, $row->{'install_email'}, $row->{'software_status'},
+                    $row->{'software_depot'}, $row->{'software_master_id'}, $row->{'alias_id'},
+                    $row->{'subdomain_id'}, $row->{'subdomain_alias_id'}
                 ] ),
                 ''
             );
 
             my ($stdout, $stderr);
-            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or die(
+            execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
             debug( $stdout ) if $stdout;
-            execute( "rm -fR /tmp/sw-$_->{'domain_id'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
+            execute( "rm -fR /tmp/sw-$row->{'domain_id'}-$row->{'software_id'}", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
             debug( $stdout ) if $stdout;
         }
 
@@ -352,26 +355,28 @@ sub processDbTasks
     if ( %{$rows} ) {
         newDebug( 'imscp_pkt_mngr_engine.log' );
 
-        for ( values %{$rows} ) {
+        for my $row( values %{$rows} ) {
             my $pushstring = encode_base64(
                 encode_json( [
-                    $_->{'software_id'}, $_->{'reseller_id'}, $_->{'software_archive'}, $_->{'software_status'},
-                    $_->{'software_depot'}
+                    $row->{'software_id'}, $row->{'reseller_id'}, $row->{'software_archive'}, $row->{'software_status'}, $row->{'software_depot'}
                 ] ),
                 ''
             );
 
             my ($stdout, $stderr);
-            execute( "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or die(
+            execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
             debug( $stdout ) if $stdout;
-            execute( "rm -fR /tmp/sw-$_->{'software_archive'}-$_->{'software_id'}", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
+            execute( "rm -fR /tmp/sw-$row->{'software_archive'}-$row->{'software_id'}", \$stdout,
+                \$stderr ) == 0 or die( $stderr || 'Unknown error' );
             debug( $stdout ) if $stdout;
         }
 
         endDebug();
     }
+
+    iMSCP::EventManager->getInstance( 'afterDbTasksProcessing' );
 }
 
 =back
@@ -415,27 +420,29 @@ sub _processDbTasks
 {
     my ($self, $module, $sql, $perItemLogFile) = @_;
 
-    debug( sprintf( 'Processing %s DB tasks...', $module ), ( caller( 2 ) )[3] );
+    debug( sprintf( 'Processing %s DB tasks...', $module ));
 
     my $sth = $self->{'_dbh'}->prepare( $sql );
     $sth->execute();
 
     my $countRows = $sth->rows();
     unless ( $countRows ) {
-        debug( sprintf( 'No DB task to process for %s', $module ), ( caller( 2 ) )[3] );
+        debug( sprintf( 'No DB task to process for %s', $module ));
         return;
     }
 
-    my ($moduleInstance, $nStep) = ( $module->getInstance(), 1);
+    my ($moduleInstance, $nStep) = ( $module->getInstance(), 1 );
     while ( my $row = $sth->fetchrow_hashref() ) {
         my $name = encode_utf8( $row->{'name'} );
-        debug( sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ), ( caller( 2 ) )[3] );
+        debug( sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ));
         newDebug( $module . ( ( $perItemLogFile ) ? "_${name}" : '' ) . '.log' );
 
         if ( $self->{'_needStepper'} ) {
             step(
                 sub { $moduleInstance->handleEntity( $row->{'id'} ) },
-                sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ), $countRows, $nStep++
+                sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ),
+                $countRows,
+                $nStep++
             );
         } else {
             $moduleInstance->handleEntity( $row->{'id'} );

@@ -6,7 +6,22 @@
 - Any released Devuan version:     ≥ **1.0/Jessie**
 - Any released Ubuntu LTS version: ≥ **14.04/Trusty Thar**
 
+## System Requirements
+
+See [System requirementes](https://wiki.i-mscp.net/doku.php?id=about:system)
+
+## Installation in an LXC or OpenVZ container
+
+See [LXC containers](https://wiki.i-mscp.net/doku.php?id=about:system#lxc_containers)
+See [OpenVZ containers](https://wiki.i-mscp.net/doku.php?id=about:system#openvz_containers_proxmox_and_virtuozzo)
+
 ## Installation
+
+### 1 Install the pre-required distribution packages:
+
+```
+apt-get --assume-yes --no-install-recommends install ca-certificates perl wget
+```
 
 ### 1. Download and untar the distribution files
 

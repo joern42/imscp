@@ -2,30 +2,30 @@
 
 =head1 NAME
 
- imscp-srv-traff - Collects i-MSCP customers' traffic data (http, ftp, imap/pop3, smtp).
+ imscp-srv-traff - Collects customer traffic data.
 
 =head1 SYNOPSIS
 
- imscp-srv-traff [options]...
+ imscp-srv-traff [OPTION]...
 
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 use strict;
 use warnings;
@@ -35,8 +35,7 @@ use lib "$FindBin::Bin/../PerlLib";
 use iMSCP::Bootstrapper;
 use iMSCP::Config;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug error newDebug /;
-use iMSCP::EventManager;
+use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::Getopt;
 use iMSCP::Servers;
 use POSIX qw / locale_h /;
@@ -44,13 +43,9 @@ use POSIX qw / locale_h /;
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 sub run
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeVrlTraffic' );
-    return $rs if $rs;
-
     my $dbh = iMSCP::Database->getInstance();
 
     # Get list of domains for which traffic must be collected
@@ -72,13 +67,9 @@ sub run
        "
     );
     $sth->execute();
-    if ( $dbh->err ) {
-        error( sprintf( "Couldn't execute SQL statement: %s", $dbh->errstr ));
-        return 1;
-    }
 
     my $domains = $sth->fetchall_hashref( 'domain_name' );
-    return 0 unless %{$domains};
+    return unless %{$domains};
 
     my %domains = map { $_ => 0 } keys %{$domains};
     my $timestamp = time();
@@ -92,22 +83,16 @@ sub run
     my @servers = grep(/::(?:httpd|ftpd|mta|po)$/, iMSCP::Servers->getInstance()->getListWithFullNames() );
 
     # Collects traffic data from servers that implement the getTraffic() method
-    for ( @servers ) {
-        next unless $_->can( 'getTraffic' );
-        eval {
-            # Initialize intermediate traffic database
-            tie %{$trafficDb{$_}}, 'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/$_-vrl-traff.db", nocroak => 1;
-            %{$trafficDb{$_}} = ( %domains, %{$trafficDb{$_}} );
-            $_->factory()->getTraffic( $trafficDb{$_} );
-        };
-        if ( $@ ) {
-            error( $@ );
-            $rs = 1;
-            last;
-        }
-    }
+    for my $server( @servers ) {
+        next unless $server->can( 'getTraffic' );
 
-    return $rs if $rs;
+        # Initialize intermediate traffic database
+        tie %{$trafficDb{$server}}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/$server-vrl-traff.db", nocroak => 1;
+        %{$trafficDb{$server}} = ( %domains, %{$trafficDb{$server}} );
+        
+        # Collect traffic
+        $server->factory()->getTraffic( $trafficDb{$server} );
+    }
 
     # Updates traffic data in i-MSCP database
     $sth = $dbh->prepare(
@@ -124,8 +109,8 @@ sub run
 
     while ( my ($domainName, $domainData) = each( %{$domains} ) ) {
         my $newEntriesFound = 0;
-        for ( @servers ) {
-            $newEntriesFound++ && last if $trafficDb{$_}->{$domainName} > 0;
+        for my $server( @servers ) {
+            $newEntriesFound++ && last if $trafficDb{$server}->{$domainName} > 0;
         }
 
         # Don't process domain for which there are no traffic data
@@ -139,30 +124,22 @@ sub run
             $trafficDb{'iMSCP::Servers::Mta'}->{$domainName}, $trafficDb{'iMSCP::Servers::Po'}->{$domainName}
         );
 
-        if ( $dbh->err ) {
-            error( sprintf( "Couldn't execute SQL statement: %s", $dbh->errstr ));
-            return 1;
+        for my $server( @servers ) {
+            $trafficDb{$server}->{$domainName} = 0;
         }
-
-        $trafficDb{$_}->{$domainName} = 0 for @servers;
     }
 
-    return $rs if $rs;
-
-    for ( @servers ) {
-        untie( %{$trafficDb{$_}} );
-        eval { iMSCP::File->new( filename => "$main::imscpConfig{'IMSCP_HOMEDIR'}/$_-vrl-traff.db" )->remove() };
-        $rs = 1 if $@;
+    for my $server( @servers ) {
+        untie( %{$trafficDb{$server}} );
+        eval { iMSCP::File->new( filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/$server-vrl-traff.db" )->remove() };
     }
-
-    $rs |= iMSCP::EventManager->getInstance()->trigger( 'afterVrlTraffic' );
 }
 
 newDebug( 'imscp-vrl-traff.log' );
 
 iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
 
-Script that collects i-MSCP customers' traffic data (http, ftp, imap/pop3, smtp).
+Collects customers traffic data.
 
 OPTIONS:
  -d,    --debug         Enable debug mode.
@@ -174,7 +151,7 @@ OPTIONS:
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
     nolock          => 1
-} )->lock( "$main::imscpConfig{'LOCK_DIR'}/imscp-vrl-traff.lock", 'nowait' );
+} )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-vrl-traff.lock", 'nowait' );
 
 run();
 

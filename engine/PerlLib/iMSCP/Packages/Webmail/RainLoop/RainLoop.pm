@@ -5,21 +5,21 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Webmail::RainLoop::RainLoop;
 
@@ -127,13 +127,13 @@ sub deleteMail
     my $db = iMSCP::Database->getInstance();
 
     unless ( $dbInitialized ) {
-        my $quotedRainLoopDbName = $db->quote_identifier( $main::imscpConfig{'DATABASE_NAME'} . '_rainloop' );
+        my $quotedRainLoopDbName = $db->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' );
         my $row = $db->selectrow_hashref( "SHOW TABLES FROM $quotedRainLoopDbName" );
         $dbInitialized = 1 if $row;
     }
 
     if ( $dbInitialized ) {
-        my $oldDbName = $db->useDatabase( $main::imscpConfig{'DATABASE_NAME'} . '_rainloop' );
+        my $oldDbName = $db->useDatabase( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' );
         $db->do(
             '
                 DELETE u, c, p
@@ -147,7 +147,7 @@ sub deleteMail
         $db->useDatabase( $oldDbName ) if $oldDbName;
     }
 
-    my $storageDir = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/data/_data_/_default_/storage";
+    my $storageDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/data/_data_/_default_/storage";
     ( my $email = $data->{'MAIL_ADDR'} ) =~ s/[^a-z0-9\-\.@]+/_/;
     ( my $storagePath = substr( $email, 0, 2 ) ) =~ s/\@$//;
 
@@ -178,10 +178,10 @@ sub _init
 {
     my ($self) = @_;
 
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/rainloop";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/rainloop";
 
     if ( -f "$self->{'cfgDir'}/rainloop.data" ) {
-        return tie %{$self->{'config'}}, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/rainloop.data", readonly => 1;
+        return tie %{$self->{'config'}}, 'iMSCP::Config', filename => "$self->{'cfgDir'}/rainloop.data", readonly => 1;
     }
 
     $self->{'config'} = {};

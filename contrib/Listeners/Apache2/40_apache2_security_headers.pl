@@ -35,7 +35,7 @@ use Version;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$main::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
     sprintf( "The 40_apache2_security_headers.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
@@ -61,7 +61,7 @@ iMSCP::EventManager->getInstance()->register(
     # SECTION addons END.
 EOF
     }
-) if index( $main::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
+) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 
 1;
 __END__

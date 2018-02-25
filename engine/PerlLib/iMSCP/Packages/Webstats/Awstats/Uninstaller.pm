@@ -5,21 +5,21 @@ iMSCP::Packages::Webstats::Awstats::Uninstaller - i-MSCP AWStats package uninsta
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Packages::Webstats::Awstats::Uninstaller;
 
@@ -77,11 +77,11 @@ sub _deleteFiles
     my $httpd = iMSCP::Servers::Httpd->factory();
 
     iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" )->remove();
-    iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->remove();
+    iMSCP::Dir->new( dirname => $::imscpConfig{'AWSTATS_CACHE_DIR'} )->remove();
 
-    return unless -d $main::imscpConfig{'AWSTATS_CONFIG_DIR'};
+    return unless -d $::imscpConfig{'AWSTATS_CONFIG_DIR'};
 
-    iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CONFIG_DIR'} )->clear( qr/^awstats.*\.conf$/ );
+    iMSCP::Dir->new( dirname => $::imscpConfig{'AWSTATS_CONFIG_DIR'} )->clear( qr/^awstats.*\.conf$/ );
 }
 
 =item _removeVhost( )
@@ -111,15 +111,15 @@ sub _removeVhost
 
 sub _restoreDebianConfig
 {
-    return unless $main::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    return unless $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
 
-    if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" ) {
-        iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" )->move(
-            "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf"
+    if ( -f "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" ) {
+        iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" )->move(
+            "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf"
         );
     }
 
-    iMSCP::Servers::Cron->factory()->enableSystemCrontask( 'awstats', 'cron.d' );
+    iMSCP::Servers::Cron->factory()->enableSystemTask( 'awstats', 'cron.d' );
 }
 
 =back

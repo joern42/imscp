@@ -35,16 +35,15 @@ use iMSCP::EventManager;
 iMSCP::EventManager->getInstance()->register(
     'afterSetupTasks',
     sub {
-        my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
-        my $fileContent = $file->get();
-        $fileContent =~ s/(\$config\['(?:default_host|smtp_server)?'\]\s+=\s+').*(';)/$1tls:\/\/$main::imscpConfig{'BASE_SERVER_VHOST'}$2/g;
-        $file->set( $fileContent )->save();
+        my $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
+        ${$file->getAsRef()} =~ s/(\$config\['(?:default_host|smtp_server)?'\]\s+=\s+').*(';)/$1tls:\/\/$::imscpConfig{'BASE_SERVER_VHOST'}$2/g;
+        $file->save();
     }
 )->register(
     'beforeUpdateRoundCubeMailHostEntries',
     sub {
         my ($hostname) = @_;
-        ${$hostname} = $main::imscpConfig{'BASE_SERVER_VHOST'};
+        ${$hostname} = $::imscpConfig{'BASE_SERVER_VHOST'};
     }
 );
 

@@ -3,22 +3,23 @@
  iMSCP::Modules::Alias - Module for processing of domain alias entities
 
 =cut
+
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::Modules::Alias;
 
@@ -117,12 +118,12 @@ sub _loadEntityData
     );
     $row or die( sprintf( 'Data not found for domain alias (ID %d)', $entityId ));
 
-    my $usergroup = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
-    my $homeDir = File::Spec->canonpath( "$main::imscpConfig{'USER_WEB_DIR'}/$row->{'user_home'}" );
+    my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
+    my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'user_home'}" );
     my $webDir = File::Spec->canonpath( "$homeDir/$row->{'alias_mount'}" );
     my ($ssl, $hstsMaxAge, $hstsIncSub, $phpini) = ( 0, 0, 0, {} );
 
-    if ( $row->{'certificate'} && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'alias_name'}.pem" ) {
+    if ( $row->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'alias_name'}.pem" ) {
         $ssl = 1;
         if ( $row->{'allow_hsts'} eq 'on' ) {
             $hstsMaxAge = $row->{'hsts_max_age'} || 0;
@@ -141,9 +142,9 @@ sub _loadEntityData
 
     $self->{'_data'} = {
         STATUS                  => $row->{'alias_status'},
-        BASE_SERVER_VHOST       => $main::imscpConfig{'BASE_SERVER_VHOST'},
-        BASE_SERVER_IP          => $main::imscpConfig{'BASE_SERVER_IP'},
-        BASE_SERVER_PUBLIC_IP   => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
+        BASE_SERVER_VHOST       => $::imscpConfig{'BASE_SERVER_VHOST'},
+        BASE_SERVER_IP          => $::imscpConfig{'BASE_SERVER_IP'},
+        BASE_SERVER_PUBLIC_IP   => $::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
         DOMAIN_ADMIN_ID         => $row->{'domain_admin_id'},
         ROOT_DOMAIN_ID          => $row->{'domain_id'},
         PARENT_DOMAIN_ID        => $row->{'alias_id'},
@@ -152,7 +153,7 @@ sub _loadEntityData
         PARENT_DOMAIN_NAME      => $row->{'alias_name'},
         DOMAIN_NAME             => $row->{'alias_name'},
         DOMAIN_TYPE             => 'als',
-        DOMAIN_IP               => $main::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $row->{'ip_number'},
+        DOMAIN_IP               => $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $row->{'ip_number'},
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $webDir,
         MOUNT_POINT             => $row->{'alias_mount'},
