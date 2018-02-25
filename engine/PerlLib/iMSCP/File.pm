@@ -33,9 +33,9 @@ use Fcntl qw/ :mode O_RDONLY O_WRONLY O_CREAT O_TRUNC O_BINARY O_EXCL O_NOFOLLOW
 use File::Basename;
 use File::Copy ();
 use File::Spec ();
-use iMSCP::Debug qw/ error getMessageByType /;
 use iMSCP::Boolean;
-use iMSCP::Syscall;
+use iMSCP::Debug qw/ error getMessageByType /;
+use iMSCP::H2ph;
 use iMSCP::Umask;
 use POSIX qw/ mkfifo lchown /;
 use overload '""' => \&__toString, fallback => 1;
@@ -53,12 +53,9 @@ use constant S_IRWXUGO => S_IRWXU | S_IRWXG | S_IRWXO;
 
 =head1 DESCRIPTION
 
- This class represent a file in an abstract manner. It provides
- common operations on file such as creation, deletion, moving and
- change of attributes...
- 
- Code for file copy borrowed to coreutil package.
- See https://www.gnu.org/software/coreutils/coreutils.html
+ This class represents a file in an abstract way. It provides common
+ file operations such as creation, deletion, copy, move, and attribute
+ modification...
 
 =head1 PUBLIC METHODS
 
@@ -83,7 +80,7 @@ use constant S_IRWXUGO => S_IRWXU | S_IRWXG | S_IRWXO;
    ...
  }
  
- It is best avoided to call this method directly as this load whole file
+ It is best avoided to call this method directly as this load the whole file
  content in memory, and return a shallow copy of the loaded content, meaning
  that for a file of 2 MiB, more than 4 MiB memory are consumed. You can avoid
  that by making use of the getAsRef() method which return a reference pointing
@@ -217,7 +214,7 @@ sub mode
     my ($self, $mode) = @_;
     $mode //= MODE_RW_UGO & ~$UMASK;
 
-    length $mode or croak( '$mode parameter is missing or invalid' );
+    length $mode or croak( '$mode parameter is invalid' );
     chmod $mode, $self->{'filename'} or die( sprintf( "Failed to set permissions for '%s': %s", $self->{'filename'}, $! ));
     $self;
 }
@@ -292,32 +289,32 @@ sub copy
     my ($self, $dest, $options) = @_;
     $options //= {};
 
-    ref $options eq 'HASH' or croak( '$options parameter is not valid. Hash expected' );
-    length $dest or croak( '$dest parameter is missing or invalid.' );
+    ref $options eq 'HASH' or croak( '$options parameter is invalid' );
+    length $dest or croak( '$dest parameter is missing or invalid' );
 
     $options->{'require_preserve'} = $options->{'preserve'} ? TRUE : FALSE;
     $options->{'no_target_directory'} //= TRUE;
 
-    my @dst;
-    my $newDst = FALSE;
-    my $targetDirectory;
+    my ($newDst, $isDirDst, $ret) = ( FALSE, FALSE, FALSE );
 
-    if ( $options->{'no_target_directory'} ) {
-        _targetDirectoryOperand( $dest, \@dst, \$newDst );
-    } elsif ( _targetDirectoryOperand( $dest, @dst, \$newDst ) ) {
-        $targetDirectory = $dest;
-    }
-
-    my $ret;
-    if ( $targetDirectory ) {
-        # Append the last component of $self->{'filename'} to $dest.
-        $dest = File::Spec->catfile( $dest, basename( $self->{'filename'} ));
-        $ret = _copyInternal( $self->{'filename'}, $dest, $newDst, $options );
+    if ( my @dst = stat( $dest ) ) {
+        $isDirDst = S_ISDIR( $dst[2] );
+    } elsif ( $! != ENOENT ) {
+        error( sprintf( "Failed to access '%s': %s", $dest, $! ));
+        goto endCopy;
     } else {
-        $ret = _copyInternal( $self->{'filename'}, $dest, FALSE, $options );
+        $newDst = TRUE;
     }
 
-    $ret or die( sprintf( "Couldn't copy '%s' to '%s': %s", $self->{'filename'}, $dest, getMessageByType( 'error', { remove => TRUE } )));
+    if ( $options->{'no_target_directory'} || !$isDirDst ) {
+        $ret = _copyInternal( $self->{'filename'}, $dest, FALSE, $options );
+    } else {
+        $dest .= '/' . basename( $self->{'filename'} );
+        $ret = _copyInternal( $self->{'filename'}, $dest, $newDst, $options );
+    }
+
+    endCopy:
+    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'filename'}, $dest, getMessageByType( 'error', { remove => TRUE } )));
     $self;
 }
 
@@ -328,11 +325,12 @@ sub copy
  At this time, only regular and symlink files are considered. Other files are
  silently ignored.
  
- A specific treatment is applied on symlinks as their target paths can be
- relative to their current location. if so, those are simply recreated using
- their new location as base directory for generating a new relative target
- path. If the target path is an absolute path, these are treaded as regular
- files, that is, moved without further treatment.
+ By default, a specific treatment is applied to symlinks as their target paths
+ can be relative to their current location. if so, those are simply re-created
+ using their new location as base directory for generating a new relative
+ target path. If the target path is an absolute path, these are treaded as
+ regular files, that is, moved without further treatment. You can inhibit this
+ behavior by setting the update_link_target option to FALSE.
 
  Param string $dest Destination
  Param hashref\%options OPTIONAL options
@@ -346,8 +344,8 @@ sub move
     my ($self, $dest, $options) = @_;
     $options //= {};
 
-    ref $options eq 'HASH' or croak( '$options parameter is not valid. Hash expected' );
-    length $dest or croak( '$dest parameter is missing or invalid.' );
+    ref $options eq 'HASH' or croak( '$options parameter is not valid' );
+    length $dest or croak( '$dest parameter is missing or invalid' );
 
     my (@sst) = lstat $self->{'filename'} or croak( sprintf( "Failed to stat '%s': %s", $self->{'filename'}, $! ));
     !S_ISDIR( $sst[2] ) or die( sprintf( "Failed to move '%s' to '%s': not a file", $self->{'filename'}, $dest, $self->{'filename'} ));
@@ -409,7 +407,7 @@ sub _init
 {
     my ($self) = @_;
 
-    length $self->{'filename'} or croak( 'filename attribute is missing or invalid.' );
+    length $self->{'filename'} or croak( 'filename attribute is missing or invalid' );
     $self->{'filename'} = File::Spec->canonpath( $self->{'filename'} );
     $self->{'file_content'} = '';
     $self;
@@ -425,7 +423,7 @@ sub _init
  Param $string $srcName Source file path
  Param $string $dstName  Destination file path
  Param $bool $newDst Flag indicating whether or not $dstName might already exist. 
- Return TRUE on success, FALSE on failure with error passed-in through error()
+ Return TRUE on success, FALSE on failure with error set through error()
 
 =cut
 
@@ -437,15 +435,15 @@ sub _copyInternal
     my ($haveDstLstat, $copiedAsRegular, $dstIsSymlink) = ( FALSE, FALSE, FALSE );
 
     unless ( @sst = lstat $srcName ) {
-        error( sprinft( "cannot stat '%s': %s", $srcName, $! ), FALSE );
+        error( sprintf( "cannot stat '%s': %s", $srcName, $! ), FALSE );
         return FALSE;
     }
 
     my $srcMode = $sst[2];
 
-    if ( S_ISDIR( $sst[2] ) ) {
+    if ( S_ISDIR( $srcMode ) ) {
         error( sprintf( "not a file: '%s'", $srcName ), FALSE );
-        return false;
+        return FALSE;
     }
 
     unless ( $newDst ) {
@@ -455,7 +453,11 @@ sub _copyInternal
         my $useStat = S_ISREG( $srcMode );
 
         unless ( @dst = $useStat ? stat ( $dstName ) : lstat( $dstName ) ) {
-            $! == ENOENT or die( "failed to stat '%s': %s", $dstName, $! );
+            if ( $! != ENOENT ) {
+                error( sprintf( "failed to stat '%s': %s", $dstName, $! ), FALSE );
+                return FALSE;
+            }
+
             $newDst = TRUE;
         } else {
             # Here, we know that $dstName exists, at least to the point
@@ -472,7 +474,7 @@ sub _copyInternal
                 return FALSE;
             }
 
-            # Files other then regular files must be pre-removed, else we won't be
+            # Files other than regular files must be pre-removed, else we won't be
             # able to copy them as they are simply re-created from scratch
             if ( !S_ISREG( $dst[2] ) ) {
                 unless ( unlink( $dstName ) ) {
@@ -586,7 +588,7 @@ sub _copyInternal
         }
 
         if ( $restoreDstMode ) {
-            if ( lchmod ( $dstMode | $omittedPerms, $dstName ) != 0 ) {
+            if ( chmod ( $dstMode | $omittedPerms, $dstName ) != 0 ) {
                 error( sprintf( "preserving permissions for %s '%s': %s", $dstName, $! ), FALSE );
                 return FALSE if $options->{'require_preserve'};
             }
@@ -607,7 +609,7 @@ sub _copyInternal
  Param int $omittedPerms Omitted permissions
  Param scalarref \$newDst Whether or not $dest is a new destination
  Param arrayref \@sst Source file stat() info
- Return TRUE on success, FALSE on failure with error passed-in through error()
+ Return TRUE on success, FALSE on failure with error set through error()
 
 =cut
 
@@ -637,9 +639,7 @@ sub _copyReg
     }
 
     unless ( ${$newDst} ) {
-        unless ( sysopen( $dstFH, $dstName, O_WRONLY | O_BINARY | O_TRUNC ) ) {
-            $destErrno = $!;
-        }
+        $destErrno = $! unless sysopen( $dstFH, $dstName, O_WRONLY | O_BINARY | O_TRUNC );
     }
 
     open_with_O_CREAT:
@@ -747,36 +747,7 @@ sub _mknod
 {
     my ($pathname, $mode, $dev) = @_;
 
-    syscall( &iMSCP::Syscall::SYS_mknod, $pathname, $mode, $dev );
-}
-
-=item( $file, \@st, \$newDst )
-
- Return TRUE if the given file is a directory
-
- If the file exists, store the file's status info into \@st.
- Otherwise, set \$newDst to TRUE. 
-
- Param string $file File path
- Param arrayref \@st File stat() info
- Param scalarref \$newDst Flag indicating whether or not $file is a new destination (inexistent file)
-
-=cut
-
-sub _targetDirectoryOperand
-{
-    my ($file, $st, $newDst) = @_;
-
-    @{$st} = stat( $file );
-
-    my $isDir = @{$st} && S_ISDIR( $st->[2] );
-
-    unless ( @{$st} ) {
-        $! == ENOENT or die( sprintf( "Failed to access '%s': %s", $file, $! ));
-        ${$newDst} = TRUE;
-    }
-
-    $isDir;
+    syscall( &iMSCP::H2ph::SYS_mknod, $pathname, $mode, $dev );
 }
 
 =item _chownOrChmodFailureOk()
@@ -865,7 +836,7 @@ sub _sameOwnerAndGroup
  Param \@sst array An array as returned by stat() and similars
  Param bool $newDst Flag indicating whether $dstName is a new file
  Param \@dst array An array as returned by stat() and similars
- Return 1 if the initial syscall succeeds, 0 if it fails but it's OK not to preserve ownership, -1 otherwise and set error through error()
+ Return 1 if the initial syscall succeeds, 0 if it fails but it's OK not to preserve ownership, -1 otherwise and error set through error()
 
 =cut
 
