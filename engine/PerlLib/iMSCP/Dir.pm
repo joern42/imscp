@@ -268,7 +268,7 @@ sub mode
     my ($self, $mode) = @_;
     $mode //= S_IRWXUGO & ~$UMASK;
 
-    length $mode or croak( '$mode parameter is missing or invalid' );
+    length $mode or croak( '$mode parameter is invalid' );
     chmod $mode, $self->{'dirname'} or die( sprintf( "Failed to set permissions for '%s': %s", $self->{'dirname'}, $! ));
     $self;
 }
