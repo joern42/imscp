@@ -435,14 +435,14 @@ sub _copyInternal
     my ($haveDstLstat, $copiedAsRegular, $dstIsSymlink) = ( FALSE, FALSE, FALSE );
 
     unless ( @sst = lstat $srcName ) {
-        error( sprintf( "cannot stat '%s': %s", $srcName, $! ), FALSE );
+        error( sprintf( "cannot stat '%s': %s", $srcName, $! ));
         return FALSE;
     }
 
     my $srcMode = $sst[2];
 
     if ( S_ISDIR( $srcMode ) ) {
-        error( sprintf( "not a file: '%s'", $srcName ), FALSE );
+        error( sprintf( "not a file: '%s'", $srcName ));
         return FALSE;
     }
 
@@ -454,7 +454,7 @@ sub _copyInternal
 
         unless ( @dst = $useStat ? stat ( $dstName ) : lstat( $dstName ) ) {
             if ( $! != ENOENT ) {
-                error( sprintf( "failed to stat '%s': %s", $dstName, $! ), FALSE );
+                error( sprintf( "failed to stat '%s': %s", $dstName, $! ));
                 return FALSE;
             }
 
@@ -465,12 +465,12 @@ sub _copyInternal
             $haveDstLstat = !$useStat;
 
             if ( _sameInode( \@sst, \@dst ) ) {
-                error( sprintf( "'%s' and '%s' are the same file", $srcName, $dstName ), FALSE );
+                error( sprintf( "'%s' and '%s' are the same file", $srcName, $dstName ));
                 return FALSE;
             }
 
             if ( S_ISDIR( $dst[2] ) ) {
-                error( sprintf( "cannot overwrite directory '%s' with a non-directory", $srcName, $dstName ), FALSE );
+                error( sprintf( "cannot overwrite directory '%s' with non-directory '%s'", $dstName, $srcName ));
                 return FALSE;
             }
 
@@ -479,7 +479,7 @@ sub _copyInternal
             if ( !S_ISREG( $dst[2] ) ) {
                 unless ( unlink( $dstName ) ) {
                     if ( $! != ENOENT ) {
-                        error( sprintf( "cannot remove %s: %s", $srcName, $dstName, $dstName, $! ), FALSE );
+                        error( sprintf( "cannot remove %s: %s", $srcName, $dstName, $dstName, $! ));
                         return FALSE;
                     }
 
@@ -497,17 +497,24 @@ sub _copyInternal
     if ( S_ISREG( $srcMode ) ) {
         $copiedAsRegular = TRUE;
 
+        # POSIX says the permission bits of the source file must be used as the
+        # 3rd argument in the open call. Historical practice passed all the
+        # source mode bits to 'open', but the extra bits were ignored, so it
+        # should be the same either way.
+        #
+        # This call uses DST_MODE_BITS, not SRC_MODE. These are normally the
+        # same.
         if ( !_copyReg( $srcName, $dstName, $options, $dstModeBits & S_IRWXUGO, $omittedPerms, \$newDst, \@sst ) ) {
             return FALSE;
         }
     } elsif ( S_ISFIFO( $srcMode ) ) {
         if ( mkfifo( $dstName, $srcMode & ~S_IFIFO & ~$omittedPerms ) != 0 ) {
-            error( sprintf( "failed to create fifo '%s' : %s", $dstName, $! ), FALSE );
+            error( sprintf( "failed to create fifo '%s' : %s", $dstName, $! ));
             return FALSE;
         }
     } elsif ( ( S_ISBLK( $srcMode ) || S_ISCHR ( $srcMode ) || S_ISSOCK ( $srcMode ) ) ) {
         if ( _mknod( $dstName, $srcMode & ~$omittedPerms, $sst[6] ) != 0 ) {
-            error( sprintf( "failed to create special file '%s': %s", $dstName, $! ), FALSE );
+            error( sprintf( "failed to create special file '%s': %s", $dstName, $! ));
             return FALSE;
         }
     } elsif ( S_ISLNK( $srcMode ) ) {
@@ -515,21 +522,21 @@ sub _copyInternal
         $dstIsSymlink = TRUE;
 
         unless ( defined( $lnkVal = readlink( $srcName )) ) {
-            error( sprintf( "failed to read symbolic link '%s'", $srcName, $! ), FALSE );
+            error( sprintf( "failed to read symbolic link '%s'", $srcName, $! ));
             return FALSE;
         }
 
         unless ( symlink( $lnkVal, $dstName ) ) {
-            error( sprintf( "failed to create symbolic link '%s'", $dstName, $! ), FALSE );
+            error( sprintf( "failed to create symbolic link '%s'", $dstName, $! ));
             return FALSE;
         }
 
         if ( $options->{'preserve'} && !lchown( $sst[4], $sst[5], $dstName ) && !_chownOrChmodFailureOk() ) {
-            error( sprintf( "failed to preserve ownership for '%s': %s", $dstName, $! ), FALSE );
+            error( sprintf( "failed to preserve ownership for '%s': %s", $dstName, $! ));
             return FALSE;
         };
     } else {
-        error( sprintf( "unknown file type %s", $srcName, $dstName, $srcName ), FALSE );
+        error( sprintf( "unknown file type %s", $srcName, $dstName, $srcName ));
         return FALSE;
     }
 
@@ -552,7 +559,7 @@ sub _copyInternal
 
     if ( $options->{'preserve'} ) {
         unless ( chmod $srcMode, $dstName ) {
-            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ), FALSE );
+            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
             return FALSE;
         }
     } elsif ( defined $options->{'preserve'} && !$options->{'preserve'} ) { # no preserve (explicit)
@@ -560,8 +567,8 @@ sub _copyInternal
         # Wrong default perms where applied.
         # See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=30534
         # We follow the proposed patch.
-        unless ( chmod( ( S_ISDIR( $srcMode ) || S_ISSOCK ( $srcMode ) ? S_IRWXUGO : MODE_RW_UGO ) & ~$UMASK, $dstName ) ) {
-            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ), FALSE );
+        unless ( chmod( ( S_ISSOCK ( $srcMode ) ? S_IRWXUGO : MODE_RW_UGO ) & ~$UMASK, $dstName ) ) {
+            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
             return FALSE;
         }
     } else {
@@ -578,7 +585,7 @@ sub _copyInternal
                 # the current destination mode is tricky in the presence of
                 # implementation-defined rules for special mode bits.
                 if ( $newDst && ( @dst = lstat ( $dstName ) ) ) {
-                    error( sprintf( "cannot stat '%s': %s", $dstName, $! ), FALSE );
+                    error( sprintf( "cannot stat '%s': %s", $dstName, $! ));
                     return FALSE;
                 }
 
@@ -587,11 +594,9 @@ sub _copyInternal
             }
         }
 
-        if ( $restoreDstMode ) {
-            if ( chmod ( $dstMode | $omittedPerms, $dstName ) != 0 ) {
-                error( sprintf( "preserving permissions for %s '%s': %s", $dstName, $! ), FALSE );
-                return FALSE if $options->{'require_preserve'};
-            }
+        if ( $restoreDstMode && chmod ( $dstMode | $omittedPerms, $dstName ) != 0 ) {
+            error( sprintf( "preserving permissions for %s '%s': %s", $dstName, $! ));
+            return FALSE if $options->{'require_preserve'};
         }
     }
 
@@ -622,18 +627,18 @@ sub _copyReg
     my $retVal = TRUE;
 
     unless ( sysopen( $srcFH, $srcName, O_RDONLY | O_BINARY | O_NOFOLLOW ) ) {
-        error( sprintf( "cannot open '%s' for reading: %s", $srcName, $! ), FALSE );
+        error( sprintf( "cannot open '%s' for reading: %s", $srcName, $! ));
         return FALSE;
     }
 
     unless ( @sstOpen = stat( $srcFH ) ) {
-        error( sprintf( "cannot fstat '%s': %s", $srcName, $! ), FALSE );
+        error( sprintf( "cannot fstat '%s': %s", $srcName, $! ));
         $retVal = FALSE;
         goto closeSrc;
     }
 
     unless ( _sameInode( $sst, \@sstOpen ) ) {
-        error( sprintf( "file '%s' was replaced while being copied", $srcName ), FALSE );
+        error( sprintf( "file '%s' was replaced while being copied", $srcName ));
         $retVal = FALSE;
         goto closeSrc;
     }
@@ -668,7 +673,7 @@ sub _copyReg
         }
 
         # Otherwise, it's an error...
-        error( sprintf( "cannot create regular file '%s': $!", $dstName, $destErrno ), FALSE );
+        error( sprintf( "cannot create regular file '%s': $!", $dstName, $destErrno ));
         $retVal = FALSE;
         goto closeSrc;
     }
@@ -699,31 +704,31 @@ sub _copyReg
 
     if ( $options->{'preserve'} ) {
         unless ( chmod $srcMode, $dstFH ) {
-            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ), FALSE );
+            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
             $retVal = FALSE
         }
     } elsif ( defined $options->{'preserve'} && !$options->{'preserve'} ) { # no preserve (explicit)
         unless ( chmod ( MODE_RW_UGO & ~$UMASK, $dstFH ) ) {
-            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ), FALSE );
+            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
             $retVal = FALSE
         }
     } elsif ( $omittedPerms ) {
         $omittedPerms &= ~$UMASK;
         unless ( !$omittedPerms || chmod $dstMode, $dstFH ) {
-            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ), FALSE );
+            error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
             $retVal = FALSE if $options->{'require_preserve'};
         }
     }
 
     closeSrcAndDst:
     unless ( close( $srcFH ) ) {
-        error( sprintf( "failed to close '%s'", $srcName ), FALSE );
+        error( sprintf( "failed to close '%s'", $srcName ));
         $retVal = FALSE;
     }
 
     closeSrc:
     unless ( close( $dstFH ) ) {
-        error( sprintf( "failed to close '%s'", $dstName ), FALSE );
+        error( sprintf( "failed to close '%s'", $dstName ));
         $retVal = FALSE;
     }
 
@@ -856,7 +861,7 @@ sub _setOwnerSafe
             && chmod( $restrictiveTmpMode, $dstFH // $dstName ) != 0
         ) {
             if ( !_chownOrChmodFailureOk() ) {
-                error( sprintf( "clearing permissions for '%s': %s", $dstName ), FALSE );
+                error( sprintf( "clearing permissions for '%s': %s", $dstName ));
                 return -$options->{'require_preserve'};
             }
         }
@@ -883,7 +888,7 @@ sub _setOwnerSafe
     }
 
     if ( !_chownOrChmodFailureOk() ) {
-        error( sprintf( "failed to preserve onwership for '%s': %s", $dstName, $! ), FALSE );
+        error( sprintf( "failed to preserve onwership for '%s': %s", $dstName, $! ));
         return -1 if $options->{'preserve'};
     }
 
