@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Dir - Class representing a directory in abstract manner.
+ iMSCP::Dir - Class representing a directory in abstract way.
 
 =cut
 
@@ -73,7 +73,7 @@ sub getFiles
 {
     my ($self, $regexp, $invertMatching) = @_;
 
-    !defined $regexp || ref $regexp eq 'Regexp' or croak( 'Invalid $regexp parameter ' );
+    !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
     opendir my $dh, $self->{'dirname'} or die( "Failed to open dir '%s': %s", $self->{'dirname'}, $! );
 
@@ -97,7 +97,6 @@ sub getFiles
     }
 
     closedir $dh;
-
     @files;
 }
 
@@ -116,7 +115,7 @@ sub getDirs
 {
     my ($self, $regexp, $invertMatching) = @_;
 
-    !defined $regexp || ref $regexp eq 'Regexp' or croak( 'Invalid $regexp parameter' );
+    !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
     opendir my $dh, $self->{'dirname'} or die( "Failed to open dir '%s': %s", $self->{'dirname'}, $! );
 
@@ -140,7 +139,6 @@ sub getDirs
     }
 
     closedir $dh;
-
     @files;
 }
 
@@ -160,7 +158,7 @@ sub getAll
 {
     my ($self, $regexp, $invertMatching) = @_;
 
-    !defined $regexp || ref $regexp eq 'Regexp' or croak( 'Invalid $regexp parameter' );
+    !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
     opendir my $dh, $self->{'dirname'} or die( "Failed to open '%s': %s", $self->{'dirname'}, $! );
 
@@ -184,7 +182,6 @@ sub getAll
     }
 
     closedir $dh;
-
     @files;
 }
 
@@ -228,7 +225,7 @@ sub clear
 {
     my ($self, $regexp, $invertMatching ) = @_;
 
-    !defined $regexp || ref $regexp eq 'Regexp' or croak( 'Invalid $regexp parameter. Expects a Regexp ' );
+    !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
     if ( defined $regexp ) {
         opendir my $dh, $self->{'dirname'} or die( sprintf( "Failed to open '%s': %s", $self->{'dirname'}, $! ));
@@ -257,11 +254,11 @@ sub clear
     $self;
 }
 
-=item mode( $mode )
+=item mode( [ $mode = S_IRWXUGO & ~( UMASK(2) ) ] )
 
  Set mode of this directory
 
- Param int $mode OPTIONAL New file mode (octal number), default to 0777 & ~( UMASK(2) )
+ Param int $mode OPTIONAL New directory mode (octal number), default to 0777 & ~( UMASK(2) )
  Return self, die on failure
 
 =cut
@@ -269,19 +266,21 @@ sub clear
 sub mode
 {
     my ($self, $mode) = @_;
-    $mode //= MODE_RW_UGO & ~$UMASK;
+    $mode //= S_IRWXUGO & ~$UMASK;
 
-    length $mode or croak( '$mode parameter is invalid' );
+    length $mode or croak( '$mode parameter is missing or invalid' );
     chmod $mode, $self->{'dirname'} or die( sprintf( "Failed to set permissions for '%s': %s", $self->{'dirname'}, $! ));
     $self;
 }
 
 =item owner( $owner, $group )
 
- Set directory owner and group
+ Set ownership of this directory
 
- Param string $owner Owner
- Param string $group Group
+ Symlinks are not dereferenced.
+
+ Param int|string $owner Either an user name or user ID
+ Param int|string $group Either a group name or group ID
  Return self, die on failure
 
 =cut
@@ -290,13 +289,11 @@ sub owner
 {
     my ($self, $owner, $group) = @_;
 
-    defined $owner or croak( '$owner parameter is missing.' );
-    defined $group or croak( '$group parameter is missing.' );
+    my ($uid) = defined $owner ? ( $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'", $owner )) ) : -1;
+    my ($gid) = defined $group ? ( $group =~ /^\d+$/ ? $group : getpwnam( $group ) // die( sprintf( "Couldn't find group '%s'", $owner )) ) : -1;
 
-    my $uid = $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // -1;
-    my $gid = $group =~ /^\d+$/ ? $group : getgrnam( $group ) // -1;
-    chown $uid, $gid, $self->{'dirname'} or die( sprintf( "Failed to set ownership for '%s': %s", $self->{'dirname'}, $! ));
-    $self
+    lchown $uid, $gid, $self->{'dirname'} or die( sprintf( "Failed to set ownership for '%s': %s", $self->{'dirname'}, $! ));
+    $self;
 }
 
 =item make( [ \%options = { umask => UMASK(2), user => -1, group => -1, mode => 0777 & ~(umask || 0), fixpermissions => FALSE } ] )
@@ -324,11 +321,11 @@ sub make
     my ($self, $options) = @_;
     $options //= {};
 
-    ref $options eq 'HASH' or croak( '$options parameter is not valid. Hash expected' );
+    ref $options eq 'HASH' or croak( '$options parameter is invalid' );
 
     my (@tst) = stat $self->{'dirname'};
     @tst || $! == ENOENT or die( sprintf( "Failed to access '%s': %s", $self->{'dirname'}, $! ));
-    !@tst || S_ISDIR( $tst[2] ) or die( sprintf( "Failed to create '%s': File exists and is not a directory", $self->{'dirname'} ));
+    !@tst || S_ISDIR( $tst[2] ) or die( sprintf( "Failed to create '%s': file exists and is not a directory", $self->{'dirname'} ));
 
     unless ( @tst ) {
         my $parent = dirname( $self->{'dirname'} );
@@ -419,15 +416,15 @@ sub copy
     my ($self, $dest, $options) = @_;
     $options //= {};
 
-    ref $options eq 'HASH' or croak( '$options parameter is not valid. Hash expected' );
-    length $dest or croak( '$dest parameter is missing or invalid.' );
+    length $dest or croak( '$dest parameter is missing or invalid' );
+    ref $options eq 'HASH' or croak( '$options parameter is invalid' );
 
-    $options->{'require_preserve'} = $options->{'preserve'} ? TRUE : FALSE;
+    $options->{'_require_preserve'} = $options->{'preserve'} ? TRUE : FALSE;
     $options->{'no_target_directory'} //= TRUE;
 
     # FIXME: Should we follow symlinks?
     my @sst;
-    unless ( @sst = stat $self->{'dirname'} ) {
+    unless ( @sst = lstat $self->{'dirname'} ) {
         error( sprintf( "cannot stat '%s': %s", $self->{'dirname'}, $! ));
         goto endCopy;
     }
@@ -473,11 +470,11 @@ sub move
 {
     my ($self, $dest) = @_;
 
-    defined $dest or croak( '$dest parameter is missing.' );
+    length $dest or croak( '$dest parameter is missing or invalid' );
 
     my (@st) = lstat $self->{'dirname'} or croak( sprintf( "Failed to stat '%s': %s", $self->{'dirname'}, $! ));
 
-    S_ISDIR( $st[2] ) or die( sprintf( "Failed to move '%s' to '%s': Not a directory", $self->{'dirname'}, $dest, $self->{'dirname'} ));
+    S_ISDIR( $st[2] ) or die( sprintf( "Failed to move '%s' to '%s': not a directory", $self->{'dirname'}, $dest, $self->{'dirname'} ));
 
     if ( File::Copy::mv( $self->{'dirname'}, $dest ) ) {
         # Update the 'dirname' attribute to make us able to continue working with
@@ -507,7 +504,7 @@ sub _init
 {
     my ($self) = @_;
 
-    defined $self->{'dirname'} or die( 'dirname attribute is not defined.' );
+    length $self->{'dirname'} or die( 'dirname attribute is not defined or invalid' );
 
     $self->{'dirname'} = File::Spec->canonpath( $self->{'dirname'} );
     $self;
@@ -515,10 +512,10 @@ sub _init
 
 =item _copyInternal( $srcName, $dstName, $newDst, $options )
 
- Copy the given file to the given destination.
+ Copy the given file to the given destination
  
- The file can be of any type but directory. $newDst should be FALSE if the file
- $dstName might already exist.
+ The file can be of any type. $newDst should be FALSE if the file $dstName
+ might already exist.
  
  Param $string $srcName Source file path
  Param $string $dstName  Destination file path
@@ -622,7 +619,7 @@ sub _copyInternal
             if ( ( $dst[2] & S_IRWXU ) != S_IRWXU ) {
                 # Make the new directory searchable and writable.
                 $dstMode = $dst[2];
-                $restoreDstMode = true;
+                $restoreDstMode = TRUE;
 
                 unless ( chmod $dstModeBits | S_IRWXU, $dstName ) {
                     error( sprintf( "setting permissions for '%s': %s", $dstName, $! ));
@@ -640,11 +637,11 @@ sub _copyInternal
         if ( opendir my $dh, $srcName ) {
             while ( my $dentry = readdir $dh ) {
                 next if $dentry =~ /^\.{1,2}\z/s;
-                $delayedOk |= _copyInternal( $srcName . '/' . $dentry, $dstName . '/' . $dentry, FALSE, $options );
+                $delayedOk &= _copyInternal( $srcName . '/' . $dentry, $dstName . '/' . $dentry, FALSE, $options );
             }
 
             unless ( closedir $dh ) {
-                error( sprintf( "failed to close dir '%s': %s", $srcName, $! ));
+                error( sprintf( "cannot close dir '%s': %s", $srcName, $! ));
                 $delayedOk = FALSE;
             }
         } else {
@@ -743,9 +740,8 @@ sub _copyInternal
 
         if ( $restoreDstMode && chmod ( $dstMode | $omittedPerms, $dstName ) != 0 ) {
             error( sprintf( "preserving permissions for %s '%s': %s", $dstName, $! ));
-            return FALSE if $options->{'require_preserve'};
+            return FALSE if $options->{'_require_preserve'};
         }
-
     }
 
     $delayedOk;
@@ -853,18 +849,18 @@ sub _copyReg
     if ( $options->{'preserve'} ) {
         unless ( chmod $srcMode, $dstFH ) {
             error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
-            $retVal = FALSE
+            $retVal = FALSE;
         }
     } elsif ( defined $options->{'preserve'} && !$options->{'preserve'} ) { # no preserve (explicit)
         unless ( chmod ( MODE_RW_UGO & ~$UMASK, $dstFH ) ) {
             error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
-            $retVal = FALSE
+            $retVal = FALSE;
         }
     } elsif ( $omittedPerms ) {
         $omittedPerms &= ~$UMASK;
         unless ( !$omittedPerms || chmod $dstMode, $dstFH ) {
             error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
-            $retVal = FALSE if $options->{'require_preserve'};
+            $retVal = FALSE if $options->{'_require_preserve'};
         }
     }
 
@@ -937,7 +933,7 @@ sub _sameOwner
 {
     my ($ast, $bst) = @_;
 
-    $ast->[4] == $bst->[4]
+    $ast->[4] == $bst->[4];
 }
 
 =item _isSameGroup( \@ast, \@bst )
@@ -985,7 +981,7 @@ sub _sameOwnerAndGroup
 
  Param \%options Copy options
  Param string $dstName Destination file path
- Param GLOB $dstFH Destination file handle
+ Param GLOB|undef $dstFH Destination file handle
  Param \@sst array An array as returned by stat() and similars
  Param bool $newDst Flag indicating whether $dstName is a new file
  Param \@dst array An array as returned by stat() and similars
@@ -1010,7 +1006,7 @@ sub _setOwnerSafe
         ) {
             if ( !_chownOrChmodFailureOk() ) {
                 error( sprintf( "clearing permissions for '%s': %s", $dstName ));
-                return -$options->{'require_preserve'};
+                return -$options->{'_require_preserve'};
             }
         }
     }
@@ -1057,7 +1053,7 @@ sub _sameInode
 {
     my ($ast, $bst) = @_;
 
-    $ast->[0] == $bst->[0] && $ast->[1] == $bst->[1]
+    $ast->[0] == $bst->[0] && $ast->[1] == $bst->[1];
 }
 
 =item __toString()

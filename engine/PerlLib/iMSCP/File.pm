@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::File - Class representing a file in abstract manner.
+ iMSCP::File - Class representing a file in abstract way.
 
 =cut
 
@@ -235,8 +235,8 @@ sub owner
 {
     my ($self, $owner, $group) = @_;
 
-    my ($uid) = defined $owner ? ( $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'''", $owner )) ) : -1;
-    my ($gid) = defined $group ? ( $group =~ /^\d+$/ ? $group : getpwnam( $group ) // die( sprintf( "Couldn't find group '%s'''", $owner )) ) : -1;
+    my ($uid) = defined $owner ? ( $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'", $owner )) ) : -1;
+    my ($gid) = defined $group ? ( $group =~ /^\d+$/ ? $group : getpwnam( $group ) // die( sprintf( "Couldn't find group '%s'", $owner )) ) : -1;
 
     lchown $uid, $gid, $self->{'filename'} or die ( sprintf( "Failed to set ownership for '%s': %s", $self->{'filename'}, $! ));
     $self;
@@ -289,10 +289,10 @@ sub copy
     my ($self, $dest, $options) = @_;
     $options //= {};
 
-    ref $options eq 'HASH' or croak( '$options parameter is invalid' );
     length $dest or croak( '$dest parameter is missing or invalid' );
+    ref $options eq 'HASH' or croak( '$options parameter is invalid' );
 
-    $options->{'require_preserve'} = $options->{'preserve'} ? TRUE : FALSE;
+    $options->{'_require_preserve'} = $options->{'preserve'} ? TRUE : FALSE;
     $options->{'no_target_directory'} //= TRUE;
 
     my ($newDst, $isDirDst, $ret) = ( FALSE, FALSE, FALSE );
@@ -344,8 +344,8 @@ sub move
     my ($self, $dest, $options) = @_;
     $options //= {};
 
-    ref $options eq 'HASH' or croak( '$options parameter is not valid' );
     length $dest or croak( '$dest parameter is missing or invalid' );
+    ref $options eq 'HASH' or croak( '$options parameter is not valid' );
 
     my (@sst) = lstat $self->{'filename'} or croak( sprintf( "Failed to stat '%s': %s", $self->{'filename'}, $! ));
     !S_ISDIR( $sst[2] ) or die( sprintf( "Failed to move '%s' to '%s': not a file", $self->{'filename'}, $dest, $self->{'filename'} ));
@@ -407,7 +407,7 @@ sub _init
 {
     my ($self) = @_;
 
-    length $self->{'filename'} or croak( 'filename attribute is missing or invalid' );
+    length $self->{'filename'} or croak( 'filename attribute is not defined or invalid' );
     $self->{'filename'} = File::Spec->canonpath( $self->{'filename'} );
     $self->{'file_content'} = '';
     $self;
@@ -415,7 +415,7 @@ sub _init
 
 =item _copyInternal( $srcName, $dstName, $newDst, $options )
 
- Copy the given file to the given destination.
+ Copy the given file to the given destination
  
  The file can be of any type but directory. $newDst should be FALSE if the file
  $dstName might already exist.
@@ -596,7 +596,7 @@ sub _copyInternal
 
         if ( $restoreDstMode && chmod ( $dstMode | $omittedPerms, $dstName ) != 0 ) {
             error( sprintf( "preserving permissions for %s '%s': %s", $dstName, $! ));
-            return FALSE if $options->{'require_preserve'};
+            return FALSE if $options->{'_require_preserve'};
         }
     }
 
@@ -705,18 +705,18 @@ sub _copyReg
     if ( $options->{'preserve'} ) {
         unless ( chmod $srcMode, $dstFH ) {
             error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
-            $retVal = FALSE
+            $retVal = FALSE;
         }
     } elsif ( defined $options->{'preserve'} && !$options->{'preserve'} ) { # no preserve (explicit)
         unless ( chmod ( MODE_RW_UGO & ~$UMASK, $dstFH ) ) {
             error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
-            $retVal = FALSE
+            $retVal = FALSE;
         }
     } elsif ( $omittedPerms ) {
         $omittedPerms &= ~$UMASK;
         unless ( !$omittedPerms || chmod $dstMode, $dstFH ) {
             error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
-            $retVal = FALSE if $options->{'require_preserve'};
+            $retVal = FALSE if $options->{'_require_preserve'};
         }
     }
 
@@ -789,7 +789,7 @@ sub _sameOwner
 {
     my ($ast, $bst) = @_;
 
-    $ast->[4] == $bst->[4]
+    $ast->[4] == $bst->[4];
 }
 
 =item _isSameGroup( \@ast, \@bst )
@@ -837,7 +837,7 @@ sub _sameOwnerAndGroup
 
  Param \%options Copy options
  Param string $dstName Destination file path
- Param GLOB $dstFH Destination file handle
+ Param GLOB|undef $dstFH Destination file handle
  Param \@sst array An array as returned by stat() and similars
  Param bool $newDst Flag indicating whether $dstName is a new file
  Param \@dst array An array as returned by stat() and similars
@@ -862,7 +862,7 @@ sub _setOwnerSafe
         ) {
             if ( !_chownOrChmodFailureOk() ) {
                 error( sprintf( "clearing permissions for '%s': %s", $dstName ));
-                return -$options->{'require_preserve'};
+                return -$options->{'_require_preserve'};
             }
         }
     }
@@ -909,7 +909,7 @@ sub _sameInode
 {
     my ($ast, $bst) = @_;
 
-    $ast->[0] == $bst->[0] && $ast->[1] == $bst->[1]
+    $ast->[0] == $bst->[0] && $ast->[1] == $bst->[1];
 }
 
 =item __toString()
