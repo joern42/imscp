@@ -17,8 +17,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-CC = gcc
-CFLAGS = -DDEBUG=0 -s -ansi -Wall -Wextra -std=c11 -Wstrict-prototypes -pedantic-errors -O2
+CC := gcc
+CFLAGS := -DDEBUG=0 -s -ansi -Wall -Wextra -std=c11 -Wstrict-prototypes -pedantic-errors -O2
 
 headers = sys/syscall.h linux/fs.h
 
@@ -38,13 +38,13 @@ bin/%: %.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $< -o $@
 
-%.pm: bin/% inc
-	$< > ../iMSCP/$@
+%.pm: bin/% h2ph
+	$< > iMSCP/$@
 	$(RM) -r bin/
 
-inc:
+h2ph:
 	@mkdir -p $@
 	-cd /usr/include; h2ph -Q -a -d $(shell pwd)/$@ $(headers)
 
 clean:
-	$(RM) -r inc/ ../iMSCP/H2ph.pm
+	$(RM) -r h2ph/ iMSCP/H2ph.pm

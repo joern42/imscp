@@ -38,27 +38,43 @@ int main(void) {
   printf("# License along with this library; if not, write to the Free Software\n");
   printf("# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA\n\n");
   printf("package iMSCP::H2ph;\n\n");
+  printf("use strict;\n");
+  printf("use warnings;\n");
   printf("use File::Basename;\n\n");
-  printf("BEGIN {\n");
-  printf("    # We do not want keep track of the following\n");
-  printf("    local %%INC;\n");
-  printf("    local @INC = @INC;\n");
-  printf("    push @INC, \"@{[ dirname __FILE__]}/../h2ph/inc\";\n");
+  printf("{\n");
+  printf("    # Loads the required perl header files and immediately forget about them.\n");
+  printf("    # We need make sure to load our own versions of Perl header files by localizing\n");
+  printf("    # %%INC and @INC because those can have been loaded from elsewhere.\n");
+  printf("    local %%INC = ( 'warnings.pm', 1);\n");
+  printf("    local @INC = dirname( __FILE__ ) . '/../h2ph' ;\n");
   printf("    no warnings 'portable';\n");
   printf("    require 'sys/syscall.ph';\n");
   printf("    require 'linux/fs.ph';\n");
 
 #ifdef MULTIARCH
+
   printf("    require '%s/sys/mount.ph';\n", MULTIARCH);
+
 #else
+
   printf("    require 'sys/mount.ph';\n");
+
 #endif
 
   printf("}\n\n");
-  printf("our %%sizeof;\n\n");
+  /* We have to build the %sizeof hash by ourself as the H2PH(1) converter
+    doesn't do that for us. We provide only Basic C types.
+    see https://en.wikipedia.org/wiki/C_data_types
+    See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887
+    TODO: Build %sizeof hash by extracting C types from various *.ph files
+  */
+  printf("# We need provide the %%sizeof hash as the H2PH(1) converter.\n");
+  printf("# doesn't construct it for us.\n");
+  printf("# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887\n");
 
 #if DEBUG
 
+  printf("our %%sizeof;\n\n");
   printf("{\n");
   printf("    package iMSCP::H2ph::HASH;\n");
   printf("    require Tie::Hash;\n");
@@ -71,16 +87,12 @@ int main(void) {
   printf("}\n\n");
   printf("tie %%sizeof, 'iMSCP::H2ph::HASH';\n\n");
 
+#else
+
+  printf("our %%sizeof = (\n");
+
 #endif
 
-  /* We have to build the %sizeof hash by ourself as the H2PH(1) program
-    doesn't do that for us. We provide only Basic C types.
-    see https://en.wikipedia.org/wiki/C_data_types
-    See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887
-    TODO: Build %sizeof hash by extracting C types from various *.ph files
-  */
-  printf("# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887\n");
-  printf("%%sizeof = (\n");
   /* char */
   printf("    char                     => 0x%lx,\n", sizeof(char));
   printf("    'signed char'            => 0x%lx,\n", sizeof(signed char));
