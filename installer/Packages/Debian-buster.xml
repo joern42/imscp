@@ -1,9 +1,16 @@
+<!--
+ i-MSCP packages file for the Debian Jessie (8.x) distribution.
+
+ All packages required by i-MSCP *MUST* be listed, even those that are
+ pre-installed through the distribution installer bootstrapper. This makes
+ developpers able to have a quick look at i-MSCP requirements.
+-->
 <packages>
     <cron class="iMSCP::Servers::Cron" description="Cron daemon">
         <vixie default="1" class="iMSCP::Servers::Cron::Vixie::Debian">
             <package>cron</package>
         </vixie>
-        <systemd class="iMSCP::Servers::Cron::Systemd::Debian" required_init="Systemd">
+        <systemd class="iMSCP::Servers::Cron::Systemd::Debian" condition="'${SYSTEM_INIT}' eq 'Systemd'">
             <package>systemd-cron</package>
         </systemd>
     </cron>
@@ -23,9 +30,9 @@
             <post_install_task>sh debian_apache2_postinst.sh</post_install_task>
         </apache2>
         <nginx description="Nginx server" class="iMSCP::Servers::Httpd::Nginx::Debian" install_always="1">
-            <package>fcgiwrap</package>
             <package>nginx</package>
             <package>nginx-full</package>
+            <package>uwsgi</package>
         </nginx>
     </httpd>
     <php class="iMSCP::Servers::Php">
