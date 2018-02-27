@@ -39,6 +39,7 @@
         <php class="iMSCP::Servers::Php::Debian">
             <package>libapache2-mod-php7.0</package>
             <package>libapache2-mod-php7.1</package>
+            <package>libapache2-mod-php7.2</package>
             <package>php7.0</package>
             <package>php7.0-cgi</package>
             <package>php7.0-cli</package>
@@ -75,6 +76,23 @@
             <package>php7.1-pspell</package>
             <package>php7.1-xml</package>
             <package>php7.1-zip</package>
+            <package>php7.2</package>
+            <package>php7.2-cli</package>
+            <package>php7.2-cgi</package>
+            <package>php7.2-fpm</package>
+            <package>php7.2-common</package>
+            <package>php7.2-curl</package>
+            <package>php7.2-gd</package>
+            <package>php7.2-gmp</package>
+            <package>php7.2-imap</package>
+            <package>php7.2-intl</package>
+            <package>php7.2-json</package>
+            <package>php7.2-mbstring</package>
+            <package>php7.2-mysql</package>
+            <package>php7.2-opcache</package>
+            <package>php7.2-pspell</package>
+            <package>php7.2-xml</package>
+            <package>php7.2-zip</package>
             <package>php-apcu</package>
             <package>php-apcu-bc</package>
             <package>php-pear</package>
