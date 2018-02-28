@@ -71,7 +71,7 @@ use constant S_IRWXUGO => S_IRWXU | S_IRWXG | S_IRWXO;
 
 sub getFiles
 {
-    my ($self, $regexp, $invertMatching) = @_;
+    my ( $self, $regexp, $invertMatching ) = @_;
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
@@ -113,7 +113,7 @@ sub getFiles
 
 sub getDirs
 {
-    my ($self, $regexp, $invertMatching) = @_;
+    my ( $self, $regexp, $invertMatching ) = @_;
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
@@ -156,7 +156,7 @@ sub getDirs
 
 sub getAll
 {
-    my ($self, $regexp, $invertMatching) = @_;
+    my ( $self, $regexp, $invertMatching ) = @_;
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
@@ -195,7 +195,7 @@ sub getAll
 
 sub isEmpty
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     opendir my $dh, $self->{'dirname'} or die( sprintf( "Failed to open '%s': %s", $self->{'dirname'}, $! ));
 
@@ -223,7 +223,7 @@ sub isEmpty
 
 sub clear
 {
-    my ($self, $regexp, $invertMatching ) = @_;
+    my ( $self, $regexp, $invertMatching ) = @_;
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
@@ -241,7 +241,7 @@ sub clear
                 next;
             }
 
-            eval { remove_tree( $dentry, { safe => 1 } ); };
+            eval { remove_tree( $dentry, {safe => 1} ); };
             !$@ or die( sprintf( "Failed to remove '%s': %s", $dentry, $@ ));
         }
 
@@ -249,7 +249,7 @@ sub clear
         return $self;
     }
 
-    eval { remove_tree( $self->{'dirname'}, { keep_root => 1, safe => 1 } ); };
+    eval { remove_tree( $self->{'dirname'}, {keep_root => 1, safe => 1} ); };
     !$@ or die( sprintf( "Failed to clear '%s': %s", $self->{'dirname'}, $@ ));
     $self;
 }
@@ -265,7 +265,7 @@ sub clear
 
 sub mode
 {
-    my ($self, $mode) = @_;
+    my ( $self, $mode ) = @_;
     $mode //= S_IRWXUGO & ~$UMASK;
 
     length $mode or croak( '$mode parameter is invalid' );
@@ -287,10 +287,10 @@ sub mode
 
 sub owner
 {
-    my ($self, $owner, $group) = @_;
+    my ( $self, $owner, $group ) = @_;
 
-    my ($uid) = defined $owner ? ( $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'", $owner )) ) : -1;
-    my ($gid) = defined $group ? ( $group =~ /^\d+$/ ? $group : getpwnam( $group ) // die( sprintf( "Couldn't find group '%s'", $owner )) ) : -1;
+    my ( $uid ) = defined $owner ? ( $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'", $owner )) ) : -1;
+    my ( $gid ) = defined $group ? ( $group =~ /^\d+$/ ? $group : getpwnam( $group ) // die( sprintf( "Couldn't find group '%s'", $owner )) ) : -1;
 
     lchown $uid, $gid, $self->{'dirname'} or die( sprintf( "Failed to set ownership for '%s': %s", $self->{'dirname'}, $! ));
     $self;
@@ -318,12 +318,12 @@ sub owner
 
 sub make
 {
-    my ($self, $options) = @_;
+    my ( $self, $options ) = @_;
     $options //= {};
 
     ref $options eq 'HASH' or croak( '$options parameter is invalid' );
 
-    my (@tst) = stat $self->{'dirname'};
+    my ( @tst ) = stat $self->{'dirname'};
     @tst || $! == ENOENT or die( sprintf( "Failed to access '%s': %s", $self->{'dirname'}, $! ));
     !@tst || S_ISDIR( $tst[2] ) or die( sprintf( "Failed to create '%s': file exists and is not a directory", $self->{'dirname'} ));
 
@@ -364,9 +364,9 @@ sub make
 
 sub remove
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    eval { remove_tree $self->{'dirname'}, { safe => 1 }; };
+    eval { remove_tree $self->{'dirname'}, {safe => 1}; };
     !$@ or die( sprintf( 'Failed to remove %s: %s', $self->{'dirname'}, $@ ));
     $self;
 }
@@ -403,7 +403,7 @@ sub remove
 
  Param string $dest Destination path
  Param hash \%options OPTIONAL options:
-  - umask               : OPTIONAL UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: SRC_MODE & ~0027 .
+  - umask               : OPTIONAL UMASK(2). See above for it usage cases.
                           This option is only relevant when the preserve option is FALSE.
   - preserve            : See above for the behavior.
   - no_target_directory : If set to TRUE, treat $dest as a normal file
@@ -413,7 +413,7 @@ sub remove
 
 sub copy
 {
-    my ($self, $dest, $options) = @_;
+    my ( $self, $dest, $options ) = @_;
     $options //= {};
 
     length $dest or croak( '$dest parameter is missing or invalid' );
@@ -421,6 +421,9 @@ sub copy
 
     $options->{'_require_preserve'} = $options->{'preserve'} ? TRUE : FALSE;
     $options->{'no_target_directory'} //= TRUE;
+
+    # Locally change the current UMASK(2) if requested by caller
+    local $UMASK = $options->{'umask'} if defined $options->{'umask'};
 
     # FIXME: Should we follow symlinks?
     my @sst;
@@ -434,7 +437,7 @@ sub copy
         goto endCopy;
     }
 
-    my ($newDst, $isDirDst, $ret) = ( FALSE, FALSE, FALSE );
+    my ( $newDst, $isDirDst, $ret ) = ( FALSE, FALSE, FALSE );
 
     if ( my @dst = stat( $dest ) ) {
         $isDirDst = S_ISDIR( $dst[2] );
@@ -453,7 +456,7 @@ sub copy
     }
 
     endCopy:
-    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'dirname'}, $dest, getMessageByType( 'error', { remove => TRUE } )));
+    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'dirname'}, $dest, getMessageByType( 'error', {remove => TRUE} )));
     $self;
 }
 
@@ -468,11 +471,11 @@ sub copy
 
 sub move
 {
-    my ($self, $dest) = @_;
+    my ( $self, $dest ) = @_;
 
     length $dest or croak( '$dest parameter is missing or invalid' );
 
-    my (@st) = lstat $self->{'dirname'} or croak( sprintf( "Failed to stat '%s': %s", $self->{'dirname'}, $! ));
+    my ( @st ) = lstat $self->{'dirname'} or croak( sprintf( "Failed to stat '%s': %s", $self->{'dirname'}, $! ));
 
     S_ISDIR( $st[2] ) or die( sprintf( "Failed to move '%s' to '%s': not a directory", $self->{'dirname'}, $dest, $self->{'dirname'} ));
 
@@ -502,7 +505,7 @@ sub move
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     length $self->{'dirname'} or die( 'dirname attribute is not defined or invalid' );
 
@@ -526,10 +529,10 @@ sub _init
 
 sub _copyInternal
 {
-    my ($srcName, $dstName, $newDst, $options) = @_;
+    my ( $srcName, $dstName, $newDst, $options ) = @_;
 
-    my (@sst, @dst);
-    my ($haveDstLstat, $copiedAsRegular, $dstIsSymlink, $restoreDstMode, $dstMode) = ( FALSE, FALSE, FALSE, FALSE );
+    my ( @sst, @dst );
+    my ( $haveDstLstat, $copiedAsRegular, $dstIsSymlink, $restoreDstMode, $dstMode ) = ( FALSE, FALSE, FALSE, FALSE );
 
     unless ( @sst = lstat $srcName ) {
         error( sprintf( "cannot stat '%s': %s", $srcName, $! ));
@@ -544,7 +547,7 @@ sub _copyInternal
         # file, and lstat() otherwise.
         my $useStat = S_ISREG( $srcMode );
 
-        unless ( @dst = $useStat ? stat ( $dstName ) : lstat( $dstName ) ) {
+        unless ( @dst = $useStat ? stat( $dstName ) : lstat( $dstName ) ) {
             if ( $! != ENOENT ) {
                 error( sprintf( "failed to stat '%s': %s", $dstName, $! ));
                 return FALSE;
@@ -651,6 +654,13 @@ sub _copyInternal
     } elsif ( S_ISREG( $srcMode ) ) {
         $copiedAsRegular = TRUE;
 
+        # POSIX says the permission bits of the source file must be used as the
+        # 3rd argument in the open call. Historical practice passed all the
+        # source mode bits to 'open', but the extra bits were ignored, so it
+        # should be the same either way.
+        #
+        # This call uses DST_MODE_BITS, not SRC_MODE. These are normally the
+        # same.
         if ( !_copyReg( $srcName, $dstName, $options, $dstModeBits & S_IRWXUGO, $omittedPerms, \$newDst, \@sst ) ) {
             return FALSE;
         }
@@ -659,7 +669,7 @@ sub _copyInternal
             error( sprintf( "failed to create fifo '%s' : %s", $dstName, $! ));
             return FALSE;
         }
-    } elsif ( ( S_ISBLK( $srcMode ) || S_ISCHR ( $srcMode ) || S_ISSOCK ( $srcMode ) ) ) {
+    } elsif ( ( S_ISBLK( $srcMode ) || S_ISCHR( $srcMode ) || S_ISSOCK( $srcMode ) ) ) {
         if ( _mknod( $dstName, $srcMode & ~$omittedPerms, $sst[6] ) != 0 ) {
             error( sprintf( "failed to create special file '%s': %s", $dstName, $! ));
             return FALSE;
@@ -714,7 +724,7 @@ sub _copyInternal
         # Wrong default perms where applied.
         # See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=30534
         # We follow the proposed patch.
-        unless ( chmod( ( S_ISDIR( $srcMode ) || S_ISSOCK ( $srcMode ) ? S_IRWXUGO : MODE_RW_UGO ) & ~$UMASK, $dstName ) ) {
+        unless ( chmod( ( S_ISDIR( $srcMode ) || S_ISSOCK( $srcMode ) ? S_IRWXUGO : MODE_RW_UGO ) & ~$UMASK, $dstName ) ) {
             error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
             return FALSE;
         }
@@ -728,7 +738,7 @@ sub _copyInternal
                 # re-added now. It'd be faster to omit the lstat, but deducing
                 # the current destination mode is tricky in the presence of
                 # implementation-defined rules for special mode bits.
-                if ( $newDst && ( @dst = lstat ( $dstName ) ) ) {
+                if ( $newDst && ( @dst = lstat( $dstName ) ) ) {
                     error( sprintf( "cannot stat '%s': %s", $dstName, $! ));
                     return FALSE;
                 }
@@ -738,7 +748,7 @@ sub _copyInternal
             }
         }
 
-        if ( $restoreDstMode && chmod ( $dstMode | $omittedPerms, $dstName ) != 0 ) {
+        if ( $restoreDstMode && chmod( $dstMode | $omittedPerms, $dstName ) != 0 ) {
             error( sprintf( "preserving permissions for %s '%s': %s", $dstName, $! ));
             return FALSE if $options->{'_require_preserve'};
         }
@@ -764,9 +774,9 @@ sub _copyInternal
 
 sub _copyReg
 {
-    my ($srcName, $dstName, $options, $dstMode, $omittedPerms, $newDst, $sst) = @_;
+    my ( $srcName, $dstName, $options, $dstMode, $omittedPerms, $newDst, $sst ) = @_;
 
-    my ($srcFH, $dstFH, $destErrno, @sstOpen, @dstOpen);
+    my ( $srcFH, $dstFH, $destErrno, @sstOpen, @dstOpen );
     my $srcMode = S_IMODE $sst->[2];
     my $retVal = TRUE;
 
@@ -787,12 +797,12 @@ sub _copyReg
         goto closeSrc;
     }
 
-    unless ( ${$newDst} ) {
+    unless ( ${ $newDst } ) {
         $destErrno = $! unless sysopen( $dstFH, $dstName, O_WRONLY | O_BINARY | O_TRUNC );
     }
 
     open_with_O_CREAT:
-    if ( ${$newDst} ) {
+    if ( ${ $newDst } ) {
         sysopen( $dstFH, $dstName, O_WRONLY | O_BINARY | O_CREAT | O_EXCL, $dstMode & ~$omittedPerms );
         $destErrno = $!;
     } else {
@@ -811,8 +821,8 @@ sub _copyReg
         # the stat succeed for a just-removed remote file, while the more-definitive
         # initial open call will fail with ENOENT. When this situation arises, we
         # attempt top open again, but this time with O_CREAT.
-        if ( $destErrno == ENOENT && !${$newDst} ) {
-            ${$newDst} = 1;
+        if ( $destErrno == ENOENT && !${ $newDst } ) {
+            ${ $newDst } = 1;
             goto open_with_O_CREAT;
         }
 
@@ -852,7 +862,7 @@ sub _copyReg
             $retVal = FALSE;
         }
     } elsif ( defined $options->{'preserve'} && !$options->{'preserve'} ) { # no preserve (explicit)
-        unless ( chmod ( MODE_RW_UGO & ~$UMASK, $dstFH ) ) {
+        unless ( chmod( MODE_RW_UGO & ~$UMASK, $dstFH ) ) {
             error( sprintf( "preserving permissions for '%s': %s", $dstName, $! ));
             $retVal = FALSE;
         }
@@ -894,7 +904,7 @@ sub _copyReg
 
 sub _mknod
 {
-    my ($pathname, $mode, $dev) = @_;
+    my ( $pathname, $mode, $dev ) = @_;
 
     syscall( &iMSCP::H2ph::SYS_mknod, $pathname, $mode, $dev );
 }
@@ -931,7 +941,7 @@ sub _chownOrChmodFailureOk
 
 sub _sameOwner
 {
-    my ($ast, $bst) = @_;
+    my ( $ast, $bst ) = @_;
 
     $ast->[4] == $bst->[4];
 }
@@ -948,7 +958,7 @@ sub _sameOwner
 
 sub _isSameGroup
 {
-    my ($ast, $bst) = @_;
+    my ( $ast, $bst ) = @_;
 
     $ast->[5] == $bst->[5];
 }
@@ -965,7 +975,7 @@ sub _isSameGroup
 
 sub _sameOwnerAndGroup
 {
-    my ($ast, $bst) = @_;
+    my ( $ast, $bst ) = @_;
 
     _sameOwner( $ast, $bst ) && _isSameGroup( $ast, $bst );
 }
@@ -991,7 +1001,7 @@ sub _sameOwnerAndGroup
 
 sub _setOwnerSafe
 {
-    my ($options, $dstName, $dstFH, $sst, $newDst, $dst) = @_;
+    my ( $options, $dstName, $dstFH, $sst, $newDst, $dst ) = @_;
 
     # Naively changing the ownership of an existent file before changing its
     # permissions would create a window of vulnerability if the file's old
@@ -999,15 +1009,16 @@ sub _setOwnerSafe
     # window by first changing to a restrictive temporary mode if necessary.
     # It is assumed that correct permissions will be set after.
     if ( $newDst && $options->{'preserve'} ) {
-        my $restrictiveTmpMode = $dst->[2] & $sst->[2] & S_IRWXU;
+        my $oldMode = $dst->[2];
+        my $newMode = $sst->[2];
+        my $restrictiveTmpMode = $oldMode & $newMode & S_IRWXU;
 
-        if ( ( $dst->[2] & CHMOD_MODE_BITS & ( ~$sst->[2] | S_ISUID | S_ISGID | S_ISVTX ) )
+        if ( ( $oldMode & CHMOD_MODE_BITS
+            & ( ~$newMode | S_ISUID | S_ISGID | S_ISVTX ) )
             && chmod( $restrictiveTmpMode, $dstFH // $dstName ) != 0
         ) {
-            if ( !_chownOrChmodFailureOk() ) {
-                error( sprintf( "clearing permissions for '%s': %s", $dstName ));
-                return -$options->{'_require_preserve'};
-            }
+            error( sprintf( "clearing permissions for '%s': %s", $dstName )) unless _chownOrChmodFailureOk();
+            return -$options->{'_require_preserve'};
         }
     }
 
@@ -1051,14 +1062,15 @@ sub _setOwnerSafe
 
 sub _sameInode
 {
-    my ($ast, $bst) = @_;
+    my ( $ast, $bst ) = @_;
 
     $ast->[0] == $bst->[0] && $ast->[1] == $bst->[1];
 }
 
 =item __toString()
 
- Return string representation of this object, that is the value of $self->{'dirname'}
+ Return string representation of this object, that is the value of the
+ $self->{'dirname'} attribute.
 
 =cut
 
