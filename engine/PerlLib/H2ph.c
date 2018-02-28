@@ -98,7 +98,7 @@ int main( void ) {
   printf("    'signed char'            => 0x%lx,\n", sizeof(signed char));
   printf("    'unsigned char'          => 0x%lx,\n", sizeof(unsigned char));
   printf("    'char unsigned'          => 0x%lx,\n", sizeof(char unsigned));
-  /* interger */
+  /* integer */
   printf("     short                   => 0x%lx,\n", sizeof(short));
   printf("    'short int'              => 0x%lx,\n", sizeof(short int));
   printf("    'signed short'           => 0x%lx,\n", sizeof(signed short));
