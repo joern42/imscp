@@ -2,4 +2,5 @@
 <install>
     <folder>${IMSCP_ENGINE_DIR}/PerlLib</folder>
     <copy>${IMSCP_ENGINE_DIR}/PerlLib/iMSCP</copy>
+    <copy>${IMSCP_ENGINE_DIR}/PerlLib/h2ph</copy>
 </install>
