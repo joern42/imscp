@@ -241,7 +241,7 @@ sub clear
                 next;
             }
 
-            eval { remove_tree( $dentry, {safe => 1} ); };
+            eval { remove_tree( $dentry, { safe => 1 } ); };
             !$@ or die( sprintf( "Failed to remove '%s': %s", $dentry, $@ ));
         }
 
@@ -249,7 +249,7 @@ sub clear
         return $self;
     }
 
-    eval { remove_tree( $self->{'dirname'}, {keep_root => 1, safe => 1} ); };
+    eval { remove_tree( $self->{'dirname'}, { keep_root => 1, safe => 1 } ); };
     !$@ or die( sprintf( "Failed to clear '%s': %s", $self->{'dirname'}, $@ ));
     $self;
 }
@@ -366,7 +366,7 @@ sub remove
 {
     my ( $self ) = @_;
 
-    eval { remove_tree $self->{'dirname'}, {safe => 1}; };
+    eval { remove_tree $self->{'dirname'}, { safe => 1 }; };
     !$@ or die( sprintf( 'Failed to remove %s: %s', $self->{'dirname'}, $@ ));
     $self;
 }
@@ -456,7 +456,7 @@ sub copy
     }
 
     endCopy:
-    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'dirname'}, $dest, getMessageByType( 'error', {remove => TRUE} )));
+    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'dirname'}, $dest, getMessageByType( 'error', { remove => TRUE } )));
     $self;
 }
 

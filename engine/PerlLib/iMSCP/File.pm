@@ -317,7 +317,7 @@ sub copy
     }
 
     endCopy:
-    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'filename'}, $dest, getMessageByType( 'error', {remove => TRUE} )));
+    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'filename'}, $dest, getMessageByType( 'error', { remove => TRUE } )));
     $self;
 }
 
