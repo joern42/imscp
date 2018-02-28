@@ -18,10 +18,14 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 # Wrap real i-MSCP installer for satisfying pre-requisites
+#
+# Only base (Perl core) modules *MUST* be used here, that is, those which are
+# made available after a base distribution installation.
 
 use strict;
 use warnings;
 use POSIX qw/ locale_h /;
+use Cwd qw/ abs_path /;
 
 unshift @INC, 'engine/PerlLib';
 
@@ -39,9 +43,9 @@ sub prntError
     exit 1;
 }
 
-$> == 10 or prntError( 'The i-MSCP installer must be run with the privileges of super user.' );
+$> == 0 or prntError( 'The i-MSCP installer must be run with the privileges of super user.' );
 
-chomp( our $ROOTDIR = `realpath \$(dirname @{ [ __FILE__ ]} 2>/dev/null)` );
+chomp( our $ROOTDIR = `dirname @{ [ abs_path __FILE__ ] } 2>/dev/null` );
 chdir( $ROOTDIR ) or prntError( sprintf( "couldn't chdir: %s", $! || 'Unknown error' ));
 
 DIST_BOOTSTRAP:
@@ -70,11 +74,17 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
         "No installer bootstrap file found for your distribution. You need first implement the $bootstrapDir/$bootstrapFile bootstrap file."
     );
 
+    system( 'clear 2>/dev/null' );
     do "$bootstrapDir/$bootstrapFile" or prntError( sprintf( "Couldn't bootstrap the i-MSCP installer: %s", $@ || $! ));
 } else {
+    # Make sure that all requirementes are meet, else force distribution
+    # bootstrap execution
     eval {
         require iMSCP::Requirements;
-        iMSCP::Requirements->new()->all();
+        iMSCP::Requirements->new()
+            ->_checkPrograms()
+            ->_checkPhpModules()
+            ->_checkPerlModules();
     };
     if ( $@ ) {
         $forceDistBootstrap = 1;
@@ -83,7 +93,7 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
 }
 
 prntInfo 'Generating iMSCP::H2ph Perl package...';
-system( "cd engine/PerlLib/h2ph; make clean all" ) == 0 or prntError( "Couldn't generate iMSCP::H2ph Perl package." );
+system( "cd engine/PerlLib; make clean all" ) == 0 or prntError( "Couldn't generate iMSCP::H2ph Perl package." );
 
 # Execute the real installer
 exec( '/usr/bin/perl', 'installer/installer.pl', @ARGV );

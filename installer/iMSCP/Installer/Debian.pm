@@ -30,6 +30,7 @@ use File::HomeDir;
 use Fcntl qw/ :flock /;
 use File::Temp;
 use FindBin;
+use iMSCP::Boolean;
 use iMSCP::Cwd;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dialog;
@@ -310,9 +311,9 @@ sub _init
     $self->{'packagesPostInstallTasks'} = {};
     $self->{'need_pbuilder_update'} = 1;
 
-    #delete $ENV{'DEBCONF_FORCE_DIALOG'};
+    delete $ENV{'DEBCONF_FORCE_DIALOG'};
 
-    $ENV{'DEBIAN_FRONTEND'} = iMSCP::Getopt->noprompt ? 'noninteractive' : 'dialog';
+    $ENV{'DEBIAN_FRONTEND'} = iMSCP::Getopt->noprompt ? 'noninteractive' : 'whiptail';
     $ENV{'DEBFULLNAME'} = 'i-MSCP Installer';
     $ENV{'DEBEMAIL'} = 'team@i-mscp.net';
 
@@ -997,7 +998,7 @@ sub _rebuildAndInstallPackage
     local $CWD = $srcDownloadDir;
 
     # Avoid pbuilder warning due to missing $HOME/.pbuilderrc file
-    iMSCP::File->new( filename File::HomeDir->my_home . '/.pbuilderrc' )->save();
+    iMSCP::File->new( filename => File::HomeDir->my_home . '/.pbuilderrc' )->save();
 
     startDetail();
     step(
