@@ -46,7 +46,7 @@ use parent 'iMSCP::Common::Object';
 
 sub preBuild
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item installPackages( )
@@ -59,7 +59,7 @@ sub preBuild
 
 sub installPackages
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item uninstallPackages( )
@@ -72,7 +72,7 @@ sub installPackages
 
 sub uninstallPackages
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item postBuild( )
@@ -85,7 +85,7 @@ sub uninstallPackages
 
 sub postBuild
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item preInstall( \@steps )
@@ -99,7 +99,7 @@ sub postBuild
 
 sub preInstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item postInstall( )
@@ -110,9 +110,9 @@ sub preInstall
 
 =cut
 
-sub postInstall()
+sub postInstall( )
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =back

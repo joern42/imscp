@@ -27,7 +27,7 @@
 #  - Ubuntu 14.04, 16.04, 18.04
 #  - Devuan 1.0
 
-unless (-f '/etc/imscp/listener.d/10_apt_sources_list.pl' || -f '/etc/imscp/imscp.conf' ) {
+unless ( -f '/etc/imscp/listener.d/10_apt_sources_list.pl' || -f '/etc/imscp/imscp.conf' ) {
     prntInfo 'Updating distribution package index files...';
     system( 'apt-get', '--quiet=1', 'update' ) == 0 or die( "couldn't update APT index" );
 
@@ -44,7 +44,7 @@ unless (-f '/etc/imscp/listener.d/10_apt_sources_list.pl' || -f '/etc/imscp/imsc
 
     if ( -f $file ) {
         prntInfo 'Updating APT sources.list file...';
-        system( 'cp', '-f', $file, '/etc/apt/sources.list' ) == 0 or die( "Couldn't copy APT sources.list file" );
+        system( '/bin/cp', '-f', $file, '/etc/apt/sources.list' ) == 0 or die( "Couldn't copy APT sources.list file" );
         system( "perl -pi -e 's/{codename}/$distCodename/g;' /etc/apt/sources.list" );
     }
 }
@@ -61,26 +61,27 @@ system(
     'ca-certificates', 'cpanminus', 'debconf-utils', 'dialog', 'dirmngr', 'libcapture-tiny-perl', 'libclass-autouse-perl', 'libdata-clone-perl',
     'libdata-compare-perl', 'libdata-validate-domain-perl', 'libfile-homedir-perl', 'libjson-perl', 'libjson-xs-perl', 'liblist-compare-perl',
     'libnet-ip-perl', 'libnet-libidn-perl', 'libscalar-defer-perl', 'libxml-simple-perl', 'policyrcd-script-zg2', 'wget', 'whiptail', 'virt-what',
-    'libdatetime-perl', 'libemail-valid-perl', 'libdata-validate-ip-perl', 'lsb-release', 'ruby'
+    'libdatetime-perl', 'libemail-valid-perl', 'libdata-validate-ip-perl', 'lsb-release', 'ruby',
+    # Required for H2ph build on amd64 OS...
+    ( `/usr/bin/arch 2>/dev/null` eq "x86_64\n" ? ( 'libc6-dev-i386', 'libc6-dev-x32' ) : () )
 ) == 0 or die( "couldn't install pre-required distribution packages" );
 
 # Install FACTER(8) from rubygem.org as the version provided by some distributions is too old
 # TODO: Add the --minimal-deps option when support for Ubuntu Trusty Thar will be dropped 
 prntInfo "Installing pre-required facter program (RubyGem)...";
-system( 'gem', 'install', 'facter', '--quiet', '--conservative', '--version', '2.5.1' ) == 0 or die(
+system( '/usr/bin/gem', 'install', 'facter', '--quiet', '--conservative', '--version', '2.5.1' ) == 0 or die(
     "couldn't install pre-required distribution packages"
 );
 
-    
 if ( eval "require Module::Load::Conditional; 1;" ) {
     Module::Load::Conditional->import( 'check_install' );
     require iMSCP::Requirements;
     my $perlModules = iMSCP::Requirements->new()->getPerlModuleRequirements( 'prerequiredOnly' );
 
-    while ( my ($module, $version) = each %{$perlModules} ) {
+    while ( my ( $module, $version ) = each %{ $perlModules } ) {
         my $rv = check_install( module => $module, version => $version );
 
-        if($rv && $rv->{'uptodate'}) {
+        if ( $rv && $rv->{'uptodate'} ) {
             delete $perlModules->{$module} if $rv && $rv->{'uptodate'};
             next;
         }
@@ -88,9 +89,11 @@ if ( eval "require Module::Load::Conditional; 1;" ) {
         $perlModules->{$module} .= "~$version'";
     }
 
-    if ( %{$perlModules} ) {
+    if ( %{ $perlModules } ) {
         prntInfo "Installing pre-required Perl module(s) from CPAN...";
-        system( 'cpanm', '--notest', '--quiet', keys %{$perlModules} ) == 0 or die( "couldn't install all pre-required Perl module(s) from CPAN" );
+        system( '/usr/bin/cpanm', '--notest', '--quiet', keys %{ $perlModules } ) == 0 or die(
+            "couldn't install all pre-required Perl module(s) from CPAN"
+        );
     }
 } else {
     die( 'the Module::Load::Conditional Perl module is not available' );

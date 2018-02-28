@@ -52,7 +52,7 @@ DIST_BOOTSTRAP:
 
 my $forceDistBootstrap;
 if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
-    my ($bootstrapDir, $bootstrapFile) = ( 'installer/bootstrap' );
+    my ( $bootstrapDir, $bootstrapFile ) = ( 'installer/bootstrap' );
 
     if ( -f '/etc/debian_version' || -f '/etc/devuan_version' ) {
         $bootstrapFile = 'debian.pl';
@@ -77,7 +77,7 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
     system( 'clear 2>/dev/null' );
     do "$bootstrapDir/$bootstrapFile" or prntError( sprintf( "Couldn't bootstrap the i-MSCP installer: %s", $@ || $! ));
 } else {
-    # Make sure that all requirementes are meet, else force distribution
+    # Make sure that all requirements are meet, else force distribution
     # bootstrap execution
     eval {
         require iMSCP::Requirements;

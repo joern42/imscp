@@ -38,7 +38,7 @@ use iMSCP::Installer::Functions qw/ loadConfig build install /;
 use iMSCP::Debug qw/ newDebug /;
 use iMSCP::Getopt;
 use iMSCP::Requirements;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, 'C.UTF-8' );
 
@@ -53,7 +53,7 @@ newDebug( 'imscp-installer.log' );
 iMSCP::Getopt->context( 'installer' );
 
 # Parse installer options
-iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
  -b,    --build-only              Process build steps only.
  -s,    --skip-distro-packages    Do not install/update distribution packages.},
     'build-only|b'           => \&iMSCP::Getopt::buildonly,

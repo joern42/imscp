@@ -211,13 +211,10 @@
     <other>
         <package>apt-src</package>
         <package>apt-transport-https</package>
-        <package>apt-transport-https</package>
-        <package>apt-utils</package>
         <package>apt-utils</package>
         <package>at</package>
         <package>bash-completion</package>
         <package>bash</package>
-        <package>build-essential</package>
         <package>build-essential</package>
         <package>bzip2</package>
         <package>ca-certificates</package>
@@ -232,6 +229,8 @@
         <package>ifupdown</package>
         <package>iptables</package>
         <package>lsb-release</package>
+        <package condition="'${DISTRO_ARCH}'eq 'amd64'">libc6-dev-i386</package>
+        <package condition="'${DISTRO_ARCH}'eq 'amd64'">libc6-dev-x32</package>
         <package>lzma</package>
         <package>net-tools</package>
         <package>openssl</package>
