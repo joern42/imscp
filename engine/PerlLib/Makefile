@@ -18,11 +18,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 CC := gcc
-CFLAGS := -DDEBUG=0 -s -ansi -Wall -Wextra -std=c11 -Wstrict-prototypes -pedantic-errors -O2
+CFLAGS := -DDEBUG=1 -s -ansi -Wall -Wextra -std=c11 -Wstrict-prototypes -pedantic-errors -O2
 
 headers = sys/syscall.h linux/fs.h
 
-# Debian specific (Multiarch)
+# Debian/Ubuntu specific (Multiarch)
 -include /usr/share/dpkg/architecture.mk
 ifdef DEB_HOST_MULTIARCH
     headers += $(DEB_HOST_MULTIARCH)/sys/mount.h

@@ -19,78 +19,78 @@
 
 #include "stdio.h"
 
-int main(void) {
-
-  printf("# i-MSCP - internet Multi Server Control Panel\n");
-  printf("# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>\n");
-  printf("# \n");
-  printf("# This library is free software; you can redistribute it and/or\n");
-  printf("# modify it under the terms of the GNU Lesser General Public\n");
-  printf("# License as published by the Free Software Foundation; either\n");
-  printf("# version 2.1 of the License, or (at your option) any later version.\n");
-  printf("# \n");
-  printf("# This library is distributed in the hope that it will be useful,\n");
-  printf("# but WITHOUT ANY WARRANTY; without even the implied warranty of\n");
-  printf("# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU\n");
-  printf("# Lesser General Public License for more details.\n");
-  printf("# \n");
-  printf("# You should have received a copy of the GNU Lesser General Public\n");
-  printf("# License along with this library; if not, write to the Free Software\n");
-  printf("# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA\n\n");
-  printf("package iMSCP::H2ph;\n\n");
-  printf("use strict;\n");
-  printf("use warnings;\n");
-  printf("use File::Basename;\n\n");
-  printf("{\n");
-  printf("    # Loads the required perl header files and immediately forget about them.\n");
-  printf("    # We need make sure to load our own versions of Perl header files by localizing\n");
-  printf("    # %%INC and @INC because those can have been loaded from elsewhere.\n");
-  printf("    local %%INC = ( 'warnings.pm', 1);\n");
-  printf("    local @INC = dirname( __FILE__ ) . '/../h2ph' ;\n");
-  printf("    no warnings 'portable';\n");
-  printf("    require 'sys/syscall.ph';\n");
-  printf("    require 'linux/fs.ph';\n");
+int main( void ) {
+  printf(
+  "# i-MSCP - internet Multi Server Control Panel\n"
+  "# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>\n"
+  "# \n"
+  "# This library is free software; you can redistribute it and/or\n"
+  "# modify it under the terms of the GNU Lesser General Public\n"
+  "# License as published by the Free Software Foundation; either\n"
+  "# version 2.1 of the License, or (at your option) any later version.\n"
+  "# \n"
+  "# This library is distributed in the hope that it will be useful,\n"
+  "# but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+  "# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU\n"
+  "# Lesser General Public License for more details.\n"
+  "# \n"
+  "# You should have received a copy of the GNU Lesser General Public\n"
+  "# License along with this library; if not, write to the Free Software\n"
+  "# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA\n"
+  "\n"
+  "package iMSCP::H2ph;\n"
+  "\n"
+  "use strict;\n"
+  "use warnings;\n"
+  "use File::Basename;\n"
+  "\n"
+  "{\n"
+  "    # Loads the required perl header files and immediately forget about them.\n"
+  "    # We need make sure to load our own versions of Perl header files by localizing\n"
+  "    # %%INC and @INC because those can have been loaded from elsewhere.\n"
+  "    local %%INC = ( 'warnings.pm', 1);\n"
+  "    local @INC = dirname( __FILE__ ) . '/../h2ph' ;\n"
+  "    no warnings 'portable';\n"
+  "    require 'sys/syscall.ph';\n"
+  "    require 'linux/fs.ph';\n");
 
 #ifdef MULTIARCH
-
   printf("    require '%s/sys/mount.ph';\n", MULTIARCH);
-
 #else
-
   printf("    require 'sys/mount.ph';\n");
-
 #endif
 
-  printf("}\n\n");
+  printf(
+  "}\n"
+  "\n"
   /* We have to build the %sizeof hash by ourself as the H2PH(1) converter
     doesn't do that for us. We provide only Basic C types.
     see https://en.wikipedia.org/wiki/C_data_types
     See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887
     TODO: Build %sizeof hash by extracting C types from various *.ph files
   */
-  printf("# We need provide the %%sizeof hash as the H2PH(1) converter.\n");
-  printf("# doesn't construct it for us.\n");
-  printf("# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887\n");
+  "# We need provide the %%sizeof hash as the H2PH(1) converter\n"
+  "# doesn't construct it for us.\n"
+  "# See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=190887\n"
 
 #if DEBUG
-
-  printf("our %%sizeof;\n\n");
-  printf("{\n");
-  printf("    package iMSCP::H2ph::HASH;\n");
-  printf("    require Tie::Hash;\n");
-  printf("    our @ISA = qw/ Tie::StdHash /;\n\n");
-  printf("    sub FETCH {\n");
-  printf("        my $context = sprintf qq[in %%s file %%s at line %%s.], caller;\n");
-  printf("        warn qq[No sizeof for C type '$_[1]' $context\\n] unless exists $_[0]{$_[1]};\n");
-  printf("        return $_[0]{$_[1]};\n");
-  printf("    }\n");
-  printf("}\n\n");
-  printf("tie %%sizeof, 'iMSCP::H2ph::HASH';\n\n");
-
+  "\n"
+  "{\n"
+  "    package iMSCP::H2ph::HASH;\n"
+  "    require Tie::Hash;\n"
+  "    our @ISA = qw/ Tie::StdHash /;\n\n"
+  "    sub FETCH {\n"
+  "        my $context = sprintf qq[in %%s file %%s at line %%s.], caller;\n"
+  "        warn qq[No sizeof for C type '$_[1]' $context\\n] unless exists $_[0]{$_[1]};\n"
+  "        return $_[0]{$_[1]};\n"
+  "    }\n"
+  "}\n"
+  "\n"
+  "tie our %%sizeof, 'iMSCP::H2ph::HASH';\n"
+  "\n"
+  "%%sizeof = (\n");
 #else
-
-  printf("our %%sizeof = (\n");
-
+  "our %%sizeof = (\n");
 #endif
 
   /* char */
