@@ -48,7 +48,7 @@ our $VERSION = '2.0.0';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     0;
 }
@@ -61,7 +61,7 @@ sub preinstall
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     0;
 }
@@ -74,7 +74,7 @@ sub postinstall
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'NoServer';
 }
@@ -87,7 +87,7 @@ sub getServerName
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'No server (BlackHole) 1.0.0';
 }
@@ -100,7 +100,7 @@ sub getHumanServerName
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     '1.0.0';
 }
@@ -113,7 +113,7 @@ sub getVersion
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     0;
 }
@@ -126,7 +126,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     0;
 }
@@ -139,7 +139,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     0;
 }
@@ -152,7 +152,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     0;
 }
@@ -165,7 +165,7 @@ sub reload
 
 sub buildConfFile
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     0;
 }

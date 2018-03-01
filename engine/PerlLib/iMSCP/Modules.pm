@@ -46,7 +46,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub getList
 {
-    @{$_[0]->{'modules'}};
+    @{ $_[0]->{'modules'} };
 }
 
 =item getListWithFullNames( )
@@ -59,7 +59,7 @@ sub getList
 
 sub getListWithFullNames
 {
-    @{$_[0]->{'modules_full_names'}};
+    @{ $_[0]->{'modules_full_names'} };
 }
 
 =back
@@ -78,19 +78,19 @@ sub getListWithFullNames
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    s%^.*?([^/]+)\.pm$%$1% for @{$self->{'modules'}} = grep (!/Abstract\.pm$/, glob( dirname( __FILE__ ) . '/Modules/*.pm' ) );
+    s%^.*?([^/]+)\.pm$%$1% for @{ $self->{'modules'} } = grep (!/Abstract\.pm$/, glob( dirname( __FILE__ ) . '/Modules/*.pm' ) );
 
     # Load all modules
-    for my $module( @{$self->{'modules'}} ) {
+    for my $module ( @{ $self->{'modules'} } ) {
         my $fmodule = "iMSCP::Modules::${module}";
         eval "require $fmodule; 1" or die( sprintf( "Couldn't load %s module class: %s", $fmodule, $@ ));
     }
 
     # Sort modules by priority (descending order)
-    @{$self->{'modules'}} = sort { "iMSCP::Modules::${b}"->getPriority() <=> "iMSCP::Modules::${a}"->getPriority() } @{$self->{'modules'}};
-    @{$self->{'modules_full_names'}} = map { "iMSCP::Modules::${_}" } @{$self->{'modules'}};
+    @{ $self->{'modules'} } = sort { "iMSCP::Modules::${b}"->getPriority() <=> "iMSCP::Modules::${a}"->getPriority() } @{ $self->{'modules'} };
+    @{ $self->{'modules_full_names'} } = map { "iMSCP::Modules::${_}" } @{ $self->{'modules'} };
     $self;
 }
 

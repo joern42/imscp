@@ -59,11 +59,11 @@ my $IFUP_STATE_DIR = '/run/network';
 
 sub addIpAddr
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     defined $data && ref $data eq 'HASH' or croak( '$data parameter is not defined or invalid' );
 
-    for my $param( qw/ ip_id ip_card ip_address ip_config_mode / ) {
+    for my $param ( qw/ ip_id ip_card ip_address ip_config_mode / ) {
         defined $data->{$param} or croak( sprintf( 'The %s parameter is not defined', $param ));
     }
 
@@ -92,7 +92,7 @@ sub addIpAddr
     if ( $addrVersion eq 'ipv4' ) {
         my $nic = $self->_isDefinedInterface( "$data->{'ip_card'}:$data->{'ip_id'}" ) ? "$data->{'ip_card'}:$data->{'ip_id'}" : $data->{'ip_card'};
 
-        my ($stdout, $stderr);
+        my ( $stdout, $stderr );
         execute( [ $COMMANDS{'ifup'}, '--force', $nic ], \$stdout, \$stderr ) == 0 or die(
             sprintf( "Couldn't bring up the %s network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
         );
@@ -112,11 +112,11 @@ sub addIpAddr
 
 sub removeIpAddr
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     defined $data && ref $data eq 'HASH' or croak( '$data parameter is not defined or invalid' );
 
-    for my $param( qw/ ip_id ip_card ip_address ip_config_mode / ) {
+    for my $param ( qw/ ip_id ip_card ip_address ip_config_mode / ) {
         defined $data->{$param} or croak( sprintf( 'The %s parameter is not defined', $param ));
     }
 
@@ -127,7 +127,7 @@ sub removeIpAddr
         && $self->{'net'}->getAddrVersion( $data->{'ip_address'} ) eq 'ipv4'
         && $self->_isDefinedInterface( "$data->{'ip_card'}:$data->{'ip_id'}" )
     ) {
-        my ($stdout, $stderr);
+        my ( $stdout, $stderr );
         execute( "$COMMANDS{'ifdown'} --force $data->{'ip_card'}:$data->{'ip_id'}", \$stdout, \$stderr ) == 0 or die(
             sprintf( "Couldn't bring down the %s network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
         );
@@ -157,7 +157,7 @@ sub removeIpAddr
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'net'} = iMSCP::Net->getInstance();
     $self;
@@ -175,7 +175,7 @@ sub _init
 
 sub _updateInterfacesFile
 {
-    my ($self, $action, $data) = @_;
+    my ( $self, $action, $data ) = @_;
 
     my $file = iMSCP::File->new( filename => $INTERFACES_FILE_PATH )->copy( $INTERFACES_FILE_PATH . '.bak', { preserve => 1 } );
     my $addrVersion = $self->{'net'}->getAddrVersion( $data->{'ip_address'} );
@@ -192,11 +192,11 @@ sub _updateInterfacesFile
 
     if ( $action eq 'add'
         && $data->{'ip_config_mode'} eq 'auto'
-        && ${$fileContentRef} !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$cAddr|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
+        && ${ $fileContentRef } !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$cAddr|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
     ) {
         my $iface = $data->{'ip_card'} . ( ( $addrVersion eq 'ipv4' ) ? ':' . $data->{'ip_id'} : '' );
 
-        ${$fileContentRef} .= process(
+        ${ $fileContentRef } .= process(
             {
                 ip_id       => $data->{'ip_id'},
                 # For IPv6 addr, we do not create aliased interface because that is not suppported everywhere.
@@ -216,7 +216,7 @@ STANZA
         );
 
         # We do add the `auto' stanza only for aliased interfaces, hence, for IPv4 only
-        ${$fileContentRef} =~ s/^(# i-MSCP \[$cAddr\] entry BEGIN\n)/${1}auto $iface\n/m if $addrVersion eq 'ipv4';
+        ${ $fileContentRef } =~ s/^(# i-MSCP \[$cAddr\] entry BEGIN\n)/${1}auto $iface\n/m if $addrVersion eq 'ipv4';
     }
 
     $file->save();
@@ -233,7 +233,7 @@ STANZA
 
 sub _isDefinedInterface
 {
-    my (undef, $interface) = @_;
+    my ( undef, $interface ) = @_;
 
     execute( "$COMMANDS{'ifquery'} --list | grep -q '^$interface\$'" ) == 0;
 }

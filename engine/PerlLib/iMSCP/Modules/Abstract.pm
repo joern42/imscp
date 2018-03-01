@@ -54,7 +54,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub getPriority
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     0;
 }
@@ -69,7 +69,7 @@ sub getPriority
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s module must implements the getEntityType( ) method', ref $self ));
 }
@@ -84,7 +84,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s module must implements the handleEntity( ) method', ref $self ));
 }
@@ -103,7 +103,7 @@ sub handleEntity
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'_dbh'} = iMSCP::Database->getInstance();
@@ -124,7 +124,7 @@ sub _init
 
 sub _loadEntityData
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s module must implements the _loadEntityData( ) method', ref $self ));
 }
@@ -140,7 +140,7 @@ sub _loadEntityData
 
 sub _getEntityData
 {
-    my ($self, $action) = @_;
+    my ( $self, $action ) = @_;
 
     $self->{'_data'}->{'action'} = $action;
     $self->{'_data'};
@@ -217,12 +217,12 @@ sub _disable
 
 sub _execActions
 {
-    my ($self, $action) = @_;
+    my ( $self, $action ) = @_;
 
     my $entityType = $self->getEntityType();
 
     if ( $action =~ /^(?:add|restore)$/ ) {
-        for my $actionPrefix( 'pre', '', 'post' ) {
+        for my $actionPrefix ( 'pre', '', 'post' ) {
             my $method = "$actionPrefix$action$entityType";
             my $moduleData = $self->_getModuleData( $method );
 
@@ -230,7 +230,7 @@ sub _execActions
             $_->factory()->$method( $self ) for iMSCP::Servers->getInstance()->getListWithFullNames();
 
             debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
-            for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+            for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
                 ( my $subref = $package->can( $method ) ) or next;
                 $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
             }
@@ -239,18 +239,18 @@ sub _execActions
         return;
     }
 
-    for my $actionPrefix( 'pre', '', 'post' ) {
+    for my $actionPrefix ( 'pre', '', 'post' ) {
         my $method = "$actionPrefix$action$entityType";
         my $moduleData = $self->_getModuleData( $method );
 
         debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
-        for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+        for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
             ( my $subref = $package->can( $method ) ) or next;
             $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
         }
 
         debug( sprintf( "Executing %s action on i-MSCP servers...", $method ));
-        for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+        for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
             $server->factory()->$method( $moduleData );
         }
     }

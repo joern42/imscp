@@ -54,7 +54,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_disableDefaultConfig();
     $self->_createCacheDir();
@@ -72,7 +72,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_addAwstatsCronTask();
 }
@@ -93,7 +93,7 @@ sub postinstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'httpd'} = iMSCP::Servers::Httpd->factory();
     $self;
@@ -135,7 +135,7 @@ sub _disableDefaultConfig
 
 sub _createCacheDir
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Dir->new( dirname => $::imscpConfig{'AWSTATS_CACHE_DIR'} )->make( {
         user  => $::imscpConfig{'ROOT_USER'},
@@ -154,7 +154,7 @@ sub _createCacheDir
 
 sub _setupApache
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Create Basic authentication file
     iMSCP::File
@@ -212,9 +212,9 @@ sub _addAwstatsCronTask
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    for my $dir( iMSCP::Dir->new( dirname => $::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
+    for my $dir ( iMSCP::Dir->new( dirname => $::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
         next unless -d "$::imscpConfig{'USER_WEB_DIR'}/$dir/statistics";
         clearImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" );
         iMSCP::Dir->new( dirname => "/var/www/virtual/$dir/statistics" )->remove();

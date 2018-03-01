@@ -49,7 +49,7 @@ use parent 'iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setupDatabases();
 }
@@ -62,7 +62,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Dir->new( dirname => $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} )->remove();
 }
@@ -75,7 +75,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     setRights( $self->{'mta'}->{'config'}->{'MTA_DB_DIR'},
         {
@@ -96,7 +96,7 @@ sub setEnginePermissions
 
 sub add
 {
-    my ($self, $database, $key, $value, $storagePath) = @_;
+    my ( $self, $database, $key, $value, $storagePath ) = @_;
 
     defined $database or die( '$database parameter is missing' );
 
@@ -104,10 +104,10 @@ sub add
 
     return unless defined $key;
 
-    my $entry = "$key\t@{[ $value //= 'OK' ]}";
+    my $entry = "$key\t@{ [ $value //= 'OK' ] }";
     my $mapFileContentRef = $file->getAsRef();
-    ${$mapFileContentRef} =~ s/^\Q$entry\E\n//gim;
-    ${$mapFileContentRef} .= "$entry\n";
+    ${ $mapFileContentRef } =~ s/^\Q$entry\E\n//gim;
+    ${ $mapFileContentRef } .= "$entry\n";
     $file->save();
     $self;
 }
@@ -120,7 +120,7 @@ sub add
 
 sub delete
 {
-    my ($self, $database, $key, $storagePath) = @_;
+    my ( $self, $database, $key, $storagePath ) = @_;
 
     defined $database or die( '$database parameter is missing' );
 
@@ -134,7 +134,7 @@ sub delete
     }
 
     my $mapFileContentRef = $file->getAsRef();
-    $file->save() if ${$mapFileContentRef} =~ s/^\Q$key\E\t.*\n//gim;
+    $file->save() if ${ $mapFileContentRef } =~ s/^\Q$key\E\t.*\n//gim;
     $self;
 }
 
@@ -146,7 +146,7 @@ sub delete
 
 sub getDbType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'hash';
 }
@@ -165,7 +165,7 @@ sub getDbType
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
     $self->{'_db'} = {};
@@ -189,10 +189,10 @@ sub _init
 
 sub _getDbFileObj
 {
-    my ($self, $database, $storagePath) = @_;
+    my ( $self, $database, $storagePath ) = @_;
     $storagePath //= $self->{'mta'}->{'config'}->{'MTA_DB_DIR'};
 
-    $self->{'_db'}->{$storagePath/$database} ||= do {
+    $self->{'_db'}->{$storagePath / $database} ||= do {
         my $file = iMSCP::File->new( filename => "$storagePath/$database" );
 
         unless ( -f $file ) {
@@ -227,7 +227,7 @@ EOF
 
 sub _setupDatabases
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Make sure to start with a clean directory by re-creating it from scratch
     iMSCP::Dir->new( dirname => $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} )->remove()->make(
@@ -239,7 +239,7 @@ sub _setupDatabases
     );
 
     # Create empty databases
-    for my $db( qw/ virtual_mailbox_domains virtual_mailbox_maps virtual_alias_maps relay_domains transport_maps / ) {
+    for my $db ( qw/ virtual_mailbox_domains virtual_mailbox_maps virtual_alias_maps relay_domains transport_maps / ) {
         $self->add( $db );
     }
 

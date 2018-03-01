@@ -52,7 +52,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_deleteSystemFiles();
     $self->_deconfigurePHP();
@@ -77,7 +77,7 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
     $self->{'config'} = $self->{'frontend'}->{'config'};
@@ -109,7 +109,7 @@ sub _deconfigurePHP
 {
     iMSCP::Service->getInstance()->remove( 'imscp_panel' );
 
-    for my $dir( '/etc/default/imscp_panel', '/etc/tmpfiles.d/imscp_panel.conf', "$::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp_panel",
+    for my $dir ( '/etc/default/imscp_panel', '/etc/tmpfiles.d/imscp_panel.conf', "$::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp_panel",
         '/usr/local/sbin/imscp_panel', '/var/log/imscp_panel.log'
     ) {
         iMSCP::File->new( filename => $dir )->remove();
@@ -130,7 +130,7 @@ sub _deconfigurePHP
 
 sub _deconfigureHTTPD
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'}->disableSites( '00_master.conf' );
 

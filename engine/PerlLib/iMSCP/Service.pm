@@ -56,7 +56,7 @@ my %DELAYED_ACTIONS;
 
 sub isEnabled
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     $self->{'provider'}->isEnabled( $service );
 }
@@ -69,7 +69,7 @@ sub isEnabled
 
 sub enable
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->enable( $service ) };
     !$@ or die( sprintf( "Couldn't enable the %s service: %s", $service, $@ ));
@@ -83,7 +83,7 @@ sub enable
 
 sub disable
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->disable( $service ) };
     !$@ or die( sprintf( "Couldn't disable the %s service: %s", $service, $@ ));
@@ -102,7 +102,7 @@ sub disable
 
 sub remove
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     eval {
         $self->{'provider'}->remove( $service );
@@ -111,14 +111,14 @@ sub remove
             my $provider = $self->getProvider( 'Systemd' );
 
             # Remove drop-in files if any
-            for my $dir( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
+            for my $dir ( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
                 my $dropInDir = $dir;
                 ( undef, undef, my $suffix ) = fileparse(
                     $service, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .timer /
                 );
                 $dropInDir .= $service . ( $suffix ? '' : '.service' ) . '.d';
                 next unless -d $dropInDir;
-                debug( sprintf ( "Removing the %s systemd drop-in directory", $dropInDir ));
+                debug( sprintf( "Removing the %s systemd drop-in directory", $dropInDir ));
                 iMSCP::Dir->new( dirname => $dropInDir )->remove();
             }
 
@@ -126,16 +126,16 @@ sub remove
             while ( my $unitFilePath = eval { $provider->resolveUnit( $service, 'withpath', 'nocache' ) } ) {
                 # We do not want remove units that are shipped by distribution packages
                 last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
-                debug( sprintf ( 'Removing the %s unit', $unitFilePath ));
+                debug( sprintf( 'Removing the %s unit', $unitFilePath ));
                 iMSCP::File->new( filename => $unitFilePath )->remove();
             }
         }
 
         unless ( $self->{'init'} eq 'Upstart' ) {
             my $provider = $self->getProvider( 'Upstart' );
-            for my $file( qw / conf override / ) {
+            for my $file ( qw/ conf override / ) {
                 if ( my $jobfilePath = eval { $provider->getJobFilePath( $service, $file ); } ) {
-                    debug( sprintf ( "Removing the %s upstart file", $jobfilePath ));
+                    debug( sprintf( "Removing the %s upstart file", $jobfilePath ));
                     iMSCP::File->new( filename => $jobfilePath )->remove();
                 }
             }
@@ -152,7 +152,7 @@ sub remove
 
 sub start
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->start( $service ) };
     !$@ or die( sprintf( "Couldn't start the %s service: %s", $service, $@ ));
@@ -166,7 +166,7 @@ sub start
 
 sub stop
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->stop( $service ) };
     !$@ or die( sprintf( "Couldn't stop the %s service: %s", $service, $@ ));
@@ -180,7 +180,7 @@ sub stop
 
 sub restart
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->restart( $service ); };
     !$@ or die( sprintf( "Couldn't restart the %s service: %s", $service, $@ ));
@@ -194,7 +194,7 @@ sub restart
 
 sub reload
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     eval { $self->{'provider'}->reload( $service ); };
     !$@ or die( sprintf( "Couldn't reload the %s service: %s", $service, $@ ));
@@ -208,7 +208,7 @@ sub reload
 
 sub isRunning
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     $self->{'provider'}->isRunning( $service );
 }
@@ -221,7 +221,7 @@ sub isRunning
 
 sub hasService
 {
-    my ($self, $service, $nocache) = @_;
+    my ( $self, $service, $nocache ) = @_;
 
     $self->{'provider'}->hasService( $service, $nocache );
 }
@@ -234,7 +234,7 @@ sub hasService
 
 =cut
 
-sub getInitSystem()
+sub getInitSystem( )
 {
     $_[0]->{'init'};
 }
@@ -289,11 +289,11 @@ sub isSystemd
 
 sub getProvider
 {
-    my ($self, $providerName) = @_;
+    my ( $self, $providerName ) = @_;
 
     my $provider = 'iMSCP::Providers::Service::'
-        . "@{[ length $::imscpConfig{'DISTRO_FAMILY'} ? $::imscpConfig{'DISTRO_FAMILY'}.'::': '' ]}"
-        . "@{[ $providerName // $self->{'init'} ]}";
+        . "@{ [ length $::imscpConfig{'DISTRO_FAMILY'} ? $::imscpConfig{'DISTRO_FAMILY'} . '::' : '' ] }"
+        . "@{ [ $providerName // $self->{'init'} ] }";
 
     unless ( can_load( modules => { $provider => undef } ) ) {
         # Fallback to the base provider
@@ -325,7 +325,7 @@ sub getProvider
 
 sub registerDelayedAction
 {
-    my (undef, $service, $action, $priority) = @_;
+    my ( undef, $service, $action, $priority ) = @_;
     $priority //= 0;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
@@ -334,11 +334,11 @@ sub registerDelayedAction
     $priority =~ /^\d+$/ or croak( 'Invalid $priority parameter.' );
 
     if ( ref $action eq 'ARRAY' ) {
-        @{$action} == 2 or croak( 'When defined as array, $action must contains both the action name and coderef for action logic.' );
-        grep($action->[0], 'restart', 'reload', 'start') or croak( 'Unexpected action name. Only start, restart and reload actions can be delayed' );
+        @{ $action } == 2 or croak( 'When defined as array, $action must contains both the action name and coderef for action logic.' );
+        grep ($action->[0], 'restart', 'reload', 'start') or croak( 'Unexpected action name. Only start, restart and reload actions can be delayed' );
         ref $action->[1] eq 'CODE' or croak( 'Unexpected action coderef.' );
     } else {
-        grep($action eq $_, 'restart', 'reload', 'start') or croak( 'Unexpected action. Only start, restart and reload actions can be delayed' );
+        grep ($action eq $_, 'restart', 'reload', 'start') or croak( 'Unexpected action. Only start, restart and reload actions can be delayed' );
     }
 
     unless ( $DELAYED_ACTIONS{$service} ) {
@@ -359,7 +359,7 @@ sub registerDelayedAction
 
     # reload action can be replaced by reload or restart action only
     # restart action can be replaced by restart action only
-    return if ( $oaction eq 'reload' && !grep($action eq $_, 'restart', 'reload') ) || ( $oaction eq 'restart' && $naction ne 'restart' );
+    return if ( $oaction eq 'reload' && !grep ($action eq $_, 'restart', 'reload') ) || ( $oaction eq 'restart' && $naction ne 'restart' );
 
     $DELAYED_ACTIONS{$service} = {
         action   => $action,
@@ -383,7 +383,7 @@ sub registerDelayedAction
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     exists $::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
     $self->{'init'} = _detectInit();
@@ -430,14 +430,14 @@ sub _getLastError
 
 sub _executeDelayedActions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return 0 unless %DELAYED_ACTIONS;
 
     # Sort services by priority (DESC)
     my @services = sort { $DELAYED_ACTIONS{$b}->{'priority'} <=> $DELAYED_ACTIONS{$a}->{'priority'} } keys %DELAYED_ACTIONS;
 
-    for my $service( @services ) {
+    for my $service ( @services ) {
         my $action = $DELAYED_ACTIONS{$service}->{'action'};
 
         if ( ref $action eq 'ARRAY' ) {

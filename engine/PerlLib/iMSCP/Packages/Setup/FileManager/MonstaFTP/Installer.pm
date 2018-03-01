@@ -55,7 +55,7 @@ our $VERSION = '2.1.x';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'}->getComposer()->requirePackage( 'imscp/monsta-ftp', $VERSION );
     $self->{'eventManager'}->register( 'afterFrontEndBuildConfFile', \&afterFrontEndBuildConfFile );
@@ -71,7 +71,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_installFiles();
     $self->_buildHttpdConfig();
@@ -96,7 +96,7 @@ sub install
 
 sub afterFrontEndBuildConfFile
 {
-    my ($tplContent, $tplName) = @_;
+    my ( $tplContent, $tplName ) = @_;
 
     return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
@@ -125,7 +125,7 @@ EOF
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
     $self;
@@ -159,7 +159,7 @@ sub _installFiles
 
 sub _buildHttpdConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'}->buildConfFile(
         "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/monsta-ftp/iMSCP/nginx/imscp_monstaftp.conf",
@@ -178,7 +178,7 @@ sub _buildHttpdConfig
 
 sub _buildConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
@@ -191,7 +191,7 @@ sub _buildConfig
     my $cfgTpl = $file->getAsRef( TRUE );
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'config.php', $cfgTpl, $data );
-    $file->getAsRef() unless length ${$cfgTpl};
+    $file->getAsRef() unless length ${ $cfgTpl };
 
     processByRef( $data, $cfgTpl );
     $file->save()->owner( $usergroup, $usergroup )->mode( 0440 );
@@ -221,7 +221,7 @@ sub _buildConfig
     $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp/settings/settings.json" );
     $cfgTpl = $file->getAsRef( TRUE );
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'settings.json', $cfgTpl, $data );
-    ${$cfgTpl} = JSON->new()->utf8( 1 )->pretty( 1 )->encode( $data ) unless length ${$cfgTpl};
+    ${ $cfgTpl } = JSON->new()->utf8( 1 )->pretty( 1 )->encode( $data ) unless length ${ $cfgTpl };
     $file->save()->owner( $usergroup, $usergroup )->mode( 0440 );
 }
 

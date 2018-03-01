@@ -25,7 +25,7 @@ package iMSCP::LockFile;
 
 use strict;
 use warnings;
-use Errno qw / ENOENT EWOULDBLOCK /;
+use Errno qw/ ENOENT EWOULDBLOCK /;
 use Fcntl qw/ :flock /;
 use iMSCP::Debug qw/ debug /;
 use parent 'iMSCP::Common::Object';
@@ -50,7 +50,7 @@ use parent 'iMSCP::Common::Object';
 
 sub acquire
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     debug( sprintf( 'Acquiring exclusive lock on %s', $self->{'path'} ));
 
@@ -82,7 +82,7 @@ sub acquire
 
 sub release
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Prevent lock from being released if the process is not the lock owner
     return unless $self->{'_owner'} == $$;
@@ -117,7 +117,7 @@ sub release
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'path'} ||= "$::imscpConfig{'LOCK_DIR'}/imscp.lock";
     $self->{'non_blocking'} ||= 0;
@@ -137,7 +137,7 @@ sub _init
 
 sub _tryLock
 {
-    my ($self, $fd) = @_;
+    my ( $self, $fd ) = @_;
 
     return 1 if flock( $fd, LOCK_EX | ( $self->{'non_blocking'} ? LOCK_NB : 0 ));
 
@@ -161,7 +161,7 @@ sub _tryLock
 
 sub _lockSuccess
 {
-    my ($self, $fd) = @_;
+    my ( $self, $fd ) = @_;
 
     my @stat1 = CORE::stat( $self->{'path'} );
     unless ( @stat1 ) {

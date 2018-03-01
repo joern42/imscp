@@ -48,7 +48,7 @@ use parent 'iMSCP::Common::Object';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item install( )
@@ -64,7 +64,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item postinstall( )
@@ -80,7 +80,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item uninstall( )
@@ -96,7 +96,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item setEnginePermissions( )
@@ -112,7 +112,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item add( $database [, $key [, $value = 'OK' [, $storagePath = $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} ] ] ] )
@@ -133,7 +133,7 @@ sub setEnginePermissions
 
 sub add
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self;
 }
@@ -155,7 +155,7 @@ sub add
 
 sub delete
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self;
 }
@@ -170,9 +170,9 @@ sub delete
 
 sub getDbType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the getDbType() method', ref $self ));
+    die( sprintf( 'The %s class must implement the getDbType() method', ref $self ));
 }
 
 =back
@@ -189,7 +189,7 @@ sub getDbType
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
     $self->SUPER::_init();

@@ -69,9 +69,9 @@ sub getPriority
 
 sub addDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
 }
 
 =item disableDomain( \%moduleData )
@@ -91,9 +91,9 @@ sub addDomain
 
 sub disableDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
 }
 
 =item deleteDomain( \%moduleData )
@@ -113,9 +113,9 @@ sub disableDomain
 
 sub deleteDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
 }
 
 =item addSubdomain( \%moduleData )
@@ -135,9 +135,9 @@ sub deleteDomain
 
 sub addSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
 }
 
 =item disableSubdomain( \%moduleData )
@@ -157,9 +157,9 @@ sub addSubdomain
 
 sub disableSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
 }
 
 =item deleteSubdomain( \%moduleData )
@@ -179,9 +179,9 @@ sub disableSubdomain
 
 sub deleteSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
 }
 
 =item addMail( \%moduleData )
@@ -201,9 +201,9 @@ sub deleteSubdomain
 
 sub addMail
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the addMail() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addMail() method', ref $self ));
 }
 
 =item disableMail( \%moduleData )
@@ -223,9 +223,9 @@ sub addMail
 
 sub disableMail
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableMail() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableMail() method', ref $self ));
 }
 
 =item deleteMail( \%moduleData )
@@ -245,9 +245,9 @@ sub disableMail
 
 sub deleteMail
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the deleteMail() method', ref $self ));
+    die( sprintf( 'The %s class must implement the deleteMail() method', ref $self ));
 }
 
 =item getTraffic( \%trafficDb )
@@ -261,9 +261,9 @@ sub deleteMail
 
 sub getTraffic
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
+    die( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }
 
 =back
@@ -280,7 +280,7 @@ sub getTraffic
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 

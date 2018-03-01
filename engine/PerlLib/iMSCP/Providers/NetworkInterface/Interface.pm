@@ -51,7 +51,7 @@ use Carp qw/ croak /;
 
 sub addIpAddr
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
 }
@@ -72,7 +72,7 @@ sub addIpAddr
 
 sub removeIpAddr
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the removeIpAddr() method', ref $self ));
 }

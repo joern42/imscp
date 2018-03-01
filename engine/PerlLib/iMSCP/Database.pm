@@ -29,7 +29,7 @@ use Carp qw/ croak /;
 use DBI;
 use File::Temp;
 use iMSCP::Debug qw/ debug /;
-use iMSCP::Execute qw / execute escapeShell /;
+use iMSCP::Execute qw/ execute escapeShell /;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -54,7 +54,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub set
 {
-    my ($self, $prop, $value) = @_;
+    my ( $self, $prop, $value ) = @_;
 
     return unless exists $self->{'db'}->{$prop};
 
@@ -71,7 +71,7 @@ sub set
 
 sub connect
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $dsn = "dbi:mysql:mysql_connect_timeout=30;database=$self->{'db'}->{'DATABASE_NAME'}"
         . ( $self->{'db'}->{'DATABASE_HOST'} ? ';host=' . $self->{'db'}->{'DATABASE_HOST'} : '' ) .
@@ -100,7 +100,7 @@ sub connect
 
 sub useDatabase
 {
-    my ($self, $dbName) = @_;
+    my ( $self, $dbName ) = @_;
 
     length $dbName or croak( '$dbName parameter is not defined or invalid' );
 
@@ -123,13 +123,13 @@ sub useDatabase
 
 sub getDbTables
 {
-    my ($self, $dbName) = @_;
+    my ( $self, $dbName ) = @_;
     $dbName //= $self->{'db'}->{'DATABASE_NAME'};
 
     [
-        sort keys %{$self->connect()->selectall_hashref(
+        sort keys %{ $self->connect()->selectall_hashref(
             'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ?', 'TABLE_NAME', undef, $dbName
-        )}
+        ) }
     ];
 }
 
@@ -145,13 +145,13 @@ sub getDbTables
 
 sub getTableColumns
 {
-    my ($self, $tableName, $dbName) = @_;
+    my ( $self, $tableName, $dbName ) = @_;
     $dbName //= $self->{'db'}->{'DATABASE_NAME'};
 
     [
-        sort keys %{$self->connect()->selectall_hashref(
+        sort keys %{ $self->connect()->selectall_hashref(
             'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?', 'COLUMN_NAME', undef, $dbName, $tableName
-        )}
+        ) }
     ];
 }
 
@@ -167,7 +167,7 @@ sub getTableColumns
 
 sub dumpdb
 {
-    my ($self, $dbName, $dbDumpTargetDir) = @_;
+    my ( $self, $dbName, $dbDumpTargetDir ) = @_;
 
     # Encode slashes as SOLIDUS unicode character
     # Encode dots as Full stop unicode character
@@ -209,13 +209,13 @@ EOF
     execute(
         "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'}"
             # Avoid tables locking whenever possible
-            . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '']}"
+            . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '' ] }"
             # Compress all information sent between the client and the server (only if remote SQL server).
-            . "@{[ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '']}"
-            . " --databases @{[ escapeShell($dbName) ]}"
+            . "@{ [ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '' ] }"
+            . " --databases @{ [ escapeShell( $dbName ) ] }"
             . ' > ' . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
         undef,
-        \ $stderr
+        \$stderr
     ) == 0 or die( $stderr || 'Unknown error' );
 }
 
@@ -235,7 +235,7 @@ EOF
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'db'} = {
         DATABASE_NAME     => '',
@@ -278,12 +278,12 @@ sub AUTOLOAD
     ( my $method = our $AUTOLOAD ) =~ s/.*:://;
 
     no strict 'refs';
-    *{$AUTOLOAD} = sub {
+    *{ $AUTOLOAD } = sub {
         shift;
         __PACKAGE__->getInstance()->connect()->$method( @_ );
     };
 
-    goto &{$AUTOLOAD};
+    goto &{ $AUTOLOAD };
 }
 
 =back

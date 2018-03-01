@@ -52,7 +52,7 @@ use parent 'iMSCP::Common::Object';
 
 sub addSystemUser
 {
-    my ($self, $username, $newGroupname ) = @_;
+    my ( $self, $username, $newGroupname ) = @_;
     $username //= $self->{'username'};
     my $oldUsername = $self->{'username'} // $username;
 
@@ -102,7 +102,7 @@ sub addSystemUser
             ( defined $self->{'password'} ? ( '-p', $self->{'password'} ) : () ),
             ( defined $self->{'comment'} && $self->{'comment'} ne $userProps[6] ? ( '-c', $self->{'comment'} // 'iMSCP user' ) : () ),
             ( defined $self->{'group'} && ( ( $self->{'group'} =~ /^(\d+)$/ && $1 != $userProps[3] )
-                    || getgrnam( $self->{'group'} ) ne $userProps[3] ) ? ( '-g', $self->{'group'} ) : () ),
+                || getgrnam( $self->{'group'} ) ne $userProps[3] ) ? ( '-g', $self->{'group'} ) : () ),
             ( defined $self->{'home'} && $self->{'home'} ne $userProps[7]
                 ? ( '-d', $self->{'home'} // "$::imscpConfig{'USER_WEB_DIR'}/$self->{'username'}", '-m' ) : () ),
             ( defined $self->{'shell'} && $self->{'shell'} ne $userProps[8] ? ( '-s', $self->{'shell'} ) : () ),
@@ -110,17 +110,17 @@ sub addSystemUser
             $oldUsername,
         ];
 
-        push @commands, [ $usermodCmd, [ 0 ] ] if @{$usermodCmd} > 2;
+        push @commands, [ $usermodCmd, [ 0 ] ] if @{ $usermodCmd } > 2;
     }
 
-    for my $command( @commands ) {
-        my $rs = execute( $command->[0], \ my $stdout, \ my $stderr );
+    for my $command ( @commands ) {
+        my $rs = execute( $command->[0], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
-        grep($_ == $rs, @{$command->[1]}) || $command->[3] or die( $stderr || 'Unknown error' );
+        grep ($_ == $rs, @{ $command->[1] }) || $command->[3] or die( $stderr || 'Unknown error' );
     }
 
     if ( @userProps && $oldUsername ne $username && defined $newGroupname ) {
-        my $rs = execute( [ 'groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \ my $stdout, \ my $stderr );
+        my $rs = execute( [ 'groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     }
@@ -140,7 +140,7 @@ sub addSystemUser
 
 sub delSystemUser
 {
-    my ($self, $username) = @_;
+    my ( $self, $username ) = @_;
     $username //= $self->{'username'};
 
     defined $username or croak( '$username parameter is not defined' );
@@ -173,14 +173,14 @@ sub delSystemUser
     );
 
     my $prevFailed = FALSE;
-    for my $command( @commands ) {
+    for my $command ( @commands ) {
         next if $command->[4] && !$prevFailed;
         $prevFailed = FALSE;
 
-        my $rs = execute( $command->[0], \ my $stdout, \ my $stderr );
+        my $rs = execute( $command->[0], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
 
-        unless ( grep( $_ == $rs, @{$command->[1]} ) ) {
+        unless ( grep ( $_ == $rs, @{ $command->[1] } ) ) {
             $prevFailed = TRUE && next if $command->[3];
             die( $stderr || 'Unknown error' );
         }
@@ -201,7 +201,7 @@ sub delSystemUser
 
 sub addToGroup
 {
-    my ($self, $groupname, $username) = @_;
+    my ( $self, $groupname, $username ) = @_;
     $groupname //= $self->{'groupname'};
     $username //= $self->{'username'};
 
@@ -213,7 +213,7 @@ sub addToGroup
 
     getgrnam( $groupname ) && getpwnam( $username ) or croak( 'Invalid group or username' );
 
-    my $rs = execute( [ 'gpasswd', '-a', $username, $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'gpasswd', '-a', $username, $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs || $rs == 3 or die( $stderr || 'Unknown error' );
     $self;
@@ -231,7 +231,7 @@ sub addToGroup
 
 sub removeFromGroup
 {
-    my ($self, $groupname, $username) = @_;
+    my ( $self, $groupname, $username ) = @_;
     $groupname //= $self->{'groupname'};
     $username //= $self->{'username'};
 
@@ -243,7 +243,7 @@ sub removeFromGroup
 
     return $self unless getpwnam( $username ) && getgrnam( $groupname );
 
-    my $rs = execute( [ 'gpasswd', '-d', $username, $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'gpasswd', '-d', $username, $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs || $rs == 3 or die( $stderr || 'Unknown error' );
     $self;

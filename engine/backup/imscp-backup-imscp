@@ -111,7 +111,7 @@ sub backupDatabase
                 $command->{$algo}->{'command'}, "-$level", '--force',
                 escapeShell( $::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '-' . $date . '.sql' )
             );
-            my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
+            my $rs = execute( "@cmd", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             # Tar exit with status 1 only if some files were changed while being read. We want ignore this.
             $rs < 2 or die( $stderr || 'Unknown error' );
@@ -144,7 +144,7 @@ sub backupConfig
             '--preserve-permissions', '.', ( $algo eq 'no' ? "-f $archivePath" : "| $command->{$algo}->{'command'} -$level > $archivePath" )
         );
 
-        my $rs = execute( "@backupCommand", \ my $stdout, \ my $stderr );
+        my $rs = execute( "@backupCommand", \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     };
@@ -177,8 +177,8 @@ sub backupAll
         backupConfig();
 
         # Remove any backup older than 7 days
-        my $rs = execute( "find $::imscpConfig{'BACKUP_FILE_DIR'}/* -maxdepth 0 -type f -mtime +7 -print | xargs -r rm", \ my $stdout,
-            \ my $stderr );
+        my $rs = execute( "find $::imscpConfig{'BACKUP_FILE_DIR'}/* -maxdepth 0 -type f -mtime +7 -print | xargs -r rm", \my $stdout,
+            \my $stderr );
         debug( $stdout ) if $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     };
@@ -188,7 +188,7 @@ sub backupAll
 newDebug( 'imscp-backup-imscp.log' );
 
 # Parse command line options
-iMSCP::Getopt->parseNoDefault( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
 
 Script which backup i-MSCP configuration files and database.
 

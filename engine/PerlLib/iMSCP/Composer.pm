@@ -68,9 +68,9 @@ sub new
 
     unless ( ref $self ) {
         $self = fields::new( $self );
-        %{$self->{'_attrs'}} = ref $_[0] eq 'HASH' ? %{$_[0]} : @_ if @_;
+        %{ $self->{'_attrs'} } = ref $_[0] eq 'HASH' ? %{ $_[0] } : @_ if @_;
 
-        my (@pwent) = ( defined $self->{'_attrs'}->{'user'} ? getpwnam( $self->{'_attrs'}->{'user'} ) : getpwuid( $EUID ) ) or croak(
+        my ( @pwent ) = ( defined $self->{'_attrs'}->{'user'} ? getpwnam( $self->{'_attrs'}->{'user'} ) : getpwuid( $EUID ) ) or croak(
             ( defined $self->{'_attrs'}->{'user'}
                 ? sprintf( "Couldn't find %s user in password database", $self->{'_attrs'}->{'user'} )
                 : sprintf( "Couldn't find user with ID %d in password database", $EUID )
@@ -129,7 +129,7 @@ EOT
 
 sub requirePackage
 {
-    my ($self, $package, $packageVersion, $dev) = @_;
+    my ( $self, $package, $packageVersion, $dev ) = @_;
 
     if ( $dev ) {
         $self->{'_attrs'}->{'composer_json'}->{'require_dev'}->{$package} = $packageVersion ||= 'dev-master';
@@ -153,7 +153,7 @@ sub requirePackage
 
 sub installComposer
 {
-    my ($self, $installDir, $filename, $version) = @_;
+    my ( $self, $installDir, $filename, $version ) = @_;
 
     $installDir ||= $self->{'_attrs'}->{'home_dir'};
     $filename ||= 'composer.phar';
@@ -188,12 +188,12 @@ sub installComposer
             '--fail', '--connect-timeout', 10, '-s', '-S', '-o', $installer, 'https://getcomposer.org/installer'
         ),
         undef,
-        \ my $stderr,
+        \my $stderr,
     );
     !$rs or die( sprintf( "Couldn't download composer: %s", $stderr || 'Unknown error' ));
     $rs = executeNoWait(
         $self->_getSuCmd(
-            @{$self->{'_php_cmd'}}, $installer, '--', '--no-ansi', ( $version ? "--version=$version" : () ),
+            @{ $self->{'_php_cmd'} }, $installer, '--', '--no-ansi', ( $version ? "--version=$version" : () ),
             "--install-dir=$installDir", "--filename=$filename"
         ),
         $self->{'_stdout'},
@@ -223,7 +223,7 @@ sub installComposer
 
 sub installPackages
 {
-    my ($self, $requireDev, $noautoloader) = @_;
+    my ( $self, $requireDev, $noautoloader ) = @_;
 
     if ( $self->{'_attrs'}->{'home_dir'} ne $self->{'_attrs'}->{'working_dir'} ) {
         iMSCP::Dir->new( dirname => $self->{'_attrs'}->{'working_dir'} )->make( {
@@ -243,7 +243,7 @@ sub installPackages
 
     executeNoWait(
         $self->_getSuCmd(
-            @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, 'install', '--no-progress', '--no-ansi',
+            @{ $self->{'_php_cmd'} }, $self->{'_attrs'}->{'composer_path'}, 'install', '--no-progress', '--no-ansi',
             '--no-interaction', ( $requireDev ? () : '--no-dev' ), '--no-suggest',
             ( $noautoloader ? '--no-autoloader' : () ), "--working-dir=$self->{'_attrs'}->{'working_dir'}"
         ),
@@ -275,7 +275,7 @@ sub installPackages
 
 sub updatePackages
 {
-    my ($self, $requireDev, $noautoloader) = @_;
+    my ( $self, $requireDev, $noautoloader ) = @_;
 
     if ( $self->{'_attrs'}->{'home_dir'} ne $self->{'_attrs'}->{'working_dir'} ) {
         iMSCP::Dir->new( dirname => $self->{'_attrs'}->{'working_dir'} )->make( {
@@ -295,7 +295,7 @@ sub updatePackages
 
     executeNoWait(
         $self->_getSuCmd(
-            @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, 'update', '--no-progress', '--no-ansi',
+            @{ $self->{'_php_cmd'} }, $self->{'_attrs'}->{'composer_path'}, 'update', '--no-progress', '--no-ansi',
             '--no-interaction', ( $requireDev ? () : '--no-dev' ), '--no-suggest',
             ( $noautoloader ? '--no-autoloader' : () ), "--working-dir=$self->{'_attrs'}->{'working_dir'}"
         ),
@@ -316,10 +316,10 @@ sub updatePackages
 
 sub clearPackageCache
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     executeNoWait(
-        $self->_getSuCmd( @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, '--no-ansi', 'clearcache' ),
+        $self->_getSuCmd( @{ $self->{'_php_cmd'} }, $self->{'_attrs'}->{'composer_path'}, '--no-ansi', 'clearcache' ),
         $self->{'_stdout'},
         $self->{'_stderr'}
     ) == 0 or die( "Couldn't clear composer's internal package cache" );
@@ -344,15 +344,15 @@ sub clearPackageCache
 
 sub checkPackageRequirements
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     -d $self->{'_attrs'}->{'working_dir'} or die( "Unmet requirements (all packages)" );
 
-    while ( my ( $package, $version ) = each( %{$self->{'_attrs'}->{'composer_json'}->{'require'}} ) ) {
+    while ( my ( $package, $version ) = each( %{ $self->{'_attrs'}->{'composer_json'}->{'require'} } ) ) {
         $self->{'_stdout'}( sprintf( "Checking requirements for the %s (%s) composer package\n", $package, $version ));
         my $rs = execute(
             $self->_getSuCmd(
-                @{$self->{'_php_cmd'}}, $self->{'_attrs'}->{'composer_path'}, 'show', '--no-ansi', '--no-interaction',
+                @{ $self->{'_php_cmd'} }, $self->{'_attrs'}->{'composer_path'}, 'show', '--no-ansi', '--no-interaction',
                 "--working-dir=$self->{'_attrs'}->{'working_dir'}", $package, $version
             ),
             \my $stdout,
@@ -376,7 +376,7 @@ sub checkPackageRequirements
 
 sub getComposerJson
 {
-    my ($self, $scalar) = @_;
+    my ( $self, $scalar ) = @_;
 
     $scalar ? $self->{'_attrs'}->{'composer_json'} : to_json( $self->{'_attrs'}->{'composer_json'},
         {
@@ -399,7 +399,7 @@ sub getComposerJson
 
 sub setStdRoutines
 {
-    my ($self, $subStdout, $subStderr) = @_;
+    my ( $self, $subStdout, $subStderr ) = @_;
 
     $subStdout ||= sub { print STDOUT @_ };
     ref $subStdout eq 'CODE' or croak( 'Expects a routine as first parameter for STDOUT processing' );
@@ -422,9 +422,9 @@ sub setStdRoutines
 
 sub getComposerVersion
 {
-    my ($self, $composerPath) = @_;
+    my ( $self, $composerPath ) = @_;
 
-    my $rs = execute( $self->_getSuCmd( @{$self->{'_php_cmd'}}, $composerPath, '--no-ansi', '--version' ), \my $stdout, \my $stderr );
+    my $rs = execute( $self->_getSuCmd( @{ $self->{'_php_cmd'} }, $composerPath, '--no-ansi', '--version' ), \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( sprintf( "Couldn't get composer (%s) version: %s", $composerPath, $stderr ));
     ( $stdout =~ /version\s+([\d.]+)/ );

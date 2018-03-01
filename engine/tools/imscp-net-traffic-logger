@@ -37,7 +37,7 @@ use iMSCP::Bootstrapper;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, 'C.UTF-8' );
 
@@ -50,28 +50,28 @@ sub start
     my $panelHttpPort = $::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} || undef;
     my $panelHttpsPort = $::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'} || undef;
 
-    for my $exec( @EXECS ) {
+    for my $exec ( @EXECS ) {
         defined $exec or next;
 
         # IMSCP_INPUT and IMSCP_OUTPUT chains for incoming/outgoing traffic logging
-        for my $chain( qw/ IMSCP_INPUT IMSCP_OUTPUT / ) {
-            my $rs = execute( "$exec -t filter -N $chain_", \ my $stdout, \ my $stderr );
+        for my $chain ( qw/ IMSCP_INPUT IMSCP_OUTPUT / ) {
+            my $rs = execute( "$exec -t filter -N $chain_", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
         }
 
         # Rules to pass incoming/outgoing traffic through our chains, excluding traffic from/to `lo' interface
-        for my $rule( '-I INPUT ! -i lo -j IMSCP_INPUT', '-I OUTPUT ! -o lo -j IMSCP_OUTPUT' ) {
-            my $rs = execute( "$exec -t filter rule", \ my $stdout, \ my $stderr );
+        for my $rule ( '-I INPUT ! -i lo -j IMSCP_INPUT', '-I OUTPUT ! -o lo -j IMSCP_OUTPUT' ) {
+            my $rs = execute( "$exec -t filter rule", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
         }
 
-        for my $port( $panelHttpPort, $panelHttpsPort, 80, 443, 110, 143, 25, 465, 587, 995, 993, 20, 21 ) {
+        for my $port ( $panelHttpPort, $panelHttpsPort, 80, 443, 110, 143, 25, 465, 587, 995, 993, 20, 21 ) {
             defined or next;
 
             # Rule for logging incoming traffic to the given port
-            my $rs = execute( "$exec -t filter -I IMSCP_INPUT -p tcp --dport $port", \ my $stdout, \ my $stderr );
+            my $rs = execute( "$exec -t filter -I IMSCP_INPUT -p tcp --dport $port", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
 
@@ -83,7 +83,7 @@ sub start
 
         for ( qw/ 25 465 587 / ) {
             # Rule for logging incoming traffic from the given port
-            my $rs = execute( "$exec -t filter -I IMSCP_INPUT -p tcp --sport $port", \ my $stdout, \ my $stderr );
+            my $rs = execute( "$exec -t filter -I IMSCP_INPUT -p tcp --sport $port", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
 
@@ -93,8 +93,8 @@ sub start
             !$rs or die( $stderr || 'Unknown error' );
         }
 
-        for my $chain( qw/ IMSCP_INPUT IMSCP_OUTPUT / ) {
-            my $rs = execute( "$exec -t filter -A $chain -j RETURN", \ my $stdout, \ my $stderr );
+        for my $chain ( qw/ IMSCP_INPUT IMSCP_OUTPUT / ) {
+            my $rs = execute( "$exec -t filter -A $chain -j RETURN", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
         }
@@ -103,10 +103,10 @@ sub start
 
 sub stop
 {
-    for my $exec( @EXECS ) {
+    for my $exec ( @EXECS ) {
         defined $exec or next;
 
-        my $rs = execute( "$exec -S | grep 'IMSCP_'", \ my $stdout, \ my $stderr );
+        my $rs = execute( "$exec -S | grep 'IMSCP_'", \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         $rs < 2 or die( $stderr || 'Unknown error' );
         length $stdout or next;
@@ -114,7 +114,7 @@ sub stop
         my %data;
         while ( $stdout =~ /^-(A|N)\s+(((?:IMSCP_)?(?:INPUT|OUTPUT)).*)/gmi ) {
             if ( $1 eq 'A' && index( $3, 'IMSCP' ) != 0 ) {
-                push @{$data{'delete'}}, $2;
+                push @{ $data{'delete'} }, $2;
                 next;
             }
 
@@ -123,7 +123,7 @@ sub stop
 
         # Delete i-MSCP rules on INPUT and OUTPUT chains if any
         if ( $data{'delete'} ) {
-            for my $rule( @{$data{'delete'}} ) {
+            for my $rule ( @{ $data{'delete'} } ) {
                 $rs = execute( "$exec -t filter -D $rule", \$stdout, \$stderr );
                 debug( $stdout ) if $stdout;
                 !$rs or die( $stderr || 'Unknown error' );
@@ -131,8 +131,8 @@ sub stop
         }
 
         # Flush and delete i-MSCP chains if any
-        %{$data{'flush'}} or next;
-        for my $chain( keys %{$data{'flush'}} ) {
+        %{ $data{'flush'} } or next;
+        for my $chain ( keys %{ $data{'flush'} } ) {
             $rs = execute( "$exec -t filter -F $chain", \$stdout, \$stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
@@ -146,7 +146,7 @@ sub stop
 
 newDebug( 'imscp-net-traffic-logger.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]... start|stop', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]... start|stop', basename( $0 )) . qq{
 
 Script that start/stop i-MSCP traffic logger.
 

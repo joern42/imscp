@@ -29,7 +29,7 @@ use Carp qw/ croak /;
 use Data::Clone qw/ clone /;
 use Data::Compare;
 use List::Util qw/ max /;
-use Scalar::Util qw / looks_like_number /;
+use Scalar::Util qw/ looks_like_number /;
 
 =head1 DESCRIPTION
 
@@ -49,13 +49,13 @@ use Scalar::Util qw / looks_like_number /;
 
 sub new
 {
-    my ($class) = @_;
+    my ( $class ) = @_;
 
     bless {
-            count_items      => 0,
-            highest_priority => undef,
-            queue            => {}
-        },
+        count_items      => 0,
+        highest_priority => undef,
+        queue            => {}
+    },
         $class;
 }
 
@@ -70,10 +70,10 @@ sub new
 
 sub hasItem
 {
-    my ($self, $item) = @_;
+    my ( $self, $item ) = @_;
 
-    for my $items( values %{$self->{'queue'}} ) {
-        for my $v( @{$items} ) {
+    for my $items ( values %{ $self->{'queue'} } ) {
+        for my $v ( @{ $items } ) {
             return 1 if Compare $item, $v;
         }
     }
@@ -93,12 +93,12 @@ sub hasItem
 
 sub addItem
 {
-    my ($self, $item, $priority) = @_;
+    my ( $self, $item, $priority ) = @_;
     $priority //= 0;
 
     looks_like_number $priority or croak( 'Invalid priority. Expects a number.' );
 
-    push @{$self->{'queue'}->{$priority}}, $item;
+    push @{ $self->{'queue'}->{$priority} }, $item;
     $self->{'count_items'}++;
     $self->{'highest_priority'} = max $priority, $self->{'highest_priority'} // $priority;
     $self;
@@ -118,30 +118,30 @@ sub addItem
 
 sub removeItem
 {
-    my ($self, $item) = @_;
+    my ( $self, $item ) = @_;
 
     return unless $self->{'count_items'};
 
-    while ( my ($priority, $items) = each( %{$self->{'queue'}} ) ) {
-        for ( my $i = $#{$items}; $i > -1; $i-- ) {
+    while ( my ( $priority, $items ) = each( %{ $self->{'queue'} } ) ) {
+        for ( my $i = $#{ $items }; $i > -1; $i-- ) {
             next unless Compare $item, $items->[$i];
 
-            splice @{$items}, $i, 1;
+            splice @{ $items }, $i, 1;
             $self->{'count_items'}--;
 
-            unless ( @{$self->{'queue'}->{$priority}} ) {
+            unless ( @{ $self->{'queue'}->{$priority} } ) {
                 delete $self->{'queue'}->{$priority};
-                $self->{'highest_priority'} = $self->{'count_items'} ? max keys( %{$self->{'queue'}} ) : undef;
+                $self->{'highest_priority'} = $self->{'count_items'} ? max keys( %{ $self->{'queue'} } ) : undef;
             }
 
             # Reset internal hash iterator; see http://www.perlmonks.org/?node_id=294285
-            keys %{$self->{'queue'}};
+            keys %{ $self->{'queue'} };
             return 1;
         }
     }
 
     # Reset internal hash iterator; see http://www.perlmonks.org/?node_id=294285
-    keys %{$self->{'queue'}};
+    keys %{ $self->{'queue'} };
     return;
 }
 
@@ -181,16 +181,16 @@ sub count
 
 sub pop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless $self->{'count_items'};
 
-    my $item = shift @{$self->{'queue'}->{$self->{'highest_priority'}}};
+    my $item = shift @{ $self->{'queue'}->{$self->{'highest_priority'}} };
     $self->{'count_items'}--;
 
-    unless ( @{$self->{'queue'}->{$self->{'highest_priority'}}} ) {
+    unless ( @{ $self->{'queue'}->{$self->{'highest_priority'}} } ) {
         delete $self->{'queue'}->{$self->{'highest_priority'}};
-        $self->{'highest_priority'} = $self->{'count_items'} ? max keys( %{$self->{'queue'}} ) : undef;
+        $self->{'highest_priority'} = $self->{'count_items'} ? max keys( %{ $self->{'queue'} } ) : undef;
     }
 
     $item;

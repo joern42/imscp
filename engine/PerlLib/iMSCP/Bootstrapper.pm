@@ -63,7 +63,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub boot
 {
-    my ($self, $options) = @_;
+    my ( $self, $options ) = @_;
 
     debug( sprintf( 'Booting %s...', iMSCP::Getopt->context()));
 
@@ -99,7 +99,7 @@ sub boot
 
 sub loadMainConfig
 {
-    my (undef, $options) = @_;
+    my ( undef, $options ) = @_;
 
     debug( sprintf( 'Loading i-MSCP master configuration...' ));
 
@@ -125,7 +125,7 @@ sub loadMainConfig
 
 sub lock
 {
-    my ($self, $lockFile, $nowait) = @_;
+    my ( $self, $lockFile, $nowait ) = @_;
     $lockFile = File::Spec->canonpath( $lockFile ||= "$::imscpConfig{'LOCK_DIR'}/imscp.lock" );
 
     return 1 if exists $self->{'locks'}->{$lockFile};
@@ -147,7 +147,7 @@ sub lock
 
 sub unlock
 {
-    my ($self, $lockFile) = @_;
+    my ( $self, $lockFile ) = @_;
     $lockFile = File::Spec->canonpath( $lockFile ||= "$::imscpConfig{'LOCK_DIR'}/imscp.lock" );
 
     return $self unless exists $self->{'locks'}->{$lockFile};
@@ -188,13 +188,13 @@ sub _genKeys
 
         require Data::Dumper;
         local $Data::Dumper::Indent = 0;
-        
+
         # File must not be created world-readable
         local $UMASK = 0027;
 
         ( $::imscpKEY, $::imscpIV ) = ( randomStr( 32 ), randomStr( 16 ) );
 
-        for my $file( qw/ imscp-db-keys.pl imscp-db-keys.php / ) {
+        for my $file ( qw/ imscp-db-keys.pl imscp-db-keys.php / ) {
             open my $fh, '>', "$::imscpConfig{'CONF_DIR'}/$file" or die(
                 sprintf( "Couldn't open %s file for writing: %s", "$::imscpConfig{'CONF_DIR'}/$file", $! )
             );
@@ -238,7 +238,7 @@ sub _setDbSettings
 
 END {
     my $self = __PACKAGE__->getInstance();
-    $self->{'locks'}->{$_}->release() for keys %{$self->{'locks'}};
+    $self->{'locks'}->{$_}->release() for keys %{ $self->{'locks'} };
 }
 
 =back

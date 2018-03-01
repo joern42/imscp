@@ -57,7 +57,7 @@ my $dbInitialized = undef;
 
 sub showDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     iMSCP::Packages::Webmail::RainLoop::Installer->getInstance( eventManager => $self->{'eventManager'} )->showDialog( $dialog );
 }
@@ -72,7 +72,7 @@ sub showDialog
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Webmail::RainLoop::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
@@ -87,7 +87,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Webmail::RainLoop::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
 }
@@ -102,7 +102,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return if $self->{'skip_uninstall'};
 
@@ -120,7 +120,7 @@ sub uninstall
 
 sub deleteMail
 {
-    my (undef, $data) = @_;
+    my ( undef, $data ) = @_;
 
     return unless $data->{'MAIL_TYPE'} =~ /_mail/;
 
@@ -151,7 +151,7 @@ sub deleteMail
     ( my $email = $data->{'MAIL_ADDR'} ) =~ s/[^a-z0-9\-\.@]+/_/;
     ( my $storagePath = substr( $email, 0, 2 ) ) =~ s/\@$//;
 
-    for my $storageType( qw/ cfg data files / ) {
+    for my $storageType ( qw/ cfg data files / ) {
         iMSCP::Dir->new( dirname => "$storageDir/$storageType/$storagePath/$email" )->remove();
         next unless -d "$storageDir/$storageType/$storagePath";
         my $dir = iMSCP::Dir->new( dirname => "$storageDir/$storageType/$storagePath" );
@@ -176,12 +176,12 @@ sub deleteMail
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/rainloop";
 
     if ( -f "$self->{'cfgDir'}/rainloop.data" ) {
-        return tie %{$self->{'config'}}, 'iMSCP::Config', filename => "$self->{'cfgDir'}/rainloop.data", readonly => 1;
+        return tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/rainloop.data", readonly => 1;
     }
 
     $self->{'config'} = {};

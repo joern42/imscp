@@ -50,12 +50,12 @@ use parent 'iMSCP::Common::Singleton';
 
 sub addSystemGroup
 {
-    my ($self, $groupname, $systemgroup) = @_;
+    my ( $self, $groupname, $systemgroup ) = @_;
 
     defined $groupname or croak( 'Missing $groupname parameter' );
     $groupname ne $::imscpConfig{'ROOT_GROUP'} or croak( sprintf( '%s group is prohibited', $::imscpConfig{'ROOT_GROUP'} ));
 
-    my $rs = execute( [ 'groupadd', '-f', ( $systemgroup ? '-r' : () ), $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'groupadd', '-f', ( $systemgroup ? '-r' : () ), $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
     $self;
@@ -72,14 +72,14 @@ sub addSystemGroup
 
 sub delSystemGroup
 {
-    my ($self, $groupname) = @_;
+    my ( $self, $groupname ) = @_;
 
     defined $groupname or croak( '$groupname parameter is not defined' );
     $groupname ne $::imscpConfig{'ROOT_GROUP'} or croak( sprintf( '%s group deletion is prohibited', $::imscpConfig{'ROOT_GROUP'} ));
 
-    my $rs = execute( [ 'groupdel', $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'groupdel', $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    grep( $_ == $rs, 0, 6 ) or die( $stderr || 'Unknown error' );
+    grep ( $_ == $rs, 0, 6 ) or die( $stderr || 'Unknown error' );
     $self;
 }
 

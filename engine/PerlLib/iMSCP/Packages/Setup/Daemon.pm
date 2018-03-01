@@ -56,9 +56,9 @@ use parent 'iMSCP::Common::Singleton';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->imscpDaemonTypeDialog( @_ ) }; } );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->imscpDaemonTypeDialog( @_ ) }; } );
 }
 
 =item imscpDaemonTypeDialog( \%dialog )
@@ -72,13 +72,13 @@ sub registerSetupListeners
 
 sub imscpDaemonTypeDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'DAEMON_TYPE', iMSCP::Getopt->preseed ? 'imscp' : '' );
     my %choices = ( 'imscp', 'Via the i-MSCP daemon (real time)', 'cron', 'Via cron (every 5 minutes)' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'daemon', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'imscp' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'imscp' );
 \\Z4\\Zb\\Zui-MSCP Daemon Type\\Zn
 
 Please choose how the i-MSCP backend requests must be processed:
@@ -101,7 +101,7 @@ EOF
 
 sub getPriority
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     250;
 }
@@ -116,7 +116,7 @@ sub getPriority
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Reset previous install if any
     $self->uninstall();
@@ -132,7 +132,7 @@ sub install
     iMSCP::Service->getInstance()->enable( 'imscp_daemon' );
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { iMSCP::Service->getInstance()->start( 'imscp_daemon' ); }, 'i-MSCP Daemon' ]; }, 99
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { iMSCP::Service->getInstance()->start( 'imscp_daemon' ); }, 'i-MSCP Daemon' ]; }, 99
     );
 }
 
@@ -146,7 +146,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
@@ -186,7 +186,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     setRights( "$::imscpConfig{'ROOT_DIR'}/daemon",
         {
@@ -214,11 +214,11 @@ sub setEnginePermissions
 
 sub _compileDaemon
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Compile the daemon
-    local $CWD = dirname ( __FILE__ ) . '/Daemon';
-    my $rs = execute( 'make clean imscp_daemon', \ my $stdout, \ my $stderr );
+    local $CWD = dirname( __FILE__ ) . '/Daemon';
+    my $rs = execute( 'make clean imscp_daemon', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 
@@ -227,7 +227,7 @@ sub _compileDaemon
     iMSCP::File->new( filename => 'imscp_daemon' )->copy( "$::imscpConfig{'ROOT_DIR'}/daemon", { preserve => 1 } );
 
     # Leave the directory clean
-    $rs = execute( 'make clean', \ $stdout, \ $stderr );
+    $rs = execute( 'make clean', \$stdout, \$stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }

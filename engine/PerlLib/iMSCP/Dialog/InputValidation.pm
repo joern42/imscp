@@ -61,7 +61,7 @@ our $lastValidationError = '';
 
 sub isValidUsername( $ )
 {
-    my ($username) = @_;
+    my ( $username ) = @_;
 
     defined $username or croak( 'Missing $username parameter' );
     my $length = length $username;
@@ -90,7 +90,7 @@ EOF
 
 sub isValidPassword( $ )
 {
-    my ($password) = @_;
+    my ( $password ) = @_;
 
     defined $password or croak( 'Missing $password parameter' );
     my $length = length $password;
@@ -119,7 +119,7 @@ EOF
 
 sub isValidEmail( $ )
 {
-    my ($email) = @_;
+    my ( $email ) = @_;
 
     defined $email or croak( 'Missing $email parameter' );
 
@@ -144,7 +144,7 @@ EOF
 
 sub isValidHostname( $ )
 {
-    my ($hostname) = @_;
+    my ( $hostname ) = @_;
 
     defined $hostname or croak( 'Missing $hostname parameter' );
 
@@ -172,7 +172,7 @@ EOF
 
 sub isValidDomain( $ )
 {
-    my ($domainName) = @_;
+    my ( $domainName ) = @_;
 
     defined $domainName or croak( 'Missing $domainName parameter' );
 
@@ -205,7 +205,7 @@ EOF
 
 sub isValidIpAddr( $;$ )
 {
-    my ($ipAddr, $typeReg) = @_;
+    my ( $ipAddr, $typeReg ) = @_;
 
     defined $ipAddr or croak( 'Missing $ipAddr parameter' );
 
@@ -231,7 +231,7 @@ EOF
 
 sub isRoutableIpAddr( $ )
 {
-    my ($ipAddr) = @_;
+    my ( $ipAddr ) = @_;
 
     defined $ipAddr or croak( 'Missing $ipAddr parameter' );
 
@@ -256,7 +256,7 @@ EOF
 
 sub isValidDbName( $ )
 {
-    my ($dbName) = @_;
+    my ( $dbName ) = @_;
 
     defined $dbName or croak( 'Missing $dbName parameter' );
     my $length = length $dbName;
@@ -285,7 +285,7 @@ EOF
 
 sub isValidTimezone( $ )
 {
-    my ($timezone) = @_;
+    my ( $timezone ) = @_;
 
     defined $timezone or croak( 'Missing $timezone parameter' );
 
@@ -312,7 +312,7 @@ EOF
 
 sub isNumber( $ )
 {
-    my ($number) = @_;
+    my ( $number ) = @_;
 
     defined $number or croak( 'Missing $timezone parameter' );
 
@@ -339,14 +339,14 @@ EOF
 
 sub isValidNumberRange( $$$ )
 {
-    my ($numberRange, $n1, $n2) = @_;
+    my ( $numberRange, $n1, $n2 ) = @_;
 
     defined $numberRange or croak( 'Missing $numberRange parameter' );
     defined $n1 or croak( 'Missing $n1 parameter' );
     defined $n2 or croak( 'Missing $n2 parameter' );
 
     $lastValidationError = '';
-    return 1 if ( ${$n1}, ${$n2} ) = $numberRange =~ /^([\x30-\x39]+)\s+([\x30-\x39]+)$/;
+    return 1 if ( ${ $n1 }, ${ $n2 } ) = $numberRange =~ /^([\x30-\x39]+)\s+([\x30-\x39]+)$/;
 
     $lastValidationError = <<"EOF";
 \\Z1Invalid number range.\\Zn
@@ -370,7 +370,7 @@ EOF
 
 sub isNumberInRange( $$$ )
 {
-    my ($number, $start, $end) = @_;
+    my ( $number, $start, $end ) = @_;
 
     defined $number or croak( 'Missing $number parameter' );
     defined $start or croak( 'Missing $start parameter' );
@@ -402,7 +402,7 @@ EOF
 
 sub isStringInList( $@ )
 {
-    my ($string, @stringList) = @_;
+    my ( $string, @stringList ) = @_;
 
     defined $string or croak( 'Missing $string parameter' );
 
@@ -433,7 +433,7 @@ EOF
 
 sub isStringNotInList( $@ )
 {
-    my ($string, @stringList) = @_;
+    my ( $string, @stringList ) = @_;
 
     defined $string or croak( 'Missing $string parameter' );
 
@@ -464,7 +464,7 @@ EOF
 
 sub isOneOfStringsInList
 {
-    my ($stringsListL, $stringListR) = @_;
+    my ( $stringsListL, $stringListR ) = @_;
 
     scalar get_intersection( '-u', [ $stringsListL, $stringListR ] );
 }
@@ -480,7 +480,7 @@ sub isOneOfStringsInList
 
 sub isNotEmpty( $ )
 {
-    my ($string) = @_;
+    my ( $string ) = @_;
 
     defined $string or croak( 'Missing $string parameter' );
 
@@ -505,9 +505,9 @@ EOF
 
 =cut
 
-sub isAvailableSqlUser ( $ )
+sub isAvailableSqlUser( $ )
 {
-    my ($username) = @_;
+    my ( $username ) = @_;
 
     defined $username or croak( 'Missing $username parameter' );
 

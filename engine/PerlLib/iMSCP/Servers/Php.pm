@@ -78,12 +78,12 @@ sub getPriority
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{$_[0]}, sub { $self->askForPhpVersion( @_ ) }, sub { $self->askForPhpSapi( @_ ) },
+            push @{ $_[0] }, sub { $self->askForPhpVersion( @_ ) }, sub { $self->askForPhpSapi( @_ ) },
                 sub { $self->askForFastCGIconnectionType( @_ ) };
         },
         # We want show these dialogs after the httpd server dialog because
@@ -103,9 +103,9 @@ sub registerSetupListeners
 
 sub askForPhpVersion
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
-    ( my @availablePhpVersions = sort grep( /\d+.\d+/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs()) ) or die(
+    ( my @availablePhpVersions = sort grep ( /\d+.\d+/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs()) ) or die(
         "Couldn't guess list of available PHP versions"
     );
 
@@ -117,7 +117,7 @@ sub askForPhpVersion
     );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep( $value eq $_, keys %choices ) )[0] || ( sort keys %choices )[0] );
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || ( sort keys %choices )[0] );
 \Z4\Zb\ZuPHP version for customers\Zn
 
 Please choose the PHP version for the customers:
@@ -144,7 +144,7 @@ EOF
 
 sub askForPhpSapi
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'PHP_SAPI', $self->{'config'}->{'PHP_SAPI'} || ( iMSCP::Getopt->preseed ? 'fpm' : '' ));
     my %choices = ( 'fpm', 'PHP through PHP FastCGI Process Manager (fpm SAPI)' );
@@ -174,7 +174,7 @@ sub askForPhpSapi
     }
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'fpm' );
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'fpm' );
 \Z4\Zb\ZuPHP SAPI for customers\Zn
 
 Please choose the PHP SAPI for the customers:
@@ -199,7 +199,7 @@ EOF
 
 sub askForFastCGIconnectionType
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     return 0 unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
 
@@ -207,7 +207,7 @@ sub askForFastCGIconnectionType
     my %choices = ( 'tcp', 'TCP sockets over the loopback interface', 'uds', 'Unix Domain Sockets (recommended)' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'uds' );
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'uds' );
 \Z4\Zb\ZuPHP-FPM - FastCGI connection type\Zn
 
 Please choose the FastCGI connection type that you want use:
@@ -229,7 +229,7 @@ EOF
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->_setFullVersion(); };
     if ( $@ ) {
@@ -248,7 +248,7 @@ sub preinstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless $self->{'config'}->{'PHP_SAPI'} eq 'cgi';
 
@@ -269,7 +269,7 @@ sub setEnginePermissions
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Php';
 }
@@ -282,7 +282,7 @@ sub getServerName
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # FIXME: Show full version
     sprintf( 'PHP %s (%s)', $self->{'config'}->{'PHP_VERSION'}, $self->{'config'}->{'PHP_SAPI'} );
@@ -296,7 +296,7 @@ sub getHumanServerName
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'PHP_VERSION'};
 }
@@ -316,7 +316,7 @@ sub getVersion
 
 sub addDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
 }
@@ -336,7 +336,7 @@ sub addDomain
 
 sub disableDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
 }
@@ -356,7 +356,7 @@ sub disableDomain
 
 sub deleteDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
 }
@@ -376,7 +376,7 @@ sub deleteDomain
 
 sub addSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
 }
@@ -396,7 +396,7 @@ sub addSubdomain
 
 sub disableSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
 }
@@ -416,7 +416,7 @@ sub disableSubdomain
 
 sub deleteSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
 }
@@ -434,7 +434,7 @@ sub deleteSubdomain
 
 sub enableModules
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
 }
@@ -452,7 +452,7 @@ sub enableModules
 
 sub disableModules
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
 }
@@ -471,16 +471,16 @@ sub disableModules
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     # Check for properties that must be defined in concret server implementations
-    for my $prop( qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR / ) {
+    for my $prop ( qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR / ) {
         defined $self->{$prop } or die( sprintf( 'The %s package must define the %s property', ref $self, $prop ));
     }
 
-    @{$self}{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php" );
+    @{ $self }{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php" );
     $self->SUPER::_init();
 }
 
@@ -494,7 +494,7 @@ sub _init
 
 sub _setFullVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the _setFullVersion() method', ref $self ));
 }
@@ -512,7 +512,7 @@ sub _setFullVersion
 
 sub _buildApacheHandlerConfig
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     if ( $moduleData->{'PHP_SUPPORT'} eq 'no'
         || $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} ne $moduleData->{'DOMAIN_NAME'}
@@ -537,7 +537,7 @@ sub _buildApacheHandlerConfig
 
 sub _buildCgiConfig
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     if ( $moduleData->{'PHP_SUPPORT'} eq 'no'
         || $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} ne $moduleData->{'DOMAIN_NAME'}
@@ -557,7 +557,7 @@ sub _buildCgiConfig
         mode  => 0555
     } );
 
-    for my $dir( "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}",
+    for my $dir ( "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}",
         "$self->{'config'}->{'PHP_FCGI_STARTER_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}/php$self->{'config'}->{'PHP_VERSION'}"
     ) {
         iMSCP::Dir->new( dirname => $dir )->make( {
@@ -613,7 +613,7 @@ sub _buildCgiConfig
 
 sub _buildFpmConfig
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     if ( $moduleData->{'PHP_SUPPORT'} eq 'no'
         || $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} ne $moduleData->{'DOMAIN_NAME'}
@@ -680,9 +680,9 @@ sub _buildFpmConfig
 
 sub beforeApacheBuildConfFile
 {
-    my ($phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params) = @_;
+    my ( $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params ) = @_;
 
-    return unless $filename eq 'domain.tpl' && grep( $_ eq $sdata->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+    return unless $filename eq 'domain.tpl' && grep ( $_ eq $sdata->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
 
     $phpServer->{'eventManager'}->trigger(
         'beforePhpApacheBuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
@@ -692,7 +692,7 @@ sub beforeApacheBuildConfFile
 
     if ( $phpServer->{'config'}->{'PHP_SAPI'} eq 'apache2handler' ) {
         if ( $mdata->{'FORWARD'} eq 'no' && $mdata->{'PHP_SUPPORT'} eq 'yes' ) {
-            @{$sdata}{qw/ EMAIL_DOMAIN PHP_PEAR_DIR TMPDIR /} = (
+            @{ $sdata }{qw/ EMAIL_DOMAIN PHP_PEAR_DIR TMPDIR /} = (
                 $mdata->{'PHP_CONFIG_LEVEL_DOMAIN'},
                 $phpServer->{'PHP_PEAR_DIR'},
                 $mdata->{'HOME_DIR'} . '/phptmp'
@@ -736,7 +736,7 @@ EOF
         }
     } elsif ( $phpServer->{'config'}->{'PHP_SAPI'} eq 'cgi' ) {
         if ( $mdata->{'FORWARD'} eq 'no' && $mdata->{'PHP_SUPPORT'} eq 'yes' ) {
-            @{$sdata}{qw/ PHP_FCGI_STARTER_DIR PHP_FCGID_BUSY_TIMEOUT PHP_FCGID_MIN_PROCESSES_PER_CLASS PHP_FCGID_MAX_PROCESS_PER_CLASS /} = (
+            @{ $sdata }{qw/ PHP_FCGI_STARTER_DIR PHP_FCGID_BUSY_TIMEOUT PHP_FCGID_MIN_PROCESSES_PER_CLASS PHP_FCGID_MAX_PROCESS_PER_CLASS /} = (
                 $phpServer->{'config'}->{'PHP_FCGI_STARTER_DIR'},
                 $mdata->{'MAX_EXECUTION_TIME'}+10,
                 $phpServer->{'config'}->{'PHP_FCGID_MIN_PROCESSES_PER_CLASS'} || 0,
@@ -778,7 +778,7 @@ EOF
         }
     } elsif ( $phpServer->{'config'}->{'PHP_SAPI'} eq 'fpm' ) {
         if ( $mdata->{'FORWARD'} eq 'no' && $mdata->{'PHP_SUPPORT'} eq 'yes' ) {
-            @{$sdata}{
+            @{ $sdata }{
                 qw/ PHP_FPM_RUN_DIR PHP_VERSION PROXY_FCGI_PATH PROXY_FCGI_URL PROXY_FCGI_RETRY PROXY_FCGI_CONNECTION_TIMEOUT PROXY_FCGI_TIMEOUT /
             } = (
                 $phpServer->{'PHP_FPM_RUN_DIR'},
@@ -852,7 +852,7 @@ EOF
 
 sub afterApacheAddFiles
 {
-    my (undef, $moduleData) = @_;
+    my ( undef, $moduleData ) = @_;
 
     return unless $moduleData->{'DOMAIN_TYPE'} eq 'dmn';
 

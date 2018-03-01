@@ -59,10 +59,10 @@ use parent 'iMSCP::Servers::Mta';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->_askForDatabaseDriver( @_ ) } }, $self->getPriority()
+        'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->_askForDatabaseDriver( @_ ) } }, $self->getPriority()
     );
 }
 
@@ -74,7 +74,7 @@ sub registerSetupListeners
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::preinstall();
     $self->_createUserAndGroup();
@@ -90,7 +90,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setVersion();
     $self->_configure();
@@ -105,13 +105,13 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'db'}->postinstall();
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            while ( my ($path, $type) = each( %{$self->{'_postmap'}} ) ) {
+            while ( my ( $path, $type ) = each( %{ $self->{'_postmap'} } ) ) {
                 $instance->postmap( $path, $type );
             }
         },
@@ -128,7 +128,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'db'}->uninstall();
     $self->_removeUser();
@@ -143,7 +143,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
     setRights( $self->{'config'}->{'MTA_MAIN_CONF_FILE'},
         {
             user  => $::imscpConfig{'ROOT_USER'},
@@ -201,7 +201,7 @@ sub setEnginePermissions
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Postfix';
 }
@@ -214,7 +214,7 @@ sub getServerName
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'Postfix %s', $self->getVersion());
 }
@@ -227,7 +227,7 @@ sub getHumanServerName
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'MTA_VERSION'};
 }
@@ -240,7 +240,7 @@ sub getVersion
 
 sub addDomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     # Do not list `SERVER_HOSTNAME' in BOTH `mydestination' and `virtual_mailbox_domains'
     return if $moduleData->{'DOMAIN_NAME'} eq $::imscpConfig{'SERVER_HOSTNAME'};
@@ -272,7 +272,7 @@ sub addDomain
 
 sub disableDomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     return if $moduleData->{'DOMAIN_NAME'} eq $::imscpConfig{'SERVER_HOSTNAME'};
 
@@ -290,7 +290,7 @@ sub disableDomain
 
 sub deleteDomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixDeleteDomain', $moduleData );
     $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
@@ -307,7 +307,7 @@ sub deleteDomain
 
 sub addSubdomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     # Do not list `SERVER_HOSTNAME' in BOTH `mydestination' and `virtual_mailbox_domains'
     return if $moduleData->{'DOMAIN_NAME'} eq $::imscpConfig{'SERVER_HOSTNAME'};
@@ -331,7 +331,7 @@ sub addSubdomain
 
 sub disableSubdomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     return if $moduleData->{'DOMAIN_NAME'} eq $::imscpConfig{'SERVER_HOSTNAME'};
 
@@ -348,7 +348,7 @@ sub disableSubdomain
 
 sub deleteSubdomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixDeleteSubdomain', $moduleData );
     $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
@@ -364,7 +364,7 @@ sub deleteSubdomain
 
 sub addMail
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixAddMail', $moduleData );
 
@@ -382,7 +382,7 @@ sub addMail
             my $maildir = "$self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}";
 
             # Create mailbox
-            for my $dir( $moduleData->{'DOMAIN_NAME'}, "$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}" ) {
+            for my $dir ( $moduleData->{'DOMAIN_NAME'}, "$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}" ) {
                 iMSCP::Dir->new( dirname => "$self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$dir" )->make( {
                     user           => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
                     group          => $self->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -390,7 +390,7 @@ sub addMail
                     fixpermissions => iMSCP::Getopt->fixPermissions
                 } );
             }
-            for my $dir( qw/ cur new tmp / ) {
+            for my $dir ( qw/ cur new tmp / ) {
                 iMSCP::Dir->new( dirname => "$maildir/$dir" )->make( {
                     user           => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
                     group          => $self->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -413,20 +413,20 @@ sub addMail
             $moduleData->{'MAIL_ADDR'} # Recipient
                 . "\t" # Separator
                 . join ',', (
-                    # Mail account only case:
-                    #  Postfix lookup in `virtual_alias_maps' first. Thus, if there
-                    #  is a catchall defined for the domain, any mail for the mail
-                    #  account will be catched by the catchall. To prevent this
-                    #  behavior, we must also add an entry in the virtual alias map.
-                    #
-                    # Forward + mail account case:
-                    #  we want keep local copy of inbound mails
-                    ( $isMailAcc ? $moduleData->{'MAIL_ADDR'} : () ),
-                    # Add forward addresses in case of forward account
-                    ( $isForwardAccount ? $moduleData->{'MAIL_FORWARD'} : () ),
-                    # Add autoresponder entry if it is enabled for this account
-                    ( $moduleData->{'MAIL_HAS_AUTO_RESPONDER'} ? "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" : () )
-                )
+                # Mail account only case:
+                #  Postfix lookup in `virtual_alias_maps' first. Thus, if there
+                #  is a catchall defined for the domain, any mail for the mail
+                #  account will be catched by the catchall. To prevent this
+                #  behavior, we must also add an entry in the virtual alias map.
+                #
+                # Forward + mail account case:
+                #  we want keep local copy of inbound mails
+                ( $isMailAcc ? $moduleData->{'MAIL_ADDR'} : () ),
+                # Add forward addresses in case of forward account
+                ( $isForwardAccount ? $moduleData->{'MAIL_FORWARD'} : () ),
+                # Add autoresponder entry if it is enabled for this account
+                ( $moduleData->{'MAIL_HAS_AUTO_RESPONDER'} ? "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" : () )
+            )
         );
 
         # Add transport map entry for autoresponder if needed
@@ -448,7 +448,7 @@ sub addMail
 
 sub disableMail
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixDisableMail', $moduleData );
     $self->{'db'}->delete( 'virtual_alias_maps', "$moduleData->{'MAIL_ADDR'}" );
@@ -468,7 +468,7 @@ sub disableMail
 
 sub deleteMail
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixDeleteMail', $moduleData );
     $self->{'db'}->delete( 'virtual_alias_maps', $moduleData->{'MAIL_ADDR'} );
@@ -489,7 +489,7 @@ sub deleteMail
 
 sub getTraffic
 {
-    my ($self, $trafficDb, $logFile, $trafficIndexDb) = @_;
+    my ( $self, $trafficDb, $logFile, $trafficIndexDb ) = @_;
     $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
 
     unless ( -f $logFile ) {
@@ -500,8 +500,8 @@ sub getTraffic
     debug( sprintf( 'Processing SMTP %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or die %{$trafficIndexDb}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
-    my ($idx, $idxContent) = ( $trafficIndexDb->{'smtp_lineNo'} || 0, $trafficIndexDb->{'smtp_lineContent'} );
+    $trafficIndexDb or die %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    my ( $idx, $idxContent ) = ( $trafficIndexDb->{'smtp_lineNo'} || 0, $trafficIndexDb->{'smtp_lineContent'} );
 
     # Extract and standardize SMTP logs in temporary file, using
     # maillogconvert.pl script
@@ -563,11 +563,11 @@ sub getTraffic
 
 sub postmap
 {
-    my (undef, $lookupTable, $lookupTableType, $delayed) = @_;
+    my ( undef, $lookupTable, $lookupTableType, $delayed ) = @_;
     $lookupTableType ||= 'hash';
 
     File::Spec->file_name_is_absolute( $lookupTable ) or die( 'Absolute lookup table file expected' );
-    grep($lookupTable eq $_, qw/ hash btree, cdb /) or die (
+    grep ($lookupTable eq $_, qw/ hash btree, cdb /) or die(
         sprintf( 'Unsupported lookup table type. Available types are: %s', 'btree, cdb and hash' )
     );
 
@@ -576,9 +576,9 @@ sub postmap
         return;
     }
 
-    my $rs = execute( [ 'postmap', "$lookupTableType:$lookupTable" ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'postmap', "$lookupTableType:$lookupTable" ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    !$rs or die ( $stderr || 'Unknown error' );
+    !$rs or die( $stderr || 'Unknown error' );
 }
 
 =item postconf( $conffile, %params )
@@ -641,7 +641,7 @@ sub postmap
 
 sub postconf
 {
-    my ($self, %params) = @_;
+    my ( $self, %params ) = @_;
 
     %params or croak( 'Missing parameters ' );
 
@@ -655,33 +655,33 @@ sub postconf
         sprintf( "Couldn't touch %s file: %s", $self->{'config'}->{'MTA_MAIN_CONF_FILE'} )
     );
 
-    my ($stdout, $stderr);
+    my ( $stdout, $stderr );
     executeNoWait(
         [ 'postconf', '-c', $conffile, keys %params ],
         sub {
             return unless my ( $p, $v ) = $_[0] =~ /^([^=]+)\s+=\s*(.*)/;
 
-            my (@vls, @rpls) = ( split( /,\s*/, $v ), () );
+            my ( @vls, @rpls ) = ( split( /,\s*/, $v ), () );
 
             defined $params{$p}->{'values'} && ref $params{$p}->{'values'} eq 'ARRAY' or croak(
                 sprintf( "Missing or invalid `values' for the %s parameter. Expects an array of values", $p )
             );
 
-            for $v( @{$params{$p}->{'values'}} ) {
+            for $v ( @{ $params{$p}->{'values'} } ) {
                 $params{$p}->{'action'} //= 'replace';
 
                 if ( $params{$p}->{'action'} eq 'add' ) {
                     unless ( $params{$p}->{'before'} || $params{$p}->{'after'} ) {
-                        next if grep( $_ eq $v, @vls );
+                        next if grep ( $_ eq $v, @vls );
                         push @vls, $v;
                         next;
                     }
 
                     # If the parameter value already exists, we delete it as someone could want move it
-                    @vls = grep( $_ ne $v, @vls );
+                    @vls = grep ( $_ ne $v, @vls );
                     my $regexp = $params{$p}->{'before'} || $params{$p}->{'after'};
                     ref $regexp eq 'Regexp' or croak( 'Invalid before|after option. Expects a Regexp' );
-                    my ($idx) = grep ( $vls[$_] =~ /^$regexp$/, 0 .. ( @vls-1 ) );
+                    my ( $idx ) = grep ( $vls[$_] =~ /^$regexp$/, 0 .. ( @vls-1 ) );
                     defined $idx ? splice( @vls, ( $params{$p}->{'before'} ? $idx : ++$idx ), 0, $v ) : push @vls, $v;
                 } elsif ( $params{$p}->{'action'} eq 'replace' ) {
                     push @rpls, $v;
@@ -705,7 +705,7 @@ sub postconf
 
     if ( %params ) {
         my $cmd = [ 'postconf', '-e', '-c', $conffile ];
-        while ( my ($param, $value) = each %params ) { push @{$cmd}, "$param=$value" };
+        while ( my ( $param, $value ) = each %params ) { push @{ $cmd }, "$param=$value" };
         execute( $cmd, \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
         debug( $stdout ) if $stdout;
     }
@@ -733,9 +733,9 @@ sub postconf
 
 sub getAvailableDbDrivers
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the getAvailableDbDrivers() method', ref $self ));
+    die( sprintf( 'The %s class must implement the getAvailableDbDrivers() method', ref $self ));
 }
 
 =item getDbDriver( $driver = $self->{'config'}->{'MTA_DB_DRIVER'} )
@@ -749,7 +749,7 @@ sub getAvailableDbDrivers
 
 sub getDbDriver
 {
-    my ($self, $driver) = @_;
+    my ( $self, $driver ) = @_;
     $driver //= $self->{'config'}->{'MTA_DB_DRIVER'};
 
     $self->{'db_drivers'}->{$driver} ||= "iMSCP::Servers::Mta::Postfix::Driver::Database::@{ [ ucfirst lc $driver ] }"->new( mta => $self );
@@ -769,11 +769,11 @@ sub getDbDriver
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload cfgDir /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/postfix" );
+    @{ $self }{qw/ restart reload cfgDir /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/postfix" );
     $self->{'db'} = lazy { "iMSCP::Servers::Mta::Postfix::Driver::Database::$self->{'config'}->{'MTA_DB_DRIVER'}"->new( mta => $self ); };
     $self->{'db_drivers'}->{$self->{'config'}->{'MTA_DB_DRIVER'}} = $self->{'db'};
     $self->SUPER::_init();
@@ -790,7 +790,7 @@ sub _init
 
 sub _askForDatabaseDriver
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'MTA_DB_DRIVER', $self->{'config'}->{'MTA_DB_DRIVER'} || ( iMSCP::Getopt->preseed ? 'CDB' : '' ));
     my %choices = (
@@ -800,7 +800,7 @@ sub _askForDatabaseDriver
     );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'mta', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'CDB' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'CDB' );
 Please choose the Postfix database driver you want use for lookup tables.
 
 See http://www.postfix.org/DATABASE_README.html for further details.
@@ -823,7 +823,7 @@ EOF
 
 sub _createUserAndGroup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::SystemGroup->getInstance()->addSystemGroup( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'}, 1 );
 
@@ -848,7 +848,7 @@ sub _createUserAndGroup
 
 sub _makeDirs
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Dir->new( dirname => $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} )->make( {
         user           => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
@@ -868,7 +868,7 @@ sub _makeDirs
 
 sub _configure
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixConfigure' );
     $self->_buildAliasesDb();
@@ -887,9 +887,9 @@ sub _configure
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $rs = execute( [ 'postconf', '-d', '-h', 'mail_version' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'postconf', '-d', '-h', 'mail_version' ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
     $stdout =~ /^([\d.]+)/ or die( "Couldn't guess Postfix version from the `postconf -d -h mail_version` command output" );
@@ -907,14 +907,14 @@ sub _setVersion
 
 sub _buildAliasesDb
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
         'beforePostfixBuildConfFile',
         sub {
             # Add alias for local root user
-            ${$_[0]} =~ s/^root:.*\n//gim;
-            ${$_[0]} .= 'root: ' . ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' ) . "\n";
+            ${ $_[0] } =~ s/^root:.*\n//gim;
+            ${ $_[0] } .= 'root: ' . ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' ) . "\n";
         }
     );
     $self->buildConfFile(
@@ -922,7 +922,7 @@ sub _buildAliasesDb
         $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}, undef, undef, { srcname => basename( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ) }
     );
 
-    my $rs = execute( 'newaliases', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'newaliases', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
@@ -937,7 +937,7 @@ sub _buildAliasesDb
 
 sub _buildMainCfFile
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $baseServerIp = ::setupGetQuestion( 'BASE_SERVER_IP' );
     my $baseServerIpType = iMSCP::Net->getInstance->getAddrVersion( $baseServerIp );
@@ -1016,7 +1016,7 @@ sub _buildMainCfFile
 
 sub _buildMasterCfFile
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->buildConfFile( 'master.cf', $self->{'config'}->{'MTA_MASTER_CONF_FILE'}, undef,
         {
@@ -1050,7 +1050,7 @@ sub _removeUser
 
 sub _removeFiles
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Dir->new( dirname => $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} )->remove();
     iMSCP::File->new( filename => $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'} )->remove();
@@ -1064,7 +1064,7 @@ sub _removeFiles
 
 sub _shutdown
 {
-    my ($self, $priority) = @_;
+    my ( $self, $priority ) = @_;
 
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
@@ -1083,9 +1083,9 @@ END
 
         return unless my $instance = __PACKAGE__->hasInstance();
 
-        my ($ret, $rs) = ( 0, 0 );
+        my ( $ret, $rs ) = ( 0, 0 );
 
-        while ( my ($path, $type) = each( %{$instance->{'_postmap'}} ) ) {
+        while ( my ( $path, $type ) = each( %{ $instance->{'_postmap'} } ) ) {
             $rs = $instance->postmap( $path, $type );
             $ret ||= $rs;
         }

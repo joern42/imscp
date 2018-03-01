@@ -29,10 +29,10 @@ use File::Basename;
 use iMSCP::Composer;
 use iMSCP::Crypt qw/ apr1MD5 randomStr /;
 use iMSCP::Database;
-use iMSCP::Debug qw / debug error getMessageByType /;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dialog::InputValidation qw/
     isNumber isNumberInRange isOneOfStringsInList isStringInList isStringNotInList isValidDomain isValidEmail isValidPassword isValidUsername
-    /;
+/;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -68,11 +68,11 @@ use parent 'iMSCP::Common::Singleton';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne( 'beforeSetupDialog',
         sub {
-            push @{$_[0]},
+            push @{ $_[0] },
                 sub { $self->askMasterAdminCredentials( @_ ) }, sub { $self->askMasterAdminEmail( @_ ) }, sub { $self->askDomain( @_ ) },
                 sub { $self->askSsl( @_ ) }, sub { $self->askHttpPorts( @_ ) }, sub { $self->askAltUrlsFeature( @_ ) };
         }
@@ -91,23 +91,23 @@ sub registerSetupListeners
                 composer_path => '/usr/local/bin/composer'
             );
             $composer->getComposerJson( 'scalar' )->{'config'} = {
-                %{$composer->getComposerJson( 'scalar' )->{'config'}},
+                %{ $composer->getComposerJson( 'scalar' )->{'config'} },
                 cafile => $::imscpConfig{'DISTRO_CA_BUNDLE'},
                 capath => $::imscpConfig{'DISTRO_CA_PATH'}
             };
             startDetail;
             $composer->setStdRoutines( sub {}, sub {
-                    ( my $stdout = $_[0] ) =~ s/^\s+|\s+$//g;
-                    return unless length $stdout;
+                ( my $stdout = $_[0] ) =~ s/^\s+|\s+$//g;
+                return unless length $stdout;
 
-                    step( undef, <<"EOT", 1, 1 )
+                step( undef, <<"EOT", 1, 1 )
 Installing/Updating i-MSCP frontEnd (dependencies) composer packages...
 
 $stdout
 
 Depending on your connection speed, this may take few minutes...
 EOT
-                }
+            }
             )->installPackages();
             endDetail;
         }
@@ -125,9 +125,9 @@ EOT
 
 sub askMasterAdminCredentials
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
-    my ($username, $password) = ( '', '' );
+    my ( $username, $password ) = ( '', '' );
     my $db = iMSCP::Database->getInstance();
 
     eval { $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); };
@@ -218,7 +218,7 @@ EOF
 
 sub askMasterAdminEmail
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $email = ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' );
 
@@ -255,15 +255,15 @@ EOF
 
 sub askDomain
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $domainName = ::setupGetQuestion(
         'BASE_SERVER_VHOST',
         ( iMSCP::Getopt->preseed
             ? do {
-                my @labels = split /\./, ::setupGetQuestion( 'SERVER_HOSTNAME' );
-                'panel.' . join( '.', @labels[1 .. $#labels] );
-            }
+            my @labels = split /\./, ::setupGetQuestion( 'SERVER_HOSTNAME' );
+            'panel.' . join( '.', @labels[1 .. $#labels] );
+        }
             : ''
         )
     );
@@ -309,7 +309,7 @@ EOF
 
 sub askSsl
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $domainName = ::setupGetQuestion( 'BASE_SERVER_VHOST' );
     my $domainNameUnicode = idn_to_unicode( $domainName, 'utf-8' ) // '';
@@ -413,7 +413,7 @@ EOF
             if ( $sslEnabled eq 'yes' ) {
                 my %choices = ( 'http://', 'No secure access (No SSL)', 'https://', 'Secure access (SSL)' );
                 ( $rs, $baseServerVhostPrefix ) = $dialog->radiolist(
-                    <<"EOF", \%choices, ( grep( $baseServerVhostPrefix eq $_, keys %choices ) )[0] || 'https://' );
+                    <<"EOF", \%choices, ( grep ( $baseServerVhostPrefix eq $_, keys %choices ) )[0] || 'https://' );
 Please choose the default access mode for the control panel:
 \\Z \\Zn
 EOF
@@ -432,7 +432,7 @@ EOF
 Your SSL certificate for the control panel is missing or invalid.
 EOF
             ::setupSetQuestion( 'PANEL_SSL_ENABLED', '' );
-            goto &{askSsl};
+            goto &{ askSsl };
         }
 
         # In case the certificate is valid, we skip SSL setup process
@@ -460,7 +460,7 @@ EOF
 
 sub askHttpPorts
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $httpPort = ::setupGetQuestion( 'BASE_SERVER_VHOST_HTTP_PORT', iMSCP::Getopt->preseed ? 8880 : '' );
     my $httpsPort = ::setupGetQuestion( 'BASE_SERVER_VHOST_HTTPS_PORT', iMSCP::Getopt->preseed ? 8443 : '' );
@@ -535,7 +535,7 @@ EOF
 
 sub askAltUrlsFeature
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'CLIENT_DOMAIN_ALT_URLS', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
@@ -543,7 +543,7 @@ sub askAltUrlsFeature
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'alt_urls', 'all', 'forced' ] )
         || !isStringInList( $value, keys %choices )
     ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'yes' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
 Do you want to enable the alternative URLs feature for client domains?
 
 This feature allows the clients to access their websites through alternative URLs such as http://dmn1.panel.domain.tld
@@ -566,13 +566,13 @@ EOF
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
         'afterSetupPreInstallPackages',
         sub {
             eval {
-                my ($composer, $step) = ( $self->getComposer(), 0 );
+                my ( $composer, $step ) = ( $self->getComposer(), 0 );
                 my $stdRoutine = sub {
                     ( my $stdout = $_[0] ) =~ s/^\s+|\s+$//g;
                     return unless length $stdout;
@@ -630,7 +630,7 @@ EOT
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setupMasterAdmin();
     $self->_setupSsl();
@@ -658,7 +658,7 @@ sub install
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     if ( -f '/usr/local/sbin/imscp_panel' ) {
         unless ( -f $self->{'config'}->{'PHP_FPM_BIN_PATH'} ) {
@@ -691,7 +691,7 @@ sub dpkgPostInvokeTasks
 
 sub getComposer
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'_composer'} ||= iMSCP::Composer->new(
         user          => $::imscpConfig{'IMSCP_USER'},
@@ -717,7 +717,7 @@ sub getComposer
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
     $self->{'eventManager'} = $self->{'frontend'}->{'eventManager'};
@@ -736,7 +736,7 @@ sub _init
 
 sub _createMasterWebUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
@@ -860,11 +860,11 @@ sub _setupSsl
 
 sub _setHttpdVersion( )
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $rs = execute( 'nginx -v', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'nginx -v', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    !$rs or die ( $stderr || 'Unknown error' ) if $rs;
+    !$rs or die( $stderr || 'Unknown error' ) if $rs;
     $stderr =~ m%nginx/([\d.]+)% or die( "Couldn't guess Nginx version" );
     $self->{'config'}->{'HTTPD_VERSION'} = $1;
     debug( sprintf( 'Nginx version set to: %s', $1 ));
@@ -880,7 +880,7 @@ sub _setHttpdVersion( )
 
 sub _addMasterWebUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndAddUser' );
 
@@ -907,7 +907,7 @@ sub _addMasterWebUser
 
 sub _makeDirs
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndMakeDirs' );
 
@@ -921,7 +921,7 @@ sub _makeDirs
     # See #IP-1530
     iMSCP::Dir->new( dirname => $nginxTmpDir )->remove();
 
-    for my $dir( [ $nginxTmpDir, $rootUName, $rootGName, 0755 ],
+    for my $dir ( [ $nginxTmpDir, $rootUName, $rootGName, 0755 ],
         [ $self->{'config'}->{'HTTPD_CONF_DIR'}, $rootUName, $rootGName, 0755 ],
         [ $self->{'config'}->{'HTTPD_LOG_DIR'}, $rootUName, $rootGName, 0755 ],
         [ $self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}, $rootUName, $rootGName, 0755 ],
@@ -955,7 +955,7 @@ sub _makeDirs
 
 sub _copyPhpBinary
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     length $self->{'config'}->{'PHP_FPM_BIN_PATH'} or die( "PHP `PHP_FPM_BIN_PATH' configuration parameter is not set." );
 
@@ -972,7 +972,7 @@ sub _copyPhpBinary
 
 sub _buildPhpConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndBuildPhpConfig' );
 
@@ -1045,7 +1045,7 @@ sub _buildPhpConfig
 
 sub _buildHttpdConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndBuildHttpdConfig' );
 
@@ -1118,9 +1118,9 @@ sub _buildHttpdConfig
     $self->{'eventManager'}->register(
         'beforeFrontEndBuildConf',
         sub {
-            my ($cfgTpl, $tplName) = @_;
+            my ( $cfgTpl, $tplName ) = @_;
 
-            return unless grep($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
+            return unless grep ($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
 
             if ( $baseServerIpVersion eq 'ipv6' || ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'no' ) {
                 replaceBlocByRef( '# SECTION IPv6 BEGIN.', '# SECTION IPv6 END.', '', $cfgTpl );
@@ -1180,20 +1180,20 @@ sub _buildHttpdConfig
 
 sub _addDnsZone
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeNamedAddMasterZone' );
     iMSCP::Servers::Named->factory()->addDomain( {
         BASE_SERVER_VHOST     => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
         BASE_SERVER_IP        => ::setupGetQuestion( 'BASE_SERVER_IP' ),
         BASE_SERVER_PUBLIC_IP => ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' ),
-        DOMAIN_TYPE           => 'dmn', # (since 1.6.0)
+        DOMAIN_TYPE           => 'dmn',                                     # (since 1.6.0)
         PARENT_DOMAIN_NAME    => ::setupGetQuestion( 'BASE_SERVER_VHOST' ), # (since 1.6.0)
         DOMAIN_NAME           => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
         DOMAIN_IP             => ::setupGetQuestion( 'BASE_SERVER_IP' ),
-        EXTERNAL_MAIL         => 'off', # (since 1.6.0)
+        EXTERNAL_MAIL         => 'off',                                     # (since 1.6.0)
         MAIL_ENABLED          => 1,
-        STATUS                => 'toadd' # (since 1.6.0)
+        STATUS                => 'toadd'                                    # (since 1.6.0)
     } );
     $self->{'eventManager'}->trigger( 'afterNamedAddMasterZone' );
 }
@@ -1208,7 +1208,7 @@ sub _addDnsZone
 
 sub _deleteDnsZone
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless $::imscpOldConfig{'BASE_SERVER_VHOST'}
         && $::imscpOldConfig{'BASE_SERVER_VHOST'} ne ::setupGetQuestion( 'BASE_SERVER_VHOST' );
@@ -1231,11 +1231,11 @@ sub _deleteDnsZone
 
 sub _installSystemFiles
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
-    for my $dir( 'cron.daily', 'logrotate.d' ) {
+    for my $dir ( 'cron.daily', 'logrotate.d' ) {
         my $fileContentRef = iMSCP::File->new( filename => "$self->{'cfgDir'}/$dir/imscp_frontend" )->getAsRef();
         processByRef(
             {
@@ -1245,7 +1245,7 @@ sub _installSystemFiles
             },
             $fileContentRef
         );
-        iMSCP::File->new( filename => "/etc/$_/imscp_frontend" )->set( ${$fileContentRef} )->save();
+        iMSCP::File->new( filename => "/etc/$_/imscp_frontend" )->set( ${ $fileContentRef } )->save();
     }
 }
 
@@ -1259,7 +1259,7 @@ sub _installSystemFiles
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/frontend.old.data" )->remove();
 }
@@ -1275,9 +1275,9 @@ sub _cleanup
 
 sub _getFullPhpVersionFor
 {
-    my (undef, $binaryPath) = @_;
+    my ( undef, $binaryPath ) = @_;
 
-    my $rs = execute( [ $binaryPath, '-nv' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ $binaryPath, '-nv' ], \my $stdout, \my $stderr );
     !$rs or die( $stderr || 'Unknown error' );
     return undef unless $stdout;
     $stdout =~ /PHP\s+([^\s]+)/;
@@ -1294,7 +1294,7 @@ sub _getFullPhpVersionFor
 
 sub _getNbCPUcores
 {
-    execute( 'grep processor /proc/cpuinfo 2>/dev/null | wc -l', \ my $stdout );
+    execute( 'grep processor /proc/cpuinfo 2>/dev/null | wc -l', \my $stdout );
     $stdout =~ /^(\d+)/;
     $1 || 1;
 }

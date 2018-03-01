@@ -77,7 +77,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->registerSetupListeners();
 }
@@ -92,7 +92,7 @@ sub registerSetupListeners
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
@@ -107,7 +107,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::PhpMyAdmin::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
 }
@@ -122,7 +122,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return if $self->{'skip_uninstall'};
 
@@ -158,14 +158,14 @@ sub getPriority
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/pma";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/phpmyadmin.data.dist";
     eval {
-        tie %{$self->{'config'}},
+        tie %{ $self->{'config'} },
             'iMSCP::Config',
             filename    => "$self->{'cfgDir'}/phpmyadmin.data",
             readonly    => iMSCP::Getopt->context() ne 'installer',
@@ -188,7 +188,7 @@ sub _init
 
 sub _mergeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     if ( -f "$self->{'cfgDir'}/phpmyadmin.data" ) {
         tie my %newConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/phpmyadmin.data.dist";
@@ -196,7 +196,7 @@ sub _mergeConfig
 
         debug( 'Merging old configuration with new configuration...' );
 
-        while ( my ($key, $value) = each( %oldConfig ) ) {
+        while ( my ( $key, $value ) = each( %oldConfig ) ) {
             next unless exists $newConfig{$key};
             $newConfig{$key} = $value;
         }

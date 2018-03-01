@@ -69,9 +69,9 @@ sub getPriority
 
 sub addIpAddr
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addIpAddr() method', ref $self ));
 }
 
 =item deleteIpAddr( \%moduleData )
@@ -91,9 +91,9 @@ sub addIpAddr
 
 sub deleteIpAddr
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the deleteIpAddr() method', ref $self ));
+    die( sprintf( 'The %s class must implement the deleteIpAddr() method', ref $self ));
 }
 
 =item addUser( \%moduleData )
@@ -113,9 +113,9 @@ sub deleteIpAddr
 
 sub addUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the addUser() method', ref $self ));
+    die( sprintf( 'The %s class must implement the addUser() method', ref $self ));
 }
 
 =item deleteUser( \%moduleData )
@@ -135,9 +135,9 @@ sub addUser
 
 sub deleteUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the deleteUser() method', ref $self ));
+    die( sprintf( 'The %s class must implement the deleteUser() method', ref $self ));
 }
 
 =back
@@ -154,7 +154,7 @@ sub deleteUser
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 

@@ -62,7 +62,7 @@ sub preinstall
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_addCronTask();
     $self->_scheduleCheck();
@@ -124,7 +124,7 @@ sub _scheduleCheck
     # Create an empty file to avoid planning multiple checks if installer is run more than once
     iMSCP::File->new( filename => $::imscpConfig{'CHKROOTKIT_LOG'} )->set( "Check scheduled...\n" )->save();
 
-    my $rs = execute( "echo 'bash chkrootkit -e > $::imscpConfig{'CHKROOTKIT_LOG'} 2>&1' | at now + 10 minutes", \ my $stdout, \ my $stderr );
+    my $rs = execute( "echo 'bash chkrootkit -e > $::imscpConfig{'CHKROOTKIT_LOG'} 2>&1' | at now + 10 minutes", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }

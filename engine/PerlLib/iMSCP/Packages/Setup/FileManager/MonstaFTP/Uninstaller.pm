@@ -49,7 +49,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_unregisterConfig();
     $self->_removeFiles();
@@ -71,7 +71,7 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
     $self;
@@ -87,13 +87,13 @@ sub _init
 
 sub _unregisterConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless -f "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf";
 
     my $file = iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
     my $fileContentRef = $file->getAsRef();
-    ${$fileContentRef} =~ s/[\t ]*include imscp_monstaftp.conf;\n//;
+    ${ $fileContentRef } =~ s/[\t ]*include imscp_monstaftp.conf;\n//;
     $file->save();
 
     $self->{'frontend'}->{'reload'} ||= 1;
@@ -109,7 +109,7 @@ sub _unregisterConfig
 
 sub _removeFiles
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Dir->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp" )->remove();
     iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_monstaftp.conf" )->remove();

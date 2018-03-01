@@ -51,7 +51,7 @@ our $VERSION = '2.0.0';
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->enable( 'cron' );
     $self->SUPER::postinstall();
@@ -65,7 +65,7 @@ sub postinstall
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'Cron (Vixie) %s', $self->getVersion());
 }
@@ -78,7 +78,7 @@ sub getHumanServerName
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'cron' );
 }
@@ -91,7 +91,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'cron' );
 }
@@ -104,7 +104,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'cron' );
 }
@@ -117,7 +117,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( 'cron' );
 }
@@ -133,12 +133,12 @@ sub reload
 
 sub enableSystemTask
 {
-    my ($self, $cronTask, $directory) = @_;
+    my ( $self, $cronTask, $directory ) = @_;
 
     defined $cronTask or croak( 'Undefined $cronTask parameter' );
 
     unless ( $directory ) {
-        for my $dir( qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) {
+        for my $dir ( qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) {
             my $rs = execute( [ 'dpkg-divert', '--rename', '--remove', "/etc/$dir/$cronTask" ], \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
@@ -147,7 +147,7 @@ sub enableSystemTask
         return;
     }
 
-    grep( $directory eq $_, qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) or die( 'Invalid cron directory' );
+    grep ( $directory eq $_, qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) or die( 'Invalid cron directory' );
 
     my $rs = execute( [ 'dpkg-divert', '--rename', '--remove', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
@@ -162,12 +162,12 @@ sub enableSystemTask
 
 sub disableSystemTask
 {
-    my ($self, $cronTask, $directory) = @_;
+    my ( $self, $cronTask, $directory ) = @_;
 
     defined $cronTask or croak( 'Undefined $cronTask parameter' );
 
     unless ( $directory ) {
-        for my $dir( qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) {
+        for my $dir ( qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) {
             my $rs = execute(
                 [ 'dpkg-divert', '--divert', "/etc/$dir/$cronTask.disabled", '--rename', "/etc/$dir/$cronTask" ], \my $stdout, \my $stderr
             );
@@ -178,7 +178,7 @@ sub disableSystemTask
         return;
     }
 
-    grep( $directory eq $_, qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) or die( 'Invalid cron directory' );
+    grep ( $directory eq $_, qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) or die( 'Invalid cron directory' );
 
     my $rs ||= execute(
         [ 'dpkg-divert', '--divert', "/etc/$directory/$cronTask.disabled", '--rename', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr
@@ -201,14 +201,13 @@ sub disableSystemTask
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $rs = execute( 'dpkg -s cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'dpkg -s cron | grep -i \'^version\'', \my $stdout, \my $stderr );
     !$rs or die( $stderr || 'Unknown error' );
     $stdout =~ /version:\s+([\d.]+)/i or die( "Couldn't guess Cron (Vixie) version from the `dpkg -s cron | grep -i '^version'` command output" );
     $self->{'config'}->{'CRON_VERSION'} = $1;
     debug( sprintf( 'Cron (Vixie) version set to: %s', $1 ));
-    0;
 }
 
 =back

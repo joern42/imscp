@@ -52,7 +52,7 @@ our $VERSION = '2.0.0';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::install();
     $self->_cleanup();
@@ -66,7 +66,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->enable( 'postfix' );
     $self->SUPER::postinstall();
@@ -80,7 +80,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::uninstall();
     $self->_restoreConffiles();
@@ -97,7 +97,7 @@ sub uninstall
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless iMSCP::ProgramFinder::find( 'postconf' );
 
@@ -112,7 +112,7 @@ sub dpkgPostInvokeTasks
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'postfix' );
 }
@@ -125,7 +125,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'postfix' );
 }
@@ -138,7 +138,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'postfix' );
 }
@@ -151,7 +151,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( 'postfix' );
 }
@@ -164,7 +164,7 @@ sub reload
 
 sub getAvailableDbDrivers
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     qw/ hash btreee cdb /;
 }
@@ -185,9 +185,9 @@ sub getAvailableDbDrivers
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.6.0' );
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/postfix.old.data" )->remove();
 }
@@ -204,12 +204,12 @@ sub _restoreConffiles
 {
     return unless -d '/etc/postfix';
 
-    for my $file( '/usr/share/postfix/main.cf.debian', '/usr/share/postfix/master.cf.dist' ) {
+    for my $file ( '/usr/share/postfix/main.cf.debian', '/usr/share/postfix/master.cf.dist' ) {
         next unless -f $file;
         iMSCP::File->new( filename => $file )->copy( '/etc/postfix/' . basename( $file, '.debian', '.dist' ));
     }
 
-    my $rs = execute( 'newaliases', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'newaliases', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }

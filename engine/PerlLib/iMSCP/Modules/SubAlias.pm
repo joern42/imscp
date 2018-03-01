@@ -44,7 +44,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Subdomain';
 }
@@ -57,7 +57,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     $self->_loadEntityData( $entityId );
 
@@ -90,7 +90,7 @@ sub handleEntity
 
 sub _loadEntityData
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         "
@@ -125,7 +125,7 @@ sub _loadEntityData
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
     my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'user_home'}" );
     my $webDir = File::Spec->canonpath( "$homeDir/$row->{'subdomain_alias_mount'}" );
-    my ($ssl, $hstsMaxAge, $hstsIncSub, $phpini) = ( 0, 0, 0, {} );
+    my ( $ssl, $hstsMaxAge, $hstsIncSub, $phpini ) = ( 0, 0, 0, {} );
 
     if ( $row->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'subdomain_alias_name'}.$row->{'alias_name'}.pem.pem" ) {
         $ssl = 1;
@@ -206,7 +206,7 @@ sub _loadEntityData
 
 sub _add
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do(
@@ -223,7 +223,7 @@ sub _add
 
 sub _delete
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
@@ -245,7 +245,7 @@ sub _delete
 
 sub _disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do(
@@ -262,7 +262,7 @@ sub _disable
 
 sub _restore
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_restore(); };
     $self->{'_dbh'}->do(
@@ -281,10 +281,10 @@ sub _restore
 
 sub _sharedMountPoint
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $regexp = "^$self->{'_data'}->{'MOUNT_POINT'}(/.*|\$)";
-    my ($nbSharedMountPoints) = $self->{'_dbh'}->selectrow_array(
+    my ( $nbSharedMountPoints ) = $self->{'_dbh'}->selectrow_array(
         "
             SELECT COUNT(mount_point) AS nb_mount_points FROM (
                 SELECT alias_mount AS mount_point FROM domain_aliasses

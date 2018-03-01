@@ -55,7 +55,7 @@ $Text::Wrap::break = qr/[\s\n\|]/;
 
 sub errmsg
 {
-    my ($self, $message) = @_;
+    my ( $self, $message ) = @_;
 
     defined $message or croak( '$message parameter is not defined' );
 
@@ -82,7 +82,7 @@ EOF
 
 sub warnMsg
 {
-    my ($self, $message) = @_;
+    my ( $self, $message ) = @_;
 
     defined $message or croak( '$message parameter is not defined' );
 
@@ -117,7 +117,7 @@ EOF
 
 sub _sendMail
 {
-    my (undef, $subject, $message, $severity) = @_;
+    my ( undef, $subject, $message, $severity ) = @_;
 
     my $sendmail = iMSCP::ProgramFinder::find( 'sendmail' ) or die( "Couldn't find sendmail executable in \$PATH" );
     my $hostname = $::imscpConfig{'BASE_SERVER_VHOST'} || `hostname -f`;
@@ -147,7 +147,7 @@ Please do not reply to this email.
 
 ___________________________
 i-MSCP Backend Mailer
-EOF
+        EOF
         'X-Mailer' => 'i-MSCP Mailer (backend)'
     );
 

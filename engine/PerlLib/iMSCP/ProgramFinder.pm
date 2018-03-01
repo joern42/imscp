@@ -48,7 +48,7 @@ sub find
 {
     my $program = $_[0];
 
-    for my $path( File::Spec->path() ) {
+    for my $path ( File::Spec->path() ) {
         my $file = File::Spec->catfile( $path, $program );
         return $file if -x $file;
     }

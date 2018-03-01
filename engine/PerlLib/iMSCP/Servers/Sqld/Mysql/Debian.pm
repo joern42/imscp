@@ -56,7 +56,7 @@ our $VERSION = '2.0.0';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::preinstall();
     $self->_cleanup();
@@ -70,7 +70,7 @@ sub preinstall
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->enable( 'mysql' );
     $self->SUPER::postinstall();
@@ -86,7 +86,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_removeConfig();
 
@@ -102,7 +102,7 @@ sub uninstall
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'mysql' );
 }
@@ -115,7 +115,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'mysql' );
 }
@@ -128,7 +128,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'mysql' );
 }
@@ -141,7 +141,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( 'mysql' );
 }
@@ -160,7 +160,7 @@ sub reload
 
 sub _buildConf
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Make sure that the conf.d directory exists
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
@@ -173,10 +173,10 @@ sub _buildConf
     $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
-            unless ( defined ${$_[0]} ) {
-                ${$_[0]} = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
-            } elsif ( ${$_[0]} !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
-                ${$_[0]} .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            unless ( defined ${ $_[0] } ) {
+                ${ $_[0] } = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            } elsif ( ${ $_[0] } !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
+                ${ $_[0] } .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
             }
         }
     );
@@ -207,7 +207,7 @@ EOF
             return unless version->parse( $self->getVersion()) >= version->parse( '5.7.4' );
 
             # For backward compatibility - We will review this in later version
-            ${$_[0]} .= "default_password_lifetime = {DEFAULT_PASSWORD_LIFETIME}\n";
+            ${ $_[0] } .= "default_password_lifetime = {DEFAULT_PASSWORD_LIFETIME}\n";
             $_[4]->{'DEFAULT_PASSWORD_LIFETIME'} = 0;
         }
     );
@@ -235,7 +235,7 @@ EOF
 
 sub _updateServerConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Upgrade MySQL tables if necessary
     {
@@ -269,7 +269,7 @@ EOF
 
     # Disable unwanted plugins (bc reasons)
     my $dbh = iMSCP::Database->getInstance();
-    for my $plugin( qw/ cracklib_password_check simple_password_check validate_password / ) {
+    for my $plugin ( qw/ cracklib_password_check simple_password_check validate_password / ) {
         $dbh->do( "UNINSTALL PLUGIN $plugin" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
     }
 }
@@ -284,9 +284,9 @@ EOF
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.6.0' );
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/imscp.cnf" )->remove();
     iMSCP::File->new( filename => "$self->{'cfgDir'}/mysql.old.data" )->remove();
@@ -302,7 +302,7 @@ sub _cleanup
 
 sub _removeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::File->new( filename => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf" )->remove();
 }

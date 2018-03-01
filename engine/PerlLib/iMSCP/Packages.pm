@@ -46,7 +46,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub getList
 {
-    @{$_[0]->{'packages'}};
+    @{ $_[0]->{'packages'} };
 }
 
 =item getListWithFullNames( )
@@ -59,7 +59,7 @@ sub getList
 
 sub getListWithFullNames
 {
-    @{$_[0]->{'packages_full_names'}};
+    @{ $_[0]->{'packages_full_names'} };
 }
 
 =back
@@ -78,27 +78,27 @@ sub getListWithFullNames
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $packageRootDir = dirname( __FILE__ );
 
-    s%^.*?([^/]+)\.pm$%$1% for @{$self->{'packages'}} = glob( "$packageRootDir/Packages/*.pm" );
+    s%^.*?([^/]+)\.pm$%$1% for @{ $self->{'packages'} } = glob( "$packageRootDir/Packages/*.pm" );
 
     # In installer/uninstaller contexts, we also load setup packages
-    if ( grep( iMSCP::Getopt->context() eq $_, 'installer', 'uninstaller' ) ) {
-        s%^.*?([^/]+)\.pm$%Setup::$1% for my @setupPackages = glob ( "$packageRootDir/Packages/Setup/*.pm" );
-        push @{$self->{'packages'}}, @setupPackages;
+    if ( grep ( iMSCP::Getopt->context() eq $_, 'installer', 'uninstaller' ) ) {
+        s%^.*?([^/]+)\.pm$%Setup::$1% for my @setupPackages = glob( "$packageRootDir/Packages/Setup/*.pm" );
+        push @{ $self->{'packages'} }, @setupPackages;
     }
 
     # Load all packages
-    for my $package( @{$self->{'packages'}} ) {
+    for my $package ( @{ $self->{'packages'} } ) {
         my $fpackage = "iMSCP::Packages::${package}";
         eval "require $fpackage; 1" or die( sprintf( "Couldn't load %s package class: %s", $fpackage, $@ ));
     }
 
     # Sort packages by priority (descending order)
-    @{$self->{'packages'}} = sort { "iMSCP::Packages::${b}"->getPriority() <=> "iMSCP::Packages::${a}"->getPriority() } @{$self->{'packages'}};
-    @{$self->{'packages_full_names'}} = map { "iMSCP::Packages::${_}" } @{$self->{'packages'}};
+    @{ $self->{'packages'} } = sort { "iMSCP::Packages::${b}"->getPriority() <=> "iMSCP::Packages::${a}"->getPriority() } @{ $self->{'packages'} };
+    @{ $self->{'packages_full_names'} } = map { "iMSCP::Packages::${_}" } @{ $self->{'packages'} };
     $self;
 }
 

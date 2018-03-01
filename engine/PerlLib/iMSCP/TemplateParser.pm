@@ -52,13 +52,13 @@ our @EXPORT = qw/ process processByRef getBloc getBlocByRef replaceBloc replaceB
 
 sub processByRef( $$;$ )
 {
-    my ($data, $template, $emptyUnknown) = @_;
+    my ( $data, $template, $emptyUnknown ) = @_;
 
     ref $data eq 'HASH' or croak( 'Invalid $data parameter. Hash reference expected.' );
     ref $template eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar reference expected.' );
 
     # Process twice to cover cases where there are placeholders defining other placeholder(s)
-    ${$template} =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // ( $emptyUnknown ? '' : "{$1}" )#ge for 0 .. 1;
+    ${ $template } =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // ( $emptyUnknown ? '' : "{$1}" )#ge for 0 .. 1;
 }
 
 =item process( \%data, $template [, $emptyUnknown = FALSE ] )
@@ -74,7 +74,7 @@ sub processByRef( $$;$ )
 
 sub process( $$;$ )
 {
-    my ($data, $template, $emptyUnknown) = @_;
+    my ( $data, $template, $emptyUnknown ) = @_;
 
     processByRef( $data, \$template, $emptyUnknown );
     $template;
@@ -94,13 +94,13 @@ sub process( $$;$ )
 
 sub getBlocByRef( $$$;$ )
 {
-    my ($beginTag, $endingTag, $template, $includeTags) = @_;
+    my ( $beginTag, $endingTag, $template, $includeTags ) = @_;
 
     ref $template eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar reference expected.' );
 
     $beginTag = "\Q$beginTag\E" unless ref $beginTag eq 'Regexp';
     $endingTag = "\Q$endingTag\E" unless ref $endingTag eq 'Regexp';
-    ( $includeTags ? ${$template} =~ /([\t ]*$beginTag.*?[\t ]*$endingTag)/s : ${$template} =~ /[\t ]*$beginTag(.*?)[\t ]*$endingTag/s ) ? $1 : '';
+    ( $includeTags ? ${ $template } =~ /([\t ]*$beginTag.*?[\t ]*$endingTag)/s : ${ $template } =~ /[\t ]*$beginTag(.*?)[\t ]*$endingTag/s ) ? $1 : '';
 }
 
 =item getBloc( $beginTag, $endingTag, $template [, $includeTags = false ] )
@@ -118,7 +118,7 @@ sub getBlocByRef( $$$;$ )
 
 sub getBloc( $$$;$ )
 {
-    my ($beginTag, $endingTag, $template, $includeTags) = @_;
+    my ( $beginTag, $endingTag, $template, $includeTags ) = @_;
 
     getBlocByRef( $beginTag, $endingTag, \$template, $includeTags );
 }
@@ -142,20 +142,20 @@ sub getBloc( $$$;$ )
 
 sub replaceBlocByRef( $$$$;$ )
 {
-    my ($beginTag, $endingTag, $repl, $template, $preserveTags) = @_;
+    my ( $beginTag, $endingTag, $repl, $template, $preserveTags ) = @_;
 
     ref $template eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar expected.' );
 
     if ( $preserveTags ) {
         $beginTag = "(\Q$beginTag\E)" unless ref $beginTag eq 'Regexp';
         $endingTag = "(\Q$endingTag\E)" unless ref $endingTag eq 'Regexp';
-        ${$template} =~ s/[\t ]*$beginTag.*?[\t ]*$endingTag/$repl$1$2/gs;
+        ${ $template } =~ s/[\t ]*$beginTag.*?[\t ]*$endingTag/$repl$1$2/gs;
         return;
     }
 
     $beginTag = "\Q$beginTag\E" unless ref $beginTag eq 'Regexp';
     $endingTag = "\Q$endingTag\E" unless ref $endingTag eq 'Regexp';
-    ${$template} =~ s/[\t ]*$beginTag.*?[\t ]*$endingTag/$repl/gs;
+    ${ $template } =~ s/[\t ]*$beginTag.*?[\t ]*$endingTag/$repl/gs;
 }
 
 =item replaceBloc( $beginTag, $endingTag, $repl, $template [, $preserveTags = false ] )
@@ -177,7 +177,7 @@ sub replaceBlocByRef( $$$$;$ )
 
 sub replaceBloc( $$$$;$ )
 {
-    my ($beginTag, $endingTag, $repl, $template, $preserveTags) = @_;
+    my ( $beginTag, $endingTag, $repl, $template, $preserveTags ) = @_;
 
     replaceBlocByRef( $beginTag, $endingTag, $repl, \$template, $preserveTags );
     $template;

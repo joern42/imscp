@@ -46,9 +46,9 @@ use Carp qw/ croak /;
 
 sub isEnabled
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the isEnabled() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the isEnabled() method', ref $self ));
 }
 
 =item enable( $service )
@@ -64,9 +64,9 @@ sub isEnabled
 
 sub enable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the enable() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the enable() method', ref $self ));
 }
 
 =item disable( $service )
@@ -82,9 +82,9 @@ sub enable
 
 sub disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the disable() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the disable() method', ref $self ));
 }
 
 =item remove( $service )
@@ -102,9 +102,9 @@ sub disable
 
 sub remove
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the remove() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the remove() method', ref $self ));
 }
 
 =item start( $service )
@@ -120,9 +120,9 @@ sub remove
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the start() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the start() method', ref $self ));
 }
 
 =item stop( $service )
@@ -138,9 +138,9 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the stop() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the stop() method', ref $self ));
 }
 
 =item restart( $service )
@@ -156,9 +156,9 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the restart() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the restart() method', ref $self ));
 }
 
 =item reload( $service )
@@ -175,9 +175,9 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the reload() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the reload() method', ref $self ));
 }
 
 =item isRunning( $service )
@@ -191,9 +191,9 @@ sub reload
 
 sub isRunning
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the isRunning() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the isRunning() method', ref $self ));
 }
 
 =item hasService( $service [, 'nocache' = FALSE ] )
@@ -208,9 +208,9 @@ sub isRunning
 
 sub hasService
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    croak ( sprintf( 'The %s class must implement the hasService() method', ref $self ));
+    croak( sprintf( 'The %s class must implement the hasService() method', ref $self ));
 }
 
 =back

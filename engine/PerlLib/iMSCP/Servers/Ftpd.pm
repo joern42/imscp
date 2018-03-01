@@ -70,7 +70,7 @@ sub getPriority
 
 sub addUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addUser() method', ref $self ));
 }
@@ -92,7 +92,7 @@ sub addUser
 
 sub addFtpUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addFtpUser() method', ref $self ));
 }
@@ -114,7 +114,7 @@ sub addFtpUser
 
 sub disableFtpUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the disableFtpUser() method', ref $self ));
 }
@@ -136,7 +136,7 @@ sub disableFtpUser
 
 sub deleteFtpUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteFtpUser() method', ref $self ));
 }
@@ -154,7 +154,7 @@ sub deleteFtpUser
 
 sub getTraffic
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }
@@ -173,7 +173,7 @@ sub getTraffic
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 

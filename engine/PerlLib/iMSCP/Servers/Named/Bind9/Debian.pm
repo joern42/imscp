@@ -53,7 +53,7 @@ our $VERSION = '2.0.0';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # We do not want stop the service while installation/reconfiguration
 }
@@ -66,7 +66,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::install();
 
@@ -76,14 +76,14 @@ sub install
             'beforeBindBuildConfFile',
             sub {
                 # Enable/disable local DNS resolver
-                ${$_[0]} =~ s/RESOLVCONF=(?:no|yes)/RESOLVCONF=$self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'}/i;
+                ${ $_[0] } =~ s/RESOLVCONF=(?:no|yes)/RESOLVCONF=$self->{'config'}->{'NAMED_LOCAL_DNS_RESOLVER'}/i;
 
-                return unless ${$_[0]} =~ /OPTIONS="(.*)"/;
+                return unless ${ $_[0] } =~ /OPTIONS="(.*)"/;
 
                 # Enable/disable IPV6 support
                 ( my $options = $1 ) =~ s/\s*-[46]\s*//g;
                 $options = '-4 ' . $options unless $self->{'config'}->{'NAMED_IPV6_SUPPORT'} eq 'yes';
-                ${$_[0]} =~ s/OPTIONS=".*"/OPTIONS="$options"/;
+                ${ $_[0] } =~ s/OPTIONS=".*"/OPTIONS="$options"/;
             }
         );
         $self->buildConfFile( '/etc/default/bind9', '/etc/default/bind9' );
@@ -100,7 +100,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $srvProvider = iMSCP::Service->getInstance();
 
@@ -118,7 +118,7 @@ sub postinstall
 
     # We need restart the service since it is already started
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ]; }, $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->restart(); }, $self->getHumanServerName() ]; }, $self->getPriority()
     );
 }
 
@@ -130,7 +130,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_removeConfig();
 
@@ -146,7 +146,7 @@ sub uninstall
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setVersion();
 }
@@ -159,7 +159,7 @@ sub dpkgPostInvokeTasks
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'bind9' );
 }
@@ -172,7 +172,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'bind9' );
 }
@@ -185,7 +185,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'bind9' );
 }
@@ -198,7 +198,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( 'bind9' );
 }
@@ -217,9 +217,9 @@ sub reload
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $rs = execute( [ 'bind9-config', '--version' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'bind9-config', '--version' ], \my $stdout, \my $stderr );
     !$rs or die( $stderr || 'Unknown error' );
     $stdout =~ /version=([\d.]+)/i or die( "Couldn't guess Bind version from the `bind9-config --version` command output" );
     $self->{'config'}->{'NAMED_VERSION'} = $1;
@@ -236,14 +236,14 @@ sub _setVersion
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.6.0' );
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/bind.old.data" )->remove();
 
     if ( my $resolvconf = iMSCP::ProgramFinder::find( 'resolvconf' ) ) {
-        my $rs = execute( [ $resolvconf, '-d', 'lo.imscp' ], \ my $stdout, \ my $stderr );
+        my $rs = execute( [ $resolvconf, '-d', 'lo.imscp' ], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         !$rs or die( $stderr || 'Unknown error' ) if $rs;
     }
@@ -259,7 +259,7 @@ sub _cleanup
 
 sub _shutdown
 {
-    my ($self, $priority) = @_;
+    my ( $self, $priority ) = @_;
 
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 

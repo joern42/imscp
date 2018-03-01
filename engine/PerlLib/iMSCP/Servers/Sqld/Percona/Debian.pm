@@ -49,7 +49,7 @@ our $VERSION = '2.0.0';
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'Percona %s', $self->getVersion());
 }
@@ -68,7 +68,7 @@ sub getHumanServerName
 
 sub _setVendor
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     debug( sprintf( 'SQL server vendor set to: %s', 'Percona' ));
     $self->{'config'}->{'SQLD_VENDOR'} = 'Percona';
@@ -82,7 +82,7 @@ sub _setVendor
 
 sub _buildConf
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Make sure that the conf.d directory exists
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
@@ -95,10 +95,10 @@ sub _buildConf
     $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
-            unless ( defined ${$_[0]} ) {
-                ${$_[0]} = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
-            } elsif ( ${$_[0]} !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
-                ${$_[0]} .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            unless ( defined ${ $_[0] } ) {
+                ${ $_[0] } = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            } elsif ( ${ $_[0] } !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
+                ${ $_[0] } .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
             }
         }
     );
@@ -131,13 +131,13 @@ EOF
 
             # For backward compatibility - We will review this in later version
             if ( $version >= version->parse( '5.7.4' ) ) {
-                ${$_[0]} .= "default_password_lifetime = {DEFAULT_PASSWORD_LIFETIME}\n";
+                ${ $_[0] } .= "default_password_lifetime = {DEFAULT_PASSWORD_LIFETIME}\n";
                 $_->[4]->{'DEFAULT_PASSWORD_LIFETIME'} = 0;
             }
 
             # Fix For: The 'INFORMATION_SCHEMA.SESSION_VARIABLES' feature is disabled; see the documentation for
             # 'show_compatibility_56' (3167) - Occurs when executing mysqldump with Percona server 5.7.x
-            ${$_[0]} .= "show_compatibility_56 = ON\n" if $version >= version->parse( '5.7.6' );
+            ${ $_[0] } .= "show_compatibility_56 = ON\n" if $version >= version->parse( '5.7.6' );
         }
     );
     $self->buildConfFile( $conffile, "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", undef,

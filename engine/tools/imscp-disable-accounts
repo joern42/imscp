@@ -37,7 +37,7 @@ use iMSCP::Bootstrapper;
 use iMSCP::DbTasksProcessor;
 use iMSCP::Getopt;
 use File::Basename;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -62,9 +62,9 @@ sub run
             'domain_id'
         );
 
-        return unless %{$rows};
+        return unless %{ $rows };
 
-        for my $domainId( keys %{$rows} ) {
+        for my $domainId ( keys %{ $rows } ) {
             eval {
                 $dbh->begin_work();
 
@@ -99,7 +99,7 @@ sub run
 
 newDebug( 'imscp-disable-accounts.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Script that disable expired customer accounts
 

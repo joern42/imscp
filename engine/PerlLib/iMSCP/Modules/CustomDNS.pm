@@ -44,7 +44,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'CustomDNS';
 }
@@ -57,9 +57,9 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
-    my ($domainId, $aliasId ) = split ';', $entityId;
+    my ( $domainId, $aliasId ) = split ';', $entityId;
 
     defined $domainId && defined $aliasId or die( 'Bad input data' );
 
@@ -120,9 +120,9 @@ sub handleEntity
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    @{$self}{qw/ domain_name domain_ip dns_records /} = ( undef, undef, [] );
+    @{ $self }{qw/ domain_name domain_ip dns_records /} = ( undef, undef, [] );
     $self->SUPER::_init();
 }
 
@@ -134,7 +134,7 @@ sub _init
 
 sub _loadEntityData
 {
-    my ($self, $domainId, $aliasId) = @_;
+    my ( $self, $domainId, $aliasId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         ( $aliasId eq '0'
@@ -149,8 +149,8 @@ sub _loadEntityData
         undef,
         ( $aliasId eq '0' ? $domainId : $aliasId )
     );
-    %{$row} or die( sprintf( 'Data not found for custom DNS records group (%d;%d)', $domainId, $aliasId ));
-    @{$self->{'_data'}}{qw/ DOMAIN_NAME DOMAIN_IP /} = ( $row->{'domain_name'}, $row->{'ip_number'} );
+    %{ $row } or die( sprintf( 'Data not found for custom DNS records group (%d;%d)', $domainId, $aliasId ));
+    @{ $self->{'_data'} }{qw/ DOMAIN_NAME DOMAIN_IP /} = ( $row->{'domain_name'}, $row->{'ip_number'} );
     undef $row;
 
     my $rows = $self->{'_dbh'}->selectall_arrayref(
@@ -166,13 +166,13 @@ sub _loadEntityData
         $aliasId
     );
 
-    return unless @{$rows};
+    return unless @{ $rows };
 
     # 1. For TXT/SPF records, split data field into several
     #    <character-string>s when <character-string> is longer than 255
     #    bytes. See: https://tools.ietf.org/html/rfc4408#section-3.1.3
     my @dnsRecords;
-    for $row( @{$rows} ) {
+    for $row ( @{ $rows } ) {
         if ( $row->[2] eq 'TXT' || $row->[2] eq 'SPF' ) {
             # Turn line-breaks into whitespaces
             $row->[3] =~ s/\R+/ /g;
@@ -199,14 +199,14 @@ sub _loadEntityData
                     push( @chunks, substr( $row->[3], $i, 255 ));
                 }
 
-                $row->[3] = join ' ', map( qq/"$row"/, @chunks );
+                $row->[3] = join ' ', map ( qq/"$row"/, @chunks );
             }
         }
 
-        push @dnsRecords, [ ( @{$row} )[0 .. 3] ];
+        push @dnsRecords, [ ( @{ $row } )[0 .. 3] ];
     }
 
-    @{$self->{'_data'}}{qw/ BASE_SERVER_PUBLIC_IP DNS_RECORDS /} = ( $::imscpConfig{'BASE_SERVER_PUBLIC_IP'}, [ @dnsRecords ] );
+    @{ $self->{'_data'} }{qw/ BASE_SERVER_PUBLIC_IP DNS_RECORDS /} = ( $::imscpConfig{'BASE_SERVER_PUBLIC_IP'}, [ @dnsRecords ] );
 }
 
 =back

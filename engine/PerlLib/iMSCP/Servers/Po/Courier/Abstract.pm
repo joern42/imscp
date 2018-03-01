@@ -70,10 +70,10 @@ use parent 'iMSCP::Servers::Po';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->authdaemonSqlUserDialog( @_ ) }; }, $self->getPriority()
+        'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->authdaemonSqlUserDialog( @_ ) }; }, $self->getPriority()
     );
 
     return if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) == -1;
@@ -92,7 +92,7 @@ sub registerSetupListeners
 
 sub authdaemonSqlUserDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $masterSqlUser = ::setupGetQuestion( 'DATABASE_USER' );
     my $dbUser = ::setupGetQuestion(
@@ -173,7 +173,7 @@ EOF
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setVersion();
     $self->_configure();
@@ -189,7 +189,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_dropSqlUser();
     $self->_removeConfig();
@@ -203,7 +203,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     setRights( $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'},
         {
@@ -243,7 +243,7 @@ sub setEnginePermissions
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Courier';
 }
@@ -256,7 +256,7 @@ sub getServerName
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'Courier %s', $self->getVersion());
 }
@@ -269,7 +269,7 @@ sub getHumanServerName
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'PO_VERSION'};
 }
@@ -282,7 +282,7 @@ sub getVersion
 
 sub addMail
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     return unless index( $moduleData->{'MAIL_TYPE'}, '_mail' ) != -1;
 
@@ -290,7 +290,7 @@ sub addMail
 
     my $mailDir = "$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}";
 
-    for my $mailbox( '.Drafts', '.Junk', '.Sent', '.Trash' ) {
+    for my $mailbox ( '.Drafts', '.Junk', '.Sent', '.Trash' ) {
         iMSCP::Dir->new( dirname => "$mailDir/$mailbox" )->make( {
             user           => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
             group          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -298,7 +298,7 @@ sub addMail
             fixpermissions => iMSCP::Getopt->fixPermissions
         } );
 
-        for my $dir( 'cur', 'new', 'tmp' ) {
+        for my $dir ( 'cur', 'new', 'tmp' ) {
             iMSCP::Dir->new( dirname => "$mailDir/$mailbox/$dir" )->make( {
                 user           => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
                 group          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -310,8 +310,8 @@ sub addMail
 
     my $file = iMSCP::File->new( filename => "$mailDir/courierimapsubscribed" );
     my $fileContent = $file->getAsRef( !-f $file );
-    ${$fileContent} = join(
-        "\n", nsort unique ( 'INBOX.Drafts', 'INBOX.Junk', 'INBOX.Sent', 'INBOX.Trash', ( length ${$fileContent} ? split /\n/, ${$fileContent} : () ))
+    ${ $fileContent } = join(
+        "\n", nsort unique( 'INBOX.Drafts', 'INBOX.Junk', 'INBOX.Sent', 'INBOX.Trash', ( length ${ $fileContent } ? split /\n/, ${ $fileContent } : () ))
     ) . "\n";
     $file->save()->owner( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} )->mode( 0640 );
     undef $file;
@@ -321,7 +321,7 @@ sub addMail
             || ( iMSCP::Getopt->context() eq 'backend' && $moduleData->{'STATUS'} eq 'tochange' )
             || !-f "$mailDir/maildirsize"
         ) {
-            my $rs = execute( [ 'maildirmake', '-q', "$moduleData->{'MAIL_QUOTA'}S", $mailDir ], \ my $stdout, \ my $stderr );
+            my $rs = execute( [ 'maildirmake', '-q', "$moduleData->{'MAIL_QUOTA'}S", $mailDir ], \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
 
@@ -346,7 +346,7 @@ sub addMail
 
 sub getTraffic
 {
-    my ($self, $trafficDb, $logFile, $trafficIndexDb) = @_;
+    my ( $self, $trafficDb, $logFile, $trafficIndexDb ) = @_;
     $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
 
     unless ( -f $logFile ) {
@@ -357,8 +357,8 @@ sub getTraffic
     debug( sprintf( 'Processing IMAP/POP3 %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
-    my ($idx, $idxContent) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
+    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    my ( $idx, $idxContent ) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
 
     tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
 
@@ -416,11 +416,11 @@ sub getTraffic
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$::imscpConfig{'CONF_DIR'}/courier" );
+    @{ $self }{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$::imscpConfig{'CONF_DIR'}/courier" );
     $self->SUPER::_init();
 }
 
@@ -434,9 +434,9 @@ sub _init
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
+    die( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
 }
 
 =item _setupSqlUser( )
@@ -449,7 +449,7 @@ sub _setVersion
 
 sub _setupSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $dbName = ::setupGetQuestion( 'DATABASE_NAME' );
     my $dbUser = ::setupGetQuestion( 'PO_AUTHDAEMON_SQL_USER' );
@@ -461,7 +461,7 @@ sub _setupSqlUser
     for my $sqlUser ( $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'}, $dbUser ) {
         next unless $sqlUser;
 
-        for my $host( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+        for my $host ( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
             next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
@@ -495,7 +495,7 @@ sub _setupSqlUser
 
 sub _configure
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeCourierConfigure' );
     $self->_setupSqlUser();
@@ -531,7 +531,7 @@ sub _configure
     );
 
     # Build local courier configuration files
-    for my $sname( qw/ imapd imapd-ssl pop3d pop3d-ssl / ) {
+    for my $sname ( qw/ imapd imapd-ssl pop3d pop3d-ssl / ) {
         next unless -f "$self->{'cfgDir'}/$sname.local" && -f "$self->{'config'}->{'PO_CONF_DIR'}/$sname";
 
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$sname" );
@@ -544,7 +544,7 @@ sub _configure
             $fileContentRef
         );
 
-        ${$fileContentRef} .= <<"EOF";
+        ${ $fileContentRef } .= <<"EOF";
 
 # iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN
 . $self->{'cfgDir'}/$sname.local
@@ -555,13 +555,13 @@ EOF
         tie my %localConf, 'iMSCP::Config', filename => "$self->{'cfgDir'}/$sname.local", nospaces => 1;
 
         if ( ::setupGetQuestion( 'IPV6_SUPPORT' ) ne 'yes' ) {
-            if ( grep( $sname eq $_, 'imapd', 'pop3d' ) ) {
+            if ( grep ( $sname eq $_, 'imapd', 'pop3d' ) ) {
                 $localConf{'ADDRESS'} = '0.0.0.0';
             } else {
                 $localConf{'SSLADDRESS'} = '0.0.0.0';
             }
         } else {
-            for my $param( qw/ ADDRESS SSLADDRESS / ) {
+            for my $param ( qw/ ADDRESS SSLADDRESS / ) {
                 next unless exists $localConf{$param} && $localConf{$param} eq '0.0.0.0';
                 delete $localConf{$param};
             }
@@ -584,7 +584,7 @@ EOF
 
 sub _setupPostfixSasl
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Add postfix user in `mail' group to make it able to access
     # authdaemon rundir
@@ -592,11 +592,14 @@ sub _setupPostfixSasl
 
     # Mount authdaemond socket directory in Postfix chroot
     # Postfix won't be able to connect to socket located outside of its chroot
-    my $fsSpec = File::Spec->canonpath( $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'} );
-    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'}" );
-    my $fields = { fs_spec => $fsSpec, fs_file => $fsFile, fs_vfstype => 'none', fs_mntops => 'bind,slave' };
+    my $fields = {
+        fs_spec    => $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'},
+        fs_file    => "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'}",
+        fs_vfstype => 'none',
+        fs_mntops  => 'bind,slave'
+    };
 
-    iMSCP::Dir->new( dirname => $fsFile )->make();
+    iMSCP::Dir->new( dirname => $fields->{'fs_file'} )->make();
 
     addMountEntry( "$fields->{'fs_spec'} $fields->{'fs_file'} $fields->{'fs_vfstype'} $fields->{'fs_mntops'}" );
     mount( $fields ) unless isMountpoint( $fields->{'fs_file'} );
@@ -633,13 +636,13 @@ sub _setupPostfixSasl
 
 sub _buildDHparametersFile
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless iMSCP::ProgramFinder::find( 'certtool' ) || iMSCP::ProgramFinder::find( 'mkdhparams' );
 
     if ( -f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem" ) {
         my $rs = execute(
-            [ 'openssl', 'dhparam', '-in', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem", '-text', '-noout' ], \ my $stdout, \ my $stderr
+            [ 'openssl', 'dhparam', '-in', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem", '-text', '-noout' ], \my $stdout, \my $stderr
         );
         debug( $stderr || 'Unknown error' ) if $rs;
         return if $rs == 0 && $stdout =~ /\((\d+)\s+bit\)/ && $1 >= 2048; # Don't regenerate file if not needed
@@ -651,7 +654,7 @@ sub _buildDHparametersFile
 
     step(
         sub {
-            my ($tmpFile, $cmd);
+            my ( $tmpFile, $cmd );
 
             if ( iMSCP::ProgramFinder::find( 'certtool' ) ) {
                 $tmpFile = File::Temp->new( UNLINK => 0 );
@@ -686,9 +689,9 @@ sub _buildDHparametersFile
 
 sub _buildAuthdaemonrcFile
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeCourierBuildConfFile', sub { ${$_[0]} =~ s/authmodulelist=".*"/authmodulelist="authmysql"/; } );
+    $self->{'eventManager'}->registerOne( 'beforeCourierBuildConfFile', sub { ${ $_[0] } =~ s/authmodulelist=".*"/authmodulelist="authmysql"/; } );
     $self->buildConfFile( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authdaemonrc",
         "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authdaemonrc", undef, undef,
         {
@@ -710,11 +713,11 @@ sub _buildAuthdaemonrcFile
 
 sub _buildSslConfFiles
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless ::setupGetQuestion( 'SERVICES_SSL_ENABLED', 'no' ) eq 'yes';
 
-    for my $filename( $self->{'config'}->{'PO_IMAP_SSL'}, $self->{'config'}->{'PO_POP_SSL'} ) {
+    for my $filename ( $self->{'config'}->{'PO_IMAP_SSL'}, $self->{'config'}->{'PO_POP_SSL'} ) {
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/$filename" );
         my $cfgTpl = $file->getAsRef( TRUE );
 
@@ -723,10 +726,10 @@ sub _buildSslConfFiles
 
         $self->{'eventManager'}->trigger( 'beforeCourierBuildSslConfFile', $cfgTpl, $filename );
 
-        if ( ${$cfgTpl} =~ /^TLS_CERTFILE=/gm ) {
-            ${$cfgTpl} =~ s!^(TLS_CERTFILE=).*!$1$::imscpConfig{'CONF_DIR'}/imscp_services.pem!gm;
+        if ( ${ $cfgTpl } =~ /^TLS_CERTFILE=/gm ) {
+            ${ $cfgTpl } =~ s!^(TLS_CERTFILE=).*!$1$::imscpConfig{'CONF_DIR'}/imscp_services.pem!gm;
         } else {
-            ${$cfgTpl} .= "TLS_CERTFILE=$::imscpConfig{'CONF_DIR'}/imscp_services.pem\n";
+            ${ $cfgTpl } .= "TLS_CERTFILE=$::imscpConfig{'CONF_DIR'}/imscp_services.pem\n";
         }
 
         $self->{'eventManager'}->trigger( 'afterCourierBuildSslConfFile', $cfgTpl, $filename );
@@ -745,7 +748,7 @@ sub _buildSslConfFiles
 
 sub _migrateFromDovecot
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless index( $::imscpOldConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;
 
@@ -754,8 +757,8 @@ sub _migrateFromDovecot
             'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/courier-dovecot-migrate.pl", '--to-courier', '--quiet', '--convert',
             '--overwrite', '--recursive', $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
         ],
-        \ my $stdout,
-        \ my $stderr
+        \my $stdout,
+        \my $stderr
     );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
@@ -774,7 +777,7 @@ sub _migrateFromDovecot
 
 sub _dropSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # In setup context, take value from old conffile, else take value from current conffile
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
@@ -795,7 +798,7 @@ sub _dropSqlUser
 
 sub _removeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Umount the courier-authdaemond rundir from the Postfix chroot
     my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'}" );
@@ -845,15 +848,15 @@ sub _removeConfig
 
 sub beforePostfixConfigure
 {
-    my ($courierServer) = @_;
+    my ( $courierServer ) = @_;
 
     my $rs = $courierServer->{'eventManager'}->register(
         'afterPostfixBuildFile',
         sub {
-            my ($cfgTpl, $cfgTplName) = @_;
+            my ( $cfgTpl, $cfgTplName ) = @_;
 
             return unless $cfgTplName eq 'master.cf';
-            ${$cfgTpl} .= <<"EOF";
+            ${ $cfgTpl } .= <<"EOF";
 maildrop  unix  -       n       n       -       -       pipe
  flags=DRhu user=$courierServer->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}:$courierServer->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} argv=maildrop -w 90 -d \${user}\@\${nexthop} \${extension} \${recipient} \${user} \${nexthop} \${sender}
 EOF

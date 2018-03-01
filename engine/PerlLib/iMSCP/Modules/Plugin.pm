@@ -59,7 +59,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Plugin';
 }
@@ -72,7 +72,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     eval {
         $self->_loadEntityData( $entityId );
@@ -137,7 +137,7 @@ sub handleEntity
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $ua->timeout( 5 );
     $ua->agent( 'i-MSCP/1.6 (+https://i-mscp.net/)' );
@@ -154,7 +154,7 @@ sub _init
 
 sub _loadEntityData
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         'SELECT plugin_name, plugin_info, plugin_config, plugin_config_prev, plugin_status FROM plugin WHERE plugin_id = ?', undef, $entityId
@@ -181,7 +181,7 @@ sub _loadEntityData
 
 sub _install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'onBeforeInstallPlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'install' );
@@ -199,7 +199,7 @@ sub _install
 
 sub _uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'onBeforeUninstallPlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'uninstall' );
@@ -216,7 +216,7 @@ sub _uninstall
 
 sub _enable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'onBeforeEnablePlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'enable' );
@@ -233,7 +233,7 @@ sub _enable
 
 sub _disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'onBeforeDisablePlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'disable' );
@@ -250,7 +250,7 @@ sub _disable
 
 sub _change
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_disable();
     $self->{'eventManager'}->trigger( 'onBeforeChangePlugin', $self->{'_data'}->{'plugin_name'} );
@@ -281,7 +281,7 @@ sub _change
 
 sub _update
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_disable();
     $self->{'eventManager'}->trigger( 'onBeforeUpdatePlugin', $self->{'_data'}->{'plugin_name'} );
@@ -322,7 +322,7 @@ sub _update
 
 sub _run
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'onBeforeRunPlugin', $self->{'_data'}->{'plugin_name'} );
     $self->_executePluginAction( 'run' );
@@ -347,7 +347,7 @@ sub _run
 
 sub _executePluginAction
 {
-    my ($self, $action) = @_;
+    my ( $self, $action ) = @_;
 
     unless ( $self->{'_plugin_instances'}->{$self->{'_data'}->{'plugin_id'}} ) {
         local $SIG{'__WARN__'} = sub { die @_ }; # Turn any warning from plugin into exception

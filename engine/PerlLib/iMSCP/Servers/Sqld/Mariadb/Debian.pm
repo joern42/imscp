@@ -55,12 +55,12 @@ our $VERSION = '2.0.0';
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->enable( 'mariadb' );
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ]; }, $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->restart(); }, $self->getHumanServerName() ]; }, $self->getPriority()
     );
 }
 
@@ -74,7 +74,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_removeConfig();
 
@@ -90,7 +90,7 @@ sub uninstall
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'mariadb' );
 }
@@ -103,7 +103,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'mariadb' );
 }
@@ -116,7 +116,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'mariadb' );
 }
@@ -129,7 +129,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( 'mariadb' );
 }
@@ -142,7 +142,7 @@ sub reload
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'MariaDB %s', $self->getVersion());
 }
@@ -155,7 +155,7 @@ sub getHumanServerName
 
 sub createUser
 {
-    my (undef, $user, $host, $password) = @_;
+    my ( undef, $user, $host, $password ) = @_;
 
     defined $user or croak( '$user parameter is not defined' );
     defined $host or croak( '$host parameter is not defined' );
@@ -186,7 +186,7 @@ sub createUser
 
 sub _setVendor
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     debug( sprintf( 'SQL server vendor set to: %s', 'MariaDB' ));
     $self->{'config'}->{'SQLD_VENDOR'} = 'MariaDB';
@@ -200,7 +200,7 @@ sub _setVendor
 
 sub _buildConf
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Make sure that the conf.d directory exists
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
@@ -213,10 +213,10 @@ sub _buildConf
     $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
-            unless ( defined ${$_[0]} ) {
-                ${$_[0]} = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
-            } elsif ( ${$_[0]} !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
-                ${$_[0]} .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            unless ( defined ${ $_[0] } ) {
+                ${ $_[0] } = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            } elsif ( ${ $_[0] } !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
+                ${ $_[0] } .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
             }
         }
     );
@@ -265,7 +265,7 @@ EOF
 
 sub _updateServerConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Upgrade MySQL tables if necessary
     {
@@ -299,7 +299,7 @@ EOF
 
     # Disable unwanted plugins (bc reasons)
     my $dbh = iMSCP::Database->getInstance();
-    for my $plugin( qw/ cracklib_password_check simple_password_check unix_socket validate_password / ) {
+    for my $plugin ( qw/ cracklib_password_check simple_password_check unix_socket validate_password / ) {
         $dbh->do( "UNINSTALL PLUGIN $plugin" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
     }
 

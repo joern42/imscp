@@ -46,7 +46,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub getList
 {
-    @{$_[0]->{'servers'}};
+    @{ $_[0]->{'servers'} };
 }
 
 =item getListWithFullNames( )
@@ -59,7 +59,7 @@ sub getList
 
 sub getListWithFullNames
 {
-    @{$_[0]->{'servers_full_names'}};
+    @{ $_[0]->{'servers_full_names'} };
 }
 
 =back
@@ -78,19 +78,19 @@ sub getListWithFullNames
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    s%^.*?([^/]+)\.pm$%$1% for @{$self->{'servers'}} = grep (!/(?:Abstract|NoServer)\.pm$/, glob( dirname( __FILE__ ) . '/Servers/*.pm' ) );
+    s%^.*?([^/]+)\.pm$%$1% for @{ $self->{'servers'} } = grep (!/(?:Abstract|NoServer)\.pm$/, glob( dirname( __FILE__ ) . '/Servers/*.pm' ) );
 
     # Load all server
-    for my $server( @{$self->{'servers'}} ) {
+    for my $server ( @{ $self->{'servers'} } ) {
         my $fserver = "iMSCP::Servers::${server}";
         eval "require $fserver; 1" or die( sprintf( "Couldn't load %s server class: %s", $fserver, $@ ));
     }
 
     # Sort servers by priority (descending order)
-    @{$self->{'servers'}} = sort { "iMSCP::Servers::${b}"->getPriority() <=> "iMSCP::Servers::${a}"->getPriority() } @{$self->{'servers'}};
-    @{$self->{'servers_full_names'}} = map { "iMSCP::Servers::${_}" } @{$self->{'servers'}};
+    @{ $self->{'servers'} } = sort { "iMSCP::Servers::${b}"->getPriority() <=> "iMSCP::Servers::${a}"->getPriority() } @{ $self->{'servers'} };
+    @{ $self->{'servers_full_names'} } = map { "iMSCP::Servers::${_}" } @{ $self->{'servers'} };
     $self;
 }
 

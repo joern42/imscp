@@ -49,7 +49,7 @@ use parent qw/ iMSCP::Providers::Service::Upstart iMSCP::Providers::Service::Deb
 
 sub isEnabled
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'parameter $job is not defined' );
 
@@ -66,7 +66,7 @@ sub isEnabled
 
 sub enable
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'parameter $job is not defined' );
 
@@ -82,7 +82,7 @@ sub enable
 
 sub disable
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'parameter $job is not defined' );
 
@@ -98,7 +98,7 @@ sub disable
 
 sub remove
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'parameter $job is not defined' );
 
@@ -114,7 +114,7 @@ sub remove
 
 sub hasService
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'parameter $service is not defined' );
 

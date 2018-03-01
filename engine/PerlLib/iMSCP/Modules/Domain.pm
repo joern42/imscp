@@ -44,7 +44,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Domain';
 }
@@ -57,7 +57,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     $self->_loadEntityData( $entityId );
 
@@ -90,7 +90,7 @@ sub handleEntity
 
 sub _loadEntityData
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         "
@@ -121,7 +121,7 @@ sub _loadEntityData
 
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'domain_admin_id'} );
     my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$self->{'domain_name'}" );
-    my ($ssl, $hstsMaxAge, $hstsIncSub, $phpini) = ( 0, 0, 0, {} );
+    my ( $ssl, $hstsMaxAge, $hstsIncSub, $phpini ) = ( 0, 0, 0, {} );
 
     if ( $row->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'domain_name'}.pem" ) {
         $ssl = 1;
@@ -195,7 +195,7 @@ sub _loadEntityData
 
 sub _add
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
@@ -210,7 +210,7 @@ sub _add
 
 sub _delete
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
@@ -230,7 +230,7 @@ sub _delete
 
 sub _disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'DOMAIN_ID'} );
@@ -245,7 +245,7 @@ sub _disable
 
 sub _restore
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_restore(); };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );

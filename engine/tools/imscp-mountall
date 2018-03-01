@@ -36,7 +36,7 @@ use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ mount umount isMountpoint getMounts /;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -44,7 +44,7 @@ $ENV{'LANG'} = 'C.UTF-8';
 
 sub run
 {
-    my ($action) = @_;
+    my ( $action ) = @_;
 
     my $fstab = "$::imscpConfig{'CONF_DIR'}/mounts/mounts.conf";
     return unless -f $fstab;
@@ -55,7 +55,7 @@ sub run
         next if /^(?:#|$)/; # Ignore comment and empty lines
         chomp;
         my $fields;
-        @{$fields}{ qw/ fs_spec fs_file fs_vfstype fs_mntops ignore_failures / } = split;
+        @{ $fields }{ qw/ fs_spec fs_file fs_vfstype fs_mntops ignore_failures / } = split;
 
         if ( $action eq 'start' ) {
             next if $fields->{'fs_mntops'} =~ /\bnoauto\b/;
@@ -68,7 +68,7 @@ sub run
 
 newDebug( 'imscp_mountall.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]... start|stop', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]... start|stop', basename( $0 )) . qq{
 
 Mount or umount filesystems by reading entries from i-MSCP fstab-like file.
 

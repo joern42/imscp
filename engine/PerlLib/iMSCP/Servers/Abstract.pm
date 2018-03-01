@@ -82,7 +82,7 @@ sub getPriority
 
 sub factory
 {
-    my ($class, $serverClass) = @_;
+    my ( $class, $serverClass ) = @_;
 
     # Restrict call of the factory to iMSCP::Servers::* abstract classes
     $class =~ tr/:// < 5 or croak( sprintf( 'The factory() method cannot be called on the %s server class', $class ));
@@ -125,11 +125,11 @@ sub factory
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
-        sub { push @{$_[0]}, sub { $self->askDnsServerMode( @_ ) }, sub { $self->askIPv6Support( @_ ) }, sub { $self->askLocalDnsResolver( @_ ) }; },
+        sub { push @{ $_[0] }, sub { $self->askDnsServerMode( @_ ) }, sub { $self->askIPv6Support( @_ ) }, sub { $self->askLocalDnsResolver( @_ ) }; },
         $self->getPriority()
     );
 }
@@ -149,7 +149,7 @@ sub registerSetupListeners
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->stop();
 }
@@ -168,7 +168,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item postinstall( )
@@ -186,10 +186,10 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ]; }, $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->start(); }, $self->getHumanServerName() ]; }, $self->getPriority()
     );
 }
 
@@ -207,7 +207,7 @@ sub postinstall
 
 sub preuninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item uninstall( )
@@ -224,7 +224,7 @@ sub preuninstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item postuninstall( )
@@ -241,7 +241,7 @@ sub uninstall
 
 sub postuninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item setEnginePermissions( )
@@ -259,7 +259,7 @@ sub postuninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item getServerName( )
@@ -275,9 +275,9 @@ sub setEnginePermissions
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the getServerName() method', ref $self ));
+    die( sprintf( 'The %s class must implement the getServerName() method', ref $self ));
 }
 
 =item getHumanServerName( )
@@ -290,9 +290,9 @@ sub getServerName
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the getHumanServerName() method', ref $self ));
+    die( sprintf( 'The %s class must implement the getHumanServerName() method', ref $self ));
 }
 
 =item getImplVersion()
@@ -305,10 +305,10 @@ sub getHumanServerName
 
 sub getImplVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     no strict 'refs';
-    ${"@{[ ref $self ]}::VERSION"} // '0.0.0';
+    ${ "@{ [ ref $self ] }::VERSION" } // '0.0.0';
 }
 
 =item getVersion()
@@ -321,9 +321,9 @@ sub getImplVersion
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
+    die( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
 }
 
 =item dpkgPostInvokeTasks()
@@ -341,7 +341,7 @@ sub getVersion
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
@@ -357,7 +357,7 @@ sub dpkgPostInvokeTasks
 
 sub getTraffic
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item start( )
@@ -370,9 +370,9 @@ sub getTraffic
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the start() method', ref $self ));
+    die( sprintf( 'The %s class must implement the start() method', ref $self ));
 }
 
 =item stop( )
@@ -385,9 +385,9 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the stop() method', ref $self ));
+    die( sprintf( 'The %s class must implement the stop() method', ref $self ));
 }
 
 =item restart( )
@@ -400,9 +400,9 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the restart() method', ref $self ));
+    die( sprintf( 'The %s class must implement the restart() method', ref $self ));
 }
 
 =item reload( )
@@ -415,9 +415,9 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the reload() method', ref $self ));
+    die( sprintf( 'The %s class must implement the reload() method', ref $self ));
 }
 
 =item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
@@ -448,7 +448,7 @@ sub reload
 
 sub buildConfFile
 {
-    my ($self, $srcFile, $trgFile, $mdata, $sdata, $params) = @_;
+    my ( $self, $srcFile, $trgFile, $mdata, $sdata, $params ) = @_;
     $mdata //= {};
     $sdata //= {};
     $params //= {};
@@ -456,8 +456,8 @@ sub buildConfFile
     defined $srcFile or croak( 'Missing or undefined $srcFile parameter' );
     defined $trgFile or croak( 'Missing or undefined $trgFile parameter' );
 
-    my ($sname, $cfgTpl) = ( $self->getServerName(), undef );
-    my ($filename, $path) = fileparse( $srcFile );
+    my ( $sname, $cfgTpl ) = ( $self->getServerName(), undef );
+    my ( $filename, $path ) = fileparse( $srcFile );
     $params->{'srcname'} //= $filename;
 
     my $file;
@@ -486,15 +486,15 @@ sub buildConfFile
 
     # Localize changes as we want keep the template clean for further processing (caching)
     local $file->{'file_content'};
-    
+
     $cfgTpl = $file->getAsRef();
 
     $self->{'eventManager'}->trigger(
         "before${sname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
     );
 
-    processByRef( $sdata, $cfgTpl ) if %{$sdata}; # Process server data (highter priority
-    processByRef( $mdata, $cfgTpl ) if %{$mdata}; # Process module data
+    processByRef( $sdata, $cfgTpl ) if %{ $sdata }; # Process server data (highter priority
+    processByRef( $mdata, $cfgTpl ) if %{ $mdata }; # Process module data
 
     $self->{'eventManager'}->trigger(
         "after${sname}dBuildConfFile", $cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
@@ -529,10 +529,10 @@ sub AUTOLOAD
 
     # Define the subroutine to prevent further evaluation
     no strict 'refs';
-    *{$AUTOLOAD} = sub {};
+    *{ $AUTOLOAD } = sub {};
 
     # Errase stack frame
-    goto &{$AUTOLOAD};
+    goto &{ $AUTOLOAD };
 }
 
 =back
@@ -549,7 +549,7 @@ sub AUTOLOAD
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
@@ -571,7 +571,7 @@ sub _init
 
 sub _loadConfig
 {
-    my ($self, $filename) = @_;
+    my ( $self, $filename ) = @_;
     $filename //= lc( $self->getServerName() . '.data' );
 
     defined $filename or croak( 'Missing $filename parameter' );
@@ -612,7 +612,7 @@ sub _loadConfig
 
             tie my %newConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/$filename.dist";
 
-            while ( my ($key, $value) = each( %oldConfig ) ) {
+            while ( my ( $key, $value ) = each( %oldConfig ) ) {
                 $newConfig{$key} = $value if exists $newConfig{$key};
             }
 
@@ -638,7 +638,7 @@ sub _loadConfig
 
     debug( sprintf( 'Loading %s server configuration...', $self->getServerName()));
 
-    tie %{$self->{'config'}},
+    tie %{ $self->{'config'} },
         'iMSCP::Config',
         filename    => "$self->{'cfgDir'}/$filename",
         readonly    => iMSCP::Getopt->context() ne 'installer',
@@ -665,7 +665,7 @@ sub _loadConfig
 
 sub _shutdown
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item END

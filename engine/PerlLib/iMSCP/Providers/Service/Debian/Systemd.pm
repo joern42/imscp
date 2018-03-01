@@ -53,12 +53,12 @@ use parent qw/ iMSCP::Providers::Service::Systemd iMSCP::Providers::Service::Deb
 
 sub isEnabled
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     # We need to catch STDERR here as we do not want raise failure when command
     # status is other than 0 but no STDERR
     my $ret = $self->_exec(
-        [ $iMSCP::Providers::Service::Systemd::COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \ my $stdout, \ my $stderr
+        [ $iMSCP::Providers::Service::Systemd::COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \my $stdout, \my $stderr
     );
     die( $stderr ) if $ret && $stderr;
 
@@ -73,7 +73,7 @@ sub isEnabled
     if ( $ret > 0 && !length $self->_getLastExecOutput() ) {
         # For the SysVinit scripts, we want operate only on services
         ( $unit, undef, my $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
-        return $self->iMSCP::Providers::Service::Debian::Sysvinit::isEnabled( $unit ) if grep( $suffix eq $_, '', '.service' );
+        return $self->iMSCP::Providers::Service::Debian::Sysvinit::isEnabled( $unit ) if grep ( $suffix eq $_, '', '.service' );
     }
 
     # The command status 0 indicate that the service is enabled
@@ -88,13 +88,13 @@ sub isEnabled
 
 sub remove
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or die( 'parameter $unit is not defined' );
 
     # For the SysVinit scripts, we want operate only on services
     my ( $init, undef, $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
-    $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $init ) if grep( $suffix eq $_, '', '.service' );
+    $self->iMSCP::Providers::Service::Debian::Sysvinit::remove( $init ) if grep ( $suffix eq $_, '', '.service' );
     $self->SUPER::remove( $unit );
 }
 

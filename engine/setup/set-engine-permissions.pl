@@ -39,7 +39,7 @@ use iMSCP::Getopt;
 use iMSCP::Rights;
 use iMSCP::Servers;
 use iMSCP::Packages;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -47,7 +47,7 @@ $ENV{'LANG'} = 'C.UTF-8';
 
 newDebug( 'imscp-set-engine-permissions.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Set i-MSCP engine permissions.
 
@@ -70,10 +70,10 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 
 my @items = ();
-for my $server(iMSCP::Servers->getInstance()->getListWithFullNames()) {
+for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     push @items, [ $server, sub { $server->factory()->setEnginePermissions(); } ];
 }
-for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;
     push @items, [ $package, sub { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); } ];
 }
@@ -130,7 +130,7 @@ setRights( $::imscpConfig{'LOG_DIR'},
 
 $count++;
 
-for my $item( @items ) {
+for my $item ( @items ) {
     debug( sprintf( 'Setting %s engine permissions', $item->[0] ));
     printf( "Setting %s engine permissions\t%s\t%s\n", $item->[0], $totalItems, $count++ ) if iMSCP::Getopt->context() eq 'installer';
     $item->[1]->();

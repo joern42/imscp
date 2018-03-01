@@ -50,7 +50,7 @@ our $VERSION = '1.0.0';
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->enable( 'cron.target' );
     $self->iMSCP::Servers::Cron::postinstall();
@@ -64,7 +64,7 @@ sub postinstall
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'Cron (Systemd) %s', $self->getVersion());
 }
@@ -77,7 +77,7 @@ sub getHumanServerName
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'cron.target' );
 }
@@ -90,7 +90,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'cron.target' );
 }
@@ -103,7 +103,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'cron.target' );
 }
@@ -116,7 +116,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Job type reload is not applicable for unit cron.target, do a restart instead
     $self->restart();
@@ -136,16 +136,15 @@ sub reload
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $rs = execute( 'dpkg -s systemd-cron | grep -i \'^version\'', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'dpkg -s systemd-cron | grep -i \'^version\'', \my $stdout, \my $stderr );
     !$rs or die( $stderr || 'Unknown error' );
     $stdout =~ /version:\s+([\d.]+)/i or die(
         "Couldn't guess Cron (Systemd) version from the `dpkg -s systemd-cron | grep -i '^version'` command output"
     );
     $self->{'config'}->{'CRON_VERSION'} = $1;
     debug( sprintf( 'Cron (Systemd) version set to: %s', $1 ));
-    0;
 }
 
 =back

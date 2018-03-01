@@ -61,12 +61,12 @@ sub getPriority
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->restart(); }, $self->getHumanServerName() ];
+            push @{ $_[0] }, [ sub { $self->restart(); }, $self->getHumanServerName() ];
             0;
         },
         $self->getPriority()
@@ -85,7 +85,7 @@ sub postinstall
 
 sub getVendor
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'SQLD_VENDOR'};
 }
@@ -98,7 +98,7 @@ sub getVendor
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'SQLD_VERSION'};
 }
@@ -116,9 +116,9 @@ sub getVersion
 
 sub createUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the createUser() method', ref $self ));
+    die( sprintf( 'The %s class must implement the createUser() method', ref $self ));
 }
 
 =item dropUser( $user, $host )
@@ -133,9 +133,9 @@ sub createUser
 
 sub dropUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the dropUser() method', ref $self ));
+    die( sprintf( 'The %s class must implement the dropUser() method', ref $self ));
 }
 
 =item restoreDomain ( \%moduleData )
@@ -157,9 +157,9 @@ sub dropUser
 
 sub restoreDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the restoreDomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the restoreDomain() method', ref $self ));
 }
 
 =back
@@ -176,7 +176,7 @@ sub restoreDomain
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 

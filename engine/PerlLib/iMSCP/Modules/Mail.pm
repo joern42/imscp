@@ -43,7 +43,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Mail';
 }
@@ -56,7 +56,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     $self->_loadEntityData( $entityId );
 
@@ -87,7 +87,7 @@ sub handleEntity
 
 sub _loadEntityData
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         'SELECT mail_id, mail_acc, mail_pass, mail_forward, mail_type, mail_auto_respond, status, quota, mail_addr FROM mail_users WHERE mail_id = ?',
@@ -96,7 +96,7 @@ sub _loadEntityData
     );
     $row or die( sprintf( 'Data not found for mail user (ID %d)', $entityId ));
 
-    my ($user, $domain) = split '@', $self->{'mail_addr'};
+    my ( $user, $domain ) = split '@', $self->{'mail_addr'};
 
     $self->{'_data'} = {
         STATUS                  => $row->{'status'},
@@ -122,7 +122,7 @@ sub _loadEntityData
 
 sub _add
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'MAIL_ID'} );
@@ -137,7 +137,7 @@ sub _add
 
 sub _delete
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
@@ -157,7 +157,7 @@ sub _delete
 
 sub _disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'MAIL_ID'} );

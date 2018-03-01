@@ -48,10 +48,10 @@ use parent 'iMSCP::Common::Singleton';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->imscpBackupDialog( @_ ) }, sub { $self->customersBackupDialog( @_ ) }; }
+        'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->imscpBackupDialog( @_ ) }, sub { $self->customersBackupDialog( @_ ) }; }
     );
 }
 
@@ -66,13 +66,13 @@ sub registerSetupListeners
 
 sub imscpBackupDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'BACKUP_IMSCP', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'yes' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
 \\Z4\\Zb\\Zui-MSCP Backup Feature\\Zn
 
 Do you want to activate the backup feature for i-MSCP (config files and database)?
@@ -96,13 +96,13 @@ EOF
 
 sub customersBackupDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'BACKUP_DOMAINS', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'yes' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
 \\Z4\\Zb\\ZuDomains Backup Feature\\Zn
 
 Do you want to activate the backup feature for customers?
@@ -125,7 +125,7 @@ EOF
 
 sub getPriority
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     200;
 }
@@ -140,7 +140,7 @@ sub getPriority
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 
@@ -172,7 +172,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $cronServer = iMSCP::Servers::Cron->factory();
 

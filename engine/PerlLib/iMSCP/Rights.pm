@@ -63,10 +63,10 @@ our @EXPORT = qw/ setRights /;
 
 sub setRights
 {
-    my ($target, $attrs) = @_;
+    my ( $target, $attrs ) = @_;
 
     defined $target or croak( '$target parameter is not defined' );
-    ref $attrs eq 'HASH' && %{$attrs} or croak( 'attrs parameter is not defined or is not a hashref' );
+    ref $attrs eq 'HASH' && %{ $attrs } or croak( 'attrs parameter is not defined or is not a hashref' );
 
     # Return early if none of accepted attributes is defined. This is the case
     # when that function is used dynamically, and when setting of permissions

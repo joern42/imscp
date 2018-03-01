@@ -39,7 +39,7 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
 use iMSCP::Service;
 use iMSCP::ProgramFinder;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -57,25 +57,25 @@ sub run
     my $timestamp = time;
     $timestamp -= ( $timestamp % 1800 ); # Floor down for the last half'n hour
 
-    for my $exec( @execs ) {
+    for my $exec ( @execs ) {
         defined $exec or next;
 
         # Make sure that at least one of IMSCP_INPUT or IMSCP_OUTPUT chain exists
-        my $rs = execute( "$exec -S | grep -P -- '-N\\s+IMSCP_'", \ my $stdout, \ my $stderr );
+        my $rs = execute( "$exec -S | grep -P -- '-N\\s+IMSCP_'", \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         $rs < 2 or die( $stderr || 'Unknown error' ) if $rs > 1;
 
         next unless $stdout;
 
         my %chains = (
-            IMSCP_INPUT  => \ my $inputTraffic,
-            IMSCP_OUTPUT => \ my $outputTraffic
+            IMSCP_INPUT  => \my $inputTraffic,
+            IMSCP_OUTPUT => \my $outputTraffic
         );
 
         # Get input and output traffic data
         while ( $stdout =~ /-N\s+(.*)/gm ) {
             $rs = execute( "$exec -t filter -nvxL $1", $chains{$1}, \$stderr );
-            debug( ${$chains{$1}} ) if ${$chains{$1}};
+            debug( ${ $chains{$1} } ) if ${ $chains{$1} };
             !$rs or die( $stderr || 'Unknown error' ) if $rs;
         }
 
@@ -115,21 +115,21 @@ sub _parseTrafficData
     my $frontEndHttpPort = $::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'};
     my $frontEndHttpsPort = $::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
 
-    while ( ${$trafficData} =~ /^\s+\d+\s+(\d+).*?(?:(?:dpt|spt):(\d+))?$/gm ) {
-        my ($bytes, $port) = ( $1, $2 // 0 );
+    while ( ${ $trafficData } =~ /^\s+\d+\s+(\d+).*?(?:(?:dpt|spt):(\d+))?$/gm ) {
+        my ( $bytes, $port ) = ( $1, $2 // 0 );
         if ( $port > 0 ) {
-            ${$smtp} += $bytes if $port =~ /^(?:587|25|465)$/;
-            ${$po} += $bytes if $port =~ /^(?:110|995|143|993)$/;
-            ${$http} += $bytes if $port =~ /^(?:80|443|$frontEndHttpPort|$frontEndHttpsPort)$/;
+            ${ $smtp } += $bytes if $port =~ /^(?:587|25|465)$/;
+            ${ $po } += $bytes if $port =~ /^(?:110|995|143|993)$/;
+            ${ $http } += $bytes if $port =~ /^(?:80|443|$frontEndHttpPort|$frontEndHttpsPort)$/;
         } else {
-            ${$all} += $bytes;
+            ${ $all } += $bytes;
         }
     }
 }
 
 newDebug( 'imscp-srv-traff.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Collects i-MSCP server traffic data.
 

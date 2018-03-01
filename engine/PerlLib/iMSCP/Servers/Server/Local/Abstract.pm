@@ -52,12 +52,12 @@ use parent 'iMSCP::Servers::Server';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{$_[0]}, sub { $self->hostnameDialog( @_ ); }, sub { $self->askIPv6Support( @_ ) }, sub { $self->primaryIpDialog( @_ ); },
+            push @{ $_[0] }, sub { $self->hostnameDialog( @_ ); }, sub { $self->askIPv6Support( @_ ) }, sub { $self->primaryIpDialog( @_ ); },
                 sub { $self->timezoneDialog( @_ ); };
         },
         # We want show these dialog before the sqld server dialogs (sqld priority + 10)
@@ -76,7 +76,7 @@ sub registerSetupListeners
 
 sub hostnameDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME', iMSCP::Getopt->preseed ? `hostname --fqdn 2>/dev/null` || '' : '' );
     chomp( $hostname );
@@ -121,7 +121,7 @@ EOF
 
 sub askIPv6Support
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     unless ( -f '/proc/net/if_inet6' ) {
         ::setupSetQuestion( 'IPV6_SUPPORT', 'no' );
@@ -134,7 +134,7 @@ sub askIPv6Support
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'ipv6', 'servers', 'all', 'forced' ] )
         || !isStringInList( $value, keys %choices )
     ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'yes' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
 Do you want to enable IPv6 support?
 
 If you select the 'No' option, IPv6 support will be disabled globally. You'll not be able to add new IPv6 addresses and services will be configured to listen on IPv4 only.
@@ -159,11 +159,11 @@ EOF
 
 sub primaryIpDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my @ipList = ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes'
-            ? grep(isValidIpAddr( $_, qr/(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)/ ), iMSCP::Net->getInstance()->getAddresses())
-            : grep(isValidIpAddr( $_, qr/(?:PRIVATE|PUBLIC)/ ), iMSCP::Net->getInstance()->getAddresses())
+        ? grep (isValidIpAddr( $_, qr/(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)/ ), iMSCP::Net->getInstance()->getAddresses())
+        : grep (isValidIpAddr( $_, qr/(?:PRIVATE|PUBLIC)/ ), iMSCP::Net->getInstance()->getAddresses())
         ,
         'None'
     );
@@ -180,22 +180,22 @@ sub primaryIpDialog
         'BASE_SERVER_PUBLIC_IP',
         ( iMSCP::Getopt->preseed
             ? do {
-                chomp( my $wanIP = get( 'https://api.ipify.org/' ) || get( 'https://ipinfo.io/ip/' ) || $lanIP );
-                $wanIP;
-            }
+            chomp( my $wanIP = get( 'https://api.ipify.org/' ) || get( 'https://ipinfo.io/ip/' ) || $lanIP );
+            $wanIP;
+        }
             : ''
         )
     );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'servers', 'all', 'forced' ] )
-        || !grep( $_ eq $lanIP, @ipList )
+        || !grep ( $_ eq $lanIP, @ipList )
     ) {
         my $rs = 0;
 
         do {
             my %choices;
             @choices{@ipList} = @ipList;
-            ( $rs, $lanIP ) = $dialog->radiolist( <<"EOF", \%choices, grep( $_ eq $lanIP, @ipList ) ? $lanIP : $ipList[0] );
+            ( $rs, $lanIP ) = $dialog->radiolist( <<"EOF", \%choices, grep ( $_ eq $lanIP, @ipList ) ? $lanIP : $ipList[0] );
 Please select your server primary IP address:
 
 The \\Zb`None'\\ZB option means that i-MSCP will configure the services to listen on all interfaces.
@@ -263,7 +263,7 @@ EOF
 
 sub timezoneDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $timezone = ::setupGetQuestion( 'TIMEZONE', iMSCP::Getopt->preseed ? DateTime::TimeZone->new( name => 'local' )->name() : '' );
 
@@ -302,7 +302,7 @@ EOF
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setupHostname();
     $self->_setupSysctl();
@@ -317,7 +317,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item uninstall( )
@@ -328,7 +328,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::File->new( filename => "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" )->remove();
 }
@@ -341,7 +341,7 @@ sub uninstall
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'LocalServer';
 }
@@ -354,7 +354,7 @@ sub getServerName
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( '%s %s', $self->{'config'}->{'DISTRO_ID'}, $self->{'config'}->{'DISTRO_RELEASE'} );
 }
@@ -367,7 +367,7 @@ sub getHumanServerName
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'DISTRO_RELEASE'};
 }
@@ -380,7 +380,7 @@ sub getVersion
 
 sub addIpAddr
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeLocalServerAddIpAddr', $moduleData );
 
@@ -400,7 +400,7 @@ sub addIpAddr
 
 sub deleteIpAddr
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteIpAddr', $moduleData );
 
@@ -420,7 +420,7 @@ sub deleteIpAddr
 
 sub addUser
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeLocalServerAddUser', $moduleData );
     $self->{'eventManager'}->trigger( 'afterLocalServerAddUser', $moduleData );
@@ -434,7 +434,7 @@ sub addUser
 
 sub deleteUser
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteUser', $moduleData );
     $self->{'eventManager'}->trigger( 'afterLocalServerDeleteUser', $moduleData );
@@ -448,7 +448,7 @@ sub deleteUser
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item stop( )
@@ -459,7 +459,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item restart( )
@@ -470,7 +470,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item reload( )
@@ -481,7 +481,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =back
@@ -498,7 +498,7 @@ sub reload
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
@@ -519,7 +519,7 @@ sub _init
 
 sub _loadConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'} = \%::imscpConfig;
     $self->{'cfgDir'} = $self->{'config'}->{'CONF_DIR'};
@@ -535,7 +535,7 @@ sub _loadConfig
 
 sub _setupHostname
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $lanIP = ::setupGetQuestion( 'BASE_SERVER_IP' );
@@ -579,9 +579,9 @@ EOF
     undef $conffile;
 
     # Make new hostname effective
-    my $rs = execute( 'hostname --file /etc/hostname', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'hostname --file /etc/hostname', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    !$rs or die ( $stderr || "Couldn't set server hostname" );
+    !$rs or die( $stderr || "Couldn't set server hostname" );
 }
 
 =item _setupSysctl()
@@ -594,7 +594,7 @@ EOF
 
 sub _setupSysctl
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # FIXME: Should we operate differently for vps? Some don't allow overriding of default SYSCTL(8) parameters
     my $sysctlFile = File::Temp->new();
@@ -613,7 +613,7 @@ EOF
     $self->buildConfFile( $sysctlFile, "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf", undef, undef, { srcname => 'sysctl_imscp.conf' } );
 
     # Don't catch any error here to avoid permission denied error on some vps due to restrictions set by provider
-    execute( [ $self->{'config'}->{'CMD_SYSCTL'}, '-p', "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" ], \ my $stdout, \ my $stderr );
+    execute( [ $self->{'config'}->{'CMD_SYSCTL'}, '-p', "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     debug( $stderr ) if $stderr;
 }
@@ -628,7 +628,7 @@ EOF
 
 sub _setupPrimaryIP
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $primaryIP = ::setupGetQuestion( 'BASE_SERVER_IP' );
     $self->{'eventManager'}->trigger( 'beforeLocalServerSetupPrimaryIP', $primaryIP );
@@ -647,12 +647,12 @@ sub _setupPrimaryIP
 
     if ( ::setupGetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP' ) ) {
         my $resellers = $db->selectall_arrayref( 'SELECT reseller_id, reseller_ips FROM reseller_props', { Slice => {} } );
-        if ( @{$resellers} ) {
+        if ( @{ $resellers } ) {
             my $primaryIpID = $db->selectrow_array( 'SELECT ip_id FROM server_ips WHERE ip_number = ?', undef, $primaryIP );
 
-            for my $reseller( @{$resellers} ) {
+            for my $reseller ( @{ $resellers } ) {
                 my @ipIDS = split( ';', $reseller->{'reseller_ips'} );
-                next if grep($_ eq $primaryIpID, @ipIDS );
+                next if grep ($_ eq $primaryIpID, @ipIDS );
                 push @ipIDS, $primaryIpID;
                 $db->do( 'UPDATE reseller_props SET reseller_ips = ? WHERE reseller_id = ?', undef, join( ';', @ipIDS ) . ';' );
             }

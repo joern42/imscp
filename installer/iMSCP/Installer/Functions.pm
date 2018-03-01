@@ -712,7 +712,7 @@ sub _savePersistentData
 
 sub _removeObsoleteFiles
 {
-    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.6.0' );
 
     for my $dir ( "$::imscpConfig{'CACHE_DATA_DIR'}/addons",
         "$::imscpConfig{'CONF_DIR'}/apache/backup",                   # To be moved in cleanup routine from Apache2 server

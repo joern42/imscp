@@ -42,14 +42,14 @@ BEGIN {
         exit 1;
     };
     $SIG{'__WARN__'} = sub {
-        warning( shift =~ s/\n$//r);
+        warning( shift =~ s/\n$//r );
     };
 }
 
 my $self;
 $self = {
     loggers => [ iMSCP::Log->new( id => 'default' ) ],
-    logger  => sub { $self->{'loggers'}->[$#{$self->{'loggers'}}] }
+    logger  => sub { $self->{'loggers'}->[$#{ $self->{'loggers'} }] }
 };
 
 =head1 DESCRIPTION
@@ -70,13 +70,13 @@ $self = {
 
 =cut
 
-sub newDebug($)
+sub newDebug( $ )
 {
-    my ($logFileId) = @_;
+    my ( $logFileId ) = @_;
 
     defined $logFileId or die( 'A log file unique identifier is expected' );
-    !grep( $_->getId() eq $logFileId, @{$self->{'loggers'}} ) or die( 'A logger with same identifier already exists' );
-    push @{$self->{'loggers'}}, iMSCP::Log->new( id => $logFileId );
+    !grep ( $_->getId() eq $logFileId, @{ $self->{'loggers'} } ) or die( 'A logger with same identifier already exists' );
+    push @{ $self->{'loggers'} }, iMSCP::Log->new( id => $logFileId );
 }
 
 =item endDebug( )
@@ -94,12 +94,12 @@ sub endDebug
 
     return if $logger->getId() eq 'default';
 
-    pop @{$self->{'loggers'}}; # Remove logger from loggers stack
+    pop @{ $self->{'loggers'} }; # Remove logger from loggers stack
 
     # warn, error and fatal log messages must be always stored in default
     # logger for later processing
-    for my $log( $logger->retrieve( tag => qr/(?:warn|error|fatal)/ ) ) {
-        $self->{'loggers'}->[0]->store( %{$log} );
+    for my $log ( $logger->retrieve( tag => qr/(?:warn|error|fatal)/ ) ) {
+        $self->{'loggers'}->[0]->store( %{ $log } );
     }
 
     # FIXME Should not be done there
@@ -130,9 +130,9 @@ sub endDebug
 
 =cut
 
-sub debug($;$)
+sub debug( $;$ )
 {
-    my ($message, $caller) = @_;
+    my ( $message, $caller ) = @_;
 
     $caller = !defined $caller || $caller ? getCaller() : '';
     $self->{'logger'}()->store( message => $caller . $message, tag => 'debug' ) if iMSCP::Getopt->debug;
@@ -149,9 +149,9 @@ sub debug($;$)
 
 =cut
 
-sub warning($;$)
+sub warning( $;$ )
 {
-    my ($message, $caller) = @_;
+    my ( $message, $caller ) = @_;
 
     $caller = !defined $caller || $caller ? getCaller() : '';
     $self->{'logger'}()->store( message => $caller . $message, tag => 'warn' );
@@ -167,9 +167,9 @@ sub warning($;$)
 
 =cut
 
-sub error($;$)
+sub error( $;$ )
 {
-    my ($message, $caller) = @_;
+    my ( $message, $caller ) = @_;
 
     $caller = !defined $caller || $caller ? getCaller() : '';
     $self->{'logger'}()->store( message => $caller . $message, tag => 'error' );
@@ -202,9 +202,9 @@ sub getLastError
 
 =cut
 
-sub getMessageByType($;$)
+sub getMessageByType( $;$ )
 {
-    my ($type, $options) = @_;
+    my ( $type, $options ) = @_;
     $options ||= {};
 
     my @messages = map { $_->{'message'} } $self->{'logger'}()->retrieve(
@@ -228,9 +228,9 @@ sub getMessageByType($;$)
 
 =cut
 
-sub output($;$)
+sub output( $;$ )
 {
-    my ($text, $level) = @_;
+    my ( $text, $level ) = @_;
 
     return "$text\n" unless defined $level;
     return "[\x1b[0;34mDEBUG\x1b[0m] $text\n" if $level eq 'debug';
@@ -260,7 +260,7 @@ sub output($;$)
 
 sub _writeLogfile
 {
-    my ($logger, $logfilePath) = @_;
+    my ( $logger, $logfilePath ) = @_;
 
     local $SIG{'__WARN__'} = sub { die @_; };
 
@@ -287,7 +287,7 @@ sub getCaller
     my $stackIDX = 2;
     do {
         $caller = ( ( caller $stackIDX++ )[3] || 'main' );
-    } while $caller eq '(eval)' || index($caller, '__ANON__') != -1;
+    } while $caller eq '(eval)' || index( $caller, '__ANON__' ) != -1;
     $caller . ': ';
 }
 
@@ -302,7 +302,7 @@ sub getCaller
 
 sub _getMessages
 {
-    my ($logger) = @_;
+    my ( $logger ) = @_;
 
     my $bf = '';
     $bf .= "[$_->{'when'}] [$_->{'tag'}] $_->{'message'}\n" for $logger->flush();
@@ -317,7 +317,7 @@ sub _getMessages
 
 END {
     eval {
-        endDebug for @{$self->{'loggers'}};
+        endDebug for @{ $self->{'loggers'} };
 
         if ( isatty( \*STDERR ) ) {
             if ( iMSCP::Getopt->noansi ) {

@@ -49,7 +49,7 @@ use parent 'iMSCP::Servers::Abstract';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setVersion();
     $self->buildConfFile( 'imscp', "$self->{'config'}->{'CRON_D_DIR'}/imscp", undef,
@@ -76,7 +76,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::File->new( filename => "$self->{'config'}->{'CRON_D_DIR'}/imscp" )->remove();
 }
@@ -89,7 +89,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless -f "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
@@ -110,7 +110,7 @@ sub setEnginePermissions
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Cron';
 }
@@ -123,7 +123,7 @@ sub getServerName
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'CRON_VERSION'};
 }
@@ -148,7 +148,7 @@ sub getVersion
 
 sub addTask
 {
-    my ($self, $data, $filepath) = @_;
+    my ( $self, $data, $filepath ) = @_;
     $data = {} unless ref $data eq 'HASH';
     $filepath //= "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
@@ -178,7 +178,7 @@ sub addTask
 
 sub deleteTask
 {
-    my ($self, $data, $filepath) = @_;
+    my ( $self, $data, $filepath ) = @_;
     $data = {} unless ref $data eq 'HASH';
     $filepath //= "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
@@ -198,9 +198,9 @@ sub deleteTask
 
 sub enableSystemTask
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the enableSystemTask() method', ref $self ));
+    die( sprintf( 'The %s class must implement the enableSystemTask() method', ref $self ));
 }
 
 =item disableSystemTask( $cronTask [, $directory = ALL ] )
@@ -215,9 +215,9 @@ sub enableSystemTask
 
 sub disableSystemTask
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableSystemTask() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableSystemTask() method', ref $self ));
 }
 
 =back
@@ -234,11 +234,11 @@ sub disableSystemTask
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ cfgDir _templates /} = ( "$::imscpConfig{'CONF_DIR'}/cron", {} );
+    @{ $self }{qw/ cfgDir _templates /} = ( "$::imscpConfig{'CONF_DIR'}/cron", {} );
     $self->{'eventManager'}->register( 'beforeCronBuildConfFile', $self );
     $self->SUPER::_init();
 }
@@ -253,9 +253,9 @@ sub _init
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
+    die( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
 }
 
 =item _validateCronTask( \%data )
@@ -269,9 +269,9 @@ sub _setVersion
 
 sub _validateCronTask
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
-    if ( grep( $data->{'MINUTE'} eq $_, qw/ @reboot @yearly @annually @monthly @weekly @daily @midnight @hourly / ) ) {
+    if ( grep ( $data->{'MINUTE'} eq $_, qw/ @reboot @yearly @annually @monthly @weekly @daily @midnight @hourly / ) ) {
         $data->{'HOUR'} = $data->{'DAY'} = $data->{'MONTH'} = $data->{'DWEEK'} = '';
         return;
     }
@@ -291,7 +291,7 @@ sub _validateCronTask
 
 sub _validateField
 {
-    my (undef, $name, $value) = @_;
+    my ( undef, $name, $value ) = @_;
 
     defined $name or croak( '$name is undefined' );
     length $value or croak( sprintf( "Value for the '%s' cron task field cannot be empty", $name ));
@@ -332,8 +332,8 @@ sub _validateField
 
         $compare[1] = $compareSlash[0] if scalar @compareSlash == 2;
 
-        my ($left) = grep { $namesArr[$_] eq lc( $compare[0] ) } 0 .. $#namesArr;
-        my ($right) = grep { $namesArr[$_] eq lc( $compare[1] ) } 0 .. $#namesArr;
+        my ( $left ) = grep { $namesArr[$_] eq lc( $compare[0] ) } 0 .. $#namesArr;
+        my ( $right ) = grep { $namesArr[$_] eq lc( $compare[1] ) } 0 .. $#namesArr;
 
         $left = $compare[0] unless $left;
         $right = $compare[1] unless $right;
@@ -373,7 +373,7 @@ sub _validateField
 
 sub beforeCronBuildConfFile
 {
-    my ($cronServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params) = @_;
+    my ( $cronServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params ) = @_;
 
     # Return early if that event listener has not been triggered in the context of the ::addTask() or ::deleteTask() actions.
     return unless exists $sdata->{'TASKID'};
@@ -385,7 +385,7 @@ sub beforeCronBuildConfFile
     # Return early if that event listener has not been triggered in the context of the ::addTask() action.
     return unless exists $sdata->{'COMMAND'};
 
-    ( ${$cfgTpl} .= <<"EOF" ) =~ s/^(\@[^\s]+)\s+/$1 /gm;
+    ( ${ $cfgTpl } .= <<"EOF" ) =~ s/^(\@[^\s]+)\s+/$1 /gm;
 
 # imscp [$sdata->{'TASKID'}] entry BEGIN
 $sdata->{'MINUTE'} $sdata->{'HOUR'} $sdata->{'DAY'} $sdata->{'MONTH'} $sdata->{'DWEEK'} $sdata->{'USER'} $sdata->{'COMMAND'}

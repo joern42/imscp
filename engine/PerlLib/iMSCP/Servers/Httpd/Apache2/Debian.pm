@@ -25,7 +25,7 @@ package iMSCP::Servers::Httpd::Apache2::Debian;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Mount' => qw/ umount /;
+use autouse 'iMSCP::Mount' => qw/ isMountpoint /;
 use Array::Utils qw/ unique /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::ProgramFinder /;
@@ -36,6 +36,7 @@ use File::Spec;
 use iMSCP::Debug qw/ debug error warning getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
+use iMSCP::File::Attributes qw/ :immutable /;
 use iMSCP::File;
 use iMSCP::Service;
 use parent 'iMSCP::Servers::Httpd::Apache2::Abstract';
@@ -58,7 +59,7 @@ our $VERSION = '2.0.0';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::install();
     #$self->_makeDirs();
@@ -76,12 +77,12 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->enable( 'apache2' );
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{$_[0]}, [ sub { $self->start(); }, $self->getHumanServerName() ]; }, 3
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->start(); }, $self->getHumanServerName() ]; }, 3
     );
 }
 
@@ -93,7 +94,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::uninstall();
     $self->_restoreDefaultConfig();
@@ -110,7 +111,7 @@ sub uninstall
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless iMSCP::ProgramFinder::find( 'apache2ctl' );
 
@@ -125,7 +126,7 @@ sub dpkgPostInvokeTasks
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'apache2' );
 }
@@ -138,7 +139,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'apache2' );
 }
@@ -151,7 +152,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'apache2' );
 }
@@ -164,7 +165,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( 'apache2' );
 }
@@ -177,7 +178,7 @@ sub reload
 
 sub enableSites
 {
-    my ($self, @sites) = @_;
+    my ( $self, @sites ) = @_;
 
     for ( unique @sites ) {
         my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
@@ -214,7 +215,7 @@ sub enableSites
 
 sub disableSites
 {
-    my ($self, @sites) = @_;
+    my ( $self, @sites ) = @_;
 
     for ( unique @sites ) {
         my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
@@ -254,7 +255,7 @@ sub disableSites
 
 sub removeSites
 {
-    my ($self, @sites) = @_;
+    my ( $self, @sites ) = @_;
 
     local $self->{'_remove_obj'} = 1;
 
@@ -283,7 +284,7 @@ sub removeSites
 
 sub enableConfs
 {
-    my ($self, @confs) = @_;
+    my ( $self, @confs ) = @_;
 
     for ( unique @confs ) {
         my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
@@ -320,7 +321,7 @@ sub enableConfs
 
 sub disableConfs
 {
-    my ($self, @confs) = @_;
+    my ( $self, @confs ) = @_;
 
     for ( unique @confs ) {
         my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
@@ -360,7 +361,7 @@ sub disableConfs
 
 sub removeConfs
 {
-    my ($self, @confs) = @_;
+    my ( $self, @confs ) = @_;
 
     local $self->{'_remove_obj'} = 1;
 
@@ -389,12 +390,12 @@ sub removeConfs
 
 sub enableModules
 {
-    my ($self, @mods) = @_;
+    my ( $self, @mods ) = @_;
 
     for ( unique @mods ) {
         my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
 
-        if ( $mod eq 'cgi' && grep( $self->{'config'}->{'HTTPD_MPM'} eq $_, qw/ event worker / ) ) {
+        if ( $mod eq 'cgi' && grep ( $self->{'config'}->{'HTTPD_MPM'} eq $_, qw/ event worker / ) ) {
             debug( sprintf( "The Apache %s MPM is threaded. Selecting the cgid module instead of the cgi module", $self->{'config'}->{'HTTPD_MPM'} ));
             $mod = 'cgid';
         }
@@ -459,7 +460,7 @@ sub enableModules
 
 sub disableModules
 {
-    my ($self, @mods) = @_;
+    my ( $self, @mods ) = @_;
 
     for ( unique @mods ) {
         my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
@@ -493,7 +494,7 @@ sub disableModules
         # Handle module dependencies
         my @deps;
         for ( glob( "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/*.load" ) ) {
-            if ( grep($mod eq $_, $self->_getModDeps( $_ )) ) {
+            if ( grep ($mod eq $_, $self->_getModDeps( $_ )) ) {
                 m%/([^/]+).load$%;
                 push @deps, $1;
             }
@@ -532,7 +533,7 @@ sub disableModules
 
 sub removeModules
 {
-    my ($self, @mods) = @_;
+    my ( $self, @mods ) = @_;
 
     local $self->{'_remove_obj'} = 1;
 
@@ -542,7 +543,7 @@ sub removeModules
         # Make sure that the module is disabled before removing it
         $self->disableModules( $mod );
 
-        for ( qw / .load .conf / ) {
+        for ( qw/ .load .conf / ) {
             my $file = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$mod$_";
             unless ( -f $file ) {
                 debug( sprintf( "Module %s file doesn't exist. Skipping...", "$mod$_" ));
@@ -569,7 +570,7 @@ sub removeModules
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'_remove_obj'} = 0;
     $self->SUPER::_init();
@@ -583,9 +584,9 @@ sub _init
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $rs = execute( [ 'apache2ctl', '-v' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'apache2ctl', '-v' ], \my $stdout, \my $stderr );
     !$rs or die( $stderr || 'Unknown error' ) if $rs;
     $stdout =~ /apache\/([\d.]+)/i or die( "Couldn't guess Apache version from the `apache2ctl -v` command output" );
     $self->{'config'}->{'HTTPD_VERSION'} = $1;
@@ -620,13 +621,13 @@ sub _makeDirs
 
 sub _setupModules
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'event' ) {
         $self->disableModules( qw/ mpm_itk mpm_prefork mpm_worker cgi / );
         $self->enableModules(
             qw/ mpm_event access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex
-            cgid deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
+                cgid deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
         );
         return;
     }
@@ -635,7 +636,7 @@ sub _setupModules
         $self->disableModules( qw/ mpm_event mpm_worker cgid suexec / );
         $self->enableModules(
             qw/ mpm_prefork mpm_itk access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host
-            authz_user autoindex cgi deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl /
+                authz_user autoindex cgi deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl /
         );
         return;
     }
@@ -644,7 +645,7 @@ sub _setupModules
         $self->disableModules( qw/ mpm_event mpm_itk mpm_worker cgid / );
         $self->enableModules(
             qw/ mpm_prefork access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user
-            autoindex cgi deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
+                autoindex cgi deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
         );
         return;
     }
@@ -653,7 +654,7 @@ sub _setupModules
         $self->disableModules( qw/ mpm_event mpm_itk mpm_prefork cgi / );
         $self->enableModules(
             qw/ mpm_worker access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex
-            cgid deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
+                cgid deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
         );
         return;
     }
@@ -671,18 +672,18 @@ sub _setupModules
 
 sub _configure
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
         'beforeApacheBuildConfFile',
         sub {
-            my ($cfgTpl) = @_;
-            ${$cfgTpl} =~ s/^NameVirtualHost[^\n]+\n//gim;
+            my ( $cfgTpl ) = @_;
+            ${ $cfgTpl } =~ s/^NameVirtualHost[^\n]+\n//gim;
 
             if ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ) {
-                ${$cfgTpl} =~ s/^(\s*Listen)\s+0.0.0.0:(80|443)/$1 $2\n/gim;
+                ${ $cfgTpl } =~ s/^(\s*Listen)\s+0.0.0.0:(80|443)/$1 $2\n/gim;
             } else {
-                ${$cfgTpl} =~ s/^(\s*Listen)\s+(80|443)\n/$1 0.0.0.0:$2\n/gim;
+                ${ $cfgTpl } =~ s/^(\s*Listen)\s+(80|443)\n/$1 0.0.0.0:$2\n/gim;
             }
         }
     );
@@ -718,7 +719,7 @@ sub _configure
 
 sub _installLogrotate
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->buildConfFile( 'logrotate.conf', '/etc/logrotate.d/apache2', undef,
         {
@@ -739,9 +740,9 @@ sub _installLogrotate
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.6.0' );
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/vlogger.conf" )->remove();
 
@@ -757,10 +758,20 @@ sub _cleanup
 
     iMSCP::Dir->new( dirname => $_ )->remove() for '/var/log/apache2/backup', '/var/log/apache2/users', '/var/www/scoreboards';
 
-    for my $dir( iMSCP::Dir->new( dirname => $::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
-        next unless -d "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs";
-        umount( "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs" );
-        iMSCP::Dir->new( dirname => "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs" )->clear( qr/.*\.log$/ );
+    for my $dir ( iMSCP::Dir->new( dirname => $::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
+        my $isImmutable = isImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" );
+        clearImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" ) if $isImmutable;
+
+        # Remove deprecated plain HTTPD log files inside customers root Web folder
+        # FIXME: only operate when logs is not a mountpoint
+        if ( -d "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs" && !isMountpoint( "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs" ) ) {
+            iMSCP::Dir->new( dirname => "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs" )->clear( qr/.*\.log$/ );
+        }
+
+        # Remove deprecated `domain_disable_page' directory inside customers root Web folder
+        iMSCP::Dir->new( dirname => "$::imscpConfig{'USER_WEB_DIR'}/$dir/domain_disable_page" )->remove();
+
+        setImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" ) if $isImmutable;
     }
 }
 
@@ -774,7 +785,7 @@ sub _cleanup
 
 sub _restoreDefaultConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove();
     iMSCP::File->new( filename => '/etc/apache2/vlogger.conf' )->remove();
@@ -785,7 +796,7 @@ sub _restoreDefaultConfig
     iMSCP::Dir->new( dirname => $_ )->remove() for glob( "$::imscpConfig{'USER_WEB_DIR'}/*/domain_disable_page" );
     iMSCP::Dir->new( dirname => '/etc/apache2/imscp' )->remove();
 
-    for my $file( '000-default', 'default' ) {
+    for my $file ( '000-default', 'default' ) {
         next unless -f "/etc/apache2/sites-available/$file";
         $self->enableSites( $file );
     }
@@ -799,7 +810,7 @@ sub _restoreDefaultConfig
 
 sub _shutdown
 {
-    my ($self, $priority) = @_;
+    my ( $self, $priority ) = @_;
 
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
@@ -818,7 +829,7 @@ sub _shutdown
 
 sub _checkSymlink
 {
-    my (undef, $tgt, $lnk) = @_;
+    my ( undef, $tgt, $lnk ) = @_;
 
     unless ( -e $lnk ) {
         if ( -l $lnk ) {
@@ -848,7 +859,7 @@ sub _checkSymlink
 
 sub _createSymlink
 {
-    my ($self, $tgt, $lnk) = @_;
+    my ( $self, $tgt, $lnk ) = @_;
 
     symlink( File::Spec->abs2rel( $tgt, dirname( $lnk )), $lnk ) or die( sprintf( "Couldn't create the %s symlink: %s", $lnk, $! ));
     $self->{'reload'} ||= 1;
@@ -865,7 +876,7 @@ sub _createSymlink
 
 sub _removeSymlink
 {
-    my ($self, $lnk) = @_;
+    my ( $self, $lnk ) = @_;
 
     if ( -l $lnk ) {
         unlink $lnk or die( sprintf( "Couldn't remove the %s symlink: %s", $lnk, $! ));
@@ -890,7 +901,7 @@ sub _removeSymlink
 
 sub _switchMarker
 {
-    my ($self, $which, $what, $name) = @_;
+    my ( $self, $which, $what, $name ) = @_;
 
     defined $which or die( 'Undefined $which parameter' );
     defined $what or die( 'Undefined $what parameter' );
@@ -935,11 +946,11 @@ sub _switchMarker
 
 sub _getModDeps
 {
-    my (undef, $file, $type) = @_;
+    my ( undef, $file, $type ) = @_;
     $type //= 'Depends';
 
     defined $file or die( 'Undefined $file parameter' );
-    grep( $type eq $_, 'Depends', 'Conflicts' ) or die( 'Invalid $type parameter' );
+    grep ( $type eq $_, 'Depends', 'Conflicts' ) or die( 'Invalid $type parameter' );
 
     open( my $fd, '<', $file ) or die( sprintf( "Couldn't open the %s file: %s", $file, $! ));
     while ( my $line = <$fd> ) {
@@ -965,9 +976,9 @@ sub _getModDeps
 
 sub _doModDeps
 {
-    my ($self, $context, $mod, @deps) = @_;
+    my ( $self, $context, $mod, @deps ) = @_;
 
-    defined $context && grep( $context eq $_, 'enable', 'disable' ) or die( 'Undefined or invalid $context parameter' );
+    defined $context && grep ( $context eq $_, 'enable', 'disable' ) or die( 'Undefined or invalid $context parameter' );
     defined $mod or die( 'Undefined $mod parameter' );
 
     for ( @deps ) {
@@ -989,7 +1000,7 @@ sub _doModDeps
 
 sub _checkModuleDeps
 {
-    my ($self, $mod, @deps) = @_;
+    my ( $self, $mod, @deps ) = @_;
 
     defined $mod or die( 'Undefined $mod parameter' );
 
@@ -1013,7 +1024,7 @@ sub _checkModuleDeps
 
 sub _checkModConflicts
 {
-    my ($self, $mod, @conflicts) = @_;
+    my ( $self, $mod, @conflicts ) = @_;
 
     defined $mod or die( 'Undefined $mod parameter' );
 
@@ -1021,13 +1032,13 @@ sub _checkModConflicts
 
     eval {
         for ( @conflicts ) {
-            debug( sprintf( "Considering conflict %s for %s", $_, $mod ) );
+            debug( sprintf( "Considering conflict %s for %s", $_, $mod ));
 
             my $tgt = "$self->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$_.load";
             my $lnk = "$self->{'config'}->{'HTTPD_MODS_ENABLED_DIR'}/$_.load";
 
             if ( $self->_checkSymlink( $tgt, $lnk ) eq 'ok' ) {
-                error( sprintf( 'The module %s conflict with the %s module. It needs to be disabled first.', $_, $mod ) );
+                error( sprintf( 'The module %s conflict with the %s module. It needs to be disabled first.', $_, $mod ));
                 $countErrors++;
             }
         }

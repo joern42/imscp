@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList /;
 use File::Basename;
-use iMSCP::Debug qw / debug error /;
+use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
@@ -57,9 +57,9 @@ use parent 'iMSCP::Common::Singleton';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->showDialog( @_ ) }; } );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->showDialog( @_ ) }; } );
 }
 
 =item showDialog( \%dialog )
@@ -73,33 +73,33 @@ sub registerSetupListeners
 
 sub showDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
-    @{$self->{'SELECTED_PACKAGES'}} = split (
-        ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES', iMSCP::Getopt->preseed ? join( ',', @{$self->{'AVAILABLE_PACKAGES'}} ) : '' )
+    @{ $self->{'SELECTED_PACKAGES'} } = split(
+        ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES', iMSCP::Getopt->preseed ? join( ',', @{ $self->{'AVAILABLE_PACKAGES'} } ) : '' )
     );
 
     my %choices;
-    @choices{@{$self->{'AVAILABLE_PACKAGES'}}} = @{$self->{'AVAILABLE_PACKAGES'}};
+    @choices{@{ $self->{'AVAILABLE_PACKAGES'} }} = @{ $self->{'AVAILABLE_PACKAGES'} };
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webstats', 'all', 'forced' ] )
-        || !@{$self->{'SELECTED_PACKAGES'}}
-        || grep { !exists $choices{$_} && $_ ne 'no' } @{$self->{'SELECTED_PACKAGES'}}
+        || !@{ $self->{'SELECTED_PACKAGES'} }
+        || grep { !exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} }
     ) {
         ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checkbox(
-            <<"EOF", \%choices, grep { exists $choices{$_} && $_ ne 'no' } @{$self->{'SELECTED_PACKAGES'}} );
+            <<"EOF", \%choices, grep { exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} } );
 Please select the Webstats packages you want to install:
 \\Z \\Zn
 EOF
-        push @{$self->{'SELECTED_PACKAGES'}}, 'no' unless @{$self->{'SELECTED_PACKAGES'}};
+        push @{ $self->{'SELECTED_PACKAGES'} }, 'no' unless @{ $self->{'SELECTED_PACKAGES'} };
         return $rs unless $rs < 30;
     }
 
-    ::setupSetQuestion( 'WEBSTATS_PACKAGES', join ',', @{$self->{'SELECTED_PACKAGES'}} );
+    ::setupSetQuestion( 'WEBSTATS_PACKAGES', join ',', @{ $self->{'SELECTED_PACKAGES'} } );
 
     return 0 if $self->{'SELECTED_PACKAGES'}->[0] eq 'no';
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'showDialog' ) ) or next;
@@ -123,11 +123,11 @@ EOF
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my @distroPackages = ();
-    for my $package( @{$self->{'AVAILABLE_PACKAGES'}} ) {
-        next if grep( $package eq $_, @{$self->{'SELECTED_PACKAGES'}});
+    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
+        next if grep ( $package eq $_, @{ $self->{'SELECTED_PACKAGES'} });
         $package = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $package; 1" or die( $@ );
 
@@ -144,7 +144,7 @@ sub preinstall
     $self->_removePackages( @distroPackages );
 
     @distroPackages = ();
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
 
@@ -171,9 +171,9 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'install' ) ) or next;
@@ -192,9 +192,9 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'postinstall' ) ) or next;
@@ -213,10 +213,10 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my @distroPackages = ();
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $package; 1" or die( $@ );
 
@@ -256,9 +256,9 @@ sub getPriority
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'setEnginePermissions' ) ) or next;
@@ -277,9 +277,9 @@ sub setEnginePermissions
 
 sub setGuiPermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'setGuiPermissions' ) ) or next;
@@ -299,9 +299,9 @@ sub setGuiPermissions
 
 sub addUser
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'addUser' ) ) or next;
@@ -321,9 +321,9 @@ sub addUser
 
 sub preaddDomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'preaddDomain' ) ) or next;
@@ -343,9 +343,9 @@ sub preaddDomain
 
 sub addDomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'addDomain' ) ) or next;
@@ -365,9 +365,9 @@ sub addDomain
 
 sub deleteDomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'deleteDomain' ) ) or next;
@@ -387,9 +387,9 @@ sub deleteDomain
 
 sub preaddSubdomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'preaddSubdomain' ) ) or next;
@@ -409,9 +409,9 @@ sub preaddSubdomain
 
 sub addSubdomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'addSubdomain' ) ) or next;
@@ -431,9 +431,9 @@ sub addSubdomain
 
 sub deleteSubdomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
-    for my $package( @{$self->{'SELECTED_PACKAGES'}} ) {
+    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
         eval "require $fpackage; 1" or die( $@ );
         ( my $subref = $fpackage->can( 'deleteSubdomain' ) ) or next;
@@ -458,10 +458,10 @@ sub deleteSubdomain
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    @{$self->{'AVAILABLE_PACKAGES'}} = iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/Webstats' )->getDirs();
-    @{$self->{'SELECTED_PACKAGES'}} = grep( $_ ne 'no', split( ',', $::imscpConfig{'WEBSTATS_PACKAGES'} ));
+    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/Webstats' )->getDirs();
+    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'no', split( ',', $::imscpConfig{'WEBSTATS_PACKAGES'} ));
     $self;
 }
 
@@ -476,7 +476,7 @@ sub _init
 
 sub _installPackages
 {
-    my (undef, @packages) = @_;
+    my ( undef, @packages ) = @_;
 
     return unless @packages && !iMSCP::Getopt->skippackages;
 
@@ -497,7 +497,7 @@ sub _installPackages
             'install', @packages
         ],
         ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
-        \ my $stderr
+        \my $stderr
     );
     !$rs or die error( sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' ));
 }
@@ -513,12 +513,12 @@ sub _installPackages
 
 sub _removePackages
 {
-    my (undef, @packages) = @_;
+    my ( undef, @packages ) = @_;
 
     return unless @packages && !iMSCP::Getopt->skippackages;
 
     # Do not try to remove packages that are not available
-    execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \ my $stdout );
+    execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \my $stdout );
     @packages = split /\n/, $stdout;
     return unless @packages;
 
@@ -529,7 +529,7 @@ sub _removePackages
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
             'apt-get', '--assume-yes', '--auto-remove', '--purge', '--no-install-recommends', 'remove', @packages
         ],
-        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \ $stdout : undef ),
+        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
         \my $stderr
     );
     !$rs or die error( sprintf( "Couldn't remove packages: %s", $stderr || 'Unknown error' ));

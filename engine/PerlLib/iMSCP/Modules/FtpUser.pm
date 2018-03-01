@@ -43,7 +43,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'FtpUser';
 }
@@ -56,7 +56,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     $self->_loadEntityData( $entityId );
 
@@ -87,7 +87,7 @@ sub handleEntity
 
 sub _loadEntityData
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ftp_users WHERE userid = ?', undef, $entityId );
     $row or die( sprintf( 'Data not found for ftp user (ID %d)', $entityId ));
@@ -117,7 +117,7 @@ sub _loadEntityData
 
 sub _add
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'ok', $self->{'_data'}->{'USERNAME'} );
@@ -132,7 +132,7 @@ sub _add
 
 sub _delete
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
@@ -152,7 +152,7 @@ sub _delete
 
 sub _disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'disabled', $self->{'_data'}->{'USERNAME'} );

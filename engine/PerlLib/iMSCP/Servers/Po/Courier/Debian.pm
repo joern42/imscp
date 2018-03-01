@@ -53,7 +53,7 @@ our $VERSION = '2.0.0';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::install();
     $self->_cleanup();
@@ -67,7 +67,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my @toEnableServices = ( 'courier-authdaemon', 'courier-pop', 'courier-pop' );
     my @toDisableServices = ();
@@ -81,7 +81,7 @@ sub postinstall
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->enable( $_ ) for @toEnableServices;
 
-    for my $service( @toDisableServices ) {
+    for my $service ( @toDisableServices ) {
         $srvProvider->stop( $service );
         $srvProvider->disable( $service );
     }
@@ -97,12 +97,12 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::uninstall();
 
     my $srvProvider = iMSCP::Service->getInstance();
-    for my $service( 'courier-authdaemon', 'courier-pop', 'courier-pop-ssl', 'courier-imap', 'courier-imap-ssl' ) {
+    for my $service ( 'courier-authdaemon', 'courier-pop', 'courier-pop-ssl', 'courier-imap', 'courier-imap-ssl' ) {
         $srvProvider->restart( $service ) if $srvProvider->hasService( $service ) && $srvProvider->isRunning( $service );
     };
 }
@@ -115,7 +115,7 @@ sub uninstall
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setVersion();
 }
@@ -128,7 +128,7 @@ sub dpkgPostInvokeTasks
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->start( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
@@ -146,7 +146,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $srvProvider = iMSCP::Service->getInstance();
 
@@ -161,7 +161,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->restart( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
@@ -179,7 +179,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $srvProvider = iMSCP::Service->getInstance();
     $srvProvider->reload( $_ ) for 'courier-authdaemon', 'courier-pop', 'courier-imap';
@@ -203,9 +203,9 @@ sub reload
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    execute( 'dpkg -s courier-base | grep -i \'^version\'', \ my $stdout, \ my $stderr ) == 0 or die( $stderr || 'Unknown error' ) if $rs;
+    execute( 'dpkg -s courier-base | grep -i \'^version\'', \my $stdout, \my $stderr ) == 0 or die( $stderr || 'Unknown error' ) if $rs;
     $stdout =~ /version:\s+([\d.]+)/i or die( "Couldn't guess Courier version from the `dpkg -s courier-base | grep -i '^version'` command output" );
     $self->{'config'}->{'PO_VERSION'} = $1;
     debug( sprintf( 'Courier version set to: %s', $1 ));
@@ -221,13 +221,13 @@ sub _setVersion
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $oldPluginApiVersion = version->parse( $::imscpOldConfig{'PluginApi'} );
 
-    return unless $oldPluginApiVersion < version->parse( '1.5.2' );
+    return unless $oldPluginApiVersion < version->parse( '1.6.0' );
 
-    for my $service( qw/ pop3d pop3d-ssl imapd imapd-ssl / ) {
+    for my $service ( qw/ pop3d pop3d-ssl imapd imapd-ssl / ) {
         next unless -f "$self->{'config'}->{'PO_CONF_DIR'}/$service";
 
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$service" );
@@ -238,14 +238,14 @@ sub _cleanup
         );
     }
 
-    return unless $oldPluginApiVersion < version->parse( '1.5.1' );
+    return unless $oldPluginApiVersion < version->parse( '1.5.0' );
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.old.data" )->remove();
 
     if ( -f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ) {
         iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" )->set( '' )->save()->mode( 0600 );
 
-        my $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ], \ my $stdout, \ my $stderr );
+        my $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         !$rs or die( $stderr || 'Unknown error' ) if $rs;
     }
@@ -270,7 +270,7 @@ sub _cleanup
 
 sub _shutdown
 {
-    my ($self, $priority) = @_;
+    my ( $self, $priority ) = @_;
 
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 

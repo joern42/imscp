@@ -38,7 +38,7 @@ use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::Servers;
 use iMSCP::Packages;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -46,7 +46,7 @@ $ENV{'LANG'} = 'C.UTF-8';
 
 newDebug( 'imscp-set-gui-permissions.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Set i-MSCP gui permissions.
 
@@ -70,10 +70,10 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 
 my @items = ();
-for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     push @items, [ $server, sub { $server->factory()->setGuiPermissions(); } ];
 }
-for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     ( my $subref = $package->can( 'setGuiPermissions' ) ) or next;
     push @items, [ $package, sub { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); } ];
 }
@@ -82,7 +82,7 @@ iMSCP::EventManager->getInstance()->trigger( 'beforeSetGuiPermissions' );
 
 my $totalItems = @items;
 my $count = 1;
-for my $item( @items ) {
+for my $item ( @items ) {
     debug( sprintf( 'Setting %s frontEnd permissions', $item->[0] ));
     printf( "Setting %s frontEnd permissions\t%s\t%s\n", $item->[0], $totalItems, $count++ ) if iMSCP::Getopt->context() eq 'installer';
     $item->[1]->();

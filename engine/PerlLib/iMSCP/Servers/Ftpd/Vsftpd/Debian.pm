@@ -47,7 +47,7 @@ our $VERSION = '2.0.0';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::install();
     $self->_cleanup();
@@ -61,7 +61,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->enable( 'vsftpd' );
     $self->SUPER::postinstall();
@@ -75,7 +75,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::uninstall();
 
@@ -91,7 +91,7 @@ sub uninstall
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless -x $self->{'config'}->{'FTPD_BIN'};
 
@@ -106,7 +106,7 @@ sub dpkgPostInvokeTasks
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'vsftpd' );
 }
@@ -119,7 +119,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'vsftpd' );
 }
@@ -132,7 +132,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'vsftpd' );
 }
@@ -145,7 +145,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( 'vsftpd' );
 }
@@ -166,9 +166,9 @@ sub reload
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.6.0' );
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/vsftpd.pam" )->remove();
     iMSCP::File->new( filename => "$self->{'cfgDir'}/vsftpd.old.data" )->remove();
@@ -182,7 +182,7 @@ sub _cleanup
 
 sub _shutdown
 {
-    my ($self, $priority) = @_;
+    my ( $self, $priority ) = @_;
 
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 

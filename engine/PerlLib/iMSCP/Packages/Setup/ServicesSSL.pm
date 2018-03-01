@@ -51,9 +51,9 @@ use parent 'iMSCP::Common::Singleton';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->servicesSslDialog( @_ ) }; } );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->servicesSslDialog( @_ ) }; } );
 }
 
 =item serviceSslDialog( \%dialog )
@@ -67,7 +67,7 @@ sub registerSetupListeners
 
 sub servicesSslDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $hostnameUnicode = idn_to_unicode( $hostname, 'utf-8' ) // '';
@@ -178,7 +178,7 @@ EOF
 Your SSL certificate for the FTP and MAIL services is missing or invalid.
 EOF
             ::setupSetQuestion( 'SERVICES_SSL_ENABLED', '' );
-            goto &{servicesSslDialog};
+            goto &{ servicesSslDialog };
         }
 
         # In case the certificate is valid, we skip SSL setup process

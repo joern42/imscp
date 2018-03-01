@@ -37,7 +37,7 @@ use iMSCP::Dialog;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
 use Net::LibIDN qw/ idn_to_unicode /;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -52,7 +52,7 @@ newDebug( 'imscp-setup.log' );
 iMSCP::Getopt->context( 'installer' );
 
 # Parse command line options
-iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
  -s,    --skip-distro-packages  Do not install/update distro packages.},
     'skip-distro-packages|s' => \&iMSCP::Getopt::skippackages
 );

@@ -38,7 +38,7 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
 use iMSCP::Mail;
 use iMSCP::Servers::Mta;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -70,7 +70,7 @@ sub quotaFiles
 
         my $virtualMailDir = iMSCP::Servers::Mta->factory()->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'};
 
-        while ( my ($dmnId, $dmnData) = each( %{$rows} ) ) {
+        while ( my ( $dmnId, $dmnData ) = each( %{ $rows } ) ) {
             my $totalDiskUsage = my $webDiskUsage = my $mailDiskUsage = 0;
             my @items = (
                 { webdir => "$::imscpConfig{'USER_WEB_DIR'}/$dmnData->{'domain_name'}" },
@@ -103,24 +103,24 @@ sub quotaFiles
             };
             if ( $@ ) {
                 error( $@ );
-            } elsif ( %{$rows2} ) {
-                push @items, { maildir => "$virtualMailDir/$_" } for keys %{$rows2};
+            } elsif ( %{ $rows2 } ) {
+                push @items, { maildir => "$virtualMailDir/$_" } for keys %{ $rows2 };
             }
 
-            for my $item( @items ) {
-                my ($dirType, $dir) = %{$item};
+            for my $item ( @items ) {
+                my ( $dirType, $dir ) = %{ $item };
                 next unless -d $dir;
 
                 if ( $dirType eq 'webdir' ) {
                     my $rs = execute(
                         [ 'nice', '-n', '19', 'ionice', '-c2', '-n7', 'du', '--exclude=backups/*', '--exclude=logs/*', '-s', '-B1', $dir ],
-                        \ my $stdout,
-                        \ my $stderr
+                        \my $stdout,
+                        \my $stderr
                     );
                     error( $stderr || 'Unknown error' ) if $rs;
                     $webDiskUsage = $1 if $stdout && $stdout =~ /^(\d+)/;
                 } else {
-                    my $rs = execute( [ 'nice', '-n', '19', 'ionice', '-c2', '-n7', 'du', '-s', '-B1', $dir ], \ my $stdout, \ my $stderr );
+                    my $rs = execute( [ 'nice', '-n', '19', 'ionice', '-c2', '-n7', 'du', '-s', '-B1', $dir ], \my $stdout, \my $stderr );
                     error( $stderr || 'Unknown error' ) if $rs;
                     $mailDiskUsage += $1 if $stdout && $stdout =~ /^(\d+)/;
                 }
@@ -162,19 +162,19 @@ sub quotaSql
             "SELECT domain_id, domain_name, domain_disk_usage FROM domain WHERE domain_status NOT IN ('disabled', 'todelete')", 'domain_id'
         );
 
-        return unless %{$rows};
+        return unless %{ $rows };
 
         my $databases = $dbh->selectcol_arrayref( 'SHOW DATABASES' );
 
-        while ( my ($dmnId, $dmnData) = each( %{$rows} ) ) {
-            my ($size, $sqlSize) = ( 0, 0 );
+        while ( my ( $dmnId, $dmnData ) = each( %{ $rows } ) ) {
+            my ( $size, $sqlSize ) = ( 0, 0 );
             my $customerDatabases = $dbh->selectall_hashref( 'SELECT sqld_name FROM sql_database WHERE domain_id = ?', 'sqld_name', undef, $dmnId );
 
-            for my $sqlDbName ( keys %{$customerDatabases} ) {
-                next unless grep($_ eq $sqlDbName, @{$databases});
+            for my $sqlDbName ( keys %{ $customerDatabases } ) {
+                next unless grep ($_ eq $sqlDbName, @{ $databases });
                 my $sqlDbTables = $dbh->selectall_hashref( "SHOW TABLE STATUS FROM " . $dbh->quote_identifier( $sqlDbName ), 1 );
-                next unless %{$sqlDbTables};
-                $size += $_->{'Data_length'}+$_->{'Index_length'} for values %{$sqlDbTables};
+                next unless %{ $sqlDbTables };
+                $size += $_->{'Data_length'}+$_->{'Index_length'} for values %{ $sqlDbTables };
             }
 
             $sqlSize += $size;
@@ -197,7 +197,7 @@ sub quotaSql
 
 newDebug( 'imscp-dsk-quota.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Calculate quota for customers data (mail, Web and sql data).
 

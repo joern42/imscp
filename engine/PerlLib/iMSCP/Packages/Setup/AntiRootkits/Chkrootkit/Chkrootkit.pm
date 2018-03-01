@@ -50,7 +50,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
@@ -65,7 +65,7 @@ sub preinstall
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer->getInstance( eventManager => $self->{'eventManager'} )->postinstall();
 }
@@ -80,7 +80,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }

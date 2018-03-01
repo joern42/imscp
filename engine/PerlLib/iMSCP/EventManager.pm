@@ -29,7 +29,7 @@ use Carp qw/ croak /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::PriorityQueue;
 use iMSCP::Getopt;
-use Scalar::Util qw / blessed refaddr /;
+use Scalar::Util qw/ blessed refaddr /;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -55,7 +55,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub hasListener
 {
-    my ($self, $eventName, $listener) = @_;
+    my ( $self, $eventName, $listener ) = @_;
 
     defined $eventName or croak 'Missing $eventName parameter';
     ref $listener eq 'CODE' or croak 'Missing or invalid $listener parameter';
@@ -76,12 +76,12 @@ sub hasListener
 
 sub register
 {
-    my ($self, $eventNames, $listener, $priority, $once) = @_;
+    my ( $self, $eventNames, $listener, $priority, $once ) = @_;
 
     defined $eventNames or croak 'Missing $eventNames parameter';
 
     if ( ref $eventNames eq 'ARRAY' ) {
-        $self->register( $_, $listener, $priority, $once ) for @{$eventNames};
+        $self->register( $_, $listener, $priority, $once ) for @{ $eventNames };
         return $self;
     }
 
@@ -106,7 +106,7 @@ sub register
 
 sub registerOne
 {
-    my ($self, $eventNames, $listener, $priority) = @_;
+    my ( $self, $eventNames, $listener, $priority ) = @_;
 
     $self->register( $eventNames, $listener, $priority, 1 );
 }
@@ -123,7 +123,7 @@ sub registerOne
 
 sub unregister
 {
-    my ($self, $listener, $eventName) = @_;
+    my ( $self, $listener, $eventName ) = @_;
 
     ref $listener eq 'CODE' or croak 'Missing or invalid $listener parameter';
 
@@ -139,13 +139,13 @@ sub unregister
         }
 
         if ( delete $self->{'nonces'}->{$eventName}->{$listener} ) {
-            delete $self->{'nonces'}->{$eventName} unless %{$self->{'nonces'}->{$eventName}};
+            delete $self->{'nonces'}->{$eventName} unless %{ $self->{'nonces'}->{$eventName} };
         }
 
         return $self;
     }
 
-    $self->unregister( $listener, $_ ) for keys %{$self->{'events'}};
+    $self->unregister( $listener, $_ ) for keys %{ $self->{'events'} };
     $self;
 }
 
@@ -160,7 +160,7 @@ sub unregister
 
 sub clearListeners
 {
-    my ($self, $eventName) = @_;
+    my ( $self, $eventName ) = @_;
 
     defined $eventName or croak( 'Missing $eventName parameter' );
     delete $self->{'events'}->{$eventName} if exists $self->{'events'}->{$eventName};
@@ -180,7 +180,7 @@ sub clearListeners
 
 sub trigger
 {
-    my ($self, $eventName, @params) = @_;
+    my ( $self, $eventName, @params ) = @_;
 
     defined $eventName or croak( 'Missing $eventName parameter' );
 
@@ -210,7 +210,7 @@ sub trigger
         return $self;
     }
 
-    delete $self->{'nonces'}->{$eventName} if $self->{'nonces'}->{$eventName} && !%{$self->{'nonces'}->{$eventName}};
+    delete $self->{'nonces'}->{$eventName} if $self->{'nonces'}->{$eventName} && !%{ $self->{'nonces'}->{$eventName} };
     $self;
 }
 
@@ -230,12 +230,12 @@ sub trigger
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'events'} = {};
     $self->{'nonces'} = {};
 
-    for my $listenerFile(
+    for my $listenerFile (
         ( iMSCP::Getopt->context() eq 'installer' ? <$::imscpConfig{'CONF_DIR'}/listeners.d/installer/*.pl> : () ),
         <$::imscpConfig{'CONF_DIR'}/listeners.d/*.pl>
     ) {

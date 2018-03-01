@@ -54,7 +54,7 @@ my %COMMANDS = (
 
 sub isEnabled
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -72,7 +72,7 @@ sub isEnabled
 
 sub enable
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -88,7 +88,7 @@ sub enable
 
 sub disable
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -104,7 +104,7 @@ sub disable
 
 sub remove
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 

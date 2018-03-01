@@ -77,7 +77,7 @@ sub getPriority
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::FrontEnd::Installer->getInstance( eventManager => $self->{'eventManager'} )->registerSetupListeners();
 }
@@ -92,7 +92,7 @@ sub registerSetupListeners
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndPreInstall' );
     $self->stopNginx();
@@ -111,7 +111,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndInstall' );
     iMSCP::Packages::FrontEnd::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
@@ -128,7 +128,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndPostInstall' );
 
@@ -139,8 +139,8 @@ sub postinstall
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->startNginx(); }, 'Nginx' ];
-            push @{$_[0]}, [ sub { $self->startPhpFpm(); }, 'i-MSCP panel (PHP FastCGI process manager)' ];
+            push @{ $_[0] }, [ sub { $self->startNginx(); }, 'Nginx' ];
+            push @{ $_[0] }, [ sub { $self->startPhpFpm(); }, 'i-MSCP panel (PHP FastCGI process manager)' ];
         },
         2
     );
@@ -157,7 +157,7 @@ sub postinstall
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndDpkgPostInvokeTasks' );
     iMSCP::Packages::FrontEnd::Installer->getInstance( eventManager => $self->{'eventManager'} )->dpkgPostInvokeTasks();
@@ -174,7 +174,7 @@ sub dpkgPostInvokeTasks
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndUninstall' );
     iMSCP::Packages::FrontEnd::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
@@ -191,7 +191,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     setRights( $self->{'config'}->{'HTTPD_CONF_DIR'},
         {
@@ -223,7 +223,7 @@ sub setEnginePermissions
             }
         );
 
-        for my $tmp( 'body', 'fastcgi', 'proxy', 'scgi', 'uwsgi' ) {
+        for my $tmp ( 'body', 'fastcgi', 'proxy', 'scgi', 'uwsgi' ) {
             next unless -d "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp";
 
             setRights(
@@ -258,7 +258,7 @@ sub setEnginePermissions
         }
     );
 
-    for my $tmp( 'client_temp', 'fastcgi_temp', 'proxy_temp', 'scgi_temp', 'uwsgi_temp' ) {
+    for my $tmp ( 'client_temp', 'fastcgi_temp', 'proxy_temp', 'scgi_temp', 'uwsgi_temp' ) {
         next unless -d "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp";
 
         setRights(
@@ -317,7 +317,7 @@ sub setGuiPermissions
 
 sub addUser
 {
-    my (undef, $data) = @_;
+    my ( undef, $data ) = @_;
 
     return if $data->{'STATUS'} eq 'tochangepwd';
 
@@ -337,9 +337,9 @@ sub addUser
 
 sub enableSites
 {
-    my ($self, @sites) = @_;
+    my ( $self, @sites ) = @_;
 
-    for my $site( @sites ) {
+    for my $site ( @sites ) {
         my $target = File::Spec->canonpath( "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site" );
         my $symlink = File::Spec->canonpath( $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'} . '/' . basename( $site, '.conf' ));
         -f $target or die( sprintf( "Site `%s` doesn't exist", $site ));
@@ -364,9 +364,9 @@ sub enableSites
 
 sub disableSites
 {
-    my ($self, @sites) = @_;
+    my ( $self, @sites ) = @_;
 
-    for my $site( @sites ) {
+    for my $site ( @sites ) {
         my $symlink = File::Spec->canonpath( $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'} . '/' . basename( $site, '.conf' ));
         next unless -e $symlink;
         unlink( $symlink ) or die( sprintf( "Couldn't unlink the %s file: %s", $! ));
@@ -384,7 +384,7 @@ sub disableSites
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->startPhpFpm();
     $self->startNginx();
@@ -400,7 +400,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->stopPhpFpm();
     $self->stopNginx();
@@ -416,7 +416,7 @@ sub stop
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->reloadPhpFpm();
     $self->reloadNginx();
@@ -432,7 +432,7 @@ sub reload
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->restartPhpFpm();
     $self->restartNginx();
@@ -448,7 +448,7 @@ sub restart
 
 sub startNginx
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( $self->{'config'}->{'HTTPD_SNAME'} );
 }
@@ -463,7 +463,7 @@ sub startNginx
 
 sub stopNginx
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( "$self->{'config'}->{'HTTPD_SNAME'}" );
 }
@@ -478,7 +478,7 @@ sub stopNginx
 
 sub reloadNginx
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( $self->{'config'}->{'HTTPD_SNAME'} );
 }
@@ -493,7 +493,7 @@ sub reloadNginx
 
 sub restartNginx
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( $self->{'config'}->{'HTTPD_SNAME'} );
 }
@@ -508,7 +508,7 @@ sub restartNginx
 
 sub startPhpFpm
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->start( 'imscp_panel' );
 }
@@ -523,7 +523,7 @@ sub startPhpFpm
 
 sub stopPhpFpm
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->stop( 'imscp_panel' );
 }
@@ -538,7 +538,7 @@ sub stopPhpFpm
 
 sub reloadPhpFpm
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->reload( 'imscp_panel' );
 }
@@ -553,7 +553,7 @@ sub reloadPhpFpm
 
 sub restartPhpFpm
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Service->getInstance()->restart( 'imscp_panel' );
 }
@@ -571,12 +571,12 @@ sub restartPhpFpm
 
 sub buildConfFile
 {
-    my ($self, $file, $tplVars, $options) = @_;
+    my ( $self, $file, $tplVars, $options ) = @_;
 
     $tplVars ||= {};
     $options ||= {};
 
-    my ($filename, $path) = fileparse( $file );
+    my ( $filename, $path ) = fileparse( $file );
     $file = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
     $file = iMSCP::File->new( filename => $file );
 
@@ -588,7 +588,7 @@ sub buildConfFile
     $self->_buildConf( $cfgTpl, $filename, $tplVars );
     $self->{'eventManager'}->trigger( 'afterFrontEndBuildConfFile', $cfgTpl, $filename, $tplVars, $options );
 
-    ${$cfgTpl} =~ s/^\s*(?:[#;].*)?\n//gmi; # Final cleanup
+    ${ $cfgTpl } =~ s/^\s*(?:[#;].*)?\n//gmi; # Final cleanup
 
     $file->{'filename'} = $options->{'destination'} // "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$filename";
     $file->save()->owner( $options->{'user'}, $options->{'group'} )->mode( $options->{'mode'} );
@@ -604,7 +604,7 @@ sub buildConfFile
 
 sub getComposer
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::FrontEnd::Installer->getInstance( eventManager => $self->{'eventManager'} )->getComposer();
 }
@@ -625,11 +625,11 @@ sub getComposer
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    @{$self}{qw/ start reload restart cfgDir / } = ( 0, 0, 0, "$::imscpConfig{'CONF_DIR'}/frontend" );
+    @{ $self }{qw/ start reload restart cfgDir / } = ( 0, 0, 0, "$::imscpConfig{'CONF_DIR'}/frontend" );
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/frontend.data.dist";
-    tie %{$self->{'config'}},
+    tie %{ $self->{'config'} },
         'iMSCP::Config',
         filename    => "$self->{'cfgDir'}/frontend.data",
         readonly    => iMSCP::Getopt->context() ne 'installer',
@@ -647,14 +647,14 @@ sub _init
 
 sub _mergeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     if ( -f "$self->{'cfgDir'}/frontend.data" ) {
         tie my %newConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/frontend.data.dist";
         tie my %oldConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/frontend.data", readonly => 1;
         debug( 'Merging old configuration with new configuration...' );
 
-        while ( my ($key, $value) = each( %oldConfig ) ) {
+        while ( my ( $key, $value ) = each( %oldConfig ) ) {
             next unless exists $newConfig{$key};
             $newConfig{$key} = $value;
         }
@@ -679,7 +679,7 @@ sub _mergeConfig
 
 sub _buildConf
 {
-    my ($self, $cfgTpl, $filename, $tplVars) = @_;
+    my ( $self, $cfgTpl, $filename, $tplVars ) = @_;
 
     $tplVars ||= {};
     $self->{'eventManager'}->trigger( 'beforeFrontEndBuildConf', $cfgTpl, $filename, $tplVars );

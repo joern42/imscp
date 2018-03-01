@@ -49,7 +49,7 @@ our $VERSION = '1.0.0';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->SUPER::install();
     $self->_cleanup();
@@ -63,7 +63,7 @@ sub install
 
 sub dpkgPostInvokeTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Gather system information
     my $sysInfo = eval {
@@ -112,9 +112,9 @@ sub dpkgPostInvokeTasks
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+    return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.6.0' );
 
     iMSCP::File->new( filename => "$self->{'config'}->{'LOGROTATE_CONF_DIR'}/imscp" )->remove();
 }

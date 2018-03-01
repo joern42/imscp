@@ -100,7 +100,7 @@ my $command = {
 
 sub backupHomedir
 {
-    my ($mainDmnName, $homeDir, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group) = @_;
+    my ( $mainDmnName, $homeDir, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group ) = @_;
 
     my $bkpDate = strftime "%Y.%m.%d-%H-%M", localtime;
     my $bkpArchName = "web-backup-$mainDmnName-$bkpDate.tar$bkpExt";
@@ -138,12 +138,12 @@ sub backupHomedir
 
 sub backupDatabases
 {
-    my ($mainDmnId, $bkpDir, $cmpAlgo, $cmpLevel, $user, $group) = @_;
+    my ( $mainDmnId, $bkpDir, $cmpAlgo, $cmpLevel, $user, $group ) = @_;
 
     my $db = iMSCP::Database->getInstance();
     my $rows = $db->selectall_hashref( 'SELECT sqld_id, sqld_name FROM sql_database WHERE domain_id = ?', 'sqld_name', undef, $mainDmnId );
 
-    for my $dbName( keys %{$rows} ) {
+    for my $dbName ( keys %{ $rows } ) {
         eval { $db->dumpdb( $dbName, $bkpDir ) };
         if ( $@ ) {
             error( $@ );
@@ -160,7 +160,7 @@ sub backupDatabases
 
         next if $@ || $cmpAlgo eq 'no';
 
-        my $rs = execute( [ $command->{$cmpAlgo}->{'command'}, "-$cmpLevel", '--force', $dbDumpFilePath ], \ my $stdout, \ my $stderr );
+        my $rs = execute( [ $command->{$cmpAlgo}->{'command'}, "-$cmpLevel", '--force', $dbDumpFilePath ], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         !$rs or error( sprintf( "Couldn't compress %s database dump: %s", $dbName, $stderr || 'Unknown error' ));
     }
@@ -183,7 +183,7 @@ sub backupDatabases
 
 sub backupMaildirs
 {
-    my ($dmnId, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group) = @_;
+    my ( $dmnId, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group ) = @_;
 
     my $rows = iMSCP::Database->getInstance()->selectall_hashref(
         "
@@ -208,7 +208,7 @@ sub backupMaildirs
 
     my $virtualMailDir = iMSCP::Servers::Mta->factory()->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'};
 
-    for my $dir( keys %{$rows} ) {
+    for my $dir ( keys %{ $rows } ) {
         my $mailDirPath = "$virtualMailDir/$dir";
         next unless -d $mailDirPath;
 
@@ -218,7 +218,7 @@ sub backupMaildirs
             "nice -n 19 ionice -c2 -n7 tar -c -C $mailDirPath .",
             ( $cmpAlgo eq 'no' ? "-f $bkpDir/$bkpArchName" : "| $command->{$cmpAlgo}->{'command'} -$cmpLevel > $bkpDir/$bkpArchName" )
         );
-        my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
+        my $rs = execute( "@cmd", \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
 
         # tar exit with status 1 only if some files were changed while being read. We want ignore this.
@@ -244,7 +244,7 @@ sub backupAll
 {
     my $cmpAlgo = lc( $::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
     $cmpAlgo = 'no' unless $cmpAlgo eq 'no' || exists $command->{$cmpAlgo};
-    my ($cmpLevel) = $::imscpConfig{'BACKUP_COMPRESS_LEVEL'} =~ /^([1-9])$/;
+    my ( $cmpLevel ) = $::imscpConfig{'BACKUP_COMPRESS_LEVEL'} =~ /^([1-9])$/;
     $cmpLevel ||= 1;
     my $bkpExt = ( $cmpAlgo ne 'no' ) ? '.' . $command->{$cmpAlgo}->{'extension'} : '';
 
@@ -259,7 +259,7 @@ sub backupAll
         'domain_id'
     );
 
-    while ( my ($dmnId, $dmnData) = each( %{$rows} ) ) {
+    while ( my ( $dmnId, $dmnData ) = each( %{ $rows } ) ) {
         eval {
             next unless $dmnData->{'allowbackup'} && $dmnData->{'allowbackup'} =~ /\b(?:dmn|sql|mail)\b/;
 
@@ -301,7 +301,7 @@ sub backupAll
 
 newDebug( 'imscp-backup-all.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
 
 Script that backup i-MSCP customer's data.
 

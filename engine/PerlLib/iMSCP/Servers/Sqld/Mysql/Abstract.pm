@@ -26,7 +26,7 @@ package iMSCP::Servers::Sqld::Mysql::Abstract;
 use strict;
 use warnings;
 use autouse 'iMSCP::Crypt' => qw/ ALNUM encryptRijndaelCBC decryptRijndaelCBC randomStr /;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/isNotEmpty isNumber isNumberInRange isOneOfStringsInList isStringInList isStringNotInList
+use autouse 'iMSCP::Dialog::InputValidation' => qw/ isNotEmpty isNumber isNumberInRange isOneOfStringsInList isStringInList isStringNotInList
     isValidHostname isValidIpAddr isValidPassword isValidUsername isValidDbName /;
 use autouse 'iMSCP::Execute' => qw/ execute escapeShell /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
@@ -56,12 +56,12 @@ use parent 'iMSCP::Servers::Sqld';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{$_[0]},
+            push @{ $_[0] },
                 sub { $self->masterSqlUserDialog( @_ ) }, sub { $self->sqlUserHostDialog( @_ ) }, sub { $self->databaseNameDialog( @_ ) },
                 sub { $self->databasePrefixDialog( @_ ) };
         },
@@ -80,7 +80,7 @@ sub registerSetupListeners
 
 sub masterSqlUserDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $rs = 0;
     $rs = $self->_askSqlRootUser( $dialog ) if iMSCP::Getopt->preseed;
@@ -161,7 +161,7 @@ EOF
 
 sub sqlUserHostDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     if ( index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ) {
         ::setupSetQuestion( 'DATABASE_USER_HOST', 'localhost' );
@@ -170,7 +170,7 @@ sub sqlUserHostDialog
 
     my $hostname = ::setupGetQuestion( 'DATABASE_USER_HOST', ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' ));
 
-    if ( grep($hostname eq $_, ( 'localhost', '127.0.0.1', '::1' )) ) {
+    if ( grep ($hostname eq $_, ( 'localhost', '127.0.0.1', '::1' )) ) {
         $hostname = ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
     }
 
@@ -180,7 +180,7 @@ sub sqlUserHostDialog
         || ( $hostname ne '%'
         && !isValidHostname( $hostname )
         && !isValidIpAddr( $hostname,
-            ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
+        ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
             ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ ) )
     ) {
         my $rs = 0;
@@ -195,7 +195,7 @@ EOF
             && ( $hostname ne '%'
             && !isValidHostname( $hostname )
             && !isValidIpAddr( $hostname,
-                ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
+            ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
                 ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ )
         );
 
@@ -217,7 +217,7 @@ EOF
 
 sub databaseNameDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $dbName = ::setupGetQuestion( 'DATABASE_NAME', iMSCP::Getopt->preseed ? 'imscp' : '' );
 
@@ -263,7 +263,7 @@ Keep in mind that the new database will be free of any reseller and customer dat
 
 \\Z4Note:\\Zn If the database you want to create already exists, nothing will happen.
 EOF
-                goto &{databaseNameDialog};
+                goto &{ databaseNameDialog };
             }
         }
     }
@@ -283,13 +283,13 @@ EOF
 
 sub databasePrefixDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'MYSQL_PREFIX', iMSCP::Getopt->preseed ? 'none' : '' );
     my %choices = ( 'behind', 'Behind', 'infront', 'Infront', 'none', 'None' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqld', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep( $value eq $_, keys %choices ) )[0] || 'none' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'none' );
 \\Z4\\Zb\\ZuMySQL Database Prefix/Suffix\\Zn
 
 Do you want to use a prefix or suffix for customer's SQL databases?
@@ -314,7 +314,7 @@ EOF
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setVendor();
     $self->_setVersion();
@@ -333,7 +333,7 @@ sub preinstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf",
         {
@@ -359,7 +359,7 @@ sub setEnginePermissions
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Mysql';
 }
@@ -372,7 +372,7 @@ sub getServerName
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'MySQL %s', $self->getVersion());
 }
@@ -385,7 +385,7 @@ sub getHumanServerName
 
 sub createUser
 {
-    my ($self, $user, $host, $password) = @_;
+    my ( $self, $user, $host, $password ) = @_;
 
     defined $user or croak( '$user parameter is not defined' );
     defined $host or croak( '$host parameter is not defined' );
@@ -419,13 +419,13 @@ sub createUser
 
 sub dropUser
 {
-    my (undef, $user, $host) = @_;
+    my ( undef, $user, $host ) = @_;
 
     defined $user or croak( '$user parameter not defined' );
     defined $host or croak( '$host parameter not defined' );
 
     # Prevent deletion of system SQL users
-    return if grep($_ eq lc $user, 'debian-sys-maint', 'mysql.sys', 'root');
+    return if grep ($_ eq lc $user, 'debian-sys-maint', 'mysql.sys', 'root');
 
     my $dbh = iMSCP::Database->getInstance();
     return unless $dbh->selectrow_hashref( 'SELECT 1 FROM mysql.user WHERE user = ? AND host = ?', undef, $user, $host );
@@ -441,7 +441,7 @@ sub dropUser
 
 sub restoreDomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'before' . $self->getServerName . 'RestoreDomain' );
 
@@ -450,12 +450,12 @@ sub restoreDomain
         'SELECT sqld_name FROM sql_database WHERE domain_id = ?', { Slice => {} }, $moduleData->{'DOMAIN_ID'}
     );
 
-    for my $row( @{$rows} ) {
+    for my $row ( @{ $rows } ) {
         # Encode slashes as SOLIDUS unicode character
         # Encode dots as Full stop unicode character
         ( my $encodedDbName = $row->{'sqld_name'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
 
-        for my $ext( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
+        for my $ext ( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
             my $dbDumpFilePath = File::Spec->catfile( "$moduleData->{'HOME_DIR'}/backups", $encodedDbName . $ext );
             debug( $dbDumpFilePath );
             next unless -f $dbDumpFilePath;
@@ -479,7 +479,7 @@ sub restoreDomain
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
@@ -495,7 +495,7 @@ sub _init
 
 sub _askSqlRootUser
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $hostname = ::setupGetQuestion(
         'DATABASE_HOST', index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? '' : 'localhost'
@@ -510,7 +510,7 @@ sub _askSqlRootUser
     my $pwd = ::setupGetQuestion( 'SQL_ROOT_PASSWORD' );
 
     if ( $hostname eq 'localhost' ) {
-        for my $host( 'localhost', '127.0.0.1' ) {
+        for my $host ( 'localhost', '127.0.0.1' ) {
             eval { $self->_tryDbConnect( $host, $port, $user, $pwd ); };
             next if $@;
 
@@ -590,7 +590,7 @@ i-MSCP installer couldn't connect to SQL server using the following data:
 
 Error was: \\Z1$@\\Zn
 EOF
-        goto &{_askSqlRootUser};
+        goto &{ _askSqlRootUser };
     }
 
     0;
@@ -606,7 +606,7 @@ EOF
 
 sub _setVendor
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     debug( sprintf( 'SQL server vendor set to: %s', 'MySQL' ));
     $self->{'config'}->{'SQLD_VENDOR'} = 'MySQL';
@@ -622,10 +622,10 @@ sub _setVendor
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $row = iMSCP::Database->getInstance()->selectrow_hashref( 'SELECT @@version' ) or die( "Could't find SQL server version" );
-    my ($version) = $row->{'@@version'} =~ /^([0-9]+(?:\.[0-9]+){1,2})/;
+    my ( $version ) = $row->{'@@version'} =~ /^([0-9]+(?:\.[0-9]+){1,2})/;
     defined $version or die( "Couldn't guess SQL server version with the `SELECT \@\@version` SQL query" );
     debug( sprintf( 'SQL server version set to: %s', $version ));
     $self->{'config'}->{'SQLD_VERSION'} = $version;
@@ -642,7 +642,7 @@ sub _setVersion
 
 sub _buildConf
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the _buildConf() method ', ref $self ));
 }
@@ -657,7 +657,7 @@ sub _buildConf
 
 sub _setupMasterSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $user = ::setupGetQuestion( 'DATABASE_USER' );
     my $userHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
@@ -667,7 +667,7 @@ sub _setupMasterSqlUser
     for my $sqlUser ( $::imscpOldConfig{'DATABASE_USER'}, $user ) {
         next unless $sqlUser;
 
-        for my $host( $userHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+        for my $host ( $userHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
             next unless $host;
             $self->dropUser( $sqlUser, $host );
         }
@@ -693,7 +693,7 @@ sub _setupMasterSqlUser
 
 sub _updateServerConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the _updateServerConfig() method ', ref $self ));
 }
@@ -714,7 +714,7 @@ sub _updateServerConfig
 
 sub _secureInstallation
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $db = iMSCP::Database->getInstance();
     my $oldDbName = $db->useDatabase( 'mysql' );
@@ -741,7 +741,7 @@ sub _secureInstallation
 
 sub _setupDatabase
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $dbName = ::setupGetQuestion( 'DATABASE_NAME' );
 
@@ -768,7 +768,7 @@ EOF
             { srcname => 'defaults-extra-file' }
         );
 
-        my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \ my $stdout, \ my $stderr );
+        my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     }
@@ -780,8 +780,8 @@ EOF
             ( iMSCP::ProgramFinder::find( 'php' ) or die( "Couldn't find php executable in \$PATH" ) )
             , '-d', 'date.timezone=UTC', "$::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php"
         ],
-        \ my $stdout,
-        \ my $stderr
+        \my $stdout,
+        \my $stderr
     );
     debug( $stdout ) if $stdout;
     die( $stderr || 'Unknown error' ) if $rs;
@@ -797,7 +797,7 @@ EOF
 
 sub _setupIsImscpDb
 {
-    my (undef, $dbName) = @_;
+    my ( undef, $dbName ) = @_;
 
     return 0 unless length $dbName;
 
@@ -808,8 +808,8 @@ sub _setupIsImscpDb
     my $tables = $db->getDbTables( $dbName );
     ref $tables eq 'ARRAY' or die( $tables );
 
-    for my $table( qw/ server_ips user_gui_props reseller_props / ) {
-        return 0 unless grep( $_ eq $table, @{$tables} );
+    for my $table ( qw/ server_ips user_gui_props reseller_props / ) {
+        return 0 unless grep ( $_ eq $table, @{ $tables } );
     }
 
     1;
@@ -825,7 +825,7 @@ sub _setupIsImscpDb
 
 sub _tryDbConnect
 {
-    my (undef, $host, $port, $user, $pwd) = @_;
+    my ( undef, $host, $port, $user, $pwd ) = @_;
 
     defined $host or croak( '$host parameter is not defined' );
     defined $port or croak( '$port parameter is not defined' );
@@ -852,9 +852,9 @@ sub _tryDbConnect
 
 sub _restoreDatabase
 {
-    my ($self, $dbName, $dbDumpFilePath) = @_;
+    my ( $self, $dbName, $dbDumpFilePath ) = @_;
 
-    my (undef, undef, $archFormat) = fileparse( $dbDumpFilePath, qr/\.(?:bz2|gz|lzma|xz)/ );
+    my ( undef, undef, $archFormat ) = fileparse( $dbDumpFilePath, qr/\.(?:bz2|gz|lzma|xz)/ );
     my $cmd;
 
     if ( $archFormat eq '.bz2' ) {
@@ -886,7 +886,7 @@ sub _restoreDatabase
     # access additional databases matching the wildcard pattern; for example, GRANT ... ON `foo\_bar`.* TO ....
     #
     # In practice, without escaping, an user added for db `a_c` would also have access to a db `abc`.
-    $dbh->do( "GRANT ALL PRIVILEGES ON @{[ $dbh->quote_identifier( $dbName ) =~ s/([%_])/\\$1/gr ]}.* TO ?\@?", undef, $tmpUser, $tmpPassword );
+    $dbh->do( "GRANT ALL PRIVILEGES ON @{ [ $dbh->quote_identifier( $dbName ) =~ s/([%_])/\\$1/gr ] }.* TO ?\@?", undef, $tmpUser, $tmpPassword );
 
     # Avoid error such as 'MySQL error 1449: The user specified as a definer does not exist' by updating definer if any
     # FIXME: Need flush privileges?
@@ -906,7 +906,7 @@ EOF
     $defaultsExtraFile->close();
 
     my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultsExtraFile", escapeShell( $dbName ) );
-    my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
+    my $rs = execute( "@cmd", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' ));
     $self->dropUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} );

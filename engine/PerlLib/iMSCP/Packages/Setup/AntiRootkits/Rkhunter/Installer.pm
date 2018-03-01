@@ -25,7 +25,7 @@ package iMSCP::Packages::Setup::AntiRootkits::Rkhunter::Installer;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw / debug error /;
+use iMSCP::Debug qw/ debug error /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Servers::Cron;
@@ -62,7 +62,7 @@ sub preinstall
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_addCronTask();
     $self->_scheduleCheck();
@@ -87,8 +87,8 @@ sub _disableDebianConfig
     if ( -f '/etc/default/rkhunter' ) {
         my $file = iMSCP::File->new( filename => '/etc/default/rkhunter' );
         my $fileContentRef = $file->getAsRef();
-        ${$fileContentRef} =~ s/CRON_DAILY_RUN=".*"/CRON_DAILY_RUN="false"/i;
-        ${$fileContentRef} =~ s/CRON_DB_UPDATE=".*"/CRON_DB_UPDATE="false"/i;
+        ${ $fileContentRef } =~ s/CRON_DAILY_RUN=".*"/CRON_DAILY_RUN="false"/i;
+        ${ $fileContentRef } =~ s/CRON_DB_UPDATE=".*"/CRON_DB_UPDATE="false"/i;
         $file->save();
     }
 
@@ -120,9 +120,9 @@ sub _addCronTask
         DWEEK   => '',
         USER    => $::imscpConfig{'ROOT_USER'},
         COMMAND =>
-        'nice -n 10 ionice -c2 -n5 '
-            . "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl "
-            . "> /dev/null 2>&1"
+            'nice -n 10 ionice -c2 -n5 '
+                . "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl "
+                . "> /dev/null 2>&1"
     } );
 }
 
@@ -143,11 +143,11 @@ sub _scheduleCheck
 
     my $rs = execute(
         "echo 'perl $::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl > /dev/null 2>&1' | at now + 10 minutes",
-        \ my $stdout,
-        \ my $stderr
+        \my $stdout,
+        \my $stderr
     );
     debug( $stdout ) if $stdout;
-    !$rs or die ( $stderr || 'Unknown error' );
+    !$rs or die( $stderr || 'Unknown error' );
 }
 
 =back

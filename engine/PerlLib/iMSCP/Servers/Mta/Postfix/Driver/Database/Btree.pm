@@ -45,7 +45,7 @@ use parent 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash';
 
 sub getDbType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'btree';
 }

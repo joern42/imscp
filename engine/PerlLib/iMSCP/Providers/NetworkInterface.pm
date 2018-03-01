@@ -48,7 +48,7 @@ $Module::Load::Conditional::FIND_VERSION = 0;
 
 sub addIpAddr
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     $self->getProvider()->addIpAddr( $data );
     $self;
@@ -62,7 +62,7 @@ sub addIpAddr
 
 sub removeIpAddr
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     $self->getProvider()->removeIpAddr( $data );
     $self;
@@ -78,7 +78,7 @@ sub removeIpAddr
 
 sub getProvider
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     exists $::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
 
@@ -104,7 +104,7 @@ sub getProvider
 
 sub setProvider
 {
-    my ($self, $provider) = @_;
+    my ( $self, $provider ) = @_;
 
     blessed( $provider ) && $provider->isa( 'iMSCP::Providers::NetworkInterface::Interface' ) or croak(
         '$provider parameter is either not defined or not an iMSCP::Providers::NetworkInterface::Interface object'

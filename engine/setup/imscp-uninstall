@@ -48,7 +48,7 @@ use iMSCP::Service;
 use iMSCP::Stepper qw/ endDetail startDetail step /;
 use iMSCP::SystemUser;
 use iMSCP::Servers::Sqld;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -92,9 +92,9 @@ EOF
         [ \&_removeFiles, 'Removing i-MSCP files' ],
     );
 
-    my ($nStep, $nbSteps) = ( 1, scalar @steps );
-    for my $step(@steps) {
-        step( @{$step}, $nbSteps, $nStep++ );
+    my ( $nStep, $nbSteps ) = ( 1, scalar @steps );
+    for my $step ( @steps ) {
+        step( @{ $step }, $nbSteps, $nStep++ );
     }
 
     iMSCP::Dialog->getInstance()->endGauge();
@@ -148,7 +148,7 @@ sub _removeCustomers
     my $db = iMSCP::Database->getInstance();
     my $oldDbName = $db->useDatabase( $::imscpConfig{'DATABASE_NAME'} );
 
-    while ( my ($table, $field) = each %{$tables} ) {
+    while ( my ( $table, $field ) = each %{ $tables } ) {
         if ( ref $field eq 'ARRAY' ) {
             $aditionalCondition = $field->[1];
             $field = $field->[0];
@@ -173,8 +173,8 @@ sub _uninstallPackages
 
     # For uninstallation, we reverse package priorities
     my @packages = reverse iMSCP::Packages->getInstance()->getListWithFullNames();
-    my ($step, $nbSteps) = ( 1, scalar @packages );
-    for my $package( @packages ) {
+    my ( $step, $nbSteps ) = ( 1, scalar @packages );
+    for my $package ( @packages ) {
         ( my $subref = $package->can( 'uninstall' ) ) or $step++ && next;
         step( sub { $subref->( $package->getInstance()) }, sprintf( 'Executing %s uninstall tasks...', $package ), $nbSteps, $step );
     }
@@ -186,11 +186,11 @@ sub _uninstallServers
 {
     # For uninstallation, we reverse servers priorities
     my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
-    my ($step, $nbSteps) = ( 1, scalar @servers );
+    my ( $step, $nbSteps ) = ( 1, scalar @servers );
 
     startDetail();
-    for my $task( qw/ preuninstall uninstall postuninstall / ) {
-        for my $server( @servers ) {
+    for my $task ( qw/ preuninstall uninstall postuninstall / ) {
+        for my $server ( @servers ) {
             step( sub { $server->factory()->$task() }, sprintf( 'Executing %s uninstall tasks...', $server ), $nbSteps, $step++ );
         }
     }
@@ -206,7 +206,7 @@ sub _uninstallServices
     $srvProvider->remove( $_ ) for 'imscp_traffic', 'imscp_mountall';
 
     # FIXME: Should be done by the Bind9 server implementation...
-    for my $service( 'bind9', 'bind9-resolvconf' ) {
+    for my $service ( 'bind9', 'bind9-resolvconf' ) {
         $srvProvider->disable( $service ) if $srvProvider->isSystemd();
 
         iMSCP::File->new( filename => "/etc/systemd/system/$service.service" )->remove();
@@ -225,11 +225,11 @@ sub _removeSqlData
 
     # Remove customer's sql users
     my $rows = $dbh->selectall_hashref( 'SELECT DISTINCT sqlu_name, sqlu_host FROM sql_user', 'sqlu_name' );
-    $sqlServer->dropUser( $rows->{$_}->{'sqlu_name'}, $rows->{$_}->{'sqlu_host'} ) for keys %{$rows};
+    $sqlServer->dropUser( $rows->{$_}->{'sqlu_name'}, $rows->{$_}->{'sqlu_host'} ) for keys %{ $rows };
 
     # Remove customer's sql databases
     $rows = $dbh->selectall_hashref( 'SELECT sqld_name FROM sql_database', 'sqld_name' );
-    $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $rows->{$_}->{'sqld_name'} )) for keys %{$rows};
+    $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $rows->{$_}->{'sqld_name'} )) for keys %{ $rows };
 
     # Remove i-MSCP sql database
     $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $::imscpConfig{'DATABASE_NAME'} ));
@@ -249,7 +249,7 @@ sub _removeFiles
 {
     chdir( '/' );
 
-    for my $file( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
+    for my $file ( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
         iMSCP::File->new( filename => $file )->remove();
     }
 

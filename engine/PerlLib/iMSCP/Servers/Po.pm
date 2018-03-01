@@ -70,9 +70,9 @@ sub getPriority
 
 sub addMail
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
 }
 
 =item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
@@ -88,9 +88,9 @@ sub addMail
 
 sub getTraffic
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
+    die( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }
 
 =back
@@ -107,7 +107,7 @@ sub getTraffic
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 

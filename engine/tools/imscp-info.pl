@@ -38,7 +38,7 @@ use iMSCP::Getopt;
 use iMSCP::Servers;
 use JSON qw/ to_json /;
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Display information about i-MSCP instance.
 
@@ -108,7 +108,7 @@ EOF
     $json->{'daemon_type'} = $::imscpConfig{'DAEMON_TYPE'};
 }
 
-for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     my $srvInstance = $server_->factory();
 
     if ( iMSCP::Getopt->json ) {

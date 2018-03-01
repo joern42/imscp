@@ -61,7 +61,7 @@ sub setupBoot
     }
 
     # We open the imscpOld.conf file in write mode. This is needed because some
-    # servers will update it after processing tasks  that must be done once,
+    # servers will update it after processing tasks that must be done once,
     # such as uninstallation tasks (older server alternatives)
     tie %::imscpOldConfig, 'iMSCP::Config', filename => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf";
 
@@ -73,7 +73,6 @@ sub setupBoot
 
 sub setupRegisterListeners
 {
-
     $_->factory()->registerSetupListeners() for iMSCP::Servers->getInstance()->getListWithFullNames();
 
     my $eventManager = iMSCP::EventManager->getInstance();
@@ -114,7 +113,7 @@ sub setupDialog
     }
 
     $dialog->set( 'no-cancel', undef );
-    
+
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupDialog' );
 }
 

@@ -49,7 +49,7 @@ our $VERSION = '2.0.0';
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item getHumanServerName( )
@@ -60,7 +60,7 @@ sub postinstall
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'Remote %s %s', $self->getVendor(), $self->getVersion());
 }
@@ -73,7 +73,7 @@ sub getHumanServerName
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item stop( )
@@ -84,7 +84,7 @@ sub start
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item restart( )
@@ -95,7 +95,7 @@ sub stop
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item reload( )
@@ -106,7 +106,7 @@ sub restart
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 }
 
 =item createUser( $user, $host, $password )
@@ -117,7 +117,7 @@ sub reload
 
 sub createUser
 {
-    my ($self, $user, $host, $password) = @_;
+    my ( $self, $user, $host, $password ) = @_;
 
     defined $user or croak( '$user parameter is not defined' );
     defined $host or croak( '$host parameter is not defined' );
@@ -161,7 +161,7 @@ sub createUser
 
 sub _setVendor
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $row = iMSCP::Database->getInstance()->selectrow_hashref( 'SELECT @@version, @@version_comment' ) or die( "Could't find SQL server vendor" );
     my $vendor = 'MySQL';
@@ -184,7 +184,7 @@ sub _setVendor
 
 sub _buildConf
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Make sure that the conf.d directory exists
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
@@ -197,10 +197,10 @@ sub _buildConf
     $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
-            unless ( defined ${$_[0]} ) {
-                ${$_[0]} = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
-            } elsif ( ${$_[0]} !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
-                ${$_[0]} .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            unless ( defined ${ $_[0] } ) {
+                ${ $_[0] } = "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
+            } elsif ( ${ $_[0] } !~ m%^!includedir\s+$_[5]->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
+                ${ $_[0] } .= "!includedir $_[5]->{'SQLD_CONF_DIR'}/conf.d/\n";
             }
         }
     );
@@ -234,14 +234,14 @@ EOF
 
 sub _updateServerConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return if ( $self->getVendor() eq 'MariaDB' && version->parse( $self->getVersion()) < version->parse( '10.0' ) )
         || version->parse( $self->getVersion()) < version->parse( '5.6.6' );
 
     # Disable unwanted plugins (bc reasons)
     my $dbh = iMSCP::Database->getInstance();
-    for my $plugin( qw/ cracklib_password_check simple_password_check validate_password / ) {
+    for my $plugin ( qw/ cracklib_password_check simple_password_check validate_password / ) {
         $dbh->do( "UNINSTALL PLUGIN $plugin" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
     }
 }

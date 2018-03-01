@@ -64,9 +64,9 @@ use parent 'iMSCP::Common::Singleton';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->showDialog( @_ ) }; } );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->showDialog( @_ ) }; } );
 }
 
 =item showDialog( \%dialog )
@@ -80,7 +80,7 @@ sub registerSetupListeners
 
 sub showDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $masterSqlUser = ::setupGetQuestion( 'DATABASE_USER' );
     my $dbUser = ::setupGetQuestion(
@@ -161,7 +161,7 @@ EOF
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'}->getComposer()->requirePackage( 'imscp/phpmyadmin', '0.4.7.*@dev' );
     $self->{'eventManager'}->register( 'afterFrontEndBuildConfFile', \&afterFrontEndBuildConfFile );
@@ -177,7 +177,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_backupConfigFile( "$::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}/config.inc.php" );
     $self->_installFiles();
@@ -208,7 +208,7 @@ sub install
 
 sub afterFrontEndBuildConfFile
 {
-    my ($tplContent, $tplName) = @_;
+    my ( $tplContent, $tplName ) = @_;
 
     return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
@@ -237,7 +237,7 @@ EOF
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'phpmyadmin'} = iMSCP::Packages::Setup::PhpMyAdmin->getInstance();
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
@@ -258,7 +258,7 @@ sub _init
 
 sub _backupConfigFile
 {
-    my ($self, $cfgFile) = @_;
+    my ( $self, $cfgFile ) = @_;
 
     return unless -f $cfgFile && -d $self->{'bkpDir'};
 
@@ -293,7 +293,7 @@ sub _installFiles
 
 sub _setupSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $phpmyadminDbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
     my $dbUser = ::setupGetQuestion( 'PHPMYADMIN_SQL_USER' );
@@ -308,7 +308,7 @@ sub _setupSqlUser
     for my $sqlUser ( $dbOldUser, $dbUser ) {
         next unless $sqlUser;
 
-        for my $host( $dbUserHost, $oldDbUserHost ) {
+        for my $host ( $dbUserHost, $oldDbUserHost ) {
             next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
@@ -376,9 +376,9 @@ sub _setupDatabase
 
     my $file = iMSCP::File->new( filename => $schemaFilePath );
     my $fileContentRef = $file->getAsRef();
-    ${$fileContentRef} =~ s/^(-- Database :) `phpmyadmin`/$1 `$phpmyadminDbName`/im;
-    ${$fileContentRef} =~ s/^(CREATE DATABASE IF NOT EXISTS) `phpmyadmin`/$1 `$phpmyadminDbName`/im;
-    ${$fileContentRef} =~ s/^(USE) phpmyadmin;/$1 `$phpmyadminDbName`;/im;
+    ${ $fileContentRef } =~ s/^(-- Database :) `phpmyadmin`/$1 `$phpmyadminDbName`/im;
+    ${ $fileContentRef } =~ s/^(CREATE DATABASE IF NOT EXISTS) `phpmyadmin`/$1 `$phpmyadminDbName`/im;
+    ${ $fileContentRef } =~ s/^(USE) phpmyadmin;/$1 `$phpmyadminDbName`;/im;
     $file->save();
 
     my $mysqlConffile = File::Temp->new();
@@ -391,7 +391,7 @@ password = "@{ [ decryptRijndaelCBC($::imscpKEY, $::imscpIV, ::setupGetQuestion(
 EOF
     $mysqlConffile->close();
 
-    my $rs = execute( "mysql --defaults-extra-file=$mysqlConffile < $schemaFilePath", \ my $stdout, \ my $stderr );
+    my $rs = execute( "mysql --defaults-extra-file=$mysqlConffile < $schemaFilePath", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' ) if $rs;
 }
@@ -406,7 +406,7 @@ EOF
 
 sub _buildHttpdConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'}->buildConfFile(
         "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/PhpMyAdmin/config/nginx/imscp_pma.nginx",
@@ -425,7 +425,7 @@ sub _buildHttpdConfig
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $json = decode_json( iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma/composer.json" )->get());
     debug( sprintf( 'Set new phpMyAdmin version to %s', $json->{'version'} ));
@@ -455,7 +455,7 @@ sub _generateBlowfishSecret
 
 sub _buildConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
     my $confDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}";
@@ -481,7 +481,7 @@ sub _buildConfig
     my $cfgTpl = $file->getAsRef( TRUE );
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', $cfgTpl, $data );
-    $file->getAsRef() unless length ${$cfgTpl};
+    $file->getAsRef() unless length ${ $cfgTpl };
 
     processByRef( $data, $cfgTpl );
 
@@ -499,7 +499,7 @@ sub _buildConfig
 
 sub _cleanup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/phpmyadmin.old.data" )->remove();
 }

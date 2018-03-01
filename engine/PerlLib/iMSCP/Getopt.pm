@@ -62,7 +62,7 @@ my $SHOW_USAGE;
 
 sub parse
 {
-    my ($class, $usage, @options) = @_;
+    my ( $class, $usage, @options ) = @_;
 
     $SHOW_USAGE = sub {
         if ( length $OPTION_HELP ) {
@@ -130,7 +130,7 @@ EOF
 
 sub parseNoDefault
 {
-    my ($class, $usage, @options) = @_;
+    my ( $class, $usage, @options ) = @_;
 
     $SHOW_USAGE = sub {
         print STDERR wrap( '', '', <<"EOF" );
@@ -217,13 +217,13 @@ my %RECONFIGURATION_ITEMS = (
 
 sub reconfigure
 {
-    my (undef, $items) = @_;
+    my ( undef, $items ) = @_;
 
     return $options->{'reconfigure'} ||= [ 'none' ] unless defined $items;
 
     my @items = split /,/, $items;
 
-    if ( grep( 'help' eq $_, @items ) ) {
+    if ( grep ( 'help' eq $_, @items ) ) {
         $OPTION_HELP = <<"EOF";
 Reconfiguration option usage:
 
@@ -243,8 +243,8 @@ EOF
     } elsif ( !@items ) {
         push @items, 'all';
     } else {
-        for my $item( @items ) {
-            grep($_ eq $item, keys %RECONFIGURATION_ITEMS, 'none', 'forced') or die(
+        for my $item ( @items ) {
+            grep ($_ eq $item, keys %RECONFIGURATION_ITEMS, 'none', 'forced') or die(
                 sprintf( "Error: '%s' is not a valid item for the the --reconfigure option.", $item )
             );
         }
@@ -267,7 +267,7 @@ EOF
 
 sub preseed
 {
-    my (undef, $file) = @_;
+    my ( undef, $file ) = @_;
 
     return $options->{'preseed'} if $options->{'preseed'};
     return 0 unless defined $file;
@@ -296,13 +296,13 @@ sub preseed
 
 sub context
 {
-    my (undef, $context) = @_;
+    my ( undef, $context ) = @_;
 
     return $options->{'context'} // 'backend' unless defined $context;
 
-    grep($context eq $_, ( 'installer', 'uninstaller', 'backend' )) or die( 'Unknown execution context' );
+    grep ($context eq $_, ( 'installer', 'uninstaller', 'backend' )) or die( 'Unknown execution context' );
 
-    if ( grep($context eq $_, 'installer', 'uninstaller') ) {
+    if ( grep ($context eq $_, 'installer', 'uninstaller') ) {
         # Needed to make sub processes aware of i-MSCP setup context
         $ENV{'IMSCP_INSTALLER'} = 1;
     }
@@ -324,12 +324,12 @@ sub AUTOLOAD
     ( my $field = our $AUTOLOAD ) =~ s/.*://;
 
     no strict 'refs';
-    *{$AUTOLOAD} = sub {
+    *{ $AUTOLOAD } = sub {
         shift;
         return $options->{$field} // 0 unless @_;
         $options->{$field} = shift;
     };
-    goto &{$AUTOLOAD};
+    goto &{ $AUTOLOAD };
 }
 
 =head1 AUTHOR

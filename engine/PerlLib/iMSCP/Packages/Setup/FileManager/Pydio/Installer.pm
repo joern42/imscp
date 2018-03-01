@@ -52,7 +52,7 @@ our $VERSION = '0.2.0.*@dev';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'}->getComposer()->requirePackage( 'imscp/ajaxplorer', $VERSION );
     $self->{'eventManager'}->register( 'afterFrontEndBuildConfFile', \&afterFrontEndBuildConfFile );
@@ -68,7 +68,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_installFiles();
     $self->_buildHttpdConfig();
@@ -92,7 +92,7 @@ sub install
 
 sub afterFrontEndBuildConfFile
 {
-    my ($tplContent, $tplName) = @_;
+    my ( $tplContent, $tplName ) = @_;
 
     return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
@@ -121,7 +121,7 @@ EOF
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
     $self;
@@ -155,7 +155,7 @@ sub _installFiles
 
 sub _buildHttpdConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'frontend'}->buildConfFile(
         "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/ajaxplorer/iMSCP/config/nginx/imscp_pydio.conf",

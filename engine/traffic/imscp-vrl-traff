@@ -38,7 +38,7 @@ use iMSCP::Database;
 use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::Getopt;
 use iMSCP::Servers;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, "C.UTF-8" );
 
@@ -69,9 +69,9 @@ sub run
     $sth->execute();
 
     my $domains = $sth->fetchall_hashref( 'domain_name' );
-    return unless %{$domains};
+    return unless %{ $domains };
 
-    my %domains = map { $_ => 0 } keys %{$domains};
+    my %domains = map { $_ => 0 } keys %{ $domains };
     my $timestamp = time();
     my $halfTimestamp = $timestamp-( $timestamp % 1800 );
     my %trafficDb = (
@@ -80,16 +80,16 @@ sub run
         'iMSCP::Servers::Mta'   => {},
         'iMSCP::Servers::Po'    => {}
     );
-    my @servers = grep(/::(?:httpd|ftpd|mta|po)$/, iMSCP::Servers->getInstance()->getListWithFullNames() );
+    my @servers = grep (/::(?:httpd|ftpd|mta|po)$/, iMSCP::Servers->getInstance()->getListWithFullNames() );
 
     # Collects traffic data from servers that implement the getTraffic() method
-    for my $server( @servers ) {
+    for my $server ( @servers ) {
         next unless $server->can( 'getTraffic' );
 
         # Initialize intermediate traffic database
-        tie %{$trafficDb{$server}}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/$server-vrl-traff.db", nocroak => 1;
-        %{$trafficDb{$server}} = ( %domains, %{$trafficDb{$server}} );
-        
+        tie %{ $trafficDb{$server} }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/$server-vrl-traff.db", nocroak => 1;
+        %{ $trafficDb{$server} } = ( %domains, %{ $trafficDb{$server} } );
+
         # Collect traffic
         $server->factory()->getTraffic( $trafficDb{$server} );
     }
@@ -107,9 +107,9 @@ sub run
         '
     );
 
-    while ( my ($domainName, $domainData) = each( %{$domains} ) ) {
+    while ( my ( $domainName, $domainData ) = each( %{ $domains } ) ) {
         my $newEntriesFound = 0;
-        for my $server( @servers ) {
+        for my $server ( @servers ) {
             $newEntriesFound++ && last if $trafficDb{$server}->{$domainName} > 0;
         }
 
@@ -124,20 +124,20 @@ sub run
             $trafficDb{'iMSCP::Servers::Mta'}->{$domainName}, $trafficDb{'iMSCP::Servers::Po'}->{$domainName}
         );
 
-        for my $server( @servers ) {
+        for my $server ( @servers ) {
             $trafficDb{$server}->{$domainName} = 0;
         }
     }
 
-    for my $server( @servers ) {
-        untie( %{$trafficDb{$server}} );
+    for my $server ( @servers ) {
+        untie( %{ $trafficDb{$server} } );
         eval { iMSCP::File->new( filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/$server-vrl-traff.db" )->remove() };
     }
 }
 
 newDebug( 'imscp-vrl-traff.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Collects customers traffic data.
 

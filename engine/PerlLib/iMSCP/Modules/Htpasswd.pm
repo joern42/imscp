@@ -44,7 +44,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Htpasswd';
 }
@@ -57,7 +57,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     $self->_loadEntityData( $entityId );
 
@@ -88,7 +88,7 @@ sub handleEntity
 
 sub _loadEntityData
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         '
@@ -125,7 +125,7 @@ sub _loadEntityData
 
 sub _add
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE htaccess_users SET status = ? WHERE id = ?', undef, $@ || 'ok', $self->{'_data'}->{'ID'} );
@@ -140,7 +140,7 @@ sub _add
 
 sub _delete
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
@@ -160,7 +160,7 @@ sub _delete
 
 sub _disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE htaccess_users SET status = ? WHERE id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'ID'} );

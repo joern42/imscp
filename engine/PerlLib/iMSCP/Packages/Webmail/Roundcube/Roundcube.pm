@@ -59,7 +59,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub showDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     iMSCP::Packages::Webmail::Roundcube::Installer->getInstance( eventManager => $self->{'eventManager'} )->showDialog( $dialog );
 }
@@ -74,7 +74,7 @@ sub showDialog
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Webmail::Roundcube::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
@@ -89,7 +89,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Webmail::Roundcube::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
 }
@@ -104,7 +104,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return if $self->{'skip_uninstall'};
 
@@ -121,7 +121,7 @@ sub uninstall
 
 sub setGuiPermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Webmail::Roundcube::Installer->getInstance( eventManager => $self->{'eventManager'} )->setGuiPermissions();
 }
@@ -137,7 +137,7 @@ sub setGuiPermissions
 
 sub deleteMail
 {
-    my (undef, $data) = @_;
+    my ( undef, $data ) = @_;
 
     return unless $data->{'MAIL_TYPE'} =~ /_mail/;
 
@@ -163,14 +163,14 @@ sub deleteMail
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/roundcube";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
 
     if ( -f "$self->{'cfgDir'}/roundcube.data" ) {
-        tie %{$self->{'config'}}, 'iMSCP::Config', filename => "$self->{'cfgDir'}/roundcube.data", readonly => 1;
+        tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/roundcube.data", readonly => 1;
     } else {
         $self->{'config'} = {};
         $self->{'skip_uninstall'} = 1;

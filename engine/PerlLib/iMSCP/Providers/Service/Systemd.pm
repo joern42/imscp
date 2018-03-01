@@ -65,13 +65,13 @@ my @UNITFILEPATHS = (
 
 sub isEnabled
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
     # We need to catch STDERR here as we do not want raise a failure when
     # command status is other than 0 but no STDERR
-    my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \ my $stdout, \my $stderr );
+    my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \my $stdout, \my $stderr );
     croak( $stderr ) if $ret && $stderr;
 
     # The indirect state indicates that the unit is not enabled.
@@ -90,7 +90,7 @@ sub isEnabled
 
 sub enable
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -113,7 +113,7 @@ sub enable
 
 sub disable
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -130,7 +130,7 @@ sub disable
 
 sub mask
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -152,7 +152,7 @@ sub mask
 
 sub unmask
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -167,7 +167,7 @@ sub unmask
 
 sub remove
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -181,12 +181,12 @@ sub remove
     $self->disable( $unit ) if $self->hasService( $unit, 'nocache' );
 
     # Remove drop-in directories if any
-    for my $dir( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
+    for my $dir ( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
         my $dropInDir = $dir;
         ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
         $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
         next unless -d $dropInDir;
-        debug( sprintf ( 'Removing the %s drop-in directory', $dropInDir ));
+        debug( sprintf( 'Removing the %s drop-in directory', $dropInDir ));
         iMSCP::Dir->new( dirname => $dropInDir )->remove();
     }
 
@@ -194,7 +194,7 @@ sub remove
     while ( my $unitFilePath = eval { $self->resolveUnit( $unit, 'withpath', 'nocache' ) } ) {
         # We do not want remove units that are shipped by distribution packages
         last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
-        debug( sprintf ( 'Removing the %s unit', $unitFilePath ));
+        debug( sprintf( 'Removing the %s unit', $unitFilePath ));
         iMSCP::File->new( filename => $unitFilePath )->remove();
     }
 
@@ -209,7 +209,7 @@ sub remove
 
 sub start
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -224,7 +224,7 @@ sub start
 
 sub stop
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -239,7 +239,7 @@ sub stop
 
 sub restart
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -254,7 +254,7 @@ sub restart
 
 sub reload
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -269,7 +269,7 @@ sub reload
 
 sub isRunning
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -284,7 +284,7 @@ sub isRunning
 
 sub hasService
 {
-    my ($self, $unit, $nocache) = @_;
+    my ( $self, $unit, $nocache ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -321,7 +321,7 @@ sub hasService
 
 sub resolveUnit
 {
-    my ($self, $unit, $withpath, $nocache) = @_;
+    my ( $self, $unit, $withpath, $nocache ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
@@ -339,12 +339,12 @@ sub resolveUnit
     if ( $@ ) {
         # For the SysVinit scripts, we want operate only on services
         ( $unit, undef, my $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
-        if ( grep( $suffix eq $_, '', '.service') ) {
+        if ( grep ( $suffix eq $_, '', '.service') ) {
             local $@;
 
             if ( $unitFilePath = eval { $self->_searchInitScript( $unit, $nocache ) } ) {
                 $resolved{$unit} = [ $unitFilePath, $unit ];
-                goto &{resolveUnit};
+                goto &{ resolveUnit };
             }
         }
 
@@ -364,7 +364,7 @@ sub resolveUnit
     }
 
     $resolved{$unit} = [ $unitFilePath, basename( $unitFilePath ) ];
-    goto &{resolveUnit};
+    goto &{ resolveUnit };
 }
 
 =item daemonReload
@@ -377,7 +377,7 @@ sub resolveUnit
 
 sub daemonReload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_exec( [ $COMMANDS{'systemctl'}, 'daemon-reload' ] );
 }
@@ -399,14 +399,14 @@ sub daemonReload
 
 sub _searchUnitFile
 {
-    my (undef, $unit) = @_;
+    my ( undef, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
     ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
     $unit .= '.service' unless $suffix;
 
-    for my $path( @UNITFILEPATHS ) {
+    for my $path ( @UNITFILEPATHS ) {
         my $filepath = File::Spec->join( $path, $unit );
         # Either a regular file or character special file (Masked units point to /dev/null)
         return $filepath if -f $filepath || -c _;

@@ -26,7 +26,7 @@ package iMSCP::Mount;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use Errno qw / EINVAL ENOENT /;
+use Errno qw/ EINVAL ENOENT /;
 use File::Spec;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
@@ -136,7 +136,7 @@ my $iMSCP_FSTAB_FH;
 
 sub getMounts
 {
-    reverse sort keys %{$MOUNTS};
+    reverse sort keys %{ $MOUNTS };
 }
 
 =item mount( \%fields )
@@ -154,12 +154,12 @@ sub getMounts
 
 =cut
 
-sub mount($)
+sub mount( $ )
 {
-    my ($fields) = @_;
+    my ( $fields ) = @_;
     $fields = {} unless defined $fields && ref $fields eq 'HASH';
 
-    for my $field( qw/ fs_spec fs_file fs_vfstype fs_mntops / ) {
+    for my $field ( qw/ fs_spec fs_file fs_vfstype fs_mntops / ) {
         defined $fields->{$field} or croak( sprintf( "%s field not defined", $field ));
     }
 
@@ -170,7 +170,7 @@ sub mount($)
 
     debug( "$fsSpec $fsFile $fsVfstype $fields->{'fs_mntops'}" );
 
-    my ($mflags, $pflags, $data) = _parseOptions( $fields->{'fs_mntops'} );
+    my ( $mflags, $pflags, $data ) = _parseOptions( $fields->{'fs_mntops'} );
     $mflags |= &iMSCP::H2ph::MS_MGC_VAL unless $mflags & &iMSCP::H2ph::MS_MGC_MSK;
 
     my @mountArgv;
@@ -195,9 +195,9 @@ sub mount($)
     push @mountArgv, [ 'none', $fsFile, 0, $pflags, 0 ] if $pflags;
 
     # Process the mount(2) calls
-    for my $mountArg( @mountArgv ) {
-        ( syscall( &iMSCP::H2ph::SYS_mount, @{$mountArg} ) == 0 || $fields->{'ignore_failures'} ) or die(
-            sprintf( 'Error while executing mount(%s): %s', join( ', ', @{$mountArg} ), $! || 'Unknown error' )
+    for my $mountArg ( @mountArgv ) {
+        ( syscall( &iMSCP::H2ph::SYS_mount, @{ $mountArg } ) == 0 || $fields->{'ignore_failures'} ) or die(
+            sprintf( 'Error while executing mount(%s): %s', join( ', ', @{ $mountArg } ), $! || 'Unknown error' )
         );
     }
 
@@ -217,9 +217,9 @@ sub mount($)
 
 =cut
 
-sub umount($;$)
+sub umount( $;$ )
 {
-    my ($fsFile, $recursive) = @_;
+    my ( $fsFile, $recursive ) = @_;
 
     defined $fsFile or croak( '$fsFile parameter is not defined' );
 
@@ -244,7 +244,7 @@ sub umount($;$)
         return;
     }
 
-    for my $mount( reverse sort keys %{$MOUNTS} ) {
+    for my $mount ( reverse sort keys %{ $MOUNTS } ) {
         next unless $mount =~ /^\Q$fsFile\E(\/|$)/;
 
         do {
@@ -271,9 +271,9 @@ sub umount($;$)
 
 =cut
 
-sub setPropagationFlag($;$)
+sub setPropagationFlag( $;$ )
 {
-    my ($fsFile, $pflag) = @_;
+    my ( $fsFile, $pflag ) = @_;
     $pflag ||= 'private';
 
     defined $fsFile or croak( '$fsFile parameter is not defined' );
@@ -302,21 +302,21 @@ sub setPropagationFlag($;$)
 
 =cut
 
-sub isMountpoint($)
+sub isMountpoint( $ )
 {
-    my ($path) = @_;
+    my ( $path ) = @_;
 
     defined $path or croak( '$path parameter is not defined' );
 
     $path = File::Spec->canonpath( $path );
 
-    my (@ast) = stat( $path) or die( sprintf( "Failed to stat '%s'", $path, $! ));
+    my ( @ast ) = stat( $path ) or die( sprintf( "Failed to stat '%s'", $path, $! ));
 
     return TRUE if $MOUNTS->{$path};
 
     #  Fallback. Traditional way to detect mountpoints. This way
     # is independent on /proc, but not able to detect bind mounts.
-    my (@bst) = stat( "$path/.." );
+    my ( @bst ) = stat( "$path/.." );
     ( $ast[0] != $bst[0] ) || ( $ast[0] == $bst[0] && $ast[1] == $bst[1] );
 }
 
@@ -329,16 +329,16 @@ sub isMountpoint($)
 
 =cut
 
-sub addMountEntry($)
+sub addMountEntry( $ )
 {
-    my ($entry) = @_;
+    my ( $entry ) = @_;
 
     defined $entry or croak( '$entry parameter is not defined' );
 
     removeMountEntry( $entry, 0 ); # Avoid duplicate entries
 
     my $fileContent = $iMSCP_FSTAB_FH->getAsRef();
-    ${$fileContent} .= "$entry\n";
+    ${ $fileContent } .= "$entry\n";
     $iMSCP_FSTAB_FH->save();
 }
 
@@ -352,16 +352,16 @@ sub addMountEntry($)
 
 =cut
 
-sub removeMountEntry($;$)
+sub removeMountEntry( $;$ )
 {
-    my ($entry, $saveFile) = @_;
+    my ( $entry, $saveFile ) = @_;
     $saveFile //= 1;
 
     defined $entry or croak( '$entry parameter is not defined' );
 
     my $fileContent = ( $iMSCP_FSTAB_FH ||= iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/mounts/mounts.conf" ) )->getAsRef();
     $entry = quotemeta( $entry ) unless ref $entry eq 'Regexp';
-    ${$fileContent} =~ s/^$entry\n//gm;
+    ${ $fileContent } =~ s/^$entry\n//gm;
     $iMSCP_FSTAB_FH->save() if $saveFile;
 }
 
@@ -380,23 +380,23 @@ sub removeMountEntry($;$)
 
 =cut
 
-sub _parseOptions($)
+sub _parseOptions( $ )
 {
-    my ($options) = @_;
+    my ( $options ) = @_;
 
     # Turn options string into option list
     my @options = split /[\s,]+/, $options;
 
     # Parse mount flags (excluding any propagation flag)
-    my ($mflags, @roptions) = ( 0 );
-    for my $option( @options ) {
+    my ( $mflags, @roptions ) = ( 0 );
+    for my $option ( @options ) {
         push( @roptions, $option ) && next unless exists $MOUNT_FLAGS{$option};
         $mflags = $MOUNT_FLAGS{$option}->( $mflags );
     }
 
     # Parse propagation flags
-    my ($pflags, @data) = ( 0 );
-    for my $option( @roptions ) {
+    my ( $pflags, @data ) = ( 0 );
+    for my $option ( @roptions ) {
         push( @data, $option ) && next unless exists $PROPAGATION_FLAGS{$option};
         $pflags = $PROPAGATION_FLAGS{$option}->( $pflags );
     }

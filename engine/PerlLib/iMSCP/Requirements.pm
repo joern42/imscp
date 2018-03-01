@@ -49,11 +49,11 @@ use parent 'iMSCP::Common::Object';
 
 sub getPhpModuleRequirements
 {
-    my ($self, $prerequiredOnly) = @_;
+    my ( $self, $prerequiredOnly ) = @_;
 
     return $self->{'programs'}->{'php'}->{'modules'}->{'prerequired'} if $prerequiredOnly;
 
-    [ @{$self->{'programs'}->{'php'}->{'modules'}->{'prerequired'}}, @{$self->{'programs'}->{'php'}->{'modules'}->{'required'}} ];
+    [ @{ $self->{'programs'}->{'php'}->{'modules'}->{'prerequired'} }, @{ $self->{'programs'}->{'php'}->{'modules'}->{'required'} } ];
 }
 
 =items getPerlModuleRequirements ( [ $prerequiredOnly = FALSE ] )
@@ -67,10 +67,10 @@ sub getPhpModuleRequirements
 
 sub getPerlModuleRequirements
 {
-    my ($self, $prerequiredOnly) = @_;
+    my ( $self, $prerequiredOnly ) = @_;
 
     return $self->{'programs'}->{'perl'}->{'modules'}->{'prerequired'} if $prerequiredOnly;
-    return { %{$self->{'programs'}->{'perl'}->{'modules'}->{'prerequired'}}, %{$self->{'programs'}->{'perl'}->{'modules'}->{'required'}} };
+    return { %{ $self->{'programs'}->{'perl'}->{'modules'}->{'prerequired'} }, %{ $self->{'programs'}->{'perl'}->{'modules'}->{'required'} } };
 }
 
 =item all( )
@@ -83,7 +83,7 @@ sub getPerlModuleRequirements
 
 sub all
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->user()->checkPrograms()->checkPhpModules()->checkPerlModules();
 }
@@ -98,7 +98,7 @@ sub all
 
 sub user
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $EUID == 0 or die( 'This script must be run with the privileges of super user.' );
     $self;
@@ -114,9 +114,9 @@ sub user
 
 sub checkPrograms
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    for my $program( sort keys %{$self->{'programs'}} ) {
+    for my $program ( sort keys %{ $self->{'programs'} } ) {
         eval {
             if ( exists $self->{'programs'}->{$program}->{'version_routine'} ) {
                 $self->checkVersion(
@@ -153,7 +153,7 @@ sub checkPrograms
 
 sub checkPhpModules
 {
-    my ($self, $modules) = @_;
+    my ( $self, $modules ) = @_;
     $modules //= $self->getPhpModuleRequirements();
 
     open my $fh, '-|', $self->{'programs'}->{'php'}->{'command_path'}, '-d', 'date.timezone=UTC', '-m' or die(
@@ -162,8 +162,8 @@ sub checkPhpModules
     chomp( my @modules = <$fh> );
 
     my @missingModules = ();
-    for my $module( @{$modules} ) {
-        push @missingModules, $module unless grep(lc( $_ ) eq lc( $module ), @modules);
+    for my $module ( @{ $modules } ) {
+        push @missingModules, $module unless grep (lc( $_ ) eq lc( $module ), @modules);
     }
 
     return $self unless @missingModules;
@@ -185,7 +185,7 @@ sub checkPhpModules
 
 sub checkPerlModules
 {
-    my ($self, $modules) = @_;
+    my ( $self, $modules ) = @_;
     $modules //= $self->getPerlModuleRequirements();
 
     my @missingModules = ();
@@ -198,7 +198,7 @@ sub checkPerlModules
         local $Module::Load::Conditional::FORCE_SAFE_INC = 1;
         local $Module::Load::Conditional::VERBOSE = 0;
 
-        while ( my ($moduleName, $moduleVersion) = each %{$modules} ) {
+        while ( my ( $moduleName, $moduleVersion ) = each %{ $modules } ) {
             my $rv = check_install( module => $moduleName, version => $moduleVersion );
             unless ( $rv && $rv->{'uptodate'} ) {
                 push @missingModules, <<"EOF"
@@ -230,7 +230,7 @@ EOF
 
 sub checkVersion
 {
-    my ($self, $version, $minVersion, $maxVersion) = @_;
+    my ( $self, $version, $minVersion, $maxVersion ) = @_;
 
     $version = version->parse( $version );
     $minVersion = version->parse( $minVersion );
@@ -261,7 +261,7 @@ sub checkVersion
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'programs'} = {
         facter => {
@@ -393,7 +393,7 @@ sub _init
 
 sub _programVersions
 {
-    my ($self, $versionCommand, $versionRegexp, $minversion, $maxVersion) = @_;
+    my ( $self, $versionCommand, $versionRegexp, $minversion, $maxVersion ) = @_;
 
     ( my $stdout = `$versionCommand` ) or die( "Couldn't find version. No output\n" );
 

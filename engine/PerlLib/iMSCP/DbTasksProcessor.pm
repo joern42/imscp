@@ -25,7 +25,7 @@ package iMSCP::DbTasksProcessor;
 
 use strict;
 use warnings;
-use Encode qw / encode_utf8 /;
+use Encode qw/ encode_utf8 /;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug newDebug endDebug /;
 use iMSCP::Execute qw/ execute escapeShell /;
@@ -55,7 +55,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub processDbTasks
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::EventManager->getInstance( 'beforeDbTasksProcessing' );
 
@@ -314,10 +314,10 @@ sub processDbTasks
         'software_id'
     );
 
-    if ( %{$rows} ) {
+    if ( %{ $rows } ) {
         newDebug( 'imscp_sw_mngr_engine' );
 
-        for my $row( values %{$rows} ) {
+        for my $row ( values %{ $rows } ) {
             my $pushString = encode_base64(
                 encode_json( [
                     $row->{'domain_id'}, $row->{'software_id'}, $row->{'path'}, $row->{'software_prefix'}, $row->{'db'},
@@ -329,7 +329,7 @@ sub processDbTasks
                 ''
             );
 
-            my ($stdout, $stderr);
+            my ( $stdout, $stderr );
             execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
@@ -352,10 +352,10 @@ sub processDbTasks
         'software_id'
     );
 
-    if ( %{$rows} ) {
+    if ( %{ $rows } ) {
         newDebug( 'imscp_pkt_mngr_engine.log' );
 
-        for my $row( values %{$rows} ) {
+        for my $row ( values %{ $rows } ) {
             my $pushstring = encode_base64(
                 encode_json( [
                     $row->{'software_id'}, $row->{'reseller_id'}, $row->{'software_archive'}, $row->{'software_status'}, $row->{'software_depot'}
@@ -363,7 +363,7 @@ sub processDbTasks
                 ''
             );
 
-            my ($stdout, $stderr);
+            my ( $stdout, $stderr );
             execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
@@ -395,7 +395,7 @@ sub processDbTasks
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Load all modules
     iMSCP::Modules->getInstance();
@@ -418,7 +418,7 @@ sub _init
 
 sub _processDbTasks
 {
-    my ($self, $module, $sql, $perItemLogFile) = @_;
+    my ( $self, $module, $sql, $perItemLogFile ) = @_;
 
     debug( sprintf( 'Processing %s DB tasks...', $module ));
 
@@ -431,7 +431,7 @@ sub _processDbTasks
         return;
     }
 
-    my ($moduleInstance, $nStep) = ( $module->getInstance(), 1 );
+    my ( $moduleInstance, $nStep ) = ( $module->getInstance(), 1 );
     while ( my $row = $sth->fetchrow_hashref() ) {
         my $name = encode_utf8( $row->{'name'} );
         debug( sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ));

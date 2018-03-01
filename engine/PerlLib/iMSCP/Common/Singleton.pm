@@ -46,7 +46,7 @@ my %_INSTANCES = ();
 
 sub hasInstance
 {
-    my ($class) = @_;
+    my ( $class ) = @_;
 
     $_INSTANCES{ref $class || $class};
 }
@@ -68,14 +68,14 @@ sub hasInstance
 
 sub getInstance
 {
-    my ($class, @attrs) = @_;
+    my ( $class, @attrs ) = @_;
 
     # Already got an object
     return $class if ref $class;
 
     # We store the instance against the $class key of %_INSTANCES
     unless ( defined $_INSTANCES{$class} ) {
-        $_INSTANCES{$class} = bless { @attrs && ref $attrs[0] eq 'HASH' ? %{$attrs[0]} : @attrs }, $class;
+        $_INSTANCES{$class} = bless { @attrs && ref $attrs[0] eq 'HASH' ? %{ $attrs[0] } : @attrs }, $class;
         $_INSTANCES{$class}->_init();
     }
 
@@ -98,7 +98,7 @@ sub getInstance
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self;
 }

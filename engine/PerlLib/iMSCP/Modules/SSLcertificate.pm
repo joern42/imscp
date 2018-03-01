@@ -47,7 +47,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'SSLcertificate';
 }
@@ -60,7 +60,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     $self->_loadEntityData( $entityId );
 
@@ -92,7 +92,7 @@ sub handleEntity
 
 sub _loadEntityData
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     $self->{'_data'} = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ssl_certs WHERE cert_id = ?', undef, $entityId );
     $self->{'_data'} or die( sprintf( 'Data not found for SSL certificate (ID %d)', $entityId ));
@@ -141,7 +141,7 @@ sub _loadEntityData
 
 sub _add
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval {
         iMSCP::File->new( filename => "$self->{'_data'}->{'certsDir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove();
@@ -195,7 +195,7 @@ sub _add
 
 sub _delete
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval { iMSCP::File->new( filename => "$self->{'_data'}->{'certsDir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove(); };
     if ( $@ ) {

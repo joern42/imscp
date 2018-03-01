@@ -144,7 +144,7 @@ sub export
 
 sub _dump
 {
-    my ($obj, $key, $purity, $short, $indent) = @_;
+    my ( $obj, $key, $purity, $short, $indent ) = @_;
 
     my $ind = $purity ? "\t" : '';
     my $spc = $purity ? ' ' : '';
@@ -159,9 +159,9 @@ sub _dump
     }
 
     if ( ref $obj eq 'HASH' ) {
-        if ( %{$obj} ) {
+        if ( %{ $obj } ) {
             $str .= "$arr_start$nl";
-            for my $k ( keys( %{$obj} ) ) {
+            for my $k ( keys( %{ $obj } ) ) {
                 $k =~ s/\\/\\\\/go;
                 $k =~ s/'/\\'/go;
                 $str .= "$cur_indent$ind'" . $k . "'$spc=>$spc"
@@ -172,9 +172,9 @@ sub _dump
             $str .= "$arr_start$arr_end";
         }
     } elsif ( ref $obj eq 'ARRAY' ) {
-        if ( @{$obj} ) {
+        if ( @{ $obj } ) {
             $str .= "$arr_start$nl";
-            for ( my $i = 0; $i < scalar( @{$obj} ); $i++ ) {
+            for ( my $i = 0; $i < scalar( @{ $obj } ); $i++ ) {
                 $str .= "$cur_indent$ind" . &_dump( $obj->[$i], undef, $purity, $short, $indent+1 ) . ",$nl";
             }
             $str .= "$cur_indent$arr_end";
@@ -182,16 +182,16 @@ sub _dump
             $str .= "$arr_start$arr_end";
         }
     } elsif ( ref $obj eq 'SCALAR' ) {
-        ${$obj} =~ s/\\/\\\\/go;
-        ${$obj} =~ s/'/\\'/go;
+        ${ $obj } =~ s/\\/\\\\/go;
+        ${ $obj } =~ s/'/\\'/go;
 
-        if ( defined ${$obj} ) {
-            if ( JSON::is_bool( ${$obj} ) ) {
-                $str .= ${$obj} ? 'true' : 'false';
-            } elsif ( ${$obj} =~ /^-?(0|[1-9]\d{0,8})$/ ) {
-                $str .= ${$obj};
+        if ( defined ${ $obj } ) {
+            if ( JSON::is_bool( ${ $obj } ) ) {
+                $str .= ${ $obj } ? 'true' : 'false';
+            } elsif ( ${ $obj } =~ /^-?(0|[1-9]\d{0,8})$/ ) {
+                $str .= ${ $obj };
             } else {
-                $str .= "'${$obj}'";
+                $str .= "'${ $obj }'";
             }
         } else {
             $str .= 'null';

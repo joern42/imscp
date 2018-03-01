@@ -59,7 +59,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Webstats::Awstats::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
 }
@@ -74,7 +74,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Webstats::Awstats::Installer->getInstance( eventManager => $self->{'eventManager'} )->postinstall();
 }
@@ -89,7 +89,7 @@ sub postinstall
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Webstats::Awstats::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }
@@ -155,7 +155,7 @@ sub getDistroPackages
 
 sub addUser
 {
-    my (undef, $moduleData) = @_;
+    my ( undef, $moduleData ) = @_;
 
     my $httpd = iMSCP::Servers::Httpd->factory();
     my $file = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" );
@@ -165,11 +165,11 @@ sub addUser
         $fileContentRef = $file->getAsRef();
     } else {
         my $fileContent = '';
-        $fileContentRef = \ $fileContent;
+        $fileContentRef = \$fileContent;
     }
 
-    ${$fileContentRef} =~ s/^$moduleData->{'USERNAME'}:[^\n]*\n//gim;
-    ${$fileContentRef} .= "$moduleData->{'USERNAME'}:$moduleData->{'PASSWORD_HASH'}\n";
+    ${ $fileContentRef } =~ s/^$moduleData->{'USERNAME'}:[^\n]*\n//gim;
+    ${ $fileContentRef } .= "$moduleData->{'USERNAME'}:$moduleData->{'PASSWORD_HASH'}\n";
     $file->save();
     $httpd->{'reload'} ||= 1;
 
@@ -185,7 +185,7 @@ sub addUser
 
 sub preaddDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return if $self->{'_is_registered_event_listener'};
 
@@ -204,7 +204,7 @@ sub preaddDomain
 
 sub addDomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->_addAwstatsConfig( $moduleData );
 }
@@ -220,7 +220,7 @@ sub addDomain
 
 sub deleteDomain
 {
-    my (undef, $moduleData) = @_;
+    my ( undef, $moduleData ) = @_;
 
     iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
@@ -241,7 +241,7 @@ sub deleteDomain
 
 sub preaddSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return if $self->{'_is_registered_event_listener'};
 
@@ -261,7 +261,7 @@ sub preaddSubdomain
 
 sub addSubdomain
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     $self->_addAwstatsConfig( $moduleData );
 }
@@ -277,7 +277,7 @@ sub addSubdomain
 
 sub deleteSubdomain
 {
-    my (undef, $moduleData) = @_;
+    my ( undef, $moduleData ) = @_;
 
     iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
@@ -304,9 +304,9 @@ sub deleteSubdomain
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    @{$self}{qw/ _is_registered_event_listener _admin_names /} = ( 0, {} );
+    @{ $self }{qw/ _is_registered_event_listener _admin_names /} = ( 0, {} );
     $self;
 }
 
@@ -321,7 +321,7 @@ sub _init
 
 sub _addAwstatsConfig
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     unless ( $self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}} ) {
         $self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}} = iMSCP::Database->getInstance()->selectrow_hashref(
@@ -389,7 +389,7 @@ sub _addAwstatsConfig
 
 sub beforeApacheBuildConfFile
 {
-    my (undef, $cfgTpl, $filename, undef, $moduleData) = @_;
+    my ( undef, $cfgTpl, $filename, undef, $moduleData ) = @_;
 
     return if $filename ne 'domain.tpl' || $moduleData->{'FORWARD'} ne 'no';
 

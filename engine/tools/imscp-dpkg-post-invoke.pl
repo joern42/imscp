@@ -33,12 +33,12 @@ use FindBin;
 use lib "/var/www/imscp/engine/PerlLib"; # FIXME: shouldn't be hardcoded
 use File::Basename;
 use iMSCP::Bootstrapper;
-use iMSCP::Debug qw / debug error newDebug /;
+use iMSCP::Debug qw/ debug error newDebug /;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::Servers;
 use iMSCP::Packages;
-use POSIX qw / locale_h /;
+use POSIX qw/ locale_h /;
 
 setlocale( LC_MESSAGES, 'C.UTF-8' );
 
@@ -46,7 +46,7 @@ $ENV{'LANG'} = 'C.UTF-8';
 
 newDebug( 'imscp-dpkg-post-invoke.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Process dpkg post invoke tasks
 
@@ -69,13 +69,13 @@ exit unless iMSCP::Bootstrapper->getInstance()->getInstance()->boot( {
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-dpkg-post-invoke.lock", 'nowait' );
 
 debug( 'Executing servers dpkg(1) post-invoke tasks' );
-for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     eval { $server->factory()->dpkgPostInvokeTasks(); };
     !$@ or error( $@ )
 }
 
 debug( 'Executing packages dpkg(1) post-invoke tasks' );
-for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
     next unless my $subref = $package->can( 'dpkgPostInvokeTasks' );
     eval { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); };
     !$@ or error( $@ )

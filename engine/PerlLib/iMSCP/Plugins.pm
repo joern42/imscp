@@ -47,7 +47,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub getList
 {
-    @{$_[0]->{'availables_plugins'}};
+    @{ $_[0]->{'availables_plugins'} };
 }
 
 =item getClass( $pluginName )
@@ -62,10 +62,10 @@ sub getList
 
 sub getClass
 {
-    my ($self, $pluginName) = @_;
+    my ( $self, $pluginName ) = @_;
 
     unless ( $self->{'loaded_plugins'}->{$pluginName} ) {
-        grep( $_ eq $pluginName, @{$self->{'availables_plugins'}} ) or croak ( sprintf( "Plugin %s isn't available", $pluginName ));
+        grep ( $_ eq $pluginName, @{ $self->{'availables_plugins'} } ) or croak( sprintf( "Plugin %s isn't available", $pluginName ));
         require "$::imscpConfig{'PLUGINS_DIR'}/$pluginName/backend/$pluginName.pm";
         $self->{'loaded_plugins'}->{$pluginName} = 1;
     }
@@ -89,9 +89,9 @@ sub getClass
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $_ = basename( $_, '.pm' ) for @{$self->{'availables_plugins'}} = glob( "$::imscpConfig{'PLUGINS_DIR'}/*/backend/*.pm" );
+    $_ = basename( $_, '.pm' ) for @{ $self->{'availables_plugins'} } = glob( "$::imscpConfig{'PLUGINS_DIR'}/*/backend/*.pm" );
     $self->{'loaded_plugins'} = {};
     $self;
 }

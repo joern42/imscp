@@ -69,7 +69,7 @@ sub getPriority
 
 sub addUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addUser() method', ref $self ));
 }
@@ -91,7 +91,7 @@ sub addUser
 
 sub deleteUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteUser() method', ref $self ));
 }
@@ -113,7 +113,7 @@ sub deleteUser
 
 sub addDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addDomain() method', ref $self ));
 }
@@ -135,7 +135,7 @@ sub addDomain
 
 sub restoreDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the restoreDmn() method', ref $self ));
 }
@@ -157,7 +157,7 @@ sub restoreDomain
 
 sub disableDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
 }
@@ -179,7 +179,7 @@ sub disableDomain
 
 sub deleteDomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteDomain() method', ref $self ));
 }
@@ -201,7 +201,7 @@ sub deleteDomain
 
 sub addSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addSubdomain() method', ref $self ));
 }
@@ -223,7 +223,7 @@ sub addSubdomain
 
 sub restoreSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the restoreSubdomain() method', ref $self ));
 }
@@ -245,7 +245,7 @@ sub restoreSubdomain
 
 sub disableSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the disableSubdomain() method', ref $self ));
 }
@@ -267,7 +267,7 @@ sub disableSubdomain
 
 sub deleteSubdomain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteSubdomain() method', ref $self ));
 }
@@ -289,7 +289,7 @@ sub deleteSubdomain
 
 sub addHtpasswd
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addHtpasswd() method', ref $self ));
 }
@@ -311,7 +311,7 @@ sub addHtpasswd
 
 sub deleteHtpasswd
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteHtpasswd() method', ref $self ));
 }
@@ -333,7 +333,7 @@ sub deleteHtpasswd
 
 sub addHtgroup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addHtgroup() method', ref $self ));
 }
@@ -355,7 +355,7 @@ sub addHtgroup
 
 sub deleteHtgroup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteHtgroup() method', ref $self ));
 }
@@ -377,7 +377,7 @@ sub deleteHtgroup
 
 sub addHtaccess
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the addHtaccess() method', ref $self ));
 }
@@ -399,7 +399,7 @@ sub addHtaccess
 
 sub deleteHtaccess
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the deleteHtaccess() method', ref $self ));
 }
@@ -415,7 +415,7 @@ sub deleteHtaccess
 
 sub getTraffic
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }
@@ -430,7 +430,7 @@ sub getTraffic
 
 sub getRunningUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the getRunningUser() method', ref $self ));
 }
@@ -445,7 +445,7 @@ sub getRunningUser
 
 sub getRunningGroup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the getRunningGroup() method', ref $self ));
 }
@@ -461,9 +461,9 @@ sub getRunningGroup
 
 sub enableSites
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the enableSites() method', ref $self ));
+    die( sprintf( 'The %s class must implement the enableSites() method', ref $self ));
 }
 
 =item disableSites( @sites )
@@ -479,9 +479,9 @@ sub enableSites
 
 sub disableSites
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableSites() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableSites() method', ref $self ));
 }
 
 =item removeSites( @sites )
@@ -497,9 +497,9 @@ sub disableSites
 
 sub removeSites
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the removeSites() method', ref $self ));
+    die( sprintf( 'The %s class must implement the removeSites() method', ref $self ));
 }
 
 =item enableConfs( @confs )
@@ -513,9 +513,9 @@ sub removeSites
 
 sub enableConfs
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the enableConfs() method', ref $self ));
+    die( sprintf( 'The %s class must implement the enableConfs() method', ref $self ));
 }
 
 =item disableConfs( @confs )
@@ -531,9 +531,9 @@ sub enableConfs
 
 sub disableConfs
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableConfs() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableConfs() method', ref $self ));
 }
 
 =item removeConfs( @confs )
@@ -549,9 +549,9 @@ sub disableConfs
 
 sub removeConfs
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the removeConfs() method', ref $self ));
+    die( sprintf( 'The %s class must implement the removeConfs() method', ref $self ));
 }
 
 =item enableModules( @mods )
@@ -567,9 +567,9 @@ sub removeConfs
 
 sub enableModules
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
+    die( sprintf( 'The %s class must implement the enableModules() method', ref $self ));
 }
 
 =item disableModules( @mods )
@@ -585,9 +585,9 @@ sub enableModules
 
 sub disableModules
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
+    die( sprintf( 'The %s class must implement the disableModules() method', ref $self ));
 }
 
 =item removeModules( @mods )
@@ -604,9 +604,9 @@ sub disableModules
 
 sub removeModules
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    die ( sprintf( 'The %s class must implement the removeModules() method', ref $self ));
+    die( sprintf( 'The %s class must implement the removeModules() method', ref $self ));
 }
 
 =back
@@ -623,7 +623,7 @@ sub removeModules
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or die( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 

@@ -51,7 +51,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::FileManager::Pydio::Installer->getInstance( eventManager => $self->{'eventManager'} )->preinstall();
 }
@@ -66,7 +66,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::FileManager::Pydio::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
 }
@@ -81,7 +81,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Packages::Setup::FileManager::Pydio::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
 }

@@ -26,7 +26,7 @@ package iMSCP::Providers::Service::Sysvinit;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw / debug /;
+use iMSCP::Debug qw/ debug /;
 use File::Spec;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -50,12 +50,12 @@ my $EXEC_OUTPUT;
 
 sub remove
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
     if ( my $initScriptPath = eval { $self->getInitScriptPath( $service, 'nocache' ); } ) {
-        debug( sprintf ( "Removing the %s sysvinit script", $initScriptPath ));
+        debug( sprintf( "Removing the %s sysvinit script", $initScriptPath ));
         iMSCP::File->new( filename => $initScriptPath )->remove();
     }
 }
@@ -68,7 +68,7 @@ sub remove
 
 sub start
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -85,7 +85,7 @@ sub start
 
 sub stop
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -102,7 +102,7 @@ sub stop
 
 sub restart
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -123,13 +123,13 @@ sub restart
 
 sub reload
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
     if ( $self->isRunning( $service ) ) {
         # We need catch STDERR here as we do do want raise failure (see _exec() for further details)
-        my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'reload' ], undef, \ my $stderr );
+        my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'reload' ], undef, \my $stderr );
         # If the reload action failed, we try a restart instead. This cover
         # case where the reload action is not supported.
         $self->restart( $service ) if $ret;
@@ -148,7 +148,7 @@ sub reload
 
 sub isRunning
 {
-    my ($self, $service) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -167,7 +167,7 @@ sub isRunning
 
 sub hasService
 {
-    my ($self, $service, $nocache) = @_;
+    my ( $self, $service, $nocache ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -186,7 +186,7 @@ sub hasService
 
 sub getInitScriptPath
 {
-    my ($self, $service, $nocache) = @_;
+    my ( $self, $service, $nocache ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
@@ -204,7 +204,7 @@ sub getInitScriptPath
 
 sub setPidPattern
 {
-    my ($self, $pattern) = @_;
+    my ( $self, $pattern ) = @_;
 
     defined $pattern or croak( 'Missing or undefined $pattern parameter' );
 
@@ -227,7 +227,7 @@ sub setPidPattern
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     exists $::imscpConfig{'DISTRO_FAMILY'} or croak( 'You must first bootstrap the i-MSCP backend' );
 
@@ -256,7 +256,7 @@ sub _init
 
 sub _isSysvinit
 {
-    my ($self, $service, $nocache) = @_;
+    my ( $self, $service, $nocache ) = @_;
 
     eval { $self->_searchInitScript( $service, $nocache ); };
 }
@@ -273,7 +273,7 @@ sub _isSysvinit
 
 sub _searchInitScript
 {
-    my ($self, $service, $nocache) = @_;
+    my ( $self, $service, $nocache ) = @_;
 
     # Make sure that init scrips are searched once
     CORE::state %initScripts;
@@ -285,7 +285,7 @@ sub _searchInitScript
         return $initScripts{$service};
     }
 
-    for my $path( @{$self->{'sysvinitscriptpaths'}} ) {
+    for my $path ( @{ $self->{'sysvinitscriptpaths'} } ) {
         my $initScriptPath = File::Spec->join( $path, $service );
         $initScripts{$service} = $initScriptPath if -f $initScriptPath;
         last if $initScripts{$service};
@@ -316,10 +316,10 @@ sub _searchInitScript
 
 sub _exec
 {
-    my (undef, $command, $stdout, $stderr) = @_;
+    my ( undef, $command, $stdout, $stderr ) = @_;
 
-    my $ret = execute( $command, ref $stdout eq 'SCALAR' ? $stdout : \$stdout, ref $stderr eq 'SCALAR' ? $stderr : \ $stderr );
-    ref $stdout ? !length ${$stdout} || debug( ${$stdout} ) : !length $stdout || debug( $stdout );
+    my $ret = execute( $command, ref $stdout eq 'SCALAR' ? $stdout : \$stdout, ref $stderr eq 'SCALAR' ? $stderr : \$stderr );
+    ref $stdout ? !length ${ $stdout } || debug( ${ $stdout } ) : !length $stdout || debug( $stdout );
 
     # Raise a failure if command status is other than 0 and if no scalar
     # reference has been provided for STDERR, giving choice to callers
@@ -327,7 +327,7 @@ sub _exec
 
     # We cache STDOUT output.
     # see _getLastExecOutput()
-    $EXEC_OUTPUT = \ ( ref $stdout ? ${$stdout} : $stdout );
+    $EXEC_OUTPUT = \( ref $stdout ? ${ $stdout } : $stdout );
     $ret;
 }
 
@@ -341,9 +341,9 @@ sub _exec
 
 sub _getLastExecOutput
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    ${$EXEC_OUTPUT};
+    ${ $EXEC_OUTPUT };
 }
 
 =item _getPs( )
@@ -358,7 +358,7 @@ sub _getPs
 {
     if ( $::imscpConfig{'DISTRO_FAMILY'} eq 'OpenWrt' ) {
         'ps www';
-    } elsif ( grep( $::imscpConfig{'DISTRO_FAMILY'} eq $_, qw/ FreeBSD NetBSD OpenBSD Darwin DragonFly / ) ) {
+    } elsif ( grep ( $::imscpConfig{'DISTRO_FAMILY'} eq $_, qw/ FreeBSD NetBSD OpenBSD Darwin DragonFly / ) ) {
         'ps auxwww';
     } else {
         'ps -ef'
@@ -376,7 +376,7 @@ sub _getPs
 
 sub _getPid
 {
-    my ($self, $pattern) = @_;
+    my ( $self, $pattern ) = @_;
 
     defined $pattern or croak( 'Missing or undefined $pattern parameter' );
 

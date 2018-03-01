@@ -62,9 +62,9 @@ use parent 'iMSCP::Servers::Po';
 
 sub registerSetupListeners
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{$_[0]}, sub { $self->showSqlUserDialog( @_ ) }; }, $self->getPriority());
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->showSqlUserDialog( @_ ) }; }, $self->getPriority());
 
     return if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) == -1;
 
@@ -82,7 +82,7 @@ sub registerSetupListeners
 
 sub showSqlUserDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $masterSqlUser = ::setupGetQuestion( 'DATABASE_USER' );
     my $dbUser = ::setupGetQuestion( 'PO_SQL_USER', $self->{'config'}->{'PO_SQL_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' ));
@@ -163,7 +163,7 @@ EOF
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_setVersion();
     $self->_configure();
@@ -178,7 +178,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_dropSqlUser();
     $self->_removeConfig();
@@ -192,7 +192,7 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     setRights( $self->{'config'}->{'PO_CONF_DIR'},
         {
@@ -232,7 +232,7 @@ sub setEnginePermissions
 
 sub getServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'Dovecot';
 }
@@ -245,7 +245,7 @@ sub getServerName
 
 sub getHumanServerName
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     sprintf( 'Dovecot %s', $self->getVersion());
 }
@@ -258,7 +258,7 @@ sub getHumanServerName
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'PO_VERSION'};
 }
@@ -274,7 +274,7 @@ sub getVersion
 
 sub addMail
 {
-    my ($self, $moduleData) = @_;
+    my ( $self, $moduleData ) = @_;
 
     return unless index( $moduleData->{'MAIL_TYPE'}, '_mail' ) != -1;
 
@@ -282,7 +282,7 @@ sub addMail
 
     my $mailDir = "$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}";
 
-    for my $mailbox( '.Drafts', '.Junk', '.Sent', '.Trash' ) {
+    for my $mailbox ( '.Drafts', '.Junk', '.Sent', '.Trash' ) {
         iMSCP::Dir->new( dirname => "$mailDir/$mailbox" )->make( {
             user           => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
             group          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -290,7 +290,7 @@ sub addMail
             fixpermissions => iMSCP::Getopt->fixPermissions
         } );
 
-        for my $dir( 'cur', 'new', 'tmp' ) {
+        for my $dir ( 'cur', 'new', 'tmp' ) {
             iMSCP::Dir->new( dirname => "$mailDir/$mailbox/$dir" )->make( {
                 user           => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
                 group          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
@@ -302,8 +302,8 @@ sub addMail
 
     my $file = iMSCP::File->new( filename => "$mailDir/subscriptions" );
     my $fileContent = $file->getAsRef( !-f $file );
-    ${$fileContent} = join(
-        "\n", nsort unique ( 'Drafts', 'Junk', 'Sent', 'Trash', ( length ${$fileContent} ? split /\n/, ${$fileContent} : () ))
+    ${ $fileContent } = join(
+        "\n", nsort unique( 'Drafts', 'Junk', 'Sent', 'Trash', ( length ${ $fileContent } ? split /\n/, ${ $fileContent } : () ))
     ) . "\n";
     $file->save()->owner( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} )->mode( 0640 );
     undef $file;
@@ -338,7 +338,7 @@ sub addMail
 
 sub getTraffic
 {
-    my ($self, $trafficDb, $logFile, $trafficIndexDb) = @_;
+    my ( $self, $trafficDb, $logFile, $trafficIndexDb ) = @_;
     $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
 
     unless ( -f $logFile ) {
@@ -349,8 +349,8 @@ sub getTraffic
     debug( sprintf( 'Processing IMAP/POP3 %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{$trafficIndexDb}, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
-    my ($idx, $idxContent) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
+    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    my ( $idx, $idxContent ) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
 
     tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
 
@@ -406,11 +406,11 @@ sub getTraffic
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{$self}{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$::imscpConfig{'CONF_DIR'}/dovecot" );
+    @{ $self }{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$::imscpConfig{'CONF_DIR'}/dovecot" );
     $self->SUPER::_init();
 }
 
@@ -424,9 +424,9 @@ sub _init
 
 sub _setVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $rs = execute( [ $self->{'config'}->{'PO_BIN'}, '--version' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ $self->{'config'}->{'PO_BIN'}, '--version' ], \my $stdout, \my $stderr );
     !$rs or die( $stderr || 'Unknown error' );
     $stdout =~ m/^([\d.]+)/ or die( "Couldn't guess Dovecot version from the `$self->{'config'}->{'PO_BIN'}--version` command output" );
     $self->{'config'}->{'PO_VERSION'} = $1;
@@ -443,7 +443,7 @@ sub _setVersion
 
 sub _configure
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeDovecotConfigure' );
     $self->_setupSqlUser();
@@ -455,7 +455,7 @@ sub _configure
     $self->{'eventManager'}->registerOne(
         'beforeDovecotBuildConfFile',
         sub {
-            ${$_[0]} .= <<"EOF";
+            ${ $_[0] } .= <<"EOF";
 
 # SSL
 
@@ -468,7 +468,7 @@ EOF
                     return 1;
                 }
 
-                ${$_[0]} .= <<"EOF";
+                ${ $_[0] } .= <<"EOF";
 ssl_protocols = @{[ version->parse( $1 ) >= version->parse( '1.1' ) ? '!SSLv3' : '!SSLv2 !SSLv3' ]}
 ssl_cert = <$::imscpConfig{'CONF_DIR'}/imscp_services.pem
 ssl_key = <$::imscpConfig{'CONF_DIR'}/imscp_services.pem
@@ -538,7 +538,7 @@ EOF
 
 sub _setupSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $dbName = ::setupGetQuestion( 'DATABASE_NAME' );
     my $dbUser = ::setupGetQuestion( 'PO_SQL_USER' );
@@ -550,7 +550,7 @@ sub _setupSqlUser
     for my $sqlUser ( $self->{'config'}->{'PO_SQL_USER'}, $dbUser ) {
         next unless $sqlUser;
 
-        for my $host( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
+        for my $host ( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
             next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
@@ -584,7 +584,7 @@ sub _setupSqlUser
 
 sub _migrateFromCourier
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless index( $::imscpOldConfig{'iMSCP::Servers::Po'}, '::Courier::' ) != -1;
 
@@ -593,8 +593,8 @@ sub _migrateFromCourier
             'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/courier-dovecot-migrate.pl", '--to-dovecot', '--quiet', '--convert',
             '--overwrite', '--recursive', $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
         ],
-        \ my $stdout,
-        \ my $stderr
+        \my $stdout,
+        \my $stderr
     );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
@@ -613,7 +613,7 @@ sub _migrateFromCourier
 
 sub _dropSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # In setup context, take value from old conffile, else take value from current conffile
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
@@ -634,7 +634,7 @@ sub _dropSqlUser
 
 sub _removeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Dir->new( dirnname => "$self->{'config'}->{'PO_CONF_DIR'}/imscp.d" )->remove();
 }
@@ -656,15 +656,15 @@ sub _removeConfig
 
 sub beforePostfixConfigure
 {
-    my ($dovecotServer) = @_;
+    my ( $dovecotServer ) = @_;
 
     $dovecotServer->{'eventManager'}->register(
         'afterPostfixBuildFile',
         sub {
-            my ($cfgTpl, $cfgTplName) = @_;
+            my ( $cfgTpl, $cfgTplName ) = @_;
 
             return unless $cfgTplName eq 'master.cf';
-            ${$cfgTpl} .= <<"EOF";
+            ${ $cfgTpl } .= <<"EOF";
 dovecot   unix  -       n       n       -       -       pipe
  flags=DRhu user=$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}:$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} argv=$dovecotServer->{'config'}->{'PO_DELIVER_PATH'} -f \${sender} -d \${user}\@\${nexthop} -m INBOX.\${extension}
 EOF

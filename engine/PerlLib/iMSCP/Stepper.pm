@@ -110,7 +110,7 @@ sub step
 
 sub _callback
 {
-    my ($callback, $debugMsg) = @_;
+    my ( $callback, $debugMsg ) = @_;
 
     debug( $debugMsg ) if $debugMsg;
 
@@ -127,7 +127,7 @@ sub _callback
 
 sub _step
 {
-    my ($callback, $text, $nSteps, $nStep) = @_;
+    my ( $callback, $text, $nSteps, $nStep ) = @_;
 
     eval {
         unless ( iMSCP::Getopt->noprompt ) {

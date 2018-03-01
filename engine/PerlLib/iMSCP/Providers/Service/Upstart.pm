@@ -73,7 +73,7 @@ delete $ENV{'UPSTART_SESSION'};
 
 sub isEnabled
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -98,7 +98,7 @@ sub isEnabled
 
 sub enable
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -118,7 +118,7 @@ sub enable
 
 sub disable
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -143,7 +143,7 @@ sub disable
 
 sub remove
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -154,9 +154,9 @@ sub remove
     # Even if there is no job file, there can be still orphaned job override
     # file which we need to remove.
 
-    for my $type( qw/ conf override / ) {
+    for my $type ( qw/ conf override / ) {
         if ( my $jobFilePath = eval { $self->getJobFilePath( $job, $type ); } ) {
-            debug( sprintf ( "Removing the %s upstart file", $jobFilePath ));
+            debug( sprintf( "Removing the %s upstart file", $jobFilePath ));
             iMSCP::File->new( filename => $jobFilePath )->remove();
         }
     }
@@ -172,7 +172,7 @@ sub remove
 
 sub start
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -192,7 +192,7 @@ sub start
 
 sub stop
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -212,7 +212,7 @@ sub stop
 
 sub restart
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -237,14 +237,14 @@ sub restart
 
 sub reload
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
     if ( $self->_isUpstart( $job ) ) {
         if ( $self->isRunning( $job ) ) {
             # We need catch STDERR here as we do do want raise failure (see _exec() for further details)
-            my $ret = $self->_exec( [ $COMMANDS{'reload'}, $job ], undef, \ my $stderr );
+            my $ret = $self->_exec( [ $COMMANDS{'reload'}, $job ], undef, \my $stderr );
 
             # If the reload action failed, we try a restart instead. This cover
             # case where the reload action is not supported.
@@ -267,12 +267,12 @@ sub reload
 
 sub isRunning
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
     if ( $self->_isUpstart( $job ) ) {
-        $self->_exec( [ $COMMANDS{'status'}, $job ], \ my $stdout );
+        $self->_exec( [ $COMMANDS{'status'}, $job ], \my $stdout );
         return $stdout =~ /start/;
     }
 
@@ -287,7 +287,7 @@ sub isRunning
 
 sub hasService
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -306,7 +306,7 @@ sub hasService
 
 sub getJobFilePath
 {
-    my ($self, $job, $jobFileType) = @_;
+    my ( $self, $job, $jobFileType ) = @_;
     $jobFileType //= 'conf';
 
     defined $job or croak( 'Missing or undefined $job parameter' );
@@ -345,7 +345,7 @@ sub _getVersion
 
 sub _isUpstart
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -362,7 +362,7 @@ sub _isUpstart
 
 sub _versionIsPre067
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     version->parse( $self->_getVersion()) < version->parse( '0.6.7' );
 }
@@ -377,7 +377,7 @@ sub _versionIsPre067
 
 sub _versionIsPre090
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     version->parse( $self->_getVersion()) < version->parse( '0.9.0' );
 }
@@ -392,7 +392,7 @@ sub _versionIsPre090
 
 sub _versionIsPost090
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     version->parse( $self->_getVersion()) >= version->parse( '0.9.0' );
 }
@@ -408,7 +408,7 @@ sub _versionIsPost090
 
 sub _isEnabledPre067
 {
-    my (undef, $jobFileContent) = @_;
+    my ( undef, $jobFileContent ) = @_;
 
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
 
@@ -427,7 +427,7 @@ sub _isEnabledPre067
 
 sub _isEnabledPre090
 {
-    my (undef, $jobFileContent) = @_;
+    my ( undef, $jobFileContent ) = @_;
 
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
 
@@ -435,7 +435,7 @@ sub _isEnabledPre090
     # we check to see if an uncommented `start on' or `manual'
     # stanza is the last one in the file. The last one in the
     # file wins.
-    open my $fh, '<', \$jobFileContent or croak ( sprintf( "Couldn't open in-memory file handle: %s", $! ));
+    open my $fh, '<', \$jobFileContent or croak( sprintf( "Couldn't open in-memory file handle: %s", $! ));
     my $enabled = 0;
     while ( <$fh> ) {
         if ( /$START_ON/ ) {
@@ -460,7 +460,7 @@ sub _isEnabledPre090
 
 sub _isEnabledPost090
 {
-    my (undef, $jobFileContent, $jobOverrideFileContent) = @_;
+    my ( undef, $jobFileContent, $jobOverrideFileContent ) = @_;
 
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
     defined $jobOverrideFileContent or croak( 'Missing or undefined $jobOverrideFileContent parameter' );
@@ -470,8 +470,8 @@ sub _isEnabledPost090
     # `manual' stanza is the last one in the conf file and any
     # override files. The last one in the file wins.
     my $enabled = 0;
-    for my $fcontent( \$jobFileContent, \$jobOverrideFileContent ) {
-        open my $fh, '<', $fcontent or croak ( sprintf( "Couldn't open in-memory file handle: %s", $! ));
+    for my $fcontent ( \$jobFileContent, \$jobOverrideFileContent ) {
+        open my $fh, '<', $fcontent or croak( sprintf( "Couldn't open in-memory file handle: %s", $! ));
         while ( <$fh> ) {
             if ( /$START_ON/ ) {
                 $enabled = 1;
@@ -496,7 +496,7 @@ sub _isEnabledPost090
 
 sub _enablePre090
 {
-    my ($self, $job, $jobFileContent) = @_;
+    my ( $self, $job, $jobFileContent ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
@@ -526,7 +526,7 @@ sub _enablePre090
 
 sub _enablePost090
 {
-    my ($self, $job, $jobFileContent, $jobOverrideFileContent) = @_;
+    my ( $self, $job, $jobFileContent, $jobOverrideFileContent ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
@@ -559,7 +559,7 @@ sub _enablePost090
 
 sub _disablePre067
 {
-    my ($self, $job, $jobFileContent) = @_;
+    my ( $self, $job, $jobFileContent ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
@@ -580,7 +580,7 @@ sub _disablePre067
 
 sub _disablePre090
 {
-    my ($self, $job, $jobFileContent) = @_;
+    my ( $self, $job, $jobFileContent ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
@@ -600,7 +600,7 @@ sub _disablePre090
 
 sub _disablePost090
 {
-    my ($self, $job, $jobOverrideFileContent) = @_;
+    my ( $self, $job, $jobOverrideFileContent ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
     defined $jobOverrideFileContent or croak( 'Missing or undefined $jobOverrideFileContent parameter' );
@@ -619,7 +619,7 @@ sub _disablePost090
 
 sub _uncomment
 {
-    my (undef, $line) = @_;
+    my ( undef, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -637,7 +637,7 @@ sub _uncomment
 
 sub _removeTrailingCommentsFromCommentedLine
 {
-    my (undef, $line) = @_;
+    my ( undef, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -655,7 +655,7 @@ sub _removeTrailingCommentsFromCommentedLine
 
 sub _removeTrailingComments
 {
-    my (undef, $line) = @_;
+    my ( undef, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -673,7 +673,7 @@ sub _removeTrailingComments
 
 sub _countUnbalancedRoundBrackets
 {
-    my (undef, $line) = @_;
+    my ( undef, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -691,7 +691,7 @@ sub _countUnbalancedRoundBrackets
 
 sub _removeManualStanzaFrom
 {
-    my (undef, $line) = @_;
+    my ( undef, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -709,7 +709,7 @@ sub _removeManualStanzaFrom
 
 sub _commentStartOnStanza
 {
-    my ($self, $text) = @_;
+    my ( $self, $text ) = @_;
 
     defined $text or croak( 'Missing or undefined $text parameter' );
 
@@ -740,7 +740,7 @@ sub _commentStartOnStanza
 
 sub _uncommentStartOnStanzaIn
 {
-    my ($self, $text) = @_;
+    my ( $self, $text ) = @_;
 
     defined $text or croak( 'Missing or undefined $text parameter' );
 
@@ -772,7 +772,7 @@ sub _uncommentStartOnStanzaIn
 
 sub _extractStartOnStanzaFrom
 {
-    my ($self, $string) = @_;
+    my ( $self, $string ) = @_;
 
     defined $string or croak( 'Missing or undefined $string parameter' );
 
@@ -797,7 +797,7 @@ sub _extractStartOnStanzaFrom
 
 sub _addDefaultStartOnStanzaTo
 {
-    my (undef, $string) = @_;
+    my ( undef, $string ) = @_;
 
     defined $string or croak( 'Missing or undefined $string parameter' );
 
@@ -815,7 +815,7 @@ sub _addDefaultStartOnStanzaTo
 
 sub _ensureDisabledWithManualStanza
 {
-    my ($self, $string) = @_;
+    my ( $self, $string ) = @_;
 
     defined $string or croak( 'Missing or undefined $string parameter' );
 
@@ -834,14 +834,14 @@ sub _ensureDisabledWithManualStanza
 
 sub _searchJobFile
 {
-    my (undef, $job, $jobFileType) = @_;
+    my ( undef, $job, $jobFileType ) = @_;
     $jobFileType //= 'conf';
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
     my $jobFile = $job . '.' . $jobFileType;
 
-    for my $path( @JOBFILEPATHS ) {
+    for my $path ( @JOBFILEPATHS ) {
         my $filepath = File::Spec->join( $path, $jobFile );
         return $filepath if -f $filepath;
     }
@@ -860,7 +860,7 @@ sub _searchJobFile
 
 sub _readJobFile
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -878,7 +878,7 @@ sub _readJobFile
 
 sub _readJobOverrideFile
 {
-    my ($self, $job) = @_;
+    my ( $self, $job ) = @_;
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
@@ -900,7 +900,7 @@ sub _readJobOverrideFile
 
 sub _writeFile
 {
-    my ($self, $filename, $fileContent) = @_;
+    my ( $self, $filename, $fileContent ) = @_;
 
     defined $filename or croak( 'Missing or undefined $filename parameter' );
     defined $fileContent or croak( 'Missing or undefined $fileContent parameter' );

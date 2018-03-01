@@ -143,7 +143,7 @@ sub store
         tag     => $args->{'tag'}
     };
 
-    push @{$self->{'stack'}}, $item;
+    push @{ $self->{'stack'} }, $item;
     TRUE;
 }
 
@@ -191,7 +191,7 @@ sub retrieve
     my $tmpl = {
         tag     => { default => qr/.*/ },
         message => { default => undef },
-        amount  => { default => scalar @{$self->{'stack'}}, strict_type => TRUE },
+        amount  => { default => scalar @{ $self->{'stack'} }, strict_type => TRUE },
         remove  => { default => FALSE },
         chrono  => { default => TRUE }
     };
@@ -204,20 +204,20 @@ sub retrieve
     }
 
     my $args = check( $tmpl, \%hash ) or ( warn( sprintf( "Couldn't parse input: %s", Params::Check->last_error )), return );
-    
+
     # Prevent removal of items which are not effectively returned to caller ( amount > 1 but scalar context)
     $args->{'amount'} = 1 unless wantarray;
 
     my @list = ();
-    for my $log( $args->{'chrono'} ? @{$self->{'stack'}} : reverse @{$self->{'stack'}} ) {
+    for my $log ( $args->{'chrono'} ? @{ $self->{'stack'} } : reverse @{ $self->{'stack'} } ) {
         next unless $log->{'tag'} =~ /$args->{'tag'}/ && ( !defined $args->{'message'} || $log->{'message'} =~ /$args->{'message'}/ );
         push @list, $log;
         undef $log if $args->{'remove'};
         $args->{'amount'}--;
-        last unless $args->{'amount'}; 
+        last unless $args->{'amount'};
     }
 
-    @{$self->{'stack'}} = grep defined, @{$self->{'stack'}} if $args->{'remove'} && @list;
+    @{ $self->{'stack'} } = grep defined, @{ $self->{'stack'} } if $args->{'remove'} && @list;
 
     wantarray ? @list : $list[0];
 }
@@ -266,7 +266,7 @@ sub final
 
 sub flush
 {
-    splice @{$_[0]->{'stack'}};
+    splice @{ $_[0]->{'stack'} };
 }
 
 =back

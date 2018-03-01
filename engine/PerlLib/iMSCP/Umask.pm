@@ -40,7 +40,8 @@ tie $UMASK, 'iMSCP::Umask::SCALAR' or croak "Can't tie \$UMASK";
     # Override built-in umask() globally as we want get notified of change when
     # it get called directly
     BEGIN {
-        *CORE::GLOBAL::umask = sub {
+        *CORE::GLOBAL::umask = sub
+        {
             my $oldMask = $_UMASK;
             umask( $_UMASK = $_[0] ) if defined $_[0] && $_[0] != $oldMask;
             $oldMask;

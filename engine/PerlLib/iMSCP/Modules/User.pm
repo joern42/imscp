@@ -45,7 +45,7 @@ use parent 'iMSCP::Modules::Abstract';
 
 sub getEntityType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     'User';
 }
@@ -58,7 +58,7 @@ sub getEntityType
 
 sub handleEntity
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     $self->_loadEntityData( $entityId );
 
@@ -87,7 +87,7 @@ sub handleEntity
 
 sub _loadEntityData
 {
-    my ($self, $entityId) = @_;
+    my ( $self, $entityId ) = @_;
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         '
@@ -122,7 +122,7 @@ sub _loadEntityData
 
 sub _add
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval {
         if ( $self->{'admin_status'} ne 'tochangepwd' ) {
@@ -146,7 +146,7 @@ sub _add
                 'UPDATE admin SET admin_sys_name = ?, admin_sys_uid = ?, admin_sys_gname = ?, admin_sys_gid = ? WHERE admin_id = ?',
                 undef, $usergroup, $uid, $usergroup, $gid, $self->{'_data'}->{'USER_ID'},
             );
-            @{$self}{ qw/ admin_sys_name admin_sys_uid admin_sys_gname admin_sys_gid / } = ( $usergroup, $uid, $usergroup, $gid );
+            @{ $self }{ qw/ admin_sys_name admin_sys_uid admin_sys_gname admin_sys_gid / } = ( $usergroup, $uid, $usergroup, $gid );
         }
 
         $self->SUPER::_add()
@@ -163,7 +163,7 @@ sub _add
 
 sub _delete
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     eval {
         my $user = my $group = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'_data'}->{'USER_ID'} );

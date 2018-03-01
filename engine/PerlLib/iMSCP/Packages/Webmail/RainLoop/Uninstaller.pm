@@ -52,9 +52,9 @@ use parent 'iMSCP::Common::Singleton';
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    return unless %{$self->{'config'}};
+    return unless %{ $self->{'config'} };
 
     $self->_removeSqlUser();
     $self->_removeSqlDatabase();
@@ -78,7 +78,7 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'rainloop'} = iMSCP::Packages::Webmail::RainLoop::RainLoop->getInstance();
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
@@ -97,12 +97,12 @@ sub _init
 
 sub _removeSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $sqlServer = iMSCP::Servers::Sqld->factory();
     return unless $self->{'config'}->{'DATABASE_USER'};
 
-    for my $user( $::imscpConfig{'DATABASE_USER_HOST'}, $::imscpConfig{'BASE_SERVER_IP'}, 'localhost', '127.0.0.1', '%' ) {
+    for my $user ( $::imscpConfig{'DATABASE_USER_HOST'}, $::imscpConfig{'BASE_SERVER_IP'}, 'localhost', '127.0.0.1', '%' ) {
         next unless $user;
         $sqlServer->dropUser( $self->{'config'}->{'DATABASE_USER'}, $user );
     }
@@ -118,7 +118,7 @@ sub _removeSqlUser
 
 sub _removeSqlDatabase
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'db'}->do( 'DROP DATABASE IF EXISTS ' . $self->{'db'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' ));
 }
@@ -133,13 +133,13 @@ sub _removeSqlDatabase
 
 sub _unregisterConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless -f "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf";
 
     my $file = iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
     my $fileContentRef = $file->getAsRef();
-    ${$fileContentRef} =~ s/[\t ]*include imscp_rainloop.conf;\n//;
+    ${ $fileContentRef } =~ s/[\t ]*include imscp_rainloop.conf;\n//;
     $file->save();
 
     $self->{'frontend'}->{'reload'} ||= 1;
@@ -155,7 +155,7 @@ sub _unregisterConfig
 
 sub _removeFiles
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_rainloop.conf" )->remove();
     iMSCP::Dir->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop" )->remove();

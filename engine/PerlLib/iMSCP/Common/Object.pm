@@ -45,12 +45,12 @@ use warnings;
 
 sub new
 {
-    my ($class, @attrs) = @_;
+    my ( $class, @attrs ) = @_;
 
     # Already got an object
     return $class if ref $class;
 
-    ( bless { @attrs && ref $attrs[0] eq 'HASH' ? %{$attrs[0]} : @attrs }, $class )->_init();
+    ( bless { @attrs && ref $attrs[0] eq 'HASH' ? %{ $attrs[0] } : @attrs }, $class )->_init();
 }
 
 =back
@@ -69,7 +69,7 @@ sub new
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self;
 }

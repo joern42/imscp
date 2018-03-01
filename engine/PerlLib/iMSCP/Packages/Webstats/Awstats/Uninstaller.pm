@@ -51,7 +51,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_deleteFiles();
     $self->_removeVhost();

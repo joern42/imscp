@@ -52,9 +52,9 @@ use parent 'iMSCP::Common::Singleton';
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    return unless %{$self->{'config'}};
+    return unless %{ $self->{'config'} };
 
     $self->_removeSqlUser();
     $self->_removeSqlDatabase();
@@ -78,7 +78,7 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'phpmyadmin'} = iMSCP::Packages::Setup::PhpMyAdmin->getInstance();
     $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
@@ -100,7 +100,7 @@ sub _init
 
 sub _removeSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless $self->{'config'}->{'DATABASE_USER'} && $::imscpConfig{'DATABASE_USER_HOST'};
     iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'DATABASE_USER'}, $::imscpConfig{'DATABASE_USER_HOST'} );
@@ -116,7 +116,7 @@ sub _removeSqlUser
 
 sub _removeSqlDatabase
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'db'}->do( "DROP DATABASE IF EXISTS " . $dbh->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_pma' ));
 }
@@ -131,13 +131,13 @@ sub _removeSqlDatabase
 
 sub _unregisterConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return unless -f "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf";
 
     my $file = iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
     my $fileContentRef = $file->getAsRef();
-    ${$fileContentRef} =~ s/[\t ]*include imscp_pma.conf;\n//;
+    ${ $fileContentRef } =~ s/[\t ]*include imscp_pma.conf;\n//;
     $file->save();
 
     $self->{'frontend'}->{'reload'} ||= 1;
@@ -153,7 +153,7 @@ sub _unregisterConfig
 
 sub _removeFiles
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_pma.conf" )->remove();
     iMSCP::Dir->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma" )->remove();
