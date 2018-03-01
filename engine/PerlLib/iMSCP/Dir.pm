@@ -26,6 +26,7 @@ package iMSCP::Dir;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use Carp::Always;
 use English;
 use Errno qw/ EPERM EINVAL ENOENT /;
 use Fcntl qw/ :mode O_RDONLY O_WRONLY O_CREAT O_TRUNC O_BINARY O_EXCL O_NOFOLLOW /;
@@ -373,42 +374,42 @@ sub remove
     $self;
 }
 
-=item copy( $dest [, \%options = { umask => UMASK(2),  preserve => undef, no_target_directory = TRUE } ] )
+=item copy( $dest [, \%options = { umask => UMASK(2), preserve => undef, no_target_directory = TRUE } ] )
 
  Copy this directory recursively into the given destination
 
  The behavior is nearly the same as the cp(1) command:
-  - symlinks are not dereferenced. This is nearly same as executing: cp(1) --no-dereference file1 file2
+  - symlinks are not dereferenced. This is nearly same as executing: cp(1) --recursive --no-dereference dir dest
 
   - If the 'preserve' option is set to TRUE, source file's ownership and permissions are preserved. Non-permission bits set(UID|GID) and sticky bit
-    are preserved only if the copy of both owner and group succeeded. This is nearly same as executing: cp(1) --preserve=ownership,mode file1 file2
+    are preserved only if the copy of both owner and group succeeded.
+    This is nearly same as executing: cp(1) --recursive --preserve=ownership,mode dir dest
 
   - If the 'preserve option is not explicitely set to FALSE, ownership and permissions of existent files are left untouched and the following
     rules apply for new files:
-     - Permissions set are those from source file on which the current UMASK(2) is applied. Non-permission bits are not preserved.
+     - Permissions set are those from source file on which UMASK(2) is applied. Non-permission bits are not preserved.
      - Owner is set to EUID while the group set depends on a range of factors:
        - If the fs is mounted with -o grpid, the group is made the same as that of the parent dir.
        - If the fs is mounted with -o nogrpid and the setgid bit is disabled on the parent dir, the group will be set to EGID
        - If the fs is mounted with -o nogrpid and the setgid bit is enabled on the parent dir, the group is made the same as that of the parent dir.
        As at Linux 2.6.25, the -o grpid and -o nogrpid mount options are supported by ext2, ext3, ext4, and XFS. Filesystems that don't support these
        mount options follow the -o nogrpid rules.   
-       This is nearly same as executing: cp(1)  file1 file2
+       This is nearly same as executing: cp(1) --recursive dir dest
 
   - If the 'preserve' option is explicitely set to FALSE, the ownership is set same as when the 'preserve' option is not explicitely set to FALSE.
-    The permissions are set to default mode (0666|0777) on which caller or current UMASK(2) is applied. However For existent files, the non-permission
-    bits are preserved: ( DEFAULT_MODE | $dstNonPermBits ) & ~(UMASK(2)). This is nearly same as executing: cp(1) --no-preserve=mode  file1 file2
+    The permissions are set to default mode (0666|0777) on which UMASK(2) is applied.
+    This is nearly same as executing: cp(1) --recursive --no-preserve=mode dir dest
 
   - If the 'no_target_directory' option is TRUE, $dest is treated as normal file.
-    This is nearly same as executing: cp(1) --no-target-directory file1 file2
+    This is nearly same as executing: cp(1) --recursive --no-target-directory dir dest
 
   - Access Control List (ACL), timestamps, security context and extended attributes are not preserved.
 
  Param string $dest Destination path
  Param hash \%options OPTIONAL options:
-  - umask               : OPTIONAL UMASK(2). See above for it usage cases.
-                          This option is only relevant when the preserve option is FALSE.
+  - umask               : OPTIONAL UMASK(2). See above for it usage cases. This option is only relevant when the preserve option is FALSE.
   - preserve            : See above for the behavior.
-  - no_target_directory : If set to TRUE, treat $dest as a normal file
+  - no_target_directory : If set to TRUE (default), treat $dest as a normal file
  Return self, die on failure
 
 =cut
@@ -705,7 +706,7 @@ sub _copyInternal
 
     # Avoid calling chown if we know it's not necessary
     if ( !$dstIsSymlink && $options->{'preserve'} && ( $newDst || !_sameOwnerAndGroup( \@sst, \@dst ) ) ) {
-        my $ret = _setOwnerSafe( $options, $dstName, undef, @sst, $newDst, \@dst );
+        my $ret = _setOwnerSafe( $options, $dstName, undef, \@sst, $newDst, \@dst );
         return FALSE if $ret == -1;
 
         # If preserving owner and group was not possible,
@@ -750,7 +751,7 @@ sub _copyInternal
             }
         }
 
-        if ( $restoreDstMode && chmod( $dstMode | $omittedPerms, $dstName ) != 0 ) {
+        if ( $restoreDstMode && !chmod( $dstMode | $omittedPerms, $dstName ) ) {
             error( sprintf( "preserving permissions for %s '%s': %s", $dstName, $! ));
             return FALSE if $options->{'_require_preserve'};
         }
@@ -1017,7 +1018,7 @@ sub _setOwnerSafe
 
         if ( ( $oldMode & CHMOD_MODE_BITS
             & ( ~$newMode | S_ISUID | S_ISGID | S_ISVTX ) )
-            && chmod( $restrictiveTmpMode, $dstFH // $dstName ) != 0
+            && !chmod( $restrictiveTmpMode, $dstFH // $dstName )
         ) {
             error( sprintf( "clearing permissions for '%s': %s", $dstName )) unless _chownOrChmodFailureOk();
             return -$options->{'_require_preserve'};
