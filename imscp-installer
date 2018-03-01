@@ -27,8 +27,6 @@ use warnings;
 use POSIX qw/ locale_h /;
 use Cwd qw/ abs_path /;
 
-unshift @INC, 'engine/PerlLib';
-
 $ENV{'LANG'} = 'C.UTF-8';
 setlocale( LC_MESSAGES, 'C.UTF-8' );
 
@@ -47,6 +45,9 @@ $> == 0 or prntError( 'The i-MSCP installer must be run with the privileges of s
 
 chomp( our $ROOTDIR = `dirname @{ [ abs_path __FILE__ ] } 2>/dev/null` );
 chdir( $ROOTDIR ) or prntError( sprintf( "couldn't chdir: %s", $! || 'Unknown error' ));
+system( 'clear 2>/dev/null' );
+
+unshift @INC, 'engine/PerlLib';
 
 DIST_BOOTSTRAP:
 
@@ -74,26 +75,28 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
         "No installer bootstrap file found for your distribution. You need first implement the $bootstrapDir/$bootstrapFile bootstrap file."
     );
 
-    system( 'clear 2>/dev/null' );
     do "$bootstrapDir/$bootstrapFile" or prntError( sprintf( "Couldn't bootstrap the i-MSCP installer: %s", $@ || $! ));
 } else {
-    # Make sure that all requirements are meet, else force distribution
-    # bootstrap execution
+    # Make sure that all requirements are meet, else force execution of the
+    # distribution installer bootstrap execution
     eval {
+        prntInfo 'Check for i-MSCP requirements...';
         require iMSCP::Requirements;
-        iMSCP::Requirements->new()
-            ->_checkPrograms()
-            ->_checkPhpModules()
-            ->_checkPerlModules();
+        iMSCP::Requirements->new()->checkPrograms()->checkPhpModules()->checkPerlModules();
     };
     if ( $@ ) {
+        prntInfo 'Pre-requirements are not meet. Executing distribution installer bootstrap...';
         $forceDistBootstrap = 1;
         goto DIST_BOOTSTRAP;
     }
 }
 
-prntInfo 'Generating iMSCP::H2ph Perl package...';
-system( "cd engine/PerlLib; make clean all" ) == 0 or prntError( "Couldn't generate iMSCP::H2ph Perl package." );
+# checksum for amd64 (most used)
+# TODO i386 checksum
+unless ( system( 'echo 696bf0f5902ff1f58df1b0d7d7eacbb8  engine/PerlLib/iMSCP/H2ph.pm | md5sum -c > /dev/null 2>&1' ) == 0 ) {
+    prntInfo 'Generating iMSCP::H2ph Perl package...';
+    system( "cd engine/PerlLib; make clean all" ) == 0 or prntError( "Couldn't generate iMSCP::H2ph Perl package." );
+}
 
 # Execute the real installer
 exec( '/usr/bin/perl', 'installer/installer.pl', @ARGV );
