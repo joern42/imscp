@@ -70,7 +70,7 @@ $self = {
 
 =cut
 
-sub newDebug :prototype($)
+sub newDebug($)
 {
     my ($logFileId) = @_;
 
@@ -130,7 +130,7 @@ sub endDebug
 
 =cut
 
-sub debug :prototype($;$)
+sub debug($;$)
 {
     my ($message, $caller) = @_;
 
@@ -149,7 +149,7 @@ sub debug :prototype($;$)
 
 =cut
 
-sub warning :prototype($;$)
+sub warning($;$)
 {
     my ($message, $caller) = @_;
 
@@ -167,7 +167,7 @@ sub warning :prototype($;$)
 
 =cut
 
-sub error :prototype($;$)
+sub error($;$)
 {
     my ($message, $caller) = @_;
 
@@ -202,7 +202,7 @@ sub getLastError
 
 =cut
 
-sub getMessageByType :prototype($;$)
+sub getMessageByType($;$)
 {
     my ($type, $options) = @_;
     $options ||= {};
@@ -228,7 +228,7 @@ sub getMessageByType :prototype($;$)
 
 =cut
 
-sub output :prototype($;$)
+sub output($;$)
 {
     my ($text, $level) = @_;
 

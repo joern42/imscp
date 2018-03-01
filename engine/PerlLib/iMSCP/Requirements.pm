@@ -330,7 +330,7 @@ sub _init
 
                     # Non-core modules
 
-                    # Need to be installer from CPAN
+                    # Need to be installed from CPAN
                     'Array::Utils'           => '0.5',
 
                     'Capture::Tiny'          => '0.24',
@@ -353,7 +353,7 @@ sub _init
 
                     'Net::LibIDN'            => '0.12',
                     'Scalar::Defer'          => '0.23',
-                    'XML::Simple'            => '2.20',
+                    'XML::Simple'            => '2.20'
                 },
                 required    => {
                     # Non-core modules

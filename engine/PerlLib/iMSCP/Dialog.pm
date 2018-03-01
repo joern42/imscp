@@ -40,6 +40,27 @@ use parent 'iMSCP::Common::Singleton';
 
 =over 4
 
+=item set( $option, $value )
+
+ Set dialog option
+
+ Param string $param Option name
+ Param string $value Option value
+ Return mixed Old option value, croak if the given option is not known
+
+=cut
+
+sub set
+{
+    my ( $self, $option, $value ) = @_;
+
+    defined $option && exists $self->{'opts'}->{$option} or croak( 'Unknown dialog option' );
+
+    my $oldValue = $self->{'opts'}->{$option};
+    $self->{'opts'}->{$option} = $value;
+    $oldValue;
+}
+
 =item resetLabels( )
 
  Reset labels to their default values
@@ -50,16 +71,9 @@ use parent 'iMSCP::Common::Singleton';
 
 sub resetLabels
 {
-    my %defaultLabels = (
-        exit   => 'Abort',
-        ok     => 'Ok',
-        yes    => 'Yes',
-        no     => 'No',
-        cancel => 'Back',
-        help   => 'Help',
-        extra  => undef
+    @{ $_[0]->{'opts'} }{qw/ exit-label ok-label yes-label no-label cancel-label help-label extra-label /} = (
+        'Abort', 'Ok', 'Yes', 'No', 'Back', 'Help', undef
     );
-    $_[0]->{'opts'}->{"$_-label"} = $defaultLabels{$_} for keys %defaultLabels;
 }
 
 =item fselect( $file )
@@ -73,10 +87,10 @@ sub resetLabels
 
 sub fselect
 {
-    my ($self, $file) = @_;
+    my ( $self, $file ) = @_;
 
     local $self->{'lines'} = $self->{'lines'}-8;
-    my ($ret, $output) = $self->_execute( $file, undef, 'fselect' );
+    my ( $ret, $output ) = $self->_execute( $file, undef, 'fselect' );
     wantarray ? ( $ret, $output ) : $output;
 }
 
@@ -95,17 +109,17 @@ sub fselect
 
 sub radiolist
 {
-    my ($self, $text, $choices, $defaultTag) = @_;
+    my ( $self, $text, $choices, $defaultTag ) = @_;
     $defaultTag //= '';
 
     my @init;
-    my %choices = reverse( %{$choices} );
-    for my $item( sort keys %choices ) {
+    my %choices = reverse( %{ $choices } );
+    for my $item ( sort keys %choices ) {
         push @init, escapeShell( $choices{$item} ), escapeShell( $item ), $defaultTag eq $choices{$item} ? 'on' : 'off';
     }
 
     local $self->{'opts'}->{'no-tags'} = ''; # Don't display tags in dialog
-    my ($ret, $tag) = $self->_textbox( $text, 'radiolist', "@{[scalar keys %{$choices}]} @init" );
+    my ( $ret, $tag ) = $self->_textbox( $text, 'radiolist', "@{ [ scalar keys %{ $choices } ] } @init" );
     wantarray ? ( $ret, $tag ) : $tag;
 }
 
@@ -122,16 +136,16 @@ sub radiolist
 
 sub checkbox
 {
-    my ($self, $text, $choices, @defaultTags) = @_;
+    my ( $self, $text, $choices, @defaultTags ) = @_;
 
     my @init;
-    my %choices = reverse( %{$choices} );
-    for my $item( sort keys %choices ) {
-        push @init, escapeShell( $choices{$item} ), escapeShell( $item ), grep( $choices{$item} eq $_, @defaultTags ) ? 'on' : 'off';
+    my %choices = reverse( %{ $choices } );
+    for my $item ( sort keys %choices ) {
+        push @init, escapeShell( $choices{$item} ), escapeShell( $item ), grep ( $choices{$item} eq $_, @defaultTags ) ? 'on' : 'off';
     }
 
     local $self->{'opts'}->{'no-tags'} = ''; # Don't display tags in dialog
-    my ($ret, $tags) = $self->_textbox( $text, 'checklist', "@{[scalar keys %{$choices}]} @init" );
+    my ( $ret, $tags ) = $self->_textbox( $text, 'checklist', "@{ [ scalar keys %{ $choices } ] } @init" );
     wantarray ? ( $ret, [ split /\n/, $tags ] ) : [ split /\n/, $tags ];
 }
 
@@ -146,7 +160,7 @@ sub checkbox
 
 sub tailbox
 {
-    my ($self, $file) = @_;
+    my ( $self, $file ) = @_;
 
     ( $self->_execute( $file, undef, 'tailbox' ) )[0];
 }
@@ -162,7 +176,7 @@ sub tailbox
 
 sub editbox
 {
-    my ($self, $file) = @_;
+    my ( $self, $file ) = @_;
 
     $self->_execute( $file, undef, 'editbox' );
 }
@@ -178,10 +192,10 @@ sub editbox
 
 sub dselect
 {
-    my ($self, $directory) = @_;
+    my ( $self, $directory ) = @_;
 
     local $self->{'lines'} = $self->{'lines'}-8;
-    my ($ret, $output) = $self->_execute( $directory, undef, 'dselect' );
+    my ( $ret, $output ) = $self->_execute( $directory, undef, 'dselect' );
     wantarray ? ( $ret, $output ) : $output;
 }
 
@@ -196,7 +210,7 @@ sub dselect
 
 sub msgbox
 {
-    my ($self, $text) = @_;
+    my ( $self, $text ) = @_;
 
     ( $self->_textbox( $text, 'msgbox' ) )[0];
 }
@@ -223,7 +237,7 @@ sub msgbox
 
 sub yesno
 {
-    my ($self, $text, $defaultno, $backbutton) = @_;
+    my ( $self, $text, $defaultno, $backbutton ) = @_;
 
     local $self->{'opts'}->{'defaultno'} = $defaultno ? '' : undef;
     unless ( $backbutton ) {
@@ -249,7 +263,7 @@ sub yesno
 
 sub inputbox
 {
-    my ($self, $text, $init) = @_;
+    my ( $self, $text, $init ) = @_;
     $init //= '';
 
     $self->_textbox( $text, 'inputbox', escapeShell( $init ));
@@ -267,7 +281,7 @@ sub inputbox
 
 sub passwordbox
 {
-    my ($self, $text, $init) = @_;
+    my ( $self, $text, $init ) = @_;
     $init //= '';
 
     local $self->{'opts'}->{'insecure'} = '';
@@ -285,7 +299,7 @@ sub passwordbox
 
 sub infobox
 {
-    my ($self, $text) = @_;
+    my ( $self, $text ) = @_;
 
     local $self->{'opts'}->{'clear'} = undef;
     ( $self->_textbox( $text, 'infobox' ) )[0];
@@ -303,7 +317,7 @@ sub infobox
 
 sub startGauge
 {
-    my ($self, $text, $percent) = @_;
+    my ( $self, $text, $percent ) = @_;
 
     return if iMSCP::Getopt->noprompt || $self->{'gauge'};
 
@@ -331,7 +345,7 @@ sub startGauge
 
 sub setGauge
 {
-    my ($self, $percent, $text) = @_;
+    my ( $self, $percent, $text ) = @_;
 
     return if iMSCP::Getopt->noprompt || !$self->{'gauge'};
 
@@ -367,27 +381,6 @@ sub hasGauge
     $_[0]->{'gauge'} ? 1 : 0;
 }
 
-=item set( $option, $value )
-
- Set dialog option
-
- Param string $param Option name
- Param string $value Option value
- Return string|undef Old option value if exists, undef otherwise
-
-=cut
-
-sub set
-{
-    my ($self, $option, $value) = @_;
-
-    return undef unless $option && exists $self->{'opts'}->{$option};
-
-    my $return = $self->{'opts'}->{$option};
-    $self->{'opts'}->{$option} = $value;
-    $return;
-}
-
 =back
 
 =head1 PRIVATE METHODS
@@ -404,7 +397,7 @@ sub set
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # These environment variable screws up at least whiptail with the
     # way we call it. Posix does not allow safe arg passing like
@@ -414,12 +407,12 @@ sub _init
 
     # Detect all the ways people have managed to screw up their
     # terminals (so far...)
-    if ( !exists $ENV{'TERM'} || !defined $ENV{'TERM'} ||  length $ENV{'TERM'} == 0 ) {
-        die ( 'TERM is not set, so the dialog frontend is not usable.' );
+    if ( !exists $ENV{'TERM'} || !defined $ENV{'TERM'} || length $ENV{'TERM'} == 0 ) {
+        die( 'TERM is not set, so the dialog frontend is not usable.' );
     } elsif ( $ENV{'TERM'} =~ /emacs/i ) {
-        die ( 'Dialog frontend is incompatible with emacs shell buffers' );
+        die( 'Dialog frontend is incompatible with emacs shell buffers' );
     } elsif ( $ENV{'TERM'} eq 'dumb' || $ENV{'TERM'} eq 'unknown' ) {
-        die ( 'Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.' );
+        die( 'Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.' );
     }
 
     # Return specific exit status when ESC is pressed
@@ -484,7 +477,7 @@ sub _init
 
 sub _resize
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $lines;
     if ( exists $ENV{'LINES'} ) {
@@ -502,7 +495,7 @@ sub _resize
         $cols ||= 80;
     }
 
-    $lines > 23 && $cols > 79 or die ( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
+    $lines > 23 && $cols > 79 or die( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
     $self->{'lines'} = $lines-10;
     $self->{'columns'} = $cols-4;
 
@@ -519,7 +512,7 @@ sub _resize
 
 sub _findBin
 {
-    my ($self, $variant) = @_;
+    my ( $self, $variant ) = @_;
 
     my $bindPath = iMSCP::ProgramFinder::find( $variant ) or die( sprintf( "Couldn't find %s executable in \$PATH", $variant ));
     $self->{'bin'} = $bindPath;
@@ -537,7 +530,7 @@ sub _findBin
 
 sub _stripFormats
 {
-    my (undef, $string) = @_;
+    my ( undef, $string ) = @_;
 
     $string =~ s/\\Z[0-9bBuUrRn]//gmi;
     $string;
@@ -554,15 +547,15 @@ sub _stripFormats
 
 sub _buildCommonCommandOptions
 {
-    my ($self, $noEscape) = @_;
+    my ( $self, $noEscape ) = @_;
 
     my @options = map {
         defined $self->{'opts'}->{$_}
             ? ( "--$_", ( $noEscape )
-                ? ( !length $self->{'opts'}->{$_} ? () : $self->{'opts'}->{$_} )
-                : ( !length $self->{'opts'}->{$_} ? () : escapeShell( $self->{'opts'}->{$_} ) ) )
+            ? ( !length $self->{'opts'}->{$_} ? () : $self->{'opts'}->{$_} )
+            : ( !length $self->{'opts'}->{$_} ? () : escapeShell( $self->{'opts'}->{$_} ) ) )
             : ()
-    } keys %{$self->{'opts'}};
+    } keys %{ $self->{'opts'} };
 
     wantarray ? @options : "@options";
 }
@@ -577,9 +570,9 @@ sub _buildCommonCommandOptions
 
 sub _restoreDefaults
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    for my $prop ( keys %{$self->{'opts'}} ) {
+    for my $prop ( keys %{ $self->{'opts'} } ) {
         $self->{'opts'}->{$prop} = undef unless $prop =~ /^(?:title|backtitle|colors)$/;
     }
 
@@ -599,13 +592,13 @@ sub _restoreDefaults
 
 sub _execute
 {
-    my ($self, $text, $init, $type) = @_;
+    my ( $self, $text, $init, $type ) = @_;
     $init //= '';
 
     $self->endGauge(); # Ensure that no gauge is currently running...
 
     if ( iMSCP::Getopt->noprompt ) {
-        unless ( grep($type eq $_, 'infobox', 'msgbox') ) {
+        unless ( grep ($type eq $_, 'infobox', 'msgbox') ) {
             if ( iMSCP::Getopt->preseed() ) {
                 die( "Missing or bad entry in your preseed file for the '%s' question", $text );
             } else {
@@ -625,7 +618,7 @@ sub _execute
     my $height = ( $self->{'autosize'} ) ? 0 : $self->{'lines'};
     my $width = ( $self->{'autosize'} ) ? 0 : $self->{'columns'};
 
-    my $ret = execute( "$self->{'bin'} $command --$type $text $height $width $init", undef, \ my $output );
+    my $ret = execute( "$self->{'bin'} $command --$type $text $height $width $init", undef, \my $output );
 
     $self->{'opts'}->{'separate-output'} = undef;
     $self->_init() if $self->{'autoreset'};
@@ -646,11 +639,11 @@ sub _execute
 
 sub _textbox
 {
-    my ($self, $text, $type, $init) = @_;
+    my ( $self, $text, $type, $init ) = @_;
 
     my $autosize = $self->{'autosize'};
     $self->{'autosize'} = undef;
-    my ($ret, $output) = $self->_execute( $text, $init, $type );
+    my ( $ret, $output ) = $self->_execute( $text, $init, $type );
     $self->{'autosize'} = $autosize;
     wantarray ? ( $ret, $output ) : $output;
 }

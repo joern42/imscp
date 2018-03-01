@@ -28,7 +28,7 @@ use warnings;
 use Carp qw/ croak /;
 use Errno qw / EINVAL ENOENT /;
 use File::Spec;
-use File::stat ();
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::File;
 use iMSCP::H2ph;
@@ -104,12 +104,12 @@ my %PROPAGATION_FLAGS = (
 # Lazy-load mount entries
 my $MOUNTS = lazy
     {
-        -f '/proc/self/mounts' or die( "Couldn't load mount entries. File /proc/self/mounts not found." );
-        open my $fh, '<', '/proc/self/mounts' or die( sprintf( "Couldn't read /proc/self/mounts file: %s", $! ));
+        -f '/proc/self/mounts' or die( "Failed to load mount entries. File /proc/self/mounts not found." );
+        open my $fh, '<', '/proc/self/mounts' or die( sprintf( "Failed to read /proc/self/mounts file: %s", $! ));
         my $entries;
         while ( my $entry = <$fh> ) {
             my $fsFile = ( split /\s+/, $entry )[1];
-            $entries->{$fsFile =~ s/\\040\(deleted\)$//r}++;
+            $entries->{File::Spec->canonpath( $fsFile =~ s/\\040\(deleted\)$//r )}++;
         }
         close( $fh );
         $entries;
@@ -154,7 +154,7 @@ sub getMounts
 
 =cut
 
-sub mount( $ )
+sub mount($)
 {
     my ($fields) = @_;
     $fields = {} unless defined $fields && ref $fields eq 'HASH';
@@ -217,7 +217,7 @@ sub mount( $ )
 
 =cut
 
-sub umount( $;$ )
+sub umount($;$)
 {
     my ($fsFile, $recursive) = @_;
 
@@ -310,12 +310,14 @@ sub isMountpoint($)
 
     $path = File::Spec->canonpath( $path );
 
-    return 1 if $MOUNTS->{$path};
-    return 0 unless -d $path;
+    my (@ast) = stat( $path) or die( sprintf( "Failed to stat '%s'", $path, $! ));
 
-    my $st = File::stat::populate( CORE::stat( _ ));
-    my $st2 = File::stat::stat( "$path/.." );
-    ( $st->dev != $st2->dev ) || ( $st->dev == $st2->dev && $st->ino == $st2->ino );
+    return TRUE if $MOUNTS->{$path};
+
+    #  Fallback. Traditional way to detect mountpoints. This way
+    # is independent on /proc, but not able to detect bind mounts.
+    my (@bst) = stat( "$path/.." );
+    ( $ast[0] != $bst[0] ) || ( $ast[0] == $bst[0] && $ast[1] == $bst[1] );
 }
 
 =item addMountEntry( $entry )
@@ -327,7 +329,7 @@ sub isMountpoint($)
 
 =cut
 
-sub addMountEntry( $ )
+sub addMountEntry($)
 {
     my ($entry) = @_;
 
@@ -350,7 +352,7 @@ sub addMountEntry( $ )
 
 =cut
 
-sub removeMountEntry( $;$ )
+sub removeMountEntry($;$)
 {
     my ($entry, $saveFile) = @_;
     $saveFile //= 1;
@@ -378,7 +380,7 @@ sub removeMountEntry( $;$ )
 
 =cut
 
-sub _parseOptions( $ )
+sub _parseOptions($)
 {
     my ($options) = @_;
 

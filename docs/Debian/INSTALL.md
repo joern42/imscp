@@ -8,7 +8,7 @@
 
 ## System Requirements
 
-See [System requirementes](https://wiki.i-mscp.net/doku.php?id=about:system)
+See [System requirements](https://wiki.i-mscp.net/doku.php?id=about:system)
 
 ## Installation in an LXC or OpenVZ container
 
