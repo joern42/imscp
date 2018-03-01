@@ -35,7 +35,7 @@ use iMSCP_Registry as Registry;
  * - Mail account must be in consistent state
  *
  * @param int $mailAccountId Mail account unique identifier
- * @return bool TRUE if all conditions are meet, FALSE otherwise
+ * @return bool TRUE if all conditions are met, FALSE otherwise
  */
 function checkMailAccount($mailAccountId)
 {

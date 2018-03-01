@@ -77,7 +77,7 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
 
     do "$bootstrapDir/$bootstrapFile" or prntError( sprintf( "Couldn't bootstrap the i-MSCP installer: %s", $@ || $! ));
 } else {
-    # Make sure that all requirements are meet, else force execution of the
+    # Make sure that all requirements are met, else force execution of the
     # distribution installer bootstrap execution
     eval {
         prntInfo 'Check for i-MSCP requirements...';
@@ -85,7 +85,7 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
         iMSCP::Requirements->new()->checkPrograms()->checkPhpModules()->checkPerlModules();
     };
     if ( $@ ) {
-        prntInfo 'Pre-requirements are not meet. Executing distribution installer bootstrap...';
+        prntInfo 'Pre-requirements are not met. Executing distribution installer bootstrap...';
         $forceDistBootstrap = 1;
         goto DIST_BOOTSTRAP;
     }

@@ -77,7 +77,7 @@ sub getPerlModuleRequirements
 
  Process check for all requirements
 
- Return self, die if requirements are not meet
+ Return self, die if requirements are not met
 
 =cut
 
@@ -108,7 +108,7 @@ sub user
 
  Checks program requirements
 
- Return self, die if program requirements are not meet
+ Return self, die if program requirements are not met
 
 =cut
 
@@ -147,7 +147,7 @@ sub checkPrograms
  Checks that the given PHP modules are available
 
  Param array \@modules List of modules
- Return self, die if PHP module requirements are not meet
+ Return self, die if PHP module requirements are not met
 
 =cut
 
@@ -179,7 +179,7 @@ sub checkPhpModules
  Checks that the given Perl modules are availables at the minimum specified version
 
  params hashref \%modules OPTIOANL Reference to a hash of module name and module minimum version pairs
- Return self, die if Perl module requirements are not meet
+ Return self, die if Perl module requirements are not met
 
 =cut
 
@@ -213,7 +213,7 @@ EOF
     }
 
     die(
-        sprintf( "\nThe following Perl modules are not installed or don't meet version requirements:\n\n - %s\n", join ' - ', sort @missingModules )
+        sprintf( "\nThe following Perl modules are not installed or don't met version requirements:\n\n - %s\n", join ' - ', sort @missingModules )
     );
 }
 
@@ -224,7 +224,7 @@ EOF
  Param string $version Version to check
  Param string $minVersion Min. version
  Param string $maxVersion OPTIONAL Max. version
- Return self, die if $version version doesn't meet $minVersion and $maxVersion requirements
+ Return self, die if $version version doesn't met $minVersion and $maxVersion requirements
 
 =cut
 
@@ -387,7 +387,7 @@ sub _init
  Param regexp $versionRegexp Regexp to find version in command version output string
  Param $minVersion Min required version
  Param $maxVersion Max required version
- Return void, die if program versionr requirements are not meet
+ Return void, die if program version requirements are not met
 
 =cut
 

@@ -36,7 +36,7 @@ use iMSCP_Registry as Registry;
  * - Mail account autoresponder must not be active
  *
  * @param int $mailAccountId Mail account unique identifier
- * @return string|false string if all conditions are meet, FALSE otherwise
+ * @return string|false string if all conditions are met, FALSE otherwise
  */
 function checkMailAccount($mailAccountId)
 {
