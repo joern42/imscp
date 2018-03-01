@@ -235,8 +235,10 @@ sub owner
 {
     my ( $self, $owner, $group ) = @_;
 
-    my ( $uid ) = defined $owner ? ( $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'", $owner )) ) : -1;
-    my ( $gid ) = defined $group ? ( $group =~ /^\d+$/ ? $group : getpwnam( $group ) // die( sprintf( "Couldn't find group '%s'", $owner )) ) : -1;
+    my ( $uid ) = defined $owner
+        ? ( $owner =~ /^(?:-1|\d+)$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'", $owner )) ) : -1;
+    my ( $gid ) = defined $group
+        ? ( $group =~ /^(?:-1|\d+)$/ ? $group : getgrnam( $group ) // die( sprintf( "Couldn't find group '%s'", $group )) ) : -1;
 
     lchown $uid, $gid, $self->{'filename'} or die( sprintf( "Failed to set ownership for '%s': %s", $self->{'filename'}, $! ));
     $self;

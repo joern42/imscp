@@ -289,8 +289,10 @@ sub owner
 {
     my ( $self, $owner, $group ) = @_;
 
-    my ( $uid ) = defined $owner ? ( $owner =~ /^\d+$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'", $owner )) ) : -1;
-    my ( $gid ) = defined $group ? ( $group =~ /^\d+$/ ? $group : getpwnam( $group ) // die( sprintf( "Couldn't find group '%s'", $owner )) ) : -1;
+    my ( $uid ) = defined $owner
+        ? ( $owner =~ /^(?:-1|\d+)$/ ? $owner : getpwnam( $owner ) // die( sprintf( "Couldn't find user '%s'", $owner )) ) : -1;
+    my ( $gid ) = defined $group
+        ? ( $group =~ /^(?:-1|\d+)$/ ? $group : getgrnam( $group ) // die( sprintf( "Couldn't find group '%s'", $group )) ) : -1;
 
     lchown $uid, $gid, $self->{'dirname'} or die( sprintf( "Failed to set ownership for '%s': %s", $self->{'dirname'}, $! ));
     $self;
@@ -323,15 +325,15 @@ sub make
 
     ref $options eq 'HASH' or croak( '$options parameter is invalid' );
 
-    my ( @tst ) = stat $self->{'dirname'};
-    @tst || $! == ENOENT or die( sprintf( "Failed to access '%s': %s", $self->{'dirname'}, $! ));
-    !@tst || S_ISDIR( $tst[2] ) or die( sprintf( "Failed to create '%s': file exists and is not a directory", $self->{'dirname'} ));
+    my ( @dst ) = stat $self->{'dirname'};
+    @dst || $! == ENOENT or die( sprintf( "Failed to access '%s': %s", $self->{'dirname'}, $! ));
+    !@dst || S_ISDIR( $dst[2] ) or die( sprintf( "Failed to create '%s': file exists and is not a directory", $self->{'dirname'} ));
 
-    unless ( @tst ) {
+    unless ( @dst ) {
         my $parent = dirname( $self->{'dirname'} );
         unless ( -d $parent ) {
             local $self->{'dirname'} = $parent;
-            # Parent directories are always created with default perms: 0777 & ~(umask || 0)
+            # Parent directories are always created with default perms: 0777 & ~(UMASK(2) || 0)
             $self->make();
         }
 
@@ -340,7 +342,7 @@ sub make
         mkdir $self->{'dirname'} or die( sprintf( "Failed to create '%s': %s", $self->{'dirname'}, $! ));
     }
 
-    return $self unless $self->{'fixpermissions'};
+    return $self unless !@dst || $self->{'fixpermissions'};
 
     if ( defined $options->{'user'} || defined $options->{'group'} ) {
         $self->owner( $options->{'user'} // -1, $options->{'group'} // -1, $self->{'dirname'} );
@@ -348,7 +350,7 @@ sub make
 
     # $self->{'directory'} was an existent symlink
     # We do not want call CHMOD(2) on symlinks
-    return $self if @tst && -l $self->{'dirname'};
+    return $self if @dst && -l $self->{'dirname'};
 
     $self->mode( $options->{'mode'} ) if defined $options->{'mode'};
     $self;
