@@ -26,7 +26,6 @@ package iMSCP::Dir;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use Carp::Always;
 use English;
 use Errno qw/ EPERM EINVAL ENOENT /;
 use Fcntl qw/ :mode O_RDONLY O_WRONLY O_CREAT O_TRUNC O_BINARY O_EXCL O_NOFOLLOW /;
