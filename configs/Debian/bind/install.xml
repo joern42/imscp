@@ -1,36 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install umask="0022">
+<install>
+    <folder create_if="index('${iMSCP::Servers::Named}', '::Bind9::') != -1">${SYSTEM_USR_LOCAL_LIB_DIR}/systemd/system</folder>
     <!--
         The bind9-resolvconf.service unit has been replaced by a drop-in. If
         the old unit still exists under the /etc/systemd/system directory, we
         need to delete it. There is no need to delegate the deletion to the
         service provider.
     -->
-    <copy_config copy_if="0">${SYSTEM_CONF_DIR}/systemd/system/bind9-resolvconf.service</copy_config>
+    <copy_config copy_if="0">${SYSTEM_ETC_DIR}/systemd/system/bind9-resolvconf.service</copy_config>
     <!--
         The bind9-resolvconf.service.d/* drop-in are copied only when the
         copy_if expression evaluate to TRUE. Otherwise, they are removed.
         There is no need to delegate the deletion to the service provider.
     -->
     <copy_config copy_if="index('${iMSCP::Servers::Named}', '::Bind9::') != -1" subdir="systemd">
-        ${SYSTEM_LOCAL_LIB_DIR}/systemd/system/bind9-resolvconf.service.d
+        ${SYSTEM_USR_LOCAL_LIB_DIR}/systemd/system/bind9-resolvconf.service.d
     </copy_config>
-
     <!--
         The bind9.service unit has been replaced by a systemd drop-in. If the
         old unit still exists under the /etc/systemd/system directory, we need
         to delete it. There is no need to delegate the deletion to the service
         provider.
     -->
-    <copy_config copy_if="0">${SYSTEM_CONF_DIR}/systemd/system/bind9.service</copy_config>
+    <copy_config copy_if="0">${SYSTEM_ETC_DIR}/systemd/system/bind9.service</copy_config>
     <!--
         The bind9.service.d/* drop-in are copied only when the copy_if
         expression evaluate to TRUE. Otherwise, they are removed. There is no
         need to delegate the deletion to the service provider.
     -->
     <copy_config copy_if="index('${iMSCP::Servers::Named}', '::Bind9::') != -1" subdir="systemd">
-        ${SYSTEM_LOCAL_LIB_DIR}/systemd/system/bind9.service.d
+        ${SYSTEM_USR_LOCAL_LIB_DIR}/systemd/system/bind9.service.d
     </copy_config>
-
     <copy_config umask="0027">${IMSCP_CONF_DIR}/bind</copy_config>
 </install>

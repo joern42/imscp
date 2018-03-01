@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install umask="0022">
-    <copy_config copy_as="init">${SYSTEM_CONF_DIR}/upstart</copy_config>
-
-    <copy_config copy_as="init.d" filemode="0755" recursive="1">${SYSTEM_CONF_DIR}/sysvinit</copy_config>
-
-    <copy_config>${SYSTEM_LOCAL_LIB_DIR}/systemd</copy_config>
-
+<install>
+    <copy_config copy_as="init">${SYSTEM_ETC_DIR}/upstart</copy_config>
+    <copy_config copy_as="init.d" filemode="0755" recursive="1">${SYSTEM_ETC_DIR}/sysvinit</copy_config>
+    <copy_config>${SYSTEM_USR_LOCAL_LIB_DIR}/systemd</copy_config>
     <!--
         The imscp_panel.service systemd unit is now installed in the
         /usr/local/lib/systemd/system directory (since version 1.6.0) to make
@@ -14,17 +11,11 @@
         provider, meaning that the imscp_panel service will be stopped,
         disabled and removed. It will be re-enabled later on by the installer.
     -->
-    <copy_config copy_if="0">${SYSTEM_CONF_DIR}/systemd/system/imscp_panel.service</copy_config>
-
-    <copy_config>${SYSTEM_CONF_DIR}/tmpfiles.d</copy_config>
-
-    <copy_config>${SYSTEM_CONF_DIR}/nginx</copy_config>
-
-    <copy_config>${SYSTEM_CONF_DIR}/logrotate.d</copy_config>
-
-    <copy_config copy_as="imscp_panel" umask="0027">${SYSTEM_LOCAL_CONF_DIR}/conf_imscp_panel</copy_config>
-
-    <copy_config copy_as="imscp_panel" filemode="0755" recursive="1">${SYSTEM_LOCAL_LIB_DIR}/lib_imscp_panel</copy_config>
-
+    <copy_config copy_if="0">${SYSTEM_ETC_DIR}/systemd/system/imscp_panel.service</copy_config>
+    <copy_config>${SYSTEM_ETC_DIR}/tmpfiles.d</copy_config>
+    <copy_config>${SYSTEM_ETC_DIR}/nginx</copy_config>
+    <copy_config>${SYSTEM_ETC_DIR}/logrotate.d</copy_config>
+    <copy_config copy_as="imscp_panel" umask="0027">${SYSTEM_USR_LOCAL_ETC_DIR}/conf_imscp_panel</copy_config>
+    <copy_config copy_as="imscp_panel" filemode="0755" recursive="1">${SYSTEM_USR_LOCAL_LIB_DIR}/lib_imscp_panel</copy_config>
     <copy_config umask="0027">${IMSCP_CONF_DIR}/frontend</copy_config>
 </install>

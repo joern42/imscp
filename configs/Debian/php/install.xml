@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install umask="0022">
+<install>
     <!--
        The php.*-fpm.override Upstart override files are copied only when the
        copy_if expression evaluate to TRUE. Otherwise, they are removed. There
        is no need to delegate the deletion to the service provider.
     -->
-    <folder>${SYSTEM_CONF_DIR}/init</folder>
-    <copy_config copy_if="-f '/etc/init/php5.6-fpm.conf'">${SYSTEM_CONF_DIR}/init/php5.6-fpm.override</copy_config>
-    <copy_config copy_if="-f '/etc/init/php7.0-fpm.conf'">${SYSTEM_CONF_DIR}/init/php7.0-fpm.override</copy_config>
-    <copy_config copy_if="-f '/etc/init/php7.1-fpm.conf'">${SYSTEM_CONF_DIR}/init/php7.1-fpm.override</copy_config>
-    <copy_config copy_if="-f '/etc/init/php7.2-fpm.conf'">${SYSTEM_CONF_DIR}/init/php7.2-fpm.override</copy_config>
-
+    <folder>${SYSTEM_ETC_DIR}/init</folder>
+    <copy_config copy_if="-f '/etc/init/php5.6-fpm.conf'">${SYSTEM_ETC_DIR}/init/php5.6-fpm.override</copy_config>
+    <copy_config copy_if="-f '/etc/init/php7.0-fpm.conf'">${SYSTEM_ETC_DIR}/init/php7.0-fpm.override</copy_config>
+    <copy_config copy_if="-f '/etc/init/php7.1-fpm.conf'">${SYSTEM_ETC_DIR}/init/php7.1-fpm.override</copy_config>
+    <copy_config copy_if="-f '/etc/init/php7.2-fpm.conf'">${SYSTEM_ETC_DIR}/init/php7.2-fpm.override</copy_config>
     <copy_config umask="0027">${IMSCP_CONF_DIR}/php</copy_config>
 </install>

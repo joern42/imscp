@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <copy_config copy_cwd="1">${IMSCP_CONF_DIR}/mysql</copy_config>
+    <copy_config copy_cwd="1" umask="0027">${IMSCP_CONF_DIR}/mysql</copy_config>
 </install>

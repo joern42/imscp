@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <!-- Make sure that the /tmp directory exists -->
+    <folder export="SYSTEM_TMP" mode="1777">/tmp</folder>
+    <!--
+        Same purpose as https://www.gnu.org/prep/standards/html_node/DESTDIR.html
+
+        If you change the default value, pay attention to the pre_remove
+        attribute. With it set, the directory is first removed.
+    -->
+    <folder export="DESTDIR" pre_remove="1">${SYSTEM_TMP}/imscp</folder>
+    <!--
+        We need make sure to re-create the exact directory tree (including
+        ownerships and permissions) inside $DESTDIR as those are installed
+        nearly like with the cp(1) -RPTp command. However, only relevant
+        directories must be re-created.
+
+        Default umask 0022 is assumed.
+    -->
+    <folder export="SYSTEM_ETC_DIR">${DESTDIR}/etc</folder>
+    <folder export="SYSTEM_USR_DIR">${DESTDIR}/usr</folder>
+    <folder export="SYSTEM_USR_LOCAL_DIR">${SYSTEM_USR_DIR}/local</folder>
+    <folder export="SYSTEM_USR_LOCAL_BIN_DIR">${SYSTEM_USR_LOCAL_DIR}/bin</folder>
+    <folder export="SYSTEM_USR_LOCAL_ETC_DIR">${SYSTEM_USR_LOCAL_DIR}/etc</folder>
+    <folder export="SYSTEM_USR_LOCAL_LIB_DIR">${SYSTEM_USR_LOCAL_DIR}/lib</folder>
+    <folder export="SYSTEM_USR_LOCAL_SBIN_DIR">${SYSTEM_USR_LOCAL_DIR}/sbin</folder>
+    <folder export="SYSTEM_VAR_DIR">${DESTDIR}/var</folder>
+    <folder export="SYSTEM_VAR_LOCAL_DIR" mode="02775" group="staff">${SYSTEM_VAR_DIR}/local</folder>
+    <folder export="SYSTEM_VAR_LOG_DIR" mode="0775" group="syslog">${SYSTEM_VAR_DIR}/log</folder>
+    <folder export="SYSTEM_VAR_MAIL_DIR" mode="02775" group="mail">${SYSTEM_VAR_DIR}/mail</folder>
+    <folder export="SYSTEM_VAR_WWW_DIR">${SYSTEM_VAR_DIR}/www</folder>
+    <folder export="IMSCP_CONF_DIR" mode="0750">${SYSTEM_ETC_DIR}/imscp</folder>
+    <folder export="IMSCP_LOG_DIR" mode="0750">${SYSTEM_VAR_LOG_DIR}/imscp</folder>
+    <folder export="IMSCP_MAIL_DIR" mode="0750">${SYSTEM_VAR_MAIL_DIR}/virtual</folder>
+    <folder export="IMSCP_ROOT_DIR" mode="0750">${SYSTEM_VAR_WWW_DIR}/imscp</folder>
+    <folder export="IMSCP_WWW_DIR" user="root" group="mail" mode="0750">${SYSTEM_VAR_WWW_DIR}/virtual</folder>
+</install>

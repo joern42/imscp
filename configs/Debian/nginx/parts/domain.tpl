@@ -39,16 +39,15 @@ server {
     }
 
     # SECTION cgi BEGIN.
-    location /cgi-bin/ {
-        gzip off;
-        root {WEB_DIR};
+    location = /cgi-bin/ {
         index index.cgi index.pl index.py index.rb;
-        disable_symlinks off;
-        fastcgi_pass unix:/var/run/fcgiwrap.socket;
-        include /etc/nginx/fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        # SECTION cgi-bin addons BEGIN.
-        # SECTION cgi-bin addons END.
+    }
+
+    location /cgi-bin/ {
+        include uwsgi_params;
+        uwsgi_modifier1 9;
+        uwsgi_pass unix:{UWSGI_RUN_DIR}/{USER}/socket;
+        uwsgi_intercept_errors on;
     }
     # SECTION cgi END.
     # SECTION dmn END.

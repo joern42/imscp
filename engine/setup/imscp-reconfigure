@@ -71,16 +71,12 @@ system( 'clear 2>/dev/null' );
 
 print STDOUT output( 'Reconfiguration in progress... Please wait.', 'info' ) if iMSCP::Getopt->noprompt;
 
-require "$FindBin::Bin/imscp-setup-methods.pl";
-
-setupBoot();
-setupRegisterListeners();
-
 unless ( iMSCP::Getopt->noprompt ) {
     my $dialog = iMSCP::Dialog->getInstance();
     $dialog->set( 'title', 'i-MSCP Reconfiguration Dialog' );
-    $dialog->set( 'yes-label', 'Continue' );
-    $dialog->set( 'no-label', 'Abort' );
+
+    local $dialog->{'opts'}->{'yes-label'} = 'Continue';
+    local $dialog->{'opts'}->{'no-label'} = 'Abort';
 
     exit 0 if $dialog->yesno( <<"EOF", 'abort_by_default' );
 
@@ -96,6 +92,10 @@ EOF
     $dialog->resetLabels();
 }
 
+require "$FindBin::Bin/imscp-setup-methods.pl";
+
+setupBoot();
+setupRegisterListeners();
 setupDialog();
 setupTasks();
 

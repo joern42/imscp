@@ -1,0 +1,26 @@
+HTTPD_VERSION                  =
+HTTPD_USER                     = www-data
+HTTPD_GROUP                    = www-data
+HTTPD_CONF_DIR                 = /etc/nginx
+HTTPD_CONF_AVAILABLE_DIR       = /etc/nginx/conf-available
+HTTPD_CONF_ENABLED_DIR         = /etc/nginx/conf-enabled
+HTTPD_MODS_AVAILABLE_DIR       = /etc/nginx/mods-available
+HTTPD_MODS_ENABLED_DIR         = /etc/nginx/mods-enabled
+HTTPD_SITES_AVAILABLE_DIR      = /etc/nginx/sites-available
+HTTPD_SITES_ENABLED_DIR        = /etc/nginx/sites-enabled
+HTTPD_CUSTOM_SITES_DIR         = /etc/nginx/imscp
+HTTPD_ROOT_DIR                 = /var/www
+HTTPD_LOG_DIR                  = /var/log/nginx
+HTTPD_STATE_DIR                = /var/lib/nginx
+HTTPD_HTACCESS_USERS_FILENAME  = .htpasswd
+HTTPD_HTACCESS_GROUPS_FILENAME = .htgroup
+HTTPD_MOUNT_CUSTOMER_LOGS      = yes
+
+UWSGI_VERSION                  =
+UWSGI_CONF_DIR                 = /etc/uwsgi
+UWSGI_APP_AVAILABLE_DIR        = /etc/uwsgi/apps-available
+UWSGI_APP_ENABLED_DIR          = /etc/uwsgi/apps-enabled
+UWSGI_RUN_DIR                  = /var/run/uwsgi/app
+UWSGI_LOG_DIR                  = /var/log/uwsgi/app
+UWSGI_MAX_CGI_PROCESSES        = 1
+UWSGI_MAX_CGI_THREADS          = 8

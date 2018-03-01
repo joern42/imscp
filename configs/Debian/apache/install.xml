@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <folder umask="0022">${SYSTEM_CONF_DIR}/apache2/imscp/before</folder>
-
-    <copy_config copy_cwd="1">${IMSCP_CONF_DIR}/apache</copy_config>
+    <folder>${SYSTEM_ETC_DIR}/apache2/imscp/before</folder>
+    <copy_config copy_cwd="1" umask="0027">${IMSCP_CONF_DIR}/apache</copy_config>
 </install>

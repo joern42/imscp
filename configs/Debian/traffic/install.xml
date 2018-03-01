@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install umask="0022">
-    <copy_config copy_as="init">${SYSTEM_CONF_DIR}/upstart</copy_config>
-
-    <copy_config copy_as="init.d" filemode="0755" recursive="1">${SYSTEM_CONF_DIR}/sysvinit</copy_config>
-
-    <copy_config>${SYSTEM_LOCAL_LIB_DIR}/systemd</copy_config>
-
+<install>
+    <copy_config copy_as="init">${SYSTEM_ETC_DIR}/upstart</copy_config>
+    <copy_config copy_as="init.d" filemode="0755" recursive="1">${SYSTEM_ETC_DIR}/sysvinit</copy_config>
+    <copy_config>${SYSTEM_USR_LOCAL_LIB_DIR}/systemd</copy_config>
     <!--
         The imscp_traffic.service unit is now installed in the
         /usr/local/lib/systemd/system directory (since version 1.6.0) to make
@@ -14,5 +11,5 @@
         provider, meaning that the imscp_traffic service will be stopped,
         disabled and removed. It will be re-enabled later on by the installer.
     -->
-    <copy_config copy_if="0">${SYSTEM_CONF_DIR}/systemd/system/imscp_traffic.service</copy_config>
+    <copy_config copy_if="0">${SYSTEM_ETC_DIR}/systemd/system/imscp_traffic.service</copy_config>
 </install>

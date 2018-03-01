@@ -27,6 +27,7 @@ use strict;
 use warnings;
 use File::Basename;
 use File::Find qw/ find /;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Config;
 use iMSCP::Cwd;
@@ -83,15 +84,15 @@ sub loadConfig
     $sysInfo->{'os'}->{'osfamily'} = 'Debian' if $sysInfo->{'os'}->{'lsb'}->{'distid'} eq 'Devuan';
 
     # Load the master i-MSCP configuration file
-    tie %::imscpConfig, 'iMSCP::Config', filename => "$FindBin::Bin/configs/imscp.conf", readonly => 1, temporary => 1;
+    tie %::imscpConfig, 'iMSCP::Config', filename => "$FindBin::Bin/configs/imscp.conf", readonly => TRUE, temporary => TRUE;
 
     # Override the master i-MSCP configuration file with parameters from the
     # OS family master configuration file if any
     if ( -f "$FindBin::Bin/configs/$sysInfo->{'os'}->{'family'}/imscp.conf" ) {
         tie my %distroConfig, 'iMSCP::Config',
             filename  => "$FindBin::Bin/configs/$sysInfo->{'os'}->{'family'}/imscp.conf",
-            readonly  => 1,
-            temporary => 1;
+            readonly  => TRUE,
+            temporary => TRUE;
         @::imscpConfig{keys %distroConfig} = values %distroConfig;
         untie( %distroConfig );
     }
@@ -103,8 +104,8 @@ sub loadConfig
     ) {
         tie my %distroConfig, 'iMSCP::Config',
             filename  => "$FindBin::Bin/configs/$sysInfo->{'os'}->{'lsb'}->{'distid'}/imscp.conf",
-            readonly  => 1,
-            temporary => 1;
+            readonly  => TRUE,
+            temporary => TRUE;
         @::imscpConfig{keys %distroConfig} = values %distroConfig;
         untie( %distroConfig );
     }
@@ -112,10 +113,10 @@ sub loadConfig
     # Load old master i-MSCP configuration file
     if ( -f "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
         # Recovering case (after update or installation failure)
-        tie %::imscpOldConfig, 'iMSCP::Config', filename => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf", readonly => 1, temporary => 1;
+        tie %::imscpOldConfig, 'iMSCP::Config', filename => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf", readonly => TRUE, temporary => TRUE;
     } elsif ( -f "$::imscpConfig{'CONF_DIR'}/imscp.conf" ) {
         # Update case
-        tie %::imscpOldConfig, 'iMSCP::Config', filename => "$::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => 1, temporary => 1;
+        tie %::imscpOldConfig, 'iMSCP::Config', filename => "$::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => TRUE, temporary => TRUE;
     } else {
         # Fresh installation case
         %::imscpOldConfig = %::imscpConfig;
@@ -128,7 +129,7 @@ sub loadConfig
         my @toKeepFromNew = @::imscpConfig{ qw/ BuildDate Version CodeName PluginApi THEME_ASSETS_VERSION / };
 
         # Fill %::imscpConfig with values from %::imscpOldConfig
-        while ( my ($key, $value) = each( %::imscpOldConfig ) ) {
+        while ( my ( $key, $value ) = each( %::imscpOldConfig ) ) {
             $::imscpConfig{$key} = $value if exists $::imscpConfig{$key};
         }
 
@@ -137,7 +138,7 @@ sub loadConfig
         undef( @toKeepFromNew );
 
         # Make sure that %::imscpOldConfig contains all expected parameters (e.g. case of new parameters)
-        while ( my ($param, $value) = each( %::imscpConfig ) ) {
+        while ( my ( $param, $value ) = each( %::imscpConfig ) ) {
             $::imscpOldConfig{$param} = $value unless exists $::imscpOldConfig{$param};
         }
     }
@@ -164,15 +165,12 @@ sub loadConfig
 
  Process build tasks
 
- Return void die on failure
+ Return void, die on failure
 
 =cut
 
 sub build
 {
-
-    iMSCP::EventManager->getInstance()->trigger( 'preBuild', \@steps );
-
     # If one of those parameter is not set, we need force processing of package files
     unless ( length $::imscpConfig{'iMSCP::Servers::Cron'} && length $::imscpConfig{'iMSCP::Servers::Ftpd'}
         && length $::imscpConfig{'iMSCP::Servers::Httpd'} && length $::imscpConfig{'iMSCP::Servers::Mta'}
@@ -181,6 +179,7 @@ sub build
         && length $::imscpConfig{'iMSCP::Servers::Sqld'}
     ) {
         iMSCP::Getopt->noprompt( 0 ) unless iMSCP::Getopt->preseed;
+        iMSCP::Getopt->verbose( 0 ) unless iMSCP::Getopt->noprompt;
         iMSCP::Getopt->skippackages( 0 );
     }
 
@@ -188,7 +187,7 @@ sub build
 
     my $dialog = iMSCP::Dialog->getInstance();
 
-    if ( !iMSCP::Getopt->noprompt && isStringInList( 'none', @{iMSCP::Getopt->reconfigure} ) ) {
+    if ( !iMSCP::Getopt->noprompt && isStringInList( 'none', @{ iMSCP::Getopt->reconfigure } ) ) {
         _showWelcomeMsg( $dialog ) unless iMSCP::Getopt->buildonly;
         _showUpdateWarning( $dialog ) if $::imscpOldConfig{'Version'} ne $::imscpConfig{'Version'};
         _confirmDistro( $dialog ) unless iMSCP::Getopt->buildonly;
@@ -196,18 +195,18 @@ sub build
     }
 
     my @steps = (
-        [ \&_buildDistributionFiles, 'Packing required distribution files' ],
-        ( iMSCP::Getopt->skippackages ? () : [ \&_installDistributionPackages, 'Installing distribution packages' ] ),
-        [ \&_checkRequirements, 'Checking for requirements' ],
+        [ \&_packDistributionFiles, 'Packing required distribution files' ],
         [ \&_removeObsoleteFiles, 'Removing obsolete files' ],
         [ \&_savePersistentData, 'Saving persistent data' ]
     );
 
+    iMSCP::EventManager->getInstance()->trigger( 'preBuild', \@steps );
+
     _getInstaller()->preBuild( \@steps );
 
-    my ($nStep, $nbSteps) = ( 1, scalar @steps );
-    for my $step( @steps ) {
-        step( @{$step}, $nbSteps, $nStep++ );
+    my ( $nStep, $nbSteps ) = ( 1, scalar @steps );
+    for my $step ( @steps ) {
+        step( @{ $step }, $nbSteps, $nStep++ );
     }
 
     iMSCP::Dialog->getInstance()->endGauge();
@@ -216,24 +215,28 @@ sub build
     # Make $::DESTDIR free of any .gitkeep file
     {
         local $SIG{'__WARN__'} = sub { die @_ };
-        find( sub { unlink or die( sprintf( "Failed to remove the %s file: %s", $File::Find::name, $! )) if $_ eq '.gitkeep'; }, $::{'DESTDIR'} );
+        find(
+            {
+                wanted   => sub { unlink or die( sprintf( "Failed to remove the %s file: %s", $_, $! )) if /\.gitkeep$/; },
+                no_chdir => TRUE
+            },
+            $::{'DESTDIR'}
+        );
     }
 
     iMSCP::EventManager->getInstance()->trigger( 'afterPostBuild' );
 
     my %confmap = (
-        imscp    => \ %::imscpConfig,
-        imscpOld => \ %::imscpOldConfig
+        imscp    => \%::imscpConfig,
+        imscpOld => \%::imscpOldConfig
     );
 
     # Write configuration in $::{'DESTDIR'}
-    while ( my ($name, $config) = each %confmap ) {
-        if ( $name eq 'imscpOld' ) {
-            iMSCP::File->new( filename => "$::{'IMSCP_CONF_DIR'}/$name.conf" )->save( 0027 );
-        }
+    while ( my ( $name, $config ) = each %confmap ) {
+        iMSCP::File->new( filename => "$::{'IMSCP_CONF_DIR'}/$name.conf" )->save( 0027 ) if $name eq 'imscpOld';
 
         tie my %config, 'iMSCP::Config', filename => "$::{'IMSCP_CONF_DIR'}/$name.conf";
-        @config{ keys %{$config} } = values %{$config};
+        @config{ keys %{ $config } } = values %{ $config };
         untie %config;
     }
     undef( %confmap );
@@ -275,7 +278,7 @@ sub install
     my $bootstrapper = iMSCP::Bootstrapper->getInstance();
     my @runningJobs = ();
 
-    for my $job(
+    for my $job (
         qw/ imscp-backup-all imscp-backup-imscp imscp-dsk-quota imscp-srv-traff imscp-vrl-traff awstats_updateall.pl imscp-disable-accounts imscp /
     ) {
         next if $bootstrapper->lock( "$::imscpConfig{'LOCK_DIR'}/$job.lock", 'nowait' );
@@ -295,6 +298,8 @@ EOF
     undef @runningJobs;
 
     my @steps = (
+        ( iMSCP::Getopt->skippackages ? () : [ \&_installDistributionPackages, 'Installing distribution packages' ] ),
+        [ \&_checkRequirements, 'Checking for requirements' ],
         [ \&installDistributionFiles, 'Installing distribution files' ],
         [ \&::setupBoot, 'Booting installer' ],
         [ \&::setupRegisterListeners, 'Registering servers/packages event listeners' ],
@@ -306,9 +311,9 @@ EOF
     iMSCP::EventManager->getInstance()->trigger( 'preInstall', \@steps );
     _getInstaller()->preInstall( \@steps );
 
-    my ($nStep, $nbSteps) = ( 1, scalar @steps );
-    for my $step( @steps ) {
-        step( @{$step}, $nbSteps, $nStep++ );
+    my ( $nStep, $nbSteps ) = ( 1, scalar @steps );
+    for my $step ( @steps ) {
+        step( @{ $step }, $nbSteps, $nStep++ );
     }
 
     iMSCP::Dialog->getInstance()->endGauge();
@@ -361,7 +366,7 @@ sub _installPreRequiredPackages
 
 sub _showWelcomeMsg
 {
-    my ($dialog) = @_;
+    my ( $dialog ) = @_;
 
     exit if $dialog->msgbox( <<"EOF" );
 
@@ -394,7 +399,7 @@ EOF
 
 sub _showUpdateWarning
 {
-    my ($dialog) = @_;
+    my ( $dialog ) = @_;
 
     my $warning = '';
     if ( $::imscpConfig{'Version'} =~ /git/i ) {
@@ -441,7 +446,7 @@ EOF
 
 sub _confirmDistro
 {
-    my ($dialog) = @_;
+    my ( $dialog ) = @_;
 
     if ( length $::imscpConfig{'DISTRO_ID'} && length $::imscpConfig{'DISTRO_RELEASE'} && length $::imscpConfig{'DISTRO_CODENAME'} ) {
         my $packagesFile = "$::imscpConfig{'DISTRO_ID'}-$::imscpConfig{'DISTRO_CODENAME'}.xml";
@@ -499,12 +504,12 @@ EOF
 
 sub _askInstallerMode
 {
-    my ($dialog) = @_;
+    my ( $dialog ) = @_;
 
     local $dialog->{'opts'}->{'cancel-label'} = 'Abort';
 
     my %choices = ( 'auto', 'Automatic installation', 'manual', 'Manual installation' );
-    my ($rs, $value) = $dialog->radiolist( <<"EOF", \%choices, 'auto' );
+    my ( $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, 'auto' );
 Please choose the installer mode:
 
 See https://wiki.i-mscp.net/doku.php?id=start:installer#installer_modes for a full description of the installer modes.
@@ -529,19 +534,19 @@ sub _installDistributionPackages
     _getInstaller()->installPackages();
 }
 
-=item _buildDistributionFiles( )
+=item _packDistributionFiles( )
 
- Build distribution files
+ Pack distribution files
 
  Return void, die on failure
 
 =cut
 
-sub _buildDistributionFiles
+sub _packDistributionFiles
 {
-    _buildConfigFiles();
-    _buildEngineFiles();
-    _buildFrontendFiles();
+    _packConfigFiles();
+    _packEngineFiles();
+    _packFrontendFiles();
 }
 
 =item _checkRequirements( )
@@ -557,32 +562,31 @@ sub _checkRequirements
     iMSCP::Requirements->new()->all();
 }
 
-=item _buildConfigFiles( )
+=item _packConfigFiles( )
 
- Build configuration files
+ Pack configuration files
 
  Return void, die on failure
 
 =cut
 
-sub _buildConfigFiles
+sub _packConfigFiles
 {
     # Process master install.xml file
     #
     # In order of preference:
-    # Distribution master install.xml file
-    # Distribution family master install.xml file
-    my $rs = _processXmlInstallFile( -f "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/install.xml"
+    # Distribution master install.xml file (for Instance: Ubuntu)
+    # Distribution family master install.xml file (For instance: Debian)
+    processXmlInstallFile( -f "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/install.xml"
         ? "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/install.xml"
         : "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_FAMILY'}/install.xml"
     );
-    return $rs if $rs;
 
     my $distroFamilyConfDir = "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_FAMILY'}";
     my $distroConfDir = $::imscpConfig{'DISTRO_ID'} ne $::imscpConfig{'DISTRO_FAMILY'} && -d "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}"
         ? "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}" : $distroFamilyConfDir;
 
-    for my $dir( iMSCP::Dir->new( dirname => $distroFamilyConfDir )->getDirs() ) {
+    for my $dir ( iMSCP::Dir->new( dirname => $distroFamilyConfDir )->getDirs() ) {
         my $installFile = $distroConfDir ne $distroFamilyConfDir && -f "$distroConfDir/$dir/install.xml"
             ? "$distroConfDir/$dir/install.xml" : "$distroFamilyConfDir/$dir/install.xml";
 
@@ -591,44 +595,43 @@ sub _buildConfigFiles
         _processXmlInstallFile( $installFile );
     }
 
-    iMSCP::File->new( filename => "$FindBin::Bin/configs/imscp.conf" )->copy( "$::{'IMSCP_CONF_DIR'}", { umask => 0027 } );
+    iMSCP::File->new( filename => "$FindBin::Bin/configs/imscp.conf" )->copy(
+        "$::{'IMSCP_CONF_DIR'}/imscp.conf", { umask => 0027, preserve => FALSE }
+    );
 
     # Copy database schema
-    # FIXME: We shouldn't copy it.
-    iMSCP::Dir->new( dirname => "$FindBin::Bin/configs/database" )->copy( "$::{'IMSCP_CONF_DIR'}/database" );
+    iMSCP::Dir->new( dirname => "$FindBin::Bin/configs/database" )->copy( "$::{'IMSCP_CONF_DIR'}/database", { umask => 0027, preserve => FALSE } );
 }
 
-=item _buildEngineFiles( )
+=item _packEngineFiles( )
 
- Build engine files
+ Pack engine files
 
  Return void, die on failure
 
 =cut
 
-sub _buildEngineFiles
+sub _packEngineFiles
 {
     _processXmlInstallFile( "$FindBin::Bin/engine/install.xml" );
 
-    for my $dir( iMSCP::Dir->new( dirname => "$FindBin::Bin/engine" )->getDirs() ) {
+    for my $dir ( iMSCP::Dir->new( dirname => "$FindBin::Bin/engine" )->getDirs() ) {
         next unless -f "$FindBin::Bin/engine/$dir/install.xml";
         _processXmlInstallFile( "$FindBin::Bin/engine/$dir/install.xml" );
     }
 }
 
-=item _buildFrontendFiles( )
+=item _packFrontendFiles( )
 
- Build frontEnd files
+ Pack frontEnd files
 
  Return void, die on failure
 
 =cut
 
-sub _buildFrontendFiles
+sub _packFrontendFiles
 {
-    #debug( "Copying $FindBin::Bin/gui to $::{'IMSCP_ROOT_DIR'}/gui" );
-
-    iMSCP::Dir->new( dirname => "$FindBin::Bin/gui" )->copy( "$::{'IMSCP_ROOT_DIR'}/gui", { umask => 0027 } );
+    iMSCP::Dir->new( dirname => "$FindBin::Bin/gui" )->copy( "$::{'IMSCP_ROOT_DIR'}/gui", { umask => 0027, preserve => FALSE } );
 }
 
 =item _savePersistentData( )
@@ -642,8 +645,7 @@ sub _buildFrontendFiles
 sub _savePersistentData
 {
     # Change the umask once instead of passing umask option to each copy() call.
-    # The change will be effective for the full enclosing block, avoiding doing
-    # extra umask() calls.
+    # The change will be effective for the full enclosing block.
     local $UMASK = 0027;
 
     # Move old skel directory to new location
@@ -712,69 +714,69 @@ sub _removeObsoleteFiles
 {
     return unless version->parse( $::imscpOldConfig{'PluginApi'} ) < version->parse( '1.5.1' );
 
-    for my $dir( "$::imscpConfig{'CACHE_DATA_DIR'}/addons",
-        "$::imscpConfig{'CONF_DIR'}/apache/backup", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/apache/skel/alias/phptmp", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/apache/skel/subdomain/phptmp", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/apache/working", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/courier/backup", # To be moved in cleanup routine from Courier server
-        "$::imscpConfig{'CONF_DIR'}/courier/working", # To be moved in cleanup routine from Courier server
-        "$::imscpConfig{'CONF_DIR'}/cron.d", # To be moved in cleanup routine from Cron server
-        "$::imscpConfig{'CONF_DIR'}/fcgi", # To be moved in cleanup routine from PHP server
-        "$::imscpConfig{'CONF_DIR'}/hooks.d", # To be moved in cleanup routine from local server
-        "$::imscpConfig{'CONF_DIR'}/init.d", # To be moved in cleanup routine from local server
-        "$::imscpConfig{'CONF_DIR'}/nginx", # To be moved in cleanup routine from nginx server
-        "$::imscpConfig{'CONF_DIR'}/php/apache", # To be moved in cleanup routine from php server
-        "$::imscpConfig{'CONF_DIR'}/php/fcgi", # To be moved in cleanup routine from php server
-        "$::imscpConfig{'CONF_DIR'}/php-fpm", # To be moved in cleanup routine from php server
-        "$::imscpConfig{'CONF_DIR'}/postfix/backup", # To be moved in cleanup routine from postfix server
-        "$::imscpConfig{'CONF_DIR'}/postfix/imscp", # To be moved in cleanup routine from postfix server
-        "$::imscpConfig{'CONF_DIR'}/postfix/parts", # To be moved in cleanup routine from postfix server
-        "$::imscpConfig{'CONF_DIR'}/postfix/working", # To be moved in cleanup routine from php server
+    for my $dir ( "$::imscpConfig{'CACHE_DATA_DIR'}/addons",
+        "$::imscpConfig{'CONF_DIR'}/apache/backup",                   # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/apache/skel/alias/phptmp",        # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/apache/skel/subdomain/phptmp",    # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/apache/working",                  # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/courier/backup",                  # To be moved in cleanup routine from Courier server
+        "$::imscpConfig{'CONF_DIR'}/courier/working",                 # To be moved in cleanup routine from Courier server
+        "$::imscpConfig{'CONF_DIR'}/cron.d",                          # To be moved in cleanup routine from Cron server
+        "$::imscpConfig{'CONF_DIR'}/fcgi",                            # To be moved in cleanup routine from PHP server
+        "$::imscpConfig{'CONF_DIR'}/hooks.d",                         # To be moved in cleanup routine from local server
+        "$::imscpConfig{'CONF_DIR'}/init.d",                          # To be moved in cleanup routine from local server
+        "$::imscpConfig{'CONF_DIR'}/nginx",                           # To be moved in cleanup routine from nginx server
+        "$::imscpConfig{'CONF_DIR'}/php/apache",                      # To be moved in cleanup routine from php server
+        "$::imscpConfig{'CONF_DIR'}/php/fcgi",                        # To be moved in cleanup routine from php server
+        "$::imscpConfig{'CONF_DIR'}/php-fpm",                         # To be moved in cleanup routine from php server
+        "$::imscpConfig{'CONF_DIR'}/postfix/backup",                  # To be moved in cleanup routine from postfix server
+        "$::imscpConfig{'CONF_DIR'}/postfix/imscp",                   # To be moved in cleanup routine from postfix server
+        "$::imscpConfig{'CONF_DIR'}/postfix/parts",                   # To be moved in cleanup routine from postfix server
+        "$::imscpConfig{'CONF_DIR'}/postfix/working",                 # To be moved in cleanup routine from php server
         "$::imscpConfig{'CONF_DIR'}/skel/domain/domain_disable_page", # To be moved in cleanup routine from httpd server
-        "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/.composer", # To be moved in cleanup routine from local server
-        "$::imscpConfig{'LOG_DIR'}/imscp-arpl-msgr" # To be moved in cleanup routine from postfix server
+        "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/.composer",         # To be moved in cleanup routine from local server
+        "$::imscpConfig{'LOG_DIR'}/imscp-arpl-msgr"                   # To be moved in cleanup routine from postfix server
     ) {
         iMSCP::Dir->new( dirname => $dir )->remove();
     }
 
-    for my $file( "$::imscpConfig{'CONF_DIR'}/apache/parts/domain_disabled_ssl.tpl", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/apache/parts/domain_redirect.tpl", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/apache/parts/domain_redirect_ssl.tpl", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/apache/parts/domain_ssl.tpl", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/vsftpd/imscp_allow_writeable_root.patch", # To be moved in cleanup routine from vsftpd server
-        "$::imscpConfig{'CONF_DIR'}/vsftpd/imscp_pthread_cancel.patch", # To be moved in cleanup routine from vsftpd server
-        "$::imscpConfig{'CONF_DIR'}/apache/parts/php5.itk.ini", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/apache/vlogger.sql", # To be moved in cleanup routine from Apache2 server
-        "$::imscpConfig{'CONF_DIR'}/dovecot/dovecot.conf.2.0", # To be moved in cleanup routine from dovecot server
-        "$::imscpConfig{'CONF_DIR'}/dovecot/dovecot.conf.2.1", # To be moved in cleanup routine from dovecot server
-        "$::imscpConfig{'CONF_DIR'}/frontend/00_master.conf", # To be moved in cleanup routine from frontend package
-        "$::imscpConfig{'CONF_DIR'}/frontend/00_master_ssl.conf", # To be moved in cleanup routine from frontend package
-        "$::imscpConfig{'CONF_DIR'}/frontend/imscp_fastcgi.conf", # To be moved in cleanup routine from frontend package
-        "$::imscpConfig{'CONF_DIR'}/frontend/imscp_php.conf", # To be moved in cleanup routine from frontend package
-        "$::imscpConfig{'CONF_DIR'}/frontend/nginx.conf", # To be moved in cleanup routine from frontend package
-        "$::imscpConfig{'CONF_DIR'}/frontend/php-fcgi-starter", # To be moved in cleanup routine from frontend package
-        "$::imscpConfig{'CONF_DIR'}/listeners.d/README", # To be moved in cleanup routine from local server
-        "$::imscpConfig{'CONF_DIR'}/php/fpm/logrotate.tpl", # To be moved in cleanup routine from php server
-        "$::imscpConfig{'CONF_DIR'}/skel/domain/.htgroup", # To be moved in cleanup routine from apache server
-        "$::imscpConfig{'CONF_DIR'}/skel/domain/.htpasswd", # To be moved in cleanup routine from apache server
+    for my $file ( "$::imscpConfig{'CONF_DIR'}/apache/parts/domain_disabled_ssl.tpl", # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/apache/parts/domain_redirect.tpl",                # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/apache/parts/domain_redirect_ssl.tpl",            # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/apache/parts/domain_ssl.tpl",                     # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/vsftpd/imscp_allow_writeable_root.patch",         # To be moved in cleanup routine from vsftpd server
+        "$::imscpConfig{'CONF_DIR'}/vsftpd/imscp_pthread_cancel.patch",               # To be moved in cleanup routine from vsftpd server
+        "$::imscpConfig{'CONF_DIR'}/apache/parts/php5.itk.ini",                       # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/apache/vlogger.sql",                              # To be moved in cleanup routine from Apache2 server
+        "$::imscpConfig{'CONF_DIR'}/dovecot/dovecot.conf.2.0",                        # To be moved in cleanup routine from dovecot server
+        "$::imscpConfig{'CONF_DIR'}/dovecot/dovecot.conf.2.1",                        # To be moved in cleanup routine from dovecot server
+        "$::imscpConfig{'CONF_DIR'}/frontend/00_master.conf",                         # To be moved in cleanup routine from frontend package
+        "$::imscpConfig{'CONF_DIR'}/frontend/00_master_ssl.conf",                     # To be moved in cleanup routine from frontend package
+        "$::imscpConfig{'CONF_DIR'}/frontend/imscp_fastcgi.conf",                     # To be moved in cleanup routine from frontend package
+        "$::imscpConfig{'CONF_DIR'}/frontend/imscp_php.conf",                         # To be moved in cleanup routine from frontend package
+        "$::imscpConfig{'CONF_DIR'}/frontend/nginx.conf",                             # To be moved in cleanup routine from frontend package
+        "$::imscpConfig{'CONF_DIR'}/frontend/php-fcgi-starter",                       # To be moved in cleanup routine from frontend package
+        "$::imscpConfig{'CONF_DIR'}/listeners.d/README",                              # To be moved in cleanup routine from local server
+        "$::imscpConfig{'CONF_DIR'}/php/fpm/logrotate.tpl",                           # To be moved in cleanup routine from php server
+        "$::imscpConfig{'CONF_DIR'}/skel/domain/.htgroup",                            # To be moved in cleanup routine from apache server
+        "$::imscpConfig{'CONF_DIR'}/skel/domain/.htpasswd",                           # To be moved in cleanup routine from apache server
         "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar",
         "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/composer.phar",
-        "$::imscpConfig{'CONF_DIR'}/imscp.old.conf", # To be moved in cleanup routine from local server
-        "$::imscpConfig{'CONF_DIR'}/imscp-db-keys", # To be moved in cleanup routine from local server
-        '/etc/default/imscp_panel', # To be moved in cleanup routine from php server
-        '/etc/init/php5-fpm.override', # To be moved in cleanup routine from php server
-        '/etc/logrotate.d/imscp', # To be moved in cleanup routine from local server
-        '/etc/nginx/imscp_net2ftp.conf', # To be moved in cleanup routine from local server
-        '/etc/systemd/system/php5-fpm.override', # To be moved in cleanup routine from php server
-        '/usr/local/lib/imscp_panel/imscp_panel_checkconf', # To be moved in cleanup routine from frontend package
-        '/usr/sbin/maillogconvert.pl' # To be moved in cleanup routine from postfix server
+        "$::imscpConfig{'CONF_DIR'}/imscp.old.conf",                                  # To be moved in cleanup routine from local server
+        "$::imscpConfig{'CONF_DIR'}/imscp-db-keys",                                   # To be moved in cleanup routine from local server
+        '/etc/default/imscp_panel',                                                   # To be moved in cleanup routine from php server
+        '/etc/init/php5-fpm.override',                                                # To be moved in cleanup routine from php server
+        '/etc/logrotate.d/imscp',                                                     # To be moved in cleanup routine from local server
+        '/etc/nginx/imscp_net2ftp.conf',                                              # To be moved in cleanup routine from local server
+        '/etc/systemd/system/php5-fpm.override',                                      # To be moved in cleanup routine from php server
+        '/usr/local/lib/imscp_panel/imscp_panel_checkconf',                           # To be moved in cleanup routine from frontend package
+        '/usr/sbin/maillogconvert.pl'                                                 # To be moved in cleanup routine from postfix server
     ) {
         iMSCP::File->new( filename => $file )->remove();
     }
 }
 
-=item _buildDistributionFiles( )
+=item installDistributionFiles( )
 
  Install distribution files
 
@@ -787,7 +789,7 @@ sub installDistributionFiles
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::FrontEnd
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Setup::Backend
     iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/$_" )->remove() for qw/ engine gui /;
-    iMSCP::Dir->new( dirname => $::{'DESTDIR'} )->copy( '/', { preserve => 1 } );
+    iMSCP::Dir->new( dirname => $::{'DESTDIR'} )->copy( '/', { preserve => TRUE } );
 }
 
 =item expandVars( $string )
@@ -801,10 +803,10 @@ sub installDistributionFiles
 
 sub expandVars
 {
-    my ($string) = @_;
+    my ( $string ) = @_;
     $string //= '';
 
-    while ( my ($var) = $string =~ /\$\{([^{}]+)\}/g ) {
+    while ( my ( $var ) = $string =~ /\$\{([^{}]+)\}/g ) {
         if ( defined $::{$var} ) {
             $string =~ s/\$\{$var\}/$::{$var}/;
         } elsif ( defined $::imscpConfig{$var} ) {
@@ -828,9 +830,9 @@ sub expandVars
 
 sub _processXmlInstallFile
 {
-    my ($installFilePath) = @_;
+    my ( $installFilePath ) = @_;
 
-    my $xml = XML::Simple->new( ForceArray => 1, ForceContent => 1, KeyAttr => [] );
+    my $xml = XML::Simple->new( ForceArray => TRUE, ForceContent => TRUE, KeyAttr => [] );
     my $nodes = $xml->XMLin( $installFilePath, VarAttr => 'export', NormaliseSpace => 2 );
 
     local $CWD = dirname( $installFilePath );
@@ -838,7 +840,7 @@ sub _processXmlInstallFile
 
     # Process 'folder' nodes
     if ( $nodes->{'folder'} ) {
-        for my $node( @{$nodes->{'folder'}} ) {
+        for my $node ( @{ $nodes->{'folder'} } ) {
             $node->{'content'} = expandVars( $node->{'content'} );
             $::{$node->{'export'}} = $node->{'content'} if defined $node->{'export'};
             _processFolderNode( $node );
@@ -847,7 +849,7 @@ sub _processXmlInstallFile
 
     # Process 'copy_config' nodes
     if ( $nodes->{'copy_config'} ) {
-        for my $node( @{$nodes->{'copy_config'}} ) {
+        for my $node ( @{ $nodes->{'copy_config'} } ) {
             $node->{'content'} = expandVars( $node->{'content'} );
             _processCopyConfigNode( $node );
         }
@@ -855,7 +857,7 @@ sub _processXmlInstallFile
 
     # Process 'copy' nodes
     if ( $nodes->{'copy'} ) {
-        for my $node( @{$nodes->{'copy'}} ) {
+        for my $node ( @{ $nodes->{'copy'} } ) {
             $node->{'content'} = expandVars( $node->{'content'} );
             _processCopyNode( $node );
         }
@@ -870,9 +872,9 @@ sub _processXmlInstallFile
   create_if     : Create the folder only if the condition is met
   pre_remove    : Whether the directory must be re-created from scratch
   umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
-  user          : Target directory owner
-  group         : Target directory group
-  mode          : Target directory mode
+  user          : Folder owner
+  group         : Folder group
+  mode          : Folder mode
  Param hashref \%node Node
  Return void, die on failure
 
@@ -880,18 +882,16 @@ sub _processXmlInstallFile
 
 sub _processFolderNode
 {
-    my ($node) = @_;
+    my ( $node ) = @_;
 
     return unless length $node->{'content'} && ( !defined $node->{'create_if'} || eval expandVars( $node->{'create_if'} ) );
 
     local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
 
-    #debug( sprintf( "Creating %s directory", $node->{'content'} ));
-
     my $dir = iMSCP::Dir->new( dirname => $node->{'content'} );
     $dir->remove() if $node->{'pre_remove'};
     $dir->make( {
-        user  => defined $node->{'user'} ? expandVars( $node->{'owner'} ) : undef,
+        user  => defined $node->{'user'} ? expandVars( $node->{'user'} ) : undef,
         group => defined $node->{'group'} ? expandVars( $node->{'group'} ) : undef,
         mode  => defined $node->{'mode'} ? oct( $node->{'mode'} ) : undef
     } );
@@ -910,15 +910,15 @@ sub _processFolderNode
  OPTIONAL node attributes:
   copy_if       : Copy the file or directory only if the condition is met, remove it otherwise, unless the keep_if_exists attribute is TRUE
   keep_if_exist : Don't delete the file or directory if it exists and if the keep_if_exist evaluate to TRUE
-  copy_cwd      : Copy the $CWD directory (excluding the install.xml), instead of a directory in $CWD (current config directory)
-  copy_as       : Target file or directory name
-  subdir        : Sub-directory in which file must be searched, relative to $CWD (current config directory)
+  copy_cwd      : Copy the $CWD directory (excluding the install.xml), instead of a directory in $CWD (current configuration directory)
+  copy_as       : Destination file or directory name
+  subdir        : Sub-directory in which file must be searched, relative to $CWD (current configuration directory)
   umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
-  mode          : Target file or directory mode
-  dirmode       : Target directory mode (can be set only if the mode attribute is not set)
-  filemode      : Target directory mode (can be set only if the mode attribute is not set)
-  user          : Target file or directory owner
-  group         : Target file or directory group
+  mode          : Destination file or directory mode
+  dirmode       : Destination directory mode (can be set only if the mode attribute is not set)
+  filemode      : Destination directory mode (can be set only if the mode attribute is not set)
+  user          : Destination file or directory owner
+  group         : Destination file or directory group
   recursive     : Whether or not ownership and permissions must be fixed recursively
   srv_provider  : Whether or not the give node must be processed by the service provider on removal (case of SysVinit, Upstart and Systemd conffiles)
                   That attribute must be set with the service name for which the system provider must act. This attribute is evaluated only when
@@ -930,14 +930,14 @@ sub _processFolderNode
 
 sub _processCopyConfigNode
 {
-    my ($node) = @_;
+    my ( $node ) = @_;
 
     if ( defined $node->{'copy_if'} && !eval expandVars( $node->{'copy_if'} ) ) {
         return if defined $node->{'keep_if_exist'} && eval expandVars( $node->{'keep_if_exist'} );
 
         my $syspath;
         if ( defined $node->{'copy_as'} ) {
-            my (undef, $dirs) = fileparse( $node->{'content'} );
+            my ( undef, $dirs ) = fileparse( $node->{'content'} );
             ( $syspath = "$dirs/$node->{'copy_as'}" ) =~ s/^$::{'DESTDIR'}//;
         } else {
             ( $syspath = $node->{'content'} ) =~ s/^$::{'DESTDIR'}//;
@@ -946,12 +946,9 @@ sub _processCopyConfigNode
         return unless $syspath ne '/' && -e $syspath;
 
         if ( $node->{'srv_provider'} ) {
-            #debug( sprintf( "Removing %s through the service provider", $syspath ));
             iMSCP::Service->getInstance()->remove( $node->{'srv_provider'} );
             return;
         }
-
-        #debug( sprintf( "Removing %s", $syspath ));
 
         if ( -d _ ) {
             iMSCP::Dir->new( dirname => $syspath )->remove();
@@ -965,9 +962,9 @@ sub _processCopyConfigNode
     local $CWD = dirname( $CWD ) if $node->{'copy_cwd'};
     local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
 
-    my ($name, $dirs) = fileparse( $node->{'content'} );
+    my ( $name, $dirs ) = fileparse( $node->{'content'} );
     my $source = File::Spec->catfile( $CWD, $node->{'subdir'} // '', $name );
-    my $target = File::Spec->canonpath( $dirs . '/' . ( $node->{'copy_as'} // $name ));
+    my $dest = File::Spec->canonpath( $dirs . '/' . ( $node->{'copy_as'} // $name ));
 
     if ( !-e $source && $::imscpConfig{'DISTRO_FAMILY'} ne $::imscpConfig{'DISTRO_ID'} ) {
         # If name isn't in $CWD(/$node->{'subdir'})?, search for it in the <DISTRO_FAMILY>(/$node->{'subdir'})? directory,
@@ -976,16 +973,14 @@ sub _processCopyConfigNode
         stat $source or die( sprintf( "Couldn't stat %s: %s", $source, $! ));
     }
 
-    #debug( sprintf( "Copying %s to %s", $source, $target ));
-
     if ( -d _ ) {
-        iMSCP::Dir->new( dirname => $source )->copy( $target );
-        iMSCP::File->new( filename => $target . '/install.xml' )->remove() if $node->{'copy_cwd'};
+        iMSCP::Dir->new( dirname => $source )->copy( $dest );
+        iMSCP::File->new( filename => $dest . '/install.xml' )->remove() if $node->{'copy_cwd'};
     } else {
-        iMSCP::File->new( filename => $source )->copy( $target );
+        iMSCP::File->new( filename => $source )->copy( $dest );
     }
 
-    setRights( $target,
+    setRights( $dest,
         {
             mode      => $node->{'mode'},
             dirmode   => $node->{'dirmode'},
@@ -1004,14 +999,15 @@ sub _processCopyConfigNode
  OPTIONAL node attributes:
   copy_if       : Copy the file or directory only if the condition is met, delete it otherwise, unless the keep_if_exists attribute is TRUE
   keep_if_exist : keep_if_exist : Don't delete the file or directory if it exists and if the keep_if_exist evaluate to TRUE
-  copy_as       : Target file or directory name
-  subdir        : Sub-directory in which file must be searched, relative to $CWD (current confiration directory)
+  copy_cwd      : Copy the $CWD directory (excluding the install.xml), instead of a directory in $CWD (current configuration directory)
+  copy_as       : Destination file or directory name
+  subdir        : Sub-directory in which file must be searched, relative to $CWD (current configuration directory)
   umask         : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
-  mode          : Target file or directory mode
-  dirmode       : Target directory mode (can be set only if the mode attribute is not set)
-  filemode      : Target directory mode (can be set only if the mode attribute is not set)
-  user          : Target file or directory owner
-  group         : Target file or directory group
+  mode          : Destination file or directory mode
+  dirmode       : Destination directory mode (can be set only if the mode attribute is not set)
+  filemode      : Destination directory mode (can be set only if the mode attribute is not set)
+  user          : Destination file or directory owner
+  group         : Destination file or directory group
   recursive     : Whether or not ownership and permissions must be fixed recursively
  Param hashref \%node Node
  Return void, die on failure
@@ -1020,15 +1016,13 @@ sub _processCopyConfigNode
 
 sub _processCopyNode
 {
-    my ($node) = @_;
+    my ( $node ) = @_;
 
     if ( defined $node->{'copy_if'} && !eval expandVars( $node->{'copy_if'} ) ) {
         return if defined $node->{'keep_if_exist'} && eval expandVars( $node->{'keep_if_exist'} );
 
         ( my $syspath = $node->{'content'} ) =~ s/^$::{'INST_PREF'}//;
         return unless $syspath ne '/' && -e $syspath;
-
-        #debug( sprintf( "Removing %s", $syspath ));
 
         if ( -d _ ) {
             iMSCP::Dir->new( dirname => $syspath )->remove();
@@ -1039,21 +1033,20 @@ sub _processCopyNode
         return;
     }
 
+    local $CWD = dirname( $CWD ) if $node->{'copy_cwd'};
     local $UMASK = oct( $node->{'umask'} ) if defined $node->{'umask'};
 
-    my ($name, $dirs) = fileparse( $node->{'content'} );
+    my ( $name, $dirs ) = fileparse( $node->{'content'} );
     my $source = File::Spec->catfile( $CWD, $node->{'subdir'} // '', $name );
-    my $target = File::Spec->canonpath( $dirs . '/' . ( $node->{'copy_as'} // $name ));
-
-    #debug( sprintf( "Copying %s to %s", $source, $target ));
+    my $dest = File::Spec->canonpath( $dirs . '/' . ( $node->{'copy_as'} // $name ));
 
     if ( -d $source ) {
-        iMSCP::Dir->new( dirname => $source )->copy( $target );
+        iMSCP::Dir->new( dirname => $source )->copy( $dest );
     } else {
-        iMSCP::File->new( filename => $source )->copy( $target );
+        iMSCP::File->new( filename => $source )->copy( $dest );
     }
 
-    setRights( $target,
+    setRights( $dest,
         {
             mode      => $node->{'mode'},
             dirmode   => $node->{'dirmode'},

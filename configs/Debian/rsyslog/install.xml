@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install umask="0022">
+<install>
     <!--
         The rsyslog LOGROTATE(8) configuration file is copied only when the
         copy_if expression evaluate to TRUE. Otherwise, it is removed.
     -->
-    <folder create_if="-x '/usr/sbin/rsyslogd'">${SYSTEM_CONF_DIR}/logrotate.d/</folder>
-    <copy_config copy_if="-x '/usr/sbin/rsyslogd'" subdir="logrotate.d">${SYSTEM_CONF_DIR}/logrotate.d/rsyslog</copy_config>
+    <folder create_if="-x '/usr/sbin/rsyslogd'">${SYSTEM_ETC_DIR}/logrotate.d/</folder>
+    <copy_config copy_if="-x '/usr/sbin/rsyslogd'" subdir="logrotate.d">${SYSTEM_ETC_DIR}/logrotate.d/rsyslog</copy_config>
 </install>

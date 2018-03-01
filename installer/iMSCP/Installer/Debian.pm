@@ -156,8 +156,8 @@ EOF
     {
         local $ENV{'UCF_FORCE_CONFFNEW'} = 1;
         local $ENV{'UCF_FORCE_CONFFMISS'} = 1;
-        local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
-        local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
+        #local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
+        #local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
 
         my @cmd = (
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
@@ -256,8 +256,8 @@ sub uninstallPackages
 
                 iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
 
-                local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
-                local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
+                #local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
+                #local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
 
                 execute(
                     [
@@ -309,7 +309,7 @@ sub _init
     $self->{'packagesToRebuild'} = {};
     $self->{'packagesPreInstallTasks'} = {};
     $self->{'packagesPostInstallTasks'} = {};
-    $self->{'need_pbuilder_update'} = 1;
+    $self->{'need_pbuilder_update'} = TRUE;
 
     delete $ENV{'DEBCONF_FORCE_DIALOG'};
     $ENV{'DEBIAN_FRONTEND'} = iMSCP::Getopt->noprompt ? 'noninteractive' : 'dialog';
@@ -362,7 +362,7 @@ sub _parsePackageNode
     }
 
     # Skip packages for which evaluation of the 'condition' attribute expression (if any) is not TRUE
-    next if defined $node->{'condition'} && !eval expandVars( $data->{$_}->{'condition'} );
+    return if defined $node->{'condition'} && !eval expandVars( $node->{'condition'} );
 
     # Package to rebuild
     if ( $node->{'rebuild_with_patches'} ) {
@@ -422,7 +422,7 @@ sub _processPackagesFile
 
     $self->{'eventManager'}->trigger( 'onBuildPackageList', \my $pkgFile );
 
-    my $xml = XML::Simple->new( NoEscape => 1 );
+    my $xml = XML::Simple->new( NoEscape => TRUE );
     my $pkgData = $xml->XMLin(
         $pkgFile || "$FindBin::Bin/installer/Packages/$::imscpConfig{'DISTRO_ID'}-$::imscpConfig{'DISTRO_CODENAME'}.xml",
         ForceArray     => [ 'package', 'package_delayed', 'package_conflict', 'pre_install_task', 'post_install_task' ],
@@ -497,7 +497,7 @@ sub _processPackagesFile
         next unless %{ $data };
 
         # Dialog flag indicating whether or not user must be asked for alternative
-        my $showDialog = 0;
+        my $showDialog = FALSE;
 
         my $altDesc = delete $data->{'description'} || $section;
         my $sectionClass = delete $data->{'class'} or die(
@@ -518,7 +518,7 @@ sub _processPackagesFile
             if ( length $sAlt && !grep ($data->{$_}->{'class'} eq $sAlt, @supportedAlts) ) {
                 # The selected alternative isn't longer available (or simply invalid). In such case, we reset it.
                 # In preseed mode, we set the dialog flag to raise an error (preseed entry is not valid and user must be informed)
-                $showDialog = 1 if iMSCP::Getopt->preseed;
+                $showDialog = TRUE if iMSCP::Getopt->preseed;
                 $sAlt = '';
             }
 
@@ -527,7 +527,7 @@ sub _processPackagesFile
                 if ( @supportedAlts > 1 ) {
                     # There are many alternatives available, we select the default as defined in the packages file and we set the dialog flag to make
                     # user able to change it, unless we are in preseed mode, in which case the default alternative will be enforced.
-                    $showDialog = 1 unless iMSCP::Getopt->preseed;
+                    $showDialog = TRUE unless iMSCP::Getopt->preseed;
 
                     for my $supportedAlt ( @supportedAlts ) {
                         next unless $data->{$supportedAlt}->{'default'};
@@ -551,7 +551,7 @@ sub _processPackagesFile
         $showDialog ||= @supportedAlts > 1 && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] );
 
         if ( $showDialog ) {
-            $dialog->set( 'no-cancel', '' );
+            local $dialog->{'opts'}->{'no-cancel'} = '';
             my %choices;
             @choices{ values @supportedAlts } = map { $data->{$_}->{'description'} // $_ } @supportedAlts;
 
@@ -648,8 +648,6 @@ EOF
     @{ $self->{'packagesToUninstall'} } = sort ( unique( @{ $self->{'packagesToUninstall'} } ) );
     @{ $self->{'packagesToInstall'} } = sort ( unique( @{ $self->{'packagesToInstall'} } ) );
     @{ $self->{'packagesToInstallDelayed'} } = sort ( unique( @{ $self->{'packagesToInstallDelayed'} } ) );
-
-    $dialog->set( 'no-cancel', undef );
 }
 
 =item _installAPTsourcesList( )
@@ -687,7 +685,7 @@ sub _addAPTrepositories
 
     return unless @{ $self->{'aptRepositoriesToAdd'} };
 
-    my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' )->copy( '/etc/apt/sources.list.bkp', { preserve => 1 } );
+    my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' )->copy( '/etc/apt/sources.list.bkp', { preserve => TRUE } );
     my $fileContent = $file->getAsRef();
 
     # Add APT repositories
@@ -784,8 +782,8 @@ sub _updatePackagesIndex
 {
     iMSCP::Dialog->getInstance()->endGauge() if !iMSCP::Getopt->noprompt;
 
-    local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
-    local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
+    #local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
+    #local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
 
     my $stdout;
     my $rs = execute(
@@ -876,7 +874,7 @@ EOF
 
         READ_DEBCONF_DB:
 
-        my $isManualTplLoading = 0;
+        my $isManualTplLoading = FALSE;
         open my $fh, '-|', "debconf-get-selections 2>/dev/null | grep $package" or die(
             sprintf( "Couldn't pipe to debconf database: %s", $! || 'Unknown error' )
         );
@@ -917,7 +915,7 @@ EOF
             !$rs or die( $stderr || 'Unknown errror' );
             endDetail;
 
-            $isManualTplLoading++;
+            $isManualTplLoading = TRUE;
             goto READ_DEBCONF_DB;
         }
 
@@ -989,7 +987,7 @@ sub _rebuildAndInstallPackage
     $patchesDir = "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/$patchesDir";
     -d $patchesDir or die( sprintf( '%s is not a valid patches directory', $patchesDir ));
 
-    my $srcDownloadDir = File::Temp->newdir( CLEANUP => 1 );
+    my $srcDownloadDir = File::Temp->newdir( CLEANUP => TRUE );
 
     # Fix `W: Download is performed unsandboxed as root as file...' warning with newest APT versions
     if ( ( undef, undef, my $uid ) = getpwnam( '_apt' ) ) {
@@ -1006,7 +1004,7 @@ sub _rebuildAndInstallPackage
     step(
         sub {
             if ( $self->{'need_pbuilder_update'} ) {
-                $self->{'need_pbuilder_update'} = 0;
+                $self->{'need_pbuilder_update'} = FALSE;
 
                 my $msgHeader = "Creating/Updating pbuilder environment\n\n - ";
                 my $msgFooter = "\n\nPlease be patient. This may take few minutes...";
@@ -1191,7 +1189,7 @@ sub processSqldSection
         # Ask for confirmation if current SQL server vendor is no longer supported (safety measure)
         unless ( @sqlSupportedAlts ) {
             $dialog->endGauge();
-            $dialog->set( 'no-cancel', undef );
+            local $dialog->{'opts'}->{'no-cancel'} = undef;
             exit 50 if $dialog->yesno( <<"EOF", 'abort_by_default' );
 \\Zb\\Z1WARNING \\Z0CURRENT SQL SERVER VENDOR IS NOT SUPPORTED \\Z1WARNING\\Zn
 

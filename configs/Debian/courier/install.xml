@@ -1,23 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install umask="0022">
+<install>
     <!--
         The courier-authdaemon init script is copied only when the copy_if expression
         evaluate to TRUE. Otherwise, it is removed by the service provider.
     -->
-    <folder create_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1">${SYSTEM_CONF_DIR}/init.d</folder>
+    <folder create_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1">${SYSTEM_ETC_DIR}/init.d</folder>
     <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1" srv_provider="courier-authdaemon" subdir="sysvinit" mode="0755">
-        ${SYSTEM_CONF_DIR}/init.d/courier-authdaemon
+        ${SYSTEM_ETC_DIR}/init.d/courier-authdaemon
     </copy_config>
-
     <!--
         The  courier-authdaemon.conf TMPFILES.D(5) configuration file is copied
         only when the copy_if expression evaluate to TRUE. Otherwise, it is
         removed.
     -->
-    <folder create_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1">${SYSTEM_CONF_DIR}/tmpfiles.d</folder>
+    <folder create_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1">${SYSTEM_ETC_DIR}/tmpfiles.d</folder>
     <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1" subdir="tmpfiles.d">
-        ${SYSTEM_CONF_DIR}/tmpfiles.d/courier-authdaemon.conf
+        ${SYSTEM_ETC_DIR}/tmpfiles.d/courier-authdaemon.conf
     </copy_config>
-
     <copy_config umask="0027">${IMSCP_CONF_DIR}/courier</copy_config>
 </install>

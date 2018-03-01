@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install umask="0022">
-    <copy_config>${SYSTEM_CONF_DIR}/apt/apt.conf.d</copy_config>
+<install>
+    <folder>${SYSTEM_ETC_DIR}/apt</folder>
+    <copy_config>${SYSTEM_ETC_DIR}/apt/apt.conf.d</copy_config>
 </install>

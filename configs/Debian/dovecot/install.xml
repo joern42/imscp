@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
-    <folder umask="0022" create_if="index('${iMSCP::Servers::Po}', '::Dovecot::') != -1">${SYSTEM_CONF_DIR}/dovecot/imscp.d</folder>
-
-    <copy_config copy_cwd="1">${IMSCP_CONF_DIR}/dovecot</copy_config>
+    <folder create_if="index('${iMSCP::Servers::Po}', '::Dovecot::') != -1">${SYSTEM_ETC_DIR}/dovecot/imscp.d</folder>
+    <copy_config copy_cwd="1" umask="0027">${IMSCP_CONF_DIR}/dovecot</copy_config>
 </install>
