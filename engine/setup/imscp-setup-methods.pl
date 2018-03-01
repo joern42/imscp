@@ -45,22 +45,24 @@ sub setupBoot
 {
     iMSCP::Bootstrapper->getInstance()->boot( {
         config_readonly => 1, # We do not allow writing in conffile at this time
-        nodatabase      => 1 # We do not establish connection to the database at this time
+        nodatabase      => 1  # We do not establish connection to the database at this time
     } );
 
     # FIXME: Should be done through the bootstrapper
 
     untie( %::imscpOldConfig ) if %::imscpOldConfig;
 
-    # If we are not in installer context, we need first create the imscpOld.conf file if it doesn't already exist
-    unless ( -f "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
+    # If we are not in installer context, we need first create the
+    # imscpOld.conf file if it doesn't already exist
+    unless ( iMSCP::Getopt->context() eq 'installer' && -f "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
         iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/imscp.conf" )->copy(
             "$::imscpConfig{'CONF_DIR'}/imscpOld.conf", { umask => 0027 }
         );
     }
 
-    # We open the imscpOld.conf file in write mode. This is needed because some servers will update it after processing tasks
-    # that must be done once, such as uninstallation tasks (older server alternatives)
+    # We open the imscpOld.conf file in write mode. This is needed because some
+    # servers will update it after processing tasks  that must be done once,
+    # such as uninstallation tasks (older server alternatives)
     tie %::imscpOldConfig, 'iMSCP::Config', filename => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf";
 
     if ( iMSCP::Getopt->context() eq 'installer' && iMSCP::Service->getInstance()->isSystemd() ) {
@@ -76,7 +78,7 @@ sub setupRegisterListeners
 
     my $eventManager = iMSCP::EventManager->getInstance();
 
-    for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+    for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
         ( my $subref = $package->can( 'registerSetupListeners' ) ) or next;
         $subref->( $package->getInstance( eventManager => $eventManager ));
     }
@@ -93,7 +95,7 @@ sub setupDialog
     # when the 'back' button is pushed In case of a 'yesno' dialog box, there
     # is no 'back' button. Instead, user can back up using the ESC keystroke.
     # In other contexts, the ESC keystroke make user able to abort.
-    my ($state, $nbDialog, $dialog) = ( 0, scalar @{$dialogStack}, iMSCP::Dialog->getInstance() );
+    my ( $state, $nbDialog, $dialog ) = ( 0, scalar @{ $dialogStack }, iMSCP::Dialog->getInstance() );
     while ( $state < $nbDialog ) {
         $dialog->set( 'no-cancel', $state == 0 ? '' : undef );
 
@@ -102,15 +104,17 @@ sub setupDialog
         return $rs if $rs && $rs < 30;
 
         if ( $rs == 30 ) {
-            iMSCP::Getopt->reconfigure( 'forced' ) if isStringInList( 'none', @{iMSCP::Getopt->reconfigure} );
+            iMSCP::Getopt->reconfigure( 'forced' ) if isStringInList( 'none', @{ iMSCP::Getopt->reconfigure } );
             $state--;
             next;
         }
 
-        iMSCP::Getopt->reconfigure( 'none' ) if isStringInList( 'forced', @{iMSCP::Getopt->reconfigure} );
+        iMSCP::Getopt->reconfigure( 'none' ) if isStringInList( 'forced', @{ iMSCP::Getopt->reconfigure } );
         $state++;
     }
 
+    $dialog->set( 'no-cancel', undef );
+    
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupDialog' );
 }
 
@@ -131,9 +135,9 @@ sub setupTasks
         [ \&setupRemoveOldConfig, 'Removing old configuration ' ]
     );
 
-    my ($nStep, $nbSteps) = ( 1, scalar @steps );
-    for my $step(@steps) {
-        step( @{$step}, $nbSteps, $nStep++);
+    my ( $nStep, $nbSteps ) = ( 1, scalar @steps );
+    for my $step ( @steps ) {
+        step( @{ $step }, $nbSteps, $nStep++ );
     }
 
     iMSCP::Dialog->getInstance()->endGauge();
@@ -162,7 +166,7 @@ sub setupSaveConfig
         config_readonly => 0
     } );
 
-    while ( my ($key, $value) = each( %::questions ) ) {
+    while ( my ( $key, $value ) = each( %::questions ) ) {
         next unless exists $::imscpConfig{$key};
         $::imscpConfig{$key} = $value;
     }
@@ -170,7 +174,7 @@ sub setupSaveConfig
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupSaveConfig' );
 }
 
-# FIXME: Should be done by a the Local server
+# FIXME: Should be done by the Local server
 sub setupCreateMasterUser
 {
     iMSCP::EventManager->getInstance()->trigger( 'beforeSetupCreateMasterUser' );
@@ -225,21 +229,21 @@ EOT
     $composer->installComposer( '/usr/local/bin', 'composer', $::imscpConfig{'COMPOSER_VERSION'} );
     endDetail;
 
-#    # Create composer.phar compatibility symlink for backward compatibility
-#    if ( -l "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) {
-#        unlink ( "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) or die(
-#            sprintf( "Couldn't delete %s symlink: %s", "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar", $! )
-#        );
-#    }
-#
-#    symlink File::Spec->abs2rel( '/usr/local/bin/composer', $::imscpConfig{'IMSCP_HOMEDIR'} ),
-#        "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" or die(
-#        sprintf( "Couldn't create backward compatibility symlink for composer.phar: %s", $! )
-#    );
-#
-#    iMSCP::File->new( filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" )->owner(
-#        $::imscpConfig{'IMSCP_USER'}, $::imscpConfig{'IMSCP_GROUP'}
-#    );
+    #    # Create composer.phar compatibility symlink for backward compatibility
+    #    if ( -l "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) {
+    #        unlink ( "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" ) or die(
+    #            sprintf( "Couldn't delete %s symlink: %s", "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar", $! )
+    #        );
+    #    }
+    #
+    #    symlink File::Spec->abs2rel( '/usr/local/bin/composer', $::imscpConfig{'IMSCP_HOMEDIR'} ),
+    #        "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" or die(
+    #        sprintf( "Couldn't create backward compatibility symlink for composer.phar: %s", $! )
+    #    );
+    #
+    #    iMSCP::File->new( filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar" )->owner(
+    #        $::imscpConfig{'IMSCP_USER'}, $::imscpConfig{'IMSCP_GROUP'}
+    #    );
 }
 
 sub setupSetPermissions
@@ -261,15 +265,15 @@ sub setupSetPermissions
             ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose
                 ? sub {}
                 : sub {
-                    return unless ( shift ) =~ /^(.*)\t(.*)\t(.*)/;
-                    step( undef, $1, $2, $3 );
-                }
+                return unless ( shift ) =~ /^(.*)\t(.*)\t(.*)/;
+                step( undef, $1, $2, $3 );
+            }
             ),
             sub { $stderr .= shift; }
         );
 
         endDetail();
-        !$rs or die ( sprintf( 'Error while setting permissions: %s', $stderr || 'Unknown error' ));
+        !$rs or die( sprintf( 'Error while setting permissions: %s', $stderr || 'Unknown error' ));
     }
 
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupSetPermissions' );
@@ -300,7 +304,7 @@ sub setupDbTasks
     my $db = iMSCP::Database->getInstance();
     my $oldDbName = $db->useDatabase( setupGetQuestion( 'DATABASE_NAME' ));
 
-    while ( my ($table, $field) = each %{$tables} ) {
+    while ( my ( $table, $field ) = each %{ $tables } ) {
         if ( ref $field eq 'ARRAY' ) {
             $aditionalCondition = $field->[1];
             $field = $field->[0];
@@ -342,19 +346,19 @@ sub setupRegisterPluginListeners
 {
     iMSCP::EventManager->getInstance()->trigger( 'beforeSetupRegisterPluginListeners' );
 
-    my ($db, $pluginNames) = ( iMSCP::Database->getInstance(), undef );
+    my ( $db, $pluginNames ) = ( iMSCP::Database->getInstance(), undef );
     my $oldDbName = eval { $db->useDatabase( setupGetQuestion( 'DATABASE_NAME' )); };
     return if $@; # Fresh install case
 
     $pluginNames = $db->selectcol_arrayref( "SELECT plugin_name FROM plugin WHERE plugin_status = 'enabled'" );
     $db->useDatabase( $oldDbName ) if $oldDbName;
 
-    if ( @{$pluginNames} ) {
+    if ( @{ $pluginNames } ) {
         my $eventManager = iMSCP::EventManager->getInstance();
         my $plugins = iMSCP::Plugins->getInstance();
 
-        for my $pluginName( $plugins->getList() ) {
-            next unless grep( $_ eq $pluginName, @{$pluginNames} );
+        for my $pluginName ( $plugins->getList() ) {
+            next unless grep ( $_ eq $pluginName, @{ $pluginNames } );
             my $pluginClass = $plugins->getClass( $pluginName );
             ( my $subref = $pluginClass->can( 'registerSetupListeners' ) ) or next;
             $subref->( $pluginClass, $eventManager );
@@ -372,13 +376,13 @@ sub setupServersAndPackages
     my $nSteps = @servers;
 
     # First, we need to uninstall older servers  (switch to another alternative)
-    for my $task( qw/ PreUninstall Uninstall PostUninstall / ) {
+    for my $task ( qw/ PreUninstall Uninstall PostUninstall / ) {
         my $lcTask = lc( $task );
         $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
         startDetail();
         my $nStep = 1;
         # For uninstallation, we reverse server priorities
-        for my $server( reverse @servers ) {
+        for my $server ( reverse @servers ) {
             next if $::imscpOldConfig{$server} eq $::imscpConfig{$server} || !length $::imscpOldConfig{$server};
 
             step(
@@ -394,7 +398,7 @@ sub setupServersAndPackages
 
     $nSteps = @servers+@packages;
 
-    for my $task( qw/ PreInstall Install PostInstall / ) {
+    for my $task ( qw/ PreInstall Install PostInstall / ) {
         if ( $task eq 'PostInstall' ) {
             iMSCP::Dialog->getInstance()->endGauge();
             use Data::Dumper;
@@ -407,17 +411,17 @@ sub setupServersAndPackages
 
         $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
         my $nStep = 1;
-        for my $server( @servers ) {
+        for my $server ( @servers ) {
             step( sub { $server->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks...", $server, $lcTask ), $nSteps, $nStep++ );
             $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
         }
 
         $eventManager->trigger( 'beforeSetup' . $task . 'Packages' );
-        for my $package( @packages ) {
+        for my $package ( @packages ) {
             ( my $subref = $package->can( $lcTask ) ) or $nStep++ && next;
             step(
                 sub { $subref->( $package->getInstance( eventManager => $eventManager )) },
-                sprintf( "Executing %s %s tasks...", $package_, $lcTask ), $nSteps, $nStep++
+                sprintf( "Executing %s %s tasks...", $package, $lcTask ), $nSteps, $nStep++
             );
         }
         $eventManager->trigger( 'afterSetup' . $task . 'Packages' );
@@ -435,18 +439,18 @@ sub setupRestartServices
     # Not doing this would prevent propagation of upstream changes (eg: static mount entries)
     $eventManager->registerOne(
         'beforeSetupRestartServices',
-        sub { push @{$_[0]}, [ sub { iMSCP::Service->getInstance()->restart( 'imscp_mountall' ); }, 'i-MSCP mounts' ]; },
+        sub { push @{ $_[0] }, [ sub { iMSCP::Service->getInstance()->restart( 'imscp_mountall' ); }, 'i-MSCP mounts' ]; },
         999
     );
     $eventManager->registerOne(
         'beforeSetupRestartServices',
-        sub { push @{$_[0]}, [ sub { iMSCP::Service->getInstance()->restart( 'imscp_traffic' ); }, 'i-MSCP Traffic Logger' ]; },
+        sub { push @{ $_[0] }, [ sub { iMSCP::Service->getInstance()->restart( 'imscp_traffic' ); }, 'i-MSCP Traffic Logger' ]; },
         99
     );
     $eventManager->trigger( 'beforeSetupRestartServices', \@services );
 
     startDetail();
-    my ($step, $nbSteps) = ( 1, scalar @services );
+    my ( $step, $nbSteps ) = ( 1, scalar @services );
     step( $_->[0], sprintf( 'Starting/Restarting %s service...', $_->[1] ), $nbSteps, $step++ ) for @services;
     endDetail();
 
@@ -461,7 +465,7 @@ sub setupRemoveOldConfig
 
 sub setupGetQuestion
 {
-    my ($qname, $default) = @_;
+    my ( $qname, $default ) = @_;
 
     if ( iMSCP::Getopt->preseed ) {
         return exists $::questions{$qname} && length $::questions{$qname} ? $::questions{$qname} : $default // '';

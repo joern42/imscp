@@ -76,8 +76,8 @@ for my $server( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
 
 debug( 'Executing packages dpkg(1) post-invoke tasks' );
 for my $package( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
-    next unless my $subref = $package_->can( 'dpkgPostInvokeTasks' );
-    eval { $subref->( $package_->getInstance( eventManager => iMSCP::EventManager->getInstance())); };
+    next unless my $subref = $package->can( 'dpkgPostInvokeTasks' );
+    eval { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); };
     !$@ or error( $@ )
 }
 

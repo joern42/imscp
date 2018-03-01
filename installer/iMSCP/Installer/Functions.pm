@@ -577,7 +577,7 @@ sub _packConfigFiles
     # In order of preference:
     # Distribution master install.xml file (for Instance: Ubuntu)
     # Distribution family master install.xml file (For instance: Debian)
-    processXmlInstallFile( -f "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/install.xml"
+    _processXmlInstallFile( -f "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/install.xml"
         ? "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/install.xml"
         : "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_FAMILY'}/install.xml"
     );
