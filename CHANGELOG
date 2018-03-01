@@ -29,8 +29,8 @@ BACKEND
     Fixed: Make sure to work with a well-known composer version (iMSCP::Composer)
     Fixed: Make use of the INADDR_ANY address, regardless of domain IP address when primary server IP is set with `None` option
     Fixed: Resolve units before acting on them due to https://github.com/systemd/systemd/issues/7875 (Systemd service provider)
-    Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::Dir::rcopy)
-    Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::File::copyFile)
+    Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::Dir::copy)
+    Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::File::copy)
     Fixed: Unexpected permissions set on folders in recursive mode, and when dirmode parameter is not involved (iMSCP::Rights)
     Review: Avoid tables locking whenever possible while dump of databases (iMSCP::Database::mysql::dumpdb)
     Review: Install composer.phar globally under /usr/local/bin (as composer) for reusability (iMSCP::Composer)
@@ -75,6 +75,8 @@ DISTRIBUTIONS
     Added: `libfile-chmod-perl` distribution package (all distributions -- Required by 3rd-party softwares)
     Added: `unzip` distribution package (all distributions -- required for correct symlinks handling (Composer))
     Added: Support for Debian 10/Buster (Experimental)
+    Fixed: Disable MPM event due to MPM event scoreboard bug (#53555) in versions prior 2.4.25 (Debian/Devuan Jessie)
+    Fixed: Install Apache2 from Ondřej Surý PPA due to MPM event scoreboard bug (#53555) in versions prior 2.4.25 (Ubuntu Trusty, Ubuntu Xenial)
     Review: Avoid APT pinning whenever as possible (All distributions)
     Relaxed: Permissions policy on /etc/apt/apt.conf.d/* files -- Files must be world-readable
 
@@ -142,6 +144,7 @@ INSTALLER
     Fixed: Setup dialog for the alternative URLs feature is not shown on fresh install
     Merged: Distribution layout.xml file with distribution master install.xml file
     Removed: `allow_switch` attribute from packages files (check is now done by the distribution adapter)
+    Removed: `forcereinstall` installer option -- Packages reinstallation is a task that must be fully understanded by administrators
     Removed: `imscp_allow_writeable_root.patch` patch for vsftpd (no longer needed with latest version)
     Removed: `repository_conflict` attribute (packages files)
     Renamed: `kept` attribute to `keep_if_exist' (copy_config xml node from install.xml files)
@@ -244,6 +247,7 @@ YOUTRACK
     IP-1751 CLIENT_DOMAIN_ALT_URLS reseted
     IP-1753 Preseed SECONDARY_DNS does not accept spaces (as indicated in the text)
     IP-1756 Reseller overview page is loading too slow due to a slow SQL query
+    IP-1758 Could not remove HTTPD log directory -- The immutable bit is removed too late
     IP-1761 Wrong customer password after change through admin and reseller interfaces
     IP-1762 mod_proxy_fcgi - timeout too long
 
