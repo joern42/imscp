@@ -30,7 +30,6 @@ use DBI;
 use File::Temp;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw / execute escapeShell /;
-use Carp::Always;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -209,7 +208,7 @@ EOF
     my $stderr;
     execute(
         "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'}"
-            # Void tables locking whenever possible
+            # Avoid tables locking whenever possible
             . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '']}"
             # Compress all information sent between the client and the server (only if remote SQL server).
             . "@{[ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '']}"
