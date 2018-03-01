@@ -106,7 +106,7 @@ sub loadMainConfig
     untie %::imscpConfig;
     tie %::imscpConfig,
         'iMSCP::Config',
-        filepath    => '/etc/imscp/imscp.conf',
+        filename    => '/etc/imscp/imscp.conf',
         nocreate    => $options->{'nocreate'} // 1,
         nodeferring => $options->{'nodeferring'} // 0,
         nocroak     => $options->{'nocroak'} // 0,

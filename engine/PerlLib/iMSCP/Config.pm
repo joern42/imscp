@@ -73,8 +73,8 @@ sub flush
   - nospaces: Do not add spaces around configuration parameter name/value separator
   - readonly: Sets a read-only access on the configuration file
   - temporary: Enable temporary overriding of configuration values (changes are not persistent)
-
   Return iMSCP::Config, die on failure
+
 =cut
 
 sub TIEHASH

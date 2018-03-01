@@ -600,7 +600,7 @@ sub _execute
     if ( iMSCP::Getopt->noprompt ) {
         unless ( grep ($type eq $_, 'infobox', 'msgbox') ) {
             if ( iMSCP::Getopt->preseed() ) {
-                die( "Missing or bad entry in your preseed file for the '%s' question", $text );
+                die( sprintf( "Missing or bad entry in your preseed file for the '%s' question", $text ) );
             } else {
                 die( 'Missing or bad entry found in i-MSCP configuration file. Please rerun the installer in interactive mode.' );
             }

@@ -112,7 +112,7 @@ sub postinstall
         'beforeSetupRestartServices',
         sub {
             while ( my ( $path, $type ) = each( %{ $self->{'_postmap'} } ) ) {
-                $instance->postmap( $path, $type );
+                $self->postmap( $path, $type );
             }
         },
         $self->getPriority()
@@ -563,11 +563,11 @@ sub getTraffic
 
 sub postmap
 {
-    my ( undef, $lookupTable, $lookupTableType, $delayed ) = @_;
+    my ( $self, $lookupTable, $lookupTableType, $delayed ) = @_;
     $lookupTableType ||= 'hash';
 
     File::Spec->file_name_is_absolute( $lookupTable ) or die( 'Absolute lookup table file expected' );
-    grep ($lookupTable eq $_, qw/ hash btree, cdb /) or die(
+    grep ($lookupTable eq $_, qw/ hash btree cdb /) or die(
         sprintf( 'Unsupported lookup table type. Available types are: %s', 'btree, cdb and hash' )
     );
 
@@ -738,7 +738,7 @@ sub getAvailableDbDrivers
     die( sprintf( 'The %s class must implement the getAvailableDbDrivers() method', ref $self ));
 }
 
-=item getDbDriver( $driver = $self->{'config'}->{'MTA_DB_DRIVER'} )
+=item getDbDriver( [ $driver = $self->{'config'}->{'MTA_DB_DRIVER'} ] )
 
  Return instance of the given database driver, default driver if none is provided.
 
@@ -774,8 +774,7 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{ $self }{qw/ restart reload cfgDir /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/postfix" );
-    $self->{'db'} = lazy { "iMSCP::Servers::Mta::Postfix::Driver::Database::$self->{'config'}->{'MTA_DB_DRIVER'}"->new( mta => $self ); };
-    $self->{'db_drivers'}->{$self->{'config'}->{'MTA_DB_DRIVER'}} = $self->{'db'};
+    $self->{'db'} = lazy { $self->getDbDriver() };
     $self->SUPER::_init();
 }
 

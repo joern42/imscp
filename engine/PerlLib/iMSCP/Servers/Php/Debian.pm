@@ -75,14 +75,14 @@ sub preinstall
     # Disable PHP session cleaner services as we don't rely on them
     # FIXME: One administrator could rely on those services (outside of i-MSCP)
     for my $service ( qw/ phpsessionclean phpsessionclean.timer / ) {
-        next unless $srvProvider->hasService( $servic );
-        $srvProvider->stop( $servic );
+        next unless $srvProvider->hasService( $service );
+        $srvProvider->stop( $service );
 
         if ( $srvProvider->isSystemd() ) {
             # If systemd is the current init we mask the service. Service will be disabled and masked.
-            $srvProvider->getProvider()->mask( $servic );
+            $srvProvider->getProvider()->mask( $service );
         } else {
-            $srvProvider->disable( $servic );
+            $srvProvider->disable( $service );
         }
     }
 
