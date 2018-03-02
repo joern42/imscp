@@ -34,6 +34,7 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Database;
 use iMSCP::DbTasksProcessor;
@@ -117,7 +118,7 @@ sub _userDialog
     my $dialog = iMSCP::Dialog->getInstance();
     $dialog->set( 'title', 'i-MSCP Uninstaller Dialog' );
 
-    exit if $dialog->yesno( <<"EOF", 'no_by_default' );
+    exit if $dialog->yesno( <<"EOF", TRUE );
 
 Welcome to the \\Z4i-MSCP $::imscpConfig{'Version'}\\Zn uninstaller dialog.
 

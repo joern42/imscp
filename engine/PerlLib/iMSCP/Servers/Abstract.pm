@@ -263,7 +263,7 @@ sub setEnginePermissions
 
  This method is called by the i-MSCP GUI permission management script.
 
- Any server providing GUI file *SHOULD* implement this method.
+ Any server providing GUI files *SHOULD* implement this method.
 
  Return void, die on failure
 
@@ -496,8 +496,8 @@ sub buildConfFile
         $self->{'_templates'}->{"$srcFile"} = $file if $params->{'cached'};
     }
 
-    # Localize changes as we want keep the template clean for further processing (caching)
-    local $file->{'file_content'};
+    # Localize changes as we want keep the template clean (template caching)
+    local $file->{'file_content'} if $params->{'cached'};
 
     $cfgTpl = $file->getAsRef();
 

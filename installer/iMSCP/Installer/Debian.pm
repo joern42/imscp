@@ -1190,7 +1190,7 @@ sub processSqldSection
         unless ( @sqlSupportedAlts ) {
             $dialog->endGauge();
             local $dialog->{'opts'}->{'no-cancel'} = undef;
-            exit 50 if $dialog->yesno( <<"EOF", 'abort_by_default' );
+            exit 50 if $dialog->yesno( <<"EOF", TRUE );
 \\Zb\\Z1WARNING \\Z0CURRENT SQL SERVER VENDOR IS NOT SUPPORTED \\Z1WARNING\\Zn
 
 The installer detected that your current SQL server ($sqldVendor $sqldVersion) is not supported and that there is no alternative version for that vendor.

@@ -26,6 +26,7 @@ package iMSCP::Packages::Setup::ServicesSSL;
 use strict;
 use warnings;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList /;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ getMessageByType /;
 use iMSCP::File;
 use iMSCP::Getopt;
@@ -83,26 +84,32 @@ sub servicesSslDialog
         || $sslEnabled !~ /^(?:yes|no)$/
         || ( $sslEnabled eq 'yes' && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'system_hostname', 'hostnames' ] ) )
     ) {
-        my $rs = $dialog->yesno( <<'EOF', $sslEnabled eq 'no' ? 1 : 0 );
+        my $rs = $dialog->yesno( <<'EOF', $sslEnabled eq 'no', TRUE );
 Do you want to enable SSL for FTP, IMAP/POP and SMTP services?
 EOF
+        return $rs unless $rs < 30;
+
         if ( $rs == 0 ) {
             $sslEnabled = 'yes';
 
-            $rs = $dialog->yesno( <<"EOF", $selfSignedCertificate eq 'no' ? 1 : 0 );
+            $rs = $dialog->yesno( <<"EOF", $selfSignedCertificate eq 'no', TRUE );
 Do you have a SSL certificate for the $hostnameUnicode domain?
 EOF
+            return $rs unless $rs < 30;
+
             if ( $rs == 0 ) {
                 my $msg = '';
 
                 do {
-                    $dialog->msgbox( <<"EOF" );
+                    $rs = $dialog->msgbox( <<"EOF" );
 $msg
 Please select your private key in next dialog.
 EOF
+                    return $rs unless $rs < 30;
+
                     do {
                         ( $rs, $privateKeyPath ) = $dialog->fselect( $privateKeyPath );
-                    } while $rs < 30 && !( $privateKeyPath && -f $privateKeyPath );
+                    } while $rs < 30 && !( length $privateKeyPath && -f $privateKeyPath );
 
                     return $rs unless $rs < 30;
 
@@ -116,23 +123,25 @@ EOF
                     $openSSL->{'private_key_passphrase'} = $passphrase;
 
                     $msg = '';
-                    if ( $openSSL->validatePrivateKey() ) {
-                        getMessageByType( 'error', { amount => 1, remove => 1 } );
+                    unless ( eval { $openSSL->validatePrivateKey(); } ) {
+                        getMessageByType( 'error', { amount => 1, remove => TRUE } );
                         $msg = <<"EOF";
 \n\\Z1Invalid private key or passphrase.\\Zn
 EOF
                     }
-                } while $rs < 30 && $msg;
+                } while $rs < 30 && length $msg;
 
                 return $rs unless $rs < 30;
 
                 $rs = $dialog->yesno( <<'EOF' );
 Do you have a SSL CA Bundle?
 EOF
+                return $rs unless $rs < 30;
+
                 if ( $rs == 0 ) {
                     do {
                         ( $rs, $caBundlePath ) = $dialog->fselect( $caBundlePath );
-                    } while $rs < 30 && !( $caBundlePath && -f $caBundlePath );
+                    } while $rs < 30 && !( length $caBundlePath && -f $caBundlePath );
 
                     return $rs unless $rs < 30;
 
@@ -141,24 +150,28 @@ EOF
                     $openSSL->{'ca_bundle_container_path'} = '';
                 }
 
-                $dialog->msgbox( <<'EOF' );
+                $rs = $dialog->msgbox( <<'EOF' );
 Please select your SSL certificate in next dialog.
 EOF
-                $rs = 1;
+                return $rs unless $rs < 30;
+
+                $rs = TRUE;
 
                 do {
-                    $dialog->msgbox( <<"EOF" ) unless $rs;
+                    $rs = $dialog->msgbox( <<"EOF" ) unless $rs;
 \\Z1Invalid SSL certificate.\\Zn
 EOF
+                    return $rs unless $rs < 30;
+
                     do {
                         ( $rs, $certificatePath ) = $dialog->fselect( $certificatePath );
-                    } while $rs < 30 && !( $certificatePath && -f $certificatePath );
+                    } while $rs < 30 && !( length $certificatePath && -f $certificatePath );
 
                     return $rs unless $rs < 30;
 
-                    getMessageByType( 'error', { amount => 1, remove => 1 } );
+                    getMessageByType( 'error', { amount => 1, remove => TRUE } );
                     $openSSL->{'certificate_container_path'} = $certificatePath;
-                } while $rs < 30 && $openSSL->validateCertificate();
+                } while $rs < 30 && !eval { $openSSL->validateCertificate(); };
 
                 return $rs unless $rs < 30;
             } else {
@@ -172,8 +185,8 @@ EOF
         $openSSL->{'ca_bundle_container_path'} = "$::imscpConfig{'CONF_DIR'}/imscp_services.pem";
         $openSSL->{'certificate_container_path'} = "$::imscpConfig{'CONF_DIR'}/imscp_services.pem";
 
-        if ( $openSSL->validateCertificateChain() ) {
-            getMessageByType( 'error', { amount => 1, remove => 1 } );
+        unless ( eval { $openSSL->validateCertificateChain(); } ) {
+            getMessageByType( 'error', { amount => 1, remove => TRUE } );
             $dialog->getInstance()->msgbox( <<'EOF' );
 Your SSL certificate for the FTP and MAIL services is missing or invalid.
 EOF

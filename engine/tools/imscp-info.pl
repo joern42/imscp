@@ -109,7 +109,7 @@ EOF
 }
 
 for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-    my $srvInstance = $server_->factory();
+    my $srvInstance = $server->factory();
 
     if ( iMSCP::Getopt->json ) {
         $json->{'servers'}->{$server} = {

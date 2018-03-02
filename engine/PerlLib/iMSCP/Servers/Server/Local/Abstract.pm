@@ -33,6 +33,7 @@ use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Providers::NetworkInterface
     iMSCP::Servers::Sqld /;
 use File::Temp;
+use iMSCP::Boolean;
 use LWP::Simple qw/ $ua get /;
 use parent 'iMSCP::Servers::Server';
 
@@ -237,15 +238,17 @@ EOF
     }
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'all', 'forced' ] ) ) {
-        if ( $dialog->yesno( <<"EOF", 'no_by_default' ) == 0 ) {
+        if ( ( my $rs = $dialog->yesno( <<"EOF", TRUE, TRUE ) ) == 0 ) {
 Do you want to replace the IP address of all clients with the new primary IP address?
 EOF
-            ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 1 );
+            return $rs unless $rs < 30;
+
+            ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', TRUE );
         } else {
-            ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 0 );
+            ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', FALSE );
         }
     } else {
-        ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', 0 );
+        ::setupSetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP', FALSE );
     }
 
     ::setupSetQuestion( 'BASE_SERVER_PUBLIC_IP', $wanIP );

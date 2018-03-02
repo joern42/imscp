@@ -135,8 +135,7 @@ sub validateCertificateChain
 {
     my ( $self ) = @_;
 
-    $self->validatePrivateKey();
-    $self->validateCertificate();
+    $self->validatePrivateKey()->validateCertificate();
 }
 
 =item importPrivateKey( )

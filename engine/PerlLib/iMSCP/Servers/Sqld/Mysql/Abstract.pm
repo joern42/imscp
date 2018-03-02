@@ -35,6 +35,7 @@ use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Getopt /;
 use File::Spec;
 use File::Temp;
+use iMSCP::Boolean;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug /;
 use version;
@@ -177,8 +178,7 @@ sub sqlUserHostDialog
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqld', 'servers', 'all', 'forced' ] )
-        || ( $hostname ne '%'
-        && !isValidHostname( $hostname )
+        || ( $hostname ne '%' && !isValidHostname( $hostname )
         && !isValidIpAddr( $hostname,
         ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
             ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ ) )
@@ -191,9 +191,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter the host from which SQL users created by i-MSCP must be allowed to connect:
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && ( $hostname ne '%'
-            && !isValidHostname( $hostname )
+        } while $rs < 30 && ( $hostname ne '%' && !isValidHostname( $hostname )
             && !isValidIpAddr( $hostname,
             ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
                 ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ )
@@ -239,7 +237,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter a database name for i-MSCP:
 \\Z \\Zn
 EOF
-            if ( isValidDbName( $dbName ) ) {
+            if ($rs < 30 && isValidDbName( $dbName ) ) {
                 my $db = iMSCP::Database->getInstance();
                 eval { $db->useDatabase( $dbName ); };
                 if ( !$@ && !$self->_setupIsImscpDb( $dbName ) ) {
@@ -255,7 +253,7 @@ EOF
         my $oldDbName = ::setupGetQuestion( 'DATABASE_NAME' );
 
         if ( $oldDbName && $dbName ne $oldDbName && $self->setupIsImscpDb( $oldDbName ) ) {
-            if ( $dialog->yesno( <<"EOF", 'no_by_default' ) ) {
+            if ( $rs = $dialog->yesno( <<"EOF", TRUE, TRUE ) ) {
 A database '$::imscpConfig{'DATABASE_NAME'}' for i-MSCP already exists.
 
 Are you sure you want to create a new database for i-MSCP?
@@ -263,6 +261,7 @@ Keep in mind that the new database will be free of any reseller and customer dat
 
 \\Z4Note:\\Zn If the database you want to create already exists, nothing will happen.
 EOF
+                return $rs unless $rs < 30;
                 goto &{ databaseNameDialog };
             }
         }

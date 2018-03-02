@@ -49,8 +49,6 @@ our $VERSION = '2.0.0';
 sub preinstall
 {
     my ( $self ) = @_;
-
-    0;
 }
 
 =item postinstall( )
@@ -62,8 +60,6 @@ sub preinstall
 sub postinstall
 {
     my ( $self ) = @_;
-
-    0;
 }
 
 =item getServerName( )
@@ -114,8 +110,6 @@ sub getVersion
 sub start
 {
     my ( $self ) = @_;
-
-    0;
 }
 
 =item stop( )
@@ -127,8 +121,6 @@ sub start
 sub stop
 {
     my ( $self ) = @_;
-
-    0;
 }
 
 =item restart( )
@@ -140,8 +132,6 @@ sub stop
 sub restart
 {
     my ( $self ) = @_;
-
-    0;
 }
 
 =item reload( )
@@ -153,8 +143,6 @@ sub restart
 sub reload
 {
     my ( $self ) = @_;
-
-    0;
 }
 
 =item buildConfFile( )
@@ -166,8 +154,6 @@ sub reload
 sub buildConfFile
 {
     my ( $self ) = @_;
-
-    0;
 }
 
 =back

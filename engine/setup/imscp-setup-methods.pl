@@ -381,7 +381,7 @@ sub setupServersAndPackages
         my $nStep = 1;
         # For uninstallation, we reverse server priorities
         for my $server ( reverse @servers ) {
-            next if $::imscpOldConfig{$server} eq $::imscpConfig{$server} || !length $::imscpOldConfig{$server};
+            next unless length $::imscpOldConfig{$server} && $::imscpOldConfig{$server} ne $::imscpConfig{$server};
 
             step(
                 sub { $server->factory( $::imscpOdlConfig{$server} )->$lcTask(); },
