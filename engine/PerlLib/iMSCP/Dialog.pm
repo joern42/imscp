@@ -215,18 +215,22 @@ sub msgbox
     ( $self->_textbox( $text, 'msgbox' ) )[0];
 }
 
-=item yesno( $text [, $defaultno =  FALSE [, $backbutton = FALSE] ] )
+=item yesno( $text [, $defaultno =  FALSE [, $backbutton = FALSE ] ] )
 
  Show boolean dialog box
 
- For the 'yesno' dialog box, the code used for 'Yes' and 'No' match those used
- for 'Ok' and 'Cancel'. See dialog man page. We do not want this behavior. To
+ For the 'yesno' dialog box, the code used for 'Yes' and 'No' buttons match
+ those used for the 'Ok' and 'Cancel'. See dialog man page. We do not want this behavior. To
  workaround, we process as follow:
+
   - If not 'Back' button is needed:
-   we temporary change 'Cancel' code to 1. So 'Yes' = 0, 'No' = 1, ESC = 50 
- - If a "Back" button is needed:
-   We make use of an extra button (code 1) which replace default 'No' and we
-   change 'Cancel' label to 'Back'. So 'Yes' = 0, 'No' = 1, 'Back' = 30, ESC = 50
+    We temporary change code of the 'Cancel' button to 1 (default is 30).
+    So 'Yes' = 0, 'No' = 1, ESC = 50
+ 
+  - If a "Back" button is needed:
+    We make use of the extra button (code 1) which replace the default 'No' button.
+    We change default labels
+    So: 'Yes' = 0, 'No' = 1, 'Back' = 30, ESC = 50
 
  Param string $text Text to show
  Param bool $defaultno If TRUE, set the default value of the box to 'No'
@@ -239,13 +243,15 @@ sub yesno
 {
     my ( $self, $text, $defaultno, $backbutton ) = @_;
 
-    local $self->{'opts'}->{'defaultno'} = $defaultno ? '' : undef;
     unless ( $backbutton ) {
+        local $self->{'opts'}->{'defaultno'} = $defaultno ? '' : undef;
         local $ENV{'DIALOG_CANCEL'} = 1;
         return ( $self->_textbox( $text, 'yesno' ) )[0];
     }
 
     local $ENV{'DIALOG_EXTRA'} = 1;
+    local $self->{'opts'}->{'default-button'} = $defaultno ? 'extra' : undef;
+    local $self->{'opts'}->{'ok-label'} = 'Yes';
     local $self->{'opts'}->{'extra-label'} = 'No';
     local $self->{'opts'}->{'extra-button'} = '';
     ( $self->_textbox( $text, 'yesno' ) )[0];
@@ -439,6 +445,7 @@ sub _init
     $self->{'opts'}->{'extra-button'} //= undef;
     $self->{'opts'}->{'help-button'} //= undef;
     $self->{'opts'}->{'defaultno'} ||= undef;
+    $self->{'opts'}->{'default-button'} ||= undef;
     $self->{'opts'}->{'default-item'} ||= undef;
     $self->{'opts'}->{'no-cancel'} ||= undef;
     $self->{'opts'}->{'no-ok'} ||= undef;
@@ -600,7 +607,7 @@ sub _execute
     if ( iMSCP::Getopt->noprompt ) {
         unless ( grep ($type eq $_, 'infobox', 'msgbox') ) {
             if ( iMSCP::Getopt->preseed() ) {
-                die( sprintf( "Missing or bad entry in your preseed file for the '%s' question", $text ) );
+                die( sprintf( "Missing or bad entry in your preseed file for the '%s' question", $text ));
             } else {
                 die( 'Missing or bad entry found in i-MSCP configuration file. Please rerun the installer in interactive mode.' );
             }
