@@ -27,6 +27,7 @@ use strict;
 use warnings;
 use Class::Autouse qw/ :nostat iMSCP::ProgramFinder /;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -166,7 +167,21 @@ sub getAvailableDbDrivers
 {
     my ( $self ) = @_;
 
-    qw/ hash btreee cdb /;
+    {
+        CDB   => {
+            desc    => 'A read-optimized structure (recommended)',
+            class   => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Cdb',
+            default => TRUE
+        },
+        BTree => {
+            desc  => 'A sorted, balanced tree structure',
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Btree'
+        },
+        Hash  => {
+            desc  => 'An indexed file type based on hashing',
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash'
+        }
+    };
 }
 
 =back

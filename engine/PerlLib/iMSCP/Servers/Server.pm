@@ -25,6 +25,7 @@ package iMSCP::Servers::Server;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION

@@ -115,7 +115,7 @@
     # Note that it is not possible to choose the SQL server version in preseed mode.
     # The installer will automatically choose the newest available version.
     #
-    # Leave empty for default: Depend on distribution and codename.
+    # Leave empty for default: Depend on distribution default value.
     'iMSCP::Servers::Sqld'              => '',
 
     # Database name
@@ -297,19 +297,19 @@
     #
     # Possible values, depending on your distribution:
     # - Debian-like distributions:
-    #   - iMSCP::Servers::Cron::Vixie::Debian   (Historical CRON(8) daemon)
+    #   - iMSCP::Servers::Cron::Vixie::Debian   (Historical CRON(8) daemon; default)
     #   - iMSCP::Servers::Cron::Systemd::Debian (cron daemon functionality as provided by SYSTEMD.CRON(7), not available for Ubuntu Trusty)
     #
-    # Leave empty for default: iMSCP::Servers::Cron::Vixie::Debian
+    # Leave empty for default: Depend on distribution default value.
     'iMSCP::Servers::Cron'              => '',
 
     # HTTPd server implementation
     #
     # Possible values:
     # - Debian-like distributions:
-    #   - iMSCP::Servers::Httpd::Apache2::Debian
+    #   - iMSCP::Servers::Httpd::Apache2::Debian (default)
     #
-    # Leave empty for default: iMSCP::Servers::Httpd::Apache2
+    # Leave empty for default: Depend on distribution default value.
     'iMSCP::Servers::Httpd'             => '',
 
     # Apache2 MPM (only relevant for the Apache2 httpd server)
@@ -328,7 +328,7 @@
     #   - 7.1
     #   - 7.2 
     #
-    # Leave empty for default: 5.6
+    # Leave empty for default: Depend on distribution default value.
     PHP_VERSION                         => '',
 
     # PHP SAPI for customers
@@ -406,11 +406,15 @@
     # Leave empty for default: postfix
     'iMSCP::Servers::Mta'               => '',
 
-    # MTA database driver (only relevant for postfix)
+    # MTA database driver (only relevant for Postfix)
     #
-    # Possible values: BTree, CDB, Hash
+    # Possible values, depending on your distribution:
+    # - Debian-like distributions:
+    #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Cdb   (A read-optimized structure; default)
+    #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Btree (A sorted, balanced tree structure)
+    #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Hash  (An indexed file type based on hashing)
     #
-    # Leave empty for default: CDB
+    # Leave empty for default: Depend on distribution default value.
     MTA_DB_DRIVER                       => '',
 
     # POP/IMAP servers implementation

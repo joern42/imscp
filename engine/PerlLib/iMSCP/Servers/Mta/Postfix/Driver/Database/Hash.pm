@@ -129,7 +129,7 @@ sub delete
     unless ( defined $key ) {
         $file->remove();
         undef( $file );
-        undef( $self->{'_db'}->{$database} );
+        undef( $self->{'_db'}->{"$storagePath/$database"} );
         return;
     }
 
@@ -174,10 +174,11 @@ sub _init
 
 =item _getDbFileObj( $database [, $storagePath = $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} ] )
 
- Get database file object for the given database
+ Get the file object associated with the given database
 
- If the given database doesn't exists yet, it will be created and a POSTMAP(1)
- will be scheduled.
+ If the given database doesn't exists yet, it will be created.
+  
+ In any case, a POSTMAP(1) will be scheduled.
  
  TODO: Load file into hash for faster processing (using Config::General module?)
 
@@ -229,12 +230,12 @@ sub _setupDatabases
 {
     my ( $self ) = @_;
 
-    # Make sure to start with a clean directory by re-creating it from scratch
+    # Make sure to start with a clean database directory by re-creating it from scratch
     iMSCP::Dir->new( dirname => $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} )->remove()->make(
         {
-            user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-            group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            mode  => 0750
+            umask => 0027,
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
         }
     );
 
@@ -246,7 +247,7 @@ sub _setupDatabases
     # Add configuration in the main.cf file
     my $dbType = $self->getDbType();
     $self->{'mta'}->postconf(
-        virtual_alias_domains   => { values => [ '' ] },
+        virtual_alias_domains   => { values => [ '' ], empty => TRUE },
         virtual_alias_maps      => { values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_DB_DIR'}/virtual_alias_maps" ] },
         virtual_mailbox_domains => { values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_DB_DIR'}/virtual_mailbox_domains" ] },
         virtual_mailbox_maps    => { values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_DB_DIR'}/virtual_mailbox_maps" ] },

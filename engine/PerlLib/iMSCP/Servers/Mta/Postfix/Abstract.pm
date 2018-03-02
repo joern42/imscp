@@ -79,7 +79,7 @@ sub preinstall
     $self->SUPER::preinstall();
     $self->_createUserAndGroup();
     $self->_makeDirs();
-    $self->{'db'}->preinstall();
+    $self->{'_db'}->preinstall();
 }
 
 =item install( )
@@ -94,7 +94,7 @@ sub install
 
     $self->_setVersion();
     $self->_configure();
-    $self->{'db'}->install();
+    $self->{'_db'}->install();
 }
 
 =item postinstall( )
@@ -107,7 +107,7 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    $self->{'db'}->postinstall();
+    $self->{'_db'}->postinstall();
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
@@ -130,7 +130,7 @@ sub uninstall
 {
     my ( $self ) = @_;
 
-    $self->{'db'}->uninstall();
+    $self->{'_db'}->uninstall();
     $self->_removeUser();
     $self->_removeFiles();
 }
@@ -190,7 +190,7 @@ sub setEnginePermissions
             mode  => '0750'
         }
     );
-    $self->{'db'}->setEnginePermissions();
+    $self->{'_db'}->setEnginePermissions();
 }
 
 =item getServerName( )
@@ -249,16 +249,16 @@ sub addDomain
 
     if ( $moduleData->{'MAIL_ENABLED'} ) {
         # Mails for this domain are managed by this server
-        $self->{'db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
-        $self->{'db'}->add( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+        $self->{'_db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
+        $self->{'_db'}->add( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
     } elsif ( $moduleData->{'EXTERNAL_MAIL'} eq 'on' ) {
         # Mails for this domain are managed by external server
-        $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
-        $self->{'db'}->add( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
+        $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+        $self->{'_db'}->add( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
     } else {
         # Mails feature is disabled for this domain
-        $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
-        $self->{'db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
+        $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+        $self->{'_db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
     }
 
     $self->{'eventManager'}->trigger( 'afterPostfixAddDomain', $moduleData );
@@ -277,8 +277,8 @@ sub disableDomain
     return if $moduleData->{'DOMAIN_NAME'} eq $::imscpConfig{'SERVER_HOSTNAME'};
 
     $self->{'eventManager'}->trigger( 'beforePostfixDisableDomain', $moduleData );
-    $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
-    $self->{'db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
+    $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+    $self->{'_db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
     $self->{'eventManager'}->trigger( 'afterPostfixDisableDomain', $moduleData );
 }
 
@@ -293,8 +293,8 @@ sub deleteDomain
     my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixDeleteDomain', $moduleData );
-    $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
-    $self->{'db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
+    $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+    $self->{'_db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->remove();
     $self->{'eventManager'}->trigger( 'afterPostfixDeleteDomain', $moduleData );
 }
@@ -315,9 +315,9 @@ sub addSubdomain
     $self->{'eventManager'}->trigger( 'beforePostfixAddSubdomain', $moduleData );
 
     if ( $moduleData->{'MAIL_ENABLED'} ) {
-        $self->{'db'}->add( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} )
+        $self->{'_db'}->add( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} )
     } else {
-        $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+        $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
     }
 
     $self->{'eventManager'}->trigger( 'afterPostfixAddSubdomain', $moduleData );
@@ -336,7 +336,7 @@ sub disableSubdomain
     return if $moduleData->{'DOMAIN_NAME'} eq $::imscpConfig{'SERVER_HOSTNAME'};
 
     $self->{'eventManager'}->trigger( 'beforePostfixDisableSubdomain', $moduleData );
-    $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+    $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
     $self->{'eventManager'}->trigger( 'afterPostfixDisableSubdomain', $moduleData );
 }
 
@@ -351,7 +351,7 @@ sub deleteSubdomain
     my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixDeleteSubdomain', $moduleData );
-    $self->{'db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+    $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}" )->remove();
     $self->{'eventManager'}->trigger( 'afterPostfixDeleteSubdomain', $moduleData );
 }
@@ -369,14 +369,14 @@ sub addMail
     $self->{'eventManager'}->trigger( 'beforePostfixAddMail', $moduleData );
 
     if ( $moduleData->{'MAIL_CATCHALL'} ) {
-        $self->{'db'}->add( 'virtual_alias_maps', $moduleData->{'MAIL_ADDR'}, $moduleData->{'MAIL_CATCHALL'} );
+        $self->{'_db'}->add( 'virtual_alias_maps', $moduleData->{'MAIL_ADDR'}, $moduleData->{'MAIL_CATCHALL'} );
     } else {
         my $isMailAcc = index( $moduleData->{'MAIL_TYPE'}, '_mail' ) != -1 && $moduleData->{'DOMAIN_NAME'} ne $::imscpConfig{'SERVER_HOSTNAME'};
         my $isForwardAccount = index( $moduleData->{'MAIL_TYPE'}, '_forward' ) != -1;
         return unless $isMailAcc || $isForwardAccount;
 
-        $self->{'db'}->delete( 'virtual_mailbox_maps', $moduleData->{'MAIL_ADDR'} );
-        $self->{'db'}->delete( 'virtual_alias_maps', $moduleData->{'MAIL_ADDR'} );
+        $self->{'_db'}->delete( 'virtual_mailbox_maps', $moduleData->{'MAIL_ADDR'} );
+        $self->{'_db'}->delete( 'virtual_alias_maps', $moduleData->{'MAIL_ADDR'} );
 
         if ( $isMailAcc ) {
             my $maildir = "$self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}";
@@ -400,7 +400,7 @@ sub addMail
             }
 
             # Add virtual mailbox map entry
-            $self->{'db'}->add( 'virtual_mailbox_maps', "$moduleData->{'MAIL_ADDR'}\t$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}/" );
+            $self->{'_db'}->add( 'virtual_mailbox_maps', "$moduleData->{'MAIL_ADDR'}\t$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}/" );
         } else {
             iMSCP::Dir->new(
                 dirname => "$self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}"
@@ -408,7 +408,7 @@ sub addMail
         }
 
         # Add virtual alias map entry
-        $self->{'db'}->add(
+        $self->{'_db'}->add(
             'virtual_alias_maps',
             $moduleData->{'MAIL_ADDR'} # Recipient
                 . "\t" # Separator
@@ -431,9 +431,9 @@ sub addMail
 
         # Add transport map entry for autoresponder if needed
         if ( $moduleData->{'MAIL_HAS_AUTO_RESPONDER'} ) {
-            $self->{'db'}->add( 'transport_maps', "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}", "\timscp-arpl:" );
+            $self->{'_db'}->add( 'transport_maps', "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}", "\timscp-arpl:" );
         } else {
-            $self->{'db'}->delete( 'transport_maps', "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" );
+            $self->{'_db'}->delete( 'transport_maps', "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" );
         }
     }
 
@@ -451,12 +451,12 @@ sub disableMail
     my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixDisableMail', $moduleData );
-    $self->{'db'}->delete( 'virtual_alias_maps', "$moduleData->{'MAIL_ADDR'}" );
+    $self->{'_db'}->delete( 'virtual_alias_maps', "$moduleData->{'MAIL_ADDR'}" );
 
     return if $moduleData->{'MAIL_CATCHALL'};
 
-    $self->{'db'}->delete( 'virtual_mailbox_maps', $moduleData->{'MAIL_ADDR'} );
-    $self->{'db'}->delete( 'transport_maps', "$moduleData->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" );
+    $self->{'_db'}->delete( 'virtual_mailbox_maps', $moduleData->{'MAIL_ADDR'} );
+    $self->{'_db'}->delete( 'transport_maps', "$moduleData->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" );
     $self->{'eventManager'}->trigger( 'afterPostfixDisableMail', $moduleData );
 }
 
@@ -471,12 +471,12 @@ sub deleteMail
     my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforePostfixDeleteMail', $moduleData );
-    $self->{'db'}->delete( 'virtual_alias_maps', $moduleData->{'MAIL_ADDR'} );
+    $self->{'_db'}->delete( 'virtual_alias_maps', $moduleData->{'MAIL_ADDR'} );
 
     return if $moduleData->{'MAIL_CATCHALL'};
 
-    $self->{'db'}->delete( 'virtual_mailbox_maps', $moduleData->{'MAIL_ADDR'} );
-    $self->{'db'}->delete( 'transport_maps', "$moduleData->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" );
+    $self->{'_db'}->delete( 'virtual_mailbox_maps', $moduleData->{'MAIL_ADDR'} );
+    $self->{'_db'}->delete( 'transport_maps', "$moduleData->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" );
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/$moduleData->{'DOMAIN_NAME'}/$moduleData->{'MAIL_ACC'}" )->remove();
     $self->{'eventManager'}->trigger( 'afterPostfixDeleteMail', $moduleData );
 }
@@ -568,7 +568,7 @@ sub postmap
 
     File::Spec->file_name_is_absolute( $lookupTable ) or die( 'Absolute lookup table file expected' );
     grep ($lookupTableType eq $_, qw/ hash btree cdb /) or die(
-        sprintf( "Unsupported '%s' lookup table type. Available types are: %s",$lookupTableType, 'btree, cdb and hash' )
+        sprintf( "Unsupported '%s' lookup table type. Available types are: %s", $lookupTableType, 'btree, cdb and hash' )
     );
 
     if ( $delayed ) {
@@ -720,14 +720,33 @@ sub postconf
 
 =item getAvailableDbDrivers
 
- Return list of available Postfix database driver types
+ Return list of available Postfix database
 
  Only database driver types that are supported by the distribution and for
  which an i-MSCP implementation is available must be reported.
  
- See the iMSCP::Servers::Mta::Postfix::Driver::* classes.
+ See the iMSCP::Servers::Mta::Postfix::Driver::Database::* classes.
+ 
+ Returned hashref *MUST* looks as follows:
 
- Return list List of available database driver types
+    {
+        CDB   => {
+            desc  => 'A read-optimized structure (recommended)',
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Cdb',
+            default => TRUE
+        },
+        BTree => {
+            desc => 'A sorted, balanced tree structure',
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Btree'
+        },
+
+        Hash  => {
+            desc  => 'An indexed file type based on hashing',
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash'
+        }
+    }
+
+ Return hashref List of available database driver types
 
 =cut
 
@@ -743,7 +762,7 @@ sub getAvailableDbDrivers
  Return instance of the given database driver, default driver if none is provided.
 
  Param string $driver Database driver name
- Return iMSCP::Servers::Mta::Postfix::Driver::Abstract
+ Return iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract
 
 =cut
 
@@ -752,8 +771,7 @@ sub getDbDriver
     my ( $self, $driver ) = @_;
     $driver //= $self->{'config'}->{'MTA_DB_DRIVER'};
 
-    $self->{'db_drivers'}->{$driver} ||= do {
-        $driver = "iMSCP::Servers::Mta::Postfix::Driver::Database::@{ [ ucfirst lc $driver ] }";
+    $self->{'_db_drivers'}->{$driver} ||= do {
         eval "require $driver";
         $driver->new( mta => $self );
     };
@@ -777,8 +795,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload cfgDir /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/postfix" );
-    $self->{'db'} = lazy { $self->getDbDriver() };
+    @{ $self }{qw/ restart reload cfgDir _db_drivers _db /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/postfix", {}, lazy { $self->getDbDriver() } );
     $self->SUPER::_init();
 }
 
@@ -795,15 +812,17 @@ sub _askForDatabaseDriver
 {
     my ( $self, $dialog ) = @_;
 
-    my $value = ::setupGetQuestion( 'MTA_DB_DRIVER', $self->{'config'}->{'MTA_DB_DRIVER'} || ( iMSCP::Getopt->preseed ? 'CDB' : '' ));
-    my %choices = (
-        BTree => 'A sorted, balanced tree structure',
-        CDB   => 'A read-optimized structure (recommended)',
-        Hash  => 'An indexed file type based on hashing'
-    );
+    my $availableDbDrivers = $self->getAvailableDbDrivers();
+    my ( $defaultDbDriver ) = map { $availableDbDrivers->{$_}->{'default'} ? $_ : () } keys %{ $availableDbDrivers };
+    my %choices = map { $_ => $availableDbDrivers->{$_}->{'desc'} || 'Missing description' } keys %{ $availableDbDrivers };
+    my $class = ( ::setupGetQuestion( 'MTA_DB_DRIVER', $self->{'config'}->{'MTA_DB_DRIVER'} || ( iMSCP::Getopt->preseed ? $defaultDbDriver : '' )) );
+    my ( $value ) = ( grep (
+        $availableDbDrivers->{$_}->{'class'} eq $class,
+        keys %{ $availableDbDrivers }
+    ) )[0] // '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'mta', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'CDB' );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || $defaultDbDriver );
 Please choose the Postfix database driver you want use for lookup tables.
 
 See http://www.postfix.org/DATABASE_README.html for further details.
@@ -812,8 +831,8 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    ::setupSetQuestion( 'MTA_DB_DRIVER', $value );
-    $self->{'config'}->{'MTA_DB_DRIVER'} = $value;
+    ::setupSetQuestion( 'MTA_DB_DRIVER', $availableDbDrivers->{$value}->{'class'} );
+    $self->{'config'}->{'MTA_DB_DRIVER'} = $availableDbDrivers->{$value}->{'class'};
     0;
 }
 
@@ -948,7 +967,6 @@ sub _buildMainCfFile
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} ); # FIXME or die?
     my $gid = getgrnam( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} ); # FIXME or die?
-
 
     $self->buildConfFile( 'main.cf', $self->{'config'}->{'MTA_MAIN_CONF_FILE'} );
     $self->postconf(
