@@ -815,11 +815,8 @@ sub _askForDatabaseDriver
     my $availableDbDrivers = $self->getAvailableDbDrivers();
     my ( $defaultDbDriver ) = map { $availableDbDrivers->{$_}->{'default'} ? $_ : () } keys %{ $availableDbDrivers };
     my %choices = map { $_ => $availableDbDrivers->{$_}->{'desc'} || 'Missing description' } keys %{ $availableDbDrivers };
-    my $class = ( ::setupGetQuestion( 'MTA_DB_DRIVER', $self->{'config'}->{'MTA_DB_DRIVER'} || ( iMSCP::Getopt->preseed ? $defaultDbDriver : '' )) );
-    my ( $value ) = ( grep (
-        $availableDbDrivers->{$_}->{'class'} eq $class,
-        keys %{ $availableDbDrivers }
-    ) )[0] // '';
+    my $class = ::setupGetQuestion( 'MTA_DB_DRIVER', $self->{'config'}->{'MTA_DB_DRIVER'} || ( iMSCP::Getopt->preseed ? $defaultDbDriver : '' ));
+    my ( $value ) = ( grep ($availableDbDrivers->{$_}->{'class'} eq $class, keys %{ $availableDbDrivers }) )[0] // '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'mta', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || $defaultDbDriver );

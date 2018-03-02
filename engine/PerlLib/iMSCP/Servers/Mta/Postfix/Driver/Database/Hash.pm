@@ -235,7 +235,7 @@ sub _setupDatabases
         {
             umask => 0027,
             user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
+            group => $::imscpConfig{'ROOT_GROUP'}
         }
     );
 
