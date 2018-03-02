@@ -327,7 +327,7 @@ EOF
         ? $::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
     my $vhost = idn_to_unicode( $::imscpConfig{'BASE_SERVER_VHOST'}, 'utf-8' ) // '';
     my $output = <<"EOF";
-@{[ iMSCP::Getopt->noprompt ? 'i-MSCP has been successfully installed/updated.' : '\\Zbi-MSCP has been successfully installed/updated.\\Zb' ]}
+@{[ iMSCP::Getopt->noprompt ? 'i-MSCP has been successfully installed/updated.' : '\\Zbi-MSCP has been successfully installed/updated.\\ZB' ]}
 
 Please connect to $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'}$vhost:$port and login with your administrator account.
 
