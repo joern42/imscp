@@ -219,7 +219,8 @@ sub maxClientsDialog
     my ( $self, $dialog ) = @_;
 
     my $maxClients = ::setupGetQuestion(
-        'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} // ( iMSCP::Getopt->preseed ? 100 : '' )
+        'FTPD_MAX_CLIENTS',
+        length $self->{'config'}->{'FTPD_MAX_CLIENTS'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS'} : ( iMSCP::Getopt->preseed ? 100 : '' )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -239,7 +240,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 
 Please set the maximum number of ProFTPD clients (leave empty for default).
 
-Allowed value: A number in range 0..1000, 0 for no limit.
+Allowed value: A number in range 1..1000, 0 for no limit.
 \\Z \\Zn
 EOF
         } while $rs < 30 && !isNumberInRange( $maxClients, 0, 1000 );
@@ -266,7 +267,8 @@ sub maxCLientsPerIpDialog
     my ( $self, $dialog ) = @_;
 
     my $maxClientsPerIp = ::setupGetQuestion(
-        'FTPD_MAX_CLIENTS_PER_IP', $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} // ( iMSCP::Getopt->preseed ? 5 : '' )
+        'FTPD_MAX_CLIENTS_PER_IP',
+        length $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} :  ( iMSCP::Getopt->preseed ? 20 : '' )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -279,7 +281,7 @@ sub maxCLientsPerIpDialog
         do {
             unless ( length $maxClientsPerIp ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
-                $maxClientsPerIp = 5;
+                $maxClientsPerIp = 20;
             }
 
             ( $rs, $maxClientsPerIp ) = $dialog->inputbox( <<"EOF", $maxClientsPerIp );

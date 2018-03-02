@@ -130,6 +130,7 @@ sub reload
     if ( $self->isRunning( $service ) ) {
         # We need catch STDERR here as we do do want raise failure (see _exec() for further details)
         my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'reload' ], undef, \my $stderr );
+
         # If the reload action failed, we try a restart instead. This cover
         # case where the reload action is not supported.
         $self->restart( $service ) if $ret;
@@ -152,7 +153,13 @@ sub isRunning
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    return $self->_exec( [ $self->getInitScriptPath( $service ), 'status' ] ) == 0 unless defined $self->{'_pid_pattern'};
+    unless ( defined $self->{'_pid_pattern'} ) {
+        # We need to catch STDERR here as we do not want raise failure when command
+        # status is other than 0 but no STDERR
+        my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'status' ], undef, \my $stderr );
+        die( $stderr ) if $ret && length $stderr;
+        return $ret == 0;
+    }
 
     my $ret = $self->_getPid( $self->{'_pid_pattern'} );
     undef $self->{'_pid_pattern'};

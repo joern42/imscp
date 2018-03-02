@@ -80,7 +80,7 @@ sub registerSetupListeners
         'beforeSetupPreInstallServers', sub { $self->_createMasterWebUser() }
     )->registerOne( 'beforeSetupPreInstallServers',
         sub {
-            # FIXME: Should we fix gui permissions before processing PHP dependencies?
+            $self->{'frontend'}->setGuiPermissions();
             my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
             my $composer = iMSCP::Composer->new(
                 user          => $usergroup,
@@ -1245,7 +1245,7 @@ sub _installSystemFiles
             },
             $fileContentRef
         );
-        iMSCP::File->new( filename => "/etc/$_/imscp_frontend" )->set( ${ $fileContentRef } )->save();
+        iMSCP::File->new( filename => "/etc/$dir/imscp_frontend" )->set( ${ $fileContentRef } )->save();
     }
 }
 

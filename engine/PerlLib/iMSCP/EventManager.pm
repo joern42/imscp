@@ -186,7 +186,7 @@ sub trigger
 
     return $self unless exists $self->{'events'}->{$eventName};
 
-    debug( sprintf( 'Triggering the %s event', $eventName ));
+    debug( sprintf( '%s event', $eventName ));
 
     # The priority queue acts as a heap which implies that as items are popped
     # they are also removed. Thus we clone it (in surface) for purposes of iteration.

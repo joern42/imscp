@@ -3,7 +3,7 @@
 # See the documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.02.14
+# Last update: 2018.03.02
 
 %::questions = (
     # Mandatory parameters
@@ -73,7 +73,7 @@
 
     # WAN IP (only relevant if your primary IP is in private range)
     #
-    # Possible values: Ipv4 or IPv4
+    # Possible values: An IP v4 or v6 address
     #
     # You can force the use of the private IP address by using the same value as
     # the BASE_SERVER_IP parameter.
@@ -112,7 +112,7 @@
     #  - iMSCP::Servers:Sqld::Percona::Debian (Not available for Debian Buster)
     #  - iMSCP::Servers:Sqld::Remote::Debian
     #
-    # Note that it is not possible to choose SQL server version in preseed mode.
+    # Note that it is not possible to choose the SQL server version in preseed mode.
     # The installer will automatically choose the newest available version.
     #
     # Leave empty for default: Depend on distribution and codename.
@@ -362,18 +362,16 @@
     # Leave empty for default: iMSCP::Servers::Ftpd::Proftpd::Debian 
     'iMSCP::Servers::Ftpd'              => '',
 
-    # FTPd maximum client
+    # FTPd maximum clients
     #
-    # Possible values: 'none' for no limit, a number in range 1..1000
-    #
-    # See http://www.proftpd.org/docs/directives/linked/config_ref_MaxInstances.html
+    # Possible values: A number in range 1..1000, 0 for no limit
     #
     # Leave empty for default: 100
     FTPD_MAX_CLIENTS                    => '',
 
     # FTPd maximum number of clients allowed to connect per IP
     #
-    # Possible values: 'none' for no limit, a number in range 1..1000
+    # Possible values: A number in range 1..1000, 0 for no limit
     #
     # http://www.proftpd.org/docs/directives/linked/config_ref_MaxClientsPerHost.html
     #

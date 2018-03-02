@@ -62,11 +62,11 @@ sub install
     my ( $self ) = @_;
 
     $self->SUPER::install();
-    #$self->_makeDirs();
-    #$self->_setupModules();
-    #$self->_configure();
-    #$self->_installLogrotate();
-    #$self->_cleanup();
+    $self->_makeDirs();
+    $self->_setupModules();
+    $self->_configure();
+    $self->_installLogrotate();
+    $self->_cleanup();
 }
 
 =item postinstall( )

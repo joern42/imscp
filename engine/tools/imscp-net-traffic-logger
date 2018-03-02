@@ -55,14 +55,14 @@ sub start
 
         # IMSCP_INPUT and IMSCP_OUTPUT chains for incoming/outgoing traffic logging
         for my $chain ( qw/ IMSCP_INPUT IMSCP_OUTPUT / ) {
-            my $rs = execute( "$exec -t filter -N $chain_", \my $stdout, \my $stderr );
+            my $rs = execute( "$exec -t filter -N $chain", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
         }
 
         # Rules to pass incoming/outgoing traffic through our chains, excluding traffic from/to `lo' interface
         for my $rule ( '-I INPUT ! -i lo -j IMSCP_INPUT', '-I OUTPUT ! -o lo -j IMSCP_OUTPUT' ) {
-            my $rs = execute( "$exec -t filter rule", \my $stdout, \my $stderr );
+            my $rs = execute( "$exec -t filter $rule", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             !$rs or die( $stderr || 'Unknown error' );
         }
@@ -81,7 +81,7 @@ sub start
             !$rs or die( $stderr || 'Unknown error' );
         }
 
-        for ( qw/ 25 465 587 / ) {
+        for my $port( qw/ 25 465 587 / ) {
             # Rule for logging incoming traffic from the given port
             my $rs = execute( "$exec -t filter -I IMSCP_INPUT -p tcp --sport $port", \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;

@@ -126,12 +126,6 @@ sub factory
 sub registerSetupListeners
 {
     my ( $self ) = @_;
-
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog',
-        sub { push @{ $_[0] }, sub { $self->askDnsServerMode( @_ ) }, sub { $self->askIPv6Support( @_ ) }, sub { $self->askLocalDnsResolver( @_ ) }; },
-        $self->getPriority()
-    );
 }
 
 =item preinstall( )
@@ -140,8 +134,9 @@ sub registerSetupListeners
  
  This method is called by the i-MSCP installer and reconfiguration script.
 
- Any server requiring pre-installation tasks *SHOULD* override this method, not
- forgetting to call it, unless stopping the linked service(s) is not desired.
+ Any server requiring pre-installation tasks *SHOULD* implement this method,
+ not forgetting to call it, unless stopping the linked service(s) is not
+ desired.
 
  Return void, die on failure
 
@@ -160,7 +155,7 @@ sub preinstall
 
  This method is called by the i-MSCP installer and reconfiguration script.
  
- Any server requiring post-installation tasks *SHOULD* override this method.
+ Any server requiring post-installation tasks *SHOULD* implement this method.
 
  Return void, die on failure
 
@@ -177,7 +172,7 @@ sub install
 
  This method is called by the i-MSCP installer and reconfiguration script.
  
- Any server requiring post-installation tasks *SHOULD* override this method,
+ Any server requiring post-installation tasks *SHOULD* implement this method,
  not forgetting to call it, unless starting the linked service(s) is not desired.
 
  Return void, die on failure
@@ -199,7 +194,7 @@ sub postinstall
 
  This method is called by the i-MSCP installer and uninstaller.
 
- Any server requiring pre-uninstallation tasks *SHOULD* override this method.
+ Any server requiring pre-uninstallation tasks *SHOULD* implement this method.
 
  Return void, die on failure
 
@@ -216,7 +211,7 @@ sub preuninstall
 
  This method is called by the i-MSCP installer and uninstaller.
 
- Any server requiring uninstallation tasks *SHOULD* override this method.
+ Any server requiring uninstallation tasks *SHOULD* implement this method.
 
  Return void, die on failure
 
@@ -233,7 +228,7 @@ sub uninstall
 
  This method is called by the i-MSCP installer and uninstaller.
 
- Any server requiring post-uninstallation tasks *SHOULD* override this method.
+ Any server requiring post-uninstallation tasks *SHOULD* implement this method.
 
  Return void, die on failure
 
@@ -246,11 +241,11 @@ sub postuninstall
 
 =item setEnginePermissions( )
 
- Sets the server permissions
+ Sets engnine permissions
 
  This method is called by the i-MSCP engine permission management script.
 
- Any server relying on configuration files or scripts *SHOULD* override this
+ Any server relying on configuration files or scripts *SHOULD* implement this
  method.
 
  Return void, die on failure
@@ -258,6 +253,23 @@ sub postuninstall
 =cut
 
 sub setEnginePermissions
+{
+    my ( $self ) = @_;
+}
+
+=item setGuiPermissions( )
+
+ Sets the GUI permissions
+
+ This method is called by the i-MSCP GUI permission management script.
+
+ Any server providing GUI file *SHOULD* implement this method.
+
+ Return void, die on failure
+
+=cut
+
+sub setGuiPermissions
 {
     my ( $self ) = @_;
 }
@@ -333,7 +345,7 @@ sub getVersion
  This method is called after each dpkg(1) invocation. This make it possible to
  perform some maintenance tasks such as updating server versions.
  
- Only Debian server implementations *SHOULD* override that method.
+ Only Debian server implementations *SHOULD* implement that method.
 
  Return void, die on failure
 
@@ -525,7 +537,7 @@ sub AUTOLOAD
         (?:pre|post)?
         (?:add|disable|restore|delete)
         (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddr|Mail|SSLcertificate|Subdomain|User)
-        $/x or die( sprintf( 'Unknown %s method', $method ));
+        $/x or die( sprintf( 'Unknown %s method', $AUTOLOAD ));
 
     # Define the subroutine to prevent further evaluation
     no strict 'refs';

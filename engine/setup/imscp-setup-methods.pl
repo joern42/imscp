@@ -20,6 +20,7 @@
 use strict;
 use warnings;
 use File::Spec;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Composer;
 use iMSCP::Database;
@@ -44,12 +45,11 @@ use iMSCP::Umask;
 sub setupBoot
 {
     iMSCP::Bootstrapper->getInstance()->boot( {
-        config_readonly => 1, # We do not allow writing in conffile at this time
-        nodatabase      => 1  # We do not establish connection to the database at this time
+        config_readonly => TRUE, # We do not allow writing in conffile at this time
+        nodatabase      => TRUE  # We do not establish connection to the database at this time
     } );
 
     # FIXME: Should be done through the bootstrapper
-
     untie( %::imscpOldConfig ) if %::imscpOldConfig;
 
     # If we are not in installer context, we need first create the
@@ -160,9 +160,9 @@ sub setupSaveConfig
 
     # Re-open main configuration file in read/write mode
     iMSCP::Bootstrapper->getInstance()->loadMainConfig( {
-        nocreate        => 1,
-        nodeferring     => 1,
-        config_readonly => 0
+        nocreate        => TRUE,
+        nodeferring     => TRUE,
+        config_readonly => FALSE
     } );
 
     while ( my ( $key, $value ) = each( %::questions ) ) {
@@ -188,7 +188,7 @@ sub setupCreateMasterUser
         user           => $::imscpConfig{'IMSCP_USER'},
         group          => $::imscpConfig{'IMSCP_GROUP'},
         mode           => 0755,
-        fixpermissions => 1 # We fix permissions in any case
+        fixpermissions => TRUE
     } );
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupCreateMasterUser' );
 }
@@ -196,7 +196,6 @@ sub setupCreateMasterUser
 sub setupCoreServices
 {
     # FIXME: Should be done by a specific package, eg:
-    # iMSCP::Packages::Daemon
     # iMSCP::Packages::Traffic
     # iMSCP::Packages::Mounts
     my $srvProvider = iMSCP::Service->getInstance();
@@ -398,13 +397,6 @@ sub setupServersAndPackages
     $nSteps = @servers+@packages;
 
     for my $task ( qw/ PreInstall Install PostInstall / ) {
-        if ( $task eq 'PostInstall' ) {
-            iMSCP::Dialog->getInstance()->endGauge();
-            use Data::Dumper;
-            print Dumper( \@servers );
-            print Dumper( \@packages );
-            exit;
-        }
         my $lcTask = lc( $task );
         startDetail();
 

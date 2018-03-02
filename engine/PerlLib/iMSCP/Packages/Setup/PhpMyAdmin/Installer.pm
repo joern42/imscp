@@ -477,7 +477,7 @@ sub _buildConfig
         BLOWFISH     => $blowfishSecret
     };
 
-    my $file = iMSCP::File->new( filename => "$self->{'wrkDir'}/config.inc.php" );
+    my $file = iMSCP::File->new( filename => "$confDir/imscp.config.inc.php" );
     my $cfgTpl = $file->getAsRef( TRUE );
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', $cfgTpl, $data );

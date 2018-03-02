@@ -189,9 +189,7 @@ sub _loadEntityData
             # See: https://tools.ietf.org/html/rfc4408#section-3.1.3
             if ( length $row->[3] > 257 ) {
                 # Extract all quoted <character-string>s, excluding delimiters
-                $row =~ s/^"(.*)"$/$1/ for my @chunks = extract_multiple(
-                    $row->[3], [ sub { extract_delimited( $row[0], '"' ) } ], undef, 1
-                );
+                $_ =~ s/^"(.*)"$/$1/ for my @chunks = extract_multiple( $row->[3], [ sub { extract_delimited( $row->[0], '"' ) } ], undef, 1 );
                 $row->[3] = join '', @chunks if @chunks;
                 undef @chunks;
 

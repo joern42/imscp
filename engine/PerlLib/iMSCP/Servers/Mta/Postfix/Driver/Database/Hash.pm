@@ -192,7 +192,7 @@ sub _getDbFileObj
     my ( $self, $database, $storagePath ) = @_;
     $storagePath //= $self->{'mta'}->{'config'}->{'MTA_DB_DIR'};
 
-    $self->{'_db'}->{$storagePath / $database} ||= do {
+    $self->{'_db'}->{"$storagePath/$database"} ||= do {
         my $file = iMSCP::File->new( filename => "$storagePath/$database" );
 
         unless ( -f $file ) {
@@ -214,7 +214,7 @@ EOF
         local $iMSCP::File::SLURP_SIZE_LIMIT = $self->{'mta'}->{'config'}->{'MTA_DB_SLURP_LIMIT'};
         $file->getAsRef();
         $file;
-    }
+    };
 }
 
 =item _setupDatabases( )

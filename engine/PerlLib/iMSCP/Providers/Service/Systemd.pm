@@ -72,7 +72,7 @@ sub isEnabled
     # We need to catch STDERR here as we do not want raise a failure when
     # command status is other than 0 but no STDERR
     my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \my $stdout, \my $stderr );
-    croak( $stderr ) if $ret && $stderr;
+    croak( $stderr ) if $ret && length $stderr;
 
     # The indirect state indicates that the unit is not enabled.
     chomp( $stdout );
@@ -273,7 +273,11 @@ sub isRunning
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    $self->_exec( [ $COMMANDS{'systemctl'}, 'is-active', $self->resolveUnit( $unit ) ] );
+    # We need to catch STDERR here as we do not want raise failure when command
+    # status is other than 0 but no STDERR
+    my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-active', $self->resolveUnit( $unit ) ], undef, \my $stderr );
+    die( $stderr ) if $ret && length $stderr;
+    $ret == 0;
 }
 
 =item hasService( $unit [, $nocache = FALSE ] )

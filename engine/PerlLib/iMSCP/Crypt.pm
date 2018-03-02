@@ -30,6 +30,7 @@ use Crypt::CBC;
 use Crypt::Eksblowfish::Bcrypt ();
 use Digest::SHA ();
 use Digest::MD5 ();
+use iMSCP::Boolean;
 use MIME::Base64;
 use parent 'Exporter';
 
@@ -469,7 +470,7 @@ sub _encryptCBC( $$$$ )
             -key         => $key,
             -keysize     => length $key,
             -blocksize   => length $iv,
-            -literal_key => 1,
+            -literal_key => TRUE,
             -iv          => $iv,
             -header      => 'none',
             -padding     => 'standard'
@@ -501,7 +502,7 @@ sub _decryptCBC( $$$$ )
         -key         => $key,
         -keysize     => length $key,
         -blocksize   => length $iv,
-        -literal_key => 1,
+        -literal_key => TRUE,
         -iv          => $iv,
         -header      => 'none',
         -padding     => 'standard'

@@ -393,7 +393,7 @@ sub _buildRoundcubeConfig
         DES_KEY           => randomStr( 24, iMSCP::Crypt::ALNUM )
     };
 
-    my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/config.inc.php" )->get();
+    my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/config.inc.php" );
     my $cfgTpl = $file->getAsRef( TRUE );
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'roundcube', 'config.inc.php', $cfgTpl, $data );

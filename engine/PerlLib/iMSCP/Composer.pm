@@ -30,6 +30,7 @@ use English;
 use File::HomeDir;
 use File::Spec;
 use File::Temp;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute executeNoWait /;
@@ -229,8 +230,7 @@ sub installPackages
         iMSCP::Dir->new( dirname => $self->{'_attrs'}->{'working_dir'} )->make( {
             user           => $self->{'_euid'},
             group          => $self->{'_egid'},
-            mode           => 0750,
-            fixpermissions => 0 # Set permissions only on creation
+            mode           => 0750
         } );
     }
 
@@ -281,8 +281,7 @@ sub updatePackages
         iMSCP::Dir->new( dirname => $self->{'_attrs'}->{'working_dir'} )->make( {
             user           => $self->{'_euid'},
             group          => $self->{'_egid'},
-            mode           => 0750,
-            fixpermissions => 0 # Set permissions only on creation
+            mode           => 0750
         } );
     }
 
@@ -296,8 +295,8 @@ sub updatePackages
     executeNoWait(
         $self->_getSuCmd(
             @{ $self->{'_php_cmd'} }, $self->{'_attrs'}->{'composer_path'}, 'update', '--no-progress', '--no-ansi',
-            '--no-interaction', ( $requireDev ? () : '--no-dev' ), '--no-suggest',
-            ( $noautoloader ? '--no-autoloader' : () ), "--working-dir=$self->{'_attrs'}->{'working_dir'}"
+            '--no-interaction', ( $requireDev ? () : '--no-dev' ), '--no-suggest', ( $noautoloader ? '--no-autoloader' : () ),
+            "--working-dir=$self->{'_attrs'}->{'working_dir'}"
         ),
         $self->{'_stdout'},
         $self->{'_stderr'}
@@ -380,9 +379,9 @@ sub getComposerJson
 
     $scalar ? $self->{'_attrs'}->{'composer_json'} : to_json( $self->{'_attrs'}->{'composer_json'},
         {
-            utf8      => 1,
-            indent    => 1,
-            canonical => 1
+            utf8      => TRUE,
+            indent    => TRUE,
+            canonical => TRUE
         }
     );
 }

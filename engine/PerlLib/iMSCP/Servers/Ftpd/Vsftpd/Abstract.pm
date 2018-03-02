@@ -220,13 +220,14 @@ sub maxClientsDialog
 {
     my ( $self, $dialog ) = @_;
 
-    my $maxClients = ::setupGetQuestion( 'FTPD_MAX_CLIENTS', $self->{'config'}->{'FTPD_MAX_CLIENTS'} // ( iMSCP::Getopt->preseed ? 100 : '' ));
+    my $maxClients = ::setupGetQuestion(
+        'FTPD_MAX_CLIENTS',
+        length $self->{'config'}->{'FTPD_MAX_CLIENTS'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS'} : ( iMSCP::Getopt->preseed ? 100 : '' )
+    );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
-        || !isNumberInRange( $maxClients, 0, 1000 )
-    ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] ) || !isNumberInRange( $maxClients, 0, 1000 ) ) {
         my $rs = 0;
 
         do {
@@ -241,7 +242,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 
 Please set the maximum number of VsFTPd clients (leave empty for default).
 
-Allowed value: A number in range 0..1000, 0 for no limit.
+Allowed value: A number in range 1..1000, 0 for no limit.
 \\Z \\Zn
 EOF
         } while $rs < 30 && !isNumberInRange( $maxClients, 0, 1000 );
@@ -268,7 +269,7 @@ sub maxCLientsPerIpDialog
     my ( $self, $dialog ) = @_;
 
     my $maxClientsPerIp = ::setupGetQuestion(
-        'FTPD_MAX_CLIENTS_PER_IP', $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} // ( iMSCP::Getopt->preseed ? 5 : '' )
+        length $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} : ( iMSCP::Getopt->preseed ? 20 : '' )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -281,7 +282,7 @@ sub maxCLientsPerIpDialog
         do {
             unless ( length $maxClientsPerIp ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
-                $maxClientsPerIp = 5;
+                $maxClientsPerIp = 20;
             }
 
             ( $rs, $maxClientsPerIp ) = $dialog->inputbox( <<"EOF", $maxClientsPerIp );
@@ -290,7 +291,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 
 Please set the maximum number of clients allowed to connect to VsFTPd per IP (leave empty for default).
 
-Allowed value: A number in range 0..1000, 0 for no limit.
+Allowed value: A number in range 1..1000, 0 for no limit.
 \\Z \\Zn
 EOF
         } while $rs < 30 && !isNumberInRange( $maxClientsPerIp, 0, 1000 );

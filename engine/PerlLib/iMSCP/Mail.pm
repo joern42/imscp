@@ -147,7 +147,7 @@ Please do not reply to this email.
 
 ___________________________
 i-MSCP Backend Mailer
-        EOF
+EOF
         'X-Mailer' => 'i-MSCP Mailer (backend)'
     );
 

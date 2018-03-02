@@ -294,7 +294,7 @@ sub copy
     ref $options eq 'HASH' or croak( '$options parameter is invalid' );
 
     $options->{'_require_preserve'} = $options->{'preserve'} ? TRUE : FALSE;
-    $options->{'no_target_directory'} //= TRUE;
+    $options->{'no_target_directory'} //= FALSE;
 
     # Locally change the current UMASK(2) if requested by caller
     local $UMASK = $options->{'umask'} if defined $options->{'umask'};

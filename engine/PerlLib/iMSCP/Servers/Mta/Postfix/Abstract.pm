@@ -564,11 +564,11 @@ sub getTraffic
 sub postmap
 {
     my ( $self, $lookupTable, $lookupTableType, $delayed ) = @_;
-    $lookupTableType ||= 'hash';
+    $lookupTableType //= 'hash';
 
     File::Spec->file_name_is_absolute( $lookupTable ) or die( 'Absolute lookup table file expected' );
-    grep ($lookupTable eq $_, qw/ hash btree cdb /) or die(
-        sprintf( 'Unsupported lookup table type. Available types are: %s', 'btree, cdb and hash' )
+    grep ($lookupTableType eq $_, qw/ hash btree cdb /) or die(
+        sprintf( "Unsupported '%s' lookup table type. Available types are: %s",$lookupTableType, 'btree, cdb and hash' )
     );
 
     if ( $delayed ) {
@@ -752,7 +752,11 @@ sub getDbDriver
     my ( $self, $driver ) = @_;
     $driver //= $self->{'config'}->{'MTA_DB_DRIVER'};
 
-    $self->{'db_drivers'}->{$driver} ||= "iMSCP::Servers::Mta::Postfix::Driver::Database::@{ [ ucfirst lc $driver ] }"->new( mta => $self );
+    $self->{'db_drivers'}->{$driver} ||= do {
+        $driver = "iMSCP::Servers::Mta::Postfix::Driver::Database::@{ [ ucfirst lc $driver ] }";
+        eval "require $driver";
+        $driver->new( mta => $self );
+    };
 }
 
 =back
@@ -810,6 +814,7 @@ EOF
 
     ::setupSetQuestion( 'MTA_DB_DRIVER', $value );
     $self->{'config'}->{'MTA_DB_DRIVER'} = $value;
+    0;
 }
 
 =item _createUserAndGroup( )

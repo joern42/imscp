@@ -636,7 +636,7 @@ sub _removeConfig
 {
     my ( $self ) = @_;
 
-    iMSCP::Dir->new( dirnname => "$self->{'config'}->{'PO_CONF_DIR'}/imscp.d" )->remove();
+    iMSCP::Dir->new( dirname => "$self->{'config'}->{'PO_CONF_DIR'}/imscp.d" )->remove();
 }
 
 =back

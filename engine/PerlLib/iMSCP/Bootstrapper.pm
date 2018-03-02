@@ -30,13 +30,14 @@ use autouse 'iMSCP::Crypt' => qw/ decryptRijndaelCBC randomStr /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Requirements /;
 use File::Spec;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::Config;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::LockFile;
 use iMSCP::Umask;
-#use POSIX qw / tzset /;
+use POSIX qw / tzset /;
 # Make sure that object destructors are called on HUP, PIPE, INT and TERM signals
 use sigtrap qw/ die normal-signals /;
 use parent 'iMSCP::Common::Singleton';
@@ -69,15 +70,15 @@ sub boot
 
     $self->loadMainConfig( $options );
 
-    iMSCP::Getopt->debug( 1 ) if $::imscpConfig{'DEBUG'};
+    iMSCP::Getopt->debug( TRUE ) if $::imscpConfig{'DEBUG'};
 
     $self->lock() unless $options->{'nolock'};
 
     # Set timezone unless we are in setup or uninstaller execution context (needed to show current local timezone in setup dialog)
-    #unless ( iMSCP::Getopt->context() =~ /^(?:un)?installer$/ ) {
-    #    $ENV{'TZ'} = $::imscpConfig{'TIMEZONE'} || 'UTC';
-    #    tzset;
-    #}
+    unless ( iMSCP::Getopt->context() eq 'installer' ) {
+        $ENV{'TZ'} = $::imscpConfig{'TIMEZONE'} || 'UTC';
+        tzset;
+    }
 
     iMSCP::Requirements->new()->user() unless $options->{'norequirements'} || iMSCP::Getopt->context() eq 'installer';
 
@@ -107,11 +108,11 @@ sub loadMainConfig
     tie %::imscpConfig,
         'iMSCP::Config',
         filename    => '/etc/imscp/imscp.conf',
-        nocreate    => $options->{'nocreate'} // 1,
-        nodeferring => $options->{'nodeferring'} // 0,
-        nocroak     => $options->{'nocroak'} // 0,
-        readonly    => $options->{'config_readonly'} // 0,
-        temporary   => $options->{'config_temporary'} // 0;
+        nocreate    => $options->{'nocreate'} // TRUE,
+        nodeferring => $options->{'nodeferring'} // FALSE,
+        nocroak     => $options->{'nocroak'} // FALSE,
+        readonly    => $options->{'config_readonly'} // FALSE,
+        temporary   => $options->{'config_temporary'} // FALSE;
 }
 
 =item lock( [ $lockFile = $::imscpConfig{'LOCK_DIR'}/imscp.lock [, $nowait = FALSE ] ] )
@@ -187,7 +188,7 @@ sub _genKeys
         -d $::imscpConfig{'CONF_DIR'} or die( sprintf( "%s doesn't exist or is not a directory", $::imscpConfig{'CONF_DIR'} ));
 
         require Data::Dumper;
-        local $Data::Dumper::Indent = 0;
+        local $Data::Dumper::Indent = FALSE;
 
         # File must not be created world-readable
         local $UMASK = 0027;

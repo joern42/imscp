@@ -28,6 +28,7 @@ use warnings;
 use Carp qw/ croak /;
 use DBI;
 use File::Temp;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute escapeShell /;
 use parent 'iMSCP::Common::Singleton';
@@ -244,18 +245,18 @@ sub _init
         DATABASE_USER     => '',
         DATABASE_PASSWORD => '',
         DATABASE_SETTINGS => {
-            AutoCommit           => 1,
-            AutoInactiveDestroy  => 1,
+            AutoCommit           => TRUE,
+            AutoInactiveDestroy  => TRUE,
             Callbacks            => {
                 connected => sub {
                     $_[0]->do( "SET SESSION sql_mode = 'NO_AUTO_CREATE_USER', SESSION group_concat_max_len = 65535" );
                     return;
                 }
             },
-            mysql_auto_reconnect => 1,
-            mysql_enable_utf8    => 1,
-            PrintError           => 0,
-            RaiseError           => 1 # TRUE since 1.6.0
+            mysql_auto_reconnect => TRUE,
+            mysql_enable_utf8    => TRUE,
+            PrintError           => FALSE,
+            RaiseError           => TRUE # TRUE since 1.6.0
         }
     };
 

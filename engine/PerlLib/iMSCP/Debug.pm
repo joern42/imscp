@@ -120,7 +120,7 @@ sub endDebug
     _writeLogfile( $logger, File::Spec->catfile( $logDir, $logger->getId()));
 }
 
-=item debug( $message [, $caller TRUE ] )
+=item debug( $message [, $caller = TRUE ] )
 
  Log a debug message in the current logger
 
@@ -139,7 +139,7 @@ sub debug( $;$ )
     print STDOUT output( $caller . $message, 'debug' ) if iMSCP::Getopt->verbose;
 }
 
-=item warning( $message [, $caller TRUE ] )
+=item warning( $message [, $caller = TRUE ] )
 
  Log a warning message in the current logger
 
@@ -157,7 +157,7 @@ sub warning( $;$ )
     $self->{'logger'}()->store( message => $caller . $message, tag => 'warn' );
 }
 
-=item error( $message [, $caller TRUE ] )
+=item error( $message [, $caller = TRUE ] )
 
  Log an error message in the current logger
 

@@ -26,6 +26,7 @@ package iMSCP::Service;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use File::Basename;
 use iMSCP::Debug qw/ error getMessageByType /;
@@ -34,9 +35,9 @@ use iMSCP::ProgramFinder;
 use Module::Load::Conditional qw/ can_load /;
 use parent qw/ iMSCP::Common::Singleton iMSCP::Providers::Service::Interface /;
 
-$Module::Load::Conditional::FIND_VERSION = 0;
-$Module::Load::Conditional::VERBOSE = 0;
-$Module::Load::Conditional::FORCE_SAFE_INC = 1;
+$Module::Load::Conditional::FIND_VERSION = FALSE;
+$Module::Load::Conditional::VERBOSE = FALSE;
+$Module::Load::Conditional::FORCE_SAFE_INC = TRUE;
 
 my %DELAYED_ACTIONS;
 

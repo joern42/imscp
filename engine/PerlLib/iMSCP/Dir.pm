@@ -26,6 +26,7 @@ package iMSCP::Dir;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use Carp::Always;
 use English;
 use Errno qw/ EPERM EINVAL ENOENT /;
 use Fcntl qw/ :mode O_RDONLY O_WRONLY O_CREAT O_TRUNC O_BINARY O_EXCL O_NOFOLLOW /;
@@ -231,8 +232,8 @@ sub clear
         opendir my $dh, $self->{'dirname'} or die( sprintf( "Failed to open '%s': %s", $self->{'dirname'}, $! ));
 
         while ( my $dentry = readdir $dh ) {
-            next if /^\.{1,2}\z/s;
-            next unless $invertMatching ? !/$regexp/ : /$regexp/;
+            next if $dentry =~ /^\.{1,2}\z/s;
+            next unless $invertMatching ? $dentry !~ /$regexp/ : $dentry =~ /$regexp/;
 
             $dentry = $self->{'dirname'} . '/' . $dentry;
 

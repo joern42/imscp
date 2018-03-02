@@ -639,7 +639,7 @@ EOF
         }
 
         # Set server/package class name for the selected alternative
-        $::imscpConfig{$sectionClass} = $data->{$sAlt}->{'class'} || 'iMSCP::Servers::NoServer';
+        $::imscpConfig{$sectionClass} = $::questions{$sectionClass} = $data->{$sAlt}->{'class'} || 'iMSCP::Servers::NoServer';
         # Set alternative name for installer use
         $::questions{'_' . $section} = $sAlt;
     }

@@ -139,7 +139,7 @@ sub install
 
     $self->_setVersion();
     $self->_copyDomainDisablePages();
-    #$self->_setupVlogger();
+    $self->_setupVlogger();
 }
 
 =item uninstall( )
