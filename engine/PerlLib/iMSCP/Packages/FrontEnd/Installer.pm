@@ -376,7 +376,7 @@ EOF
 
                 return $rs unless $rs < 30;
 
-                $rs = $dialog->yesno( <<'EOF', undef, TRUE );
+                $rs = $dialog->yesno( <<'EOF', FALSE, TRUE );
 Do you have a SSL CA Bundle?
 EOF
                 return $rs unless $rs < 30;
