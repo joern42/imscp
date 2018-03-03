@@ -89,16 +89,16 @@ sub factory
 
     $serverClass //= $::imscpConfig{$class} || 'iMSCP::Servers::NoServer';
 
-    return $_SERVER_INSTANCES{$class} if exists $_SERVER_INSTANCES{$class};
+    return $_SERVER_INSTANCES{$class} if exists $_SERVER_INSTANCES{$class} && ref $_SERVER_INSTANCES{$class} eq $serverClass;
 
     eval "require $serverClass; 1" or confess( $@ );
 
     if ( $serverClass ne $::imscpConfig{$class} ) {
         # We don't keep trace of server instances that were asked explicitly as
         # this would prevent load of those which are implicit.
-        # This also means that the _shutdown() method on those server instances
+        # This also means that the _shutdown() method on these server instances
         # will not be called automatically.
-        return $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());;
+        return $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
     }
 
     $_SERVER_INSTANCES{$class} = $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
