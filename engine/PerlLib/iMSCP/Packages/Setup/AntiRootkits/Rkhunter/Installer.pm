@@ -142,7 +142,7 @@ sub _scheduleCheck
     iMSCP::File->new( filename => $::imscpConfig{'RKHUNTER_LOG'} )->set( "Check scheduled...\n" )->save();
 
     my $rs = execute(
-        "echo 'perl $::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl > /dev/null 2>&1' | at now + 10 minutes",
+        "echo 'perl $::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl > /dev/null 2>&1' | at now + 25 minutes",
         \my $stdout,
         \my $stderr
     );

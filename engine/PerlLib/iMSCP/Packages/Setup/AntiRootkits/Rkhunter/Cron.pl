@@ -19,21 +19,22 @@
 
 use strict;
 use warnings;
-use FindBin;
-use lib "$FindBin::Bin/../../../../PerlLib";
-use iMSCP::Rights qw/ setRights /;
+use File::Basename;
+use lib "@{ [ dirname __FILE__ ] }/../../../../../../PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
-use iMSCP::Debug qw/ debug /;
+use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::ProgramFinder;
+use iMSCP::Rights qw/ setRights /;
 
 newDebug( 'imscp-rkhunter-package.log' );
 
 iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nodatabase      => 1,
-    nolock          => 1,
-    nokeys          => 1
+    config_readonly => TRUE,
+    nodatabase      => TRUE,
+    nolock          => TRUE,
+    nokeys          => TRUE
 } );
 
 exit unless iMSCP::ProgramFinder::find( 'rkhunter' );
