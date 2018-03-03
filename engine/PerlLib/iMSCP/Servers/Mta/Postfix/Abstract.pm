@@ -744,7 +744,6 @@ sub postconf
             desc => 'A sorted, balanced tree structure',
             class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Btree'
         },
-
         Hash  => {
             desc  => 'An indexed file type based on hashing',
             class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash'
@@ -850,7 +849,7 @@ sub _createUserAndGroup
 {
     my ( $self ) = @_;
 
-    iMSCP::SystemGroup->getInstance()->addSystemGroup( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'}, 1 );
+    iMSCP::SystemGroup->getInstance()->addSystemGroup( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'}, TRUE );
 
     my $systemUser = iMSCP::SystemUser->new(
         username => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
@@ -985,7 +984,9 @@ sub _buildMainCfFile
     );
 
     $self->buildConfFile( 'main.cf', $self->{'config'}->{'MTA_MAIN_CONF_FILE'} );
-    $self->postconf(
+
+    # Dynamic parameters
+    my %params = (
         inet_protocols       => { values => [ $baseServerIpType ] },
         smtp_bind_address    => { values => [ ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '' ] },
         smtp_bind_address6   => { values => [ ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '' ] },
@@ -1001,49 +1002,42 @@ sub _buildMainCfFile
         virtual_minimum_uid  => { values => [ $uid ] },
         virtual_uid_maps     => { values => [ $uid ] },
         virtual_gid_maps     => { values => [ $gid ] },
+        # Add TLS parameters if required
+        ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) ne 'yes' ? () : (
+            # smtpd TLS parameters (opportunistic)
+            smtpd_tls_security_level         => { values => [ 'may' ] },
+            smtpd_tls_ciphers                => { values => [ 'high' ] },
+            smtpd_tls_exclude_ciphers        => { values => [ 'aNULL', 'MD5' ] },
+            smtpd_tls_protocols              => { values => [ '!SSLv2', '!SSLv3' ] },
+            smtpd_tls_loglevel               => { values => [ 0 ] },
+            smtpd_tls_cert_file              => { values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ] },
+            smtpd_tls_key_file               => { values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ] },
+            smtpd_tls_auth_only              => { values => [ 'no' ] },
+            smtpd_tls_received_header        => { values => [ 'yes' ] },
+            smtpd_tls_session_cache_database => { values => [ 'btree:${data_directory}/smtpd_scache' ] },
+            smtpd_tls_session_cache_timeout  => { values => [ '3600s' ] },
+            # smtp TLS parameters (opportunistic)
+            smtp_tls_security_level          => { values => [ 'may' ] },
+            smtp_tls_ciphers                 => { values => [ 'high' ] },
+            smtp_tls_exclude_ciphers         => { values => [ 'aNULL', 'MD5' ] },
+            smtp_tls_protocols               => { values => [ '!SSLv2', '!SSLv3' ] },
+            smtp_tls_loglevel                => { values => [ 0 ] },
+            smtp_tls_CAfile                  => { values => [ $::imscpConfig{'DISTRO_CA_BUNDLE'} ] },
+            smtp_tls_session_cache_database  => { values => [ 'btree:${data_directory}/smtp_scache' ] },
+            smtp_tls_session_cache_timeout   => { values => [ '3600s' ] }
+        )
     );
 
-    # Add TLS parameters if required
-    return unless ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes';
+    if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '2.10.0' ) ) {
+        $params{'smtpd_relay_restrictions'} = { values => [ '' ], empty => TRUE };
+    }
 
-    $self->{'eventManager'}->register(
-        'afterPostixConfigure',
-        sub {
-            my %params = (
-                # smtpd TLS parameters (opportunistic)
-                smtpd_tls_security_level         => { values => [ 'may' ] },
-                smtpd_tls_ciphers                => { values => [ 'high' ] },
-                smtpd_tls_exclude_ciphers        => { values => [ 'aNULL', 'MD5' ] },
-                smtpd_tls_protocols              => { values => [ '!SSLv2', '!SSLv3' ] },
-                smtpd_tls_loglevel               => { values => [ 0 ] },
-                smtpd_tls_cert_file              => { values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ] },
-                smtpd_tls_key_file               => { values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ] },
-                smtpd_tls_auth_only              => { values => [ 'no' ] },
-                smtpd_tls_received_header        => { values => [ 'yes' ] },
-                smtpd_tls_session_cache_database => { values => [ 'btree:${data_directory}/smtpd_scache' ] },
-                smtpd_tls_session_cache_timeout  => { values => [ '3600s' ] },
-                # smtp TLS parameters (opportunistic)
-                smtp_tls_security_level          => { values => [ 'may' ] },
-                smtp_tls_ciphers                 => { values => [ 'high' ] },
-                smtp_tls_exclude_ciphers         => { values => [ 'aNULL', 'MD5' ] },
-                smtp_tls_protocols               => { values => [ '!SSLv2', '!SSLv3' ] },
-                smtp_tls_loglevel                => { values => [ 0 ] },
-                smtp_tls_CAfile                  => { values => [ $::imscpConfig{'DISTRO_CA_BUNDLE'} ] },
-                smtp_tls_session_cache_database  => { values => [ 'btree:${data_directory}/smtp_scache' ] },
-                smtp_tls_session_cache_timeout   => { values => [ '3600s' ] }
-            );
+    if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '3.0.0' ) ) {
+        $params{'compatibility_level'} = { values => [ '2' ] };
+    }
 
-            if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '2.10.0' ) ) {
-                $params{'smtpd_relay_restrictions'} = { values => [ '' ], empty => TRUE };
-            }
+    $self->postconf( %params );
 
-            if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '3.0.0' ) ) {
-                $params{'compatibility_level'} = { values => [ '2' ] };
-            }
-
-            $self->postconf( %params );
-        }
-    );
 }
 
 =item _buildMasterCfFile( )
