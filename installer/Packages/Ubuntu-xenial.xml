@@ -317,7 +317,14 @@
         <package condition="'${DISTRO_ARCH}'eq 'amd64'">libc6-dev-x32</package>
         <package>lzma</package>
         <package>net-tools</package>
-        <package>openssl</package>
+        <package
+                comment="needed due to https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=829477"
+                pinning_package="openssl"
+                pinning_pin="release o=Ubuntu,n=xenial"
+                pinning_pin_priority="1001"
+        >
+            openssl
+        </package>
         <package>pbuilder</package>
         <package>pbzip2</package>
         <package>pigz</package>
