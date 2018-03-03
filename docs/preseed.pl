@@ -3,7 +3,7 @@
 # See the documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.03.02
+# Last update: 2018.03.03
 
 %::questions = (
     # Mandatory parameters
@@ -26,7 +26,7 @@
     # SQL root user (mandatory)
     #
     # This SQL user must have full privileges on the SQL server.
-    # Note that this user used only while i-MSCP installation/reconfiguration.
+    # Note that this user is used only while i-MSCP installation/reconfiguration.
     #
     # Leave empty for default: root
     SQL_ROOT_USER                       => '',
@@ -250,10 +250,10 @@
     #
     # Possible values:
     # - Debian-like distributions:
-    #   - iMSCP::Servers::Named::Bind9::Debian
+    #   - iMSCP::Servers::Named::Bind9::Debian (default)
     #   - iMSCP::Servers::NoServer
     #
-    # Leave empty for default: iMSCP::Servers::Named::Bind9::Debian
+    # Leave empty for default: Depend on distribution default value.
     'iMSCP::Servers::Named'             => '',
 
     # DNS server mode (Only relevant with 'bind')
@@ -316,7 +316,7 @@
     #
     # Possibles values: event, itk, prefork, worker
     #
-    # Leave empty for default: event
+    # Leave empty for default: Depend on distribution default value.
     HTTPD_MPM                           => '',
 
     # PHP version for customers
@@ -356,10 +356,10 @@
     #
     # Possible values:
     # - Debian-like distributions:
-    #   - iMSCP::Servers::Ftpd::Proftpd::Debian
+    #   - iMSCP::Servers::Ftpd::Proftpd::Debian (default)
     #   - iMSCP::Servers::Ftpd::Vsftpd::Debian
     #
-    # Leave empty for default: iMSCP::Servers::Ftpd::Proftpd::Debian 
+    # Leave empty for default: Depend on distribution default value.
     'iMSCP::Servers::Ftpd'              => '',
 
     # FTPd maximum clients
@@ -422,9 +422,9 @@
     # Possible values:
     # - Debian-like distributions:
     #   - iMSCP::Servers::Po::Courier::Debian
-    #   - iMSCP::Servers::Po::Dovecot::Debian
+    #   - iMSCP::Servers::Po::Dovecot::Debian (default)
     #
-    # Leave empty for default: iMSCP::Servers::Po::Dovecot::Debian
+    # Leave empty for default: Depend on distribution default value.
     'iMSCP::Servers::Po'                => '',
 
     # Authdaemon SQL user (only relevant with 'courier')
