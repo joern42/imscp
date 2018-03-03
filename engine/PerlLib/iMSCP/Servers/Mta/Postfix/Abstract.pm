@@ -1028,16 +1028,11 @@ sub _buildMainCfFile
         )
     );
 
-    if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '2.10.0' ) ) {
-        $params{'smtpd_relay_restrictions'} = { values => [ '' ], empty => TRUE };
-    }
-
-    if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '3.0.0' ) ) {
-        $params{'compatibility_level'} = { values => [ '2' ] };
-    }
+    my $version = version->parse( $self->{'config'}->{'MTA_VERSION'} );
+    $params{'smtpd_relay_restrictions'} = { values => [ '' ], empty => TRUE } if $version >= version->parse( '2.10.0' );
+    $params{'compatibility_level'} = { values => [ '2' ] } if $version >= version->parse( '3.0.0' );
 
     $self->postconf( %params );
-
 }
 
 =item _buildMasterCfFile( )
