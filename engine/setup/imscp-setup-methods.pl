@@ -373,7 +373,7 @@ sub setupServersAndPackages
     my @packages = iMSCP::Packages->getInstance()->getListWithFullNames();
     my $nSteps = @servers;
 
-    # First, we need to uninstall older servers  (switch to another alternative)
+    # Uninstall older servers (switch to another alternative)
     for my $task ( qw/ PreUninstall Uninstall PostUninstall / ) {
         my $lcTask = lc( $task );
         $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
@@ -384,11 +384,9 @@ sub setupServersAndPackages
             next unless length $::imscpOldConfig{$server} && $::imscpOldConfig{$server} ne $::imscpConfig{$server};
 
             step(
-                sub { $server->factory( $::imscpOdlConfig{$server} )->$lcTask(); },
-                sprintf( "Executing %s %s tasks...", $server, $lcTask ), $nSteps, $nStep++
+                sub { $server->factory( $::imscpOldConfig{$server} )->$lcTask(); },
+                sprintf( "Executing %s %s tasks...", $::imscpOldConfig{$server}, $lcTask ), $nSteps, $nStep++
             );
-
-            $::imscpOdlConfig{$server} = $::imscpConfig{$server};
         }
         endDetail();
         $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
