@@ -179,7 +179,7 @@
         <package>mysql-common</package>
     </sqld>
     <perl>
-        <package>libcapture-tiny-perl:</package>
+        <package>libcapture-tiny-perl</package>
         <package>libclass-autouse-perl</package>
         <package>libcrypt-blowfish-perl</package>
         <package>libcrypt-cbc-perl</package>
