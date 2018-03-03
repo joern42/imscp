@@ -33,6 +33,7 @@ use Class::Autouse qw/ :nostat iMSCP::Config iMSCP::Getopt iMSCP::Net iMSCP::Sys
 use File::Basename;
 use File::Temp;
 use File::Spec;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute executeNoWait /;
@@ -112,6 +113,8 @@ sub postinstall
         'beforeSetupRestartServices',
         sub {
             while ( my ( $path, $type ) = each( %{ $self->{'_postmap'} } ) ) {
+                # We need test for database existence as it can have been removed
+                next unless -f $path;
                 $self->postmap( $path, $type );
             }
         },
@@ -171,7 +174,7 @@ sub setEnginePermissions
             group     => $::imscpConfig{'IMSCP_GROUP'},
             dirmode   => '0750',
             filemode  => '0750',
-            recursive => 1
+            recursive => TRUE
         }
     );
     setRights( $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
@@ -500,7 +503,7 @@ sub getTraffic
     debug( sprintf( 'Processing SMTP %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or die %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    $trafficIndexDb or die %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => TRUE;
     my ( $idx, $idxContent ) = ( $trafficIndexDb->{'smtp_lineNo'} || 0, $trafficIndexDb->{'smtp_lineContent'} );
 
     # Extract and standardize SMTP logs in temporary file, using
@@ -550,29 +553,31 @@ sub getTraffic
     $trafficIndexDb->{'smtp_lineContent'} = $logs[$#logs];
 }
 
-=item postmap( $lookupTable [, $lookupTableType = 'hash', [ $delayed = FALSE ] ] )
+=item postmap( $lookupTable [, $lookupTableType = $self->{'_db'}->getDbType() [, $delayed = FALSE ] ] )
 
- Provides an interface to POSTMAP(1) for creating/updating Postfix lookup tables
+ Provides an interface to POSTMAP(1) for creating/updating Postfix databases (lookup tables)
 
  Param string $lookupTable Full path to lookup table
  Param string $lookupTableType OPTIONAL Lookup table type (default: hash)
  Param bool $delayed Flag indicating whether creation/update of the give lookup table must be delayed
  Return void, die on failure
+ FIXME: Relying on default DB type will pose problem when the MySQL database type will be available
 
 =cut
 
 sub postmap
 {
     my ( $self, $lookupTable, $lookupTableType, $delayed ) = @_;
-    $lookupTableType //= 'hash';
+    $lookupTableType //= $self->{'_db'}->getDbType();
 
     File::Spec->file_name_is_absolute( $lookupTable ) or die( 'Absolute lookup table file expected' );
-    grep ($lookupTableType eq $_, qw/ hash btree cdb /) or die(
-        sprintf( "Unsupported '%s' lookup table type. Available types are: %s", $lookupTableType, 'btree, cdb and hash' )
+
+    grep ($lookupTableType eq lc $_, keys %{ $self->getAvailableDbDrivers() } ) or die(
+        sprintf( "Unknown '%s' database type. Available types are: %s", $lookupTableType, join ', ', keys %{ $self->getAvailableDbDrivers() } )
     );
 
     if ( $delayed ) {
-        $self->{'mta'}->{'_postmap'}->{$lookupTable} //= $lookupTableType;
+        $self->{'_postmap'}->{$lookupTable} //= $lookupTableType;
         return;
     }
 
@@ -852,7 +857,7 @@ sub _createUserAndGroup
         group    => $self->{'config'}->{'MTA_MAILBOX_GID_NAME'},
         comment  => 'vmail user',
         home     => $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
-        system   => 1
+        system   => TRUE
     );
     $systemUser->addSystemUser();
     $systemUser->addToGroup( $::imscpConfig{'IMSCP_GROUP'} );
@@ -929,6 +934,12 @@ sub _buildAliasesDb
 {
     my ( $self ) = @_;
 
+    my $databaseDir = dirname( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} );
+    my $databaseName = basename( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} );
+
+    # Remove any previous database (covers case where default database type has been changed)
+    iMSCP::Dir->new( dirname => $databaseDir )->clear( qr/\Q$databaseName.\E(?:c?db)$/ );
+
     $self->{'eventManager'}->registerOne(
         'beforePostfixBuildConfFile',
         sub {
@@ -939,10 +950,14 @@ sub _buildAliasesDb
     );
     $self->buildConfFile(
         ( -f $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ? $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} : File::Temp->new() ),
-        $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}, undef, undef, { srcname => basename( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ) }
+        $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'},
+        undef,
+        undef,
+        { srcname => $databaseName }
     );
 
-    my $rs = execute( 'newaliases', \my $stdout, \my $stderr );
+    # FIXME: Relying on default DB type will pose problem when the MySQL database type will be available
+    my $rs = execute( [ 'postalias', "@{ [ $self->{'_db'}->getDbType() ] }:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
@@ -962,8 +977,12 @@ sub _buildMainCfFile
     my $baseServerIp = ::setupGetQuestion( 'BASE_SERVER_IP' );
     my $baseServerIpType = iMSCP::Net->getInstance->getAddrVersion( $baseServerIp );
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
-    my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} ); # FIXME or die?
-    my $gid = getgrnam( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} ); # FIXME or die?
+    my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} ) or die(
+        sprintf( "Couldn't find '%s' user", $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} )
+    );
+    my $gid = getgrnam( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} ) or die(
+        sprintf( "Couldn't find '%s' group", $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} )
+    );
 
     $self->buildConfFile( 'main.cf', $self->{'config'}->{'MTA_MAIN_CONF_FILE'} );
     $self->postconf(
@@ -974,7 +993,8 @@ sub _buildMainCfFile
         mydomain             => { values => [ "$hostname.local" ] },
         myorigin             => { values => [ '$myhostname' ] },
         smtpd_banner         => { values => [ "\$myhostname ESMTP i-MSCP $::imscpConfig{'Version'} Managed" ] },
-        alias_database       => { values => [ $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ] },
+        # FIXME: Relying on default DB type will pose problem when the MySQL database type will be available
+        alias_database       => { values => [ "@{ [ $self->{'_db'}->getDbType() ] }:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ] },
         alias_maps           => { values => [ '$alias_database' ] },
         mail_spool_directory => { values => [ $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'} ] },
         virtual_mailbox_base => { values => [ $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} ] },
@@ -1000,20 +1020,21 @@ sub _buildMainCfFile
                 smtpd_tls_key_file               => { values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ] },
                 smtpd_tls_auth_only              => { values => [ 'no' ] },
                 smtpd_tls_received_header        => { values => [ 'yes' ] },
-                smtpd_tls_session_cache_database => { values => [ 'btree:/var/lib/postfix/smtpd_scache' ] },
+                smtpd_tls_session_cache_database => { values => [ 'btree:${data_directory}/smtpd_scache' ] },
                 smtpd_tls_session_cache_timeout  => { values => [ '3600s' ] },
                 # smtp TLS parameters (opportunistic)
                 smtp_tls_security_level          => { values => [ 'may' ] },
                 smtp_tls_ciphers                 => { values => [ 'high' ] },
                 smtp_tls_exclude_ciphers         => { values => [ 'aNULL', 'MD5' ] },
                 smtp_tls_protocols               => { values => [ '!SSLv2', '!SSLv3' ] },
-                smtp_tls_loglevel                => { values => [ '0' ] },
-                smtp_tls_CAfile                  => { values => [ '/etc/ssl/certs/ca-certificates.crt' ] },
-                smtp_tls_session_cache_database  => { values => [ 'btree:/var/lib/postfix/smtp_scache' ] }
+                smtp_tls_loglevel                => { values => [ 0 ] },
+                smtp_tls_CAfile                  => { values => [ $::imscpConfig{'DISTRO_CA_BUNDLE'} ] },
+                smtp_tls_session_cache_database  => { values => [ 'btree:${data_directory}/smtp_scache' ] },
+                smtp_tls_session_cache_timeout   => { values => [ '3600s' ] }
             );
 
             if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '2.10.0' ) ) {
-                $params{'smtpd_relay_restrictions'} = { values => [ '' ], empty => 1 };
+                $params{'smtpd_relay_restrictions'} = { values => [ '' ], empty => TRUE };
             }
 
             if ( version->parse( $self->{'config'}->{'MTA_VERSION'} ) >= version->parse( '3.0.0' ) ) {
@@ -1085,32 +1106,16 @@ sub _shutdown
 {
     my ( $self, $priority ) = @_;
 
+    while ( my ( $path, $type ) = each( %{ $self->{'_postmap'} } ) ) {
+        # We need test for database existence as it can have been removed
+        next unless -f $path;
+        $self->postmap( $path, $type );
+    }
+
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
     iMSCP::Service->getInstance()->registerDelayedAction( 'postfix', [ $action, sub { $self->$action(); } ], $priority );
 }
-
-=item END
-
- Regenerate Postfix maps
-
-=cut
-
-END
-    {
-        return if $? || iMSCP::Getopt->context() eq 'installer';
-
-        return unless my $instance = __PACKAGE__->hasInstance();
-
-        my ( $ret, $rs ) = ( 0, 0 );
-
-        while ( my ( $path, $type ) = each( %{ $instance->{'_postmap'} } ) ) {
-            $rs = $instance->postmap( $path, $type );
-            $ret ||= $rs;
-        }
-
-        $? ||= $ret;
-    }
 
 =back
 

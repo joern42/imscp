@@ -162,7 +162,7 @@ sub delete
 
 =item getDbType( )
 
- Return Database type supported by this driver
+ Return lowercase database type supported by this driver
 
  Return string
 
