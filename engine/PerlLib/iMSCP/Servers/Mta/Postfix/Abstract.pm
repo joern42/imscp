@@ -80,6 +80,12 @@ sub preinstall
     $self->SUPER::preinstall();
     $self->_createUserAndGroup();
     $self->_makeDirs();
+
+    # If the DB driver has been changed, we need trigger uninstallation of previous one
+    if ( length $self->{'old_config'}->{'MTA_DB_DRIVER'} && $self->{'config'}->{'MTA_DB_DRIVER'} ne $self->{'old_config'}->{'MTA_DB_DRIVER'} ) {
+        $self->getDbDriver( $self->{'old_config'}->{'MTA_DB_DRIVER'} )->uninstall();
+    }
+
     $self->{'_db'}->preinstall();
 }
 
