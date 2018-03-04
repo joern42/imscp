@@ -118,7 +118,7 @@ sub factory
  This method is called by the i-MSCP installer and reconfiguration script.
  That is the place where event listeners for setup dialog *MUST* be registered.
  
- Any server relying on i-MSCP setup dialog *MUST* override this method.
+ Any server relying on i-MSCP setup dialog *MUST* implement this method.
 
  Return void, die on failure
 
@@ -638,15 +638,11 @@ sub _loadConfig
                 $newConfig{$key} = $value if exists $newConfig{$key};
             }
 
-            # Make the old configuration available through the 'old_config'
-            # attribute
-            #tie %{$self->{'old_config'}}, 'iMSCP::Config', filename => "$self->{'cfgDir'}/$filename";
-            #%{$self->{'old_config'}} = %oldConfig;
+            # Make the old configuration available through the 'old_config' attribute
+            %{ $self->{'old_config'} } = %oldConfig;
 
-            untie( %newConfig );
-            untie( %oldConfig );
-
-            #iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename" )->remove();
+            untie %newConfig;
+            untie %oldConfig;
         } else {
             # For a fresh installation, we make the configuration file free of any placeholder
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
@@ -667,8 +663,8 @@ sub _loadConfig
         nodeferring => iMSCP::Getopt->context() eq 'installer';
 
     # Make the new configuration also available through the 'old_config'
-    # attribute, unless we have an old config
-    #%{$self->{'old_config'}} = %{$self->{'config'}} unless exists $self->{'old_config'} || iMSCP::Getopt->context() ne 'installer';
+    # attribute, unless we have an old config or we are not in installer context
+    %{ $self->{'old_config'} } = %{ $self->{'config'} } unless exists $self->{'old_config'} || iMSCP::Getopt->context() ne 'installer';
 }
 
 =item _shutdown( $priority )
@@ -678,7 +674,7 @@ sub _loadConfig
  This method is called automatically when the program exits.
  
  Any server that require a reload or restart when their configuration has been
- changed *MUST* override this method.
+ changed *MUST* implement this method.
 
  Param int $priority Server priority
  Return void
