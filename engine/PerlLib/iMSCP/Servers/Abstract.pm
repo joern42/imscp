@@ -28,6 +28,7 @@ use warnings;
 use Carp qw/ confess croak /;
 use File::Basename;
 use File::Spec;
+use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::EventManager;
@@ -432,19 +433,19 @@ sub reload
     die( sprintf( 'The %s class must implement the reload() method', ref $self ));
 }
 
-=item buildConfFile( $srcFile, $trgFile, [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] )
+=item buildConfFile( $file, [ $dest = $file [, \%mdata = { } [, \%sdata [, \%params = { } ] ] ] ] )
 
  Build the given server configuration file
  
  The following events *MUST* be triggered:
   - onLoadTemplate('<SNAME>', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params )
-  - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
-  - after<SNAME>BuildConfFile( \$cfgTpl, $filename, \$trgFile, $mdata, $sdata, $self->{'config'}, $params )
+  - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$dest, $mdata, $sdata, $self->{'config'}, $params )
+  - after<SNAME>BuildConfFile( \$cfgTpl, $filename, \$dest, $mdata, $sdata, $self->{'config'}, $params )
 
   where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param string|iMSCP::File $srcFile An iMSCP::File object, an absolute filepath or a filepath relative to the i-MSCP server configuration directory
- Param string $trgFile Target file path
+ Param string|iMSCP::File $file An iMSCP::File object, an absolute filepath or a filepath relative to the i-MSCP server configuration directory
+ Param string $dest OPTIONAL Destination file path, default to $file
  Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules, none if outside of an i-MSCP module context
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%params OPTIONAL parameters:
@@ -453,66 +454,75 @@ sub reload
   - group   : File group (default: EGID for a new file, no change for existent file)
   - mode    : File mode (default: 0666 & ~(UMASK(2) || 0) for a new file, no change for existent file )
   - cached  : Whether or not loaded file must be cached in memory
-  - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
+  - srcname : Make it possible to override default source filename passed into event listeners. Most used when file is a TMPFILE(3) file
  Return void, die on failure
 
 =cut
 
 sub buildConfFile
 {
-    my ( $self, $srcFile, $trgFile, $mdata, $sdata, $params ) = @_;
+    my ( $self, $file, $dest, $mdata, $sdata, $params ) = @_;
     $mdata //= {};
     $sdata //= {};
     $params //= {};
 
-    defined $srcFile or croak( 'Missing or undefined $srcFile parameter' );
-    defined $trgFile or croak( 'Missing or undefined $trgFile parameter' );
+    defined $file or croak( 'Missing or undefined $file parameter' );
+
+    $dest //= "$file"; # Force interpolation as $file can be a stringyfiable iMSCP::File object
 
     my ( $sname, $cfgTpl ) = ( $self->getServerName(), undef );
-    my ( $filename, $path ) = fileparse( $srcFile );
+    my ( $filename, $path ) = fileparse( $file );
     $params->{'srcname'} //= $filename;
 
-    my $file;
-    if ( $params->{'cached'} && exists $self->{'_templates'}->{"$srcFile"} ) {
-        $file = $self->{'_templates'}->{$srcFile};
+    if ( $params->{'cached'} && exists $self->{'_templates'}->{"$file"} ) {
+        $file = $self->{'_templates'}->{"$file"};
     } else {
+        # Trigger the onLoadTemplate event to make 3rd-party components able to override default template
         $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $sname, $params->{'srcname'}, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
 
         if ( defined $cfgTpl ) {
-            if ( ref $srcFile eq 'iMSCP::File' ) {
-                $file = $srcFile->set( $cfgTpl );
+            # Template has been overridden by an event listener
+            if ( ref $file eq 'iMSCP::File' ) {
+                $file->set( $cfgTpl );
             } else {
-                $file = iMSCP::File->new( filename => $srcFile )->set( $cfgTpl );
+                $file = iMSCP::File->new( filename => $file )->set( $cfgTpl );
             }
 
             undef $cfgTpl;
-        } elsif ( ref $srcFile eq 'iMSCP::File' ) {
-            $file = $srcFile;
-        } else {
-            $srcFile = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
-            $file = iMSCP::File->new( filename => $srcFile );
+        } elsif ( ref $file ne 'iMSCP::File' ) {
+            $file = iMSCP::File->new( filename => index( $path, '/' ) != 0 ? File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) : $file );
         }
 
-        $self->{'_templates'}->{"$srcFile"} = $file if $params->{'cached'};
+        $self->{'_templates'}->{"$file"} = $file if $params->{'cached'};
     }
 
     # Localize changes as we want keep the template clean (template caching)
     local $file->{'file_content'} if $params->{'cached'};
 
-    $cfgTpl = $file->getAsRef();
+    # If the file doesn't already exist, skips loading of file's content, else an error would be raised.
+    $cfgTpl = $file->getAsRef( -e $file ? FALSE : TRUE );
 
+    # Triggers the before<SNAME>BuildConfFile event to make 3rd-party components able to act on the template
     $self->{'eventManager'}->trigger(
-        "before${sname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+        "before${sname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$dest, $mdata, $sdata, $self->{'config'}, $params
     );
 
-    processByRef( $sdata, $cfgTpl ) if %{ $sdata }; # Process server data (highter priority
-    processByRef( $mdata, $cfgTpl ) if %{ $mdata }; # Process module data
+    # Expands the template variables using server and module data.
+    # Server data have higher priority.
+    processByRef( $sdata, $cfgTpl ) if %{ $sdata };
+    processByRef( $mdata, $cfgTpl ) if %{ $mdata };
 
+    # Triggers the after<SNAME>BuildConfFile event to make 3rd-party components able to act on the template
     $self->{'eventManager'}->trigger(
-        "after${sname}dBuildConfFile", $cfgTpl, $params->{'srcname'}, \$trgFile, $mdata, $sdata, $self->{'config'}, $params
+        "after${sname}dBuildConfFile", $cfgTpl, $params->{'srcname'}, \$dest, $mdata, $sdata, $self->{'config'}, $params
     );
 
-    $file->{'filename'} = File::Spec->canonpath( $trgFile );
+    # Locally update the file path according to the desired destination if
+    # needed. We operate locally because the caller can have provided an
+    # iMSCP::File object, in which case it is not desirable to propagate the
+    # change.
+    local $file->{'filename'} = File::Spec->canonpath( $dest ) unless "$file" eq $dest;
+
     $file->save( $params->{'umask'} );
     $file->owner( $params->{'user'} // -1, $params->{'group'} // -1 ) if defined $params->{'user'} || defined $params->{'group'};
     $file->mode( $params->{'mode'} ) if defined $params->{'mode'};
