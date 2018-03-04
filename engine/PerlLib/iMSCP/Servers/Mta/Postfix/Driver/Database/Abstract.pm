@@ -25,6 +25,7 @@ package iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
@@ -34,6 +35,25 @@ use parent 'iMSCP::Common::Object';
 =head1 PUBLIC METHODS
 
 =over 4
+
+=item setupDialog( \%dialog )
+
+ Driver setup dialog
+
+ This method *SHOULD* be implemented by any database driver requiring
+ setup dialog.
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 on success, other on failure
+
+=cut
+
+sub setupDialog
+{
+    my ( $self, $dialog ) = @_;
+
+    0;
+}
 
 =item preinstall( )
 

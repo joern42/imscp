@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Mta::Postfix::Driver::Database::BTree - i-MSCP BTree database driver for Postfix
+ iMSCP::Servers::Mta::Postfix::Driver::Database::CDB - i-MSCP CDB database driver for Postfix
 
 =cut
 
@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Servers::Mta::Postfix::Driver::Database::Btree;
+package iMSCP::Servers::Mta::Postfix::Driver::Database::CDB;
 
 use strict;
 use warnings;
@@ -29,9 +29,9 @@ use parent 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash';
 
 =head1 DESCRIPTION
 
- i-MSCP BTree database driver for Postfix.
+ i-MSCP CDB database driver for Postfix.
  
- See http://www.postfix.org/DB_README.html
+ See http://www.postfix.org/CDB_README.html
 
 =head1 PUBLIC METHODS
 
@@ -47,7 +47,7 @@ sub getDbType
 {
     my ( $self ) = @_;
 
-    'btree';
+    'cdb';
 }
 
 =back

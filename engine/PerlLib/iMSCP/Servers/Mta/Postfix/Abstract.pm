@@ -94,6 +94,7 @@ sub install
     my ( $self ) = @_;
 
     $self->_setVersion();
+    $self->_setDefaultDatabaseType();
     $self->_configure();
     $self->{'_db'}->install();
 }
@@ -553,12 +554,12 @@ sub getTraffic
     $trafficIndexDb->{'smtp_lineContent'} = $logs[$#logs];
 }
 
-=item postmap( $lookupTable [, $lookupTableType = $self->{'_db'}->getDbType() [, $delayed = FALSE ] ] )
+=item postmap( $lookupTable [, $lookupTableType = $self->{'config}->{'MTA_DB_DEFAULT_TYPE'} [, $delayed = FALSE ] ] )
 
  Provides an interface to POSTMAP(1) for creating/updating Postfix databases (lookup tables)
 
  Param string $lookupTable Full path to lookup table
- Param string $lookupTableType OPTIONAL Lookup table type (default: hash)
+ Param string $lookupTableType OPTIONAL Lookup table type
  Param bool $delayed Flag indicating whether creation/update of the give lookup table must be delayed
  Return void, die on failure
  FIXME: Relying on default DB type will pose problem when the MySQL database type will be available
@@ -750,6 +751,8 @@ sub postconf
         }
     }
 
+ See also: http://www.postfix.org/DATABASE_README.html#types
+
  Return hashref List of available database driver types
 
 =cut
@@ -834,7 +837,7 @@ EOF
 
     ::setupSetQuestion( 'MTA_DB_DRIVER', $availableDbDrivers->{$value}->{'class'} );
     $self->{'config'}->{'MTA_DB_DRIVER'} = $availableDbDrivers->{$value}->{'class'};
-    0;
+    $self->{'_db'}->setupDialog();
 }
 
 =item _createUserAndGroup( )
@@ -921,6 +924,27 @@ sub _setVersion
     debug( sprintf( 'Postfix version set to: %s', $stdout ));
 }
 
+=item _setDefaultDatabaseType( )
+
+ Set Postfix default database type
+
+ Return void, die on failure
+
+=cut
+
+sub _setDefaultDatabaseType
+{
+    my ( $self ) = @_;
+
+    my $rs = execute( [ 'postconf', '-d', '-h', 'default_database_type' ], \my $stdout, \my $stderr );
+    debug( $stdout ) if $stdout;
+    !$rs or die( $stderr || 'Unknown error' );
+    length $stdout or die( "Couldn't guess default Postfix database type from the `postconf -d -h default_database_type` command output" );
+    chomp( $stdout );
+    $self->{'config'}->{'MTA_DB_DEFAULT_TYPE'} = $stdout;
+    debug( sprintf( 'Postfix default database type set to: %s', $stdout ));
+}
+
 =item _buildAliasesDb( )
 
  Build aliases database
@@ -933,11 +957,11 @@ sub _buildAliasesDb
 {
     my ( $self ) = @_;
 
-    my $databaseDir = dirname( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} );
-    my $databaseName = basename( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} );
+    my $dbDir = dirname( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} );
+    my $dbName = basename( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} );
 
     # Remove any previous database (covers case where default database type has been changed)
-    iMSCP::Dir->new( dirname => $databaseDir )->clear( qr/\Q$databaseName.\E(?:c?db)$/ );
+    iMSCP::Dir->new( dirname => $dbDir )->clear( qr/\Q$dbName.\E(?:c?db)$/ );
 
     $self->{'eventManager'}->registerOne(
         'beforePostfixBuildConfFile',
@@ -947,16 +971,11 @@ sub _buildAliasesDb
             ${ $_[0] } .= 'root: ' . ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' ) . "\n";
         }
     );
-    $self->buildConfFile(
-        ( -f $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ? $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} : File::Temp->new() ),
-        $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'},
-        undef,
-        undef,
-        { srcname => $databaseName }
-    );
+    $self->buildConfFile( iMSCP::File->new( filename => $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ), undef, undef, undef, { srcname => $dbName } );
 
-    # FIXME: Relying on default DB type will pose problem when the MySQL database type will be available
-    my $rs = execute( [ 'postalias', "@{ [ $self->{'_db'}->getDbType() ] }:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ], \my $stdout, \my $stderr );
+    my $rs = execute(
+        [ 'postalias', "$self->{'config'}->{'MTA_DB_DEFAULT_TYPE'}:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ], \my $stdout, \my $stderr
+    );
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
@@ -994,8 +1013,7 @@ sub _buildMainCfFile
         mydomain             => { values => [ "$hostname.local" ] },
         myorigin             => { values => [ '$myhostname' ] },
         smtpd_banner         => { values => [ "\$myhostname ESMTP i-MSCP $::imscpConfig{'Version'} Managed" ] },
-        # FIXME: Relying on default DB type will pose problem when the MySQL database type will be available
-        alias_database       => { values => [ "@{ [ $self->{'_db'}->getDbType() ] }:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ] },
+        alias_database       => { values => [ "$self->{'config'}->{'MTA_DB_DEFAULT_TYPE'}:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ] },
         alias_maps           => { values => [ '$alias_database' ] },
         mail_spool_directory => { values => [ $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'} ] },
         virtual_mailbox_base => { values => [ $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} ] },

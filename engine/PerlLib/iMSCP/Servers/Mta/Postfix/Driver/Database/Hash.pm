@@ -41,9 +41,9 @@ use parent 'iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract';
 
 =over 4
 
-=item preinstall( )
+=item install( )
 
- See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::preinstall()
+ See iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract::install()
 
 =cut
 
@@ -167,7 +167,6 @@ sub _init
 {
     my ( $self ) = @_;
 
-    ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
     $self->{'_db'} = {};
     $self->SUPER::_init();
 }
@@ -231,13 +230,7 @@ sub _setupDatabases
     my ( $self ) = @_;
 
     # Make sure to start with a clean database directory by re-creating it from scratch
-    iMSCP::Dir->new( dirname => $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} )->remove()->make(
-        {
-            umask => 0027,
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'}
-        }
-    );
+    iMSCP::Dir->new( dirname => $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} )->remove()->make( { umask => 0027 } );
 
     # Create empty databases
     for my $db ( qw/ virtual_mailbox_domains virtual_mailbox_maps virtual_alias_maps relay_domains transport_maps / ) {
@@ -246,13 +239,14 @@ sub _setupDatabases
 
     # Add configuration in the main.cf file
     my $dbType = $self->getDbType();
+    my $dbDir = $self->{'mta'}->{'config'}->{'MTA_DB_DIR'};
     $self->{'mta'}->postconf(
         virtual_alias_domains   => { values => [ '' ], empty => TRUE },
-        virtual_alias_maps      => { values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_DB_DIR'}/virtual_alias_maps" ] },
-        virtual_mailbox_domains => { values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_DB_DIR'}/virtual_mailbox_domains" ] },
-        virtual_mailbox_maps    => { values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_DB_DIR'}/virtual_mailbox_maps" ] },
-        relay_domains           => { values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_DB_DIR'}/relay_domains" ] },
-        transport_maps          => { values => [ "$dbType:$self->{'mta'}->{'config'}->{'MTA_DB_DIR'}/transport_maps" ] }
+        virtual_alias_maps      => { values => [ "$dbType:$dbDir/virtual_alias_maps" ] },
+        virtual_mailbox_domains => { values => [ "$dbType:$dbDir/virtual_mailbox_domains" ] },
+        virtual_mailbox_maps    => { values => [ "$dbType:$dbDir/virtual_mailbox_maps" ] },
+        relay_domains           => { values => [ "$dbType:$dbDir/relay_domains" ] },
+        transport_maps          => { values => [ "$dbType:$dbDir/transport_maps" ] }
     );
 }
 
