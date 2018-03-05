@@ -312,7 +312,7 @@ sub owner
   - umask          : UMASK(2) for a new diretory. For instance if the given umask is 0027, mode will be: 0777 & ~0027 = 0750 (in octal)
   - user           : File owner (default: EUID for a new file, no change for existent directory unless fixpermissions is TRUE)
   - group          : File group (default: EGID for a new file, no change for existent directory unless fixpermissions is TRUE)
-  - mode           : File mode (default: 07777 & ~(UMASK(2) || 0) for a new file, no change for existent directory unless fixpermissions is TRUE)
+  - mode           : File mode (default: 0777 & ~(UMASK(2) || 0) for a new file, no change for existent directory unless fixpermissions is TRUE)
   - fixpermissions : If TRUE, set ownership and permissions even for existent $self->{'directory'}
  Return self, die on failure
 

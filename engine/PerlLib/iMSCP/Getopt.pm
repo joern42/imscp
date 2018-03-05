@@ -82,7 +82,7 @@ $usage
  -p,    --preseed <file>          Path to preseed file.
  -r,    --reconfigure [item,...]  Type `help` for list of allowed items.
  -v,    --verbose                 Enable verbose mode.
- -x,    --fix-permissions         Ask installer to fix permissions recursively.
+ -x,    --fix-permissions         Fix file/directory permissions.
  -z     --no-ansi                 Disable ANSI output
 EOF
         }
