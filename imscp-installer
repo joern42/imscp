@@ -30,13 +30,25 @@ use Cwd qw/ abs_path /;
 $ENV{'LANG'} = 'C.UTF-8';
 setlocale( LC_MESSAGES, 'C.UTF-8' );
 
+my $noansi = grep ( $_ =~ /^-(?:\b[^-]*z[^-]*\b|-no-ansi$)/, @ARGV );
+
 sub prntInfo
 {
-    print STDOUT "[\x1b[0;34mINFO\x1b[0m] @_\n";
+    if ( $noansi ) {
+        print STDOUT "[INFO]  @_\n";
+        return;
+    }
+
+    print STDOUT "[\x1b[0;34mINFO\x1b[0m]  @_\n";
 }
 
 sub prntError
 {
+    if ( $noansi ) {
+        print STDERR "[ERROR] @_\n";
+        exit 1;
+    }
+
     print STDERR "[\x1b[0;31mERROR\x1b[0m] @_\n";
     exit 1;
 }

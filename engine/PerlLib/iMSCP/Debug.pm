@@ -232,13 +232,22 @@ sub output( $;$ )
 {
     my ( $text, $level ) = @_;
 
-    return "$text\n" unless defined $level;
-    return "[\x1b[0;34mDEBUG\x1b[0m] $text\n" if $level eq 'debug';
-    return "[\x1b[0;34mINFO\x1b[0m]  $text\n" if $level eq 'info';
-    return "[\x1b[0;33mWARN\x1b[0m]  $text\n" if $level eq 'warn';
-    return "[\x1b[0;31mERROR\x1b[0m] $text\n" if $level eq 'error';
-    return "[\x1b[0;31mFATAL\x1b[0m] $text\n" if $level eq 'fatal';
-    return "[\x1b[0;32mDONE\x1b[0m]  $text\n" if $level eq 'ok';
+    if ( !iMSCP::Getopt->noansi && defined $level ) {
+        return "[\x1b[0;34mDEBUG\x1b[0m] $text\n" if $level eq 'debug';
+        return "[\x1b[0;34mINFO\x1b[0m]  $text\n" if $level eq 'info';
+        return "[\x1b[0;33mWARN\x1b[0m]  $text\n" if $level eq 'warn';
+        return "[\x1b[0;31mERROR\x1b[0m] $text\n" if $level eq 'error';
+        return "[\x1b[0;31mFATAL\x1b[0m] $text\n" if $level eq 'fatal';
+        return "[\x1b[0;32mDONE\x1b[0m]  $text\n" if $level eq 'ok';
+    } elsif ( defined $level ) {
+        return "[DEBUG] $text\n" if $level eq 'debug';
+        return "[INFO]  $text\n" if $level eq 'info';
+        return "[WARN]  $text\n" if $level eq 'warn';
+        return "[ERROR] $text\n" if $level eq 'error';
+        return "[FATAL] $text\n" if $level eq 'fatal';
+        return "[DONE]  $text\n" if $level eq 'ok';
+    }
+
     "$text\n";
 }
 
@@ -320,11 +329,7 @@ END {
         endDebug for @{ $self->{'loggers'} };
 
         if ( isatty( \*STDERR ) ) {
-            if ( iMSCP::Getopt->noansi ) {
-                print STDERR "@{ [ '[' . uc $_->{'tag'} . ']' ] } $_->{'message'}\n" for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
-            } else {
-                print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
-            }
+            print STDERR output( $_->{'message'}, $_->{'tag'} ) for $self->{'logger'}()->retrieve( tag => qr/(?:warn|error)/ );
             return;
         }
 
