@@ -67,6 +67,7 @@ my $forceDistBootstrap;
 if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
     my ( $bootstrapDir, $bootstrapFile ) = ( 'installer/bootstrap' );
 
+    # Basic heuristic which should work in most cases
     if ( -f '/etc/debian_version' || -f '/etc/devuan_version' ) {
         $bootstrapFile = 'debian.pl';
     } elsif ( -f '/etc/mageia-release' ) {
@@ -90,14 +91,14 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
     do "$bootstrapDir/$bootstrapFile" or prntError( sprintf( "Couldn't bootstrap the i-MSCP installer: %s", $@ || $! ));
 } else {
     # Make sure that all requirements are met, else force execution of the
-    # distribution installer bootstrap execution
+    # distribution installer bootstrap
     eval {
         prntInfo 'Check for i-MSCP requirements...';
         require iMSCP::Requirements;
         iMSCP::Requirements->new()->checkPrograms()->checkPhpModules()->checkPerlModules();
     };
     if ( $@ ) {
-        prntInfo 'Pre-requirements are not met. Executing distribution installer bootstrap...';
+        prntInfo 'i-MSCP requirements are not met. Executing distribution installer bootstrap...';
         $forceDistBootstrap = 1;
         goto DIST_BOOTSTRAP;
     }
