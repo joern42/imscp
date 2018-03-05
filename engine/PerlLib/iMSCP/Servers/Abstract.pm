@@ -514,7 +514,7 @@ sub buildConfFile
 
     # Triggers the after<SNAME>BuildConfFile event to make 3rd-party components able to act on the template
     $self->{'eventManager'}->trigger(
-        "after${sname}dBuildConfFile", $cfgTpl, $params->{'srcname'}, \$dest, $mdata, $sdata, $self->{'config'}, $params
+        "after${sname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$dest, $mdata, $sdata, $self->{'config'}, $params
     );
 
     # Locally update the file path according to the desired destination if
