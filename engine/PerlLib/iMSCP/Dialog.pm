@@ -94,7 +94,7 @@ sub fselect
     wantarray ? ( $ret, $output ) : $output;
 }
 
-=item radiolist( $text, \%choices [, $defaultTag = '' ] )
+=item radiolist( $text, \%choices [, $defaultTag = none [, $showTags = FALSE ] ] )
 
  Show radio list dialog
  
@@ -102,14 +102,15 @@ sub fselect
 
  Param string $text Text to show
  Param array \%choices List of choices where keys are tags and values are items.
- Param string $default Default selected tag
+ Param string $default OPTIONAL Default selected tag
+ Param bool $showTags OPTIONAL Flag indicating whether or not tags must be showed in dialog box
  Return list|string Selected tag or list containing both the dialog exit code and selected tag
 
 =cut
 
 sub radiolist
 {
-    my ( $self, $text, $choices, $defaultTag ) = @_;
+    my ( $self, $text, $choices, $defaultTag, $showTags ) = @_;
     $defaultTag //= '';
 
     my @init;
@@ -118,7 +119,7 @@ sub radiolist
         push @init, escapeShell( $choices{$item} ), escapeShell( $item ), $defaultTag eq $choices{$item} ? 'on' : 'off';
     }
 
-    local $self->{'opts'}->{'no-tags'} = ''; # Don't display tags in dialog
+    local $self->{'opts'}->{'no-tags'} = '' unless $showTags;
     my ( $ret, $tag ) = $self->_textbox( $text, 'radiolist', "@{ [ scalar keys %{ $choices } ] } @init" );
     wantarray ? ( $ret, $tag ) : $tag;
 }
