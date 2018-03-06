@@ -244,7 +244,7 @@ sub postuninstall
 
 =item setEnginePermissions( )
 
- Sets engnine permissions
+ Sets engine permissions
 
  This method is called by the i-MSCP engine permission management script.
 
@@ -279,7 +279,7 @@ sub setGuiPermissions
 
 =item getServerName( )
 
- Return CamelCase server name
+ Return internal CamelCase server name
  
  Server name must follow CamelCase naming convention such as Apache, Courier,
  Dovecot, LocalServer... See https://en.wikipedia.org/wiki/Camel_case
@@ -354,10 +354,6 @@ sub getVersion
  This method is called after each dpkg(1) invocation. This make it possible to
  perform some maintenance tasks such as updating server versions.
 
- This method is primarily used for event names construct at runtime, and at
- some other places where the internal server name must be showed such as in
- the engine/tools/imscp-info.pl script.
-
  Only Debian server implementations *SHOULD* implement that method.
 
  Return void, die on failure
@@ -389,7 +385,7 @@ sub dpkgPostInvokeTasks
 
 sub getTraffic
 {
-    my ( $self ) = @_;
+    my ( $self, $trafficDb, $logFile, $trafficIndexDb ) = @_;
 }
 
 =item start( )
@@ -456,7 +452,7 @@ sub reload
 
  Build the given server configuration file
  
- The following events *MUST* be triggered:
+ The following events are triggered:
   - onLoadTemplate('<SNAME>', $filename, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params )
   - before<SNAME>BuildConfFile( \$cfgTpl, $filename, \$dest, $mdata, $sdata, $self->{'config'}, $params )
   - after<SNAME>BuildConfFile( \$cfgTpl, $filename, \$dest, $mdata, $sdata, $self->{'config'}, $params )
@@ -590,7 +586,7 @@ sub AUTOLOAD
 
 =item _init( )
 
- See iMSCP::Common::Singleton::_init(), die on failure
+ See iMSCP::Common::Singleton::_init()
 
 =cut
 
@@ -653,7 +649,7 @@ sub _loadConfig
             # By doing this, the value of the old DATABASE_USER parameter will
             # be automatically used as value for the new FTP_SQL_USER parameter.
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
-            processByRef( \%oldConfig, $file->getAsRef(), 'empty_unknown' );
+            processByRef( \%oldConfig, $file->getAsRef(), TRUE );
             $file->save();
             undef( $file );
 
@@ -671,7 +667,7 @@ sub _loadConfig
         } else {
             # For a fresh installation, we make the configuration file free of any placeholder
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
-            processByRef( {}, $file->getAsRef(), 'empty_unknown' );
+            processByRef( {}, $file->getAsRef(), TRUE );
             $file->save();
             undef( $file );
         }
@@ -713,7 +709,7 @@ sub _loadConfig
 
 sub _shutdown
 {
-    my ( $self ) = @_;
+    my ( $self, $priority ) = @_;
 }
 
 =item END
