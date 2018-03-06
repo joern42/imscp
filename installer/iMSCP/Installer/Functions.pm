@@ -195,7 +195,14 @@ sub build
     }
 
     my @steps = (
-        [ \&_packDistributionFiles, 'Packing required distribution files' ],
+        # The packages installation step should be part of the installation
+        # step, not part of the build step. We cannot do that right now because
+        # the imscp-reconfigure script doesn't invoke the distribution installer
+        # and therefore, packages won't be installed. This could be solved merging
+        # both imscp-installer and imscp-reconfigure scripts together, and installing
+        # the installer libraries in the engine/ directory.
+        ( iMSCP::Getopt->skippackages ? () : [ \&_installDistributionPackages, 'Installing distribution packages' ] ),
+        [ \&_packDistributionFiles, 'Packing distribution files' ],
         [ \&_removeObsoleteFiles, 'Removing obsolete files' ],
         [ \&_savePersistentData, 'Saving persistent data' ]
     );
@@ -298,8 +305,6 @@ EOF
     undef @runningJobs;
 
     my @steps = (
-        ( iMSCP::Getopt->skippackages ? () : [ \&_installDistributionPackages, 'Installing distribution packages' ] ),
-        [ \&_checkRequirements, 'Checking for requirements' ],
         [ \&installDistributionFiles, 'Installing distribution files' ],
         [ \&::setupBoot, 'Booting installer' ],
         [ \&::setupRegisterListeners, 'Registering servers/packages event listeners' ],
