@@ -455,7 +455,7 @@ sub reload
   - mode    : File mode (default: 0666 & ~(UMASK(2) || 0) for a new file, no change for existent file )
   - cached  : Whether or not loaded file must be cached in memory
   - srcname : Make it possible to override default source filename passed into event listeners. Most used when file is a TMPFILE(3) file
-  - create  : Whether $dest must be created when $file doesn't exist and its content is not set (empty) yet. An error is raised by default.
+  - create  : Whether $dest must be created when $file doesn't exist and its content is not set (empty). An error is raised by default.
  Return void, die on failure
 
 =cut
@@ -502,7 +502,7 @@ sub buildConfFile
     # Localize changes as we want keep the template clean (template caching)
     local $file->{'file_content'} if $params->{'cached'};
 
-    # If the file doesn't exist and $file content is not set (empty) yet,
+    # If $file doesn't exist and its content is not set (empty),
     # raise an error, unless caller asked for the file creation.
     $cfgTpl = $file->getAsRef( !$params->{'create'} ? FALSE : !-f $file );
 
