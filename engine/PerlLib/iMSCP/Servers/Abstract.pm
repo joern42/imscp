@@ -455,6 +455,7 @@ sub reload
   - mode    : File mode (default: 0666 & ~(UMASK(2) || 0) for a new file, no change for existent file )
   - cached  : Whether or not loaded file must be cached in memory
   - srcname : Make it possible to override default source filename passed into event listeners. Most used when file is a TMPFILE(3) file
+  - create  : Whether $dest must be created when $file doesn't exist and its content is not set (empty) yet. An error is raised by default.
  Return void, die on failure
 
 =cut
@@ -468,7 +469,8 @@ sub buildConfFile
 
     defined $file or croak( 'Missing or undefined $file parameter' );
 
-    $dest //= "$file"; # Force interpolation as $file can be a stringyfiable iMSCP::File object
+    # Force interpolation as $file can be a stringyfiable iMSCP::File object
+    $dest //= "$file";
 
     my ( $sname, $cfgTpl ) = ( $self->getServerName(), undef );
     my ( $filename, $path ) = fileparse( $file );
@@ -477,10 +479,11 @@ sub buildConfFile
     if ( $params->{'cached'} && exists $self->{'_templates'}->{"$file"} ) {
         $file = $self->{'_templates'}->{"$file"};
     } else {
-        # Trigger the onLoadTemplate event to make 3rd-party components able to override default template
+        # Trigger the onLoadTemplate event so that 3rd-party components are
+        # able to override default template
         $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $sname, $params->{'srcname'}, \$cfgTpl, $mdata, $sdata, $self->{'config'}, $params );
 
-        if ( defined $cfgTpl ) {
+        if ( length $cfgTpl ) {
             # Template has been overridden by an event listener
             if ( ref $file eq 'iMSCP::File' ) {
                 $file->set( $cfgTpl );
@@ -499,10 +502,12 @@ sub buildConfFile
     # Localize changes as we want keep the template clean (template caching)
     local $file->{'file_content'} if $params->{'cached'};
 
-    # If the file doesn't already exist, skips loading of file's content, else an error would be raised.
-    $cfgTpl = $file->getAsRef( -e $file ? FALSE : TRUE );
+    # If the file doesn't exist and $file content is not set (empty) yet,
+    # raise an error, unless caller asked for the file creation.
+    $cfgTpl = $file->getAsRef( !$params->{'create'} ? FALSE : !-f $file );
 
-    # Triggers the before<SNAME>BuildConfFile event to make 3rd-party components able to act on the template
+    # Triggers the before<SNAME>BuildConfFile event so that 3rd-party
+    # components are able to act on the template
     $self->{'eventManager'}->trigger(
         "before${sname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$dest, $mdata, $sdata, $self->{'config'}, $params
     );
@@ -512,7 +517,8 @@ sub buildConfFile
     processByRef( $sdata, $cfgTpl ) if %{ $sdata };
     processByRef( $mdata, $cfgTpl ) if %{ $mdata };
 
-    # Triggers the after<SNAME>BuildConfFile event to make 3rd-party components able to act on the template
+    # Triggers the after<SNAME>BuildConfFile event so that 3rd-party components
+    # are able to act on the template
     $self->{'eventManager'}->trigger(
         "after${sname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$dest, $mdata, $sdata, $self->{'config'}, $params
     );
