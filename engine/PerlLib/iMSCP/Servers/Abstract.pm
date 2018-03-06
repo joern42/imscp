@@ -353,7 +353,11 @@ sub getVersion
 
  This method is called after each dpkg(1) invocation. This make it possible to
  perform some maintenance tasks such as updating server versions.
- This method is primarily used for event names construct at runtime, and at some other places where the internal server name must be showed such as in the engine/tools/imscp-info.pl script.
+
+ This method is primarily used for event names construct at runtime, and at
+ some other places where the internal server name must be showed such as in
+ the engine/tools/imscp-info.pl script.
+
  Only Debian server implementations *SHOULD* implement that method.
 
  Return void, die on failure
