@@ -57,8 +57,9 @@ my %_SERVER_INSTANCES;
  Return the server priority
   
  The server priority determines the priority at which the server will be
- treated by the installer, DB tasks processor and some other scripts. It
- also determines the server's priority for start, restart and reload tasks.
+ treated by the installer, the database tasks processor, and some other
+ scripts. It also determines the server's priority for start, restart and
+ reload tasks where appliable.
 
  Return int Server priority
 
@@ -74,7 +75,7 @@ sub getPriority
  Creates and returns an iMSCP::Servers::Abstract server instance
 
  This method is not intented to be called on final iMSCP::Servers::Abstract
- server classes.
+ server classes. if you do so, an error will be raised.
 
  Param string $serverClass OPTIONAL Server class, default to selected server alternative
  Return iMSCP::Servers::Abstract, die on failure
@@ -174,7 +175,8 @@ sub install
  This method is called by the i-MSCP installer and reconfiguration script.
  
  Any server requiring post-installation tasks *SHOULD* implement this method,
- not forgetting to call it, unless starting the linked service(s) is not desired.
+ not forgetting to call it, unless starting the linked service(s) is not
+ desired.
 
  Return void, die on failure
 
@@ -264,7 +266,7 @@ sub setEnginePermissions
 
  This method is called by the i-MSCP GUI permission management script.
 
- Any server providing GUI files *SHOULD* implement this method.
+ Any server managing GUI files *SHOULD* implement this method.
 
  Return void, die on failure
 
@@ -281,6 +283,10 @@ sub setGuiPermissions
  
  Server name must follow CamelCase naming convention such as Apache, Courier,
  Dovecot, LocalServer... See https://en.wikipedia.org/wiki/Camel_case
+ 
+ This method is primarily used for event names construct at runtime, and at
+ some other places where the internal server name must be showed such as in
+ the engine/tools/imscp-info.pl script.
 
  Return string CamelCase server name
 
@@ -296,6 +302,8 @@ sub getServerName
 =item getHumanServerName( )
 
  Return the humanized name of this server
+
+ For instance: Apache 2.4.25 (MPM Event)
 
  Return string Humanized server name
 
@@ -345,7 +353,7 @@ sub getVersion
 
  This method is called after each dpkg(1) invocation. This make it possible to
  perform some maintenance tasks such as updating server versions.
- 
+ This method is primarily used for event names construct at runtime, and at some other places where the internal server name must be showed such as in the engine/tools/imscp-info.pl script.
  Only Debian server implementations *SHOULD* implement that method.
 
  Return void, die on failure
@@ -360,6 +368,13 @@ sub dpkgPostInvokeTasks
 =item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
 
  Get server traffic data
+
+ Any server for which traffic data are available *SHOULD* implement this
+ method. By default i-MSCP expects traffic data from FTP, HTTP, SMTP and
+ IMAP/POP services.
+
+ Have a look at iMSCP::Servers::Mta::Postfix::Abstract::getTraffic() for an
+ implementation example.
 
  Param hashref \%trafficDb Traffic database
  Param string $logFile Path to ftpd traffic log file (only when self-called)
@@ -590,7 +605,7 @@ sub _init
  Load the server configuration
  
  In installer context, also merge the old configuration with new configuration and make
- old configuration available through the 'old_config attribute.
+ old configuration available through the 'old_config' attribute.
 
  Param string $filename OPTIONAL i-MSCP server configuration filename
  Return void, die on failure
@@ -675,12 +690,17 @@ sub _loadConfig
 
 =item _shutdown( $priority )
 
- Reload or restart the server
+ Execute the server shutdown tasks
 
  This method is called automatically when the program exits.
  
- Any server that require a reload or restart when their configuration has been
- changed *MUST* implement this method.
+ Any i-MSCP server that require a reload or restart when their
+ configuration has been changed *MUST* implement this method.
+ 
+ Note that this doesn't limit to start/restart tasks. One i-MSCP server can
+ rely on that method to do specific tasks at the very end of the program.
+ For instance, that is the case of the i-MSCP Postfix server which need
+ create/update the lookup tables before the program exit.
 
  Param int $priority Server priority
  Return void
