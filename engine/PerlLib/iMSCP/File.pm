@@ -138,7 +138,7 @@ sub getAsRef
 
  Set content of this file
 
- Param string $content New file content
+ Param string $content File content
  Return self
 
 =cut
@@ -277,7 +277,7 @@ sub owner
   - Access Control List (ACL), timestamps, security context and extended attributes are not preserved.
 
  Param string $dest Destination path
- Param hash \%options OPTIONAL options:
+ Param hashref \%options OPTIONAL options:
   - umask               : OPTIONAL UMASK(2). See above for it usage cases. This option is only relevant when the preserve option is FALSE.
   - preserve            : See above for the behavior.
   - no_target_directory : If set to TRUE, treat $dest as a normal file
@@ -318,7 +318,7 @@ sub copy
     }
 
     endCopy:
-    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'filename'}, $dest, getMessageByType( 'error', { remove => TRUE } )));
+    $ret or die( sprintf( "Failed to copy '%s' to '%s': %s", $self->{'filename'}, $dest, scalar getMessageByType( 'error', { remove => TRUE } )));
     $self;
 }
 
@@ -337,7 +337,7 @@ sub copy
  behavior by setting the update_link_target option to FALSE.
 
  Param string $dest Destination
- Param hashref\%options OPTIONAL options
+ Param hashref \%options OPTIONAL options
   - update_link_target : If TRUE (default) update link target when target is a relative path
  Return self, die on failure
 
@@ -403,7 +403,7 @@ sub move
 
  Initialize iMSCP::File object
 
- Return iMSCP::File, croak if the filename attribute is not set
+ Return self, croak if the 'filename' attribute is not set
 
 =cut
 
@@ -417,16 +417,17 @@ sub _init
     $self;
 }
 
-=item _copyInternal( $srcName, $dstName, $newDst, $options )
+=item _copyInternal( $srcName, $dstName, $newDst, \%options )
 
  Copy the given file to the given destination
  
  The file can be of any type but directory. $newDst should be FALSE if the file
  $dstName might already exist.
  
- Param $string $srcName Source file path
- Param $string $dstName  Destination file path
- Param $bool $newDst Flag indicating whether or not $dstName might already exist. 
+ Param string $srcName Source file path
+ Param string $dstName  Destination file path
+ Param bool $newDst Flag indicating whether or not $dstName might already exist. 
+ param hashref \%options Copy options
  Return TRUE on success, FALSE on failure with error set through error()
 
 =cut
@@ -648,7 +649,9 @@ sub _copyReg
     }
 
     unless ( ${ $newDst } ) {
-        $destErrno = $! unless sysopen( $dstFH, $dstName, O_WRONLY | O_BINARY | O_TRUNC );
+        unless(sysopen( $dstFH, $dstName, O_WRONLY | O_BINARY | O_TRUNC )) {
+            $destErrno = $!;
+        }
     }
 
     open_with_O_CREAT:
@@ -677,7 +680,7 @@ sub _copyReg
         }
 
         # Otherwise, it's an error...
-        error( sprintf( "cannot create regular file '%s': $!", $dstName, $destErrno ));
+        error( sprintf( "cannot create regular file '%s': %s", $dstName, $destErrno ));
         $retVal = FALSE;
         goto closeSrc;
     }
@@ -725,13 +728,13 @@ sub _copyReg
     }
 
     closeSrcAndDst:
-    unless ( close( $srcFH ) ) {
+    unless ( close( $dstFH ) ) {
         error( sprintf( "failed to close '%s'", $srcName ));
         $retVal = FALSE;
     }
 
     closeSrc:
-    unless ( close( $dstFH ) ) {
+    unless ( close( $srcFH ) ) {
         error( sprintf( "failed to close '%s'", $dstName ));
         $retVal = FALSE;
     }
@@ -739,7 +742,7 @@ sub _copyReg
     $retVal;
 }
 
-=item _mknod($pathname, $mode, $dev)
+=item _mknod( $pathname, $mode, $dev )
 
  Create a special or ordinary file
  
@@ -759,7 +762,7 @@ sub _mknod
     syscall( &iMSCP::H2ph::SYS_mknod, $pathname, $mode, $dev );
 }
 
-=item _chownOrChmodFailureOk()
+=item _chownOrChmodFailureOk( )
  
  Return TRUE if it's OK for CHOWN(2) or CHMOD(2) and similar operations to
  fail, where $! is the error number that chown failed with.
@@ -783,8 +786,8 @@ sub _chownOrChmodFailureOk
 
  Return TRUE if owner in both arrays is identical
 
- Param \@ast array An array as returned by stat() and similars
- Param \@bst array An array as returned by stat() and similars
+ Param arrayref \@ast A reference to an array as returned by stat() and similars
+ Param arrayref \@bst A reference to an array as returned by stat() and similars
  Return bool TRUE if owner in both arrays is identical, FALSE otherwise
 
 =cut
@@ -800,8 +803,8 @@ sub _sameOwner
 
  Return TRUE if group in both arrays is identical
 
- Param \@ast array An array as returned by stat() and similars
- Param \@bst array An array as returned by stat() and similars
+ Param arrayref \@ast A reference to an array as returned by stat() and similars
+ Param arrayref \@bst A reference to an array as returned by stat() and similars
  Return bool TRUE if group in both arrays is identical, FALSE otherwise
 
 =cut
@@ -817,8 +820,8 @@ sub _isSameGroup
 
  Return TRUE if owner and group in both arrays are identical
 
- Param \@ast array An array containing elements as returned by stat() and similars
- Param \@bst array An array containing elements as returned by stat() and similars
+ Param arrayref \@ast A reference to an array containing elements as returned by stat() and similars
+ Param arrayref \@bst A reference to an array containing elements as returned by stat() and similars
  Return bool TRUE if owner and group in both arrays are identical, FALSE otherwise
 
 =cut
@@ -839,12 +842,12 @@ sub _sameOwnerAndGroup
  UID/GID, try to set only the GID. $newDst is TRUE if the file was newly
  created; otherwise $dst is the status of
 
- Param \%options Copy options
+ Param hashref \%options Copy options
  Param string $dstName Destination file path
  Param GLOB|undef $dstFH Destination file handle
- Param \@sst array An array as returned by stat() and similars
+ Param arrayref \@sst A reference to an array as returned by stat() and similars
  Param bool $newDst Flag indicating whether $dstName is a new file
- Param \@dst array An array as returned by stat() and similars
+ Param arrayref \@dst A reference to an array as returned by stat() and similars
  Return 1 if the initial syscall succeeds, 0 if it fails but it's OK not to preserve ownership, -1 otherwise and error set through error()
 
 =cut
@@ -904,8 +907,8 @@ sub _setOwnerSafe
 
  Return TRUE if ino/dev in both arrays are identical
 
- Param \@ast array An array containing elements as returned by stat() and similars
- Param \@bst array An array containing elements as returned by stat() and similars
+ Param arrayref \@ast A reference to an array containing elements as returned by stat() and similars
+ Param arrayref \@bst A reference to an array containing elements as returned by stat() and similars
  Return bool TRUE if owner and group in both arrays are identical, FALSE otherwise
 
 =cut
@@ -917,10 +920,10 @@ sub _sameInode
     $ast->[0] == $bst->[0] && $ast->[1] == $bst->[1];
 }
 
-=item __toString()
+=item __toString( )
 
- Return string representation of this object, that is the value of the
- $self->{'filename'} attribute.
+ Return string representation of this object, that is the value of the 'filename'
+ attribute.
 
 =cut
 
