@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <!--
+        The courier-authdaemon init script is copied only when the copy_if expression
+        evaluate to TRUE. Otherwise, it is removed by the service provider.
+    -->
+    <folder create_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1">${SYSTEM_ETC_DIR}/init.d</folder>
+    <!--
+        For ubuntu Trusty Thar we provide a specific version of the sysvinit
+        script as the init-d-script library is not available till
+        sysvinit-utils 2.88dsf-50
+    -->
+    <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1 &amp;&amp; '${DISTRO_CODENAME}' eq 'trusty'"
+                 srv_provider="courier-authdaemon" copy_as="courier-authdaemon" subdir="sysvinit" mode="0755"
+    >
+        ${SYSTEM_ETC_DIR}/init.d/courier-authdaemon.trusty
+    </copy_config>
+    <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1 &amp;&amp; '${DISTRO_CODENAME}' ne 'trusty'"
+                 srv_provider="courier-authdaemon" subdir="sysvinit" mode="0755"
+    >
+        ${SYSTEM_ETC_DIR}/init.d/courier-authdaemon
+    </copy_config>
+    <!--
+        The  courier-authdaemon.conf TMPFILES.D(5) configuration file is copied
+        only when the copy_if expression evaluate to TRUE. Otherwise, it is
+        removed.
+    -->
+    <folder create_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1">${SYSTEM_ETC_DIR}/tmpfiles.d</folder>
+    <!--
+        For Ubuntu < Bionic, we provide a specific version of the file as
+        courier user/group was still daemon:daemon.
+        It was changed to courier:courier starting with Ubuntu Bionic
+    -->
+    <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1 &amp;&amp; grep( '${DISTRO_CODENAME}' eq $_, 'trusty', 'xenial')"
+                 copy_as="courier-authdaemon.conf" subdir="tmpfiles.d"
+    >
+        ${SYSTEM_ETC_DIR}/tmpfiles.d/courier-authdaemon.conf.old
+    </copy_config>
+    <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1 &amp;&amp; !grep( '${DISTRO_CODENAME}' eq $_, 'trusty', 'xenial')"
+                 subdir="tmpfiles.d"
+    >
+        ${SYSTEM_ETC_DIR}/tmpfiles.d/courier-authdaemon.conf
+    </copy_config>
+    <copy_config umask="0027">${IMSCP_CONF_DIR}/courier</copy_config>
+</install>

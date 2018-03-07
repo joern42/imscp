@@ -4,7 +4,7 @@
         The courier-authdaemon init script is copied only when the copy_if expression
         evaluate to TRUE. Otherwise, it is removed by the service provider.
     -->
-    <folder create_if="index('${iMSCP::Servers::Ftpd}', '::Proftpd::') != -1">${SYSTEM_ETC_DIR}/init.d</folder>
+    <folder create_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1">${SYSTEM_ETC_DIR}/init.d</folder>
     <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1" srv_provider="courier-authdaemon" subdir="sysvinit" mode="0755">
         ${SYSTEM_ETC_DIR}/init.d/courier-authdaemon
     </copy_config>
@@ -14,7 +14,17 @@
         removed.
     -->
     <folder create_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1">${SYSTEM_ETC_DIR}/tmpfiles.d</folder>
-    <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::') != -1" subdir="tmpfiles.d">
+    <!--
+        For Debian Jessie, we provide a specific version of the file as courier
+        user/group was still daemon:daemon
+        It was changed to courier:courier starting with Debian Stretch
+    -->
+    <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::' ) != -1 &amp;&amp; '${DISTRO_CODENAME}' eq 'jessie'"
+                 copy_as="courier-authdaemon.conf" subdir="tmpfiles.d"
+    >
+        ${SYSTEM_ETC_DIR}/tmpfiles.d/courier-authdaemon.conf.jessie
+    </copy_config>
+    <copy_config copy_if="index('${iMSCP::Servers::Po}', '::Courier::' ) != -1 &amp;&amp; '${DISTRO_CODENAME}' ne 'jessie'" subdir="tmpfiles.d">
         ${SYSTEM_ETC_DIR}/tmpfiles.d/courier-authdaemon.conf
     </copy_config>
     <copy_config umask="0027">${IMSCP_CONF_DIR}/courier</copy_config>
