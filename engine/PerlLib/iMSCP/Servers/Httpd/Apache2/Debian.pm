@@ -33,6 +33,7 @@ use Cwd qw/ realpath /;
 use File::Basename;
 use File::Find qw/ find /;
 use File::Spec;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error warning getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
@@ -62,7 +63,6 @@ sub install
     my ( $self ) = @_;
 
     $self->SUPER::install();
-    $self->_makeDirs();
     $self->_setupModules();
     $self->_configure();
     $self->_installLogrotate();
@@ -257,7 +257,7 @@ sub removeSites
 {
     my ( $self, @sites ) = @_;
 
-    local $self->{'_remove_obj'} = 1;
+    local $self->{'_remove_obj'} = TRUE;
 
     for ( unique @sites ) {
         my $site = basename( $_, '.conf' ); # Support input with and without the .conf suffix
@@ -363,7 +363,7 @@ sub removeConfs
 {
     my ( $self, @confs ) = @_;
 
-    local $self->{'_remove_obj'} = 1;
+    local $self->{'_remove_obj'} = TRUE;
 
     for ( unique @confs ) {
         my $conf = basename( $_, '.conf' ); # Support input with and without the .conf suffix
@@ -535,7 +535,7 @@ sub removeModules
 {
     my ( $self, @mods ) = @_;
 
-    local $self->{'_remove_obj'} = 1;
+    local $self->{'_remove_obj'} = TRUE;
 
     for ( unique @mods ) {
         my $mod = basename( $_, '.load' ); # Support input with and without the .load suffix
@@ -572,7 +572,7 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'_remove_obj'} = 0;
+    $self->{'_remove_obj'} = FALSE;
     $self->SUPER::_init();
 }
 
@@ -591,24 +591,6 @@ sub _setVersion
     $stdout =~ /apache\/([\d.]+)/i or die( "Couldn't guess Apache version from the `apache2ctl -v` command output" );
     $self->{'config'}->{'HTTPD_VERSION'} = $1;
     debug( sprintf( 'Apache version set to: %s', $1 ));
-}
-
-=item _makeDirs( )
-
- Create directories
-
- Return void, die on failure
-
-=cut
-
-sub _makeDirs
-{
-
-    iMSCP::Dir->new( dirname => '/var/log/apache2' )->make( {
-        user  => $::imscpConfig{'ROOT_USER'},
-        group => $::imscpConfig{'ADM_GROUP'},
-        mode  => 0750
-    } );
 }
 
 =item _setupModules( )
@@ -687,7 +669,7 @@ sub _configure
             }
         }
     );
-    $self->buildConfFile( '/etc/apache2/ports.conf', '/etc/apache2/ports.conf' );
+    $self->buildConfFile( '/etc/apache2/ports.conf' );
     # Turn off default access log provided by Debian package
     $self->disableConfs( 'other-vhosts-access-log.conf' );
 
@@ -1043,7 +1025,7 @@ sub _checkModConflicts
             }
         }
     };
-    !$@ or die( getMessageByType( 'error', { amount => $countErrors, remove => 1 } ));
+    !$@ or die( getMessageByType( 'error', { amount => $countErrors, remove => TRUE } ));
 }
 
 =back
