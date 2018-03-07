@@ -60,6 +60,7 @@ sub run
         if ( $action eq 'start' ) {
             next if $fields->{'fs_mntops'} =~ /\bnoauto\b/;
             mount( $fields );
+            next;
         }
 
         umount( $fields->{'fs_file'} );
