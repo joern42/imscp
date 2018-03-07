@@ -62,8 +62,8 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{ $_[0] }, sub { $self->sqlUserDialog( @_ ); }, sub { $self->passivePortRangeDialog( @_ ); }, sub { $self->maxClientsDialog( @_ ); },
-                sub { $self->maxCLientsPerIpDialog( @_ ); };
+            push @{ $_[0] }, sub { $self->sqlUserDialog( @_ ); }, sub { $self->passivePortRangeDialog( @_ ); },
+                sub { $self->maxClientsDialog( @_ ); }, sub { $self->maxCLientsPerIpDialog( @_ ); };
         },
         $self->getPriority()
     );
@@ -343,22 +343,18 @@ sub setEnginePermissions
 {
     my ( $self ) = @_;
 
-    setRights( "$self->{'config'}->{'FTPD_USER_CONF_DIR'}",
-        {
-            user      => $::imscpConfig{'ROOT_USER'},
-            group     => $::imscpConfig{'ROOT_GROUP'},
-            dirmode   => '0750',
-            filemode  => '0640',
-            recursive => 1
-        }
-    );
-    setRights( "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0640'
-        }
-    );
+    setRights( "$self->{'config'}->{'FTPD_USER_CONF_DIR'}", {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'ROOT_GROUP'},
+        dirmode   => '0750',
+        filemode  => '0640',
+        recursive => 1
+    } );
+    setRights( "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0640'
+    } );
 }
 
 =item getServerName( )

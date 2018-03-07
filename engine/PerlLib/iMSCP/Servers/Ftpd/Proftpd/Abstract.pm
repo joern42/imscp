@@ -60,8 +60,8 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{ $_[0] }, sub { $self->sqlUserDialog( @_ ); }, sub { $self->passivePortRangeDialog( @_ ); }, sub { $self->maxClientsDialog( @_ ); },
-                sub { $self->maxCLientsPerIpDialog( @_ ); };
+            push @{ $_[0] }, sub { $self->sqlUserDialog( @_ ); }, sub { $self->passivePortRangeDialog( @_ ); },
+                sub { $self->maxClientsDialog( @_ ); }, sub { $self->maxCLientsPerIpDialog( @_ ); };
         },
         $self->getPriority()
     );
@@ -268,7 +268,7 @@ sub maxCLientsPerIpDialog
 
     my $maxClientsPerIp = ::setupGetQuestion(
         'FTPD_MAX_CLIENTS_PER_IP',
-        length $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} :  ( iMSCP::Getopt->preseed ? 20 : '' )
+        length $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} ? $self->{'config'}->{'FTPD_MAX_CLIENTS_PER_IP'} : ( iMSCP::Getopt->preseed ? 20 : '' )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -340,13 +340,11 @@ sub setEnginePermissions
 {
     my ( $self ) = @_;
 
-    setRights( "$self->{'config'}->{'FTPD_CONF_DIR'}/proftpd.conf",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0640'
-        }
-    );
+    setRights( "$self->{'config'}->{'FTPD_CONF_DIR'}/proftpd.conf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0640'
+    } );
 }
 
 =item getServerName( )
@@ -619,7 +617,6 @@ MasqueradeAddress $baseServerPublicIp
     ServerName "{FTPD_HOSTNAME}.local"
 </VirtualHost>
 EOF
-
         }
     );
     $self->buildConfFile( 'proftpd.conf', "$self->{'config'}->{'FTPD_CONF_DIR'}/proftpd.conf", undef,
@@ -657,9 +654,7 @@ EOF
                 0;
             }
         );
-        $self->buildConfFile( "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", undef,
-            undef, { mode => 0644 }
-        );
+        $self->buildConfFile( "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", undef, undef, undef, { mode => 0644 } );
     }
 
     $self->{'eventManager'}->trigger( 'afterProftpdConfigure' );
