@@ -42,6 +42,7 @@ use iMSCP::Servers::Mta;
 use iMSCP::Servers::Sqld;
 use Sort::Naturally;
 use Tie::File;
+use Scalar::Defer qw/ lazy /;
 use parent 'iMSCP::Servers::Po';
 
 %::sqlUsers = () unless %::sqlUsers;
@@ -194,34 +195,26 @@ sub setEnginePermissions
 {
     my ( $self ) = @_;
 
-    setRights( $self->{'config'}->{'PO_CONF_DIR'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0755'
-        }
-    );
-    setRights( "$self->{'config'}->{'PO_CONF_DIR'}/dovecot.conf",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            mode  => '0640'
-        }
-    );
-    setRights( "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-sql.conf",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            mode  => '0640'
-        }
-    );
-    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh",
-        {
-            user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-            group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            mode  => '0750'
-        }
-    );
+    setRights( $self->{'config'}->{'PO_CONF_DIR'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0755'
+    } );
+    setRights( "$self->{'config'}->{'PO_CONF_DIR'}/dovecot.conf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
+        mode  => '0640'
+    } );
+    setRights( "$self->{'config'}->{'PO_CONF_DIR'}/dovecot-sql.conf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
+        mode  => '0640'
+    } );
+    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh", {
+        user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
+        group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
+        mode  => '0750'
+    } );
 }
 
 =item getServerName( )
@@ -410,7 +403,9 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$::imscpConfig{'CONF_DIR'}/dovecot" );
+    @{ $self }{qw/ restart reload quotaRecalc mta cfgDir /} = (
+        0, 0, 0, lazy { iMSCP::Servers::Mta->factory() }, "$::imscpConfig{'CONF_DIR'}/dovecot"
+    );
     $self->SUPER::_init();
 }
 
@@ -659,11 +654,12 @@ sub beforePostfixConfigure
     my ( $dovecotServer ) = @_;
 
     $dovecotServer->{'eventManager'}->register(
-        'afterPostfixBuildFile',
+        'afterPostfixBuildConfFile',
         sub {
             my ( $cfgTpl, $cfgTplName ) = @_;
 
             return unless $cfgTplName eq 'master.cf';
+
             ${ $cfgTpl } .= <<"EOF";
 dovecot   unix  -       n       n       -       -       pipe
  flags=DRhu user=$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}:$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} argv=$dovecotServer->{'config'}->{'PO_DELIVER_PATH'} -f \${sender} -d \${user}\@\${nexthop} -m INBOX.\${extension}
@@ -675,58 +671,19 @@ EOF
         sub {
             $dovecotServer->{'mta'}->postconf(
                 # Dovecot LDA parameters
-                virtual_transport                     => {
-                    action => 'replace',
-                    values => [ 'dovecot' ]
-                },
-                dovecot_destination_concurrency_limit => {
-                    action => 'replace',
-                    values => [ '2' ]
-                },
-                dovecot_destination_recipient_limit   => {
-                    action => 'replace',
-                    values => [ '1' ]
-                },
+                virtual_transport                     => { action => 'replace', values => [ 'dovecot' ] },
+                dovecot_destination_concurrency_limit => { action => 'replace', values => [ 2 ] },
+                dovecot_destination_recipient_limit   => { action => 'replace', values => [ 1 ] },
                 # Dovecot SASL parameters
-                smtpd_sasl_type                       => {
-                    action => 'replace',
-                    values => [ 'dovecot' ]
-                },
-                smtpd_sasl_path                       => {
-                    action => 'replace',
-                    values => [ 'private/auth' ]
-                },
-                smtpd_sasl_auth_enable                => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
-                smtpd_sasl_security_options           => {
-                    action => 'replace',
-                    values => [ 'noanonymous' ]
-                },
-                smtpd_sasl_authenticated_header       => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
-                broken_sasl_auth_clients              => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
+                smtpd_sasl_type                       => { action => 'replace', values => [ 'dovecot' ] },
+                smtpd_sasl_path                       => { action => 'replace', values => [ 'private/auth' ] },
+                smtpd_sasl_auth_enable                => { action => 'replace', values => [ 'yes' ] },
+                smtpd_sasl_security_options           => { action => 'replace', values => [ 'noanonymous' ] },
+                smtpd_sasl_authenticated_header       => { action => 'replace', values => [ 'yes' ] },
+                broken_sasl_auth_clients              => { action => 'replace', values => [ 'yes' ] },
                 # SMTP restrictions
-                smtpd_helo_restrictions               => {
-                    action => 'add',
-                    values => [ 'permit_sasl_authenticated' ],
-                    after  => qr/permit_mynetworks/
-                },
-                smtpd_sender_restrictions             => {
-                    action => 'add',
-                    values => [ 'permit_sasl_authenticated' ],
-                    after  => qr/permit_mynetworks/
-                },
-                smtpd_recipient_restrictions          => {
-                    action => 'add',
-                    values => [ 'permit_sasl_authenticated' ],
-                    after  => qr/permit_mynetworks/
+                smtpd_relay_restrictions              => {
+                    action => 'add', values => [ 'permit_sasl_authenticated' ], after => qr/permit_mynetworks/
                 }
             );
         }
