@@ -3,32 +3,67 @@
 #
 
 # Static parameters
+
 inet_interfaces = all
 mynetworks_style = host
+
 append_dot_mydomain = no
 append_at_myorigin = yes
+
 biff = no
+
 recipient_delimiter = +
 message_size_limit = 0
+
 mydestination = $myhostname localhost.$mydomain localhost $mydomain
+
 local_transport = local
 local_destination_concurrency_limit = 2
 local_destination_recipient_limit = 1
 local_recipient_maps = proxy:unix:passwd.byname $alias_maps
+
 mailbox_size_limit = 0
+
 virtual_mailbox_limit = 0
 virtual_transport = virtual
 virtual_destination_concurrency_limit = 2
 virtual_destination_recipient_limit = 1
+
 relay_recipient_maps =
 relay_transport = relay
 relayhost =
+
 smtpd_helo_required = yes
-smtpd_helo_restrictions = permit_mynetworks, reject_non_fqdn_helo_hostname, reject_invalid_helo_hostname, permit
-smtpd_sender_restrictions = permit_mynetworks, reject_non_fqdn_sender, reject_unknown_sender_domain, permit
-smtpd_recipient_restrictions = reject_non_fqdn_recipient, reject_unknown_recipient_domain, permit_mynetworks,
- reject_unauth_destination, reject_unlisted_recipient, permit
-smtpd_data_restrictions = reject_multi_recipient_bounce, reject_unauth_pipelining
+
+smtpd_client_restrictions =
+
+smtpd_helo_restrictions =
+    reject_invalid_helo_hostname
+    reject_non_fqdn_helo_hostname
+    reject_unknown_helo_hostname
+    permit
+
+smtpd_sender_restrictions =
+    reject_non_fqdn_sender
+    reject_unknown_sender_domain
+    reject_unlisted_sender
+    permit
+
+smtpd_relay_restrictions =
+    permit_mynetworks
+    defer_unauth_destination
+    permit
+
+smtpd_recipient_restrictions =
+    reject_non_fqdn_recipient
+    reject_unknown_recipient_domain
+    reject_unlisted_recipient
+    permit
+
+smtpd_data_restrictions =
+    reject_multi_recipient_bounce
+    reject_unauth_pipelining
+
 imscp-arpl_destination_concurrency_limit = 2
 imscp-arpl_destination_recipient_limit = 1
 

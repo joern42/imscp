@@ -732,12 +732,12 @@ sub postconf
 
     {
         CDB   => {
-            desc  => 'A read-optimized structure (recommended)',
-            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::CDB',
+            desc    => 'A read-optimized structure (recommended)',
+            class   => 'iMSCP::Servers::Mta::Postfix::Driver::Database::CDB',
             default => TRUE
         },
         BTree => {
-            desc => 'A sorted, balanced tree structure',
+            desc  => 'A sorted, balanced tree structure',
             class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::BTree'
         },
         Hash  => {
