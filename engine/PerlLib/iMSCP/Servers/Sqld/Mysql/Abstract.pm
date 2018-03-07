@@ -237,7 +237,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter a database name for i-MSCP:
 \\Z \\Zn
 EOF
-            if ($rs < 30 && isValidDbName( $dbName ) ) {
+            if ( $rs < 30 && isValidDbName( $dbName ) ) {
                 my $db = iMSCP::Database->getInstance();
                 eval { $db->useDatabase( $dbName ); };
                 if ( !$@ && !$self->_setupIsImscpDb( $dbName ) ) {
@@ -334,20 +334,16 @@ sub setEnginePermissions
 {
     my ( $self ) = @_;
 
-    setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0644'
-        }
-    );
-    setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0644'
-        }
-    );
+    setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0644'
+    } );
+    setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0644'
+    } );
 }
 
 =item getServerName( )
@@ -667,7 +663,7 @@ sub _setupMasterSqlUser
         next unless $sqlUser;
 
         for my $host ( $userHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-            next unless $host;
+            next unless length $host;
             $self->dropUser( $sqlUser, $host );
         }
     }
@@ -757,14 +753,16 @@ user = "{USER}"
 password = "{PASSWORD}"
 EOF
         $defaultsExtraFile->close();
-        $self->buildConfFile( $defaultsExtraFile, $defaultsExtraFile, undef,
+        $self->buildConfFile( $defaultsExtraFile, undef, undef,
             {
                 HOST     => ::setupGetQuestion( 'DATABASE_HOST' ),
                 PORT     => ::setupGetQuestion( 'DATABASE_PORT' ),
                 USER     => ::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
                 PASSWORD => decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
-            { srcname => 'defaults-extra-file' }
+            {
+                srcname => 'defaults-extra-file'
+            }
         );
 
         my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
@@ -814,10 +812,14 @@ sub _setupIsImscpDb
     1;
 }
 
-=item _tryDbConnect
+=item _tryDbConnect( $host, $port, $user, $pwd )
 
  Try database connection
 
+ Param string $host Server host
+ Param string $port Server port
+ Param string $user SQL user
+ Param string $pwd SQL password
  Return void, die on failure
 
 =cut
