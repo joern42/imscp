@@ -106,29 +106,23 @@ sub setEnginePermissions
 {
     my $httpd = iMSCP::Servers::Httpd->factory();
 
-    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/awstats_updateall.pl",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_USER'},
-            mode  => '0700'
-        }
-    );
-    setRights( $::imscpConfig{'AWSTATS_CACHE_DIR'},
-        {
-            user      => $::imscpConfig{'ROOT_USER'},
-            group     => $httpd->getRunningGroup(),
-            dirmode   => '02750',
-            filemode  => '0640',
-            recursive => 1
-        }
-    );
-    setRights( "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $httpd->getRunningGroup(),
-            mode  => '0640'
-        }
-    );
+    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/awstats_updateall.pl", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_USER'},
+        mode  => '0700'
+    } );
+    setRights( $::imscpConfig{'AWSTATS_CACHE_DIR'}, {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $httpd->getRunningGroup(),
+        dirmode   => '02750',
+        filemode  => '0640',
+        recursive => 1
+    } );
+    setRights( "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $httpd->getRunningGroup(),
+        mode  => '0640'
+    } );
 }
 
 =item getDistroPackages( )

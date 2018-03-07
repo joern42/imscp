@@ -193,92 +193,69 @@ sub setEnginePermissions
 {
     my ( $self ) = @_;
 
-    setRights( $self->{'config'}->{'HTTPD_CONF_DIR'},
-        {
-            user      => $::imscpConfig{'ROOT_USER'},
-            group     => $::imscpConfig{'ROOT_GROUP'},
-            dirmode   => '0755',
-            filemode  => '0644',
-            recursive => 1
-        }
-    );
-    setRights(
-        $self->{'config'}->{'HTTPD_LOG_DIR'},
-        {
-            user      => $::imscpConfig{'ROOT_USER'},
-            group     => $::imscpConfig{'ROOT_GROUP'},
-            dirmode   => '0755',
-            filemode  => '0640',
-            recursive => 1
-        }
-    );
+    setRights( $self->{'config'}->{'HTTPD_CONF_DIR'}, {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'ROOT_GROUP'},
+        dirmode   => '0755',
+        filemode  => '0644',
+        recursive => 1
+    } );
+    setRights( $self->{'config'}->{'HTTPD_LOG_DIR'}, {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'ROOT_GROUP'},
+        dirmode   => '0755',
+        filemode  => '0640',
+        recursive => 1
+    } );
 
     # Temporary directories as provided by nginx package (from Debian Team)
     if ( -d "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}" ) {
-        setRights(
-            $self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'},
-            {
-                user  => $::imscpConfig{'ROOT_USER'},
-                group => $::imscpConfig{'ROOT_GROUP'}
-            }
-        );
+        setRights( $self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}, {
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'}
+        } );
 
         for my $tmp ( 'body', 'fastcgi', 'proxy', 'scgi', 'uwsgi' ) {
             next unless -d "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp";
 
-            setRights(
-                "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp",
-                {
-                    user      => $self->{'config'}->{'HTTPD_USER'},
-                    group     => $self->{'config'}->{'HTTPD_GROUP'},
-                    dirnmode  => '0700',
-                    filemode  => '0640',
-                    recursive => 1
-                }
-            );
-            setRights(
-                "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp",
-                {
-                    user  => $self->{'config'}->{'HTTPD_USER'},
-                    group => $::imscpConfig{'ROOT_GROUP'},
-                    mode  => '0700'
-                }
-            );
+            setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp", {
+                user      => $self->{'config'}->{'HTTPD_USER'},
+                group     => $self->{'config'}->{'HTTPD_GROUP'},
+                dirnmode  => '0700',
+                filemode  => '0640',
+                recursive => 1
+            } );
+            setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp", {
+                user  => $self->{'config'}->{'HTTPD_USER'},
+                group => $::imscpConfig{'ROOT_GROUP'},
+                mode  => '0700'
+            } );
         }
     }
 
     # Temporary directories as provided by nginx package (from nginx Team)
     return unless -d "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}";
 
-    setRights(
-        $self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'}
-        }
-    );
+    setRights( $self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'}
+    } );
 
     for my $tmp ( 'client_temp', 'fastcgi_temp', 'proxy_temp', 'scgi_temp', 'uwsgi_temp' ) {
         next unless -d "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp";
 
-        setRights(
-            "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp",
-            {
-                user      => $self->{'config'}->{'HTTPD_USER'},
-                group     => $self->{'config'}->{'HTTPD_GROUP'},
-                dirnmode  => '0700',
-                filemode  => '0640',
-                recursive => 1
-            }
-        );
-        setRights(
-            "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp",
-            {
-                user  => $self->{'config'}->{'HTTPD_USER'},
-                group => $::imscpConfig{'ROOT_GROUP'},
-                mode  => '0700'
-            }
-        );
+        setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp", {
+            user      => $self->{'config'}->{'HTTPD_USER'},
+            group     => $self->{'config'}->{'HTTPD_GROUP'},
+            dirnmode  => '0700',
+            filemode  => '0640',
+            recursive => 1
+        } );
+        setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp", {
+            user  => $self->{'config'}->{'HTTPD_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
+            mode  => '0700'
+        } );
     }
 }
 
@@ -294,16 +271,13 @@ sub setGuiPermissions
 {
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
-    setRights(
-        $::imscpConfig{'GUI_ROOT_DIR'},
-        {
-            user      => $usergroup,
-            group     => $usergroup,
-            dirmode   => '0750',
-            filemode  => '0640',
-            recursive => 1
-        }
-    );
+    setRights( $::imscpConfig{'GUI_ROOT_DIR'}, {
+        user      => $usergroup,
+        group     => $usergroup,
+        dirmode   => '0750',
+        filemode  => '0640',
+        recursive => 1
+    } );
 }
 
 =item addUser( \%data )

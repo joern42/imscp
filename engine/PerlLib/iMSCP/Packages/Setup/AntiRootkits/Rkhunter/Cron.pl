@@ -53,8 +53,7 @@ setRights( $logFile, {
     user  => $::imscpConfig{'ROOT_USER'},
     group => $::imscpConfig{'IMSCP_GROUP'},
     mode  => '0640'
-}
-);
+} );
 
 1;
 __END__

@@ -188,14 +188,12 @@ sub setEnginePermissions
 {
     my ( $self ) = @_;
 
-    setRights( "$::imscpConfig{'ROOT_DIR'}/daemon",
-        {
-            user      => $::imscpConfig{'ROOT_USER'},
-            group     => $::imscpConfig{'IMSCP_GROUP'},
-            mode      => '0750',
-            recursive => 1
-        }
-    ) if -d "$::imscpConfig{'ROOT_DIR'}/daemon";
+    setRights( "$::imscpConfig{'ROOT_DIR'}/daemon", {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'IMSCP_GROUP'},
+        mode      => '0750',
+        recursive => 1
+    } ) if -d "$::imscpConfig{'ROOT_DIR'}/daemon";
 }
 
 =back

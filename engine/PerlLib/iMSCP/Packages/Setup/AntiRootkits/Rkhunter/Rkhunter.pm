@@ -92,20 +92,16 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_USER'},
-            mode  => '0700'
-        }
-    );
-    setRights( $::imscpConfig{'RKHUNTER_LOG'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'IMSCP_GROUP'},
-            mode  => '0640'
-        }
-    ) if -f $::imscpConfig{'RKHUNTER_LOG'};
+    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Packages/Setup/AntiRootkits/Rkhunter/Cron.pl", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_USER'},
+        mode  => '0700'
+    } );
+    setRights( $::imscpConfig{'RKHUNTER_LOG'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'IMSCP_GROUP'},
+        mode  => '0640'
+    } ) if -f $::imscpConfig{'RKHUNTER_LOG'};
 }
 
 =item getDistroPackages( )

@@ -95,13 +95,11 @@ sub uninstall
 
 sub setEnginePermissions
 {
-    setRights( $::imscpConfig{'CHKROOTKIT_LOG'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'IMSCP_GROUP'},
-            mode  => '0640'
-        }
-    );
+    setRights( $::imscpConfig{'CHKROOTKIT_LOG'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'IMSCP_GROUP'},
+        mode  => '0640'
+    } );
 }
 
 =item getDistroPackages( )

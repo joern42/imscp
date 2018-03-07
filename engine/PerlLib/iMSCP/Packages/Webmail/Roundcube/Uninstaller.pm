@@ -106,7 +106,7 @@ sub _removeSqlUser
     return unless $self->{'config'}->{'DATABASE_USER'};
 
     for my $host ( $::imscpConfig{'DATABASE_USER_HOST'}, $::imscpConfig{'BASE_SERVER_IP'}, 'localhost', '127.0.0.1', '%' ) {
-        next unless $host;
+        next unless length $host;
         $sqlServer->dropUser( $self->{'config'}->{'DATABASE_USER'}, $host );
     }
 }

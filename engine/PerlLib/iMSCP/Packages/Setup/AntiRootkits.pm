@@ -85,7 +85,7 @@ sub showDialog
         || grep { !exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} }
     ) {
         ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checkbox(
-            <<"EOF", \%choices, grep { exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} } );
+            <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} } ] );
 Please select the Anti-Rootkits packages you want to install:
 \\Z \\Zn
 EOF
