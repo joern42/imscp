@@ -297,24 +297,20 @@ sub setEnginePermissions
 {
     my ( $self ) = @_;
 
-    setRights( $self->{'config'}->{'NAMED_CONF_DIR'},
-        {
-            user      => $::imscpConfig{'ROOT_USER'},
-            group     => $self->{'config'}->{'NAMED_GROUP'},
-            dirmode   => '2750',
-            filemode  => '0640',
-            recursive => 1
-        }
-    );
-    setRights( $self->{'config'}->{'NAMED_DB_ROOT_DIR'},
-        {
-            user      => $self->{'config'}->{'NAMED_USER'},
-            group     => $self->{'config'}->{'NAMED_GROUP'},
-            dirmode   => '2750',
-            filemode  => '0640',
-            recursive => 1
-        }
-    );
+    setRights( $self->{'config'}->{'NAMED_CONF_DIR'}, {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $self->{'config'}->{'NAMED_GROUP'},
+        dirmode   => '2750',
+        filemode  => '0640',
+        recursive => 1
+    } );
+    setRights( $self->{'config'}->{'NAMED_DB_ROOT_DIR'}, {
+        user      => $self->{'config'}->{'NAMED_USER'},
+        group     => $self->{'config'}->{'NAMED_GROUP'},
+        dirmode   => '2750',
+        filemode  => '0640',
+        recursive => 1
+    } );
 }
 
 =item getServerName( )

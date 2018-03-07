@@ -25,6 +25,7 @@ package iMSCP::Servers::Named::Bind9::Debian;
 
 use strict;
 use warnings;
+use Class::Autouse qw/ :nostat iMSCP::ProgramFinder /;
 use File::Basename;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
@@ -86,7 +87,7 @@ sub install
                 ${ $_[0] } =~ s/OPTIONS=".*"/OPTIONS="$options"/;
             }
         );
-        $self->buildConfFile( '/etc/default/bind9', '/etc/default/bind9' );
+        $self->buildConfFile( '/etc/default/bind9' );
     }
 
     $self->_cleanup();
@@ -147,6 +148,8 @@ sub uninstall
 sub dpkgPostInvokeTasks
 {
     my ( $self ) = @_;
+
+    return unless iMSCP::ProgramFinder->find( 'bind9-config' );
 
     $self->_setVersion();
 }
