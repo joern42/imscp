@@ -26,7 +26,7 @@ package iMSCP::Servers::Php::Debian;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::Servers::Httpd /;
+use Class::Autouse qw/ :nostat iMSCP::Getopt /;
 use File::Basename;
 use File::Spec;
 use iMSCP::Debug qw/ debug /;
@@ -34,8 +34,7 @@ use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Service;
-use iMSCP::Servers::Php;
-use Scalar::Defer;
+use Scalar::Defer qw/ lazy /;
 use version;
 use parent 'iMSCP::Servers::Php';
 
@@ -61,14 +60,16 @@ sub preinstall
 
     $self->SUPER::preinstall();
 
-    my $httpd = iMSCP::Servers::Httpd->factory();
+    my $httpdSname = $self->{'httpd'}->getServerName();
 
-    # Disable the Apache fcgid_imscp modules. It will be re-enabled in postinstall if needed
-    $httpd->disableModules( 'fcgid_imscp' );
+    if ( $httpdSname eq 'Apache' ) {
+        # Disable the Apache fcgid_imscp modules. It will be re-enabled in postinstall if needed
+        $self->{'httpd'}->disableModules( 'fcgid_imscp' );
 
-    # Disable default Apache conffile for CGI programs
-    # FIXME: One administrator could rely on that config (outside of i-MSCP)
-    $httpd->disableConfs( 'serve-cgi-bin.conf' );
+        # Disable default Apache conffile for CGI programs
+        # FIXME: One administrator could rely on that config (outside of i-MSCP)
+        $self->{'httpd'}->disableConfs( 'serve-cgi-bin.conf' );
+    }
 
     my $srvProvider = iMSCP::Service->getInstance();
 
@@ -89,15 +90,17 @@ sub preinstall
     for my $version ( @{ $self->{'_available_php_versions'} } ) {
         # Tasks for apache2handler SAPI
 
-        if ( $self->{'config'}->{'PHP_SAPI'} ne 'apache2handler' || $self->{'config'}->{'PHP_VERSION'} ne $version ) {
+        if ( $httpdSname eq 'Apache' &&
+            $self->{'config'}->{'PHP_SAPI'} ne 'apache2handler' || $self->{'config'}->{'PHP_VERSION'} ne $version
+        ) {
             # Disable Apache PHP module if PHP version is other than selected PHP alternative
-            $httpd->disableModules( "php$version" );
+            $self->{'httpd'}->disableModules( "php$version" );
         }
 
         # Tasks for cgi SAPI
 
         # Disable default Apache conffile
-        $httpd->disableConfs( "php$version-cgi.conf" );
+        $self->{'httpd'}->disableConfs( "php$version-cgi.conf" ) if $httpdSname eq 'Apache';
 
         # Tasks for fpm SAPI
 
@@ -118,7 +121,7 @@ sub preinstall
         }
 
         # Disable default Apache conffile
-        $httpd->disableConfs( "php$version-fpm.conf" );
+        $self->{'httpd'}->disableConfs( "php$version-fpm.conf" ) if $httpdSname eq 'Apache';
 
         # Reset PHP-FPM pool confdir
         iMSCP::File->new( filename => $version )->remove() for grep !/www\.conf$/, glob "/etc/php/$version/fpm/pool.d/*.conf";
@@ -146,10 +149,9 @@ sub install
 {
     my ( $self ) = @_;
 
-    my $httpd = iMSCP::Servers::Httpd->factory();
     my $serverData = {
-        HTTPD_USER                          => $httpd->getRunningUser(),
-        HTTPD_GROUP                         => $httpd->getRunningGroup(),
+        HTTPD_USER                          => $self->{'httpd'}->getRunningUser(),
+        HTTPD_GROUP                         => $self->{'httpd'}->getRunningGroup(),
         PHP_APCU_CACHE_ENABLED              => $self->{'config'}->{'PHP_APCU_CACHE_ENABLED'} // 1,
         PHP_APCU_CACHE_MAX_MEMORY           => $self->{'config'}->{'PHP_APCU_CACHE_MAX_MEMORY'} || 32,
         PHP_FPM_EMERGENCY_RESTART_THRESHOLD => $self->{'config'}->{'PHP_FPM_EMERGENCY_RESTART_THRESHOLD'} || 10,
@@ -178,23 +180,26 @@ sub install
         $self->buildConfFile( 'fpm/pool.conf.default', "/etc/php/$version/fpm/pool.d/www.conf", undef, $serverData );
     }
 
-    # Create the Apache fcgid_imscp module, which itself depends on the Apache fcgi module
-    $httpd->buildConfFile( "$self->{'cfgDir'}/cgi/apache_fcgid_module.conf", "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.conf",
-        undef,
-        {
-            PHP_FCGID_MAX_REQUESTS_PER_PROCESS => $self->{'config'}->{'PHP_FCGID_MAX_REQUESTS_PER_PROCESS'} || 900,
-            PHP_FCGID_MAX_REQUEST_LEN          => $self->{'config'}->{'PHP_FCGID_MAX_REQUEST_LEN'} || 1073741824,
-            PHP_FCGID_IO_TIMEOUT               => $self->{'config'}->{'PHP_FCGID_IO_TIMEOUT'} || 600,
-            PHP_FCGID_MAX_PROCESS              => $self->{'config'}->{'PHP_FCGID_MAX_PROCESS'} || 1000
-        }
-    );
+    if ( $self->{'httpd'}->getServerName() eq 'Apache' ) {
+        # Create the Apache fcgid_imscp module, which itself depends on the Apache fcgi module
+        $self->{'httpd'}->buildConfFile( "$self->{'cfgDir'}/cgi/apache_fcgid_module.conf",
+            "$self->{'httpd'}->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.conf",
+            undef,
+            {
+                PHP_FCGID_MAX_REQUESTS_PER_PROCESS => $self->{'config'}->{'PHP_FCGID_MAX_REQUESTS_PER_PROCESS'} || 900,
+                PHP_FCGID_MAX_REQUEST_LEN          => $self->{'config'}->{'PHP_FCGID_MAX_REQUEST_LEN'} || 1073741824,
+                PHP_FCGID_IO_TIMEOUT               => $self->{'config'}->{'PHP_FCGID_IO_TIMEOUT'} || 600,
+                PHP_FCGID_MAX_PROCESS              => $self->{'config'}->{'PHP_FCGID_MAX_PROCESS'} || 1000
+            }
+        );
 
-    iMSCP::File
-        ->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.load" )
-        ->set( "# Depends: fcgid\n" )
-        ->save()
-        ->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )
-        ->mode( 0644 );
+        iMSCP::File
+            ->new( filename => "$self->{'httpd'}->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/fcgid_imscp.load" )
+            ->set( "# Depends: fcgid\n" )
+            ->save()
+            ->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )
+            ->mode( 0644 );
+    }
 
     $self->_cleanup();
 }
@@ -209,21 +214,21 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    my $httpd = iMSCP::Servers::Httpd->factory();
-
-    if ( $self->{'config'}->{'PHP_SAPI'} eq 'apache2handler' ) {
-        # Enable Apache PHP module for selected PHP alternative
-        $httpd->enableModules( "php$self->{'config'}->{'PHP_VERSION'}" );
-    } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'cgi' ) {
-        # Enable Apache fcgid_imscp module, which itself depends on the Apache fcgid module
-        $httpd->enableModules( 'fcgid_imscp' );
-    } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'fpm' ) {
-        # Enable proxy_fcgi module
-        $httpd->enableModules( qw/ proxy_fcgi setenvif / );
-        # Enable PHP-FPM service for selected PHP alternative
-        iMSCP::Service->getInstance()->enable( "php$self->{'config'}->{'PHP_VERSION'}-fpm" );
-    } else {
-        die( 'Unknown PHP SAPI' );
+    if ( $self->{'httpd'}->getServerName() eq 'Apache' ) {
+        if ( $self->{'config'}->{'PHP_SAPI'} eq 'apache2handler' ) {
+            # Enable Apache PHP module for selected PHP alternative
+            $self->{'httpd'}->enableModules( "php$self->{'config'}->{'PHP_VERSION'}" );
+        } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'cgi' ) {
+            # Enable Apache fcgid_imscp module, which itself depends on the Apache fcgid module
+            $self->{'httpd'}->enableModules( 'fcgid_imscp' );
+        } elsif ( $self->{'config'}->{'PHP_SAPI'} eq 'fpm' ) {
+            # Enable proxy_fcgi module
+            $self->{'httpd'}->enableModules( qw/ proxy_fcgi setenvif / );
+            # Enable PHP-FPM service for selected PHP alternative
+            iMSCP::Service->getInstance()->enable( "php$self->{'config'}->{'PHP_VERSION'}-fpm" );
+        } else {
+            die( 'Unknown PHP SAPI' );
+        }
     }
 
     $self->SUPER::postinstall();
@@ -239,7 +244,7 @@ sub uninstall
 {
     my ( $self ) = @_;
 
-    iMSCP::Servers::Httpd->factory()->removeModules( 'fcgid_imscp' );
+    $self->{'httpd'}->factory()->removeModules( 'fcgid_imscp' ) if $self->{'httpd'}->getServerName() eq 'Apache';
     iMSCP::File->new( filename => "/etc/init/php$_-fpm.override" )->remove() for split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'};
     iMSCP::Dir->new( dirname => $self->{'config'}->{'PHP_FCGI_STARTER_DIR'} )->remove();
 }
@@ -576,23 +581,23 @@ sub _deleteFpmConfig
             next;
         }
 
-        next unless -f "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf";
+        next unless -f "/etc/php/$version/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf";
 
-        debug( sprintf( 'Deleting the %s FPM pool configuration file', "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" ));
+        debug( sprintf( 'Deleting the %s FPM pool configuration file', "/etc/php/$version/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" ));
 
-        iMSCP::File->new( filename => "/etc/php/$_/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
+        iMSCP::File->new( filename => "/etc/php/$version/fpm/pool.d/$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
-        if ( $self->{'config'}->{'PHP_VERSION'} ne $_
+        if ( $self->{'config'}->{'PHP_VERSION'} ne $version
             && $self->{'config'}->{'PHP_FPM_LISTEN_MODE'} eq 'tcp'
             && iMSCP::Getopt->context() ne 'installer'
         ) {
             # In TCP mode, we need reload the FPM instance immediately, else,
             # one FPM instance could fail to reload due to port already in use
-            iMSCP::Service->getInstance()->reload( "php$_-fpm" );
+            iMSCP::Service->getInstance()->reload( "php$version-fpm" );
             next;
         }
 
-        $self->{'reload'}->{$_} ||= 1;
+        $self->{'reload'}->{$version} ||= 1;
     }
 }
 
@@ -627,11 +632,12 @@ sub _cleanup
     iMSCP::File->new( filename => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->remove();
     iMSCP::Dir->new( dirname => '/etc/php5' )->remove();
 
-    my $httpd = iMSCP::Servers::Httpd->factory();
-    $httpd->disableModules( qw/ fastcgi_imscp php5 php5_cgi php5filter php_fpm_imscp proxy_handler / );
+    if ( $self->{'httpd'}->getServerName() ) {
+        $self->{'httpd'}->disableModules( qw/ fastcgi_imscp php5 php5_cgi php5filter php_fpm_imscp proxy_handler / );
 
-    for my $file ( 'fastcgi_imscp.conf', 'fastcgi_imscp.load', 'php_fpm_imscp.conf', 'php_fpm_imscp.load' ) {
-        iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$file" )->remove();
+        for my $file ( 'fastcgi_imscp.conf', 'fastcgi_imscp.load', 'php_fpm_imscp.conf', 'php_fpm_imscp.load' ) {
+            iMSCP::File->new( filename => "$self->{'httpd'}->{'config'}->{'HTTPD_MODS_AVAILABLE_DIR'}/$file" )->remove();
+        }
     }
 }
 

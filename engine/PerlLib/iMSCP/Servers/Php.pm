@@ -35,6 +35,7 @@ use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::TemplateParser qw/ processByRef getBlocByRef replaceBlocByRef /;
+use Scalar::Defer qw/ lazy /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
@@ -88,7 +89,7 @@ sub registerSetupListeners
         },
         # We want show these dialogs after the httpd server dialog because
         # we rely on httpd server configuration parameters (httpd server priority - 10)
-        iMSCP::Servers::Httpd->getPriority()-10
+        $self->{'httpd'}->getPriority()-10
     );
 }
 
@@ -149,16 +150,14 @@ sub askForPhpSapi
     my $value = ::setupGetQuestion( 'PHP_SAPI', $self->{'config'}->{'PHP_SAPI'} || ( iMSCP::Getopt->preseed ? 'fpm' : '' ));
     my %choices = ( 'fpm', 'PHP through PHP FastCGI Process Manager (fpm SAPI)' );
 
-    my $httpd = iMSCP::Servers::Httpd->factory();
-
-    if ( $httpd->getServerName() eq 'Nginx' ) {
+    if ( $self->{'httpd'}->getServerName() eq 'Nginx' ) {
         ::setupSetQuestion( 'PHP_SAPI', 'fpm' );
         $self->{'config'}->{'PHP_SAPI'} = 'fpm';
         return 0;
     }
 
-    if ( $httpd->getServerName() eq 'Apache' ) {
-        if ( $httpd->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
+    if ( $self->{'httpd'}->getServerName() eq 'Apache' ) {
+        if ( $self->{'httpd'}->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
             # Apache PHP module only works with Apache's prefork based MPM
             # We allow it only with the Apache's ITK MPM because the Apache's prefork MPM
             # doesn't allow to constrain each individual vhost to a particular system user/group.
@@ -252,13 +251,11 @@ sub setEnginePermissions
 
     return unless $self->{'config'}->{'PHP_SAPI'} eq 'cgi';
 
-    setRights( $self->{'config'}->{'PHP_FCGI_STARTER_DIR'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0555'
-        }
-    );
+    setRights( $self->{'config'}->{'PHP_FCGI_STARTER_DIR'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0555'
+    } );
 }
 
 =item getServerName( )
@@ -480,7 +477,9 @@ sub _init
         defined $self->{$prop } or die( sprintf( 'The %s package must define the %s property', ref $self, $prop ));
     }
 
-    @{ $self }{qw/ reload restart _templates cfgDir /} = ( {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php" );
+    @{ $self }{qw/ reload restart _templates cfgDir httpd /} = (
+        {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php", lazy { iMSCP::Servers::Httpd->factory() }
+    );
     $self->SUPER::_init();
 }
 
