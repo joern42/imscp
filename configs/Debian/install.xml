@@ -29,9 +29,8 @@
     <folder export="SYSTEM_VAR_LOG_DIR">${SYSTEM_VAR_DIR}/log</folder>
     <folder export="SYSTEM_VAR_MAIL_DIR" mode="02775" group="mail">${SYSTEM_VAR_DIR}/mail</folder>
     <folder export="SYSTEM_VAR_WWW_DIR">${SYSTEM_VAR_DIR}/www</folder>
+    <!-- i-MSCP directories -->
     <folder export="IMSCP_CONF_DIR" mode="0750">${SYSTEM_ETC_DIR}/imscp</folder>
     <folder export="IMSCP_LOG_DIR" mode="0750">${SYSTEM_VAR_LOG_DIR}/imscp</folder>
-    <folder export="IMSCP_MAIL_DIR" mode="0750">${SYSTEM_VAR_MAIL_DIR}/virtual</folder>
-    <folder export="IMSCP_ROOT_DIR" mode="0755">${SYSTEM_VAR_WWW_DIR}/imscp</folder>
-    <folder export="IMSCP_WWW_DIR" user="root" group="mail" mode="0750">${SYSTEM_VAR_WWW_DIR}/virtual</folder>
+    <folder export="IMSCP_ROOT_DIR">${SYSTEM_VAR_WWW_DIR}/imscp</folder>
 </install>

@@ -5,6 +5,10 @@
 # This is needed when we run 'logrotate -f /etc/logrotate.d/rsyslog' manually
 su root syslog
 
+/var/log/mail.info
+/var/log/mail.warn
+/var/log/mail.err
+/var/log/mail.log
 /var/log/syslog
 {
     rotate 7
@@ -13,25 +17,9 @@ su root syslog
     notifempty
     delaycompress
     compress
-    postrotate
-        reload rsyslog > /dev/null 2>&1 || true
-    endscript
-}
-
-/var/log/mail.info
-/var/log/mail.warn
-/var/log/mail.err
-/var/log/mail.log
-{
-    rotate 7
-    daily
-    missingok
-    notifempty
-    compress
-    delaycompress
     sharedscripts
     postrotate
-        reload rsyslog > /dev/null 2>&1 || true
+        invoke-rc.d --quiet rsyslog rotate > /dev/null
     endscript
 }
 
@@ -53,6 +41,6 @@ su root syslog
     delaycompress
     sharedscripts
     postrotate
-        reload rsyslog > /dev/null 2>&1 || true
+        invoke-rc.d --quiet rsyslog rotate > /dev/null
     endscript
 }
