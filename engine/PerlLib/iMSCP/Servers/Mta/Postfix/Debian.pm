@@ -170,21 +170,21 @@ sub getAvailableDbDrivers
     {
         CDB   => {
             desc    => 'A read-optimized structure (recommended)',
-            class   => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Cdb',
+            class   => 'iMSCP::Servers::Mta::Postfix::Driver::Database::CDB',
             default => TRUE
         },
         BTree => {
             desc  => 'A sorted, balanced tree structure',
-            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Btree'
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::BTree'
         },
         Hash  => {
             desc  => 'An indexed file type based on hashing',
             class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash'
         },
-        MySQL => {
-            desc => 'MySQL database client (experimental)',
-            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::MySQL'
-        }
+        #MySQL => {
+        #    desc  => 'MySQL database client (experimental)',
+        #    class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::MySQL'
+        #}
     };
 }
 

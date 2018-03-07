@@ -154,52 +154,40 @@ sub uninstall
 sub setEnginePermissions
 {
     my ( $self ) = @_;
-    setRights( $self->{'config'}->{'MTA_MAIN_CONF_FILE'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0644'
-        }
-    );
-    setRights( $self->{'config'}->{'MTA_MASTER_CONF_FILE'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0644'
-        }
-    );
-    setRights( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0644'
-        }
-    );
-    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/messenger",
-        {
-            user      => $::imscpConfig{'ROOT_USER'},
-            group     => $::imscpConfig{'IMSCP_GROUP'},
-            dirmode   => '0750',
-            filemode  => '0750',
-            recursive => TRUE
-        }
-    );
-    setRights( $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
-        {
-            user      => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-            group     => $self->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            dirmode   => '0750',
-            filemode  => '0640',
-            recursive => iMSCP::Getopt->fixPermissions
-        }
-    );
-    setRights( $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'},
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0750'
-        }
-    );
+    setRights( $self->{'config'}->{'MTA_MAIN_CONF_FILE'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0644'
+    } );
+    setRights( $self->{'config'}->{'MTA_MASTER_CONF_FILE'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0644'
+    } );
+    setRights( $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0644'
+    } );
+    setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/messenger", {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'IMSCP_GROUP'}, # FIXME WTF ???
+        dirmode   => '0750',
+        filemode  => '0750',
+        recursive => TRUE
+    } );
+    setRights( $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}, {
+        user      => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
+        group     => $self->{'config'}->{'MTA_MAILBOX_GID_NAME'},
+        dirmode   => '0750',
+        filemode  => '0640',
+        recursive => iMSCP::Getopt->fixPermissions
+    } );
+    setRights( $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0750'
+    } );
     $self->{'_db'}->setEnginePermissions();
 }
 
@@ -435,15 +423,15 @@ sub addMail
                 # Add forward addresses in case of forward account
                 ( $isForwardAccount ? $moduleData->{'MAIL_FORWARD'} : () ),
                 # Add autoresponder entry if it is enabled for this account
-                ( $moduleData->{'MAIL_HAS_AUTO_RESPONDER'} ? "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" : () )
+                ( $moduleData->{'MAIL_HAS_AUTO_RESPONDER'} ? "$moduleData->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" : () )
             )
         );
 
         # Add transport map entry for autoresponder if needed
         if ( $moduleData->{'MAIL_HAS_AUTO_RESPONDER'} ) {
-            $self->{'_db'}->add( 'transport_maps', "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}", "\timscp-arpl:" );
+            $self->{'_db'}->add( 'transport_maps', "$moduleData->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}", "\timscp-arpl:" );
         } else {
-            $self->{'_db'}->delete( 'transport_maps', "moduleDatadata->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" );
+            $self->{'_db'}->delete( 'transport_maps', "$moduleData->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" );
         }
     }
 
@@ -673,10 +661,11 @@ sub postconf
         sub {
             return unless my ( $p, $v ) = $_[0] =~ /^([^=]+)\s+=\s*(.*)/;
 
-            my ( @vls, @rpls ) = ( split( /,\s*/, $v ), () );
+            # In main.cf, separator is either space or comma
+            my ( @vls, @rpls ) = ( split( /[,\s]+/, $v ), () );
 
             defined $params{$p}->{'values'} && ref $params{$p}->{'values'} eq 'ARRAY' or croak(
-                sprintf( "Missing or invalid `values' for the %s parameter. Expects an array of values", $p )
+                sprintf( "Missing or invalid values for the %s parameter. Expects an array of values", $p )
             );
 
             for $v ( @{ $params{$p}->{'values'} } ) {
@@ -705,7 +694,7 @@ sub postconf
             }
 
             my $forceEmpty = $params{$p}->{'empty'};
-            $params{$p} = join ', ', @rpls ? @rpls : @vls;
+            $params{$p} = join ' ', @rpls ? @rpls : @vls;
 
             unless ( $forceEmpty || length $params{$p} ) {
                 push @pToDel, $p;
@@ -744,12 +733,12 @@ sub postconf
     {
         CDB   => {
             desc  => 'A read-optimized structure (recommended)',
-            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Cdb',
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::CDB',
             default => TRUE
         },
         BTree => {
             desc => 'A sorted, balanced tree structure',
-            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Btree'
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::BTree'
         },
         Hash  => {
             desc  => 'An indexed file type based on hashing',
@@ -785,7 +774,7 @@ sub getDbDriver
     $driver //= $self->{'config'}->{'MTA_DB_DRIVER'};
 
     $self->{'_db_drivers'}->{$driver} ||= do {
-        eval "require $driver";
+        eval "require $driver; 1" or die $@;
         $driver->new( mta => $self );
     };
 }
@@ -825,14 +814,16 @@ sub _askForDatabaseDriver
 {
     my ( $self, $dialog ) = @_;
 
-    my $availableDbDrivers = $self->getAvailableDbDrivers();
-    my ( $defaultDbDriver ) = map { $availableDbDrivers->{$_}->{'default'} ? $_ : () } keys %{ $availableDbDrivers };
-    my %choices = map { $_ => $availableDbDrivers->{$_}->{'desc'} || 'Missing description' } keys %{ $availableDbDrivers };
-    my $class = ::setupGetQuestion( 'MTA_DB_DRIVER', $self->{'config'}->{'MTA_DB_DRIVER'} || ( iMSCP::Getopt->preseed ? $defaultDbDriver : '' ));
-    my ( $value ) = ( grep ($availableDbDrivers->{$_}->{'class'} eq $class, keys %{ $availableDbDrivers }) )[0] // '';
+    my $dbDrivers = $self->getAvailableDbDrivers();
+    my ( $defaultDbDriver ) = map { $dbDrivers->{$_}->{'default'} ? $_ : () } keys %{ $dbDrivers };
+    my %choices = map { $_ => $dbDrivers->{$_}->{'desc'} } keys %{ $dbDrivers };
+    my $class = ::setupGetQuestion(
+        'MTA_DB_DRIVER', $self->{'config'}->{'MTA_DB_DRIVER'} || ( iMSCP::Getopt->preseed ? $dbDrivers->{$defaultDbDriver}->{'class'} : '' )
+    );
+    my ( $value ) = ( grep ($dbDrivers->{$_}->{'class'} eq $class, keys %{ $dbDrivers }) )[0] // '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'mta', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || $defaultDbDriver );
+        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || $defaultDbDriver, TRUE );
 Please choose the Postfix database driver you want use for lookup tables.
 
 See http://www.postfix.org/DATABASE_README.html for further details.
@@ -841,8 +832,8 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    ::setupSetQuestion( 'MTA_DB_DRIVER', $availableDbDrivers->{$value}->{'class'} );
-    $self->{'config'}->{'MTA_DB_DRIVER'} = $availableDbDrivers->{$value}->{'class'};
+    ::setupSetQuestion( 'MTA_DB_DRIVER', $dbDrivers->{$value}->{'class'} );
+    $self->{'config'}->{'MTA_DB_DRIVER'} = $dbDrivers->{$value}->{'class'};
     $self->{'_db'}->setupDialog();
 }
 
@@ -907,7 +898,7 @@ sub _configure
     $self->_buildAliasesDb();
     $self->_buildMainCfFile();
     $self->_buildMasterCfFile();
-    $self->{'eventManager'}->trigger( 'afterPostixConfigure' );
+    $self->{'eventManager'}->trigger( 'afterPostfixConfigure' );
 }
 
 =item _setVersion( )
@@ -977,7 +968,10 @@ sub _buildAliasesDb
             ${ $_[0] } .= 'root: ' . ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' ) . "\n";
         }
     );
-    $self->buildConfFile( iMSCP::File->new( filename => $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ), undef, undef, undef, { srcname => $dbName } );
+    $self->buildConfFile( iMSCP::File->new( filename => $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ), undef, undef, undef, {
+        srcname => $dbName,
+        create  => TRUE # If the file doesn't exist, create it instead of raising a failure
+    } );
 
     my $rs = execute(
         [ 'postalias', "$self->{'config'}->{'MTA_DB_DEFAULT_TYPE'}:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ], \my $stdout, \my $stderr
@@ -1011,7 +1005,7 @@ sub _buildMainCfFile
     $self->buildConfFile( 'main.cf', $self->{'config'}->{'MTA_MAIN_CONF_FILE'} );
 
     # Dynamic parameters
-    my %params = (
+    $self->postconf(
         inet_protocols       => { values => [ $baseServerIpType ] },
         smtp_bind_address    => { values => [ ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '' ] },
         smtp_bind_address6   => { values => [ ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '' ] },
@@ -1049,14 +1043,10 @@ sub _buildMainCfFile
             smtp_tls_CAfile                  => { values => [ $::imscpConfig{'DISTRO_CA_BUNDLE'} ] },
             smtp_tls_session_cache_database  => { values => [ 'btree:${data_directory}/smtp_scache' ] },
             smtp_tls_session_cache_timeout   => { values => [ '3600s' ] }
-        )
+        ),
+        # See http://www.postfix.org/COMPATIBILITY_README.html
+        version->parse( $self->{'config'}->{'MTA_VERSION'} ) < version->parse( '3.0.0' ) ? () : ( compatibility_level => => { values => [ 2 ] } )
     );
-
-    my $version = version->parse( $self->{'config'}->{'MTA_VERSION'} );
-    $params{'smtpd_relay_restrictions'} = { values => [ '' ], empty => TRUE } if $version >= version->parse( '2.10.0' );
-    $params{'compatibility_level'} = { values => [ '2' ] } if $version >= version->parse( '3.0.0' );
-
-    $self->postconf( %params );
 }
 
 =item _buildMasterCfFile( )
@@ -1071,13 +1061,11 @@ sub _buildMasterCfFile
 {
     my ( $self ) = @_;
 
-    $self->buildConfFile( 'master.cf', $self->{'config'}->{'MTA_MASTER_CONF_FILE'}, undef,
-        {
-            ARPL_PATH            => "$::imscpConfig{'ROOT_DIR'}/engine/messenger/imscp-arpl-msgr",
-            IMSCP_GROUP          => $::imscpConfig{'IMSCP_GROUP'},
-            MTA_MAILBOX_UID_NAME => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'}
-        }
-    );
+    $self->buildConfFile( 'master.cf', $self->{'config'}->{'MTA_MASTER_CONF_FILE'}, undef, {
+        ARPL_PATH            => "$::imscpConfig{'ROOT_DIR'}/engine/messenger/imscp-arpl-msgr",
+        IMSCP_GROUP          => $::imscpConfig{'IMSCP_GROUP'},
+        MTA_MAILBOX_UID_NAME => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'}
+    } );
 }
 
 =item _removeUser( )
