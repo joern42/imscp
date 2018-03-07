@@ -93,13 +93,11 @@ sub setEnginePermissions
 
     return unless -f "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
-    setRights( "$self->{'config'}->{'CRON_D_DIR'}/imscp",
-        {
-            user  => $::imscpConfig{'ROOT_USER'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0640'
-        }
-    );
+    setRights( "$self->{'config'}->{'CRON_D_DIR'}/imscp", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0640'
+    } );
 }
 
 =item getServerName( )
@@ -162,7 +160,7 @@ sub addTask
     $data->{'USER'} //= $::imscpConfig{'ROOT_USER'};
 
     $self->_validateCronTask( $data );
-    $self->buildConfFile( $filepath, $filepath, undef, $data );
+    $self->buildConfFile( $filepath, undef, undef, $data );
 }
 
 =item deleteTask( \%data [, $filepath = "$self->{'config'}->{'CRON_D_DIR'}/imscp" ] )
@@ -183,7 +181,7 @@ sub deleteTask
     $filepath //= "$self->{'config'}->{'CRON_D_DIR'}/imscp";
 
     exists $data->{'TASKID'} or croak( 'Missing TASKID data' );
-    $self->buildConfFile( $filepath, $filepath, undef, $data );
+    $self->buildConfFile( $filepath, undef, undef, $data );
 }
 
 =item enableSystemTask( $cronTask [, $directory = ALL ] )
