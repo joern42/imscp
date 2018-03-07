@@ -17,7 +17,7 @@
 
 /* Generate the iMSCP::H2ph package for SYSCALL(2) and IOCTL(2) system calls */
 
-#include "stdio.h"
+#include <stdio.h>
 
 int main( void ) {
   printf(
