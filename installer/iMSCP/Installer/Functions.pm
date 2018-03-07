@@ -378,7 +378,7 @@ sub _showWelcomeMsg
 \\Zb\\Z4i-MSCP - internet Multi Server Control Panel
 ============================================\\Zn
 
-Welcome to the i-MSCP setup dialog.
+Welcome to the i-MSCP installer dialog.
 
 i-MSCP (internet Multi Server Control Panel) is a software easing shared hosting environments management on Linux servers.
 It support various services such as Apache2, ProFTPD, VsFTPD, Dovecot, Courier, Bind9... and can be easily extended through plugins and/or event listener files.
@@ -465,7 +465,7 @@ We are sorry but no packages file has been found for your $::imscpConfig{'DISTRO
 
 Thanks for choosing i-MSCP.
 EOF
-            exit 1
+            exit 1;
         }
 
         exit if ( my $rs = $dialog->yesno( <<"EOF" ) ) == 50;
@@ -552,19 +552,6 @@ sub _packDistributionFiles
     _packConfigFiles();
     _packEngineFiles();
     _packFrontendFiles();
-}
-
-=item _checkRequirements( )
-
- Check for requirements
-
- Return undef if all requirements are met, throw a fatal error otherwise
-
-=cut
-
-sub _checkRequirements
-{
-    iMSCP::Requirements->new()->all();
 }
 
 =item _packConfigFiles( )
@@ -985,16 +972,14 @@ sub _processCopyConfigNode
         iMSCP::File->new( filename => $source )->copy( $dest );
     }
 
-    setRights( $dest,
-        {
-            mode      => $node->{'mode'},
-            dirmode   => $node->{'dirmode'},
-            filemode  => $node->{'filemode'},
-            user      => defined $node->{'user'} ? expandVars( $node->{'user'} ) : undef,
-            group     => defined $node->{'group'} ? expandVars( $node->{'group'} ) : undef,
-            recursive => $node->{'recursive'}
-        }
-    );
+    setRights( $dest, {
+        mode      => $node->{'mode'},
+        dirmode   => $node->{'dirmode'},
+        filemode  => $node->{'filemode'},
+        user      => defined $node->{'user'} ? expandVars( $node->{'user'} ) : undef,
+        group     => defined $node->{'group'} ? expandVars( $node->{'group'} ) : undef,
+        recursive => $node->{'recursive'}
+    } );
 }
 
 =item _processCopyNode( \%node )
@@ -1051,16 +1036,14 @@ sub _processCopyNode
         iMSCP::File->new( filename => $source )->copy( $dest );
     }
 
-    setRights( $dest,
-        {
-            mode      => $node->{'mode'},
-            dirmode   => $node->{'dirmode'},
-            filemode  => $node->{'filemode'},
-            user      => defined $node->{'user'} ? expandVars( $node->{'user'} ) : undef,
-            group     => defined $node->{'group'} ? expandVars( $node->{'group'} ) : undef,
-            recursive => $node->{'recursive'}
-        }
-    );
+    setRights( $dest, {
+        mode      => $node->{'mode'},
+        dirmode   => $node->{'dirmode'},
+        filemode  => $node->{'filemode'},
+        user      => defined $node->{'user'} ? expandVars( $node->{'user'} ) : undef,
+        group     => defined $node->{'group'} ? expandVars( $node->{'group'} ) : undef,
+        recursive => $node->{'recursive'}
+    } );
 }
 
 =item _getInstaller( )
