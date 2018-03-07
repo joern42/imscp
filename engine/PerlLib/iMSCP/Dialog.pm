@@ -97,11 +97,9 @@ sub fselect
 =item radiolist( $text, \%choices [, $defaultTag = none [, $showTags = FALSE ] ] )
 
  Show radio list dialog
- 
- eg: dialog --no-tags --radiolist 'text' 0 0 0 'first' 'First option' on 'second' 'Second option' 0
 
  Param string $text Text to show
- Param array \%choices List of choices where keys are tags and values are items.
+ Param hashref \%choices List of choices where keys are tags and values are items.
  Param string $default OPTIONAL Default selected tag
  Param bool $showTags OPTIONAL Flag indicating whether or not tags must be showed in dialog box
  Return list|string Selected tag or list containing both the dialog exit code and selected tag
@@ -114,9 +112,15 @@ sub radiolist
     $defaultTag //= '';
 
     my @init;
-    my %choices = reverse( %{ $choices } );
-    for my $item ( sort keys %choices ) {
-        push @init, escapeShell( $choices{$item} ), escapeShell( $item ), $defaultTag eq $choices{$item} ? 'on' : 'off';
+    if ( $showTags ) {
+        for my $tag ( sort keys %{ $choices } ) {
+            push @init, escapeShell( $tag ), escapeShell( $choices->{$tag} ), $defaultTag eq $tag ? 'on' : 'off';
+        }
+    } else {
+        my %choices = reverse( %{ $choices } );
+        for my $item ( sort keys %choices ) {
+            push @init, escapeShell( $choices{$item} ), escapeShell( $item ), $defaultTag eq $choices{$item} ? 'on' : 'off';
+        }
     }
 
     local $self->{'opts'}->{'no-tags'} = '' unless $showTags;
@@ -124,28 +128,36 @@ sub radiolist
     wantarray ? ( $ret, $tag ) : $tag;
 }
 
-=item checkbox( $text, \%choices [, @defaults = ( ) ] )
+=item checkbox( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] )
 
  Show check list dialog
 
  Param string $text Text to show
- Param array \%choices List of choices where keys are tags and values are items.
- Param array @default Default tag
+ Param hashref \%choices List of choices where keys are tags and values are items.
+ Param arrayref @default Default tag(s)
+ Param bool $showTags OPTIONAL Flag indicating whether or not tags must be showed in dialog box
  Return List A list containing array of selected tags or a list containing both the dialog exit code and array of selected tags
 
 =cut
 
 sub checkbox
 {
-    my ( $self, $text, $choices, @defaultTags ) = @_;
+    my ( $self, $text, $choices, $defaultTags, $showTags ) = @_;
+    $defaultTags //= [];
 
     my @init;
-    my %choices = reverse( %{ $choices } );
-    for my $item ( sort keys %choices ) {
-        push @init, escapeShell( $choices{$item} ), escapeShell( $item ), grep ( $choices{$item} eq $_, @defaultTags ) ? 'on' : 'off';
+    if ( $showTags ) {
+        for my $tag ( sort keys %{ $choices } ) {
+            push @init, escapeShell( $tag ), escapeShell( $choices->{$tag} ), grep ( $tag eq $_, @{ $defaultTags }) ? 'on' : 'off';
+        }
+    } else {
+        my %choices = reverse( %{ $choices } );
+        for my $item ( sort keys %choices ) {
+            push @init, escapeShell( $choices{$item} ), escapeShell( $item ), grep ( $choices{$item} eq $_, @{ $defaultTags } ) ? 'on' : 'off';
+        }
     }
 
-    local $self->{'opts'}->{'no-tags'} = ''; # Don't display tags in dialog
+    local $self->{'opts'}->{'no-tags'} = '' unless $showTags;
     my ( $ret, $tags ) = $self->_textbox( $text, 'checklist', "@{ [ scalar keys %{ $choices } ] } @init" );
     wantarray ? ( $ret, [ split /\n/, $tags ] ) : [ split /\n/, $tags ];
 }
