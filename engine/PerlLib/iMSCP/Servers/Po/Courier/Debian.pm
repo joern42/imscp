@@ -25,6 +25,7 @@ package iMSCP::Servers::Po::Courier::Debian;
 
 use strict;
 use warnings;
+use Class::Autouse qw/ :nostat iMSCP::ProgramFinder /;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
@@ -117,6 +118,8 @@ sub dpkgPostInvokeTasks
 {
     my ( $self ) = @_;
 
+    return unless iMSCP::ProgramFinder->find( 'courier-config' );
+
     $self->_setVersion();
 }
 
@@ -205,7 +208,8 @@ sub _setVersion
 {
     my ( $self ) = @_;
 
-    execute( 'dpkg -s courier-base | grep -i \'^version\'', \my $stdout, \my $stderr ) == 0 or die( $stderr || 'Unknown error' ) if $rs;
+    my $stderr;
+    execute( 'dpkg -s courier-base | grep -i \'^version\'', \my $stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
     $stdout =~ /version:\s+([\d.]+)/i or die( "Couldn't guess Courier version from the `dpkg -s courier-base | grep -i '^version'` command output" );
     $self->{'config'}->{'PO_VERSION'} = $1;
     debug( sprintf( 'Courier version set to: %s', $1 ));
@@ -238,21 +242,16 @@ sub _cleanup
         );
     }
 
-    return unless $oldPluginApiVersion < version->parse( '1.5.0' );
-
     iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.old.data" )->remove();
 
-    if ( -f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ) {
-        iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" )->set( '' )->save()->mode( 0600 );
-
-        my $rs = execute( [ 'makeuserdb', '-f', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/userdb" ], \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
-        !$rs or die( $stderr || 'Unknown error' ) if $rs;
+    # Remove userdb database (we now use mysql)
+    for my $filename ( qw/ userdb userdb.dat / ) {
+        iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$filename" )->remove();
     }
 
     # Remove postfix user from authdaemon group.
     # It is now added in mail group (since 1.5.0)
-    iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'PO_AUTHDAEMON_GROUP'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
+    iMSCP::SystemUser->new()->removeFromGroup( $self->{'config'}->{'PO_GROUP'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
 
     # Remove old authdaemon socket private/authdaemon mount directory.
     # Replaced by var/run/courier/authdaemon (since 1.5.0)

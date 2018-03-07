@@ -1,12 +1,11 @@
 PO_VERSION                      = 
-PO_AUTHDAEMON_USER              = daemon
-PO_AUTHDAEMON_GROUP             = daemon
-PO_AUTHLIB_CONF_DIR             = /etc/courier
-PO_AUTHLIB_SOCKET_DIR           = /var/run/courier/authdaemon
-PO_AUTHDAEMON_PATH              = /var/run/courier/authdaemon/socket
+PO_USER                         =
+PO_GROUP                        =
+PO_CONF_DIR                     = /etc/courier
+PO_RUN_DIR                      = /var/run/courier
+PO_AUTHDAEMON_RUN_DIR           = /var/run/courier/authdaemon
 PO_AUTHDAEMON_DATABASE_USER     =
 PO_AUTHDAEMON_DATABASE_PASSWORD =
-PO_CONF_DIR                     = /etc/courier
 PO_IMAP_SSL                     = imapd-ssl
 PO_POP_SSL                      = pop3d-ssl
 
@@ -18,5 +17,3 @@ MECH_LIST                       = plain login
 
 # Maildrop
 QUOTA_WARN_MSG_PATH             = /etc/quotawarnmsg
-
-

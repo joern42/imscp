@@ -48,6 +48,7 @@ use iMSCP::SystemUser;
 use iMSCP::TemplateParser qw/ processByRef replaceBlocByRef /;
 use iMSCP::Servers::Mta;
 use iMSCP::Servers::Sqld;
+use Scalar::Defer qw/ lazy /;
 use Sort::Naturally;
 use Tie::File;
 use parent 'iMSCP::Servers::Po';
@@ -176,6 +177,7 @@ sub install
     my ( $self ) = @_;
 
     $self->_setVersion();
+    $self->_guessUserAndGroup();
     $self->_configure();
     $self->_setupPostfixSasl() if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
     $self->_migrateFromDovecot();
@@ -205,34 +207,61 @@ sub setEnginePermissions
 {
     my ( $self ) = @_;
 
-    setRights( $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'},
-        {
-            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
-            group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            mode  => '0750'
-        }
-    ) if -d $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'};
-    setRights( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authmysqlrc",
-        {
-            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
-            group => $self->{'config'}->{'PO_AUTHDAEMON_GROUP'},
-            mode  => '0660'
-        }
+    setRights( $self->{'config'}->{'PO_CONF_DIR'}, { # e.g. /etc/courier
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $self->{'config'}->{'PO_GROUP'},
+        mode  => '0755'
+    } );
+
+    # List of possible files/directories inside $self->{'config'}->{'PO_CONF_DIR'}
+    # Permissions taken from courier base installation on Debian Stretch
+    my %files = (
+        authdaemonrc             => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0640' ],
+        authmysqlrc              => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0640' ],
+        'dhparams.pem'           => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0640' ],
+        'esmtpacceptmailfor.dir' => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0750' ],
+        hosteddomains            => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0750' ],
+        imapaccess               => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0750' ],
+        'imapaccess.dat'         => [ $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'}, '0644' ],
+        imapd                    => [ $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'}, '0644' ],
+        'imapd.cnf'              => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0640' ],
+        'imapd.pem'              => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0640' ],
+        'imapd-ssl'              => [ $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'}, '0644' ],
+        pop3d                    => [ $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'}, '0644' ],
+        'pop3d.cnf'              => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0640' ],
+        'pop3d.pem'              => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0640' ],
+        'pop3d-ssl'              => [ $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'}, '0644' ],
+        shared                   => [ $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'PO_GROUP'}, '0750' ]
     );
-    setRights( $self->{'config'}->{'QUOTA_WARN_MSG_PATH'},
-        {
-            user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-            group => $::imscpConfig{'ROOT_GROUP'},
-            mode  => '0640'
-        }
-    );
-    setRights( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem",
-        {
-            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
-            group => $self->{'config'}->{'PO_AUTHDAEMON_GROUP'},
-            mode  => '0600'
-        }
-    ) if -f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem";
+    while ( my ( $file, $perms ) = each( %files ) ) {
+        next unless -e "$self->{'config'}->{'PO_CONF_DIR'}/$file";
+        setRights( "$self->{'config'}->{'PO_CONF_DIR'}/$file", {
+            user  => $perms->[0],
+            group => $perms->[1],
+            mode  => $perms->[2]
+        } );
+    }
+
+    setRights( $self->{'config'}->{'PO_RUN_DIR'}, { # e.g. /var/run/courier
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $self->{'config'}->{'PO_GROUP'},
+        mode  => '0775'
+    } ) if -d $self->{'config'}->{'PO_RUN_DIR'};
+    setRights( $self->{'config'}->{'PO_AUTHDAEMON_RUN_DIR'}, { # e.g. /var/run/courier/authdaemon
+        user  => $self->{'config'}->{'PO_USER'},
+        group => $self->{'config'}->{'PO_GROUP'},
+        mode  => '0755'
+    } ) if -d $self->{'config'}->{'PO_AUTHDAEMON_RUN_DIR'};
+    setRights( "$self->{'config'}->{'PO_AUTHDAEMON_RUN_DIR'}/socket", { # e.g. /var/run/courier/authdaemon/socket
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0666'
+    } ) if -f "$self->{'config'}->{'PO_AUTHDAEMON_RUN_DIR'}/socket";
+    setRights( $self->{'config'}->{'QUOTA_WARN_MSG_PATH'}, { # e.g. /etc/quotawarnmsg
+        user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0640'
+    } );
 }
 
 =item getServerName( )
@@ -420,7 +449,9 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload quotaRecalc mta cfgDir /} = ( 0, 0, 0, iMSCP::Servers::Mta->factory(), "$::imscpConfig{'CONF_DIR'}/courier" );
+    @{ $self }{qw/ restart reload quotaRecalc mta cfgDir /} = (
+        0, 0, 0, lazy { iMSCP::Servers::Mta->factory() }, "$::imscpConfig{'CONF_DIR'}/courier"
+    );
     $self->SUPER::_init();
 }
 
@@ -437,6 +468,26 @@ sub _setVersion
     my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the _setVersion() method', ref $self ));
+}
+
+=item _guessUserAndGroup( )
+
+ Guess Courier user and group
+
+ Return void, die on failure
+
+=cut
+
+sub _guessUserAndGroup
+{
+    my ( $self ) = @_;
+
+    my $stdout = `courier-config 2>/dev/null | grep '^mail\\(user\\|group\\)='` or die( "Couldn't guess Courier user/group" );
+    my ( $user, $group ) = $stdout =~ /mail(?:user|group)=([^\n]+)/gm;
+    $self->{'config'}->{'PO_USER'} = $user;
+    debug( sprintf( 'Courier user set to: %s', $user ));
+    $self->{'config'}->{'PO_GROUP'} = $group;
+    debug( sprintf( 'Courier group set to: %s', $group ));
 }
 
 =item _setupSqlUser( )
@@ -502,26 +553,28 @@ sub _configure
     $self->_buildDHparametersFile();
     $self->_buildAuthdaemonrcFile();
     $self->_buildSslConfFiles();
-    $self->buildConfFile( 'authmysqlrc', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authmysqlrc", undef,
+    $self->buildConfFile( 'authmysqlrc', "$self->{'config'}->{'PO_CONF_DIR'}/authmysqlrc", undef,
         {
             DATABASE_HOST        => ::setupGetQuestion( 'DATABASE_HOST' ),
             DATABASE_PORT        => ::setupGetQuestion( 'DATABASE_PORT' ),
             DATABASE_USER        => $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'},
             DATABASE_PASSWORD    => $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_PASSWORD'},
             DATABASE_NAME        => ::setupGetQuestion( 'DATABASE_NAME' ),
-            MTA_MAILBOX_UID      => ( scalar getpwnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'} ) ),
-            MTA_MAILBOX_GID      => ( scalar getgrnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} ) ),
+            MTA_MAILBOX_UID      => ( getpwnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'} ) )[2],
+            MTA_MAILBOX_GID      => ( getgrnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} ) )[2],
             MTA_VIRTUAL_MAIL_DIR => $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
         },
         {
             umask => 0027,
-            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
-            group => $self->{'config'}->{'PO_AUTHDAEMON_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $self->{'config'}->{'PO_GROUP'},
             mode  => 0640
         }
     );
     $self->buildConfFile( 'quota-warning', $self->{'config'}->{'QUOTA_WARN_MSG_PATH'}, undef,
-        { HOSTNAME => ::setupGetQuestion( 'SERVER_HOSTNAME' ), },
+        {
+            HOSTNAME => ::setupGetQuestion( 'SERVER_HOSTNAME' )
+        },
         {
             umask => 0027,
             user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
@@ -593,8 +646,8 @@ sub _setupPostfixSasl
     # Mount authdaemond socket directory in Postfix chroot
     # Postfix won't be able to connect to socket located outside of its chroot
     my $fields = {
-        fs_spec    => $self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'},
-        fs_file    => "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'}",
+        fs_spec    => $self->{'config'}->{'PO_AUTHDAEMON_RUN_DIR'},
+        fs_file    => "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHDAEMON_RUN_DIR'}",
         fs_vfstype => 'none',
         fs_mntops  => 'bind,slave'
     };
@@ -605,24 +658,18 @@ sub _setupPostfixSasl
     mount( $fields ) unless isMountpoint( $fields->{'fs_file'} );
 
     # Build Cyrus SASL smtpd.conf configuration file
-
-    my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/sasl/smtpd.conf" );
-    my $cfgTpl = $file->getAsRef( TRUE );
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', 'smtpd.conf', $cfgTpl );
-    $file->getAsRef();
-
-    processByRef(
+    $self->buildConfFile( 'sasl/smtpd.conf', "$self->{'config'}->{'SASL_CONF_DIR'}/smtpd.conf", undef,
         {
             PWCHECK_METHOD     => $self->{'config'}->{'PWCHECK_METHOD'},
             LOG_LEVEL          => $self->{'config'}->{'LOG_LEVEL'},
             MECH_LIST          => $self->{'config'}->{'MECH_LIST'},
-            PO_AUTHDAEMON_PATH => $self->{'config'}->{'PO_AUTHDAEMON_PATH'}
+            PO_AUTHDAEMON_PATH => "$self->{'config'}->{'PO_AUTHDAEMON_RUN_DIR'}/socket"
         },
-        $cfgTpl
+        {
+            umask => 0027,
+            mode  => 0640
+        }
     );
-
-    $file->{'filename'} = "$self->{'config'}->{'SASL_CONF_DIR'}/smtpd.conf";
-    $file->save( 0027 )->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )->mode( 0640 );
 }
 
 =item _buildDHparametersFile( )
@@ -640,14 +687,14 @@ sub _buildDHparametersFile
 
     return unless iMSCP::ProgramFinder::find( 'certtool' ) || iMSCP::ProgramFinder::find( 'mkdhparams' );
 
-    if ( -f "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem" ) {
+    if ( -f "$self->{'config'}->{'PO_CONF_DIR'}/dhparams.pem" ) {
         my $rs = execute(
-            [ 'openssl', 'dhparam', '-in', "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem", '-text', '-noout' ], \my $stdout, \my $stderr
+            [ 'openssl', 'dhparam', '-in', "$self->{'config'}->{'PO_CONF_DIR'}/dhparams.pem", '-text', '-noout' ], \my $stdout, \my $stderr
         );
         debug( $stderr || 'Unknown error' ) if $rs;
         return if $rs == 0 && $stdout =~ /\((\d+)\s+bit\)/ && $1 >= 2048; # Don't regenerate file if not needed
 
-        iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem" )->remove();
+        iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/dhparams.pem" )->remove();
     }
 
     startDetail();
@@ -673,7 +720,7 @@ sub _buildDHparametersFile
             my $rs = executeNoWait( $cmd, ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? sub {} : $outputHandler ), $outputHandler );
             !$rs or die( $output || 'Unknown error' );
 
-            iMSCP::File->new( filename => $tmpFile->filename )->move( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/dhparams.pem" ) if $tmpFile;
+            iMSCP::File->new( filename => $tmpFile->filename )->move( "$self->{'config'}->{'PO_CONF_DIR'}/dhparams.pem" ) if $tmpFile;
         }, 'Generating DH parameter file', 1, 1
     );
     endDetail();
@@ -692,15 +739,12 @@ sub _buildAuthdaemonrcFile
     my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne( 'beforeCourierBuildConfFile', sub { ${ $_[0] } =~ s/authmodulelist=".*"/authmodulelist="authmysql"/; } );
-    $self->buildConfFile( "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authdaemonrc",
-        "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/authdaemonrc", undef, undef,
-        {
-            umask => 0007,
-            user  => $self->{'config'}->{'PO_AUTHDAEMON_USER'},
-            group => $self->{'config'}->{'PO_AUTHDAEMON_GROUP'},
-            mode  => 0660
-        }
-    );
+    $self->buildConfFile( "$self->{'config'}->{'PO_CONF_DIR'}/authdaemonrc", undef, undef, undef, {
+        umask => 0027,
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $self->{'config'}->{'PO_GROUP'},
+        mode  => 0640
+    } );
 }
 
 =item _buildSslConfFiles( )
@@ -718,23 +762,15 @@ sub _buildSslConfFiles
     return unless ::setupGetQuestion( 'SERVICES_SSL_ENABLED', 'no' ) eq 'yes';
 
     for my $filename ( $self->{'config'}->{'PO_IMAP_SSL'}, $self->{'config'}->{'PO_POP_SSL'} ) {
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_AUTHLIB_CONF_DIR'}/$filename" );
-        my $cfgTpl = $file->getAsRef( TRUE );
+        $self->{'eventManager'}->registerOne( 'beforeCourierBuildConfFile', sub {
+            if ( ${ $_[0] } =~ /^TLS_CERTFILE=/gm ) {
+                ${ $_[0] } =~ s!^(TLS_CERTFILE=).*!$1$::imscpConfig{'CONF_DIR'}/imscp_services.pem!gm;
+            } else {
+                ${ $_[0] } .= "TLS_CERTFILE=$::imscpConfig{'CONF_DIR'}/imscp_services.pem\n";
+            }
 
-        $self->{'eventManager'}->trigger( 'onLoadTemplate', 'courier', $filename, $cfgTpl, {} );
-        $file->getAsRef();
-
-        $self->{'eventManager'}->trigger( 'beforeCourierBuildSslConfFile', $cfgTpl, $filename );
-
-        if ( ${ $cfgTpl } =~ /^TLS_CERTFILE=/gm ) {
-            ${ $cfgTpl } =~ s!^(TLS_CERTFILE=).*!$1$::imscpConfig{'CONF_DIR'}/imscp_services.pem!gm;
-        } else {
-            ${ $cfgTpl } .= "TLS_CERTFILE=$::imscpConfig{'CONF_DIR'}/imscp_services.pem\n";
-        }
-
-        $self->{'eventManager'}->trigger( 'afterCourierBuildSslConfFile', $cfgTpl, $filename );
-
-        $file->save()->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )->mode( 0644 );
+        } );
+        $self->buildConfFile( "$self->{'config'}->{'PO_CONF_DIR'}/$filename" );
     }
 }
 
@@ -763,7 +799,7 @@ sub _migrateFromDovecot
     debug( $stdout ) if $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 
-    $self->{'quotaRecalc'} = 1;
+    $self->{'quotaRecalc'} = TRUE;
     $::imscpOldConfig{'iMSCP::Servers::Po'} = $::imscpConfig{'iMSCP::Servers::Po'};
 }
 
@@ -801,7 +837,7 @@ sub _removeConfig
     my ( $self ) = @_;
 
     # Umount the courier-authdaemond rundir from the Postfix chroot
-    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHLIB_SOCKET_DIR'}" );
+    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'MTA_QUEUE_DIR'}/$self->{'config'}->{'PO_AUTHDAEMON_RUN_DIR'}" );
     removeMountEntry( qr%.*?[ \t]+\Q$fsFile\E(?:/|[ \t]+)[^\n]+% );
     umount( $fsFile );
 
@@ -810,10 +846,11 @@ sub _removeConfig
     # Remove the `postfix' user from the `mail' group
     iMSCP::SystemUser->new()->removeFromGroup( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
 
-    # Remove i-MSCP configuration stanza from the courier-imap daemon configuration file
-    # FIXME also in other files
-    if ( -f "$self->{'config'}->{'PO_CONF_DIR'}/imapd" ) {
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/imapd" );
+    # Remove i-MSCP configuration stanza from configuration files
+    for my $sname ( qw/ imapd imapd-ssl pop3d pop3d-ssl / ) {
+        next unless -f "$self->{'config'}->{'PO_CONF_DIR'}/$sname";
+
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$sname" );
         my $fileContentRef = $file->getAsRef();
 
         replaceBlocByRef(
@@ -823,7 +860,7 @@ sub _removeConfig
             $fileContentRef
         );
 
-        $file->save()->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )->mode( 0644 );
+        $file->save();
     }
 
     iMSCP::File->new( filename => "$self->{'config'}->{'SASL_CONF_DIR'}/smtpd.conf" )->remove();
@@ -850,75 +887,37 @@ sub beforePostfixConfigure
 {
     my ( $courierServer ) = @_;
 
-    my $rs = $courierServer->{'eventManager'}->register(
-        'afterPostfixBuildFile',
+    $courierServer->{'eventManager'}->register(
+        'afterPostfixBuildConfFile',
         sub {
             my ( $cfgTpl, $cfgTplName ) = @_;
 
             return unless $cfgTplName eq 'master.cf';
+
             ${ $cfgTpl } .= <<"EOF";
 maildrop  unix  -       n       n       -       -       pipe
  flags=DRhu user=$courierServer->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}:$courierServer->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} argv=maildrop -w 90 -d \${user}\@\${nexthop} \${extension} \${recipient} \${user} \${nexthop} \${sender}
 EOF
         }
     );
-    $rs ||= $courierServer->{'eventManager'}->registerOne(
+    $courierServer->{'eventManager'}->registerOne(
         'afterPostfixConfigure',
         sub {
             $courierServer->{'mta'}->postconf(
                 # Maildrop MDA parameters
-                virtual_transport                      => {
-                    action => 'replace',
-                    values => [ 'maildrop' ]
-                },
-                maildrop_destination_concurrency_limit => {
-                    action => 'replace',
-                    values => [ '2' ]
-                },
-                maildrop_destination_recipient_limit   => {
-                    action => 'replace',
-                    values => [ '1' ]
-                },
+                virtual_transport                      => { action => 'replace', values => [ 'maildrop' ] },
+                maildrop_destination_concurrency_limit => { action => 'replace', values => [ 2 ] },
+                maildrop_destination_recipient_limit   => { action => 'replace', values => [ 1 ] },
                 # Cyrus SASL parameters
-                smtpd_sasl_type                        => {
-                    action => 'replace',
-                    values => [ 'cyrus' ]
-                },
-                smtpd_sasl_path                        => {
-                    action => 'replace',
-                    values => [ 'smtpd' ]
-                },
-                smtpd_sasl_auth_enable                 => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
-                smtpd_sasl_security_options            => {
-                    action => 'replace',
-                    values => [ 'noanonymous' ]
-                },
-                smtpd_sasl_authenticated_header        => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
-                broken_sasl_auth_clients               => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
+                smtpd_sasl_type                        => { action => 'replace', values => [ 'cyrus' ] },
+                smtpd_sasl_path                        => { action => 'replace', values => [ 'smtpd' ] },
+                smtpd_sasl_auth_enable                 => { action => 'replace', values => [ 'yes' ] },
+                smtpd_sasl_security_options            => { action => 'replace', values => [ 'noanonymous' ] },
+                smtpd_sasl_authenticated_header        => { action => 'replace', values => [ 'yes' ] },
+                broken_sasl_auth_clients               => { action => 'replace', values => [ 'yes' ] },
                 # SMTP restrictions
-                smtpd_helo_restrictions                => {
-                    action => 'add',
-                    values => [ 'permit_sasl_authenticated' ],
-                    after  => qr/permit_mynetworks/
-                },
-                smtpd_sender_restrictions              => {
-                    action => 'add',
-                    values => [ 'permit_sasl_authenticated' ],
-                    after  => qr/permit_mynetworks/
-                },
-                smtpd_recipient_restrictions           => {
-                    action => 'add',
-                    values => [ 'permit_sasl_authenticated' ],
-                    after  => qr/permit_mynetworks/
+                smtpd_relay_restrictions               => {
+                    action => 'add', values => [ 'permit_sasl_authenticated' ], after => qr/permit_mynetworks/
                 }
             );
         }
