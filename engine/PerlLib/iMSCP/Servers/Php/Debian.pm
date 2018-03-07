@@ -34,7 +34,7 @@ use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Service;
-use Scalar::Defer qw/ lazy /;
+use Scalar::Defer qw/ defer lazy /;
 use version;
 use parent 'iMSCP::Servers::Php';
 
