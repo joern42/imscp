@@ -12,5 +12,5 @@
         disabled and removed. It will be re-enabled later on by the installer.
     -->
     <copy_config copy_if="0" srv_provider="imscp_mountall">${SYSTEM_ETC_DIR}/systemd/system/imscp_mountall.service</copy_config>
-    <copy_config copy_cwd="1" umask="0027">${IMSCP_CONF_DIR}/mounts</copy_config>
+    <copy_config umask="0027">${IMSCP_CONF_DIR}/mounts</copy_config>
 </install>
