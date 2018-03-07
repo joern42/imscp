@@ -1286,7 +1286,7 @@ sub _makeDirs
 {
     my ( $self ) = @_;
 
-    iMSCP::Dir->new( dirname => '/var/log/apache2' )->make( {
+    iMSCP::Dir->new( dirname => $self->{'config'}->{'HTTPD_LOG_DIR'} )->make( {
         umask          => 0027,
         user           => $::imscpConfig{'ROOT_USER'},
         group          => $::imscpConfig{'ADM_GROUP'},
@@ -1360,7 +1360,9 @@ EOF
                 USER     => ::setupGetQuestion( 'DATABASE_USER' ) =~ s/"/\\"/gr,
                 PASSWORD => decryptRijndaelCBC( $::imscpKEY, $::imscpIV, ::setupGetQuestion( 'DATABASE_PASSWORD' )) =~ s/"/\\"/gr
             },
-            { srcname => 'defaults-extra-file' }
+            {
+                srcname => 'defaults-extra-file'
+            }
         );
 
         my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
