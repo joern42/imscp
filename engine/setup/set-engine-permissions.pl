@@ -85,48 +85,38 @@ debug( 'Setting base (engine) permissions' );
 printf( "Setting base (engine) permissions\t%s\t%s\n", $totalItems, $count ) if iMSCP::Getopt->context() eq 'installer';
 
 # e.g: /etc/imscp
-setRights( $::imscpConfig{'CONF_DIR'},
-    {
-        user      => $::imscpConfig{'ROOT_USER'},
-        group     => $::imscpConfig{'IMSCP_GROUP'},
-        dirmode   => '0750',
-        filemode  => '0640',
-        recursive => 1
-    }
-);
+setRights( $::imscpConfig{'CONF_DIR'}, {
+    user      => $::imscpConfig{'ROOT_USER'},
+    group     => $::imscpConfig{'IMSCP_GROUP'},
+    dirmode   => '0750',
+    filemode  => '0640',
+    recursive => 1
+} );
 # e.g: /var/www/imscp
-setRights( $::imscpConfig{'ROOT_DIR'},
-    {
-        user  => $::imscpConfig{'ROOT_USER'},
-        group => $::imscpConfig{'ROOT_GROUP'},
-        mode  => '0755'
-    }
-);
+setRights( $::imscpConfig{'ROOT_DIR'}, {
+    user  => $::imscpConfig{'ROOT_USER'},
+    group => $::imscpConfig{'ROOT_GROUP'},
+    mode  => '0755'
+} );
 # e.g: /var/www/imscp/engine
-setRights( "$::imscpConfig{'ROOT_DIR'}/engine",
-    {
-        user      => $::imscpConfig{'ROOT_USER'},
-        group     => $::imscpConfig{'IMSCP_GROUP'},
-        mode      => '0750',
-        recursive => 1
-    }
-);
+setRights( "$::imscpConfig{'ROOT_DIR'}/engine", {
+    user      => $::imscpConfig{'ROOT_USER'},
+    group     => $::imscpConfig{'IMSCP_GROUP'},
+    mode      => '0750',
+    recursive => 1
+} );
 # e.g: /var/www/virtual
-setRights( $::imscpConfig{'USER_WEB_DIR'},
-    {
-        user  => $::imscpConfig{'ROOT_USER'},
-        group => $::imscpConfig{'ROOT_GROUP'},
-        mode  => '0755'
-    }
-);
+setRights( $::imscpConfig{'USER_WEB_DIR'}, {
+    user  => $::imscpConfig{'ROOT_USER'},
+    group => $::imscpConfig{'ROOT_GROUP'},
+    mode  => '0755'
+} );
 # e.g: /var/log/imscp
-setRights( $::imscpConfig{'LOG_DIR'},
-    {
-        user  => $::imscpConfig{'ROOT_USER'},
-        group => $::imscpConfig{'IMSCP_GROUP'},
-        mode  => '0750'
-    }
-);
+setRights( $::imscpConfig{'LOG_DIR'}, {
+    user  => $::imscpConfig{'ROOT_USER'},
+    group => $::imscpConfig{'IMSCP_GROUP'},
+    mode  => '0750'
+} );
 
 $count++;
 
