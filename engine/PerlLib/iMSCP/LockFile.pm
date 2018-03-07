@@ -27,7 +27,6 @@ use strict;
 use warnings;
 use Errno qw/ ENOENT EWOULDBLOCK /;
 use Fcntl qw/ :flock /;
-use iMSCP::Debug qw/ debug /;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
@@ -51,8 +50,6 @@ use parent 'iMSCP::Common::Object';
 sub acquire
 {
     my ( $self ) = @_;
-
-    debug( sprintf( 'Acquiring exclusive lock on %s', $self->{'path'} ));
 
     while ( !$self->{'_fd'} ) {
         open my $fd, '>', $self->{'path'} or die( sprintf( "Couldn't open %s file", $self->{'path'} ));
@@ -87,7 +84,6 @@ sub release
     # Prevent lock from being released if the process is not the lock owner
     return unless $self->{'_owner'} == $$;
 
-    debug( sprintf( 'Releasing exclusive lock on %s', $self->{'path'} ));
     # It is important the lock file is removed before it's released, otherwise:
     #
     # process A: open lock file
@@ -142,7 +138,6 @@ sub _tryLock
     return 1 if flock( $fd, LOCK_EX | ( $self->{'non_blocking'} ? LOCK_NB : 0 ));
 
     $!{'EWOULDBLOCK'} or die( sprintf( "Couldn't acquire exclusive lock on %s: %s", $self->{'path'}, $! ));
-    debug( sprintf( "A lock on %s is held by another process.", $self->{'path'} ));
     0;
 }
 
