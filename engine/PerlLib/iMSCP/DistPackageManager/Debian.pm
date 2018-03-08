@@ -9,12 +9,14 @@ package iMSCP::DistPackageManager::Debian;
 use strict;
 use warnings;
 use Array::Utils qw/ intersect /;
+use File::Temp;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dialog;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
+use version;
 use parent qw/ iMSCP::Common::Object iMSCP::DistPackageManager::Interface /;
 
 =head1 DESCRIPTION
@@ -27,7 +29,7 @@ use parent qw/ iMSCP::Common::Object iMSCP::DistPackageManager::Interface /;
 
 =item addRepositories( @repositories )
 
- See iMSCP::DistPackageManager::Interface
+ See iMSCP::DistPackageManager::Interface::addRepositories()
  
  @repositories must contain a list of hashes, each describing an APT repository.
  The hashes *MUST* contain the following key/value pairs:
@@ -92,7 +94,7 @@ EOF
 
 =item removeRepositories( @repositories )
 
- See iMSCP::DistPackageManager::Interface
+ See iMSCP::DistPackageManager::Interface::removeRepositories()
  
  @repositories must contain a list of repository in following format: 'uri suite [component1] [component2] [...]' 
 
@@ -115,7 +117,7 @@ sub removeRepositories
 
 =item installPackages( @packages )
 
- See iMSCP::DistPackageManager::Interface
+ See iMSCP::DistPackageManager::Interface::installPackages()
 
 =cut
 
@@ -123,10 +125,10 @@ sub installPackages
 {
     my ( $self, @packages ) = @_;
 
-    # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
+    # Ignores exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
     execute( [ 'apt-mark', 'unhold', @packages ], \my $stdout, \my $stderr );
 
-    iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
+    iMSCP::Dialog->getInstance()->endGauge() if iMSCP::Getopt->context() eq 'installer';
 
     local $ENV{'UCF_FORCE_CONFFNEW'} = TRUE;
     local $ENV{'UCF_FORCE_CONFFMISS'} = TRUE;
@@ -150,7 +152,7 @@ sub installPackages
 
 =item uninstallPackages( @packages )
 
- See iMSCP::DistPackageManager::Interface
+ See iMSCP::DistPackageManager::Interface::uninstallPackages()
 
 =cut
 
@@ -166,13 +168,12 @@ sub uninstallPackages
     undef @availablePackages;
 
     if ( @packages ) {
-        iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
+        iMSCP::Dialog->getInstance()->endGauge() if iMSCP::Getopt->context() eq 'installer';
 
         # Ignores exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
         execute( [ 'apt-mark', 'unhold', @packages ], \$stdout, \$stderr );
         execute(
             [
-                # '--allow-change-held-packages'
                 ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
                 'apt-get', '--assume-yes', '--auto-remove', 'purge', @packages
             ],
@@ -199,7 +200,7 @@ sub uninstallPackages
 
 =item _updateAptIndex( )
 
- UPDATE APT index
+ Update APT index
 
  Return iMSCP::DistPackageManager::Interface, die on failure
 
@@ -209,14 +210,14 @@ sub _updateAptIndex
 {
     my ( $self ) = @_;
 
-    iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
+    iMSCP::Dialog->getInstance()->endGauge() if iMSCP::Getopt->context() eq 'installer';
 
     my $stdout;
     my $rs = execute(
         [ ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ), 'apt-get', 'update' ],
         ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ), \my $stderr
     );
-    !$rs or die( sprintf( "Couldn't update package index from remote repository: %s", $stderr || 'Unknown error' ));
+    !$rs or die( sprintf( "Couldn't update APT index: %s", $stderr || 'Unknown error' ));
     debug( $stderr );
     $self;
 }

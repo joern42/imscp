@@ -21,7 +21,7 @@ use parent qw/ iMSCP::Common::Singleton iMSCP::DistPackageManager::Interface /;
 
 =item addRepositories( @repositories )
 
- See iMSCP::DistPackageManager::Interface
+ See iMSCP::DistPackageManager::Interface::addRepositories()
 
 =cut
 
@@ -35,7 +35,7 @@ sub addRepositories
 
 =item removeRepositories( @repositories )
 
- See iMSCP::DistPackageManager::Interface
+ See iMSCP::DistPackageManager::Interface::removeRepositories()
 
 =cut
 
@@ -49,7 +49,7 @@ sub removeRepositories
 
 =item installPackages( @packages )
 
- See iMSCP::DistPackageManager::Interface
+ See iMSCP::DistPackageManager::Interface::installPackages()
 
 =cut
 
@@ -63,7 +63,7 @@ sub installPackages
 
 =item uninstallPackages( @packages )
 
- See iMSCP::DistPackageManager::Interface
+ See iMSCP::DistPackageManager::Interface:uninstallPackages()
 
 =cut
 
