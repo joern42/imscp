@@ -29,7 +29,7 @@ sub addRepositories
 {
     my ( $self ) = shift;
 
-    $self->getDistroPackageManager()->addRepository( @_ );
+    $self->getDistroPackageManager()->addRepositories( @_ );
 }
 
 =item removeRepositories( @repositories )
