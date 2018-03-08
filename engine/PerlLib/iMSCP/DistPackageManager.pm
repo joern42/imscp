@@ -81,7 +81,7 @@ sub uninstallPackages
 
  Initialize instance
 
- Return iMSCP::Service, croak on failure
+ Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
 
