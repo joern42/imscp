@@ -688,7 +688,7 @@ sub _loadConfig
     %{ $self->{'old_config'} } = %{ $self->{'config'} } unless exists $self->{'old_config'} || iMSCP::Getopt->context() ne 'installer';
 }
 
-=item _shutdown( $priority )
+=item _shutdown( )
 
  Execute the server shutdown tasks
 
@@ -724,7 +724,7 @@ sub _shutdown
 END {
     return if $? || !%_SERVER_INSTANCES || iMSCP::Getopt->context() eq 'installer';
 
-    $_->_shutdown( $_->getPriority()) for sort { $b->getPriority() <=> $a->getPriority() } values %_SERVER_INSTANCES;
+    $_->_shutdown() for sort { $b->getPriority() <=> $a->getPriority() } values %_SERVER_INSTANCES;
 }
 
 =back
