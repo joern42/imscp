@@ -30,6 +30,7 @@ sub addRepositories
     my ( $self ) = shift;
 
     $self->_getDistroPackageManager()->addRepositories( @_ );
+    $self;
 }
 
 =item removeRepositories( @repositories )
@@ -43,6 +44,7 @@ sub removeRepositories
     my ( $self ) = shift;
 
     $self->_getDistroPackageManager()->removeRepositories( @_ );
+    $self;
 }
 
 =item installPackages( @packages )
@@ -56,6 +58,7 @@ sub installPackages
     my ( $self ) = shift;
 
     $self->_getDistroPackageManager()->installPackages( @_ );
+    $self;
 }
 
 =item uninstallPackages( @packages )
@@ -69,6 +72,7 @@ sub uninstallPackages
     my ( $self ) = shift;
 
     $self->_getDistroPackageManager()->uninstallPackages( @_ );
+    $self;
 }
 
 =back
@@ -104,9 +108,7 @@ sub _getDistroPackageManager
 {
     my ( $self ) = @_;
 
-    CORE::state iMSCP::DistPackageManager::Interface $manager;
-
-    $manager //= do {
+    $self->{'_distro_manager'} //= do {
         my $class = "iMSCP::DistPackageManager::$::imscpConfig{'DISTRO_FAMILY'}";
         eval "require $class; 1" or die $@;
         $class->new( eventManager => $self->{'eventManager'} );
