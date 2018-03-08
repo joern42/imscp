@@ -94,6 +94,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
+    $self;
 }
 
 =item _getDistroPackageManager()
@@ -108,7 +109,7 @@ sub _getDistroPackageManager
 {
     my ( $self ) = @_;
 
-    $self->{'_distro_manager'} //= do {
+    $self->{'_distro_package_manager'} //= do {
         my $class = "iMSCP::DistPackageManager::$::imscpConfig{'DISTRO_FAMILY'}";
         eval "require $class; 1" or die $@;
         $class->new( eventManager => $self->{'eventManager'} );
