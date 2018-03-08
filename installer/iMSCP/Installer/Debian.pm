@@ -35,6 +35,7 @@ use iMSCP::Cwd;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dialog;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
+use iMSCP::DistPackageManager;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
@@ -76,9 +77,8 @@ sub preBuild
             [ sub { $self->_processPackagesFile() }, 'Processing distribution packages file' ],
             [ sub { $self->_installAPTsourcesList(); }, 'Installing new APT sources.list(5) file' ],
             [ sub { $self->_addAPTrepositories() }, 'Adding APT repositories' ],
-            [ sub { $self->_processAptPreferences() }, 'Processing APT preferences' ],
-            [ sub { $self->_updatePackagesIndex() }, 'Updating packages index' ],
-            [ sub { $self->_prefillDebconfDatabase() }, 'Pre-fill Debconf database' ]
+            [ sub { $self->_processAptPreferences() }, 'Setting APT preferences' ],
+            [ sub { $self->_prefillDebconfDatabase() }, 'Setting Debconf database' ]
         );
 }
 
@@ -122,7 +122,8 @@ EOF
     # See ZG-POLICY-RC.D(8)
     local $ENV{'POLICYRCD'} = $policyrcd->filename();
 
-    $self->uninstallPackages( $self->{'packagesToPreUninstall'} );
+    iMSCP::DistPackageManager->getInstance()->uninstallPackages( @{ $self->{'packagesToPreUninstall'} } );
+
     $self->{'eventManager'}->trigger( 'beforeInstallPackages', $self->{'packagesToInstall'}, $self->{'packagesToInstallDelayed'} );
 
     {
@@ -149,32 +150,9 @@ EOF
         endDetail();
     }
 
-    # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
-    execute( [ 'apt-mark', 'unhold', @{ $self->{'packagesToInstall'} }, @{ $self->{'packagesToInstallDelayed'} } ], \my $stdout, \my $stderr );
-    debug( $stderr ) if $stderr;
-
-    {
-        local $ENV{'UCF_FORCE_CONFFNEW'} = 1;
-        local $ENV{'UCF_FORCE_CONFFMISS'} = 1;
-        #local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
-        #local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
-
-        my @cmd = (
-            ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-            'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew', '--option',
-            'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
-            '--auto-remove', '--purge', '--no-install-recommends',
-            ( version->parse( `apt-get --version 2>/dev/null` =~ /^apt\s+(\d\.\d)/ ) < version->parse( '1.1' )
-                ? '--force-yes' : '--allow-downgrades' ),
-            'install'
-        );
-
-        for my $packages ( $self->{'packagesToInstall'}, $self->{'packagesToInstallDelayed'} ) {
-            next unless @{ $packages };
-            execute( [ @cmd, @{ $packages } ], ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ), \$stderr ) == 0 or die(
-                sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' )
-            );
-        }
+    for my $packages ( $self->{'packagesToInstall'}, $self->{'packagesToInstallDelayed'} ) {
+        next unless @{ $packages };
+        iMSCP::DistPackageManager->getInstance()->installPackages( @{ $packages } );
     }
 
     {
@@ -188,6 +166,7 @@ EOF
             for my $task ( @{ $self->{'packagesPostInstallTasks'}->{$subject} } ) {
                 step(
                     sub {
+                        my ( $stdout, $stderr );
                         execute( $task, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \$stdout ), \$stderr ) == 0 or die(
                             sprintf( 'Error while executing post-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )
                         );
@@ -208,77 +187,11 @@ EOF
         );
     }
 
-    $self->uninstallPackages( $self->{'packagesToUninstall'} );
+    $self->{'eventManager'}->trigger( 'beforeUninstallPackages', $self->{'packagesToUninstall'} );
+    iMSCP::DistPackageManager->getInstance()->uninstallPackages( @{ $self->{'packagesToUninstall'} } );
+    $self->{'eventManager'}->trigger( 'afterUninstallPackages', $self->{'packagesToUninstall'} );
+
     $self->{'eventManager'}->trigger( 'afterInstallPackages' );
-}
-
-=item uninstallPackages( \@packagesToUninstall )
-
- Uninstall Debian packages
-
- Param array \@packagesToUninstall List of packages to uninstall
- Return void, die on failure
-
-=cut
-
-sub uninstallPackages
-{
-    my ( $self, $packagesToUninstall ) = @_;
-
-    $self->{'eventManager'}->trigger( 'beforeUninstallPackages', $packagesToUninstall );
-
-    if ( @{ $packagesToUninstall } ) {
-        # Filter packages that are no longer available
-        my $stderr;
-        execute( [ 'apt-cache', '--generate', 'pkgnames' ], \my $stdout, \$stderr ) < 2 or die(
-            $stderr || "Couldn't generate list of available packages"
-        );
-
-        my %apkgs;
-        @apkgs{split /\n/, $stdout} = undef;
-        undef $stdout;
-        @{ $packagesToUninstall } = grep (exists $apkgs{$_}, @{ $packagesToUninstall });
-        undef( %apkgs );
-
-        if ( @{ $packagesToUninstall } ) {
-            # Filter packages that must be kept or that were already uninstalled
-            my @packagesToKeep = (
-                @{ $self->{'packagesToInstall'} }, @{ $self->{'packagesToInstallDelayed'} }, keys %{ $self->{'packagesToRebuild'} },
-                @{ $self->{'packagesToPreUninstall'} }
-            );
-            @{ $packagesToUninstall } = array_minus( @{ $packagesToUninstall }, @packagesToKeep );
-            undef @packagesToKeep;
-
-            if ( @{ $packagesToUninstall } ) {
-                # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
-                execute( [ 'apt-mark', 'unhold', @{ $packagesToUninstall } ], \$stdout, \$stderr );
-                debug( $stderr ) if $stderr;
-
-                iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
-
-                #local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
-                #local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
-
-                execute(
-                    [
-                        ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-                        'apt-get', '--assume-yes', '--auto-remove', 'purge', @{ $packagesToUninstall }
-                    ],
-                    ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
-                    \$stderr
-                ) == 0 or die( sprintf( "Couldn't uninstall packages: %s", $stderr || 'Unknown error' ));
-
-                # Purge packages that were indirectly removed
-                execute(
-                    "apt-get -y purge \$(dpkg -l | grep ^rc | awk '{print \$2}')",
-                    ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \$stdout ),
-                    \$stderr
-                ) == 0 or die( sprintf( "Couldn't purge packages that are in RC state: %s", $stderr || 'Unknown error' ));
-            }
-        }
-    }
-
-    $self->{'eventManager'}->trigger( 'afterUninstallPackages', $packagesToUninstall );
 }
 
 =back
@@ -685,51 +598,7 @@ sub _addAPTrepositories
 
     return unless @{ $self->{'aptRepositoriesToAdd'} };
 
-    my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' )->copy( '/etc/apt/sources.list.bkp', { preserve => TRUE } );
-    my $fileContent = $file->getAsRef();
-
-    # Add APT repositories
-    for my $repository ( @{ $self->{'aptRepositoriesToAdd'} } ) {
-        next if ${ $fileContent } =~ /^deb\s+$repository->{'repository'}/m;
-
-        ${ $fileContent } .= <<"EOF";
-
-deb $repository->{'repository'}
-deb-src $repository->{'repository'}
-EOF
-        # Hide "apt-key output should not be parsed (stdout is not a terminal)" warning that
-        # is raised in newest apt-key versions. Our usage of apt-key is not dangerous (not parsing)
-        local $ENV{'APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE'} = 1;
-
-        if ( $repository->{'repository_key_srv'} && $repository->{'repository_key_id'} ) {
-            # Add the repository key from the given key server
-            my $rs = execute(
-                [ 'apt-key', 'adv', '--recv-keys', '--keyserver', $repository->{'repository_key_srv'}, $repository->{'repository_key_id'} ],
-                \my $stdout,
-                \my $stderr
-            );
-            debug( $stdout ) if $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
-
-            # Workaround https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1633754
-            execute( [ 'pkill', '-TERM', 'dirmngr' ], \$stdout, \$stderr );
-        } elsif ( $repository->{'repository_key_uri'} ) {
-            # Add the repository key by fetching it first from the given URI
-            my $keyFile = File::Temp->new();
-            $keyFile->close();
-            my $rs = execute(
-                [ 'wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile, $repository->{'repository_key_uri'} ], \my $stdout, \my $stderr
-            );
-            debug( $stdout ) if $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
-
-            $rs = execute( [ 'apt-key', 'add', $keyFile ], \$stdout, \$stderr );
-            debug( $stdout ) if $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
-        }
-    }
-
-    $file->save();
+    iMSCP::DistPackageManager->getInstance()->addRepositories( @{ $self->{'aptRepositoriesToAdd'} } );
 }
 
 =item _processAptPreferences( )
@@ -768,30 +637,6 @@ EOF
     }
 
     $file->remove();
-}
-
-=item _updatePackagesIndex( )
-
- Update Debian packages index
-
- Return void, die on failure
-
-=cut
-
-sub _updatePackagesIndex
-{
-    iMSCP::Dialog->getInstance()->endGauge() if !iMSCP::Getopt->noprompt;
-
-    #local $ENV{'NCURSES_NO_UTF8_ACS'} = 1;
-    #local $ENV{'DEBCONF_FORCE_DIALOG'} = 1;
-
-    my $stdout;
-    my $rs = execute(
-        [ ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ), 'apt-get', 'update' ],
-        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ), \my $stderr
-    );
-    !$rs or die( sprintf( "Couldn't update package index from remote repository: %s", $stderr || 'Unknown error' ));
-    debug( $stderr );
 }
 
 =item _prefillDebconfDatabase( )
