@@ -643,7 +643,7 @@ sub _copyInternal
         if ( opendir my $dh, $srcName ) {
             while ( my $dentry = readdir $dh ) {
                 next if $dentry =~ /^\.{1,2}\z/s;
-                $delayedOk &= _copyInternal( $srcName . '/' . $dentry, $dstName . '/' . $dentry, FALSE, $options );
+                $delayedOk &= _copyInternal( File::Spec->catfile( $srcName, $dentry ), File::Spec->catfile( $dstName, $dentry ), FALSE, $options );
             }
 
             unless ( closedir $dh ) {

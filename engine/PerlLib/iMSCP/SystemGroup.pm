@@ -38,12 +38,12 @@ use parent 'iMSCP::Common::Singleton';
 
 =over 4
 
-=item addSystemGroup( $groupname [, systemgroup = FALSE ] )
+=item addSystemGroup( $groupname [, $systemgroup = FALSE ] )
 
  Add group
 
  Param string $groupname Group name
- Param bool systemgroup Flag indication whether or not $groupname must be created as a system group
+ Param bool $systemgroup OPTIONAL Flag indicating whether or not $groupname must be created as a system group
  Return self, die on failure
 
 =cut

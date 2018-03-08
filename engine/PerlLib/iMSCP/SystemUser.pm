@@ -44,8 +44,8 @@ use parent 'iMSCP::Common::Object';
 
  Add UNIX user
 
- Param string $username Username
- Param string $username $newGroupname New group name of the user's initial login group (user update only)
+ Param string OPTIONAL $username Username
+ Param string OPTIONAL $username $newGroupname New group name of the user's initial login group (user update only)
  Return self, die on failure
 
 =cut
@@ -193,8 +193,8 @@ sub delSystemUser
 
  Add given UNIX user to the given UNIX group
 
- Param string $groupname Group name
- Param string $username Username
+ Param string OPTIONAL $groupname Group name
+ Param string OPTIONAL $username Username
  Return self, die on failure
 
 =cut
@@ -208,9 +208,6 @@ sub addToGroup
     defined $groupname or croak( 'Missing $groupname parameter' );
     defined $username or croak( 'Missing $username parameter' );
 
-    $self->{'groupname'} = $groupname;
-    $self->{'username'} = $username;
-
     getgrnam( $groupname ) && getpwnam( $username ) or croak( 'Invalid group or username' );
 
     my $rs = execute( [ 'gpasswd', '-a', $username, $groupname ], \my $stdout, \my $stderr );
@@ -223,8 +220,8 @@ sub addToGroup
 
  Remove given UNIX user from the given UNIX group
 
- Param string $groupname Group name
- Param string $username Username
+ Param string OPTIONAL $groupname Group name
+ Param string OPTIONAL $username Username
  Return self, die on failure
 
 =cut
@@ -237,9 +234,6 @@ sub removeFromGroup
 
     defined $groupname or croak( 'Missing $groupname parameter' );
     defined $username or croak( 'Missing $username parameter' );
-
-    $self->{'groupname'} = $groupname;
-    $self->{'username'} = $username;
 
     return $self unless getpwnam( $username ) && getgrnam( $groupname );
 
