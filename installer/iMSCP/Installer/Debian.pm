@@ -187,9 +187,21 @@ EOF
         );
     }
 
-    $self->{'eventManager'}->trigger( 'beforeUninstallPackages', $self->{'packagesToUninstall'} );
-    iMSCP::DistPackageManager->getInstance()->uninstallPackages( @{ $self->{'packagesToUninstall'} } );
-    $self->{'eventManager'}->trigger( 'afterUninstallPackages', $self->{'packagesToUninstall'} );
+    if ( @{ $self->{'packagesToUninstall'} } ) {
+        # Filter packages that must be kept or that were already uninstalled
+        my @packagesToKeep = (
+            @{ $self->{'packagesToInstall'} }, @{ $self->{'packagesToInstallDelayed'} }, keys %{ $self->{'packagesToRebuild'} },
+            @{ $self->{'packagesToPreUninstall'} }
+        );
+        @{ $self->{'packagesToUninstall'} } = array_minus( @{ $self->{'packagesToUninstall'} }, @packagesToKeep );
+        undef @packagesToKeep;
+
+        if ( @{ $self->{'packagesToUninstall'} } ) {
+            $self->{'eventManager'}->trigger( 'beforeUninstallPackages', $self->{'packagesToUninstall'} );
+            iMSCP::DistPackageManager->getInstance()->uninstallPackages( @{ $self->{'packagesToUninstall'} } );
+            $self->{'eventManager'}->trigger( 'afterUninstallPackages', $self->{'packagesToUninstall'} );
+        }
+    }
 
     $self->{'eventManager'}->trigger( 'afterInstallPackages' );
 }
