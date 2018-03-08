@@ -110,7 +110,7 @@ sub _loadEntityData
         MAIL_HAS_AUTO_RESPONDER => $row->{'mail_auto_respond'},
         MAIL_STATUS             => $row->{'status'},
         MAIL_ADDR               => $row->{'mail_addr'},
-        MAIL_CATCHALL           => ( index( $row->{'mail_type'}, 'catchall' ) != -1 ) ? $row->{'mail_acc'} : undef
+        MAIL_CATCHALL           => index( $row->{'mail_type'}, 'catchall' ) != -1 ? $row->{'mail_acc'} : undef
     };
 }
 

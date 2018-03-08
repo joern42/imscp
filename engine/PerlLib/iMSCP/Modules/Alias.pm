@@ -63,11 +63,11 @@ sub handleEntity
 
     if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
         $self->_add();
-    } elsif ( $self->{'STATUS'} eq 'todelete' ) {
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
         $self->_delete();
-    } elsif ( $self->{'STATUS'} eq 'todisable' ) {
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
         $self->_disable();
-    } elsif ( $self->{'STATUS'} eq 'torestore' ) {
+    } elsif ( $self->{'_data'}->{'STATUS'} eq 'torestore' ) {
         $self->_restore();
     } else {
         die( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
@@ -222,7 +222,6 @@ sub _delete
 
     $self->{'_dbh'}->do( 'DELETE FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
     $self;
-
 }
 
 =item _disable()
@@ -291,7 +290,7 @@ sub _sharedMountPoint
             ) AS tmp
         ",
         undef,
-        $self->{'DOMAIN_ID'},
+        $self->{'_data'}->{'DOMAIN_ID'},
         $self->{'_data'}->{'ROOT_DOMAIN_ID'},
         $regexp,
         $self->{'_data'}->{'ROOT_DOMAIN_ID'},

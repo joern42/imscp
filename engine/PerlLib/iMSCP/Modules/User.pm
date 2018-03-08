@@ -133,7 +133,7 @@ sub _add
             );
 
             iMSCP::SystemUser->new(
-                username     => $self->{'admin_sys_name'}, # Old username
+                username     => $self->{'_data'}->{'admin_sys_name'}, # Old username
                 password     => $pwd,
                 comment      => 'i-MSCP Web User',
                 home         => $home,

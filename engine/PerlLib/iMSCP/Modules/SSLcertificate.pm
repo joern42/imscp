@@ -65,7 +65,7 @@ sub handleEntity
     $self->_loadEntityData( $entityId );
 
     # Handle case of orphaned SSL certificate which has been removed
-    return $self unless $self->{'domain_name'};
+    return $self unless $self->{'_data'}->{'domain_name'};
 
     if ( $self->{'_data'}->{'status'} =~ /^to(?:add|change)$/ ) {
         $self->_add();
@@ -98,16 +98,17 @@ sub _loadEntityData
     $self->{'_data'} or die( sprintf( 'Data not found for SSL certificate (ID %d)', $entityId ));
 
     my $row;
-    if ( $self->{'domain_type'} eq 'dmn' ) {
+    if ( $self->{'_data'}->{'domain_type'} eq 'dmn' ) {
         $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT domain_name FROM domain WHERE domain_id = ?', undef, $self->{'domain_id'} );
-    } elsif ( $self->{'domain_type'} eq 'als' ) {
+    } elsif ( $self->{'_data'}->{'domain_type'} eq 'als' ) {
         $row = $self->{'_dbh'}->selectrow_hashref(
             'SELECT alias_name AS domain_name FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'domain_id'}
         );
-    } elsif ( $self->{'domain_type'} eq 'sub' ) {
+    } elsif ( $self->{'_data'}->{'domain_type'} eq 'sub' ) {
         $row = $self->{'_dbh'}->selectrow_hashref(
             "SELECT CONCAT(subdomain_name, '.', domain_name) AS domain_name FROM subdomain JOIN domain USING(domain_id) WHERE subdomain_id = ?",
-            undef, $self->{'domain_id'}
+            undef,
+            $self->{'domain_id'}
         );
     } else {
         $row = $self->{'_dbh'}->selectrow_hashref(
@@ -117,7 +118,8 @@ sub _loadEntityData
                 JOIN domain_aliasses USING(alias_id)
                 WHERE subdomain_alias_id = ?
             ",
-            undef, $self->{'domain_id'}
+            undef,
+            $self->{'_data'}->{'domain_id'}
         );
     }
 
@@ -174,10 +176,6 @@ sub _add
             ->createCertificateChain();
     };
 
-    # (since 1.2.16 - See #IP-1500)
-    # On to(add|change) actions, do not raise any error when a customer's SSL
-    # certificate is expired or invalid. It is the customer responsability to
-    # update the certificate throught his interface
     $self->{'_dbh'}->do(
         'UPDATE ssl_certs SET status = ? WHERE cert_id = ?',
         undef,

@@ -112,20 +112,6 @@ sub handleEntity
 
 =over 4
 
-=item init( )
-
- See iMSCP::Modules::Abstract::_init()
-
-=cut
-
-sub _init
-{
-    my ( $self ) = @_;
-
-    @{ $self }{qw/ domain_name domain_ip dns_records /} = ( undef, undef, [] );
-    $self->SUPER::_init();
-}
-
 =item _loadEntityData( $domainId, $aliasId )
 
  See iMSCP::Modules::Abstract::_loadEntityData()
