@@ -104,7 +104,6 @@ sub removeRepositories
     my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' );
     my $fileContent = $file->getAsRef();
 
-    # Cleanup APT sources.list file
     for my $repository ( @repositories ) {
         ${ $fileContent } =~ s/^\n?(?:#\s*)?deb(?:-src)?\s+\Q$repository\E.*?\n//gm;
     }
