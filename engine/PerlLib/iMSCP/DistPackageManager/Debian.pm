@@ -8,6 +8,7 @@ package iMSCP::DistPackageManager::Debian;
 
 use strict;
 use warnings;
+use Array::Utils qw/ intersect /;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dialog;
@@ -29,7 +30,7 @@ use parent qw/ iMSCP::Common::Object iMSCP::DistPackageManager::Interface /;
  See iMSCP::DistPackageManager::Interface
  
  @repositories must contain a list of hashes, each describing an APT repository.
- The hashes *MUST* contains the following key/value pairs:
+ The hashes *MUST* contain the following key/value pairs:
   repository         : APT repository in format 'uri suite [component1] [component2] [...]' 
   repository_key_srv : APT repository key server such as keyserver.ubuntu.com  (not needed if repository_key_uri is provided)
   repository_key_id  : APT repository key identifier such as 5072E1F5 (not needed if repository_key_uri is provided)
@@ -124,7 +125,6 @@ sub installPackages
 
     # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
     execute( [ 'apt-mark', 'unhold', @packages ], \my $stdout, \my $stderr );
-    debug( $stderr ) if $stderr;
 
     iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
 
@@ -159,24 +159,17 @@ sub uninstallPackages
     my ( $self, @packages ) = @_;
 
     # Filter packages that are no longer available
-    # FIXME Find a better solution as loading list of all available packages is really a bad idea...
-    my $stderr;
-    execute( [ 'apt-cache', '--generate', 'pkgnames' ], \my $stdout, \$stderr ) < 2 or die(
-        $stderr || "Couldn't generate list of available packages"
-    );
-    my %apkgs;
-    @apkgs{split /\n/, $stdout} = undef;
-    undef $stdout;
-    @packages = grep (exists $apkgs{$_}, @packages);
-    undef( %apkgs );
+    # Ignore exit code as 1 is returned when a queried package is not found
+    execute( [ 'dpkg-query', '-W', '-f=${Package}\n', @packages ], \my $stdout, \my $stderr );
+    my @availablePackages = $stdout ? split /\n/, $stdout : ();
+    @packages = intersect( @packages, @availablePackages );
+    undef @availablePackages;
 
     if ( @packages ) {
         iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
 
-        # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
+        # Ignores exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
         execute( [ 'apt-mark', 'unhold', @packages ], \$stdout, \$stderr );
-        debug( $stderr ) if $stderr;
-
         execute(
             [
                 # '--allow-change-held-packages'
