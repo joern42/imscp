@@ -773,7 +773,7 @@ sub getDbDriver
     my ( $self, $driver ) = @_;
     $driver //= $self->{'config'}->{'MTA_DB_DRIVER'};
 
-    $self->{'_db_drivers'}->{$driver} ||= do {
+    $self->{'_db_drivers'}->{$driver} //= do {
         eval "require $driver; 1" or die $@;
         $driver->new( mta => $self );
     };

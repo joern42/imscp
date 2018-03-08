@@ -8,7 +8,6 @@ package iMSCP::DistPackageManager::Interface;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
 
 =head1 DESCRIPTION
 

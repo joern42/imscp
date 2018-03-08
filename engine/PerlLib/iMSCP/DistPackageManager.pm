@@ -29,7 +29,7 @@ sub addRepositories
 {
     my ( $self ) = shift;
 
-    $self->getDistroPackageManager()->addRepositories( @_ );
+    $self->_getDistroPackageManager()->addRepositories( @_ );
 }
 
 =item removeRepositories( @repositories )
@@ -42,7 +42,7 @@ sub removeRepositories
 {
     my ( $self ) = shift;
 
-    $self->getDistroPackageManager()->removeRepositories( @_ );
+    $self->_getDistroPackageManager()->removeRepositories( @_ );
 }
 
 =item installPackages( @packages )
@@ -55,7 +55,7 @@ sub installPackages
 {
     my ( $self ) = shift;
 
-    $self->getDistroPackageManager()->installPackages( @_ );
+    $self->_getDistroPackageManager()->installPackages( @_ );
 }
 
 =item uninstallPackages( @packages )
@@ -68,12 +68,12 @@ sub uninstallPackages
 {
     my ( $self ) = shift;
 
-    $self->getDistroPackageManager()->uninstallPackages( @_ );
+    $self->_getDistroPackageManager()->uninstallPackages( @_ );
 }
 
 =back
 
-=head1 PRIVATE METHODS/FUNCTIONS
+=head1 PRIVATE METHODS
 
 =over 4
 
@@ -92,7 +92,7 @@ sub _init
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
 }
 
-=item getDistroPackageManager()
+=item _getDistroPackageManager()
 
  Get distribution package manager instance
 
@@ -100,7 +100,7 @@ sub _init
 
 =cut
 
-sub getDistroPackageManager
+sub _getDistroPackageManager
 {
     my ( $self ) = @_;
 
