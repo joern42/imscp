@@ -96,7 +96,7 @@ sub _loadEntityData
     );
     $row or die( sprintf( 'Data not found for mail user (ID %d)', $entityId ));
 
-    my ( $user, $domain ) = split '@', $self->{'mail_addr'};
+    my ( $user, $domain ) = split '@', $row->{'mail_addr'};
 
     $self->{'_data'} = {
         STATUS                  => $row->{'status'},

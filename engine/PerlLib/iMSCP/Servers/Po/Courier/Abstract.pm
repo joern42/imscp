@@ -450,7 +450,7 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{ $self }{qw/ restart reload quotaRecalc mta cfgDir /} = (
-        0, 0, 0, lazy { iMSCP::Servers::Mta->factory() }, "$::imscpConfig{'CONF_DIR'}/courier"
+        FALSE, FALSE, FALSE, lazy { iMSCP::Servers::Mta->factory() }, "$::imscpConfig{'CONF_DIR'}/courier"
     );
     $self->SUPER::_init();
 }

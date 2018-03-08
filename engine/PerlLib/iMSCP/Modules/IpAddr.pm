@@ -90,6 +90,7 @@ sub _loadEntityData
     $self->{'_data'} = $self->{'_dbh'}->selectrow_hashref(
         'SELECT ip_id, ip_card, ip_number AS ip_address, ip_netmask, ip_config_mode, ip_status FROM server_ips WHERE ip_id = ?', undef, $entityId
     );
+
     $self->{'_data'} or die( sprintf( 'Data not found for server IP address (ID %d)', $entityId ));
 }
 
@@ -104,7 +105,7 @@ sub _add
     my ( $self ) = @_;
 
     eval { $self->SUPER::_add(); };
-    $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@ || 'ok', $self->{'ip_id'} );
+    $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'ip_id'} );
     $self;
 }
 
@@ -120,11 +121,11 @@ sub _delete
 
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@, $self->{'ip_id'} );
+        $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@, $self->{'_data'}->{'ip_id'} );
         return $self;
     }
 
-    $self->{'_dbh'}->do( 'DELETE FROM server_ips WHERE ip_id = ?', undef, $self->{'ip_id'} );
+    $self->{'_dbh'}->do( 'DELETE FROM server_ips WHERE ip_id = ?', undef, $self->{'_data'}->{'ip_id'} );
     $self;
 }
 

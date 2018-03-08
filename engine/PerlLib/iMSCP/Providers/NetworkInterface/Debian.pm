@@ -26,6 +26,7 @@ package iMSCP::Providers::NetworkInterface::Debian;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use iMSCP::Boolean;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Net;
@@ -68,7 +69,9 @@ sub addIpAddr
     }
 
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
-    $data->{'ip_id'} += 1000;
+
+    # We localize the modification as we do not want propagate it to caller
+    local $data->{'ip_id'} += 1000;
 
     $self->{'net'}->isKnownDevice( $data->{'ip_card'} ) or croak( sprintf( 'The %s network interface is unknown', $data->{'ip_card'} ));
     $self->{'net'}->isValidAddr( $data->{'ip_address'} ) or croak( sprintf( 'The %s IP address is not valid', $data->{'ip_address'} ));
@@ -121,7 +124,9 @@ sub removeIpAddr
     }
 
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
-    $data->{'ip_id'} += 1000;
+
+    # We localize the modification as we do not want propagate it to caller
+    local $data->{'ip_id'} += 1000;
 
     if ( $data->{'ip_config_mode'} eq 'auto'
         && $self->{'net'}->getAddrVersion( $data->{'ip_address'} ) eq 'ipv4'
@@ -177,7 +182,7 @@ sub _updateInterfacesFile
 {
     my ( $self, $action, $data ) = @_;
 
-    my $file = iMSCP::File->new( filename => $INTERFACES_FILE_PATH )->copy( $INTERFACES_FILE_PATH . '.bak', { preserve => 1 } );
+    my $file = iMSCP::File->new( filename => $INTERFACES_FILE_PATH )->copy( $INTERFACES_FILE_PATH . '.bak', { preserve => TRUE } );
     my $addrVersion = $self->{'net'}->getAddrVersion( $data->{'ip_address'} );
     my $cAddr = $self->{'net'}->normalizeAddr( $data->{'ip_address'} );
     my $eAddr = $self->{'net'}->expandAddr( $data->{'ip_address'} );

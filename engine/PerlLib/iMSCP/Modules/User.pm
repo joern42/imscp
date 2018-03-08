@@ -125,7 +125,7 @@ sub _add
     my ( $self ) = @_;
 
     eval {
-        if ( $self->{'admin_status'} ne 'tochangepwd' ) {
+        if ( $self->{'_data'}->{'STATUS'} ne 'tochangepwd' ) {
             my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'_data'}->{'USER_ID'} );
             my $home = "$::imscpConfig{'USER_WEB_DIR'}/$self->{'_data'}->{'USERNAME'} ";
             $self->{'eventManager'}->trigger(

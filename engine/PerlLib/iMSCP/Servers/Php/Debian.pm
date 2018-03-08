@@ -641,7 +641,7 @@ sub _cleanup
     }
 }
 
-=item _shutdown( $priority )
+=item _shutdown( )
 
  See iMSCP::Servers::Abstract::_shutdown()
 
@@ -649,7 +649,7 @@ sub _cleanup
 
 sub _shutdown
 {
-    my ( $self, $priority ) = @_;
+    my ( $self ) = @_;
 
     return unless $self->{'config'}->{'PHP_SAPI'} eq 'fpm';
 
@@ -663,7 +663,7 @@ sub _shutdown
             # Do not act if the PHP version is not enabled
             next unless $srvProvider->isEnabled( "php$phpVersion-fpm" );
 
-            $srvProvider->registerDelayedAction( "php$phpVersion-fpm", [ $action, sub { $self->$action(); } ], $priority );
+            $self->$action();
         }
     }
 }

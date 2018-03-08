@@ -38,7 +38,6 @@ use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
-use iMSCP::Service;
 use Scalar::Defer qw/ lazy /;
 use parent 'iMSCP::Servers::Mta';
 
@@ -797,7 +796,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload cfgDir _db_drivers _db /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/postfix", {}, lazy { $self->getDbDriver() } );
+    @{ $self }{qw/ restart reload cfgDir _db_drivers _db /} = ( FALSE, FALSE, "$::imscpConfig{'CONF_DIR'}/postfix", {}, lazy { $self->getDbDriver() } );
     $self->SUPER::_init();
 }
 
@@ -1097,7 +1096,7 @@ sub _removeFiles
     iMSCP::File->new( filename => $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'} )->remove();
 }
 
-=item _shutdown( $priority )
+=item _shutdown( )
 
  See iMSCP::Servers::Abstract::_shutdown()
 
@@ -1105,7 +1104,7 @@ sub _removeFiles
 
 sub _shutdown
 {
-    my ( $self, $priority ) = @_;
+    my ( $self ) = @_;
 
     while ( my ( $path, $type ) = each( %{ $self->{'_postmap'} } ) ) {
         # We need test for database existence as it can have been removed
@@ -1115,7 +1114,7 @@ sub _shutdown
 
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
-    iMSCP::Service->getInstance()->registerDelayedAction( 'postfix', [ $action, sub { $self->$action(); } ], $priority );
+    $self->$action();
 }
 
 =back

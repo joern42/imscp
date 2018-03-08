@@ -191,7 +191,7 @@ user     = {DATABASE_USER}
 password = {DATABASE_PASSWORD}
 hosts    = {DATABASE_HOST}
 dbname   = {DATABASE_NAME}
-query    = 
+query    = SELECT TODO FROM mail_users WHERE TODO = '%s' AND status = 'ok';
 EOF
         undef, undef, $sdata, { create => TRUE, group => $self->{'mta'}->{'config'}->{'MTA_GROUP'} }
     );

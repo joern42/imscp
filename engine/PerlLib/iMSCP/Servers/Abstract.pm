@@ -58,8 +58,8 @@ my %_SERVER_INSTANCES;
   
  The server priority determines the priority at which the server will be
  treated by the installer, the database tasks processor, and some other
- scripts. It also determines the server's priority for start, restart and
- reload tasks where appliable.
+ scripts. It also determines the priority for the server shutdown tasks
+ where the start, restart and reload actions are triggered.
 
  Return int Server priority
 
@@ -702,19 +702,20 @@ sub _loadConfig
  For instance, that is the case of the i-MSCP Postfix server which need
  create/update the lookup tables before the program exit.
 
- Param int $priority Server priority
  Return void
 
 =cut
 
 sub _shutdown
 {
-    my ( $self, $priority ) = @_;
+    my ( $self ) = @_;
 }
 
 =item END
 
  Calls the _shutdown() method on all servers that implement it
+ 
+ Shutdown tasks are executed in descending order of server priorities (highest to lowest priority)
 
  Return void
 
@@ -723,7 +724,7 @@ sub _shutdown
 END {
     return if $? || !%_SERVER_INSTANCES || iMSCP::Getopt->context() eq 'installer';
 
-    $_->_shutdown( $_->getPriority()) for values %_SERVER_INSTANCES;
+    $_->_shutdown( $_->getPriority()) for sort { $b->getPriority() <=> $a->getPriority() } values %_SERVER_INSTANCES;
 }
 
 =back

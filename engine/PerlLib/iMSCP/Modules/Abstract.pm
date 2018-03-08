@@ -142,7 +142,7 @@ sub _getEntityData
 {
     my ( $self, $action ) = @_;
 
-    $self->{'_data'}->{'action'} = $action;
+    $self->{'_data'}->{'ACTION'} = $action;
     $self->{'_data'};
 }
 
@@ -224,10 +224,10 @@ sub _execActions
     if ( $action =~ /^(?:add|restore)$/ ) {
         for my $actionPrefix ( 'pre', '', 'post' ) {
             my $method = "$actionPrefix$action$entityType";
-            my $moduleData = $self->_getModuleData( $method );
+            my $moduleData = $self->_getEntityData( $method );
 
             debug( sprintf( "Executing %s action on i-MSCP servers...", $method ));
-            $_->factory()->$method( $self ) for iMSCP::Servers->getInstance()->getListWithFullNames();
+            $_->factory()->$method( $moduleData ) for iMSCP::Servers->getInstance()->getListWithFullNames();
 
             debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
             for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
@@ -241,7 +241,7 @@ sub _execActions
 
     for my $actionPrefix ( 'pre', '', 'post' ) {
         my $method = "$actionPrefix$action$entityType";
-        my $moduleData = $self->_getModuleData( $method );
+        my $moduleData = $self->_getEntityData( $method );
 
         debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
         for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {

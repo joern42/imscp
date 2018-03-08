@@ -784,19 +784,21 @@ sub _restoreDefaultConfig
     }
 }
 
-=item _shutdown( $priority )
+=item _shutdown( )
 
- See iMSCP::Servers::Abstract::_shutdown()
+ See iMSCP::Servers::Httpd::Apache2::Abstract::_shutdown()
 
 =cut
 
 sub _shutdown
 {
-    my ( $self, $priority ) = @_;
+    my ( $self ) = @_;
+
+    $self->SUPER::_shutdown();
 
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
-    iMSCP::Service->getInstance()->registerDelayedAction( 'apache2', [ $action, sub { $self->$action(); } ], $priority );
+    $self->$action();
 }
 
 =item _checkSymlink( $tgt, $lnk )

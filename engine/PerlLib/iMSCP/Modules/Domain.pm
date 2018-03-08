@@ -119,8 +119,8 @@ sub _loadEntityData
     );
     $row or die( sprintf( 'Data not found for domain (ID %d)', $entityId ));
 
-    my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'domain_admin_id'} );
-    my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$self->{'domain_name'}" );
+    my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
+    my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" );
     my ( $ssl, $hstsMaxAge, $hstsIncSub, $phpini ) = ( 0, 0, 0, {} );
 
     if ( $row->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'domain_name'}.pem" ) {
@@ -154,7 +154,7 @@ sub _loadEntityData
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $homeDir,
         MOUNT_POINT             => '/',
-        DOCUMENT_ROOT           => File::Spec->canonpath( "$homeDir/$self->{'document_root'}" ),
+        DOCUMENT_ROOT           => File::Spec->canonpath( "$homeDir/$row->{'document_root'}" ),
         SHARED_MOUNT_POINT      => 0,
         USER                    => $usergroup,
         GROUP                   => $usergroup,

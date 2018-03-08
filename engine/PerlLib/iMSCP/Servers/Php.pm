@@ -31,6 +31,7 @@ use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::Servers::Httpd /;
 use File::Basename;
 use File::Spec;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::File;
@@ -230,13 +231,7 @@ sub preinstall
 {
     my ( $self ) = @_;
 
-    eval { $self->_setFullVersion(); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
+    $self->_setFullVersion();
 }
 
 =item setEnginePermissions( )
@@ -583,7 +578,7 @@ sub _buildCgiConfig
             user   => $moduleData->{'USER'},
             group  => $moduleData->{'GROUP'},
             mode   => 0550,
-            cached => 1
+            cached => TRUE
         }
     );
     $self->buildConfFile(
@@ -595,7 +590,7 @@ sub _buildCgiConfig
             user   => $moduleData->{'USER'},
             group  => $moduleData->{'GROUP'},
             mode   => 0440,
-            cached => 1
+            cached => TRUE
         }
     );
     $self->{'eventManager'}->trigger( 'afterPhpCgiSapiBuildConf', $moduleData );

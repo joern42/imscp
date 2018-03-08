@@ -206,7 +206,7 @@ sub _cleanup
     iMSCP::File->new( filename => "$self->{'cfgDir'}/dovecot.old.data" )->remove();
 }
 
-=item _shutdown( $priority )
+=item _shutdown( )
 
  See iMSCP::Servers::Abstract::_shutdown()
 
@@ -214,11 +214,11 @@ sub _cleanup
 
 sub _shutdown
 {
-    my ( $self, $priority ) = @_;
+    my ( $self ) = @_;
 
     return unless my $action = $self->{'restart'} ? 'restart' : ( $self->{'reload'} ? 'reload' : undef );
 
-    iMSCP::Service->getInstance()->registerDelayedAction( 'dovecot', [ $action, sub { $self->$action(); } ], $priority );
+    $self->$action();
 }
 
 =back

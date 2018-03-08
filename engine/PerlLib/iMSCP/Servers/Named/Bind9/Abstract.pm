@@ -30,6 +30,7 @@ use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStrin
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Getopt /;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
@@ -302,14 +303,14 @@ sub setEnginePermissions
         group     => $self->{'config'}->{'NAMED_GROUP'},
         dirmode   => '2750',
         filemode  => '0640',
-        recursive => 1
+        recursive => TRUE
     } );
     setRights( $self->{'config'}->{'NAMED_DB_ROOT_DIR'}, {
         user      => $self->{'config'}->{'NAMED_USER'},
         group     => $self->{'config'}->{'NAMED_GROUP'},
         dirmode   => '2750',
         filemode  => '0640',
-        recursive => 1
+        recursive => TRUE
     } );
 }
 
@@ -369,7 +370,7 @@ sub addDomain
     $self->{'eventManager'}->trigger( 'beforeBindAddDomain', $moduleData );
     $self->_addDmnConfig( $moduleData );
     $self->_addDmnDb( $moduleData ) if $self->{'config'}->{'NAMED_MODE'} eq 'master';
-    $self->{'seen_zones'}->{$moduleData->{'DOMAIN_NAME'}} ||= 1;
+    $self->{'seen_zones'}->{$moduleData->{'DOMAIN_NAME'}} ||= TRUE;
     $self->{'eventManager'}->trigger( 'afterBindAddDomain', $moduleData );
 }
 
@@ -405,7 +406,7 @@ sub postaddDomain
         } );
     }
 
-    $self->{'reload'} ||= 1;
+    $self->{'reload'} ||= TRUE;
     $self->{'eventManager'}->trigger( 'afterBindPostAddDomain', $moduleData );
 }
 
@@ -492,7 +493,7 @@ sub postdeleteDomain
         } );
     }
 
-    $self->{'reload'} ||= 1;
+    $self->{'reload'} ||= TRUE;
     $self->{'eventManager'}->trigger( 'afterBindPostDeleteDomain', $moduleData );
 }
 
@@ -596,7 +597,7 @@ sub postaddSubdomain
         } );
     }
 
-    $self->{'reload'} ||= 1;
+    $self->{'reload'} ||= TRUE;
     $self->{'eventManager'}->trigger( 'afterBindPostAddSubdomain', $moduleData );
 }
 
@@ -685,7 +686,7 @@ sub postdeleteSubdomain
         } );
     }
 
-    $self->{'reload'} ||= 1;
+    $self->{'reload'} ||= TRUE;
     $self->{'eventManager'}->trigger( 'afterBindPostDeleteSubdomain', $moduleData );
 }
 
@@ -745,7 +746,7 @@ sub addCustomDNS
 
     $wrkDbFile->set( $newWrkDbFileContent )->save();
     $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
-    $self->{'reload'} ||= 1;
+    $self->{'reload'} ||= TRUE;
 }
 
 =back
@@ -768,7 +769,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload serials seen_zones cfgDir /} = ( 0, 0, {}, {}, "$::imscpConfig{'CONF_DIR'}/bind" );
+    @{ $self }{qw/ restart reload serials seen_zones cfgDir /} = ( FALSE, FALSE, {}, {}, "$::imscpConfig{'CONF_DIR'}/bind" );
     @{ $self }{qw/ bkpDir wrkDir tplDir /} = ( "$self->{'cfgDir'}/backup", "$self->{'cfgDir'}/working", "$self->{'cfgDir'}/parts" );
     $self->SUPER::_init();
 }
@@ -835,7 +836,7 @@ sub _addDmnConfig
 EOF
     $self->{'eventManager'}->trigger( 'afterBindAddDmnConfig', $cfgWrkFileContentRef, $moduleData );
     $cfgFile->save()->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} )->mode( 0640 )->copy(
-        "$cfgFileDir$cfgFileName", { preserve => 1 }
+        "$cfgFileDir$cfgFileName", { preserve => TRUE }
     );
 }
 
@@ -862,7 +863,7 @@ sub _deleteDmnConfig
     );
     $self->{'eventManager'}->trigger( 'afterBindDeleteDomainConfig', $cfgWrkFileContentRef, $moduleData );
     $cfgFile->save()->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} )->mode( 0640 )->copy(
-        "$cfgFileDir$cfgFileName", { preserve => 1 }
+        "$cfgFileDir$cfgFileName", { preserve => TRUE }
     );
 }
 
@@ -1131,7 +1132,7 @@ sub _configure
             }
         );
 
-        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'}, { preserve => 1 } );
+        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'}, { preserve => TRUE } );
     }
 
     # master configuration file
@@ -1153,7 +1154,7 @@ sub _configure
             }
         );
 
-        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_CONF_FILE'}, { preserve => 1 } );
+        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_CONF_FILE'}, { preserve => TRUE } );
     }
 
     # local configuration file
@@ -1167,7 +1168,7 @@ sub _configure
             }
         );
 
-        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'}, { preserve => 1 } );
+        iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'}, { preserve => TRUE } );
     }
 
     $self->{'eventManager'}->trigger( 'afterBindConfigure' );

@@ -754,7 +754,7 @@ sub _createMasterWebUser
     iMSCP::SystemUser->new(
         comment        => 'i-MSCP Control Panel Web User',
         home           => $::imscpConfig{'GUI_ROOT_DIR'},
-        skipCreateHome => 1
+        skipCreateHome => TRUE
     )->addSystemUser( $usergroup, $usergroup );
 
     # Add the panel user (vu2000) into the i-MSCP backend group)
@@ -970,7 +970,7 @@ sub _copyPhpBinary
 
     length $self->{'config'}->{'PHP_FPM_BIN_PATH'} or die( "PHP `PHP_FPM_BIN_PATH' configuration parameter is not set." );
 
-    iMSCP::File->new( filename => $self->{'config'}->{'PHP_FPM_BIN_PATH'} )->copy( '/usr/local/sbin/imscp_panel', { preserve => 1 } );
+    iMSCP::File->new( filename => $self->{'config'}->{'PHP_FPM_BIN_PATH'} )->copy( '/usr/local/sbin/imscp_panel', { preserve => TRUE } );
 }
 
 =item _buildPhpConfig( )
@@ -1203,7 +1203,7 @@ sub _addDnsZone
         DOMAIN_NAME           => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
         DOMAIN_IP             => ::setupGetQuestion( 'BASE_SERVER_IP' ),
         EXTERNAL_MAIL         => 'off',                                     # (since 1.6.0)
-        MAIL_ENABLED          => 1,
+        MAIL_ENABLED          => TRUE,
         STATUS                => 'toadd'                                    # (since 1.6.0)
     } );
     $self->{'eventManager'}->trigger( 'afterNamedAddMasterZone' );
@@ -1221,13 +1221,14 @@ sub _deleteDnsZone
 {
     my ( $self ) = @_;
 
-    return unless $::imscpOldConfig{'BASE_SERVER_VHOST'}
+    return unless length $::imscpOldConfig{'BASE_SERVER_VHOST'}
         && $::imscpOldConfig{'BASE_SERVER_VHOST'} ne ::setupGetQuestion( 'BASE_SERVER_VHOST' );
 
     $self->{'eventManager'}->trigger( 'beforeNamedDeleteMasterZone' );
     iMSCP::Servers::Named->factory()->deleteDomain( {
-        DOMAIN_NAME    => $::imscpOldConfig{'BASE_SERVER_VHOST'},
-        FORCE_DELETION => 1
+        PARENT_DOMAIN_NAME => $::imscpOldConfig{'BASE_SERVER_VHOST'},
+        DOMAIN_NAME        => $::imscpOldConfig{'BASE_SERVER_VHOST'},
+        FORCE_DELETION     => TRUE
     } );
     $self->{'eventManager'}->trigger( 'afterNamedDeleteMasterZone' );
 }

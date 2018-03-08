@@ -803,7 +803,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload _templates cfgDir _web_folder_skeleton /} = ( 0, 0, {}, "$::imscpConfig{'CONF_DIR'}/apache", undef );
+    @{ $self }{qw/ restart reload _templates cfgDir _web_folder_skeleton /} = ( FALSE, FALSE, {}, "$::imscpConfig{'CONF_DIR'}/apache", undef );
     $self->{'eventManager'}->register( 'afterApacheBuildConfFile', $self, -999 );
     $self->SUPER::_init();
 }
@@ -1503,25 +1503,21 @@ sub afterApacheBuildConfFile
     ${ $cfgTpl } =~ s/^\s*(?:[#;].*)?\n//gm;
 }
 
-=back
+=item _shutdown( )
 
-=head1 CLEANUP TASKS
-
-=over 4
-
-=item END
-
- Umount and remove tmpfs
+ See iMSCP::Servers::Abstract::_shutdown()
 
 =cut
 
-END
-    {
-        my $tmpfs = "$::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache_tmpfs";
-        return unless -d $tmpfs;
-        umount( $tmpfs ) if isMountpoint( $tmpfs );
-        iMSCP::Dir->new( dirname => $tmpfs )->remove();
-    }
+sub _shutdown
+{
+    my ( $self ) = @_;
+
+    my $tmpfs = "$::imscpConfig{'IMSCP_HOMEDIR'}/tmp/apache_tmpfs";
+    return unless -d $tmpfs;
+    umount( $tmpfs ) if isMountpoint( $tmpfs );
+    iMSCP::Dir->new( dirname => $tmpfs )->remove();
+}
 
 =back
 
