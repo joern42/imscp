@@ -104,7 +104,7 @@ sub setEnginePermissions
 
 =item getDistroPackages( )
 
- Get list of Debian packages
+ Get list of distribution packages
 
  Return list List of packages
 
@@ -112,7 +112,8 @@ sub setEnginePermissions
 
 sub getDistroPackages
 {
-    'chkrootkit';
+    return 'chkrootkit' if $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    ();
 }
 
 =back

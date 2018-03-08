@@ -26,6 +26,7 @@ package iMSCP::Packages::Webstats;
 use strict;
 use warnings;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList /;
+use Class::Autouse qw/ :nostat iMSCP::DistPackageManager /;
 use File::Basename;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog;
@@ -480,26 +481,7 @@ sub _installPackages
 
     return unless @packages && !iMSCP::Getopt->skippackages;
 
-    iMSCP::Dialog->getInstance->endGauge() unless iMSCP::Getopt->noprompt;
-
-    local $ENV{'UCF_FORCE_CONFFNEW'} = 1;
-    local $ENV{'UCF_FORCE_CONFFMISS'} = 1;
-
-    my $stdout;
-    my $rs = execute(
-        [
-            ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-            'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew',
-            '--option', 'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
-            '--auto-remove', '--purge', '--no-install-recommends',
-            ( version->parse( `apt-get --version 2>/dev/null` =~ /^apt\s+(\d\.\d)/ ) < version->parse( '1.1' )
-                ? '--force-yes' : '--allow-downgrades' ),
-            'install', @packages
-        ],
-        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
-        \my $stderr
-    );
-    !$rs or die error( sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' ));
+    iMSCP::DistPackageManager->getInstance()->installPackages( @packages );
 }
 
 =item _removePackages( @packages )
@@ -517,22 +499,7 @@ sub _removePackages
 
     return unless @packages && !iMSCP::Getopt->skippackages;
 
-    # Do not try to remove packages that are not available
-    execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \my $stdout );
-    @packages = split /\n/, $stdout;
-    return unless @packages;
-
-    iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
-
-    my $rs = execute(
-        [
-            ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-            'apt-get', '--assume-yes', '--auto-remove', '--purge', '--no-install-recommends', 'remove', @packages
-        ],
-        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
-        \my $stderr
-    );
-    !$rs or die error( sprintf( "Couldn't remove packages: %s", $stderr || 'Unknown error' ));
+    iMSCP::DistPackageManager->getInstance()->uninstallPackages( @packages );
 }
 
 =back

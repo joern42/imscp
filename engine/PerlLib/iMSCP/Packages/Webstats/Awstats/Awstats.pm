@@ -127,7 +127,7 @@ sub setEnginePermissions
 
 =item getDistroPackages( )
 
- Get list of Debian packages
+ Get list of distribution packages
 
  Return list List of packages
 
@@ -135,7 +135,8 @@ sub setEnginePermissions
 
 sub getDistroPackages
 {
-    ( 'awstats', 'libnet-dns-perl' );
+    return( 'awstats', 'libnet-dns-perl' ) if $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    ();
 }
 
 =item addUser( \%moduleData )

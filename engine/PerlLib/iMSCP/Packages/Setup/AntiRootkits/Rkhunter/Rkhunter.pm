@@ -106,7 +106,7 @@ sub setEnginePermissions
 
 =item getDistroPackages( )
 
- Get list of Debian packages
+ Get list of distribution packages
 
  Return list List of packages
 
@@ -114,7 +114,8 @@ sub setEnginePermissions
 
 sub getDistroPackages
 {
-    'rkhunter';
+    return 'rkhunter' if $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    ();
 }
 
 =back
