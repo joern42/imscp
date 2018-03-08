@@ -692,7 +692,7 @@ sub _loadConfig
 
  Execute the server shutdown tasks
 
- This method is called automatically when the program exits.
+ This method is called automatically as late as possible, before the program exits.
  
  Any i-MSCP server that require a reload or restart when their
  configuration has been changed *MUST* implement this method.
