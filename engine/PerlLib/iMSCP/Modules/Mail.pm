@@ -126,7 +126,6 @@ sub _add
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'MAIL_ID'} );
-    $self;
 }
 
 =item delete()
@@ -146,7 +145,6 @@ sub _delete
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM mail_users WHERE mail_id = ?', undef, $self->{'_data'}->{'MAIL_ID'} );
-    $self;
 }
 
 =item disable()
@@ -161,7 +159,6 @@ sub _disable
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'MAIL_ID'} );
-    $self;
 }
 
 =back

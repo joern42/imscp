@@ -26,6 +26,7 @@ package iMSCP::Modules::Domain;
 use strict;
 use warnings;
 use File::Spec;
+use iMSCP::Boolean;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
@@ -99,19 +100,10 @@ sub _loadEntityData
                 t1.url_forward, t1.type_forward, t1.host_forward, t1.phpini_perm_config_level AS php_config_level,
                 IFNULL(t2.ip_number, '0.0.0.0') AS ip_number,
                 t3.private_key, t3.certificate, t3.ca_bundle, t3.allow_hsts, t3.hsts_max_age,
-                t3.hsts_include_subdomains,
-                t4.mail_on_domain
+                t3.hsts_include_subdomains
             FROM domain AS t1
             LEFT JOIN server_ips AS t2 ON (t2.ip_id = t1.domain_ip_id)
-            LEFT JOIN ssl_certs AS t3 ON(
-                t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok'
-            )
-            LEFT JOIN (
-                SELECT domain_id, COUNT(domain_id) AS mail_on_domain
-                FROM mail_users
-                WHERE mail_type LIKE 'normal\\_%'
-                GROUP BY domain_id
-            ) AS t4 ON(t4.domain_id = t1.domain_id)
+            LEFT JOIN ssl_certs AS t3 ON(t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok')
             WHERE t1.domain_id = ?
         ",
         undef,
@@ -183,7 +175,7 @@ sub _loadEntityData
         ALLOW_URL_FOPEN         => $phpini->{'allow_url_fopen'} || 'off',
         PHP_FPM_LISTEN_PORT     => ( $phpini->{'id'} // 1 )-1,
         EXTERNAL_MAIL           => $row->{'external_mail'},
-        MAIL_ENABLED            => $row->{'external_mail'} eq 'off' && ( $row->{'mail_on_domain'} || $row->{'domain_mailacc_limit'} >= 0 )
+        MAIL_ENABLED            => $row->{'external_mail'} eq 'off' && $row->{'domain_mailacc_limit'} >= 0
     };
 }
 
@@ -199,7 +191,6 @@ sub _add
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
-    $self;
 }
 
 =item _delete()
@@ -219,7 +210,6 @@ sub _delete
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM domain WHERE domain_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
-    $self;
 }
 
 =item _disable()
@@ -234,7 +224,6 @@ sub _disable
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'DOMAIN_ID'} );
-    $self;
 }
 
 =item _restore()
@@ -249,7 +238,6 @@ sub _restore
 
     eval { $self->SUPER::_restore(); };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
-    $self;
 }
 
 =back

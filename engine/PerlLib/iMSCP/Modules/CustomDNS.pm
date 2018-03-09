@@ -102,8 +102,6 @@ sub handleEntity
         $self->{'_dbh'}->rollback();
         die;
     }
-
-    $self;
 }
 
 =back

@@ -69,8 +69,6 @@ sub handleEntity
     } else {
         die( sprintf( 'Unknown action (%s) for user (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
-
-    $self;
 }
 
 =back
@@ -127,7 +125,7 @@ sub _add
     eval {
         if ( $self->{'_data'}->{'STATUS'} ne 'tochangepwd' ) {
             my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'_data'}->{'USER_ID'} );
-            my $home = "$::imscpConfig{'USER_WEB_DIR'}/$self->{'_data'}->{'USERNAME'} ";
+            my $home = "$::imscpConfig{'USER_WEB_DIR'}/$self->{'_data'}->{'USERNAME'}";
             $self->{'eventManager'}->trigger(
                 'onBeforeAddImscpUnixUser', $self->{'_data'}->{'USER_ID'}, $usergroup, \my $pwd, $home, \my $skelPath, \my $shell
             );
@@ -152,7 +150,6 @@ sub _add
         $self->SUPER::_add()
     };
     $self->{'_dbh'}->do( 'UPDATE admin SET admin_status = ? WHERE admin_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'USER_ID'} );
-    $self;
 }
 
 =item _delete( )
@@ -179,7 +176,6 @@ sub _delete
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM admin WHERE admin_id = ?', undef, $self->{'_data'}->{'USER_ID'} );
-    $self;
 }
 
 =back

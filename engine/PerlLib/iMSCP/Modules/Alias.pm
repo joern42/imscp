@@ -72,8 +72,6 @@ sub handleEntity
     } else {
         die( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
-
-    $self;
 }
 
 =back
@@ -99,18 +97,11 @@ sub _loadEntityData
                 t2.domain_cgi, t2.web_folder_protection, t2.phpini_perm_config_level AS php_config_level,
                 IFNULL(t3.ip_number, '0.0.0.0') AS ip_number,
                 t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
-                t4.hsts_include_subdomains,
-                t5.mail_on_domain
+                t4.hsts_include_subdomains
             FROM domain_aliasses AS t1
             JOIN domain AS t2 ON (t2.domain_id = t1.domain_id)
             LEFT JOIN server_ips AS t3 ON (t3.ip_id = t1.alias_ip_id)
             LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.alias_id AND t4.domain_type = 'als' AND t4.status = 'ok')
-            LEFT JOIN(
-                SELECT sub_id, COUNT(sub_id) AS mail_on_domain
-                FROM mail_users
-                WHERE mail_type LIKE 'alias\\_%'
-                GROUP BY sub_id
-            ) AS t5 ON (t5.sub_id = t1.alias_id)
             WHERE t1.alias_id = ?
         ",
         undef,
@@ -185,9 +176,9 @@ sub _loadEntityData
         ALLOW_URL_FOPEN         => $phpini->{'allow_url_fopen'} || 'off',
         PHP_FPM_LISTEN_PORT     => ( $phpini->{'id'} // 1 )-1,
         EXTERNAL_MAIL           => $row->{'external_mail'},
-        MAIL_ENABLED            => $row->{'external_mail'} eq 'off' && ( $row->{'mail_on_domain'} || $row->{'domain_mailacc_limit'} >= 0 )
+        MAIL_ENABLED            => $row->{'external_mail'} eq 'off' && $row->{'domain_mailacc_limit'} >= 0
     };
-    $self->{'_data'}->{'SHARED_MOUNT_POINT'} = $row->_sharedMountPoint();
+    $self->{'_data'}->{'SHARED_MOUNT_POINT'} = $self->_sharedMountPoint();
 }
 
 =item _add()
@@ -201,7 +192,6 @@ sub _add
     my ( $self ) = @_;
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
-    $self;
 }
 
 =item _delete()
@@ -221,7 +211,6 @@ sub _delete
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
-    $self;
 }
 
 =item _disable()
@@ -236,7 +225,6 @@ sub _disable
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'DOMAIN_ID'} );
-    $self;
 }
 
 =item _restore()
@@ -251,7 +239,6 @@ sub _restore
 
     eval { $self->SUPER::_restore(); };
     $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
-    $self;
 }
 
 =item _sharedMountPoint( )

@@ -69,8 +69,6 @@ sub handleEntity
     } else {
         die( sprintf( 'Unknown action (%s) for ftp user (ID %s)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
-
-    $self;
 }
 
 =back
@@ -121,7 +119,6 @@ sub _add
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'ok', $self->{'_data'}->{'USERNAME'} );
-    $self;
 }
 
 =item _delete()
@@ -141,7 +138,6 @@ sub _delete
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM ftp_users WHERE userid = ?', undef, $self->{'_data'}->{'USERNAME'} );
-    $self;
 }
 
 =item _disable()
@@ -156,7 +152,6 @@ sub _disable
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $@ || 'disabled', $self->{'_data'}->{'USERNAME'} );
-    $self;
 }
 
 =back

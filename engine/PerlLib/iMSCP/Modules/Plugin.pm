@@ -119,8 +119,6 @@ sub handleEntity
         ? $::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'}
     ) . "/fcache.php?ids=$cacheIds";
     get( $url ) or warning( "Couldn't trigger flush of frontEnd cache" );
-
-    $self;
 }
 
 =back

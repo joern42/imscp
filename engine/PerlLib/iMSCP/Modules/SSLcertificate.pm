@@ -132,7 +132,7 @@ sub _loadEntityData
     $self->{'_data'}->{
         domain_name => $row->{'domain_name'},
         certsDir    => "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs"
-    }
+    };
 }
 
 =item _add()
@@ -182,7 +182,6 @@ sub _add
         ( $@ ? $@ =~ s/iMSCP::OpenSSL::validateCertificate:\s+//r : 'ok' ),
         $self->{'_data'}->{'cert_id'}
     );
-    $self;
 }
 
 =item _delete()
@@ -202,7 +201,6 @@ sub _delete
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM ssl_certs WHERE cert_id = ?', undef, $self->{'_data'}->{'cert_id'} );
-    $self;
 }
 
 =back

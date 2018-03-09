@@ -118,7 +118,7 @@ sub _init
  Data must be loaded into the '_data' attribute.
 
  Param int $entityId Entity unique identifier
- Return void
+ Return void, die on failure
 
 =cut
 
@@ -152,7 +152,7 @@ sub _getEntityData
 
  Should be executed for entities with 'toadd|tochange|toenable' status.
 
- Return void, die on failure
+ Return void
 
 =cut
 
@@ -167,7 +167,7 @@ sub _add
 
  Should be executed for entities with 'todelete' status.
 
- Return void, die on failure
+ Return void
 
 =cut
 
@@ -182,7 +182,7 @@ sub _delete
 
  Should be executed for entities with 'torestore' status.
 
- Return void, die on failure
+ Return void
 
 =cut
 
@@ -197,7 +197,7 @@ sub _restore
 
  Should be executed for entities with 'todisable' status.
 
- Return void, die on failure
+ Return void
 
 =cut
 

@@ -70,8 +70,6 @@ sub handleEntity
     } else {
         die( sprintf( 'Unknown action (%s) for htgroup (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
     }
-
-    $self;
 }
 
 =back
@@ -138,7 +136,6 @@ sub _add
 
     eval { $self->SUPER::_add(); };
     $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@ || 'ok', $self->{'_data'}->{'ID'} );
-    $self;
 }
 
 =item _delete()
@@ -158,7 +155,6 @@ sub _delete
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM htaccess_groups WHERE id = ?', undef, $self->{'_data'}->{'ID'} );
-    $self;
 }
 
 =item _disable()
@@ -173,7 +169,6 @@ sub _disable
 
     eval { $self->SUPER::_disable(); };
     $self->{'_dbh'}->do( 'UPDATE htaccess_groups SET status = ? WHERE id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'ID'} );
-    $self;
 }
 
 =back
