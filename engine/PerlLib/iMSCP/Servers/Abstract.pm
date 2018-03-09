@@ -59,7 +59,7 @@ my %_SERVER_INSTANCES;
  The server priority determines the priority at which the server will be
  treated by the installer, the database tasks processor, and some other
  scripts. It also determines the priority for the server shutdown tasks
- where the start, restart and reload actions are triggered.
+ where the start, restart and reload actions *SHOULD* be triggered.
 
  Return int Server priority
 
@@ -279,7 +279,7 @@ sub setGuiPermissions
 
 =item getServerName( )
 
- Return internal CamelCase server name
+ Return internal CamelCase service name implemented by this server class
  
  Server name must follow CamelCase naming convention such as Apache, Courier,
  Dovecot, LocalServer... See https://en.wikipedia.org/wiki/Camel_case
@@ -301,7 +301,7 @@ sub getServerName
 
 =item getHumanServerName( )
 
- Return the humanized name of this server
+ Return the humanized name of the service implemented by this server class
 
  For instance: Apache 2.4.25 (MPM Event)
 
@@ -334,7 +334,7 @@ sub getImplVersion
 
 =item getVersion()
 
- Return the version of this server
+ Return the version of the service implemented by this server class
 
  Return string Server version
 
@@ -370,7 +370,7 @@ sub dpkgPostInvokeTasks
  Get server traffic data
 
  Any server for which traffic data are available *SHOULD* implement this
- method. By default i-MSCP expects traffic data from FTP, HTTP, SMTP and
+ method. By default i-MSCP expects traffic data for FTP, HTTP, SMTP and
  IMAP/POP services.
 
  Have a look at iMSCP::Servers::Mta::Postfix::Abstract::getTraffic() for an
@@ -626,13 +626,13 @@ sub _loadConfig
 
             tie my %oldConfig, 'iMSCP::Config',
                 filename => "$self->{'cfgDir'}/$filename",
-                readonly => 1,
+                readonly => TRUE,
                 # We do not want croak when accessing non-existing parameters
                 # in old configuration file. The new configuration file can
                 # refers to old parameters for new parameter values but in case
                 # the parameter doesn't exist in old conffile, we want simply
                 # an empty value. 
-                nocroak  => 1;
+                nocroak  => TRUE;
 
             # Sometime, a configuration parameter get renamed. In such case the
             # developer could want set the new parameter value with the old
@@ -697,10 +697,10 @@ sub _loadConfig
  Any i-MSCP server that require a reload or restart when their
  configuration has been changed *MUST* implement this method.
  
- Note that this doesn't limit to start/restart tasks. One i-MSCP server can
- rely on that method to do specific tasks at the very end of the program.
- For instance, that is the case of the i-MSCP Postfix server which need
- create/update the lookup tables before the program exit.
+ Note that this doesn't limit to reload or restart tasks. One i-MSCP server can
+ rely on that method to do specific tasks at the very end of the program. For
+ instance, that is the case of the i-MSCP Postfix server which need create or
+ update the lookup tables before the program exit.
 
  Return void
 
@@ -715,9 +715,14 @@ sub _shutdown
 
  Calls the _shutdown() method on all servers that implement it
  
- Shutdown tasks are executed in descending order of server priorities (highest to lowest priority)
+ Shutdown tasks are executed in descending order of server priorities (highest
+ to lowest priority).
 
- Return void
+ Note that if the program is being to exit with an error status code, or if it
+ is in installer context, the shutdown tasks are skipped.
+ 
+ It is the responsability to server installers to make sure that the services
+ they implement will be up and running after the installation.
 
 =cut
 
