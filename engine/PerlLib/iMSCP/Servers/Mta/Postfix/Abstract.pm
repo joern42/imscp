@@ -407,9 +407,8 @@ sub addMail
         # Add virtual alias map entry
         $self->{'_db'}->add(
             'virtual_alias_maps',
-            $moduleData->{'MAIL_ADDR'} # Recipient
-                . "\t" # Separator
-                . join ',', (
+            $moduleData->{'MAIL_ADDR'}, # Recipient
+            join ',', (
                 # Mail account only case:
                 #  Postfix lookup in `virtual_alias_maps' first. Thus, if there
                 #  is a catchall defined for the domain, any mail for the mail
@@ -419,8 +418,10 @@ sub addMail
                 # Forward + mail account case:
                 #  we want keep local copy of inbound mails
                 ( $isMailAcc ? $moduleData->{'MAIL_ADDR'} : () ),
+
                 # Add forward addresses in case of forward account
                 ( $isForwardAccount ? $moduleData->{'MAIL_FORWARD'} : () ),
+
                 # Add autoresponder entry if it is enabled for this account
                 ( $moduleData->{'MAIL_HAS_AUTO_RESPONDER'} ? "$moduleData->{'MAIL_ACC'}\@imscp-arpl.$moduleData->{'DOMAIN_NAME'}" : () )
             )
