@@ -75,7 +75,7 @@ sub addMail
     die( sprintf( 'The %s class must implement the disableDomain() method', ref $self ));
 }
 
-=item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
+=item getTraffic( \%trafficDb [, $logFile [, \%trafficIndexDb ] ] )
 
  Get IMAP/POP3 traffic data
 

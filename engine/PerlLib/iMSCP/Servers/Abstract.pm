@@ -365,7 +365,7 @@ sub dpkgPostInvokeTasks
     my ( $self ) = @_;
 }
 
-=item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
+=item getTraffic( \%trafficDb [, $logFile [, \%trafficIndexDb ] ] )
 
  Get server traffic data
 
@@ -377,8 +377,8 @@ sub dpkgPostInvokeTasks
  implementation example.
 
  Param hashref \%trafficDb Traffic database
- Param string $logFile Path to ftpd traffic log file (only when self-called)
- Param hashref \%trafficIndexDb Traffic index database (only when self-called)
+ Param string $logFile OPTIONAL Path to ftpd traffic log file (only when self-called)
+ Param hashref \%trafficIndexDb OPTIONAL Traffic index database (only when self-called)
  Return void, die on failure
 
 =cut
@@ -459,7 +459,7 @@ sub reload
 
   where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param string|iMSCP::File $file An iMSCP::File object, an absolute filepath or a filepath relative to the i-MSCP server configuration directory
+ Param string|iMSCP::File $file An iMSCP::File object, an absolute filepath or a filepath relative to this server configuration directory
  Param string $dest OPTIONAL Destination file path, default to $file
  Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules, none if outside of an i-MSCP module context
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
@@ -514,11 +514,11 @@ sub buildConfFile
         $self->{'_templates'}->{"$file"} = $file if $params->{'cached'};
     }
 
-    # Localize changes as we want keep the template clean (template caching)
+    # Localizes the changes as we want keep the template clean (template caching)
     local $file->{'file_content'} if $params->{'cached'};
 
     # If $file doesn't exist and its content is not set (empty),
-    # raise an error, unless caller asked for the file creation.
+    # raise an error, unless caller asked for $dest creation.
     $cfgTpl = $file->getAsRef( !$params->{'create'} ? FALSE : !-f $file );
 
     # Triggers the before<SNAME>BuildConfFile event so that 3rd-party
@@ -551,10 +551,10 @@ sub buildConfFile
 
 =item AUTOLOAD()
 
- Implements autoloading for undefined method
+ Implements autoloading for undefined methods
 
  The default implementation will raise an error for any method that is not known
- to be called by iMSCP::Modules::* modules.
+ to be called by the iMSCP::Modules::* modules.
 
  Return void, die on failure
 
@@ -574,7 +574,7 @@ sub AUTOLOAD
     no strict 'refs';
     *{ $AUTOLOAD } = sub {};
 
-    # Errase stack frame
+    # Erase the stack frame
     goto &{ $AUTOLOAD };
 }
 
@@ -618,7 +618,7 @@ sub _loadConfig
     $filename //= lc( $self->getServerName() . '.data' );
 
     defined $filename or croak( 'Missing $filename parameter' );
-    defined $self->{'cfgDir'} or croak( sprintf( "The %s class must define the `cfgDir' property", ref $self ));
+    defined $self->{'cfgDir'} or croak( sprintf( "The %s class must define the 'cfgDir' property", ref $self ));
 
     if ( iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/$filename.dist" ) {
         if ( -f "$self->{'cfgDir'}/$filename" ) {
@@ -659,7 +659,7 @@ sub _loadConfig
                 $newConfig{$key} = $value if exists $newConfig{$key};
             }
 
-            # Make the old configuration available through the 'old_config' attribute
+            # Make the old configuration available through the 'old_config' property
             %{ $self->{'old_config'} } = %oldConfig;
 
             untie %newConfig;
@@ -684,7 +684,7 @@ sub _loadConfig
         nodeferring => iMSCP::Getopt->context() eq 'installer';
 
     # Make the new configuration also available through the 'old_config'
-    # attribute, unless we have an old config or we are not in installer context
+    # property, unless the property is alreadys set, or if we are not in installer context
     %{ $self->{'old_config'} } = %{ $self->{'config'} } unless exists $self->{'old_config'} || iMSCP::Getopt->context() ne 'installer';
 }
 
@@ -697,7 +697,7 @@ sub _loadConfig
  Any i-MSCP server that require a reload or restart when their
  configuration has been changed *MUST* implement this method.
  
- Note that this doesn't limit to reload or restart tasks. One i-MSCP server can
+ Note that this doesn't limit to reload and restart tasks. One i-MSCP server can
  rely on that method to do specific tasks at the very end of the program. For
  instance, that is the case of the i-MSCP Postfix server which need create or
  update the lookup tables before the program exit.
@@ -713,16 +713,16 @@ sub _shutdown
 
 =item END
 
- Calls the _shutdown() method on all servers that implement it
+ Calls the _shutdown() method on all servers
  
- Shutdown tasks are executed in descending order of server priorities (highest
- to lowest priority).
+ The shutdown tasks are executed in descending order of server priorities
+ (highest to lowest priority).
 
  Note that if the program is being to exit with an error status code, or if it
  is in installer context, the shutdown tasks are skipped.
  
- It is the responsability to server installers to make sure that the services
- they implement will be up and running after the installation.
+ It is the responsability to server installation routines to make sure that the
+ services they implement will be up and running after the installation.
 
 =cut
 

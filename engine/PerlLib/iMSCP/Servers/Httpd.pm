@@ -409,7 +409,7 @@ sub deleteHtaccess
  Get httpd traffic data
 
  Param hashref \%trafficDb Traffic database
- die on failure
+ Return void, die on failure
 
 =cut
 

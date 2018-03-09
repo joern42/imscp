@@ -141,7 +141,7 @@ sub deleteFtpUser
     die( sprintf( 'The %s class must implement the deleteFtpUser() method', ref $self ));
 }
 
-=item getTraffic( \%trafficDb [, $logFile, \%trafficIndexDb ] )
+=item getTraffic( \%trafficDb [, $logFile [, \%trafficIndexDb ] ] )
 
  Get ftpd server traffic data
 
