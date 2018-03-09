@@ -62,7 +62,7 @@ sub getPriority
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
+ Param hashref \%moduleData Data as provided by the User module
  Return void, die on failure
 
 =cut
@@ -84,7 +84,7 @@ sub addUser
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::User module
+ Param hashref \%moduleData Data as provided by the User module
  Return void, die on failure
 
 =cut
@@ -106,7 +106,7 @@ sub deleteUser
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
@@ -128,7 +128,7 @@ sub addDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
@@ -137,7 +137,7 @@ sub restoreDomain
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s class must implement the restoreDmn() method', ref $self ));
+    die( sprintf( 'The %s class must implement the restoreDomain() method', ref $self ));
 }
 
 =item disableDomain( \%moduleData )
@@ -150,7 +150,7 @@ sub restoreDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
@@ -172,7 +172,7 @@ sub disableDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
@@ -194,7 +194,7 @@ sub deleteDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -216,7 +216,7 @@ sub addSubdomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -238,7 +238,7 @@ sub restoreSubdomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -260,7 +260,7 @@ sub disableSubdomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -282,7 +282,7 @@ sub deleteSubdomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htpasswd module
+ Param hashref \%moduleData Data as provided by the Htpasswd module
  Return void, die on failure
 
 =cut
@@ -304,7 +304,7 @@ sub addHtpasswd
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htpasswd module
+ Param hashref \%moduleData Data as provided by the Htpasswd module
  Return void, die on failure
 
 =cut
@@ -326,7 +326,7 @@ sub deleteHtpasswd
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htgroup module
+ Param hashref \%moduleData Data as provided by the Htgroup module
  Return void, die on failure
 
 =cut
@@ -348,7 +348,7 @@ sub addHtgroup
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htgroup module
+ Param hashref \%moduleData Data as provided by the Htgroup module
  Return void, die on failure
 
 =cut
@@ -370,7 +370,7 @@ sub deleteHtgroup
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htaccess module
+ Param hashref \%moduleData Data as provided by the Htaccess module
  Return void, die on failure
 
 =cut
@@ -392,7 +392,7 @@ sub addHtaccess
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Htaccess module
+ Param hashref \%moduleData Data as provided by the Htaccess module
  Return void, die on failure
 
 =cut
@@ -415,7 +415,7 @@ sub deleteHtaccess
 
 sub getTraffic
 {
-    my ( $self ) = @_;
+    my ( $self, $trafficDb ) = @_;
 
     die( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }

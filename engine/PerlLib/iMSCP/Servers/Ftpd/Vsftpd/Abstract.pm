@@ -725,7 +725,7 @@ sub _setupSqlUser
 
  Create VsFTPd user configuration file
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::FtpUser module
+ Param hashref \%moduleData Data as provided by the FtpUser module
  Return void, die on failure
 
 =cut
@@ -746,7 +746,7 @@ sub _createFtpUserConffile
 
  Delete VsFTPd user configuration file
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::FtpUser module
+ Param hashref \%moduleData Data as provided by the FtpUser module
  Return void, die on failure
 
 =cut

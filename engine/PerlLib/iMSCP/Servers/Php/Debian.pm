@@ -470,7 +470,7 @@ sub _init
 
  Build PHP config for a domain or subdomain
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -500,7 +500,7 @@ sub _buildPhpConfig
 
  Delete PHP config for a domain or subdomain
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|Subdomain|SubAlias modules
  Param bool $checkContext Whether or not context must be checked
  Return void, croak on failure
 
@@ -525,7 +525,7 @@ sub _deletePhpConfig
 
  Delete CGI/FastCGI configuration for a domain or subdomain
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|SubAlias|Subdomain modules
  Param bool $checkContext Whether or not context must be checked
  return void, die on failure
 
@@ -559,7 +559,7 @@ sub _deleteCgiConfig
 
  Delete PHP-FPM configuration for a domain or subdomain
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|SubAlias|Subdomain modules
  Param bool $checkContext Whether or not context must be checked
  Return void, die on failure
 

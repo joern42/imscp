@@ -150,7 +150,7 @@ sub dropUser
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain module
+ Param hashref \%moduleData Data as provided by the Domain module
  Return void, die on failure
 
 =cut

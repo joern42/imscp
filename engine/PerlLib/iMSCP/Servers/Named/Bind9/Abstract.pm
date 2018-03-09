@@ -793,7 +793,7 @@ sub _setVersion
 
  Add domain DNS configuration
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Domain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -844,7 +844,7 @@ EOF
 
  Delete domain DNS configuration
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Domain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -871,7 +871,7 @@ sub _deleteDmnConfig
 
  Add domain DNS zone file
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Domain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Domain|SubAlias modules
  Return void, die on failure
 
 =cut

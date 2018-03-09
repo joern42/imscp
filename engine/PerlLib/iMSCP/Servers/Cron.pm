@@ -356,7 +356,7 @@ sub _validateField
  Param scalar \$cfgTpl Reference to cron file content
  Param string $filename Cron file name
  Param string $trgFile Target file path
- Param hashref \%mdata OPTIONAL Data as provided by the iMSCP::Modules::* modules, none if called outside of an i-MSCP module context
+ Param hashref \%mdata OPTIONAL Data as provided by the * modules, none if called outside of an i-MSCP module context
  Param hashref \%sdata OPTIONAL Server data (Server data have higher precedence than modules data)
  Param hashref \%sconfig Cron server configuration
  Param hashref \%params OPTIONAL parameters:

@@ -63,7 +63,7 @@ sub getPriority
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Mail module
+ Param hashref \%moduleData Data as provided by the Mail module
  Return void, die on failure
 
 =cut
@@ -88,7 +88,7 @@ sub addMail
 
 sub getTraffic
 {
-    my ( $self ) = @_;
+    my ( $self, $logFile, $trafficIndexDb ) = @_;
 
     die( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }

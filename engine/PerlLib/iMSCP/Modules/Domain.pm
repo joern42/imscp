@@ -26,7 +26,6 @@ package iMSCP::Modules::Domain;
 use strict;
 use warnings;
 use File::Spec;
-use iMSCP::Boolean;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION

@@ -301,7 +301,7 @@ sub getVersion
   - beforePhpAddDomain( \%moduleData )
   - afterPhpAddDomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Domain|Aliass modules
  Return void, die on failure
 
 =cut
@@ -321,7 +321,7 @@ sub addDomain
   - beforePhpDisableDomain( \%moduleData )
   - afterPhpDisableDomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the AliasiMSCP::Modules::|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Domain|Alias modules
  Return void, die on failure
 
 =cut
@@ -341,7 +341,7 @@ sub disableDomain
   - beforePhpDeleteDomain( \%moduleData )
   - afterPhpDeleteDomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Domain|Alias modules
  Return void, die on failure
 
 =cut
@@ -361,7 +361,7 @@ sub deleteDomain
   - beforePhpAddSubdomain( \%moduleData )
   - afterPhpAddSubdomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -381,7 +381,7 @@ sub addSubdomain
   - beforePhpDisableSubdomain( \%moduleData )
   - afterPhpDisableSubdomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -401,7 +401,7 @@ sub disableSubdomain
   - beforePhpDeleteSubdomain( \%moduleData )
   - afterPhpDeleteSubdomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -499,7 +499,7 @@ sub _setFullVersion
  
  There are nothing special to do here. We trigger events for consistency reasons.
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|SubAlias|Subdomain modules
  Return void, die on failure
 
 =cut
@@ -524,7 +524,7 @@ sub _buildApacheHandlerConfig
 
  Build PHP CGI/FastCGI configuration for the given domain
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|SubAlias|Subdomain modules
  Return void, die on failure
 
 =cut
@@ -600,7 +600,7 @@ sub _buildCgiConfig
 
  Build PHP fpm configuration for the given domain
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::SubAlias|iMSCP::Modules::Subdomain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|SubAlias|Subdomain modules
  Return void, die on failure
 
 =cut
@@ -658,7 +658,7 @@ sub _buildFpmConfig
  Param scalar \$cfgTpl Reference to Apache template content
  Param string $filename Apache template name
  Param scalar \$trgFile Target file path
- Param hashref \%mdata Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%mdata Data as provided by the Alias|Domain|Subdomain|SubAlias modules
  Param hashref \%sconfig Apache server data
  Param hashref \%sconfig Apache server data
  Param hashref \%params OPTIONAL parameters:
@@ -839,7 +839,7 @@ EOF
 
  Event listener that create PHP (phptmp) directory in customer Web folders
 
- Param hashref \%moduleData Data as provided by te iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by te Alias|Domain|Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut

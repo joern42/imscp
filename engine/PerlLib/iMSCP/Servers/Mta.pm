@@ -63,7 +63,7 @@ sub getPriority
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData
+ Param hashref \%moduleData Data as provided by the Domain|Alias modules
  Return void, die on failure
 
 =cut
@@ -85,7 +85,7 @@ sub addDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Domain data
+ Param hashref \%moduleData Data as provided by the Domain|Alias modules
  Return void, die on failure
 
 =cut
@@ -107,7 +107,7 @@ sub disableDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Domain data
+ Param hashref \%moduleData Data as provided by the Domain|Alias modules
  Return void, die on failure
 
 =cut
@@ -129,7 +129,7 @@ sub deleteDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Subdomain data
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -151,7 +151,7 @@ sub addSubdomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Subdomain data
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -173,7 +173,7 @@ sub disableSubdomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Subdomain data
+ Param hashref \%moduleData Data as provided by the Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -195,7 +195,7 @@ sub deleteSubdomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Mail data
+ Param hashref \%moduleData Data as provided by the Mail module
  Return void, die on failure
 
 =cut
@@ -217,7 +217,7 @@ sub addMail
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Mail data
+ Param hashref \%moduleData Data as provided by the Mail module
  Return void, die on failure
 
 =cut
@@ -239,7 +239,7 @@ sub disableMail
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Mail data
+ Param hashref \%moduleData Data as provided by the Mail module
  Return void, die on failure
 
 =cut
@@ -262,7 +262,7 @@ sub deleteMail
 
 sub getTraffic
 {
-    my ( $self ) = @_;
+    my ( $self, $trafficDb ) = @_;
 
     die( sprintf( 'The %s class must implement the getTraffic() method', ref $self ));
 }

@@ -554,7 +554,7 @@ sub buildConfFile
  Implements autoloading for undefined method
 
  The default implementation will raise an error for any method that is not known
- to be called by the iMSCP::Modules::Abstract modules.
+ to be called by iMSCP::Modules::* Abstract modules.
 
  Return void, die on failure
 

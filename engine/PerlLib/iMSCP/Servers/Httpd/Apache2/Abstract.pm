@@ -827,7 +827,7 @@ sub _setVersion
 
  Process deleteDomain tasks
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|Subdomain|SubAlias modules modules
  Return void, die on failure
 
 =cut
@@ -837,7 +837,7 @@ sub _deleteDomain
     my ( $self, $moduleData ) = @_;
 
     $self->removeSites( $moduleData->{'DOMAIN_NAME'}, $moduleData->{'DOMAIN_NAME'} . '_ssl' );
-    $self->_umountLogsFolder( $moduleData );
+    $self->_umountLogsFolder( $moduleData, $moduleData->{'DOMAIN_TYPE'} eq 'dmn' );
 
     unless ( $moduleData->{'SHARED_MOUNT_POINT'} || !-d $moduleData->{'WEB_DIR'} ) {
         my $userWebDir = File::Spec->canonpath( $::imscpConfig{'USER_WEB_DIR'} );
@@ -872,7 +872,7 @@ sub _deleteDomain
 
  Mount httpd logs folder for the domain as referred to by module data
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -900,27 +900,22 @@ sub _mountLogsFolder
     mount( $fields ) unless isMountpoint( $fields->{'fs_file'} );
 }
 
-=item _umountLogsFolder( \%moduleData )
+=item _umountLogsFolder( \%moduleData [, $recursive = FALSE ] )
 
  Umount httpd logs folder for the domain as referred to by module data
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|Subdomain|SubAlias modules
+ Param boolean $recusive Flag indicating whether operation must be recursive
  Return void, die on failure
 
 =cut
 
 sub _umountLogsFolder
 {
-    my ( undef, $moduleData ) = @_;
+    my ( undef, $moduleData, $recursive ) = @_;
 
-    my $recursive = TRUE;
     my $fsFile = "$moduleData->{'HOME_DIR'}/logs";
-
-    # We operate recursively only if domain type is 'dmn' (full account)
-    if ( $moduleData->{'DOMAIN_TYPE'} ne 'dmn' ) {
-        $recursive = FALSE;
-        $fsFile .= "/$moduleData->{'DOMAIN_NAME'}";
-    }
+    $fsFile .= "/$moduleData->{'DOMAIN_NAME'}" unless $recursive;
 
     removeMountEntry( qr%.*?[ \t]+\Q$fsFile\E(?:/|[ \t]+)[^\n]+% );
     umount( $fsFile, $recursive );
@@ -930,7 +925,7 @@ sub _umountLogsFolder
 
  Disable a domain
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
@@ -1009,7 +1004,7 @@ sub _disableDomain
 
  Add configuration files for the given domain
 
- Param hashref \%data Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%data Data as provided by the Alias|Domain|Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -1092,7 +1087,7 @@ sub _addCfg
 
  Get Web folder skeleton
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|Subdomain|SubAlias modules
  Return string Path to Web folder skeleton on success, die on failure
 
 =cut
@@ -1123,7 +1118,7 @@ sub _getWebfolderSkeleton
 
  Add default directories and files for the given domain
 
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|Subdomain|SubAlias modules
  Return void, die on failure
 
 =cut
@@ -1190,13 +1185,10 @@ sub _addFiles
 
         clearImmutable( $moduleData->{'WEB_DIR'} ) if -d $moduleData->{'WEB_DIR'};
 
-        if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
-            $self->_umountLogsFolder( $moduleData );
-
-            if ( $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} ne 'yes' ) {
-                iMSCP::Dir->new( dirname => "$moduleData->{'WEB_DIR'}/logs" )->remove();
-                iMSCP::Dir->new( dirname => "$workingWebFolder/logs" )->remove();
-            }
+        if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' && $self->{'config'}->{'HTTPD_MOUNT_CUSTOMER_LOGS'} ne 'yes' ) {
+            $self->_umountLogsFolder( $moduleData, TRUE );
+            iMSCP::Dir->new( dirname => "$moduleData->{'WEB_DIR'}/logs" )->remove();
+            iMSCP::Dir->new( dirname => "$workingWebFolder/logs" )->remove();
         }
 
         #
@@ -1451,7 +1443,7 @@ sub _removeVloggerSqlUser
  Param scalar \$scalar Reference to Apache conffile
  Param string $filename Apache template name
  Param scalar \$trgFile Target file path
- Param hashref \%moduleData Data as provided by the iMSCP::Modules::Alias|iMSCP::Modules::Domain|iMSCP::Modules::Subdomain|iMSCP::Modules::SubAlias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain|Subdomain|SubAlias modules
  Param hashref \%apacheServerData Apache server data
  Param hashref \%apacheServerConfig Apache server data
  Param hashref \%parameters OPTIONAL Parameters:
