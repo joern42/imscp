@@ -301,7 +301,7 @@ sub getVersion
   - beforePhpAddDomain( \%moduleData )
   - afterPhpAddDomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the Domain|Aliass modules
+ Param hashref \%moduleData Data as provided by the Alias|Domains modules
  Return void, die on failure
 
 =cut
@@ -321,7 +321,7 @@ sub addDomain
   - beforePhpDisableDomain( \%moduleData )
   - afterPhpDisableDomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the Domain|Alias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
@@ -341,7 +341,7 @@ sub disableDomain
   - beforePhpDeleteDomain( \%moduleData )
   - afterPhpDeleteDomain( \%moduleData )
 
- Param hashref \%moduleData Data as provided by the Domain|Alias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut

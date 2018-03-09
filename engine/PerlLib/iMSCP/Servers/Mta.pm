@@ -63,7 +63,7 @@ sub getPriority
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the Domain|Alias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
@@ -85,7 +85,7 @@ sub addDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the Domain|Alias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
@@ -107,7 +107,7 @@ sub disableDomain
 
  where <SNAME> is the server name as returned by the iMSCP::Servers::Abstract::getServerName() method.
 
- Param hashref \%moduleData Data as provided by the Domain|Alias modules
+ Param hashref \%moduleData Data as provided by the Alias|Domain modules
  Return void, die on failure
 
 =cut
