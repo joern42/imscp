@@ -379,9 +379,9 @@ sub setupServersAndPackages
         $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
         startDetail();
         my $nStep = 1;
-        # For uninstallation, we reverse server priorities
+        # For un-installation, we reverse server priorities
         for my $server ( reverse @servers ) {
-            next unless length $::imscpOldConfig{$server} && $::imscpOldConfig{$server} ne $::imscpConfig{$server};
+            next if $::imscpOldConfig{$server} eq '' || $::imscpOldConfig{$server} eq $::imscpConfig{$server};
 
             step(
                 sub { $server->factory( $::imscpOldConfig{$server} )->$lcTask(); },

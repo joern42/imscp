@@ -578,6 +578,17 @@ sub AUTOLOAD
     goto &{ $AUTOLOAD };
 }
 
+=item DESTROY( )
+
+ Destroy tasks
+
+=cut
+
+sub DESTROY
+{
+    # Needed due to AUTOLOAD
+}
+
 =back
 
 =head1 PRIVATE METHODS

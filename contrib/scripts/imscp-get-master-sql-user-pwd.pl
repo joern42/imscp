@@ -48,8 +48,6 @@ print output( sprintf( "Your i-MSCP master SQL user is         : \x1b[1m%s\x1b[0
 print output( sprintf( "Your i-MSCP master SQL user password is: \x1b[1m%s\x1b[0m", $passwd ), 'info' );
 print output( 'Information based on data from your /etc/imscp/imscp.conf file.', 'warn' );
 
-=back
-
 =head1 AUTHOR
 
  Laurent Declercq <l.declercq@nuxwin.com>

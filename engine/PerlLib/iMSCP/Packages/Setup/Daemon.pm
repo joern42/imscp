@@ -75,7 +75,7 @@ sub imscpDaemonTypeDialog
     my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'DAEMON_TYPE', iMSCP::Getopt->preseed ? 'imscp' : '' );
-    my %choices = ( 'imscp', 'Via the i-MSCP daemon (real time)', 'cron', 'Via cron (every 5 minutes)' );
+    my %choices = ( 'imscp', 'Via the historical i-MSCP daemon (real time)', 'cron', 'Via a cron job run every 5 minutes (delayed)' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'daemon', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'imscp' );

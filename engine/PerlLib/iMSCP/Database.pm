@@ -268,7 +268,7 @@ sub _init
     $self;
 }
 
-=item AUTOLOAD
+=item AUTOLOAD( )
 
  Proxy to current DBI handle
 
@@ -285,6 +285,17 @@ sub AUTOLOAD
     };
 
     goto &{ $AUTOLOAD };
+}
+
+=item DESTROY( )
+
+ Destroy tasks
+
+=cut
+
+sub DESTROY
+{
+    # Needed due to AUTOLOAD
 }
 
 =back

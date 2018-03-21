@@ -27,6 +27,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
+use strict;
+use warnings;
 use lib '/usr/local/src/imscp/engine/PerlLib';
 use iMSCP::Requirements;
 use iMSCP::Debug qw/ output /;
