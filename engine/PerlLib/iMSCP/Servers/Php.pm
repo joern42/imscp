@@ -276,8 +276,7 @@ sub getHumanServerName
 {
     my ( $self ) = @_;
 
-    # FIXME: Show full version
-    sprintf( 'PHP %s (%s)', $self->{'config'}->{'PHP_VERSION'}, $self->{'config'}->{'PHP_SAPI'} );
+    sprintf( 'PHP %s (%s)', $self->{'config'}->{'PHP_VERSION_FULL'}, $self->{'config'}->{'PHP_SAPI'} );
 }
 
 =item getVersion( )
@@ -475,6 +474,8 @@ sub _init
     @{ $self }{qw/ reload restart _templates cfgDir httpd /} = (
         {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php", lazy { iMSCP::Servers::Httpd->factory() }
     );
+
+    $self->{'eventManager'}->register( [ 'beforeApacheBuildConfFile', 'afterApacheAddFiles' ], $self );
     $self->SUPER::_init();
 }
 
