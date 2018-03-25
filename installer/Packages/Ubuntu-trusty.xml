@@ -36,7 +36,7 @@
             <post_install_task>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_task>
             <post_install_task>sh debian_apache2_postinst.sh</post_install_task>
         </apache2>
-        <nginx description="Nginx server" class="iMSCP::Servers::Httpd::Nginx::Debian" install_always="1">
+        <nginx description="Nginx server" class="iMSCP::Servers::Httpd::Nginx::Debian" hidden="1" install_always="1">
             <package>nginx</package>
             <package>nginx-full</package>
             <package>uwsgi</package>

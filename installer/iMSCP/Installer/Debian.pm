@@ -432,9 +432,12 @@ sub _processPackagesFile
         # Retrieve current alternative
         my $sAlt = $::questions{ $sectionClass } || $::imscpConfig{ $sectionClass };
 
-        # Build list of supported alternatives
-        # Discard those alternatives for which evaluation of the 'condition' attribute expression (if any) is not TRUE
-        my @supportedAlts = grep { !defined $data->{$_}->{'condition'} || eval expandVars( $data->{$_}->{'condition'} ) } keys %{ $data };
+        # Builds list of supported alternatives for dialogs
+        # Discard hidden alternatives that are hidden or for which  evaluation
+        # of the 'condition' attribute expression (if any) is not TRUE
+        my @supportedAlts = grep {
+            !$data->{$_}->{'hidden'} && ( !defined $data->{$_}->{'condition'} || eval expandVars( $data->{$_}->{'condition'} ) )
+        } keys %{ $data };
 
         if ( $section eq 'sqld' ) {
             # The sqld section need a specific treatment
@@ -475,6 +478,7 @@ sub _processPackagesFile
         # Set the dialog flag in any case if there are many alternatives available and if user asked for alternative reconfiguration
         $showDialog ||= @supportedAlts > 1 && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] );
 
+        # Process alternative dialogs
         if ( $showDialog ) {
             local $dialog->{'opts'}->{'no-cancel'} = '';
             my %choices;
