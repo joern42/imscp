@@ -749,13 +749,44 @@ class Application
 
                 if ($locale == 'root') {
                     # Handle case where value from $_SESSION['user_def_lang']
-                    # is erronous and lead to root locale
+                    # is erroneous and lead to root locale
                     $locale->setLocale('en_GB');
                 }
             } catch (\Exception $e) {
                 $locale = new Locale('en_GB');
             }
         }
+
+        $localesRouting = [
+            'bg' => 'bg_BG',
+            'ca' => 'ca_es',
+            'cs' => 'cs_CZ',
+            'da' => 'da_DK',
+            'de' => 'de_DE',
+            'en' => 'en_GB',
+            'es' => 'es_ES',
+            'eu' => 'eu_ES',
+            'fa' => 'fa_IR',
+            'fi' => 'fi_FI',
+            'fr' => 'fr_FR',
+            'gl' => 'gl_ES',
+            'hu' => 'hu_HU',
+            'it' => 'it_IT',
+            'ja' => 'ja_JP',
+            'lt' => 'lt_LT',
+            'nb' => 'nb_NO',
+            'nl' => 'nl_NL',
+            'pl' => 'pl_PL',
+            'pt' => 'pt_PT',
+            'ro' => 'ro_RO',
+            'ru' => 'ru_RU',
+            'sk' => 'sk_SK',
+            'sv' => 'sv_SE',
+            'th' => 'th_TH',
+            'tr' => 'tr_TR',
+            'uk' => 'uk_UA',
+            'zh' => 'zh_CN'
+        ];
 
         // Setup translator
         $this->translator = new Translator([
@@ -766,37 +797,17 @@ class Application
             'scan'           => Translator::LOCALE_DIRECTORY,
             # Fallbacks for languages without territory information
             # (eg: 'de' will be routed to 'de_DE')
-            'route'          => [
-                'bg' => 'bg_BG',
-                'ca' => 'ca_es',
-                'cs' => 'cs_CZ',
-                'da' => 'da_DK',
-                'de' => 'de_DE',
-                'en' => 'en_GB',
-                'es' => 'es_ES',
-                'eu' => 'eu_ES',
-                'fa' => 'fa_IR',
-                'fi' => 'fi_FI',
-                'fr' => 'fr_FR',
-                'gl' => 'gl_ES',
-                'hu' => 'hu_HU',
-                'it' => 'it_IT',
-                'ja' => 'ja_JP',
-                'lt' => 'lt_LT',
-                'nb' => 'nb_NO',
-                'nl' => 'nl_NL',
-                'pl' => 'pl_PL',
-                'pt' => 'pt_PT',
-                'ro' => 'ro_RO',
-                'ru' => 'ru_RU',
-                'sk' => 'sk_SK',
-                'sv' => 'sv_SE',
-                'th' => 'th_TH',
-                'tr' => 'tr_TR',
-                'uk' => 'uk_UA',
-                'zh' => 'zh_CN'
-            ]
+            'route'          => $localesRouting
         ]);
+
+        // Locale fallbacks
+        if (!$this->translator->isAvailable($locale->getLanguage()) && !$this->translator->isAvailable($locale)) {
+            if (in_array($locale->getLanguage(), array_keys($localesRouting))) {
+                $this->translator->getAdapter()->setLocale($localesRouting[$locale->getLanguage()]);
+            } else {
+                $this->translator->getAdapter()->setLocale('en_GB');
+            }
+        }
 
         // Make Zend_Locale and Zend_Translate available for i-MSCP core,
         // i-MSCP plugins and Zend libraries
@@ -873,7 +884,7 @@ class Application
 
         $pluginManager = $this->getPluginManager();
         foreach ($pluginManager->pluginGetList() as $pluginName) {
-            if($pluginManager->pluginHasError($pluginName)) {
+            if ($pluginManager->pluginHasError($pluginName)) {
                 continue;
             }
 
