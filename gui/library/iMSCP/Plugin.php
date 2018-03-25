@@ -290,26 +290,27 @@ abstract class iMSCP_Plugin
             return $config;
         }
 
-        if (!@is_readable($file)) {
-            throw new PluginException(tr('Unable to read the plugin %s file. Please check file permissions', $file));
-        }
-
         $config = include($file);
         iMSCP_Utility_OpcodeCache::clearAllActive($file); // Be sure to load newest version on next call
 
+        # See https://wiki.i-mscp.net/doku.php?id=plugins:configuration
+
         $file = PERSISTENT_PATH . "/plugins/$pluginName.php";
 
-        if (@is_readable($file)) {
+        if (file_exists($file)) {
             $localConfig = include($file);
             iMSCP_Utility_OpcodeCache::clearAllActive($file); // Be sure to load newest version on next call
 
-            if (array_key_exists('__REMOVE__', $localConfig) && is_array($localConfig['__REMOVE__'])) {
-                $config = utils_arrayDiffRecursive($config, $localConfig['__REMOVE__']);
-
-                if (array_key_exists('__OVERRIDE__', $localConfig) && is_array($localConfig['__OVERRIDE__'])) {
-                    $config = utils_arrayMergeRecursive($config, $localConfig['__OVERRIDE__']);
+            // Remove item(s) first (if needed)
+            if (array_key_exists('__REMOVE__', $localConfig)) {
+                if (is_array($localConfig['__REMOVE__'])) {
+                    $config = utils_arrayDiffRecursive($config, $localConfig['__REMOVE__']);
                 }
+
+                unset($localConfig['__REMOVE__']);
             }
+
+            $config = utils_arrayMergeRecursive($config, $localConfig);
         }
 
         return $config;
@@ -352,8 +353,6 @@ abstract class iMSCP_Plugin
      *
      * This method is automatically called by the plugin manager when the
      * plugin is being installed.
-     *
-     * @throws PluginException
      * @param PluginManager $pluginManager
      * @return void
      */
@@ -367,7 +366,6 @@ abstract class iMSCP_Plugin
      * This method is automatically called by the plugin manager when the
      * plugin is being enabled (activated).
      *
-     * @throws PluginException
      * @param PluginManager $pluginManager
      * @return void
      */
@@ -381,7 +379,6 @@ abstract class iMSCP_Plugin
      * This method is automatically called by the plugin manager when the
      * plugin is being disabled (deactivated).
      *
-     * @throws PluginException
      * @param PluginManager $pluginManager
      * @return void
      */
@@ -395,7 +392,6 @@ abstract class iMSCP_Plugin
      * This method is automatically called by the plugin manager when
      * the plugin is being updated.
      *
-     * @throws PluginException
      * @param PluginManager $pluginManager
      * @param string $fromVersion Version from which plugin update is initiated
      * @param string $toVersion Version to which plugin is updated
@@ -411,7 +407,6 @@ abstract class iMSCP_Plugin
      * This method is automatically called by the plugin manager when the
      * plugin is being uninstalled.
      *
-     * @throws PluginException
      * @param PluginManager $pluginManager
      * @return void
      */
@@ -425,7 +420,6 @@ abstract class iMSCP_Plugin
      * This method is automatically called by the plugin manager when the
      * plugin is being deleted.
      *
-     * @throws PluginException
      * @param PluginManager $pluginManager
      * @return void
      */
@@ -543,7 +537,7 @@ abstract class iMSCP_Plugin
      *      if($cron_job_status == 'todelete') {
      *        // Do something specific when item is being deleted...
      *      }
-     * 
+     *
      *     exec_query("UPDATE cron_jobs SET cron_job_error = NULL WHERE cron_job_id = ?", [$itemId]);
      * }
      * <code>
@@ -564,7 +558,7 @@ abstract class iMSCP_Plugin
      * of backend requests being processed for items that belong to the plugin.
      *
      * For instance:
-     * 
+     *
      * <code>
      * return execute_query(
      *     "

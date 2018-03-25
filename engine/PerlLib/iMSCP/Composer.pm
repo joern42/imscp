@@ -94,7 +94,7 @@ sub new
 
         $self->{'_attrs'}->{'working_dir'} //= File::Spec->canonpath( $self->{'_attrs'}->{'working_dir'} || $self->{'_attrs'}->{'home_dir'} );
         $self->{'_attrs'}->{'composer_path'} //= File::Spec->canonpath( "$self->{'_attrs'}->{'home_dir'}/composer.phar" );
-        $self->{'_attrs'}->{'composer_json'} = from_json( $self->{'_attrs'}->{'composer_json'} || <<"EOT", { utf8 => 1 } );
+        $self->{'_attrs'}->{'composer_json'} = from_json( $self->{'_attrs'}->{'composer_json'} || <<"EOT", { utf8 => TRUE } );
 {
     "config": {
         "cache-files-ttl":15780000,
@@ -450,7 +450,7 @@ sub _getSuCmd
     my $self = shift;
 
     if ( $self->{'_attrs'}->{'user'} eq $main::imscpConfig{'ROOT_USER'} ) {
-        $ENV{'COMPOSER_ALLOW_SUPERUSER'} = 1;
+        $ENV{'COMPOSER_ALLOW_SUPERUSER'} = TRUE;
         $ENV{'COMPOSER_HOME'} = "$self->{'_attrs'}->{'home_dir'}/.composer";
         return \@_;
     }

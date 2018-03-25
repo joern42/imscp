@@ -186,6 +186,7 @@ PLUGINS
     Added: Own event manager for plugin manager
     Enhancement: Make plugins able to trigger flush of cache (OPcache, userland cache (full or by ID)
     Fixed: Covers case of plugins that are uninstallable but not installable
+    Fixed: Local plugin configuration files are not merged as expected
     Fixed: Undefined offset -- Couldn't infer `Standard` plugin type
     Review: Avoid useless SQL query for plugin `run` action if there are no error (backend)
     Updated: Plugin API to version 1.5.1
