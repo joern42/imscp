@@ -36,7 +36,6 @@ use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::TemplateParser qw/ processByRef getBlocByRef replaceBlocByRef /;
-use Scalar::Defer qw/ lazy /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
@@ -472,10 +471,13 @@ sub _init
     }
 
     @{ $self }{qw/ reload restart _templates cfgDir httpd /} = (
-        {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php", lazy { iMSCP::Servers::Httpd->factory() }
+        {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php", iMSCP::Servers::Httpd->factory()
     );
 
-    $self->{'eventManager'}->register( [ 'beforeApacheBuildConfFile', 'afterApacheAddFiles' ], $self );
+    if ( $self->{'httpd'}->getServerName() eq 'Apache' ) {
+        $self->{'eventManager'}->register( [ 'beforeApacheBuildConfFile', 'afterApacheAddFiles' ], $self );
+    }
+
     $self->SUPER::_init();
 }
 
