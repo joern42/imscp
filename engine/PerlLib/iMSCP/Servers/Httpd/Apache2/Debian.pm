@@ -605,43 +605,36 @@ sub _setupModules
 {
     my ( $self ) = @_;
 
+    my @commonMods = qw(
+        access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex cgid deflate dir
+        env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl
+    );
+
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'event' ) {
         $self->disableModules( qw/ mpm_itk mpm_prefork mpm_worker cgi / );
-        $self->enableModules(
-            qw/ mpm_event access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex
-                cgid deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
-        );
+        $self->enableModules( qw/ mpm_event suexec /, @commonMods );
         return;
     }
 
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
         $self->disableModules( qw/ mpm_event mpm_worker cgid suexec / );
-        $self->enableModules(
-            qw/ mpm_prefork mpm_itk access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host
-                authz_user autoindex cgi deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl /
-        );
+        $self->enableModules( qw/ mpm_prefork mpm_itk /, @commonMods );
         return;
     }
 
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'prefork' ) {
         $self->disableModules( qw/ mpm_event mpm_itk mpm_worker cgid / );
-        $self->enableModules(
-            qw/ mpm_prefork access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user
-                autoindex cgi deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
-        );
+        $self->enableModules( qw/ mpm_prefork suexec /, @commonMods );
         return;
     }
 
     if ( $self->{'config'}->{'HTTPD_MPM'} eq 'worker' ) {
         $self->disableModules( qw/ mpm_event mpm_itk mpm_prefork cgi / );
-        $self->enableModules(
-            qw/ mpm_worker access_compat alias auth_basic auth_digest authn_core authn_file authz_core authz_groupfile authz_host authz_user autoindex
-                cgid deflate dir env expires headers mime mime_magic negotiation proxy proxy_http rewrite ssl suexec /
-        );
+        $self->enableModules( qw/ mpm_worker suexec /, @commonMods );
         return;
     }
 
-    die( 'Unknown Apache MPM' );
+    die( 'Unknown Apache2 MPM' );
 }
 
 =item _configure( )
