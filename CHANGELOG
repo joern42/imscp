@@ -250,6 +250,7 @@ YOUTRACK
     IP-1758 Could not remove HTTPD log directory -- The immutable bit is removed too late
     IP-1761 Wrong customer password after change through admin and reseller interfaces
     IP-1762 mod_proxy_fcgi - timeout too long
+    IP-1778 deleted htdocs folder after removing htdocs subdomain
 
 ------------------------------------------------------------------------------------------------------------------------
 Older release series

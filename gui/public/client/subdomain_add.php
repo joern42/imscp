@@ -224,9 +224,12 @@ function addSubdomain()
 
     // Set default mount point
     if ($domainType == 'dmn') {
-        $mountPoint = in_array($subLabelAscii, ['backups', 'cgi-bin', 'errors', 'logs', 'phptmp'], true) ? "/sub_$subLabelAscii" : "/$subLabelAscii";
+        $mountPoint = in_array(
+            $subLabelAscii, ['backups', 'cgi-bin', 'errors', 'htdocs', 'logs', 'phptmp'], true
+        ) ? "/sub_$subLabelAscii" : "/$subLabelAscii";
     } else {
-        $mountPoint = $subLabelAscii == 'cgi-bin' ? "/$domainName/sub_$subLabelAscii" : "/$domainName/$subLabelAscii";
+        $mountPoint = in_array($subLabelAscii, ['cgi-bin', 'htdocs'], true)
+            ? "/$domainName/sub_$subLabelAscii" : "/$domainName/$subLabelAscii";
     }
 
     // Check for shared mount point option
