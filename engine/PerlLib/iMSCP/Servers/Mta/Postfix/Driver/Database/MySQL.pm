@@ -67,6 +67,15 @@ sub uninstall
 {
     my ( $self ) = @_;
 
+    my $dbh = iMSCP::Database->getInstance();
+    my $oldDbName = $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    $dbh->do(
+        "
+            DROP VIEW IF EXISTS postfix_virtual_alias_maps, postfix_virtual_mailbox_domains, postfix_virtual_mailbox_maps, postfix_relay_domains,
+            postfix_transport_maps
+        "
+    );
+    $dbh->useDatabase( $oldDbName ) if length $oldDbName;
     iMSCP::Dir->new( dirname => $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} )->remove();
     iMSCP::Servers::Sqld->factory()->dropUser( 'imscp_postfix_user', $::imscpOldConfig{'DATABASE_USER_HOST'} );
 }
@@ -142,7 +151,14 @@ sub _setupDatabases
 
     my $dbh = iMSCP::Database->getInstance();
     my $qDbName = $dbh->quote_identifier( ::setupGetQuestion( 'DATABASE_NAME' ));
-    $dbh->do( "GRANT SELECT ON $qDbName.mail_users TO ?\@?", undef, $sdata->{'DATABASE_USER'}, $sqlUserHost );
+
+    for ( qw/ virtual_alias_maps virtual_mailbox_domains virtual_mailbox_maps relay_domains transport_maps / ) {
+        $dbh->do( "GRANT SELECT ON $qDbName.postfix_$_ TO ?\@?", undef, $sdata->{'DATABASE_USER'}, $sqlUserHost );
+    }
+
+    # Create SQL views
+
+    $self->_createSqlViews();
 
     # Create MySQL source files
 
@@ -165,7 +181,7 @@ user     = {DATABASE_USER}
 password = {DATABASE_PASSWORD}
 hosts    = {DATABASE_HOST}
 dbname   = {DATABASE_NAME}
-query    =
+query    = SELECT goto FROM postfix_virtual_alias_maps WHERE address='%s'
 EOF
         undef, undef, $sdata, { create => TRUE, group => $self->{'mta'}->{'config'}->{'MTA_GROUP'} }
     );
@@ -178,7 +194,7 @@ user     = {DATABASE_USER}
 password = {DATABASE_PASSWORD}
 hosts    = {DATABASE_HOST}
 dbname   = {DATABASE_NAME}
-query    =
+query    = SELECT domain_name FROM postfix_virtual_mailbox_domains WHERE domain_name = '%s'
 EOF
         undef, undef, $sdata, { create => TRUE, group => $self->{'mta'}->{'config'}->{'MTA_GROUP'} }
     );
@@ -191,7 +207,7 @@ user     = {DATABASE_USER}
 password = {DATABASE_PASSWORD}
 hosts    = {DATABASE_HOST}
 dbname   = {DATABASE_NAME}
-query    = SELECT TODO FROM mail_users WHERE TODO = '%s' AND status = 'ok';
+query    = SELECT maildir FROM postfix_virtual_mailbox_maps WHERE username='%s'
 EOF
         undef, undef, $sdata, { create => TRUE, group => $self->{'mta'}->{'config'}->{'MTA_GROUP'} }
     );
@@ -204,7 +220,7 @@ user     = {DATABASE_USER}
 password = {DATABASE_PASSWORD}
 hosts    = {DATABASE_HOST}
 dbname   = {DATABASE_NAME}
-query    =
+query    = SELECT domain_name FROM postfix_relay_domains WHERE domain_name = '%s'
 EOF
         undef, undef, $sdata, { create => TRUE, group => $self->{'mta'}->{'config'}->{'MTA_GROUP'}, mode => 0640 }
     );
@@ -217,7 +233,7 @@ user     = {DATABASE_USER}
 password = {DATABASE_PASSWORD}
 hosts    = {DATABASE_HOST}
 dbname   = {DATABASE_NAME}
-query    =
+query    = SELECT transport FROM postfix_transport_maps WHERE address="%s"
 EOF
         undef, undef, $sdata, { create => TRUE, group => $self->{'mta'}->{'config'}->{'MTA_GROUP'}, mode => 0640 }
     );
@@ -232,6 +248,62 @@ EOF
         relay_domains           => { values => [ "proxy:$dbType:$dbDir/relay_domains.cf" ] },
         transport_maps          => { values => [ "proxy:$dbType:$dbDir/transport_maps.cf" ] }
     );
+}
+
+=item _createSqlViews( )
+
+ Create SQL view for postfix lookup tables
+
+ Return void, die on failure
+
+=cut
+
+sub _createSqlViews
+{
+    my ( $self ) = @_;
+
+    my $dbh = iMSCP::Database->getInstance();
+    my $oldDbName = $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+
+    # Create the SQL view for the virtual_alias_maps map
+    $dbh->do( <<"EOF" );
+CREATE OR REPLACE VIEW postfix_virtual_alias_maps AS
+SELECT mail_forward AS goto, mail_addr AS address FROM mail_users WHERE mail_type LIKE '%forward%' AND status = 'ok'
+UNION ALL SELECT mail_acc AS goto, mail_addr AS address FROM mail_users WHERE mail_type LIKE '%catchall%' AND status = 'ok'
+EOF
+    # Create the SQL view for the virtual_mailbox_domains map
+    $dbh->do( <<"EOF" );
+CREATE OR REPLACE VIEW postfix_virtual_mailbox_domains AS
+SELECT domain_name FROM domain WHERE domain_status = 'ok' AND external_mail = 'off'
+UNION ALL
+SELECT CONCAT(t1.subdomain_name, '.', t2.domain_name) FROM subdomain AS t1 JOIN domain AS t2 USING(domain_id)
+WHERE t1.subdomain_status = 'ok' AND t2.external_mail = 'off'
+UNION ALL
+SELECT alias_name FROM domain_aliasses WHERE alias_status = 'ok' AND external_mail = 'off'
+UNION ALL
+SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) FROM subdomain_alias AS t1 JOIN domain_aliasses AS t2 USING(alias_id)
+WHERE t1.subdomain_alias_status = 'ok' AND t2.external_mail = 'off'
+EOF
+    # Create the SQL view for the virtual_mailbox_maps map
+    $dbh->do( <<"EOF" );
+CREATE OR REPLACE VIEW postfix_virtual_mailbox_maps AS
+SELECT CONCAT('$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/', SUBSTRING(mail_addr, LOCATE('\@', mail_addr) + 1), '/', mail_acc, '/') AS maildir,
+mail_addr AS username FROM mail_users WHERE mail_type LIKE '%mail%' AND status = 'ok'
+EOF
+    # Create SQL view for the relay_domains map
+    $dbh->do( <<"EOF" );
+CREATE OR REPLACE VIEW postfix_relay_domains AS
+SELECT domain_name FROM domain WHERE domain_status = 'ok' AND external_mail = 'on'
+UNION ALL
+SELECT alias_name FROM domain_aliasses WHERE alias_status = 'ok' AND external_mail = 'on'
+EOF
+    # Create the SQL view for the transport_maps map (for vacation entries only)
+    $dbh->do( <<"EOF" );
+CREATE OR REPLACE VIEW postfix_transport_maps AS
+SELECT mail_addr AS address, 'imscp-arpl:' AS transport FROM mail_users WHERE mail_auto_respond = 1 AND mail_auto_respond_text IS NOT NULL
+AND status = 'ok'
+EOF
+    $dbh->useDatabase( $oldDbName ) if length $oldDbName;
 }
 
 =back

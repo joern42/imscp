@@ -181,10 +181,10 @@ sub getAvailableDbDrivers
             desc  => 'An indexed file type based on hashing',
             class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash'
         },
-        #MySQL => {
-        #    desc  => 'MySQL database client (experimental)',
-        #    class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::MySQL'
-        #}
+        MySQL => {
+            desc  => 'MySQL database client (experimental)',
+            class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::MySQL'
+        }
     };
 }
 
