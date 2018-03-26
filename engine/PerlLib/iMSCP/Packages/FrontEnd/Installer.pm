@@ -1227,10 +1227,10 @@ sub _addMailDomain
 {
     my ( $self ) = @_;
 
-    return if $::imscpOldConfig{'BASE_SERVER_VHOST'} eq $::imscpOldConfig{'SERVER_HOSTNAME'};
+    return if length ::setupGetQuestion( 'BASE_SERVER_VHOST' ) eq ::setupGetQuestion( 'SERVER_HOSTNAME' );
 
     iMSCP::Servers::Mta->factory()->addDomain( {
-        DOMAIN_NAME   => $::imscpOldConfig{'BASE_SERVER_VHOST'},
+        DOMAIN_NAME   => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
         EXTERNAL_MAIL => FALSE
     } );
 }
