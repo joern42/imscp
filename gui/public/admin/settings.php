@@ -116,7 +116,6 @@ if (!empty($_POST)) {
         $dbCfg['BRUTEFORCE_BETWEEN_TIME'] = $bruteforceBetweenTime;
         $dbCfg['BRUTEFORCE_MAX_CAPTCHA'] = $bruteforceMaxCapcha;
         $dbCfg['BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT'] = $bruteforceMaxAttemptsBeforeWait;
-        #$dbCfg['CREATE_DEFAULT_EMAIL_ADDRESSES'] = $createDefaultEmails;
         $dbCfg['COUNT_DEFAULT_EMAIL_ADDRESSES'] = $countDefaultEmails;
         $dbCfg['PROTECT_DEFAULT_EMAIL_ADDRESSES'] = $protecttDefaultEmails;
         $dbCfg['HARD_MAIL_SUSPENSION'] = $hardMailSuspension;

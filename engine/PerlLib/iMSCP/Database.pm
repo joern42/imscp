@@ -256,7 +256,7 @@ sub _init
             mysql_auto_reconnect => TRUE,
             mysql_enable_utf8    => TRUE,
             PrintError           => FALSE,
-            RaiseError           => TRUE # TRUE since 1.6.0
+            RaiseError           => TRUE
         }
     };
 
@@ -270,7 +270,7 @@ sub _init
 
 =item AUTOLOAD( )
 
- Proxy to current DBI handle
+ Proxy to DBI::db
 
 =cut
 

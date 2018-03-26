@@ -82,11 +82,7 @@ INSERT IGNORE INTO `config` (`name`, `value`) VALUES
   ('PORT_POP3-SSL', '995;tcp;POP3-SSL;0;0.0.0.0'),
   ('PORT_IMAP', '143;tcp;IMAP;1;0.0.0.0'),
   ('PORT_IMAP-SSL', '993;tcp;IMAP-SSL;0;0.0.0.0'),
-  ('SHOW_COMPRESSION_SIZE', '1'),
-  ('PREVENT_EXTERNAL_LOGIN_ADMIN', '1'),
-  ('PREVENT_EXTERNAL_LOGIN_RESELLER', '1'),
-  ('PREVENT_EXTERNAL_LOGIN_CLIENT', '1'),
-  ('DATABASE_REVISION', '276');
+  ('DATABASE_REVISION', '277');
 
 -- --------------------------------------------------------
 

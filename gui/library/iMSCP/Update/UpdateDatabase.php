@@ -36,7 +36,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     /**
      * @var int Last database update revision
      */
-    protected $lastUpdate = 276;
+    protected $lastUpdate = 277;
 
     /**
      * Prohibit upgrade from i-MSCP versions older than 1.1.x
@@ -1710,5 +1710,20 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         }
 
         return $sqlQueries;
+    }
+
+    /**
+     * Remove deprecated CREATE_DEFAULT_EMAIL_ADDRESSES
+     *
+     * @return null
+     */
+    protected function r277()
+    {
+        if (isset($this->dbConfig['CREATE_DEFAULT_EMAIL_ADDRESSES'])) {
+            unset($this->dbConfig['CREATE_DEFAULT_EMAIL_ADDRESSES']);
+        }
+
+        return NULL;
+        # CREATE_DEFAULT_EMAIL_ADDRESSES
     }
 }
