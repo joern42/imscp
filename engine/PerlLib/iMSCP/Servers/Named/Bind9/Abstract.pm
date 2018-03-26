@@ -507,7 +507,7 @@ sub addSubdomain
     my $wrkDbFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$moduleData->{'PARENT_DOMAIN_NAME'}.db" );
     my $wrkDbFileContentRef = $wrkDbFile->getAsRef();
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind', 'db_sub.tpl', \my $subEntry, $moduleData );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), 'db_sub.tpl', \my $subEntry, $moduleData );
     $subEntry = iMSCP::File->new( filename => "$self->{'tplDir'}/db_sub.tpl" )->get() unless defined $subEntry;
 
     unless ( $self->{'serials'}->{$moduleData->{'PARENT_DOMAIN_NAME'}} ) {
@@ -794,7 +794,7 @@ sub _addDmnConfig
     my $cfgWrkFileContentRef = $cfgFile->getAsRef();
     my $tplFileName = "cfg_$self->{'config'}->{'NAMED_MODE'}.tpl";
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind', $tplFileName, \my $tplCfgEntryContent, $moduleData );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), $tplFileName, \my $tplCfgEntryContent, $moduleData );
     $tplCfgEntryContent = iMSCP::File->new( filename => "$self->{'tplDir'}/$tplFileName" )->get() unless defined $tplCfgEntryContent;
     $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', $cfgWrkFileContentRef, \$tplCfgEntryContent, $moduleData );
 
@@ -870,7 +870,7 @@ sub _addDmnDb
     my $wrkDbFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db" );
     my $wrkDbFileContent = -f $wrkDbFile ? $wrkDbFile->get() : undef;
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind', 'db.tpl', \my $tplDbFileC, $moduleData );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), 'db.tpl', \my $tplDbFileC, $moduleData );
     $tplDbFileC = iMSCP::File->new( filename => "$self->{'tplDir'}/db.tpl" )->get() unless defined $tplDbFileC;
     $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$tplDbFileC, \$wrkDbFileContent );
     $self->{'eventManager'}->trigger( 'beforeBindAddDomainDb', \$tplDbFileC, $moduleData );

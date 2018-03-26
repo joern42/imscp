@@ -3,7 +3,7 @@
 # See the documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.03.03
+# Last update: 2018.03.26
 
 %::questions = (
     # Mandatory parameters
@@ -107,13 +107,13 @@
     #
     # Possible values, depending on your distributions:
     # - Debian-like distributions:
-    #  - iMSCP::Servers:Sqld::Mariadb::Debian (Default for Debian Buster)
+    #  - iMSCP::Servers:Sqld::Mariadb::Debian (Default for Debian Stretch/Buster)
     #  - iMSCP::Servers:Sqld::Mysql::Debian   (default for Debian/Devuan Jessie, Ubuntu Trusty/Xenial, not available for Debian Buster)
     #  - iMSCP::Servers:Sqld::Percona::Debian (Not available for Debian Buster)
     #  - iMSCP::Servers:Sqld::Remote::Debian
     #
     # Note that it is not possible to choose the SQL server version in preseed mode.
-    # The installer will automatically choose the newest available version.
+    # The installer will automatically choose the best available version for your distribution.
     #
     # Leave empty for default: Depend on distribution default value.
     'iMSCP::Servers::Sqld'              => '',

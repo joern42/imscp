@@ -474,10 +474,9 @@ sub _init
         {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php", iMSCP::Servers::Httpd->factory()
     );
 
-    if ( $self->{'httpd'}->getServerName() eq 'Apache' ) {
-        $self->{'eventManager'}->register( [ 'beforeApacheBuildConfFile', 'afterApacheAddFiles' ], $self );
-    }
-
+    $self->{'eventManager'}
+        ->register( "before@{ [ $self->{'httpd'}->getServerName() ] }BuildConfFile", $self )
+        ->register( 'afterHttpdAddFiles', sub { $self->afterHttpdAddFiles( @_ ) } );
     $self->SUPER::_init();
 }
 
@@ -657,12 +656,11 @@ sub _buildFpmConfig
 
  Event listener that inject PHP configuration in Apache vhosts
 
- Param iMSCP::Servers::Php $phpServer  instance
+ Param iMSCP::Servers::Php $phpServer instance
  Param scalar \$cfgTpl Reference to Apache template content
  Param string $filename Apache template name
  Param scalar \$trgFile Target file path
  Param hashref \%mdata Data as provided by the Alias|Domain|Subdomain|SubAlias modules
- Param hashref \%sconfig Apache server data
  Param hashref \%sconfig Apache server data
  Param hashref \%params OPTIONAL parameters:
   - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
@@ -838,7 +836,47 @@ EOF
     );
 }
 
-=item afterApacheAddFiles( \%moduleData )
+=item beforeNginxBuildConfFile( $phpServer, \$cfgTpl, $filename, \$trgFile, \%mdata, \%sdata, \%sconfig, $params )
+
+ Event listener that inject PHP configuration in Nginx vhosts
+
+ Param iMSCP::Servers::Php $phpServer instance
+ Param scalar \$cfgTpl Reference to Nginx template content
+ Param string $filename Nginx template name
+ Param scalar \$trgFile Target file path
+ Param hashref \%mdata Data as provided by the Alias|Domain|Subdomain|SubAlias modules
+ Param hashref \%sconfig Nginx server data
+ Param hashref \%params OPTIONAL parameters:
+  - umask   : UMASK(2) for a new file. For instance if the given umask is 0027, mode will be: 0666 & ~0027 = 0640 (in octal)
+  - user    : File owner (default: EUID for a new file, no change for existent file)
+  - group   : File group (default: EGID for a new file, no change for existent file)
+  - mode    : File mode (default: 0666 & ~(UMASK(2) || 0) for a new file, no change for existent file )
+  - cached  : Whether or not loaded file must be cached in memory
+  - srcname : Make it possible to override default source filename passed into event listeners. Most used when $srcFile is a TMPFILE(3) file
+ Return void, die on failure
+
+=cut
+
+sub beforeNginxBuildConfFile
+{
+    my ( $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params ) = @_;
+
+    return unless $filename eq 'domain.tpl' && grep ( $_ eq $sdata->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+
+    $phpServer->{'eventManager'}->trigger(
+        'beforePhpNginxBuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
+    );
+
+    debug( sprintf( 'Injecting PHP configuration in Nginx vhost for the %s domain', $mdata->{'DOMAIN_NAME'} ));
+
+    # TODO
+
+    $phpServer->{'eventManager'}->trigger(
+        'afterPhpNginxBuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
+    );
+}
+
+=item afterHttpdAddFiles( \%moduleData )
 
  Event listener that create PHP (phptmp) directory in customer Web folders
 
@@ -847,9 +885,9 @@ EOF
 
 =cut
 
-sub afterApacheAddFiles
+sub afterHttpdAddFiles
 {
-    my ( undef, $moduleData ) = @_;
+    my ( $self, $moduleData ) = @_;
 
     return unless $moduleData->{'DOMAIN_TYPE'} eq 'dmn';
 
@@ -857,7 +895,7 @@ sub afterApacheAddFiles
         user  => $moduleData->{'USER'},
         group => $moduleData->{'GROUP'},
         mode  => 0750
-    } )
+    } );
 }
 
 =back
