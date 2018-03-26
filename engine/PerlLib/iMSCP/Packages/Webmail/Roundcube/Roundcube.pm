@@ -144,7 +144,7 @@ sub deleteMail
     my $db = iMSCP::Database->getInstance();
     my $oldDbName = $db->useDatabase( $::imscpConfig{'DATABASE_NAME'} . '_roundcube' );
     $db->do( 'DELETE FROM users WHERE username = ?', undef, $data->{'MAIL_ADDR'} );
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
 }
 
 =back

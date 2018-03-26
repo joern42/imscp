@@ -351,7 +351,7 @@ sub addMail
             || !-f "$mailDir/maildirsize"
         ) {
             my $rs = execute( [ 'maildirmake', '-q', "$moduleData->{'MAIL_QUOTA'}S", $mailDir ], \my $stdout, \my $stderr );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             !$rs or die( $stderr || 'Unknown error' );
 
             iMSCP::File
@@ -510,10 +510,10 @@ sub _setupSqlUser
 
     # Drop old SQL user if required
     for my $sqlUser ( $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'}, $dbUser ) {
-        next unless $sqlUser;
+        next unless length $sqlUser;
 
         for my $host ( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-            next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
+            next if !length $host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
     }
@@ -796,7 +796,7 @@ sub _migrateFromDovecot
         \my $stdout,
         \my $stderr
     );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 
     $self->{'quotaRecalc'} = TRUE;
@@ -819,7 +819,7 @@ sub _dropSqlUser
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
         ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
-    return unless $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'} && $dbUserHost;
+    return unless length $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'} && length $dbUserHost;
 
     iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'}, $dbUserHost );
 }

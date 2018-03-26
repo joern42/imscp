@@ -306,7 +306,7 @@ sub _setupSqlUser
 
     # Drop old SQL user if required
     for my $sqlUser ( $dbOldUser, $dbUser ) {
-        next unless $sqlUser;
+        next unless length $sqlUser;
 
         for my $host ( $dbUserHost, $oldDbUserHost ) {
             next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
@@ -392,7 +392,7 @@ EOF
     $mysqlConffile->close();
 
     my $rs = execute( "mysql --defaults-extra-file=$mysqlConffile < $schemaFilePath", \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' ) if $rs;
 }
 

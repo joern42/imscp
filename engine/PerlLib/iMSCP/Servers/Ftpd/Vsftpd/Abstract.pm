@@ -569,7 +569,7 @@ sub _setVersion
 
     # Version is print through STDIN (see: strace vsftpd -v)
     my $rs = execute( "$self->{'config'}->{'FTPD_BIN'} -v 0>&1", \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
     $stdout =~ /([\d.]+)/ or die( "Couldn't find VsFTPd version from the `$self->{'config'}->{'FTPD_BIN'} -v 0>&1` command output" );
     $self->{'config'}->{'FTPD_VERSION'} = $1;
@@ -773,7 +773,7 @@ sub _dropSqlUser
     # In installer context, take value from old conffile, else take value from current conffile
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer' ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
-    return unless $self->{'config'}->{'FTPD_SQL_USER'} && $dbUserHost;
+    return unless length $self->{'config'}->{'FTPD_SQL_USER'} && length $dbUserHost;
 
     iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'FTPD_SQL_USER'}, $dbUserHost );
 }

@@ -247,7 +247,7 @@ sub _cleanup
 
     if ( my $resolvconf = iMSCP::ProgramFinder::find( 'resolvconf' ) ) {
         my $rs = execute( [ $resolvconf, '-d', 'lo.imscp' ], \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( $stderr || 'Unknown error' ) if $rs;
     }
 

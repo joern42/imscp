@@ -112,7 +112,7 @@ sub backupDatabase
                 escapeShell( $::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '-' . $date . '.sql' )
             );
             my $rs = execute( "@cmd", \my $stdout, \my $stderr );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             # Tar exit with status 1 only if some files were changed while being read. We want ignore this.
             $rs < 2 or die( $stderr || 'Unknown error' );
         }
@@ -145,7 +145,7 @@ sub backupConfig
         );
 
         my $rs = execute( "@backupCommand", \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     };
     !$@ or error( $@ );
@@ -179,7 +179,7 @@ sub backupAll
         # Remove any backup older than 7 days
         my $rs = execute( "find $::imscpConfig{'BACKUP_FILE_DIR'}/* -maxdepth 0 -type f -mtime +7 -print | xargs -r rm", \my $stdout,
             \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     };
     !$@ or error( $@ );

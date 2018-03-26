@@ -118,11 +118,11 @@ sub quotaFiles
                         \my $stderr
                     );
                     error( $stderr || 'Unknown error' ) if $rs;
-                    $webDiskUsage = $1 if $stdout && $stdout =~ /^(\d+)/;
+                    $webDiskUsage = $1 if length $stdout && $stdout =~ /^(\d+)/;
                 } else {
                     my $rs = execute( [ 'nice', '-n', '19', 'ionice', '-c2', '-n7', 'du', '-s', '-B1', $dir ], \my $stdout, \my $stderr );
                     error( $stderr || 'Unknown error' ) if $rs;
-                    $mailDiskUsage += $1 if $stdout && $stdout =~ /^(\d+)/;
+                    $mailDiskUsage += $1 if length $stdout && $stdout =~ /^(\d+)/;
                 }
             }
 

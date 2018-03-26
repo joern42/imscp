@@ -1027,7 +1027,7 @@ sub _compileZone
         \my $stdout,
         \my $stderr
     );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( sprintf( "Couldn't compile the %s zone: %s", $zonename, $stderr || 'Unknown error' ));
 }
 

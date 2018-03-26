@@ -575,7 +575,7 @@ sub postmap
     }
 
     my $rs = execute( [ 'postmap', "$lookupTableType:$lookupTable" ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
 
@@ -706,12 +706,12 @@ sub postconf
         my $cmd = [ 'postconf', '-e', '-c', $conffile ];
         while ( my ( $param, $value ) = each %params ) { push @{ $cmd }, "$param=$value" };
         execute( $cmd, \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
     }
 
     if ( @pToDel ) {
         execute( [ 'postconf', '-X', '-c', $conffile, @pToDel ], \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
     };
 
     $self->{'reload'} ||= 1;
@@ -912,7 +912,7 @@ sub _setVersion
     my ( $self ) = @_;
 
     my $rs = execute( [ 'postconf', '-d', '-h', 'mail_version' ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
     $stdout =~ /^([\d.]+)/ or die( "Couldn't guess Postfix version from the `postconf -d -h mail_version` command output" );
     $self->{'config'}->{'MTA_VERSION'} = $1;
@@ -932,7 +932,7 @@ sub _setDefaultDatabaseType
     my ( $self ) = @_;
 
     my $rs = execute( [ 'postconf', '-d', '-h', 'default_database_type' ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
     length $stdout or die( "Couldn't guess default Postfix database type from the `postconf -d -h default_database_type` command output" );
     chomp( $stdout );
@@ -974,7 +974,7 @@ sub _buildAliasesDb
     my $rs = execute(
         [ 'postalias', "$self->{'config'}->{'MTA_DB_DEFAULT_TYPE'}:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ], \my $stdout, \my $stderr
     );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
 

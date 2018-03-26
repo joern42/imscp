@@ -115,13 +115,13 @@ sub addSystemUser
 
     for my $command ( @commands ) {
         my $rs = execute( $command->[0], \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         grep ($_ == $rs, @{ $command->[1] }) || $command->[3] or die( $stderr || 'Unknown error' );
     }
 
     if ( @userProps && $oldUsername ne $username && defined $newGroupname ) {
         my $rs = execute( [ 'groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     }
 
@@ -178,7 +178,7 @@ sub delSystemUser
         $prevFailed = FALSE;
 
         my $rs = execute( $command->[0], \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
 
         unless ( grep ( $_ == $rs, @{ $command->[1] } ) ) {
             $prevFailed = TRUE && next if $command->[3];
@@ -211,7 +211,7 @@ sub addToGroup
     getgrnam( $groupname ) && getpwnam( $username ) or croak( 'Invalid group or username' );
 
     my $rs = execute( [ 'gpasswd', '-a', $username, $groupname ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs || $rs == 3 or die( $stderr || 'Unknown error' );
     $self;
 }
@@ -238,7 +238,7 @@ sub removeFromGroup
     return $self unless getpwnam( $username ) && getgrnam( $groupname );
 
     my $rs = execute( [ 'gpasswd', '-d', $username, $groupname ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs || $rs == 3 or die( $stderr || 'Unknown error' );
     $self;
 }

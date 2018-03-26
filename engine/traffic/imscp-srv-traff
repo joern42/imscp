@@ -62,10 +62,10 @@ sub run
 
         # Make sure that at least one of IMSCP_INPUT or IMSCP_OUTPUT chain exists
         my $rs = execute( "$exec -S | grep -P -- '-N\\s+IMSCP_'", \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         $rs < 2 or die( $stderr || 'Unknown error' ) if $rs > 1;
 
-        next unless $stdout;
+        next unless length $stdout;
 
         my %chains = (
             IMSCP_INPUT  => \my $inputTraffic,

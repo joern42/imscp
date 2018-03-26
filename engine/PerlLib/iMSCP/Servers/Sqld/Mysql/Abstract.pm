@@ -660,7 +660,7 @@ sub _setupMasterSqlUser
 
     # Remove old user if any
     for my $sqlUser ( $::imscpOldConfig{'DATABASE_USER'}, $user ) {
-        next unless $sqlUser;
+        next unless length $sqlUser;
 
         for my $host ( $userHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
             next unless length $host;
@@ -723,7 +723,7 @@ sub _secureInstallation
     }
 
     $db->do( 'FLUSH PRIVILEGES' );
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
 }
 
 =item _setupDatabase( )
@@ -766,7 +766,7 @@ EOF
         );
 
         my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     }
 
@@ -780,7 +780,7 @@ EOF
         \my $stdout,
         \my $stderr
     );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     die( $stderr || 'Unknown error' ) if $rs;
 }
 
@@ -908,7 +908,7 @@ EOF
 
     my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultsExtraFile", escapeShell( $dbName ) );
     my $rs = execute( "@cmd", \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' ));
     $self->dropUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} );
 }

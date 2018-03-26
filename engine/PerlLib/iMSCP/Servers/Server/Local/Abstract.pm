@@ -572,7 +572,7 @@ EOF
 
     # Make new hostname effective
     my $rs = execute( 'hostname --file /etc/hostname', \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || "Couldn't set server hostname" );
 }
 
@@ -605,8 +605,8 @@ EOF
 
     # Don't catch any error here to avoid permission denied error on some vps due to restrictions set by provider
     execute( [ $self->{'config'}->{'CMD_SYSCTL'}, '-p', "$self->{'config'}->{'SYSCTL_CONF_DIR'}/imscp.conf" ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
-    debug( $stderr ) if $stderr;
+    debug( $stdout ) if length $stdout;
+    debug( $stderr ) if length $stderr;
 }
 
 =item _setupPrimaryIP( )
@@ -653,7 +653,7 @@ sub _setupPrimaryIP
         }
     }
 
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
     $self->{'eventManager'}->trigger( 'afterLocalServerSetupPrimaryIP', $primaryIP );
 }
 

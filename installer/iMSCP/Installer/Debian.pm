@@ -763,15 +763,15 @@ EOF
             # Download the package into a temporary directory
             startDetail;
             my $rs = execute( [ 'apt-get', '--quiet=1', 'download', $package ], \my $stdout, \my $stderr );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
 
             # Extract the debconf template into the temporary directory
             $rs ||= execute( [ 'apt-extracttemplates', '-t', $tmpDir, <$tmpDir/*.deb> ], \$stdout, \$stderr );
-            $rs || debug( $stdout ) if $stdout;
+            $rs || debug( $stdout ) if length $stdout;
 
             # Load the template into the debconf database
             $rs ||= execute( [ 'debconf-loadtemplate', $package, <$tmpDir/$package.template.*> ], \$stdout, \$stderr );
-            $rs || debug( $stdout ) if $stdout;
+            $rs || debug( $stdout ) if length $stdout;
 
             !$rs or die( $stderr || 'Unknown errror' );
             endDetail;
@@ -797,7 +797,7 @@ EOF
                     #    'afterInstallPackages',
                     #    sub {
                     #        my $rs = execute( "echo SET $qNamePrefix/$qName | debconf-communicate $qOwner", \ my $stdout, \ my $stderr );
-                    #        debug( $stdout ) if $stdout;
+                    #        debug( $stdout ) if length $stdout;
                     #        !$rs or die( $stderr || 'Unknown error' ) if $rs;
                     #    }
                     #);
@@ -815,7 +815,7 @@ EOF
     $debconfSelectionsFile->close();
 
     my $rs = execute( [ 'debconf-set-selections', $debconfSelectionsFile ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || "Couldn't pre-fill Debconf database" );
 }
 
@@ -932,7 +932,7 @@ sub _rebuildAndInstallPackage
                     ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \my $stdout ),
                     \$stderr
                 );
-                debug( $stdout ) if $stdout;
+                debug( $stdout ) if length $stdout;
                 !$rs or die( sprintf( "Couldn't add `imscp' local suffix: %s", $stderr || 'Unknown error' ));
             },
             sprintf( 'Patching %s %s source package...', $pkgSrc, $::imscpConfig{'DISTRO_ID'} ), 5, 3
@@ -968,7 +968,7 @@ sub _rebuildAndInstallPackage
         sub {
             # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
             execute( [ 'apt-mark', 'unhold', $pkg ], \my $stdout, \my $stderr );
-            debug( $stderr ) if $stderr;
+            debug( $stderr ) if length $stderr;
 
             my $msgHeader = sprintf( "Installing local %s %s package\n\n", $pkg, $::imscpConfig{'DISTRO_ID'} );
             $stderr = '';
@@ -983,8 +983,8 @@ sub _rebuildAndInstallPackage
 
             # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
             execute( [ 'apt-mark', 'hold', $pkg ], \$stdout, \$stderr );
-            debug( $stdout ) if $stdout;
-            debug( $stderr ) if $stderr;
+            debug( $stdout ) if length $stdout;
+            debug( $stderr ) if length $stderr;
         },
         sprintf( 'Installing local %s %s package', $pkg, $::imscpConfig{'DISTRO_ID'} ), 5, 5
     );

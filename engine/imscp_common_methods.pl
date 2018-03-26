@@ -409,7 +409,7 @@ sub get_conf
     my $file_name = shift || $::cfg_file;
 
     my ($rs, $fline) = get_file( $file_name );
-    return -1 if $rs != 0;
+    return -1 if $rs;
 
     my @frows = split( /\n/, $fline );
 

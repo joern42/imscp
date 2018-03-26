@@ -217,7 +217,7 @@ sub _compileDaemon
     # Compile the daemon
     local $CWD = dirname( __FILE__ ) . '/Daemon';
     my $rs = execute( 'make clean imscp_daemon', \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 
     # Install the daemon
@@ -226,7 +226,7 @@ sub _compileDaemon
 
     # Leave the directory clean
     $rs = execute( 'make clean', \$stdout, \$stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
 

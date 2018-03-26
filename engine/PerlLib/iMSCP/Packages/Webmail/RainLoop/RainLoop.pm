@@ -144,7 +144,7 @@ sub deleteMail
             ',
             undef, $data->{'MAIL_ADDR'}
         );
-        $db->useDatabase( $oldDbName ) if $oldDbName;
+        $db->useDatabase( $oldDbName ) if length $oldDbName;
     }
 
     my $storageDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/data/_data_/_default_/storage";

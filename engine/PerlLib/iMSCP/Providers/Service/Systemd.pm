@@ -408,7 +408,7 @@ sub _searchUnitFile
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
     ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
-    $unit .= '.service' unless $suffix;
+    $unit .= '.service' unless length $suffix;
 
     for my $path ( @UNITFILEPATHS ) {
         my $filepath = File::Spec->join( $path, $unit );

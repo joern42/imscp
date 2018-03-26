@@ -67,7 +67,7 @@ EOF
                 \my $stdout,
                 \my $stderr
             );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             !$rs or die( $stderr || 'Unknown error' );
 
             # Workaround https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1633754
@@ -79,11 +79,11 @@ EOF
             my $rs = execute(
                 [ 'wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile, $repository->{'repository_key_uri'} ], \my $stdout, \my $stderr
             );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             !$rs or die( $stderr || 'Unknown error' );
 
             $rs = execute( [ 'apt-key', 'add', $keyFile ], \$stdout, \$stderr );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             !$rs or die( $stderr || 'Unknown error' );
         }
     }

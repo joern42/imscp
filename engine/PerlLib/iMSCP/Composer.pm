@@ -357,7 +357,7 @@ sub checkPackageRequirements
             \my $stdout,
             \my $stderr
         );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( sprintf( "Unmet requirements (%s %s): %s", $package, $version, $stderr ));
     }
 
@@ -424,7 +424,7 @@ sub getComposerVersion
     my ( $self, $composerPath ) = @_;
 
     my $rs = execute( $self->_getSuCmd( @{ $self->{'_php_cmd'} }, $composerPath, '--no-ansi', '--version' ), \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( sprintf( "Couldn't get composer (%s) version: %s", $composerPath, $stderr ));
     ( $stdout =~ /version\s+([\d.]+)/ );
     $1 or die( sprintf( "Couldn't parse composer (%s) version from version string: %s", $composerPath, $stdout // '' ));

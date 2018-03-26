@@ -434,10 +434,10 @@ sub _setupDatabase
 
     # Drop old SQL user if needed
     for my $sqlUser ( $dbOldUser, $dbUser ) {
-        next unless $sqlUser;
+        next unless length $sqlUser;
 
         for my $host ( $dbUserHost, $oldDbUserHost ) {
-            next if !$host || ( exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host} );
+            next if !length $host || ( exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host} );
             $sqlServer->dropUser( $sqlUser, $host );
         }
     }
@@ -473,12 +473,12 @@ sub _setupDatabase
 
         # Create Roundcube database
         my $rs = execute( [ "$rcDir/bin/initdb.sh", '--dir', "$rcDir/SQL", '--package', 'roundcube' ], \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     } else {
         # Update Roundcube database
         my $rs = execute( [ "$rcDir/bin/updatedb.sh", '--dir', "$rcDir/SQL", '--package', 'roundcube' ], \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( $stderr || 'Unknown error' );
 
         # Ensure tha users.mail_host entries are set with expected hostname (default to 'localhost')
@@ -488,7 +488,7 @@ sub _setupDatabase
         my $oldDbName = $db->useDatabase( $rcDbName );
         $db->do( 'UPDATE IGNORE users SET mail_host = ?', undef, $hostname );
         $db->do( 'DELETE FROM users WHERE mail_host <> ?', undef, $hostname );
-        $db->useDatabase( $oldDbName ) if $oldDbName;
+        $db->useDatabase( $oldDbName ) if length $oldDbName;
     }
 
     $self->{'config'}->{'DATABASE_USER'} = $dbUser;

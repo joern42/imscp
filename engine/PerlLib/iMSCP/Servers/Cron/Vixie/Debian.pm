@@ -140,7 +140,7 @@ sub enableSystemTask
     unless ( $directory ) {
         for my $dir ( qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) {
             my $rs = execute( [ 'dpkg-divert', '--rename', '--remove', "/etc/$dir/$cronTask" ], \my $stdout, \my $stderr );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             !$rs or die( $stderr || 'Unknown error' );
         }
 
@@ -150,7 +150,7 @@ sub enableSystemTask
     grep ( $directory eq $_, qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) or die( 'Invalid cron directory' );
 
     my $rs = execute( [ 'dpkg-divert', '--rename', '--remove', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
 
@@ -171,7 +171,7 @@ sub disableSystemTask
             my $rs = execute(
                 [ 'dpkg-divert', '--divert', "/etc/$dir/$cronTask.disabled", '--rename', "/etc/$dir/$cronTask" ], \my $stdout, \my $stderr
             );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             !$rs or die( $stderr || 'Unknown error' );
         }
 
@@ -183,7 +183,7 @@ sub disableSystemTask
     my $rs ||= execute(
         [ 'dpkg-divert', '--divert', "/etc/$directory/$cronTask.disabled", '--rename', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr
     );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
 

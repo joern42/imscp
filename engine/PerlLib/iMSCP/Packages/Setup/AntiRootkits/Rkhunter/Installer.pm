@@ -146,7 +146,7 @@ sub _scheduleCheck
         \my $stdout,
         \my $stderr
     );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
 

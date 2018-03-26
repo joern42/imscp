@@ -331,7 +331,7 @@ sub restoreDomain
             }
 
             my $rs = execute( $cmd, \my $stdout, \my $stderr );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             !$rs or die( $stderr || 'Unknown error' );
 
             my $dbh = iMSCP::Database->getInstance();
@@ -1358,7 +1358,7 @@ EOF
         );
 
         my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or die( $stderr || 'Unknown error' );
     }
 

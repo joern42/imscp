@@ -543,10 +543,10 @@ sub _setupSqlUser
 
     # Drop old SQL user if required
     for my $sqlUser ( $self->{'config'}->{'PO_SQL_USER'}, $dbUser ) {
-        next unless $sqlUser;
+        next unless length $sqlUser;
 
         for my $host ( $dbUserHost, $::imscpOldConfig{'DATABASE_USER_HOST'} ) {
-            next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
+            next if !length $host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
     }
@@ -591,7 +591,7 @@ sub _migrateFromCourier
         \my $stdout,
         \my $stderr
     );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 
     $self->{'quotaRecalc'} = 1;
@@ -614,7 +614,7 @@ sub _dropSqlUser
     my $dbUserHost = iMSCP::Getopt->context() eq 'installer'
         ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
-    return unless $self->{'config'}->{'PO_SQL_USER'} && $dbUserHost;
+    return unless length $self->{'config'}->{'PO_SQL_USER'} && length $dbUserHost;
 
     iMSCP::Servers::Sqld->factory()->dropUser( $self->{'config'}->{'PO_SQL_USER'}, $dbUserHost );
 }

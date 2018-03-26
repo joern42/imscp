@@ -110,11 +110,11 @@ sub backupHomedir
     );
 
     my $rs = execute( "@cmd", \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
 
     # tar exit with status 1 only if some files were changed while being read. We want ignore this.
     if ( $rs > 1 ) {
-        error( $stderr || 'Unknown error' ) if $stderr;
+        error( $stderr || 'Unknown error' ) if length $stderr;
         return;
     }
 
@@ -161,7 +161,7 @@ sub backupDatabases
         next if $@ || $cmpAlgo eq 'no';
 
         my $rs = execute( [ $command->{$cmpAlgo}->{'command'}, "-$cmpLevel", '--force', $dbDumpFilePath ], \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
         !$rs or error( sprintf( "Couldn't compress %s database dump: %s", $dbName, $stderr || 'Unknown error' ));
     }
 }
@@ -219,7 +219,7 @@ sub backupMaildirs
             ( $cmpAlgo eq 'no' ? "-f $bkpDir/$bkpArchName" : "| $command->{$cmpAlgo}->{'command'} -$cmpLevel > $bkpDir/$bkpArchName" )
         );
         my $rs = execute( "@cmd", \my $stdout, \my $stderr );
-        debug( $stdout ) if $stdout;
+        debug( $stdout ) if length $stdout;
 
         # tar exit with status 1 only if some files were changed while being read. We want ignore this.
         if ( $rs > 2 ) {

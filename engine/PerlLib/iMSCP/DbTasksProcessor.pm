@@ -333,9 +333,9 @@ sub processDbTasks
             execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             execute( "rm -fR /tmp/sw-$row->{'domain_id'}-$row->{'software_id'}", \$stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
         }
 
         endDebug();
@@ -367,10 +367,10 @@ sub processDbTasks
             execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
             execute( "rm -fR /tmp/sw-$row->{'software_archive'}-$row->{'software_id'}", \$stdout,
                 \$stderr ) == 0 or die( $stderr || 'Unknown error' );
-            debug( $stdout ) if $stdout;
+            debug( $stdout ) if length $stdout;
         }
 
         endDebug();

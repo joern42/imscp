@@ -323,7 +323,7 @@ sub _setupDatabase
 
     # Drop old SQL user if required
     for my $sqlUser ( $dbOldUser, $dbUser ) {
-        next unless $sqlUser;
+        next unless length $sqlUser;
 
         for my $host ( $dbUserHost, $oldDbUserHost ) {
             next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};

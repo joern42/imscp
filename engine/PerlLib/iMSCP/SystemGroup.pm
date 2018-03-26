@@ -56,7 +56,7 @@ sub addSystemGroup
     $groupname ne $::imscpConfig{'ROOT_GROUP'} or croak( sprintf( '%s group is prohibited', $::imscpConfig{'ROOT_GROUP'} ));
 
     my $rs = execute( [ 'groupadd', '-f', ( $systemgroup ? '-r' : () ), $groupname ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
     $self;
 }
@@ -78,7 +78,7 @@ sub delSystemGroup
     $groupname ne $::imscpConfig{'ROOT_GROUP'} or croak( sprintf( '%s group deletion is prohibited', $::imscpConfig{'ROOT_GROUP'} ));
 
     my $rs = execute( [ 'groupdel', $groupname ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     grep ( $_ == $rs, 0, 6 ) or die( $stderr || 'Unknown error' );
     $self;
 }

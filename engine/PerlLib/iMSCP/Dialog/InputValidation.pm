@@ -524,7 +524,7 @@ sub isAvailableSqlUser( $ )
 
     my $row = $db->selectrow_hashref( 'SELECT 1 FROM sql_user WHERE sqlu_name = ? LIMIT 1', undef, $username );
 
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
 
     return 1 unless $row;
 

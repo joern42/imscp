@@ -355,7 +355,7 @@ sub enableModules
     ref $modules eq 'ARRAY' or croak( 'Invalid $module parameter. Array expected' );
 
     my $rs = execute( [ 'phpenmod', '-v', $phpVersion, '-s', $phpSapi, @{ $modules } ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 
     $self->{'restart'}->{$phpVersion} ||= 1;
@@ -377,7 +377,7 @@ sub disableModules
     ref $modules eq 'ARRAY' or croak( 'Invalid $module parameter. Array expected' );
 
     my $rs = execute( [ 'phpdismod', '-v', $phpVersion, '-s', $phpSapi, @{ $modules } ], \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 
     $self->{'restart'}->{$phpVersion} ||= 1;

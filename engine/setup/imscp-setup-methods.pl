@@ -331,7 +331,7 @@ sub setupDbTasks
         "
     );
 
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
 
     startDetail();
     iMSCP::DbTasksProcessor->getInstance()->processDbTasks();
@@ -349,7 +349,7 @@ sub setupRegisterPluginListeners
     return if $@; # Fresh install case
 
     $pluginNames = $db->selectcol_arrayref( "SELECT plugin_name FROM plugin WHERE plugin_status = 'enabled'" );
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
 
     if ( @{ $pluginNames } ) {
         my $eventManager = iMSCP::EventManager->getInstance();

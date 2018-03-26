@@ -125,7 +125,7 @@ sub _scheduleCheck
     iMSCP::File->new( filename => $::imscpConfig{'CHKROOTKIT_LOG'} )->set( "Check scheduled...\n" )->save();
 
     my $rs = execute( "echo 'bash chkrootkit -e > $::imscpConfig{'CHKROOTKIT_LOG'} 2>&1' | at now + 20 minutes", \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' );
 }
 

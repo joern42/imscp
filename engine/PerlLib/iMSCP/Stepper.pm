@@ -112,7 +112,7 @@ sub _callback
 {
     my ( $callback, $debugMsg ) = @_;
 
-    debug( $debugMsg ) if $debugMsg;
+    debug( $debugMsg ) if length $debugMsg;
 
     return unless defined $callback;
 

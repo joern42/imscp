@@ -161,7 +161,7 @@ sub _removeCustomers
         $db->do( "UPDATE $table SET $field = 'todelete' $aditionalCondition" );
     }
 
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
 
     startDetail();
     iMSCP::DbTasksProcessor->getInstance()->processDbTasks();

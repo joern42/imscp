@@ -60,7 +60,7 @@ iMSCP::EventManager->getInstance()->register(
         my ($data, $domainIps) = @_;
 
         push @{$domainIps}, @GLOBAL_IPS if @GLOBAL_IPS;
-        push @{$domainIps}, @{$PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}}} if $PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}};
+        push @{$domainIps}, @{$PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}}} if exists $PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}};
     }
 ) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 

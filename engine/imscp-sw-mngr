@@ -168,7 +168,7 @@ sub sw_mngr_engine
         if ( !$rs ) {
             $sql = "DELETE FROM `web_software_inst` WHERE `software_id` = $sw_software_id AND `domain_id` = $sw_domain_id";
             ( $rs, $rdata ) = doSQL( $sql );
-            return $rs if $rs != 0;
+            return $rs if $rs;
         }
     }
 

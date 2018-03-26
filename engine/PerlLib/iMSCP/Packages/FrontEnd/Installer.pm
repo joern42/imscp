@@ -812,7 +812,7 @@ sub _setupMasterAdmin
         die
     }
 
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
 }
 
 =item _setupSsl( )
@@ -874,7 +874,7 @@ sub _setHttpdVersion( )
     my ( $self ) = @_;
 
     my $rs = execute( 'nginx -v', \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
+    debug( $stdout ) if length $stdout;
     !$rs or die( $stderr || 'Unknown error' ) if $rs;
     $stderr =~ m%nginx/([\d.]+)% or die( "Couldn't guess Nginx version" );
     $self->{'config'}->{'HTTPD_VERSION'} = $1;
@@ -1293,7 +1293,7 @@ sub _getFullPhpVersionFor
 
     my $rs = execute( [ $binaryPath, '-nv' ], \my $stdout, \my $stderr );
     !$rs or die( $stderr || 'Unknown error' );
-    return undef unless $stdout;
+    return undef unless length $stdout;
     $stdout =~ /PHP\s+([^\s]+)/;
     $1;
 }

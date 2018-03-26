@@ -45,8 +45,8 @@ my $logFile = $::imscpConfig{'RKHUNTER_LOG'} || '/var/log/rkhunter.log';
 # into the imscp-rkhunter-package.log file. This is calqued on the cron task as provided by the Rkhunter Debian
 # package except that instead of sending an email on error or warning, we write in log file.
 execute( "rkhunter --cronjob --logfile $logFile", \my $stdout, \my $stderr );
-debug( $stdout ) if $stdout;
-debug( $stderr ) if $stderr;
+debug( $stdout ) if length $stdout;
+debug( $stderr ) if length $stderr;
 exit unless -f $logFile;
 
 setRights( $logFile, {
