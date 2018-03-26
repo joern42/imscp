@@ -26,6 +26,7 @@ package iMSCP::Modules::SubAlias;
 use strict;
 use warnings;
 use File::Spec;
+use iMSCP::Boolean;
 use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
@@ -181,8 +182,7 @@ sub _loadEntityData
         UPLOAD_MAX_FILESIZE     => $phpini->{'upload_max_filesize'} || 2,
         ALLOW_URL_FOPEN         => $phpini->{'allow_url_fopen'} || 'off',
         PHP_FPM_LISTEN_PORT     => ( $phpini->{'id'} // 1 )-1,
-        EXTERNAL_MAIL           => $row->{'external_mail'},
-        MAIL_ENABLED            => $row->{'external_mail'} eq 'off' && $row->{'domain_mailacc_limit'} >= 0
+        EXTERNAL_MAIL           => $row->{'external_mail'} eq 'on' ? TRUE : FALSE
     };
     $self->{'_data'}->{'SHARED_MOUNT_POINT'} = $self->_sharedMountPoint();
 }

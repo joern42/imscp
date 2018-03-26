@@ -440,9 +440,6 @@ class Application
          */
         $this->config['LOG_LEVEL'] = E_USER_ERROR;
 
-        // Creation of abuse, hostmaster, postmaster and webmaster defaut mail account
-        $this->config['CREATE_DEFAULT_EMAIL_ADDRESSES'] = 1;
-
         // Count default abuse, hostmaster, postmaster and webmaster mail accounts
         // in user mail accounts limit
         // 1: default mail accounts are counted

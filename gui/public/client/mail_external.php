@@ -18,8 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
+use iMSCP_Exception_Database as DatabaseException;
+use iMSCP_Registry as Registry;
 
 /***********************************************************************************************************************
  * Functions
@@ -28,6 +29,7 @@ use iMSCP\TemplateEngine;
 /**
  * Activate or deactivate external mail feature for the given domain
  *
+ * @throws DatabaseException
  * @param string $action Action to be done (activate|deactivate)
  * @param int $domainId Domain unique identifier
  * @param string $domainType Domain type
@@ -35,40 +37,63 @@ use iMSCP\TemplateEngine;
  */
 function updateExternalMailFeature($action, $domainId, $domainType)
 {
-    switch ($domainType) {
-        case 'dmn';
-            $query = "
-                UPDATE domain SET domain_status = 'tochange', external_mail = ?
-                WHERE domain_id = ? AND domain_admin_id = ?
-            ";
-            break;
-        case 'als';
-            $query = "
-                UPDATE domain_aliasses AS t1
-                JOIN domain AS t2 USING(domain_id)
-                SET t1.alias_status = 'tochange', t1.external_mail = ?
-                WHERE t1.alias_id = ? AND t2.domain_admin_id = ?
-            ";
-            break;
-        default:
+    /** @var iMSCP_Database $db */
+    $db = Registry::get('iMSCP_Application')->getDatabase();
+    try {
+        $db->beginTransaction();
+
+        if ($domainType == 'dmn') {
+            $stmt = exec_query(
+                "
+                    UPDATE domain SET domain_status = 'tochange', external_mail = ?
+                    WHERE domain_id = ?
+                    AND domain_admin_id = ?
+                    AND domain_status = 'ok'
+                ", [
+                $action == 'activate' ? 'on' : 'off', $domainId, $_SESSION['user_id']
+            ]);
+            $stmt->rowCount() or showBadRequestErrorPage(); # Cover case where domain_admin_id <> $_SESSION['user_id']
+            exec_query("UPDATE subdomain SET subdomain_status = 'tochange' WHERE domain_id = ?", [$domainId]);
+        } elseif ($domainType == 'als') {
+            $stmt = exec_query(
+                "
+                    UPDATE domain_aliasses AS t1
+                    JOIN domain AS t2 USING(domain_id)
+                    SET t1.alias_status = 'tochange', t1.external_mail = ?
+                    WHERE t1.alias_id = ?
+                    AND t1.alias_status = 'ok'
+                    AND t2.domain_admin_id = ?
+                ",
+                [$action == 'activate' ? 'on' : 'off', $domainId, $_SESSION['user_id']]
+            );
+            $stmt->rowCount() or showBadRequestErrorPage(); # Cover case where t2.domain_admin_id <> $_SESSION['user_id']
+            exec_query(
+                "
+                    UPDATE subdomain_alias AS t1
+                    JOIN domain_aliasses AS t2 ON(t2.domain_id = ?)
+                    SET subdomain_alias_status = 'tochange'
+                    WHERE t1.alias_id = t2.alias_id
+                ",
+                $domainId
+            );
+        } else {
             showBadRequestErrorPage();
+        }
+
+        $db->commit();
+
+        if ($action == 'activate') {
+            write_log(sprintf('External mail feature has been activared by %s', $_SESSION['user_logged']));
+            set_page_message(tr('External mail server feature scheduled for activation.'), 'success');
             return;
+        }
+
+        write_log(sprintf('External mail feature has been deactivated by %s', $_SESSION['user_logged']));
+        set_page_message(tr('External mail server feature scheduled for deactivation.'), 'success');
+    } catch (DatabaseException $e) {
+        $db->rollBack();
+        throw $e;
     }
-
-    $stmt = exec_query($query, [$action == 'activate' ? 'on' : 'off', $domainId, $_SESSION['user_id']]);
-
-    if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
-    }
-
-    if ($action == 'activate') {
-        write_log(sprintf('External mail feature has been activared by %s', $_SESSION['user_logged']));
-        set_page_message(tr('External mail server feature scheduled for activation.'), 'success');
-        return;
-    }
-
-    write_log(sprintf('External mail feature has been deactivated by %s', $_SESSION['user_logged']));
-    set_page_message(tr('External mail server feature scheduled for deactivation.'), 'success');
 }
 
 /**
@@ -166,7 +191,7 @@ function generatePage($tpl)
 
     $tpl->assign([
         'TR_PAGE_TITLE' => tr('Client / Mail / External Mail Feature'),
-        'TR_INTRO'      => tr('Below, you can activate the external mail feature for one or many of your domains. Note that activating the external mail feature configures our server to relay your mail through your own mail server, but that no DNS record is created for it.'),
+        'TR_INTRO'      => tr('Below you can activate the external mail feature for your domains (including their subdomains). In such case, you must not forgot to add the DNS MX and SPF records for your external mail server through the custom DNS interface, or through your own DNS management interface if you make use of an external DNS server.'),
         'TR_DOMAIN'     => tr('Domain'),
         'TR_STATUS'     => tr('Status'),
         'TR_ACTION'     => tr('Action'),

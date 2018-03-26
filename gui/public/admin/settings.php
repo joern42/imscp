@@ -57,8 +57,6 @@ if (!empty($_POST)) {
     $bruteforceMaxAttemptsBeforeWait = isset($_POST['bruteforce_max_attempts_before_wait'])
         ? clean_input($_POST['bruteforce_max_attempts_before_wait']) : $cfg['BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT'];
 
-    $createDefaultEmails = isset($_POST['create_default_email_addresses'])
-        ? clean_input($_POST['create_default_email_addresses']) : $cfg['CREATE_DEFAULT_EMAIL_ADDRESSES'];
     $countDefaultEmails = isset($_POST['count_default_email_addresses'])
         ? clean_input($_POST['count_default_email_addresses']) : $cfg['COUNT_DEFAULT_EMAIL_ADDRESSES'];
     $protecttDefaultEmails = isset($_POST['protect_default_email_addresses'])
@@ -86,11 +84,10 @@ if (!empty($_POST)) {
 
     if (
         !is_number($checkForUpdate) || !is_number($lostPasswd) || !is_number($passwdStrong) || !is_number($bruteforce)
-        || !is_number($bruteforceBetween) || !is_number($createDefaultEmails) || !is_number($countDefaultEmails)
-        || !is_number($protecttDefaultEmails) || !is_number($hardMailSuspension) || !is_number($emailQuotaSyncMode)
-        || !is_number($supportSystem) || !is_number($prevExtLoginAdmin) || !is_number($prevExtLoginReseller)
-        || !is_number($prevExtLoginClient) || !is_number($enableSSL)
-        || !in_array($userInitialLang, i18n_getAvailableLanguages(true), true)
+        || !is_number($bruteforceBetween) || !is_number($countDefaultEmails) || !is_number($protecttDefaultEmails)
+        || !is_number($hardMailSuspension) || !is_number($emailQuotaSyncMode) || !is_number($supportSystem)
+        || !is_number($prevExtLoginAdmin) || !is_number($prevExtLoginReseller) || !is_number($prevExtLoginClient)
+        || !is_number($enableSSL) || !in_array($userInitialLang, i18n_getAvailableLanguages(true), true)
     ) {
         showBadRequestErrorPage();
     }
@@ -119,7 +116,7 @@ if (!empty($_POST)) {
         $dbCfg['BRUTEFORCE_BETWEEN_TIME'] = $bruteforceBetweenTime;
         $dbCfg['BRUTEFORCE_MAX_CAPTCHA'] = $bruteforceMaxCapcha;
         $dbCfg['BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT'] = $bruteforceMaxAttemptsBeforeWait;
-        $dbCfg['CREATE_DEFAULT_EMAIL_ADDRESSES'] = $createDefaultEmails;
+        #$dbCfg['CREATE_DEFAULT_EMAIL_ADDRESSES'] = $createDefaultEmails;
         $dbCfg['COUNT_DEFAULT_EMAIL_ADDRESSES'] = $countDefaultEmails;
         $dbCfg['PROTECT_DEFAULT_EMAIL_ADDRESSES'] = $protecttDefaultEmails;
         $dbCfg['HARD_MAIL_SUSPENSION'] = $hardMailSuspension;
@@ -248,18 +245,6 @@ if ($cfg['IMSCP_SUPPORT_SYSTEM']) {
     $tpl->assign([
         'SUPPORT_SYSTEM_SELECTED_ON'  => '',
         'SUPPORT_SYSTEM_SELECTED_OFF' => ' selected'
-    ]);
-}
-
-if ($cfg['CREATE_DEFAULT_EMAIL_ADDRESSES']) {
-    $tpl->assign([
-        'CREATE_DEFAULT_EMAIL_ADDRESSES_ON'  => ' selected',
-        'CREATE_DEFAULT_EMAIL_ADDRESSES_OFF' => ''
-    ]);
-} else {
-    $tpl->assign([
-        'CREATE_DEFAULT_EMAIL_ADDRESSES_ON'  => '',
-        'CREATE_DEFAULT_EMAIL_ADDRESSES_OFF' => ' selected'
     ]);
 }
 
@@ -421,8 +406,7 @@ $tpl->assign([
     'TR_BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT' => tohtml(tr('Maximum number of validation attempts before waiting restriction intervenes')),
     'TR_OTHER_SETTINGS'                      => tohtml(tr('Other settings')),
     'TR_MAIL_SETTINGS'                       => tohtml(tr('Email settings')),
-    'TR_CREATE_DEFAULT_EMAIL_ADDRESSES'      => tohtml(tr('Create default mail accounts')),
-    'TR_COUNT_DEFAULT_EMAIL_ADDRESSES'       => tohtml(tr('Count default mail accounts')),
+    'TR_COUNT_DEFAULT_EMAIL_ADDRESSES'       => tohtml(tr('Count default mail accounts in customers mail limit')),
     'PROTECT_DEFAULT_EMAIL_ADDRESSES'        => tohtml(tr('Protect default mail accounts against change and removal')),
     'TR_HARD_MAIL_SUSPENSION'                => tohtml(tr('Mail accounts are hard suspended')),
     'TR_EMAIL_QUOTA_SYNC_MODE'               => tohtml(tr('Redistribute unused quota across existing mail accounts')),

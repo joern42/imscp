@@ -201,9 +201,7 @@ function addCustomer(Form $form)
         $phpini->setIniOption('phpiniMaxInputTime', $phpiniMaxInputTime);
         $phpini->saveIniOptions($adminId, $dmnId, 'dmn');
 
-        if ($cfg['CREATE_DEFAULT_EMAIL_ADDRESSES']) {
-            createDefaultMailAccounts($dmnId, $form->getValue('email'), $dmnName);
-        }
+        createDefaultMailAccounts($dmnId, $form->getValue('email'), $dmnName);
 
         send_add_user_auto_msg(
             $_SESSION['user_id'], $adminName, $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),

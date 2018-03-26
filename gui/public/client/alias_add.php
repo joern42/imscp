@@ -337,13 +337,9 @@ function addDomainAlias()
         $phpini->saveIniOptions($_SESSION['user_id'], $id, 'als');
 
         if ($isSuUser) {
-            $cfg = Registry::get('config');
-
-            if ($cfg['CREATE_DEFAULT_EMAIL_ADDRESSES']) {
-                createDefaultMailAccounts(
-                    $mainDmnProps['domain_id'], Authentication::getInstance()->getIdentity()->email, $domainAliasNameAscii, MT_ALIAS_FORWARD, $id
-                );
-            }
+            createDefaultMailAccounts(
+                $mainDmnProps['domain_id'], Authentication::getInstance()->getIdentity()->email, $domainAliasNameAscii, MT_ALIAS_FORWARD, $id
+            );
         }
 
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddDomainAlias, [

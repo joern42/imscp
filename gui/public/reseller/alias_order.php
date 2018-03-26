@@ -111,9 +111,7 @@ try {
 
     $cfg = Registry::get('config');
 
-    if ($cfg['CREATE_DEFAULT_EMAIL_ADDRESSES']) {
-        createDefaultMailAccounts($row['domain_id'], $row['email'], $row['alias_name'], MT_ALIAS_FORWARD, $id);
-    }
+    createDefaultMailAccounts($row['domain_id'], $row['email'], $row['alias_name'], MT_ALIAS_FORWARD, $id);
 
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterAddDomainAlias, [
         'domainId'        => $row['domain_id'],

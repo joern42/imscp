@@ -388,21 +388,16 @@ sub postaddDomain
 
     if ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
         $self->addSubdomain( {
-            # Listeners want probably know real parent domain name for the
-            # DNS name being added even if that entry is added in another
-            # zone. For instance, see the 20_named_dualstack.pl listener
-            # file. (since 1.6.0)
             REAL_PARENT_DOMAIN_NAME => $moduleData->{'PARENT_DOMAIN_NAME'},
             PARENT_DOMAIN_NAME      => $::imscpConfig{'BASE_SERVER_VHOST'},
             DOMAIN_NAME             => $moduleData->{'ALIAS'} . '.' . $::imscpConfig{'BASE_SERVER_VHOST'},
-            EXTERNAL_MAIL           => 'off',                  # (since 1.6.0)
-            MAIL_ENABLED            => 0,
+            EXTERNAL_MAIL           => FALSE,
             DOMAIN_IP               => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
-            # Listeners probably want to know the type of the entry being added (since 1.6.0)
             DOMAIN_TYPE             => 'sub',
             BASE_SERVER_PUBLIC_IP   => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
             OPTIONAL_ENTRIES        => 0,
-            STATUS                  => $moduleData->{'STATUS'} # (since 1.6.0)
+            STATUS                  => $moduleData->{'STATUS'},
+            IS_ALT_URL_RECORD       => TRUE
         } );
     }
 
@@ -512,7 +507,7 @@ sub addSubdomain
     my $wrkDbFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$moduleData->{'PARENT_DOMAIN_NAME'}.db" );
     my $wrkDbFileContentRef = $wrkDbFile->getAsRef();
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', 'db_sub.tpl', \my $subEntry, $moduleData );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind', 'db_sub.tpl', \my $subEntry, $moduleData );
     $subEntry = iMSCP::File->new( filename => "$self->{'tplDir'}/db_sub.tpl" )->get() unless defined $subEntry;
 
     unless ( $self->{'serials'}->{$moduleData->{'PARENT_DOMAIN_NAME'}} ) {
@@ -525,16 +520,13 @@ sub addSubdomain
     replaceBlocByRef(
         "; sub MAIL entry BEGIN\n",
         "; sub MAIL entry ENDING\n",
-        ( $moduleData->{'MAIL_ENABLED'}
-            ? process(
+        $moduleData->{'IS_ALT_URL_RECORD'} || $moduleData->{'EXTERNAL_MAIL'} ? '' : process(
             {
                 BASE_SERVER_IP_TYPE => ( $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ) ? 'A' : 'AAAA',
                 BASE_SERVER_IP      => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
                 DOMAIN_NAME         => $moduleData->{'PARENT_DOMAIN_NAME'}
             },
             getBlocByRef( "; sub MAIL entry BEGIN\n", "; sub MAIL entry ENDING\n", \$subEntry )
-        )
-            : ''
         ),
         \$subEntry
     );
@@ -579,21 +571,16 @@ sub postaddSubdomain
 
     if ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' && $self->{'config'}->{'NAMED_MODE'} eq 'master' && defined $moduleData->{'ALIAS'} ) {
         $self->addSubdomain( {
-            # Listeners want probably know real parent domain name for the
-            # DNS name being added even if that entry is added in another
-            # zone. For instance, see the 20_named_dualstack.pl listener
-            # file. (since 1.6.0)
             REAL_PARENT_DOMAIN_NAME => $moduleData->{'PARENT_DOMAIN_NAME'},
             PARENT_DOMAIN_NAME      => $::imscpConfig{'BASE_SERVER_VHOST'},
             DOMAIN_NAME             => $moduleData->{'ALIAS'} . '.' . $::imscpConfig{'BASE_SERVER_VHOST'},
-            EXTERNAL_MAIL           => 'off',                  # (since 1.6.0)
-            MAIL_ENABLED            => 0,
+            EXTERNAL_MAIL           => FALSE,
             DOMAIN_IP               => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
-            # Listeners want probably know type of the entry being added (since 1.6.0)
             DOMAIN_TYPE             => 'sub',
             BASE_SERVER_PUBLIC_IP   => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
             OPTIONAL_ENTRIES        => 0,
-            STATUS                  => $moduleData->{'STATUS'} # (since 1.6.0)
+            STATUS                  => $moduleData->{'STATUS'},
+            IS_ALT_URL_RECORD       => TRUE
         } );
     }
 
@@ -807,7 +794,7 @@ sub _addDmnConfig
     my $cfgWrkFileContentRef = $cfgFile->getAsRef();
     my $tplFileName = "cfg_$self->{'config'}->{'NAMED_MODE'}.tpl";
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', $tplFileName, \my $tplCfgEntryContent, $moduleData );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind', $tplFileName, \my $tplCfgEntryContent, $moduleData );
     $tplCfgEntryContent = iMSCP::File->new( filename => "$self->{'tplDir'}/$tplFileName" )->get() unless defined $tplCfgEntryContent;
     $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', $cfgWrkFileContentRef, \$tplCfgEntryContent, $moduleData );
 
@@ -883,7 +870,7 @@ sub _addDmnDb
     my $wrkDbFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db" );
     my $wrkDbFileContent = -f $wrkDbFile ? $wrkDbFile->get() : undef;
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind9', 'db.tpl', \my $tplDbFileC, $moduleData );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind', 'db.tpl', \my $tplDbFileC, $moduleData );
     $tplDbFileC = iMSCP::File->new( filename => "$self->{'tplDir'}/db.tpl" )->get() unless defined $tplDbFileC;
     $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$tplDbFileC, \$wrkDbFileContent );
     $self->{'eventManager'}->trigger( 'beforeBindAddDomainDb', \$tplDbFileC, $moduleData );
@@ -925,22 +912,22 @@ sub _addDmnDb
         }
     }
 
-    my $dmnMailEntry = '';
-    if ( $moduleData->{'MAIL_ENABLED'} ) {
-        $dmnMailEntry = process(
+    replaceBlocByRef(
+        "; dmn MAIL entry BEGIN\n",
+        "; dmn MAIL entry ENDING\n",
+        $moduleData->{'IS_ALT_URL_RECORD'} || $moduleData->{'EXTERNAL_MAIL'} ? '' : process(
             {
-                BASE_SERVER_IP_TYPE => ( $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ) ? 'A' : 'AAAA',
+                BASE_SERVER_IP_TYPE => $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ? 'A' : 'AAAA',
                 BASE_SERVER_IP      => $moduleData->{'BASE_SERVER_PUBLIC_IP'}
             },
             getBlocByRef( "; dmn MAIL entry BEGIN\n", "; dmn MAIL entry ENDING\n", \$tplDbFileC )
-        )
-    }
-
-    replaceBlocByRef( "; dmn MAIL entry BEGIN\n", "; dmn MAIL entry ENDING\n", $dmnMailEntry, \$tplDbFileC );
+        ),
+        \$tplDbFileC
+    );
     processByRef(
         {
             DOMAIN_NAME => $moduleData->{'DOMAIN_NAME'},
-            IP_TYPE     => ( $net->getAddrVersion( $domainIP ) eq 'ipv4' ) ? 'A' : 'AAAA',
+            IP_TYPE     => $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA',
             DOMAIN_IP   => $domainIP
         },
         \$tplDbFileC
@@ -1101,7 +1088,7 @@ sub _makeDirs
 
 =item _configure( )
 
- Configure Bind9
+ Configure Bind
 
  Return void, die on failure
 
@@ -1160,13 +1147,11 @@ sub _configure
     # local configuration file
     if ( length $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} ) {
         my $tplName = basename( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} );
-        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
-            {
-                umask => 0027,
-                mode  => 0640,
-                group => $self->{'config'}->{'NAMED_GROUP'}
-            }
-        );
+        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef, {
+            umask => 0027,
+            mode  => 0640,
+            group => $self->{'config'}->{'NAMED_GROUP'}
+        } );
 
         iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'}, { preserve => TRUE } );
     }

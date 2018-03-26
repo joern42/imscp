@@ -239,23 +239,19 @@ sub addDomain
 {
     my ( $self, $moduleData ) = @_;
 
-    # Do not list `SERVER_HOSTNAME' in BOTH `mydestination' and `virtual_mailbox_domains'
+    # Do not list SERVER_HOSTNAME in BOTH mydestination and virtual_mailbox_domains
     return if $moduleData->{'DOMAIN_NAME'} eq $::imscpConfig{'SERVER_HOSTNAME'};
 
     $self->{'eventManager'}->trigger( 'beforePostfixAddDomain', $moduleData );
 
-    if ( $moduleData->{'MAIL_ENABLED'} ) {
-        # Mails for this domain are managed by this server
-        $self->{'_db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
-        $self->{'_db'}->add( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
-    } elsif ( $moduleData->{'EXTERNAL_MAIL'} eq 'on' ) {
+    if ( $moduleData->{'EXTERNAL_MAIL'} ) {
         # Mails for this domain are managed by external server
         $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
         $self->{'_db'}->add( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
     } else {
-        # Mails feature is disabled for this domain
-        $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+        # Mails for this domain are managed by this server
         $self->{'_db'}->delete( 'relay_domains', $moduleData->{'DOMAIN_NAME'} );
+        $self->{'_db'}->add( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
     }
 
     $self->{'eventManager'}->trigger( 'afterPostfixAddDomain', $moduleData );
@@ -306,15 +302,17 @@ sub addSubdomain
 {
     my ( $self, $moduleData ) = @_;
 
-    # Do not list `SERVER_HOSTNAME' in BOTH `mydestination' and `virtual_mailbox_domains'
+    # Do not list SERVER_HOSTNAME in BOTH mydestination and virtual_mailbox_domains
     return if $moduleData->{'DOMAIN_NAME'} eq $::imscpConfig{'SERVER_HOSTNAME'};
 
     $self->{'eventManager'}->trigger( 'beforePostfixAddSubdomain', $moduleData );
 
-    if ( $moduleData->{'MAIL_ENABLED'} ) {
-        $self->{'_db'}->add( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} )
-    } else {
+    if ( $moduleData->{'EXTERNAL_MAIL'} ) {
+        # Mails for this subdomain are managed by external server
         $self->{'_db'}->delete( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
+    } else {
+        # Mails for this subdomain are managed by this server
+        $self->{'_db'}->add( 'virtual_mailbox_domains', $moduleData->{'DOMAIN_NAME'} );
     }
 
     $self->{'eventManager'}->trigger( 'afterPostfixAddSubdomain', $moduleData );
@@ -1006,20 +1004,23 @@ sub _buildMainCfFile
 
     # Dynamic parameters
     $self->postconf(
-        inet_protocols       => { values => [ $baseServerIpType ] },
-        smtp_bind_address    => { values => [ ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '' ] },
-        smtp_bind_address6   => { values => [ ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '' ] },
-        myhostname           => { values => [ $hostname ] },
-        mydomain             => { values => [ "$hostname.local" ] },
-        myorigin             => { values => [ '$myhostname' ] },
-        smtpd_banner         => { values => [ "\$myhostname ESMTP i-MSCP $::imscpConfig{'Version'} Managed" ] },
-        alias_database       => { values => [ "$self->{'config'}->{'MTA_DB_DEFAULT_TYPE'}:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ] },
-        alias_maps           => { values => [ '$alias_database' ] },
-        mail_spool_directory => { values => [ $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'} ] },
-        virtual_mailbox_base => { values => [ $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} ] },
-        virtual_minimum_uid  => { values => [ $uid ] },
-        virtual_uid_maps     => { values => [ $uid ] },
-        virtual_gid_maps     => { values => [ $gid ] },
+        inet_protocols                   => { values => [ $baseServerIpType ] },
+        smtp_bind_address                => { values => [ ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '' ] },
+        smtp_bind_address6               => { values => [ ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '' ] },
+        myhostname                       => { values => [ $hostname ] },
+        mydomain                         => { values => [ "$hostname.local" ] },
+        myorigin                         => { values => [ '$myhostname' ] },
+        smtpd_banner                     => { values => [ "\$myhostname ESMTP i-MSCP $::imscpConfig{'Version'} Managed" ] },
+        alias_database                   => { values => [ "$self->{'config'}->{'MTA_DB_DEFAULT_TYPE'}:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ] },
+        alias_maps                       => { values => [ '$alias_database' ] },
+        mail_spool_directory             => { values => [ $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'} ] },
+        virtual_mailbox_base             => { values => [ $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} ] },
+        virtual_minimum_uid              => { values => [ $uid ] },
+        virtual_uid_maps                 => { values => [ $uid ] },
+        virtual_gid_maps                 => { values => [ $gid ] },
+        # Include subdomains for any domain added in the relay_domains table
+        # Avoid to add an entry such as .domain.tld for subdomains
+        parent_domain_matches_subdomains => { action => 'add', values => [ 'relay_domains' ] },
         # Add TLS parameters if required
         ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) ne 'yes' ? () : (
             # smtpd TLS parameters (opportunistic)

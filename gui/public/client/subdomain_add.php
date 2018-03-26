@@ -364,16 +364,12 @@ function addSubdomain()
 
         $phpini->saveIniOptions($_SESSION['user_id'], $subdomainId, $domainType == 'dmn' ? 'sub' : 'subals');
 
-        $cfg = Registry::get('config');
-
-        if ($cfg['CREATE_DEFAULT_EMAIL_ADDRESSES']) {
-            createDefaultMailAccounts(
-                $mainDmnProps['domain_id'],
-                iMSCP_Authentication::getInstance()->getIdentity()->email,
-                $subdomainNameAscii,
-                $domainType == 'dmn' ? MT_SUBDOM_FORWARD : MT_ALSSUB_FORWARD, $subdomainId
-            );
-        }
+        createDefaultMailAccounts(
+            $mainDmnProps['domain_id'],
+            iMSCP_Authentication::getInstance()->getIdentity()->email,
+            $subdomainNameAscii,
+            $domainType == 'dmn' ? MT_SUBDOM_FORWARD : MT_ALSSUB_FORWARD, $subdomainId
+        );
 
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterAddSubdomain, [
             'subdomainName'  => $subdomainName,

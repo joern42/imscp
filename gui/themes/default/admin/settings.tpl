@@ -156,17 +156,6 @@
         <div>
             <div class="odd">
                 <div class="left">
-                    <label for="create_default_email_addresses">{TR_CREATE_DEFAULT_EMAIL_ADDRESSES}</label>
-                </div>
-                <div class="right">
-                    <select name="create_default_email_addresses" id="create_default_email_addresses">
-                        <option value="0"{CREATE_DEFAULT_EMAIL_ADDRESSES_OFF}>{TR_DISABLED}</option>
-                        <option value="1"{CREATE_DEFAULT_EMAIL_ADDRESSES_ON}>{TR_ENABLED}</option>
-                    </select>
-                </div>
-            </div>
-            <div class="even">
-                <div class="left">
                     <label for="count_default_email_addresses">{TR_COUNT_DEFAULT_EMAIL_ADDRESSES}</label>
                 </div>
                 <div class="right">
@@ -176,7 +165,7 @@
                     </select>
                 </div>
             </div>
-            <div class="odd">
+            <div class="even">
                 <div class="left">
                     <label for="protect_default_email_addresses">{PROTECT_DEFAULT_EMAIL_ADDRESSES}</label>
                 </div>
@@ -187,7 +176,7 @@
                     </select>
                 </div>
             </div>
-            <div class="even">
+            <div class="odd">
                 <div class="left">
                     <label for="hard_mail_suspension">{TR_HARD_MAIL_SUSPENSION}</label>
                 </div>
@@ -198,7 +187,7 @@
                     </select>
                 </div>
             </div>
-            <div class="odd">
+            <div class="even">
                 <div class="left">
                     <label for="email_quota_sync_mode">{TR_EMAIL_QUOTA_SYNC_MODE}</label>
                 </div>
