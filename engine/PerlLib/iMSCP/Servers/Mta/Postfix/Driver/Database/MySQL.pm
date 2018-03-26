@@ -130,6 +130,10 @@ sub _setupDatabases
 {
     my ( $self ) = @_;
 
+    # Create SQL views
+
+    $self->_createSqlViews();
+
     # Create SQL user
 
     my $sdata = {
@@ -149,16 +153,14 @@ sub _setupDatabases
 
     $sqlServer->createUser( $sdata->{'DATABASE_USER'}, $sqlUserHost, $sdata->{'DATABASE_PASSWORD'} );
 
+    # Grant privileges to SQL user
+
     my $dbh = iMSCP::Database->getInstance();
     my $qDbName = $dbh->quote_identifier( ::setupGetQuestion( 'DATABASE_NAME' ));
 
     for ( qw/ virtual_alias_maps virtual_mailbox_domains virtual_mailbox_maps relay_domains transport_maps / ) {
         $dbh->do( "GRANT SELECT ON $qDbName.postfix_$_ TO ?\@?", undef, $sdata->{'DATABASE_USER'}, $sqlUserHost );
     }
-
-    # Create SQL views
-
-    $self->_createSqlViews();
 
     # Create MySQL source files
 
@@ -266,13 +268,13 @@ sub _createSqlViews
     my $oldDbName = $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
 
     # Create the SQL view for the virtual_alias_maps map
-    $dbh->do( <<"EOF" );
+    $dbh->do( <<'EOF' );
 CREATE OR REPLACE VIEW postfix_virtual_alias_maps AS
 SELECT mail_forward AS goto, mail_addr AS address FROM mail_users WHERE mail_type LIKE '%forward%' AND status = 'ok'
 UNION ALL SELECT mail_acc AS goto, mail_addr AS address FROM mail_users WHERE mail_type LIKE '%catchall%' AND status = 'ok'
 EOF
     # Create the SQL view for the virtual_mailbox_domains map
-    $dbh->do( <<"EOF" );
+    $dbh->do( <<'EOF' );
 CREATE OR REPLACE VIEW postfix_virtual_mailbox_domains AS
 SELECT domain_name FROM domain WHERE domain_status <> 'disabled' AND external_mail = 'off'
 UNION ALL
@@ -298,7 +300,7 @@ UNION ALL
 SELECT alias_name FROM domain_aliasses WHERE alias_status <> 'disabled' AND external_mail = 'on'
 EOF
     # Create the SQL view for the transport_maps map (for vacation entries only)
-    $dbh->do( <<"EOF" );
+    $dbh->do( <<'EOF' );
 CREATE OR REPLACE VIEW postfix_transport_maps AS
 SELECT mail_addr AS address, 'imscp-arpl:' AS transport FROM mail_users WHERE mail_auto_respond = 1 AND mail_auto_respond_text IS NOT NULL
 AND status = 'ok'
