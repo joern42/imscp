@@ -1724,6 +1724,5 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         }
 
         return NULL;
-        # CREATE_DEFAULT_EMAIL_ADDRESSES
     }
 }
