@@ -651,8 +651,8 @@ sub install
     $self->_copyPhpBinary();
     $self->_buildPhpConfig();
     $self->_buildHttpdConfig();
-    $self->_deleteDnsZone();
     $self->_addDnsZone();
+    $self->_addMailDomain();
     $self->_installSystemFiles();
     $self->_cleanup();
 }
@@ -1183,7 +1183,7 @@ sub _buildHttpdConfig
 
 =item _addDnsZone( )
 
- Add DNS zone
+ Add DNS zone for the control panel
 
  Return void, die on failure
 
@@ -1193,44 +1193,46 @@ sub _addDnsZone
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeNamedAddMasterZone' );
+    # Delete the previous DNS zone file if needed
+    if ( length $::imscpOldConfig{'BASE_SERVER_VHOST'} && $::imscpOldConfig{'BASE_SERVER_VHOST'} ne ::setupGetQuestion( 'BASE_SERVER_VHOST' ) ) {
+        iMSCP::Servers::Named->factory()->deleteDomain( {
+            PARENT_DOMAIN_NAME => $::imscpOldConfig{'BASE_SERVER_VHOST'},
+            DOMAIN_NAME        => $::imscpOldConfig{'BASE_SERVER_VHOST'},
+            FORCE_DELETION     => TRUE
+        } );
+    }
+
     iMSCP::Servers::Named->factory()->addDomain( {
         BASE_SERVER_VHOST     => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
         BASE_SERVER_IP        => ::setupGetQuestion( 'BASE_SERVER_IP' ),
         BASE_SERVER_PUBLIC_IP => ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' ),
-        DOMAIN_TYPE           => 'dmn',                                     # (since 1.6.0)
-        PARENT_DOMAIN_NAME    => ::setupGetQuestion( 'BASE_SERVER_VHOST' ), # (since 1.6.0)
+        DOMAIN_TYPE           => 'dmn',
+        PARENT_DOMAIN_NAME    => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
         DOMAIN_NAME           => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
         DOMAIN_IP             => ::setupGetQuestion( 'BASE_SERVER_IP' ),
-        EXTERNAL_MAIL         => 'off',                                     # (since 1.6.0)
-        MAIL_ENABLED          => TRUE,
-        STATUS                => 'toadd'                                    # (since 1.6.0)
+        EXTERNAL_MAIL         => FALSE,
+        STATUS                => 'toadd'
     } );
-    $self->{'eventManager'}->trigger( 'afterNamedAddMasterZone' );
 }
 
-=item _deleteDnsZone( )
+=item _addMailDomain( )
 
- Delete previous DNS zone if needed (i.e. case where BASER_SERVER_VHOST has been modified)
+ Add mail domain for the control panel
 
  Return void, die on failure
 
 =cut
 
-sub _deleteDnsZone
+sub _addMailDomain
 {
     my ( $self ) = @_;
 
-    return unless length $::imscpOldConfig{'BASE_SERVER_VHOST'}
-        && $::imscpOldConfig{'BASE_SERVER_VHOST'} ne ::setupGetQuestion( 'BASE_SERVER_VHOST' );
+    return if $::imscpOldConfig{'BASE_SERVER_VHOST'} eq $::imscpOldConfig{'SERVER_HOSTNAME'};
 
-    $self->{'eventManager'}->trigger( 'beforeNamedDeleteMasterZone' );
-    iMSCP::Servers::Named->factory()->deleteDomain( {
-        PARENT_DOMAIN_NAME => $::imscpOldConfig{'BASE_SERVER_VHOST'},
-        DOMAIN_NAME        => $::imscpOldConfig{'BASE_SERVER_VHOST'},
-        FORCE_DELETION     => TRUE
+    iMSCP::Servers::Mta->factory()->addDomain( {
+        DOMAIN_NAME   => $::imscpOldConfig{'BASE_SERVER_VHOST'},
+        EXTERNAL_MAIL => FALSE
     } );
-    $self->{'eventManager'}->trigger( 'afterNamedDeleteMasterZone' );
 }
 
 =item _installSystemFiles()
