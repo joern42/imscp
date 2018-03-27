@@ -88,50 +88,50 @@ my %constants = (
     # The file can be opened only with the O_APPEND flag. (This restriction
     # applies even to the superuser.) Only a privileged process
     # (CAP_LINUX_IMMUTABLE) can set or clear this attribute.
-    AppendOnly     => &iMSCP::H2ph::FS_APPEND_FL,                                                       # 'a'
+    AppendOnly     => &iMSCP::H2ph::FS_APPEND_FL, # 'a'
 
     # Store the file in a compressed format on disk. This flag is not supported
     # by most of the mainstream filesystem implementations; one exception is
     # btrfs(5).
-    Compress       => &iMSCP::H2ph::FS_COMPR_FL,                                                        # 'c'
+    Compress       => &iMSCP::H2ph::FS_COMPR_FL, # 'c'
 
     # (since Linux 2.6.0)
     #  Write  directory  changes  synchronously to disk. This flag provides
     # semantics equivalent to the mount(2) MS_DIRSYNC option, but on
     # a per-directory basis.  This flag can be applied only to directories.
-    DirSync        => defined( &iMSCP::H2ph::FS_DIRSYNC_FL ) ? &iMSCP::H2ph::FS_DIRSYNC_FL : 0,         # 'D'
+    DirSync        => defined( &iMSCP::H2ph::FS_DIRSYNC_FL ) ? &iMSCP::H2ph::FS_DIRSYNC_FL : 0, # 'D'
 
     # The file is immutable: no changes are permitted to the file contents or
     # metadata (permissions, timestamps, ownership, link count and so on).
     # (This restriction applies even to the superuser.) Only a privileged
     # process (CAP_LINUX_IMMUTABLE) can set or clear this attribute.
-    Immutable      => &iMSCP::H2ph::FS_IMMUTABLE_FL,                                                    # 'i'
+    Immutable      => &iMSCP::H2ph::FS_IMMUTABLE_FL, # 'i'
 
     # Enable journaling of file data on ext3(5) and ext4(5) filesystems. On a
     # filesystem that is journaling in ordered or writeback mode, a privileged
     # (CAP_SYS_RESOURCE) process can set this flag to enable journaling of data
     # updates on a per-file basis.
-    JournalData    => &iMSCP::H2ph::FS_JOURNAL_DATA_FL,                                                 # 'j'
+    JournalData    => &iMSCP::H2ph::FS_JOURNAL_DATA_FL, # 'j'
 
     # Don't update the file last access time when the file is accessed. This
     # can provide I/O performance benefits for applications that do not care
     # about the accuracy of this timestamp.  This flag provides functionality
     # similar to the mount(2) MS_NOATIME flag, but on a per-file basis.
-    NoAtime        => &iMSCP::H2ph::FS_NOATIME_FL,                                                      # 'A'
+    NoAtime        => &iMSCP::H2ph::FS_NOATIME_FL, # 'A'
 
     # (since Linux 2.6.39)
     # The file will not be subject to copy-on-write updates. This flag has an
     # effect only on filesystems that support copy-on-write semantics, such as
     # Btrfs. See chattr(1) and btrfs(5).
-    NoCow          => defined( &iMSCP::H2ph::FS_NOCOW_FL ) ? &iMSCP::H2ph::FS_NOCOW_FL : 0,             # 'C'
+    NoCow          => defined( &iMSCP::H2ph::FS_NOCOW_FL ) ? &iMSCP::H2ph::FS_NOCOW_FL : 0, # 'C'
 
     # Don't include this file in backups made using dump(8).
-    NoDump         => &iMSCP::H2ph::FS_NODUMP_FL,                                                       # 'd'
+    NoDump         => &iMSCP::H2ph::FS_NODUMP_FL, # 'd'
 
     # This flag is supported only on Reiserfs. It disables the Reiserfs
     # tail-packing feature, which tries to pack small files (and the final
     # fragment of larger files) into the same disk block as the file metadata.
-    NoTail         => &iMSCP::H2ph::FS_NOTAIL_FL,                                                       # 't'
+    NoTail         => &iMSCP::H2ph::FS_NOTAIL_FL, # 't'
 
     # (since Linux 4.5)
     # Inherit the quota project ID. Files and subdirectories will inherit the
@@ -141,25 +141,25 @@ my %constants = (
     # Mark the file for secure deletion. This feature is not implemented by
     # any filesystem, since the task of securely erasing a file from a
     # recording medium is surprisingly difficult.
-    SecureDeletion => &iMSCP::H2ph::FS_SECRM_FL,                                                        # 's'
+    SecureDeletion => &iMSCP::H2ph::FS_SECRM_FL, # 's'
 
     # Make file updates synchronous. For files, this makes all writes
     # synchronous (as though all opens of the file were with the O_SYNC flag).
     # For directories, this has the same  effect as the FS_DIRSYNC_FL flag.
-    SyncUpdate     => &iMSCP::H2ph::FS_SYNC_FL,                                                         # 'S'
+    SyncUpdate     => &iMSCP::H2ph::FS_SYNC_FL, # 'S'
 
     # Mark a directory for special treatment under the Orlov block-allocation
     # strategy. See chattr(1) for details. This flag can be applied only to
     # directories and has an effect only for ext2, ext3, and ext4.
-    TopDir         => &iMSCP::H2ph::FS_SYNC_FL,                                                         # 'T'
+    TopDir         => &iMSCP::H2ph::FS_SYNC_FL, # 'T'
 
     # Allow the file to be undeleted if it is deleted. This feature is not
     # implemented by any filesystem, since it is possible to implement
     # file-recovery mechanisms outside the kernel.
-    Undelete       => &iMSCP::H2ph::FS_UNRM_FL,                                                         # 'u'
+    Undelete       => &iMSCP::H2ph::FS_UNRM_FL, # 'u'
 
     # Ext4 extent
-    Extent         => &iMSCP::H2ph::FS_EXTENT_FL,                                                       # 'e'
+    Extent         => &iMSCP::H2ph::FS_EXTENT_FL, # 'e'
 );
 
 =head1 FUNCTIONS
@@ -420,6 +420,8 @@ my %constants = (
                     find(
                         {
                             wanted   => sub {
+                                return if -l;
+
                                 sysopen( my $fh, $_, O_RDONLY | O_NONBLOCK ) or die( $! );
 
                                 my $ret;
@@ -430,12 +432,12 @@ my %constants = (
                                 close $fh;
                                 $ret or die;
                             },
-                            no_chdir => 1
+                            no_chdir => TRUE
                         },
                         $name
                     );
                 };
-                ENOTTY == $! or die( $! ) if $@;
+                ENOTTY == $! or die( $@ ) if $@;
                 return;
             }
 
@@ -460,6 +462,8 @@ my %constants = (
                     find(
                         {
                             wanted   => sub {
+                                return if -l;
+
                                 sysopen( my $fh, $_, O_RDONLY | O_NONBLOCK ) or die( $! );
 
                                 my $ret;
@@ -470,12 +474,12 @@ my %constants = (
                                 close $fh;
                                 $ret or die;
                             },
-                            no_chdir => 1
+                            no_chdir => TRUE
                         },
                         $name
                     );
                 };
-                ENOTTY == $! or die( $! ) if $@;
+                ENOTTY == $! or die( $@ ) if $@;
                 return;
             }
 
@@ -520,6 +524,8 @@ sub clearAll
             find(
                 {
                     wanted   => sub {
+                        return if -l;
+
                         sysopen( my $fh, $_, O_RDONLY | O_NONBLOCK ) or die( $! );
 
                         my $ret;
@@ -530,7 +536,7 @@ sub clearAll
                         close $fh;
                         $ret or die;
                     },
-                    no_chdir => 1
+                    no_chdir => TRUE
                 },
                 $name
             );
