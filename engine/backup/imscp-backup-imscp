@@ -141,7 +141,7 @@ sub backupConfig
 
         my @backupCommand = (
             "nice -n 19 ionice -c2 -n7 tar -c -C $::imscpConfig{'CONF_DIR'}",
-            '--exclude=backup/*.[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]',
+            '--exclude=./*/backup/*.[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]',
             '--preserve-permissions', '.', ( $algo eq 'no' ? "-f $archivePath" : "| $command->{$algo}->{'command'} -$level > $archivePath" )
         );
 
