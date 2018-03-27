@@ -11,14 +11,14 @@
         });
     });
 </script>
-<h2>{TR_DOWNLOAD_DIRECTION}</h2>
+<h3 class="hdd"><span>{TR_DOWNLOAD_DIRECTION}</span></h3>
 <ul>
     <li>{TR_FTP_LOG_ON}</li>
     <li>{TR_SWITCH_TO_BACKUP}</li>
-    <li>{TR_DOWNLOAD_FILE} {TR_USUALY_NAMED}</li>
+    <li>{TR_DOWNLOAD_FILE}</li>
 </ul>
 <br/>
-<h2>{TR_RESTORE_BACKUP}</h2>
+<h3 class="hdd"><span>{TR_RESTORE_BACKUP}</span></h3>
 <p>{TR_RESTORE_DIRECTIONS}</p>
 <form action="backup.php" method="post">
     <div class="buttons">
