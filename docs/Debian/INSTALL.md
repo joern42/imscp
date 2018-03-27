@@ -2,7 +2,7 @@
 
 ## Supported distributions and versions
 
-- Debian: **8/Jessie**, **9/Stretch**, **8/Buster (experimental)**
+- Debian: **8/Jessie**, **9/Stretch**, **10/Buster (experimental)**
 - Devuan: **1.0/Jessie**
 - Ubuntu: **14.04/Trusty Thar**, **16.04/Xenial Xerus**, **18.04/Bionic Beaver**
 
