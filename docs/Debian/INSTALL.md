@@ -63,11 +63,9 @@ Before upgrading, you must not forget to read the
 Before any upgrade attempt it is highly recommended to make a backup of the
 following directories:
 
+- /etc/imscp
 - /var/www/virtual
 - /var/mail/virtual
-
-These directories hold the data of your customers and it is really important to
-backup them for an easy recovering in case something goes wrong during upgrade
 
 You should also backup all SQL databases.
 

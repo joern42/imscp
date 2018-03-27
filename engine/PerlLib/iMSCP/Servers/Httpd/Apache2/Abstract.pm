@@ -1169,7 +1169,7 @@ sub _addFiles
             clearImmutable( dirname( $parentDir ));
 
             if ( $userWebDir eq $parentDir ) {
-                # Cover the case where $parentDir is equal to $::ispConfig{'USER WEB DIR'},
+                # Cover the case where $parentDir is equal to $::imscpConfig{'USER WEB DIR'},
                 # even though, such a situation should never occurs
                 $self->_makeDirs();
             } else {
