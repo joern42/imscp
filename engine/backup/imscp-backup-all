@@ -33,6 +33,7 @@ use File::Basename;
 use File::Spec;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug error newDebug /;
 use iMSCP::Dir;
@@ -105,7 +106,7 @@ sub backupHomedir
     my $bkpDate = strftime "%Y.%m.%d-%H-%M", localtime;
     my $bkpArchName = "web-backup-$mainDmnName-$bkpDate.tar$bkpExt";
     my @cmd = (
-        "nice -n 19 ionice -c2 -n7 tar -c -C $homeDir --exclude=logs --exclude=phptmp --exclude=backups .",
+        "nice -n 19 ionice -c2 -n7 tar -c -C $homeDir --exclude=./logs --exclude=./phptmp --exclude=./backups .",
         ( $cmpAlgo eq 'no' ? "-f $bkpDir/$bkpArchName" : "| $command->{$cmpAlgo}->{'command'} -$cmpLevel > $bkpDir/$bkpArchName" )
     );
 
@@ -129,7 +130,6 @@ sub backupHomedir
  Param string $bkpDir Customer backup directory path
  Param string $cmpAlgo Compression algorithm
  Param string $cmpLevel Compression level
- Param string $bkpExt Backup archive extension
  Param string $user Customer Web unix user
  Param string $group Customer Web unix group
  Return void
@@ -160,7 +160,7 @@ sub backupDatabases
 
         next if $@ || $cmpAlgo eq 'no';
 
-        my $rs = execute( [ $command->{$cmpAlgo}->{'command'}, "-$cmpLevel", '--force', $dbDumpFilePath ], \my $stdout, \my $stderr );
+        my $rs = execute( "$command->{$cmpAlgo}->{'command'} -$cmpLevel --force $dbDumpFilePath", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
         !$rs or error( sprintf( "Couldn't compress %s database dump: %s", $dbName, $stderr || 'Unknown error' ));
     }
@@ -288,11 +288,12 @@ sub backupAll
                 iMSCP::Dir->new( dirname => $bkpDir )->clear();
             }
 
+
             if ( $dmnData->{'allowbackup'} =~ /\bdmn\b/ ) {
-                backupHomedir( $dmnData->{'domain_name'}, $homeDir, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group )
+                backupHomedir( $dmnData->{'domain_name'}, $homeDir, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group );
             }
 
-            backupDatabases( $dmnId, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group ) if $dmnData->{'allowbackup'} =~ /\bsql\b/;
+            backupDatabases( $dmnId, $bkpDir, $cmpAlgo, $cmpLevel, $user, $group ) if $dmnData->{'allowbackup'} =~ /\bsql\b/;
             backupMaildirs( $dmnId, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group ) if $dmnData->{'allowbackup'} =~ /\bmail\b/;
         };
         !$@ or error( $@ );
@@ -312,8 +313,8 @@ OPTIONS:
 );
 
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nolock          => TRUE
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-backup-all.lock", 'nowait' );
 
 backupAll();
