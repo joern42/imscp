@@ -918,7 +918,7 @@ EOF
     my $error = $@ || '';
     eval { $self->dropUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} ); };
     $error .= ( length $error ? "\n$@" : $@ ) if $@;
-    die $error if $error;
+    die $error if length $error;
 }
 
 =back
