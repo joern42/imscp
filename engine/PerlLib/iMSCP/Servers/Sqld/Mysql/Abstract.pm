@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Sqld::Mysql::Abstract::Abstract - i-MSCP MySQL SQL server abstract implementation
+ iMSCP::Servers::Sqld::Mysql::Abstract - i-MSCP MySQL SQL server abstract implementation
 
 =cut
 
@@ -33,6 +33,7 @@ use autouse 'iMSCP::Rights' => qw/ setRights /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Getopt /;
+use File::Basename;
 use File::Spec;
 use File::Temp;
 use iMSCP::Boolean;
@@ -450,13 +451,14 @@ sub restoreDomain
         # Encode dots as Full stop unicode character
         ( my $encodedDbName = $row->{'sqld_name'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
 
-        for my $ext ( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
+        for my $ext ( qw/ .sql .sql.bz2 .sql.gz .sql.lzma .sql.xz / ) {
             my $dbDumpFilePath = File::Spec->catfile( "$moduleData->{'HOME_DIR'}/backups", $encodedDbName . $ext );
-            debug( $dbDumpFilePath );
             next unless -f $dbDumpFilePath;
+            debug( $dbDumpFilePath );
             $self->_restoreDatabase( $row->{'sqld_name'}, $dbDumpFilePath );
         }
     }
+
     $self->{'eventManager'}->trigger( 'after' . $self->getServerName . 'RestoreDomain' );
 }
 
@@ -845,6 +847,8 @@ sub _tryDbConnect
 
  Restore a database from the given database dump file
  
+ # TODO: Verify the dump signature
+ 
  Param string $dbName Database name
  Param string $dbDumpFilePath Path to database dump file
  Return void, die on faimure
@@ -859,44 +863,42 @@ sub _restoreDatabase
     my $cmd;
 
     if ( $archFormat eq '.bz2' ) {
-        $cmd = 'bzcat -d ';
+        $cmd = 'bzcat -d';
     } elsif ( $archFormat eq '.gz' ) {
         $cmd = 'zcat -d ';
     } elsif ( $archFormat eq '.lzma' ) {
-        $cmd = 'lzma -dc ';
+        $cmd = 'lzma -dc';
     } elsif ( $archFormat eq '.xz' ) {
-        $cmd = 'xz -dc ';
+        $cmd = 'xz -dc';
     } else {
-        $cmd = 'cat ';
+        $cmd = 'cat';
     }
 
-    # We need to create an user that will be able to act on the target
-    # database only. Making use of an user with full privileges, such as
-    # the i-MSCP master SQL user, would create a security breach as the
-    # $dbDumpFilePath dump is provided by the customer
-
-    my $tmpUser = randomStr( 16, ALNUM );
+    my $tmpUser = 'imscp_' . randomStr( 10, ALNUM );
     my $tmpPassword = randomStr( 16, ALNUM );
     $self->createUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'}, $tmpPassword );
-    my $dbh = iMSCP::Database->getInstance();
 
-    # According MySQL documentation (http://dev.mysql.com/doc/refman/5.5/en/grant.html#grant-accounts-passwords)
-    # The “_” and “%” wildcards are permitted when specifying database names in GRANT statements that grant privileges
-    # at the global or database levels. This means, for example, that if you want to use a “_” character as part of a
-    # database name, you should specify it as “\_” in the GRANT statement, to prevent the user from being able to
-    # access additional databases matching the wildcard pattern; for example, GRANT ... ON `foo\_bar`.* TO ....
-    #
-    # In practice, without escaping, an user added for db `a_c` would also have access to a db `abc`.
-    $dbh->do( "GRANT ALL PRIVILEGES ON @{ [ $dbh->quote_identifier( $dbName ) =~ s/([%_])/\\$1/gr ] }.* TO ?\@?", undef, $tmpUser, $tmpPassword );
+    eval {
+        my $dbh = iMSCP::Database->getInstance();
 
-    # Avoid error such as 'MySQL error 1449: The user specified as a definer does not exist' by updating definer if any
-    # FIXME: Need flush privileges?
-    # FIXME: Should we STAMP that statement?
-    # TODO: TO BE TESTED FIRST
-    #$dbh->do( "UPDATE mysql.proc SET definer = ?@? WHERE db = ?", undef, $tmpUser, $tmpPassword, $dbName );
+        # According MySQL documentation (http://dev.mysql.com/doc/refman/5.5/en/grant.html#grant-accounts-passwords)
+        # The '_' and '%' wildcards are permitted when specifying database names in GRANT statements that grant privileges
+        # at the global or database levels. This means, for example, that if you want to use a '_' character as part of a
+        # database name, you should specify it as '\_' in the GRANT statement, to prevent the user from being able to
+        # access additional databases matching the wildcard pattern; for example, GRANT ... ON `foo\_bar`.* TO ....
+        # In practice, without escaping, an user added for db `a_c` would also have access to a db `abc`.
+        $dbh->do(
+            "GRANT ALL PRIVILEGES ON @{ [ $dbh->quote_identifier( $dbName ) =~ s/([%_])/\\$1/gr ] }.* TO ?\@?",
+            undef, $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'}
+        );
+        # The SUPER privilege is needed to restore objects such as the procedures, functions, triggers, events and views
+        # for which the definer is not the CURRENT_USER(). Another way is to remove the definer statements in the dump
+        # prior restoring but that is a non viable solution as the definer *MUST* remain the same, that is, the one which
+        # has been used while objects creation.
+        $dbh->do( "GRANT SUPER ON *.* TO ?\@?", undef, $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} );
 
-    my $defaultsExtraFile = File::Temp->new();
-    print $defaultsExtraFile <<"EOF";
+        my $defaultsExtraFile = File::Temp->new();
+        print $defaultsExtraFile <<"EOF";
 [mysql]
 host = $::imscpConfig{'DATABASE_HOST'}
 port = $::imscpConfig{'DATABASE_PORT'}
@@ -904,13 +906,19 @@ user = @{ [ $tmpUser =~ s/"/\\"/gr ] }
 password = @{ [ $tmpPassword =~ s/"/\\"/gr ] }
 max_allowed_packet = 500M
 EOF
-    $defaultsExtraFile->close();
+        $defaultsExtraFile->close();
 
-    my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultsExtraFile", escapeShell( $dbName ) );
-    my $rs = execute( "@cmd", \my $stdout, \my $stderr );
-    debug( $stdout ) if length $stdout;
-    !$rs or die( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' ));
-    $self->dropUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} );
+        my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultsExtraFile", escapeShell( $dbName ) );
+        my $rs = execute( "@cmd", \my $stdout, \my $stderr );
+        debug( $stdout ) if length $stdout;
+        !$rs or die( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' ));
+    };
+
+    # We need drop tmp SQL user even on error
+    my $error = $@ || '';
+    eval { $self->dropUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} ); };
+    $error .= ( length $error ? "\n$@" : $@ ) if $@;
+    die $error if $error;
 }
 
 =back

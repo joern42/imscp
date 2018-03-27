@@ -159,6 +159,8 @@ sub getTableColumns
 =item dumpdb( $dbName, $dbDumpTargetDir )
 
  Dump the given database
+ 
+ # TODO: Sign the SQL dump using SSL and verify the signature
 
  Param string $dbName Database name
  Param string $dbDumpTargetDir Database dump target directory
@@ -176,10 +178,15 @@ sub dumpdb
 
     debug( sprintf( 'Dump %s database into %s', $dbName, $dbDumpTargetDir . '/' . $encodedDbName . '.sql' ));
 
+    my $innoDbOnly = !$self->connect()->selectrow_array(
+        "SELECT COUNT(ENGINE) FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND ENGINE <> 'InnoDB'", undef, $dbName
+    );
+
     unless ( $self->{'_sql_default_extra_file'} ) {
         $self->{'_sql_default_extra_file'} = File::Temp->new();
         print { $self->{'_sql_default_extra_file'} } <<"EOF";
 [mysqldump]
+databases = true
 host = $self->{'db'}->{'DATABASE_HOST'}
 port = $self->{'db'}->{'DATABASE_PORT'}
 user = "@{ [ $self->{'db'}->{'DATABASE_USER'} =~ s/"/\\"/gr ] }"
@@ -197,24 +204,17 @@ add-drop-database = true
 allow-keywords = true
 quote-names = true
 complete-insert = true
-skip-comments = true
+@{ [ $innoDbOnly ? 'single-transaction = true' : 'lock-tables = true' ] }
+@{ [ $innoDbOnly ? 'skip-lock-tables = true' : '' ] }
+@{ [ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ? 'compress = true' : '' ] }
 EOF
         $self->{'_sql_default_extra_file'}->close();
     }
 
-    my $innoDbOnly = !$self->connect()->selectrow_array(
-        "SELECT COUNT(ENGINE) FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND ENGINE <> 'InnoDB'", undef, $dbName
-    );
-
     my $stderr;
     execute(
-        "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'}"
-            # Avoid tables locking whenever possible
-            . "@{ [ $innoDbOnly ? ' --single-transaction --skip-lock-tables' : '' ] }"
-            # Compress all information sent between the client and the server (only if remote SQL server).
-            . "@{ [ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ? ' --compress' : '' ] }"
-            . " --databases @{ [ escapeShell( $dbName ) ] }"
-            . ' > ' . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
+        "nice -n 19 ionice -c2 -n7 /usr/bin/mysqldump --defaults-extra-file=$self->{'_sql_default_extra_file'} @{ [ escapeShell( $dbName ) ] } >"
+            . escapeShell( "$dbDumpTargetDir/$encodedDbName.sql" ),
         undef,
         \$stderr
     ) == 0 or die( $stderr || 'Unknown error' );
