@@ -33,6 +33,7 @@ use File::Basename;
 use File::Spec;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug error newDebug /;
 use iMSCP::Execute qw/ execute escapeShell /;
@@ -140,7 +141,7 @@ sub backupConfig
 
         my @backupCommand = (
             "nice -n 19 ionice -c2 -n7 tar -c -C $::imscpConfig{'CONF_DIR'}",
-            '--exclude=?*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]',
+            '--exclude=backup/*.[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]',
             '--preserve-permissions', '.', ( $algo eq 'no' ? "-f $archivePath" : "| $command->{$algo}->{'command'} -$level > $archivePath" )
         );
 
@@ -199,8 +200,8 @@ OPTIONS:
 );
 
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nolock          => TRUE
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-backup-imscp.lock", 'nowait' );
 
 backupAll();
