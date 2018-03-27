@@ -186,7 +186,6 @@ sub dumpdb
         $self->{'_sql_default_extra_file'} = File::Temp->new();
         print { $self->{'_sql_default_extra_file'} } <<"EOF";
 [mysqldump]
-databases = true
 host = $self->{'db'}->{'DATABASE_HOST'}
 port = $self->{'db'}->{'DATABASE_PORT'}
 user = "@{ [ $self->{'db'}->{'DATABASE_USER'} =~ s/"/\\"/gr ] }"
