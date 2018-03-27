@@ -541,7 +541,7 @@ sub clearAll
                 $name
             );
         };
-        ENOTTY == $! or die( $! ) if $@;
+        ENOTTY == $! or die( $@ ) if $@;
         return;
     }
 
