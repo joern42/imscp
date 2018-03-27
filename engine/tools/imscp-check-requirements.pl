@@ -2,11 +2,11 @@
 
 =head1 NAME
 
- imscp-fix-duplicate-mounts.pl Fix duplication mounts.
+ imscp-check-requirements.pl Check i-MSCP requirements
 
 =head1 SYNOPSIS
 
- imscp-fix-duplicate-mounts.pl [OPTION]...
+ imscp-check-requirements.pl
 
 =cut
 
@@ -29,22 +29,14 @@
 
 use strict;
 use warnings;
-use lib '/var/www/imscp/engine/PerlLib';
-use iMSCP::Bootstrapper;
-use iMSCP::Getopt;
-use iMSCP::Mount qw/ umount /;
+use FindBin;
+use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Requirements;
+use iMSCP::Debug qw/ output /;
 
-iMSCP::Getopt->context( 'backend' );
-iMSCP::Getopt->debug( 0 );
-iMSCP::Getopt->verbose( 1 );
+iMSCP::Requirements->new()->all();
 
-exit unless iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nodatabase      => 1,
-    nokeys          => 1
-} )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-mountall.lock", 'nowait' );
-
-umount( $::imscpConfig{'USER_WEB_DIR'} );
+print output(' All i-MSCP requirements are met.', 'ok');
 
 =head1 AUTHOR
 

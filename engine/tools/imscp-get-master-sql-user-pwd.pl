@@ -2,11 +2,11 @@
 
 =head1 NAME
 
- imscp-check-requirements.pl Check i-MSCP requirements
+ Retrieve i-MSCP master SQL user password.
 
 =head1 SYNOPSIS
 
- imscp-check-requirements.pl
+ imscp-get-master-sql-user-pwd.pl [OPTION]...
 
 =cut
 
@@ -27,15 +27,27 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
+# Print current i-MSCP master SQL user password
+
 use strict;
 use warnings;
-use lib '/usr/local/src/imscp/engine/PerlLib';
-use iMSCP::Requirements;
+use FindBin;
+use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Bootstrapper;
+use iMSCP::Crypt qw/ decryptRijndaelCBC /;
 use iMSCP::Debug qw/ output /;
+use iMSCP::Getopt;
 
-iMSCP::Requirements->new()->all();
+iMSCP::Bootstrapper->getInstance()->boot( {
+    config_readonly => 1,
+    nodatabase      => 1,
+    nolock          => 1
+} );
 
-print output(' All i-MSCP requirements are met.', 'ok');
+my $passwd = decryptRijndaelCBC( $::imscpKEY, $::imscpIV, $::imscpConfig{'DATABASE_PASSWORD'} );
+print output( sprintf( "Your i-MSCP master SQL user is         : \x1b[1m%s\x1b[0m", $::imscpConfig{'DATABASE_USER'} ), 'info' );
+print output( sprintf( "Your i-MSCP master SQL user password is: \x1b[1m%s\x1b[0m", $passwd ), 'info' );
+print output( 'Information based on data from your /etc/imscp/imscp.conf file.', 'warn' );
 
 =head1 AUTHOR
 

@@ -2,11 +2,11 @@
 
 =head1 NAME
 
- Retrieve i-MSCP master SQL user password.
+ imscp-fix-duplicate-mounts.pl Fix duplication mounts.
 
 =head1 SYNOPSIS
 
- imscp-get-master-sql-user-pwd.pl [OPTION]...
+ imscp-fix-duplicate-mounts.pl [OPTION]...
 
 =cut
 
@@ -27,26 +27,25 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-# Print current i-MSCP master SQL user password
-
 use strict;
 use warnings;
-use lib '/var/www/imscp/engine/PerlLib';
+use FindBin;
+use lib "$FindBin::Bin/../PerlLib";
 use iMSCP::Bootstrapper;
-use iMSCP::Crypt qw/ decryptRijndaelCBC /;
-use iMSCP::Debug qw/ output /;
 use iMSCP::Getopt;
+use iMSCP::Mount qw/ umount /;
 
-iMSCP::Bootstrapper->getInstance()->boot( {
+iMSCP::Getopt->context( 'backend' );
+iMSCP::Getopt->debug( 0 );
+iMSCP::Getopt->verbose( 1 );
+
+exit unless iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => 1,
     nodatabase      => 1,
-    nolock          => 1
-} );
+    nokeys          => 1
+} )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-mountall.lock", 'nowait' );
 
-my $passwd = decryptRijndaelCBC( $::imscpKEY, $::imscpIV, $::imscpConfig{'DATABASE_PASSWORD'} );
-print output( sprintf( "Your i-MSCP master SQL user is         : \x1b[1m%s\x1b[0m", $::imscpConfig{'DATABASE_USER'} ), 'info' );
-print output( sprintf( "Your i-MSCP master SQL user password is: \x1b[1m%s\x1b[0m", $passwd ), 'info' );
-print output( 'Information based on data from your /etc/imscp/imscp.conf file.', 'warn' );
+umount( $::imscpConfig{'USER_WEB_DIR'} );
 
 =head1 AUTHOR
 
