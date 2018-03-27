@@ -2,9 +2,9 @@
 
 ## Supported distributions and versions
 
-- Any released Debian version:     ≥ **8/Jessie**
-- Any released Devuan version:     ≥ **1.0/Jessie**
-- Any released Ubuntu LTS version: ≥ **14.04/Trusty Thar**
+- Debian: **8/Jessie**, **9/Stretch**, **8/Buster (experimental)**
+- Devuan: **1.0/Jessie**
+- Ubuntu: **14.04/Trusty Thar**, **16.04/Xenial Xerus**, **18.04/Bionic Beaver**
 
 ## System Requirements
 
@@ -20,7 +20,7 @@ See [OpenVZ containers](https://wiki.i-mscp.net/doku.php?id=about:system#openvz_
 ### 1 Install the pre-required distribution packages:
 
 ```
-apt-get --assume-yes --no-install-recommends install ca-certificates perl wget
+apt-get --assume-yes --no-install-recommends install ca-certificates perl screen wget
 ```
 
 ### 1. Download and untar the distribution files
@@ -40,7 +40,15 @@ cd imscp-<version>
 ### 3. Install i-MSCP by running its installer
 
 ```
-perl imscp-installer -d
+screen -S imscp perl imscp-installer -d
+```
+
+Note that we make use of  `SCREEN(1)` to make sure that the process will
+continue even if the network connection is interrupted. This allows us to
+re-switch into the session as follows:
+
+``` 
+screen -x imscp
 ```
 
 ## i-MSCP Upgrade
@@ -80,5 +88,13 @@ cd imscp-<version>
 ### 5. Update i-MSCP by running its installer
 
 ```
-perl imscp-installer -d
+screen -S imscp perl imscp-installer -d
+```
+
+Note that we make use of  `SCREEN(1)` to make sure that the process will
+continue even if the network connection is interrupted. This allows us to
+re-switch into the session as follows:
+
+``` 
+screen -x imscp
 ```
