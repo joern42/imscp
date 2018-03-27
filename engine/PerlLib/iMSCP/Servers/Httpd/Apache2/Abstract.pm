@@ -299,7 +299,7 @@ sub restoreDomain
         # Restore the first backup found
         for my $file ( iMSCP::Dir->new( dirname => "$moduleData->{'HOME_DIR'}/backups" )->getFiles() ) {
             next if $file !~ /^web-backup-.+?\.tar(?:\.(bz2|gz|lzma|xz))?$/ # Do not look like backup archive
-                || -l "$moduleData->{'HOME_DIR'}/backups/$file"; # Don't follow symlinks (See #IP-990)
+                || -l "$moduleData->{'HOME_DIR'}/backups/$file";            # Don't follow symlinks (See #IP-990)
 
             my $archFormat = $1 || '';
 
@@ -321,7 +321,7 @@ sub restoreDomain
             }
 
             # Un-protect homedir recursively
-            clearImmutable( $moduleData->{'HOME_DIR'}, 1 );
+            clearImmutable( $moduleData->{'HOME_DIR'}, TRUE );
 
             my $cmd;
             if ( length $archFormat ) {
@@ -337,8 +337,8 @@ sub restoreDomain
             my $dbh = iMSCP::Database->getInstance();
             eval {
                 $dbh->begin_work();
-                $dbh->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
-                $dbh->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
+                $dbh->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $moduleData->{'DOMAIN_ID'} );
+                $dbh->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $moduleData->{'DOMAIN_ID'} );
                 $dbh->do(
                     "
                         UPDATE subdomain_alias
@@ -346,7 +346,7 @@ sub restoreDomain
                         WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
                     ",
                     undef,
-                    $self->{'domain_id'}
+                    $moduleData->{'DOMAIN_ID'}
                 );
                 $dbh->commit();
             };
@@ -844,7 +844,7 @@ sub _deleteDomain
         my $parentDir = dirname( $moduleData->{'WEB_DIR'} );
 
         clearImmutable( $parentDir );
-        clearImmutable( $moduleData->{'WEB_DIR'}, 'recursive' );
+        clearImmutable( $moduleData->{'WEB_DIR'}, TRUE );
 
         iMSCP::Dir->new( dirname => $moduleData->{'WEB_DIR'} )->remove();
 
