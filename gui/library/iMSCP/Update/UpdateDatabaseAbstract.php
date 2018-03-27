@@ -116,6 +116,7 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
 
                 foreach ($queries as $query) {
                     if (!empty($query)) {
+                        //print "Excuting query: $query" . PHP_EOL;
                         $stmt = $db->prepare($query);
                         $stmt->execute();
 

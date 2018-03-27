@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS `admin` (
   `street2` varchar(200) collate utf8_unicode_ci DEFAULT NULL,
   `uniqkey` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
   `uniqkey_time` timestamp NULL DEFAULT NULL,
-  `admin_status` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT 'ok',
+  `admin_status` text collate utf8_unicode_ci NOT NULL,
   UNIQUE KEY `admin_id` (`admin_id`),
   UNIQUE KEY `admin_name` (`admin_name`),
   INDEX `created_by` (`created_by`)
@@ -82,7 +82,7 @@ INSERT IGNORE INTO `config` (`name`, `value`) VALUES
   ('PORT_POP3-SSL', '995;tcp;POP3-SSL;0;0.0.0.0'),
   ('PORT_IMAP', '143;tcp;IMAP;1;0.0.0.0'),
   ('PORT_IMAP-SSL', '993;tcp;IMAP-SSL;0;0.0.0.0'),
-  ('DATABASE_REVISION', '277');
+  ('DATABASE_REVISION', '278');
 
 -- --------------------------------------------------------
 
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS `domain` (
   `domain_traffic_limit` bigint(20) DEFAULT NULL,
   `domain_sqld_limit` int(11) DEFAULT NULL,
   `domain_sqlu_limit` int(11) DEFAULT NULL,
-  `domain_status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `domain_status` text collate utf8_unicode_ci NOT NULL,
   `domain_alias_limit` int(11) DEFAULT NULL,
   `domain_subd_limit` int(11) DEFAULT NULL,
   `domain_ip_id` int(10) unsigned DEFAULT NULL,
@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS `domain_aliasses` (
   `alias_id` int(10) unsigned NOT NULL auto_increment,
   `domain_id` int(10) unsigned DEFAULT NULL,
   `alias_name` varchar(200) collate utf8_unicode_ci DEFAULT NULL,
-  `alias_status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `alias_status` text collate utf8_unicode_ci NOT NULL,
   `alias_mount` varchar(200) collate utf8_unicode_ci DEFAULT NULL,
   `alias_document_root` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs',
   `alias_ip_id` int(10) unsigned DEFAULT NULL,
@@ -267,7 +267,7 @@ CREATE TABLE IF NOT EXISTS `ftp_users` (
   `gid` int(10) unsigned NOT NULL DEFAULT '0',
   `shell` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
   `homedir` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
-  `status` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT 'ok',
+  `status` text collate utf8_unicode_ci NOT NULL,
   UNIQUE KEY (`userid`),
   INDEX `admin_id` (`admin_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
@@ -302,7 +302,7 @@ CREATE TABLE IF NOT EXISTS `htaccess` (
   `auth_type` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
   `auth_name` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
   `path` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
-  `status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `status` text collate utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
@@ -317,7 +317,7 @@ CREATE TABLE IF NOT EXISTS `htaccess_groups` (
   `dmn_id` int(10) unsigned NOT NULL DEFAULT '0',
   `ugroup` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
   `members` text collate utf8_unicode_ci,
-  `status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `status` text collate utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
@@ -332,7 +332,7 @@ CREATE TABLE IF NOT EXISTS `htaccess_users` (
   `dmn_id` int(10) unsigned NOT NULL DEFAULT '0',
   `uname` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
   `upass` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
-  `status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `status` text collate utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS `mail_users` (
   `domain_id` int(10) unsigned DEFAULT NULL,
   `mail_type` varchar(30) collate utf8_unicode_ci DEFAULT NULL,
   `sub_id` int(10) unsigned DEFAULT NULL,
-  `status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `status` text collate utf8_unicode_ci NOT NULL,
   `po_active` varchar(3) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'yes',
   `mail_auto_respond` tinyint(1) NOT NULL DEFAULT '0',
   `mail_auto_respond_text` text collate utf8_unicode_ci,
@@ -389,7 +389,7 @@ CREATE TABLE IF NOT EXISTS `mail_users` (
   INDEX `domain_id` (`domain_id`),
   INDEX `sub_id` (`sub_id`),
   UNIQUE KEY `mail_addr` (`mail_addr`),
-  INDEX `status` (`status`),
+  INDEX `status` (`status`(255)),
   INDEX `po_active` (`po_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
@@ -537,7 +537,7 @@ CREATE TABLE IF NOT EXISTS `server_ips` (
   `ip_netmask` tinyint(1) unsigned DEFAULT NULL,
   `ip_card` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
   `ip_config_mode` varchar(15) collate utf8_unicode_ci DEFAULT 'auto',
-  `ip_status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `ip_status` text collate utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`ip_id`),
   UNIQUE KEY `ip_number` (`ip_number`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
@@ -609,7 +609,7 @@ CREATE TABLE IF NOT EXISTS `ssl_certs` (
   `allow_hsts` VARCHAR(10) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'off',
   `hsts_max_age` int(11) NOT NULL DEFAULT '31536000',
   `hsts_include_subdomains` VARCHAR(10) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'off',
-  `status` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
+  `status` text COLLATE utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`cert_id`),
   UNIQUE KEY `domain_id_domain_type` (`domain_id`, `domain_type`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
@@ -629,7 +629,7 @@ CREATE TABLE IF NOT EXISTS `subdomain` (
   `subdomain_url_forward` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT 'no',
   `subdomain_type_forward` varchar(5) collate utf8_unicode_ci DEFAULT NULL,
   `subdomain_host_forward` varchar(3) collate utf8_unicode_ci NOT NULL DEFAULT 'Off',
-  `subdomain_status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `subdomain_status` text collate utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`subdomain_id`),
   INDEX `domain_id` (`domain_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
@@ -649,7 +649,7 @@ CREATE TABLE IF NOT EXISTS `subdomain_alias` (
   `subdomain_alias_url_forward` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT 'no',
   `subdomain_alias_type_forward` varchar(5) collate utf8_unicode_ci DEFAULT NULL,
   `subdomain_alias_host_forward` varchar(3) collate utf8_unicode_ci NOT NULL DEFAULT 'Off',
-  `subdomain_alias_status` varchar(255) collate utf8_unicode_ci DEFAULT NULL,
+  `subdomain_alias_status` text collate utf8_unicode_ci NOT NULL,
   PRIMARY KEY (`subdomain_alias_id`),
   INDEX `alias_id` (`alias_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

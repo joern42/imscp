@@ -36,7 +36,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     /**
      * @var int Last database update revision
      */
-    protected $lastUpdate = 277;
+    protected $lastUpdate = 278;
 
     /**
      * Prohibit upgrade from i-MSCP versions older than 1.1.x
@@ -1724,5 +1724,35 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         }
 
         return NULL;
+    }
+
+    /**
+     * Update status fields
+     *
+     * @return array SQL statements to be executed
+     */
+    protected function r278()
+    {
+        if ($dropQueries = $this->dropIndexByColumn('mail_users', 'status')) {
+            foreach ($dropQueries as $dropQuery) {
+                execute_query($dropQuery);
+            }
+        }
+
+        return [
+            $this->changeColumn('admin', 'admin_status', "`admin_status` text collate utf8_unicode_ci NOT NULL"),
+            $this->changeColumn('domain', 'domain_status', '`domain_status` text collate utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('domain_aliasses', 'alias_status', '`alias_status` text collate utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('ftp_users', 'status', "`status` text collate utf8_unicode_ci NOT NULL"),
+            $this->changeColumn('htaccess', 'status', '`status` text collate utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('htaccess_groups', 'status', '`status` text collate utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('htaccess_users', 'status', '`status` text collate utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('mail_users', 'status', '`status` text collate utf8_unicode_ci NOT NULL'),
+            $this->addIndex('mail_users', 'status(255)', 'INDEX', 'status'),
+            $this->changeColumn('server_ips', 'ip_status', '`ip_status` text collate utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('ssl_certs', 'status', '`status` text collate utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('subdomain', 'subdomain_status', '`subdomain_status` text collate utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('subdomain_alias', 'subdomain_alias_status', '`subdomain_alias_status` text collate utf8_unicode_ci NOT NULL')
+        ];
     }
 }
