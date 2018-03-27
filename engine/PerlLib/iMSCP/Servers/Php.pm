@@ -640,7 +640,7 @@ sub _buildFpmConfig
     };
 
     $self->buildConfFile(
-        'fpm/pool.conf', "$self->{'PHP_FPM_POOL_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}.conf", $moduleData, $serverData, { cached => 1 }
+        'fpm/pool.conf', "$self->{'PHP_FPM_POOL_DIR'}/$moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'}.conf", $moduleData, $serverData, { cached => TRUE }
     );
     $self->{'reload'}->{$serverData->{'PHP_VERSION'}} ||= 1;
     $self->{'eventManager'}->trigger( 'afterPhpFpmSapiBuildConf', $moduleData );
