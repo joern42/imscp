@@ -32,6 +32,7 @@ use warnings;
 use FindBin;
 use File::Basename;
 use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ output /;
 use iMSCP::Getopt;
@@ -45,20 +46,23 @@ Display information about i-MSCP instance.
 OPTIONS:
  -v,    --version-only  Display i-MSCP version info only.
  -s,    --system-only   Display i-MSCP system info only.
- -j,    --json          Display output in JSON format.},
+ -j,    --json          Display output in JSON format.
+ -p,    --pretty        Enable JSON pretty print.},
     'version-only|v' => \&iMSCP::Getopt::versionOnly,
     'server-only|s'  => \&iMSCP::Getopt::serverOnly,
-    'json|j'         => \&iMSCP::Getopt::json
+    'json|j'         => \&iMSCP::Getopt::json,
+    'pretty|p'       => \&iMSCP::Getopt::pretty
 );
 
 iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nodatabase      => 1,
-    nokeys          => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nodatabase      => TRUE,
+    nokeys          => TRUE,
+    nolock          => TRUE,
+    norequirements  => TRUE
 } );
 
-iMSCP::Getopt->debug( 0 );
+iMSCP::Getopt->debug( FALSE );
 
 if ( iMSCP::Getopt->versionOnly && iMSCP::Getopt->serverOnly ) {
     print "\nThe --version-only and --system-only options are mutually exclusive\n";
@@ -89,7 +93,7 @@ EOF
 }
 
 if ( iMSCP::Getopt->versionOnly ) {
-    print to_json( $json, { utf8 => 1, pretty => 1 } ) if iMSCP::Getopt->json;
+    print to_json( $json, { utf8 => TRUE, pretty => iMSCP::Getopt->pretty } ) if iMSCP::Getopt->json;
     exit;
 }
 
@@ -131,7 +135,7 @@ for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
     print "\n";
 }
 
-print to_json( $json, { utf8 => 1, pretty => 1 } ) if iMSCP::Getopt->json;
+print to_json( $json, { utf8 => TRUE, pretty => iMSCP::Getopt->pretty } ) if iMSCP::Getopt->json;
 
 =head1 AUTHOR
 
