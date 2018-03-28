@@ -129,16 +129,16 @@ sub askMasterAdminCredentials
     my ( undef, $dialog ) = @_;
 
     my ( $username, $password ) = ( '', '' );
-    my $db = iMSCP::Database->getInstance();
+    my $dbh = iMSCP::Database->getInstance();
 
-    eval { $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); };
-    $db = undef if $@; # Fresh installation case
+    eval { $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); };
+    $dbh = undef if $@; # Fresh installation case
 
     if ( iMSCP::Getopt->preseed ) {
         $username = ::setupGetQuestion( 'ADMIN_LOGIN_NAME', 'admin' );
         $password = ::setupGetQuestion( 'ADMIN_PASSWORD' );
-    } elsif ( $db ) {
-        my $row = $db->selectrow_hashref( "SELECT admin_name, admin_pass FROM admin WHERE created_by = 0 AND admin_type = 'admin'", );
+    } elsif ( $dbh ) {
+        my $row = $dbh->selectrow_hashref( "SELECT admin_name, admin_pass FROM admin WHERE created_by = 0 AND admin_type = 'admin'", );
         if ( $row ) {
             $username = $row->{'admin_name'} // '';
             $password = $row->{'admin_pass'} // '';
@@ -170,8 +170,8 @@ Please enter a username for the master administrator (leave empty for default):
 \\Z \\Zn
 EOF
             if ( isValidUsername( $username ) ) {
-                if ( $db ) {
-                    my $row = $db->selectrow_hashref( 'SELECT 1 FROM admin WHERE admin_name = ? AND created_by <> 0', undef, $username );
+                if ( $dbh ) {
+                    my $row = $dbh->selectrow_hashref( 'SELECT 1 FROM admin WHERE admin_name = ? AND created_by <> 0', undef, $username );
                     if ( $row ) {
                         $iMSCP::Dialog::InputValidation::lastValidationError = <<"EOF";
 \\Z1This username is not available.\\Zn
@@ -652,9 +652,29 @@ sub install
     $self->_buildPhpConfig();
     $self->_buildHttpdConfig();
     $self->_addDnsZone();
-    $self->_addMailDomain();
+    #$self->_addMailDomain(); # FIXME Needed or not?
     $self->_installSystemFiles();
     $self->_cleanup();
+}
+
+=item install( )
+
+ Process postnstall tasks
+
+ Return void, die on failure
+
+=cut
+
+sub postinstall
+{
+    my ( $self ) = @_;
+
+    my $stderr;
+    execute( "perl $::imscpConfig{'TOOLS_ROOT_DIR'}/imscp-info.pl --json", \my $stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
+    chomp( $stdout );
+    my $dbh = iMSCP::Database->getInstance();
+    $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    $dbh->do( "REPLACE INTO `config` VALUES(?,?)", undef, 'iMSCP_INFO', $stdout );
 }
 
 =item dpkgPostInvokeTasks( )
@@ -789,30 +809,30 @@ sub _setupMasterAdmin
 
     $password = apr1MD5( $password );
 
-    my $db = iMSCP::Database->getInstance();
-    my $oldDbName = $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    my $dbh = iMSCP::Database->getInstance();
+    my $oldDbName = $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
 
     eval {
-        $db->begin_work();
+        $dbh->begin_work();
 
-        my $row = $db->selectrow_hashref( "SELECT admin_id FROM admin WHERE admin_name = ?", undef, $loginOld );
+        my $row = $dbh->selectrow_hashref( "SELECT admin_id FROM admin WHERE admin_name = ?", undef, $loginOld );
         if ( $row ) {
-            $db->do(
+            $dbh->do(
                 'UPDATE admin SET admin_name = ?, admin_pass = ?, email = ? WHERE admin_id = ?', undef, $login, $password, $email, $row->{'admin_id'}
             );
         } else {
-            $db->do( 'INSERT INTO admin (admin_name, admin_pass, admin_type, email) VALUES (?, ?, ?, ?)', undef, $login, $password, 'admin', $email );
-            $db->do( 'INSERT INTO user_gui_props SET user_id = LAST_INSERT_ID()' );
+            $dbh->do( 'INSERT INTO admin (admin_name, admin_pass, admin_type, email) VALUES (?, ?, ?, ?)', undef, $login, $password, 'admin', $email );
+            $dbh->do( 'INSERT INTO user_gui_props SET user_id = LAST_INSERT_ID()' );
         }
 
-        $db->commit();
+        $dbh->commit();
     };
     if ( $@ ) {
-        $db->rollback();
+        $dbh->rollback();
         die
     }
 
-    $db->useDatabase( $oldDbName ) if length $oldDbName;
+    $dbh->useDatabase( $oldDbName ) if length $oldDbName;
 }
 
 =item _setupSsl( )
@@ -843,12 +863,10 @@ sub _setupSsl
         return iMSCP::OpenSSL->new(
             certificate_chains_storage_dir => $::imscpConfig{'CONF_DIR'},
             certificate_chain_name         => $domainName
-        )->createSelfSignedCertificate(
-            {
-                common_name => $domainName,
-                email       => ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' )
-            }
-        );
+        )->createSelfSignedCertificate( {
+            common_name => $domainName,
+            email       => ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' )
+        } );
     }
 
     iMSCP::OpenSSL->new(
@@ -898,9 +916,9 @@ sub _addMasterWebUser
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
     my ( $uid, $gid ) = ( getpwnam( $usergroup ) )[2, 3];
 
-    my $db = iMSCP::Database->getInstance();
-    $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
-    $db->do(
+    my $dbh = iMSCP::Database->getInstance();
+    $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    $dbh->do(
         "UPDATE admin SET admin_sys_name = ?, admin_sys_uid = ?, admin_sys_gname = ?, admin_sys_gid = ? WHERE admin_type = 'admin'",
         undef, $usergroup, $uid, $usergroup, $gid
     );
@@ -1158,14 +1176,12 @@ sub _buildHttpdConfig
     $self->{'frontend'}->enableSites( '00_master.conf' );
 
     if ( ::setupGetQuestion( 'PANEL_SSL_ENABLED' ) eq 'yes' ) {
-        $self->{'frontend'}->buildConfFile( '00_master_ssl.nginx', $tplVars,
-            {
-                destination => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master_ssl.conf",
-                user        => $::imscpConfig{'ROOT_USER'},
-                group       => $::imscpConfig{'ROOT_GROUP'},
-                mode        => 0644
-            }
-        );
+        $self->{'frontend'}->buildConfFile( '00_master_ssl.nginx', $tplVars, {
+            destination => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master_ssl.conf",
+            user        => $::imscpConfig{'ROOT_USER'},
+            group       => $::imscpConfig{'ROOT_GROUP'},
+            mode        => 0644
+        } );
         $self->{'frontend'}->enableSites( '00_master_ssl.conf' );
     } else {
         iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master_ssl.conf" )->remove();

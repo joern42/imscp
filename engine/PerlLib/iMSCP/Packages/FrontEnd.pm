@@ -131,6 +131,7 @@ sub postinstall
     my ( $self ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeFrontEndPostInstall' );
+    iMSCP::Packages::FrontEnd::Installer->getInstance( eventManager => $self->{'eventManager'} )->postinstall();
 
     my $srvProvider = iMSCP::Service->getInstance( eventManager => $self->{'eventManager'} );
     $srvProvider->enable( 'nginx' );
