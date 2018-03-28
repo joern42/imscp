@@ -358,7 +358,7 @@ sub getHumanServerName
 {
     my ( $self ) = @_;
 
-    sprintf( '%s %s', $self->{'config'}->{'DISTRO_ID'}, $self->{'config'}->{'DISTRO_RELEASE'} );
+    sprintf( '%s %s (%s)', $self->{'config'}->{'DISTRO_ID'}, $self->{'config'}->{'DISTRO_RELEASE'}, $self->{'config'}->{'DISTRO_CODENAME'} );
 }
 
 =item getVersion( )
