@@ -20,15 +20,16 @@
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
 use Encode qw/ encode /;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use Mail::Address;
 use MIME::Parser;
 use MIME::Entity;
 
 iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nolock          => 1,
-    norequirements  => 1
+    config_readonly => TRUE,
+    nolock          => TRUE,
+    norequirements  => TRUE
 } );
 
 my $dbh = iMSCP::Database->getInstance();
@@ -42,8 +43,8 @@ my $message = do {
 
 # Setup MIME parser
 my $mimeParser = MIME::Parser->new();
-$mimeParser->output_to_core( 1 );
-$mimeParser->tmp_to_core( 1 );
+$mimeParser->output_to_core( TRUE );
+$mimeParser->tmp_to_core( TRUE );
 
 # Parse MIME message
 my $mimeEntity = $mimeParser->parse_data( $message ) or die( "Couldn't parse MIME message" );

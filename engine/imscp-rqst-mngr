@@ -32,6 +32,7 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/PerlLib";
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::DbTasksProcessor;
 use iMSCP::Debug qw/ debug newDebug /;
@@ -56,7 +57,7 @@ OPTIONS:
 );
 
 iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1
+    config_readonly => TRUE
 } );
 
 iMSCP::DbTasksProcessor->getInstance()->processDbTasks();

@@ -55,7 +55,7 @@ sub validatePrivateKey
 {
     my ( $self ) = @_;
 
-    $self->{'private_key_container_path'} or croak( 'Path to SSL private key is not set' );
+    length $self->{'private_key_container_path'} or croak( 'Path to SSL private key is not set' );
     -f $self->{'private_key_container_path'} or croak( sprintf( "%s SSL private key doesn't exist", $self->{'private_key_container_path'} ));
 
     my $passphraseFile;
@@ -96,11 +96,11 @@ sub validateCertificate
 {
     my ( $self ) = @_;
 
-    $self->{'certificate_container_path'} or croak( 'Path to SSL certificate is not set' );
+    length $self->{'certificate_container_path'} or croak( 'Path to SSL certificate is not set' );
     -f $self->{'certificate_container_path'} or croak( sprintf( "%s SSL certificate doesn't exist", $self->{'certificate_container_path'} ));
 
     my $caBundle = FALSE;
-    if ( $self->{'ca_bundle_container_path'} ) {
+    if ( length $self->{'ca_bundle_container_path'} ) {
         -f $self->{'ca_bundle_container_path'} or croak( sprintf( "%s SSL CA Bundle doesn't exist", $self->{'ca_bundle_container_path'} ));
         $caBundle = TRUE;
     } else {
@@ -152,7 +152,7 @@ sub importPrivateKey
     my ( $self ) = @_;
 
     my $passphraseFile;
-    if ( $self->{'private_key_passphrase'} ) {
+    if ( length $self->{'private_key_passphrase'} ) {
         # Write SSL private key passphrase into temporary file, which is only readable by root
         $passphraseFile = File::Temp->new();
         print $passphraseFile $self->{'private_key_passphrase'};
@@ -304,8 +304,9 @@ sub createCertificateChain
 sub getCertificateExpiryTime
 {
     my ( $self, $certificatePath ) = @_;
-    $certificatePath ||= $self->{'certificate_container_path'};
-    $certificatePath or croak( 'Invalide SSL certificate path provided' );
+    $certificatePath //= $self->{'certificate_container_path'};
+
+    length $certificatePath or croak( 'Invalide SSL certificate path provided' );
 
     my $rs = execute( [ 'openssl', 'x509', '-enddate', '-noout', '-in', $certificatePath ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;

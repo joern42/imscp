@@ -260,12 +260,12 @@ sub backupAll
     );
 
     while ( my ( $dmnId, $dmnData ) = each( %{ $rows } ) ) {
+        next unless $dmnData->{'allowbackup'} && $dmnData->{'allowbackup'} =~ /\b(?:dmn|sql|mail)\b/;
+
+        my $homeDir = "$::imscpConfig{'USER_WEB_DIR'}/$dmnData->{'domain_name'}";
+        next unless -d $homeDir;
+
         eval {
-            next unless $dmnData->{'allowbackup'} && $dmnData->{'allowbackup'} =~ /\b(?:dmn|sql|mail)\b/;
-
-            my $homeDir = "$::imscpConfig{'USER_WEB_DIR'}/$dmnData->{'domain_name'}";
-            next unless -d $homeDir;
-
             my $bkpDir = "$homeDir/backups";
             my $user = $dmnData->{'admin_sys_name'};
             my $group = $dmnData->{'admin_sys_gname'};

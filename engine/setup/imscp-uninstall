@@ -62,7 +62,7 @@ newDebug( 'imscp-uninstall.log' );
 
 sub startUp
 {
-    iMSCP::Getopt->debug( 1 ); # Force debug mode (logs)
+    iMSCP::Getopt->debug( TRUE ); # Force debug mode (logs)
     iMSCP::Bootstrapper->getInstance()->boot();
 }
 

@@ -32,6 +32,7 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::EventManager;
@@ -62,10 +63,10 @@ OPTIONS
 );
 
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nodatabase      => 1,
-    nokeys          => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nodatabase      => TRUE,
+    nokeys          => TRUE,
+    nolock          => TRUE
 
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 

@@ -32,6 +32,7 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::EventManager;
@@ -63,10 +64,10 @@ OPTIONS:
 );
 
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nodatabase      => 1,
-    nokeys          => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nodatabase      => TRUE,
+    nokeys          => TRUE,
+    nolock          => TRUE
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-set-engine-permissions.lock", 'nowait' );
 
 my @items = ();
@@ -90,7 +91,7 @@ setRights( $::imscpConfig{'CONF_DIR'}, {
     group     => $::imscpConfig{'IMSCP_GROUP'},
     dirmode   => '0750',
     filemode  => '0640',
-    recursive => 1
+    recursive => TRUE
 } );
 # e.g: /var/www/imscp
 setRights( $::imscpConfig{'ROOT_DIR'}, {
@@ -103,7 +104,7 @@ setRights( "$::imscpConfig{'ROOT_DIR'}/engine", {
     user      => $::imscpConfig{'ROOT_USER'},
     group     => $::imscpConfig{'IMSCP_GROUP'},
     mode      => '0750',
-    recursive => 1
+    recursive => TRUE
 } );
 # e.g: /var/www/virtual
 setRights( $::imscpConfig{'USER_WEB_DIR'}, {

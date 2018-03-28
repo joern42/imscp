@@ -32,6 +32,7 @@ use warnings;
 use File::Basename;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug error newDebug /;
 use iMSCP::Execute qw/ execute /;
@@ -209,8 +210,8 @@ OPTIONS:
 );
 
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nolock          => TRUE
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-dsk-quota.lock", 'nowait' );
 
 quotaFiles();

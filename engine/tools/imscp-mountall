@@ -32,6 +32,7 @@ use warnings;
 use File::Basename;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::Getopt;
@@ -89,10 +90,10 @@ my $action = shift;
 defined $action && $action =~ /^(?:start|stop)$/ or iMSCP::Getopt->showUsage();
 
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nodatabase      => 1,
-    nokeys          => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nodatabase      => TRUE,
+    nokeys          => TRUE,
+    nolock          => TRUE
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-mountall.lock", 'nowait' );
 
 run( $action );

@@ -31,18 +31,19 @@ use strict;
 use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ umount /;
 
 iMSCP::Getopt->context( 'backend' );
-iMSCP::Getopt->debug( 0 );
-iMSCP::Getopt->verbose( 1 );
+iMSCP::Getopt->debug( FALSE );
+iMSCP::Getopt->verbose( TRUE );
 
 exit unless iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nodatabase      => 1,
-    nokeys          => 1
+    config_readonly => TRUE,
+    nodatabase      => TRUE,
+    nokeys          => TRUE
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-mountall.lock", 'nowait' );
 
 umount( $::imscpConfig{'USER_WEB_DIR'} );

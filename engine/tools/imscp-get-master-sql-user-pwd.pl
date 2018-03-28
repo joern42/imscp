@@ -33,15 +33,16 @@ use strict;
 use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Crypt qw/ decryptRijndaelCBC /;
 use iMSCP::Debug qw/ output /;
 use iMSCP::Getopt;
 
 iMSCP::Bootstrapper->getInstance()->boot( {
-    config_readonly => 1,
-    nodatabase      => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nodatabase      => TRUE,
+    nolock          => TRUE
 } );
 
 my $passwd = decryptRijndaelCBC( $::imscpKEY, $::imscpIV, $::imscpConfig{'DATABASE_PASSWORD'} );
