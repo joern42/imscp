@@ -37,8 +37,7 @@ $tpl->define([
     'page_message' => 'layout',
     'device_block' => 'page'
 ]);
-
-$tpl->config = Registry::get('config');
+$tpl->info = json_decode(execute_query("SELECT `value` FROM `config` WHERE `name` = 'iMSCP_INFO'")->fetchColumn(), true);
 
 $sysinfo = new iMSCP_SystemInfo();
 
@@ -59,9 +58,7 @@ $tpl->assign([
     'SWAP_FREE'       => tohtml(bytesHuman($sysinfo->swap['free'] * 1024))
 ]);
 
-$devices = $sysinfo->filesystem;
-
-foreach ($devices as $device) {
+foreach ($sysinfo->filesystem as $device) {
     $tpl->assign([
         'MOUNT'     => tohtml($device['mount']),
         'TYPE'      => tohtml($device['fstype']),
@@ -77,13 +74,12 @@ foreach ($devices as $device) {
 $tpl->assign([
     'TR_PAGE_TITLE'               => tohtml(tr('Admin / System Tools / System Information')),
     'TR_DISTRIBUTION_INFO'        => tohtml(tr('Distribution')),
-    'TR_DISTRIBUTION_ID'          => tohtml(tr('ID')),
-    'TR_DISTRIBUTION_RELEASE'     => tohtml(tr('Release')),
-    'TR_DISTRIBUTION_CODENAME'    => tohtml(tr('Codename')),
+    'TR_DISTRIBUTION_NAME'        => tohtml(tr('Name')),
     'TR_iMSCP_INFO'               => tohtml(tr('i-MSCP Info')),
     'TR_IMSCP_VERSION'            => tohtml(tr('Version')),
     'TR_IMSCP_CODENAME'           => tohtml(tr('Codename')),
     'TR_IMSCP_BUILD'              => tohtml(tr('Build')),
+    'TR_iMSCP_SERVERS_INFO'       => tohtml(tr('Servers info')),
     'TR_IMSCP_PLUGIN_API_VERSION' => tohtml(tr('Plugin API version')),
     'TR_IMSCP_NAMED_SERVER'       => tohtml(tr('NAMED')),
     'TR_IMSCP_HTTPD_SERVER'       => tohtml(tr('HTTPD')),
@@ -92,6 +88,7 @@ $tpl->assign([
     'TR_IMSCP_PHP_SERVER'         => tohtml(tr('PHP')),
     'TR_IMSCP_PO_SERVER'          => tohtml(tr('IMAP/POP')),
     'TR_IMSCP_SQL_SERVER'         => tohtml(tr('SQL')),
+    'TR_IMSCP_CRON_SERVER'        => tohtml(tr('CRON')),
     'TR_SYSTEM_INFO'              => tohtml(tr('System')),
     'TR_KERNEL'                   => tohtml(tr('Kernel Version')),
     'TR_UPTIME'                   => tohtml(tr('Uptime')),

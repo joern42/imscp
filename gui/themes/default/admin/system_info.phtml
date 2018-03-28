@@ -16,74 +16,79 @@
 <table class="firstColFixed">
     <thead>
     <tr>
-        <th colspan="2">{TR_iMSCP_INFO}</th>
+        <th colspan="2">{TR_DISTRIBUTION_INFO}</th>
     </tr>
     </thead>
     <tbody>
     <tr>
-        <td>{TR_IMSCP_VERSION}</td>
-        <td><?= ucfirst($this->config['Version']); ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_CODENAME}</td>
-        <td><?= $this->config['CodeName']; ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_BUILD}</td>
-        <td><?= $this->config['BuildDate'] ?: tr('Unreleased'); ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_PLUGIN_API_VERSION}</td>
-        <td><?= $this->config['PluginApi']; ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_NAMED_SERVER}</td>
-        <td><?= $this->config['iMSCP::Servers::Named']; ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_HTTPD_SERVER}</td>
-        <td><?= $this->config['iMSCP::Servers::Httpd']; ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_FTPD_SERVER}</td>
-        <td><?= $this->config['iMSCP::Servers::Ftpd']; ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_MTA_SERVER}</td>
-        <td><?= $this->config['iMSCP::Servers::Mta']; ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_PHP_SERVER}</td>
-        <td><?= $this->config['iMSCP::Servers::Php']; ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_PO_SERVER}</td>
-        <td><?= $this->config['iMSCP::Servers::Po']; ?></td>
-    </tr>
-    <tr>
-        <td>{TR_IMSCP_SQL_SERVER}</td>
-        <td><?= $this->config['iMSCP::Servers::Sqld']; ?></td>
+        <td>{TR_DISTRIBUTION_NAME}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Server']['human_name']; ?></td>
     </tr>
     </tbody>
 </table>
 <table class="firstColFixed">
     <thead>
     <tr>
-        <th colspan="2">{TR_DISTRIBUTION_INFO}</th>
+        <th colspan="2">{TR_iMSCP_INFO}</th>
     </tr>
     </thead>
     <tbody>
     <tr>
-        <td>{TR_DISTRIBUTION_ID}</td>
-        <td><?= ucfirst($this->config['DISTRO_ID']); ?></td>
+        <td>{TR_IMSCP_VERSION}</td>
+        <td><?= $this->info['version']; ?></td>
     </tr>
     <tr>
-        <td>{TR_DISTRIBUTION_RELEASE}</td>
-        <td><?= $this->config['DISTRO_RELEASE']; ?></td>
+        <td>{TR_IMSCP_CODENAME}</td>
+        <td><?= $this->info['codename']; ?></td>
     </tr>
     <tr>
-        <td>{TR_DISTRIBUTION_CODENAME}</td>
-        <td><?= ucfirst($this->config['DISTRO_CODENAME']); ?></td>
+        <td>{TR_IMSCP_BUILD}</td>
+        <td><?= $this->info['build_date']; ?></td>
+    </tr>
+    <tr>
+        <td>{TR_IMSCP_PLUGIN_API_VERSION}</td>
+        <td><?= $this->info['plugin_api']; ?></td>
+    </tr>
+    </tbody>
+</table>
+<table class="firstColFixed">
+    <thead>
+    <tr>
+        <th colspan="2">{TR_iMSCP_SERVERS_INFO}</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>{TR_IMSCP_NAMED_SERVER}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Named']['human_name']; ?></td>
+    </tr>
+    <tr>
+        <td>{TR_IMSCP_HTTPD_SERVER}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Httpd']['human_name']; ?></td>
+    </tr>
+    <tr>
+        <td>{TR_IMSCP_FTPD_SERVER}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Ftpd']['human_name']; ?></td>
+    </tr>
+    <tr>
+        <td>{TR_IMSCP_MTA_SERVER}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Mta']['human_name']; ?></td>
+    </tr>
+    <tr>
+        <td>{TR_IMSCP_PHP_SERVER}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Php']['human_name']; ?></td>
+    </tr>
+    <tr>
+        <td>{TR_IMSCP_PO_SERVER}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Po']['human_name']; ?></td>
+    </tr>
+    <tr>
+        <td>{TR_IMSCP_SQL_SERVER}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Sqld']['human_name']; ?></td>
+    </tr>
+        <tr>
+        <td>{TR_IMSCP_CRON_SERVER}</td>
+        <td><?= $this->info['servers']['iMSCP::Servers::Cron']['human_name']; ?></td>
     </tr>
     </tbody>
 </table>
