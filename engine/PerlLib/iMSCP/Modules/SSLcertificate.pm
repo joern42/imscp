@@ -74,8 +74,6 @@ sub handleEntity
     } else {
         die( sprintf( 'Unknown action (%s) for SSL certificate (ID %d)', $self->{'_data'}->{'status'}, $entityId ));
     }
-
-    $self;
 }
 
 =back
@@ -130,7 +128,6 @@ sub _loadEntityData
     }
 
     @{ $self->{'_data'} }{qw/ domain_name cert_dir /} = ( $row->{'domain_name'}, "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs" );
-    $self;
 }
 
 =item _add()
