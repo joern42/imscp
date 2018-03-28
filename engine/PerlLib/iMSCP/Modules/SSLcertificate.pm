@@ -99,16 +99,16 @@ sub _loadEntityData
 
     my $row;
     if ( $self->{'_data'}->{'domain_type'} eq 'dmn' ) {
-        $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT domain_name FROM domain WHERE domain_id = ?', undef, $self->{'domain_id'} );
+        $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT domain_name FROM domain WHERE domain_id = ?', undef, $self->{'_data'}->{'domain_id'} );
     } elsif ( $self->{'_data'}->{'domain_type'} eq 'als' ) {
         $row = $self->{'_dbh'}->selectrow_hashref(
-            'SELECT alias_name AS domain_name FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'domain_id'}
+            'SELECT alias_name AS domain_name FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'_data'}->{'domain_id'}
         );
     } elsif ( $self->{'_data'}->{'domain_type'} eq 'sub' ) {
         $row = $self->{'_dbh'}->selectrow_hashref(
             "SELECT CONCAT(subdomain_name, '.', domain_name) AS domain_name FROM subdomain JOIN domain USING(domain_id) WHERE subdomain_id = ?",
             undef,
-            $self->{'domain_id'}
+            $self->{'_data'}->{'domain_id'}
         );
     } else {
         $row = $self->{'_dbh'}->selectrow_hashref(
@@ -129,10 +129,8 @@ sub _loadEntityData
         return;
     }
 
-    $self->{'_data'}->{
-        domain_name => $row->{'domain_name'},
-        certsDir    => "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs"
-    };
+    @{ $self->{'_data'} }{qw/ domain_name cert_dir /} = ( $row->{'domain_name'}, "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs" );
+    $self;
 }
 
 =item _add()
@@ -146,7 +144,7 @@ sub _add
     my ( $self ) = @_;
 
     eval {
-        iMSCP::File->new( filename => "$self->{'_data'}->{'certsDir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove();
+        iMSCP::File->new( filename => "$self->{'_data'}->{'cert_dir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove();
 
         my $privateKeyContainer = File::Temp->new();
         print $privateKeyContainer $self->{'_data'}->{'private_key'};
@@ -157,7 +155,7 @@ sub _add
         $certificateContainer->close();
 
         my $caBundleContainer;
-        if ( $self->{'_data'}->{'ca_bundle'} ) {
+        if ( length $self->{'_data'}->{'ca_bundle'} ) {
             $caBundleContainer = File::Temp->new();
             print $caBundleContainer $self->{'_data'}->{'ca_bundle'};
             $caBundleContainer->close();
@@ -165,11 +163,11 @@ sub _add
 
         iMSCP::OpenSSL->new(
             {
-                certificate_chains_storage_dir => $self->{'_data'}->{'certsDir'},
+                certificate_chains_storage_dir => $self->{'_data'}->{'cert_dir'},
                 certificate_chain_name         => $self->{'_data'}->{'domain_name'},
                 private_key_container_path     => $privateKeyContainer->filename(),
                 certificate_container_path     => $certificateContainer->filename(),
-                ca_bundle_container_path       => $caBundleContainer->filename()
+                ca_bundle_container_path       => defined $caBundleContainer ? $caBundleContainer->filename() : ''
             }
         )
             ->validateCertificateChain()
@@ -194,7 +192,7 @@ sub _delete
 {
     my ( $self ) = @_;
 
-    eval { iMSCP::File->new( filename => "$self->{'_data'}->{'certsDir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove(); };
+    eval { iMSCP::File->new( filename => "$self->{'_data'}->{'cert_dir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove(); };
     if ( $@ ) {
         $self->{'_dbh'}->do( 'UPDATE ssl_certs SET status = ? WHERE cert_id = ?', undef, $@, $self->{'_data'}->{'cert_id'} );
         return $self;
