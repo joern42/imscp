@@ -125,7 +125,7 @@ sub _loadEntityData
 
     unless ( $row ) {
         # Delete orphaned SSL certificate
-        $self->{'_dbh'}->do( 'DELETE FROM FROM ssl_certs WHERE cert_id = ?', undef, $entityId );
+        $self->{'_dbh'}->do( 'DELETE FROM ssl_certs WHERE cert_id = ?', undef, $entityId );
         return;
     }
 
