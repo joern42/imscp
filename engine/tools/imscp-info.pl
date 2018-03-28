@@ -58,8 +58,7 @@ iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => TRUE,
     nodatabase      => TRUE,
     nokeys          => TRUE,
-    nolock          => TRUE,
-    norequirements  => TRUE
+    nolock          => TRUE
 } );
 
 iMSCP::Getopt->debug( FALSE );
