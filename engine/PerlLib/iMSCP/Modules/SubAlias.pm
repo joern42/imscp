@@ -115,12 +115,12 @@ sub _loadEntityData
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
     my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'user_home'}" );
     my $webDir = File::Spec->canonpath( "$homeDir/$row->{'subdomain_alias_mount'}" );
-    my ( $ssl, $hstsMaxAge, $hstsIncSub, $phpini ) = ( 0, 0, 0, {} );
+    my ( $ssl, $hstsMaxAge, $hstsIncSub, $phpini ) = ( FALSE, 0, '', {} );
 
     if ( $row->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'subdomain_alias_name'}.$row->{'alias_name'}.pem.pem" ) {
-        $ssl = 1;
+        $ssl = TRUE;
         if ( $row->{'allow_hsts'} eq 'on' ) {
-            $hstsMaxAge = $row->{'hsts_max_age'} || 0;
+            $hstsMaxAge = $row->{'hsts_max_age'} if length $row->{'hsts_max_age'};
             $hstsIncSub = $row->{'hsts_include_subdomains'} eq 'on' ? '; includeSubDomains' : '';
         }
     }
