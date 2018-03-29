@@ -221,7 +221,23 @@ sub _disable
 {
     my ( $self ) = @_;
 
-    eval { $self->SUPER::_disable(); };
+    eval {
+        if ( $self->{'_data'}->{'DOMAIN_TYPE'} eq 'dmn' ) {
+            $self->{'_dbh'}->do(
+                "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'",
+                undef,
+                $self->{'_data'}->{'DOMAIN_ID'}
+            );
+        } else {
+            $self->{'_dbh'}->do(
+                "UPDATE subdomain_alias SET subdomain_alias_status = 'todisable' WHERE alias_id = ? AND subdomain_alias_status <> 'todelete'",
+                undef,
+                $self->{'_data'}->{'DOMAIN_ID'}
+            );
+        }
+
+        $self->SUPER::_disable();
+    };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'DOMAIN_ID'} );
 }
 
@@ -235,7 +251,29 @@ sub _restore
 {
     my ( $self ) = @_;
 
-    eval { $self->SUPER::_restore(); };
+    eval {
+        eval {
+            $self->{'_dbh'}->begin_work();
+            $self->{'_dbh'}->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'_data'}->{'DOMAIN_ID'} );
+            $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'_data'}->{'DOMAIN_ID'} );
+            $self->{'_dbh'}->do(
+                "
+                    UPDATE subdomain_alias
+                    SET subdomain_alias_status = 'torestore'
+                    WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                ",
+                undef,
+                $self->{'_data'}->{'DOMAIN_ID'}
+            );
+            $self->{'_dbh'}->commit();
+        };
+        if ( $@ ) {
+            $self->{'_dbh'}->rollback();
+            die;
+        }
+
+        $self->SUPER::_restore();
+    };
     $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
 }
 

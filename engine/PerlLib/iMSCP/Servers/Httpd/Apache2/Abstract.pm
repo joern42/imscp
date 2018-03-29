@@ -333,28 +333,6 @@ sub restoreDomain
             my $rs = execute( $cmd, \my $stdout, \my $stderr );
             debug( $stdout ) if length $stdout;
             !$rs or die( $stderr || 'Unknown error' );
-
-            my $dbh = iMSCP::Database->getInstance();
-            eval {
-                $dbh->begin_work();
-                $dbh->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $moduleData->{'DOMAIN_ID'} );
-                $dbh->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $moduleData->{'DOMAIN_ID'} );
-                $dbh->do(
-                    "
-                        UPDATE subdomain_alias
-                        SET subdomain_alias_status = 'torestore'
-                        WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
-                    ",
-                    undef,
-                    $moduleData->{'DOMAIN_ID'}
-                );
-                $dbh->commit();
-            };
-            if ( $@ ) {
-                $dbh->rollback();
-                die;
-            }
-
             last;
         }
     }
@@ -374,25 +352,6 @@ sub disableDomain
     my ( $self, $moduleData ) = @_;
 
     $self->{'eventManager'}->trigger( 'beforeApacheDisableDomain', $moduleData );
-
-    my $dbh = iMSCP::Database->getInstance();
-
-    if ( $moduleData->{'DOMAIN_TYPE'} eq 'dmn' ) {
-        # Sets the status of any subdomain that belongs to this domain to 'todisable'.
-        $dbh->do(
-            "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'",
-            undef,
-            $moduleData->{'DOMAIN_ID'}
-        );
-    } else {
-        # Sets the status of any subdomain that belongs to this domain alias to 'todisable'.
-        $dbh->do(
-            "UPDATE subdomain_alias SET subdomain_alias_status = 'todisable' WHERE alias_id = ? AND subdomain_alias_status <> 'todelete'",
-            undef,
-            $self->{'DOMAIN_ID'}
-        );
-    }
-
     $self->_disableDomain( $moduleData );
     $self->{'eventManager'}->trigger( 'afterApacheDisableDomain', $moduleData );
 }

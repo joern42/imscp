@@ -674,7 +674,7 @@ sub postinstall
     chomp( $stdout );
     my $dbh = iMSCP::Database->getInstance();
     $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
-    $dbh->do( "REPLACE INTO `config` VALUES(?,?)", undef, 'iMSCP_INFO', $stdout );
+    $dbh->do( 'REPLACE INTO `config` VALUES(?,?)', undef, 'iMSCP_INFO', $stdout );
 }
 
 =item dpkgPostInvokeTasks( )
