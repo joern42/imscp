@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::NetworkInterface::Debian - Network interface provider implementation for Debian like distributions
+ iMSCP::Providers::Networking::Debian::Ifupdown - Ifupdown networking configuration provider implementation for Debian like distributions
 
 =cut
 
@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Providers::NetworkInterface::Debian;
+package iMSCP::Providers::Networking::Debian::Ifupdown;
 
 use strict;
 use warnings;
@@ -31,7 +31,7 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Net;
 use iMSCP::TemplateParser qw/ process replaceBlocByRef /;
-use parent qw/ iMSCP::Common::Object iMSCP::Providers::NetworkInterface::Interface /;
+use parent qw/ iMSCP::Common::Object iMSCP::Providers::Networking::Interface /;
 
 # Commands used in that package
 my %COMMANDS = (
@@ -46,7 +46,7 @@ my $IFUP_STATE_DIR = '/run/network';
 
 =head1 DESCRIPTION
 
- Network interface provider implementation for Debian like distributions
+ Ifupdown networking configuration provider implementation for Debian like distributions
 
 =head1 PUBLIC METHODS
 
@@ -54,7 +54,7 @@ my $IFUP_STATE_DIR = '/run/network';
 
 =item addIpAddr( \%data )
 
- See iMSCP::Providers::NetworkInterface::Interface
+ See iMSCP::Providers::Networking::Interface
 
 =cut
 
@@ -109,7 +109,7 @@ sub addIpAddr
 
 =item removeIpAddr( \%data )
 
- See iMSCP::Providers::NetworkInterface::Interface
+ See iMSCP::Providers::Networking::Interface
 
 =cut
 

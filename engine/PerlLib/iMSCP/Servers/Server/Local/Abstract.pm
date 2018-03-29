@@ -30,7 +30,7 @@ use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStrin
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Providers::NetworkInterface
+use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Providers::Networking
     iMSCP::Servers::Sqld /;
 use iMSCP::Boolean;
 use LWP::Simple qw/ $ua get /;
@@ -387,7 +387,7 @@ sub addIpAddr
     $self->{'eventManager'}->trigger( 'beforeLocalServerAddIpAddr', $moduleData );
 
     if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
-        iMSCP::Providers::NetworkInterface->getInstance()->addIpAddr( $moduleData );
+        iMSCP::Providers::Networking->getInstance()->addIpAddr( $moduleData );
         iMSCP::Net->getInstance()->resetInstance();
     }
 
@@ -407,7 +407,7 @@ sub deleteIpAddr
     $self->{'eventManager'}->trigger( 'beforeLocalServerDeleteIpAddr', $moduleData );
 
     if ( $moduleData->{'ip_card'} ne 'any' && $moduleData->{'ip_address'} ne '0.0.0.0' ) {
-        iMSCP::Providers::NetworkInterface->getInstance()->removeIpAddr( $moduleData );
+        iMSCP::Providers::Networking->getInstance()->removeIpAddr( $moduleData );
         iMSCP::Net->getInstance()->resetInstance();
     }
 

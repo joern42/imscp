@@ -6,7 +6,7 @@
  developpers able to have a quick look at i-MSCP requirements.
 -->
 <packages>
-    <cron class="iMSCP::Servers::Cron" description="Cron daemon">
+    <cron class="iMSCP::Servers::Cron" description="Cron daemon" type="server">
         <vixie default="1" class="iMSCP::Servers::Cron::Vixie::Debian">
             <package>cron</package>
         </vixie>
@@ -14,10 +14,10 @@
             <package>systemd-cron</package>
         </systemd>
     </cron>
-    <server class="iMSCP::Servers::Server">
+    <server class="iMSCP::Servers::Server" type="server">
         <local default="1" class="iMSCP::Servers::Server::Local::Debian"/>
     </server>
-    <httpd class="iMSCP::Servers::Httpd" description="Web server">
+    <httpd class="iMSCP::Servers::Httpd" description="Web server" type="server">
         <apache2 default="1" description="Apache2 server" class="iMSCP::Servers::Httpd::Apache2::Debian">
             <package>apache2</package>
             <package>apache2-bin</package>
@@ -35,7 +35,7 @@
             <package>uwsgi</package>
         </nginx>
     </httpd>
-    <php class="iMSCP::Servers::Php">
+    <php class="iMSCP::Servers::Php" type="server">
         <php
                 class="iMSCP::Servers::Php::Debian"
                 repository="https://packages.sury.org/php/ stretch main"
@@ -130,7 +130,7 @@
             </post_install_task>
         </php>
     </php>
-    <po class="iMSCP::Servers::Po" description="IMAP/POP server">
+    <po class="iMSCP::Servers::Po" description="IMAP/POP server" type="server">
         <courier description="Courier IMAP/POP3 servers" class="iMSCP::Servers::Po::Courier::Debian">
             <package>courier-authlib-mysql</package>
             <package>courier-imap</package>
@@ -147,7 +147,7 @@
             <package>dovecot-mysql</package>
         </dovecot>
     </po>
-    <mta class="iMSCP::Servers::Mta" description="SMTP server">
+    <mta class="iMSCP::Servers::Mta" description="SMTP server" type="server">
         <postfix default="1" description="Postfix server" class="iMSCP::Servers::Mta::Postfix::Debian">
             <package>postfix</package>
             <package>postfix-cdb</package>
@@ -160,7 +160,7 @@
             <package_conflict>sendmail-doc</package_conflict>
         </postfix>
     </mta>
-    <ftpd class="iMSCP::Servers::Ftpd" description="FTP server">
+    <ftpd class="iMSCP::Servers::Ftpd" description="FTP server" type="server">
         <proftpd default="1" description="ProFTPD server" class="iMSCP::Servers::Ftpd::Proftpd::Debian">
             <package>proftpd-basic</package>
             <package>proftpd-mod-mysql</package>
@@ -172,14 +172,14 @@
             <package_conflict>proftpd-basic</package_conflict>
         </vsftpd>
     </ftpd>
-    <named class="iMSCP::Servers::Named" description="DNS server">
+    <named class="iMSCP::Servers::Named" description="DNS server" type="server">
         <bind default="1" description="Bind9 server" class="iMSCP::Servers::Named::Bind9::Debian">
             <package>bind9</package>
         </bind>
         <no_server description="No local DNS server" class="iMSCP::Servers::NoServer"/>
         <package>resolvconf</package>
     </named>
-    <sqld class="iMSCP::Servers::Sqld" description="SQL server">
+    <sqld class="iMSCP::Servers::Sqld" description="SQL server" type="server">
         <mysql_5.7
                 description="MySQL 5.7 server"
                 class="iMSCP::Servers::Sqld::Mysql::Debian"
@@ -251,6 +251,11 @@
         <package>libmariadbclient18</package>
         <package>mysql-common</package>
     </sqld>
+    <networking description="networking configuration provider" class="iMSCP::Providers::Networking" type="provider">
+        <ifupdown default="1" description="ifup/ifdown (historical)" class="iMSCP::Providers::Networking::Debian::Ifupdown">
+            <package>ifupdown</package>
+        </ifupdown>
+    </networking>
     <perl>
         <package>libcapture-tiny-perl</package>
         <package>libclass-autouse-perl</package>
@@ -299,7 +304,6 @@
         <package>dirmngr</package>
         <package>git</package>
         <package>gzip</package>
-        <package>ifupdown</package>
         <package>iptables</package>
         <package>lsb-release</package>
         <package condition="'${DISTRO_ARCH}'eq 'amd64'">libc6-dev-i386</package>

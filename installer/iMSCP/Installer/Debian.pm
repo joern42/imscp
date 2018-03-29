@@ -357,7 +357,7 @@ sub _processPackagesFile
     my $dialog = iMSCP::Dialog->getInstance();
 
     # Make sure that all mandatory sections are defined in the packages file
-    for my $section ( qw/ cron server httpd php po mta ftpd sqld / ) {
+    for my $section ( qw/ cron server httpd php po mta ftpd sqld networking / ) {
         defined $pkgData->{$section} or die( sprintf( 'Missing %s section in the distribution packages file.', $section ));
     }
 
@@ -432,6 +432,9 @@ sub _processPackagesFile
         # Retrieve current alternative
         my $sAlt = $::questions{ $sectionClass } || $::imscpConfig{ $sectionClass };
 
+        # Retrieve alternative type (server|provider), default to server
+        my $altType = delete($data->{'type'}) || 'server';
+
         # Builds list of supported alternatives for dialogs
         # Discard hidden alternatives that are hidden or for which  evaluation
         # of the 'condition' attribute expression (if any) is not TRUE
@@ -475,8 +478,12 @@ sub _processPackagesFile
             }
         }
 
+
         # Set the dialog flag in any case if there are many alternatives available and if user asked for alternative reconfiguration
-        $showDialog ||= @supportedAlts > 1 && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] );
+        $showDialog ||= @supportedAlts > 1 && (
+            (isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] ) && $altType eq 'server' )
+            || (isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'providers', 'all' ] ) && $altType eq 'provider' )
+        );
 
         # Process alternative dialogs
         if ( $showDialog ) {

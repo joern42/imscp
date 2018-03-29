@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Providers::NetworkInterface::Interface - Interface for distribution network interface providers
+ iMSCP::Providers::Networking::Interface - Interface for distribution networking configuration providers
 
 =cut
 
@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Providers::NetworkInterface::Interface;
+package iMSCP::Providers::Networking::Interface;
 
 use strict;
 use warnings;
@@ -29,7 +29,7 @@ use Carp qw/ croak /;
 
 =head1 DESCRIPTION
 
- Interface for network interface provider.
+ Interface for network manager providers.
 
 =head1 PUBLIC METHODS
 
@@ -45,7 +45,7 @@ use Carp qw/ croak /;
    ip_address     : Either an IPv4 or IPv6 address
    ip_netmask     : OPTIONAL Netmask (default: 32 for IPv4, 128 for IPv6)
    ip_config_mode : IP configuration mode (auto|manual)
- Return iMSCP::Providers::NetworkInterface::Interface, die on failure
+ Return iMSCP::Providers::Networking::Interface, die on failure
 
 =cut
 
@@ -66,7 +66,7 @@ sub addIpAddr
    ip_address     : Either an IPv4 or IPv6 address
    ip_netmask     : OPTIONAL Netmask (default: 32 for IPv4, 128 for IPv6)
    ip_config_mode : IP configuration mode (auto|manual)
- Return iMSCP::Providers::NetworkInterface::Interface, die on failure
+ Return iMSCP::Providers::Networking::Interface, die on failure
 
 =cut
 
