@@ -439,7 +439,7 @@ function client_addSslCert($domainId, $domainType)
             write_log(sprintf('%s updated an SSL certificate for the %s domain', $_SESSION['user_logged'], $domainName), E_USER_NOTICE);
         }
 
-        redirectTo("cert_view.php?domain_id=$domainId&domain_type=$domainType");
+        redirectTo("cert_view.php?id=$domainId&type=$domainType");
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
         write_log("Couldn't add/update SSL certificate in database", E_USER_ERROR);
@@ -597,6 +597,7 @@ require_once 'imscp-lib.php';
 
 check_login('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
+isset($_GET['id']) && isset($_GET['type']) && in_array($_GET['type'], ['dmn', 'als', 'sub', 'alssub']) or showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -607,14 +608,10 @@ $tpl->define([
     'ssl_certificate_actions' => 'page'
 ]);
 
-if (!isset($_GET['domain_id']) || !isset($_GET['domain_type']) ||
-    !in_array($_GET['domain_type'], ['dmn', 'als', 'sub', 'alssub'])
-) {
-    showBadRequestErrorPage();
-}
 
-$domainId = intval($_GET['domain_id']);
-$domainType = clean_input($_GET['domain_type']);
+
+$domainId = intval($_GET['id']);
+$domainType = clean_input($_GET['type']);
 
 if (customerHasFeature('ssl')
     && !empty($_POST)

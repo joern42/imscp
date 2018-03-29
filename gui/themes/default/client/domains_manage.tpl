@@ -1,11 +1,12 @@
 <script>
     function action_delete(link, recordType) {
-        if(link.href == '#') return false;
-
         var msg;
         switch (recordType) {
             case 'als':
                 msg = imscp_i18n.core.als_delete_alert;
+                break;
+            case 'als_order':
+                msg = imscp_i18n.core.als_order_cancel_alert;
                 break;
             case 'sub':
                 msg = imscp_i18n.core.sub_delete_alert;
@@ -27,7 +28,6 @@
     });
 </script>
 <h3 class="domains"><span>{TR_DOMAINS}</span></h3>
-<!-- BDP: domain_list -->
 <table class="firstColFixed">
     <thead>
     <tr>
@@ -41,42 +41,53 @@
     </tr>
     </thead>
     <tbody>
-    <!-- BDP: domain_item -->
+    <!-- BDP: dmn_item -->
     <tr>
-        <!-- BDP: domain_status_reload_true -->
+        <!-- BDP: dmn_status_ok -->
         <td>
-            <a href="http://{DOMAIN_NAME}/" class="icon i_domain_icon" target="_blank" title="{DOMAIN_NAME}">{DOMAIN_NAME}</a>
+            <a href="http://{DOMAIN_NAME}/" class="icon i_ok" target="_blank">{DOMAIN_NAME}</a>
             <!-- BDP: dmn_alt_url -->
             <a href="http://{ALTERNATE_URL}" target="_blank" title="{ALTERNATE_URL_TOOLTIP}"><small><strong>[{TR_ALT_URL}]</strong></small></a>
             <!-- EDP: dmn_alt_url -->
         </td>
-        <!-- EDP: domain_status_reload_true -->
-        <!-- BDP: domain_status_reload_false -->
+        <!-- EDP: dmn_status_ok -->
+        <!-- BDP: dmn_status_disabled -->
         <td>
-            <span class="tips icon i_reload" title="{DOMAIN_NAME}">{DOMAIN_NAME}</span>
+            <span class="icon i_disabled">{DOMAIN_NAME}</span>
         </td>
-        <!-- EDP: domain_status_reload_false -->
+        <!-- EDP: dmn_status_disabled -->
+        <!-- BDP: dmn_status_change -->
+        <td>
+            <span class="icon i_reload">{DOMAIN_NAME}</span>
+        </td>
+        <!-- EDP: dmn_status_change -->
+        <!-- BDP: dmn_status_error -->
+        <td>
+            <span class="icon i_error">{DOMAIN_NAME}</span>
+        </td>
+        <!-- EDP: dmn_status_error -->
         <td>{DOMAIN_MOUNT_POINT}</td>
         <td>{DOMAIN_DOCUMENT_ROOT}</td>
         <td>{DOMAIN_REDIRECT}</td>
         <td>{DOMAIN_STATUS}</td>
         <td>{DOMAIN_SSL_STATUS}</td>
         <td>
-            <a href="{CERT_SCRIPT}" class="icon i_edit" title="{VIEW_CERT}">{VIEW_CERT}</a>
-            <a class="icon i_edit" href="{DOMAIN_EDIT_LINK}" title="{DOMAIN_EDIT}">{DOMAIN_EDIT}</a>
+            <!-- BDP: dmn_actions -->
+            <a href="{CERT_SCRIPT}" class="icon i_edit">{VIEW_CERT}</a>
+            <a class="icon i_edit" href="{DOMAIN_EDIT_LINK}">{DOMAIN_EDIT}</a>
+            <!-- EDP: dmn_actions -->
         </td>
     </tr>
-    <!-- EDP: domain_item -->
+    <!-- EDP: dmn_item -->
     </tbody>
 </table>
-<!-- EDP: domain_list -->
 
-<!-- BDP: domain_aliases_block -->
+<!-- BDP: als_block -->
 <h3 class="domains"><span>{TR_DOMAIN_ALIASES}</span></h3>
 <!-- BDP: als_message -->
 <div class="static_info">{ALS_MSG}</div>
 <!-- EDP: als_message -->
-<!-- BDP: als_list -->
+<!-- BDP: als_items -->
 <table class="firstColFixed datatable">
     <thead>
     <tr>
@@ -92,42 +103,56 @@
     <tbody>
     <!-- BDP: als_item -->
     <tr>
-        <!-- BDP: als_status_reload_true -->
+        <!-- BDP: als_status_ok -->
         <td>
-            <a href="http://{ALS_NAME}/" class="icon i_domain_icon" target="_blank" title="{ALS_NAME}">{ALS_NAME}</a>
+            <a href="http://{ALS_NAME}/" class="icon i_ok" target="_blank">{ALS_NAME}</a>
             <!-- BDP: als_alt_url -->
             <a href="http://{ALTERNATE_URL}" target="_blank" title="{ALTERNATE_URL_TOOLTIP}"><small><strong>[{TR_ALT_URL}]</strong></small></a>
             <!-- EDP: als_alt_url -->
         </td>
-        <!-- EDP: als_status_reload_true -->
-        <!-- BDP: als_status_reload_false -->
+        <!-- EDP: als_status_ok -->
+        <!-- BDP: als_status_disabled -->
         <td>
-            <span class="tips icon i_domain_icon" title="{ALS_NAME}">{ALS_NAME}</span>
+            <span class="icon i_disabled">{ALS_NAME}</span>
         </td>
-        <!-- EDP: als_status_reload_false -->
+        <!-- EDP: als_status_disabled -->
+        <!-- BDP: als_status_change -->
+        <td>
+            <span class="icon i_reload">{ALS_NAME}</span>
+        </td>
+        <!-- EDP: als_status_change -->
+        <!-- BDP: als_status_error -->
+        <td>
+            <span class="icon i_error">{ALS_NAME}</span>
+        </td>
+        <!-- EDP: als_status_error -->
         <td>{ALS_MOUNT_POINT}</td>
         <td>{ALS_DOCUMENT_ROOT}</td>
         <td>{ALS_REDIRECT}</td>
         <td>{ALS_STATUS}</td>
         <td>{ALS_SSL_STATUS}</td>
         <td>
+            <!-- BDP: als_actions -->
+            <!-- BDP: als_actions_restricted -->
             <a href="{CERT_SCRIPT}" class="icon i_edit" title="{VIEW_CERT}">{VIEW_CERT}</a>
             <a class="icon i_edit" href="{ALS_EDIT_LINK}" title="{ALS_EDIT}">{ALS_EDIT}</a>
-            <a class="icon i_delete" href="{ALS_ACTION_SCRIPT}" onclick="return action_delete(this, 'als');" title="{ALS_ACTION}">{ALS_ACTION}</a>
+            <!-- EDP: als_actions_restricted -->
+            <a class="icon i_delete" href="{ALS_ACTION_SCRIPT}" onclick="return action_delete(this, '{ALS_RECORD_TYPE}');" title="{ALS_ACTION}">{ALS_ACTION}</a>
+            <!-- EDP: als_actions -->
         </td>
     </tr>
     <!-- EDP: als_item -->
     </tbody>
 </table>
-<!-- EDP: als_list -->
-<!-- EDP: domain_aliases_block -->
+<!-- EDP: als_items -->
+<!-- EDP: als_block -->
 
-<!-- BDP: subdomains_block -->
+<!-- BDP: sub_block -->
 <h3 class="domains"><span>{TR_SUBDOMAINS}</span></h3>
 <!-- BDP: sub_message -->
 <div class="static_info">{SUB_MSG}</div>
 <!-- EDP: sub_message -->
-<!-- BDP: sub_list -->
+<!-- BDP: sub_items -->
 <table class="firstColFixed datatable">
     <thead>
     <tr>
@@ -143,39 +168,48 @@
     <tbody>
     <!-- BDP: sub_item -->
     <tr>
-        <!-- BDP: sub_status_reload_true -->
+        <!-- BDP: sub_status_ok -->
         <td>
-            <a href="http://{SUB_NAME}.{SUB_ALIAS_NAME}/" class="icon i_domain_icon" target="_blank" title="{SUB_NAME}.{SUB_ALIAS_NAME}">{SUB_NAME}.{SUB_ALIAS_NAME}</a>
+            <a href="http://{SUB_NAME}.{SUB_ALIAS_NAME}/" class="icon i_ok" target="_blank">{SUB_NAME}.{SUB_ALIAS_NAME}</a>
             <!-- BDP: sub_alt_url -->
             <a href="http://{ALTERNATE_URL}" target="_blank" title="{ALTERNATE_URL_TOOLTIP}"><small><strong>[{TR_ALT_URL}]</strong></small></a>
             <!-- EDP: sub_alt_url -->
         </td>
-        <!-- EDP: sub_status_reload_true -->
-        <!-- BDP: sub_status_reload_false -->
-        <td><span class="tips icon i_domain_icon" title="{SUB_NAME}.{SUB_ALIAS_NAME}">{SUB_NAME}.{SUB_ALIAS_NAME}</span></td>
-        <!-- EDP: sub_status_reload_false -->
+        <!-- EDP: sub_status_ok -->
+        <!-- BDP: sub_status_disabled -->
+        <td><span class="icon i_disabled">{SUB_NAME}.{SUB_ALIAS_NAME}</span></td>
+        <!-- EDP: sub_status_disabled -->
+        <!-- BDP: sub_status_change -->
+        <td><span class="icon i_reload">{SUB_NAME}.{SUB_ALIAS_NAME}</span></td>
+        <!-- EDP: sub_status_change -->
+        <!-- BDP: sub_status_error -->
+        <td><span class="icon i_error">{SUB_NAME}.{SUB_ALIAS_NAME}</span></td>
+        <!-- EDP: sub_status_error -->
         <td>{SUB_MOUNT_POINT}</td>
         <td>{SUB_DOCUMENT_ROOT}</td>
         <td>{SUB_REDIRECT}</td>
         <td>{SUB_STATUS}</td>
         <td>{SUB_SSL_STATUS}</td>
         <td>
-            <a href="{CERT_SCRIPT}" class="icon i_edit" title="{VIEW_CERT}">{VIEW_CERT}</a>
-            <a class="icon i_edit" href="{SUB_EDIT_LINK}" title="{SUB_EDIT}">{SUB_EDIT}</a>
+            <!-- BDP: sub_actions -->
+            <a href="{CERT_SCRIPT}" class="icon i_edit">{VIEW_CERT}</a>
+            <a class="icon i_edit" href="{SUB_EDIT_LINK}">{SUB_EDIT}</a>
             <a class="icon i_delete" href="{SUB_ACTION_SCRIPT}" onclick="return action_delete(this, 'sub');">{SUB_ACTION}</a>
+            <!-- EDP: sub_actions -->
         </td>
     </tr>
     <!-- EDP: sub_item -->
     </tbody>
 </table>
-<!-- EDP: sub_list -->
-<!-- EDP: subdomains_block -->
-<!-- BDP: custom_dns_records_block -->
+<!-- EDP: sub_items -->
+<!-- EDP: sub_block -->
+
+<!-- BDP: dns_block -->
 <h3 class="domains"><span>{TR_DNS}</span></h3>
 <!-- BDP: dns_message -->
 <div class="static_info">{DNS_MSG}</div>
 <!-- EDP: dns_message -->
-<!-- BDP: dns_list -->
+<!-- BDP: dns_items -->
 <table class="firstColFixed datatable">
     <thead>
     <tr>
@@ -211,5 +245,5 @@
     <!-- EDP: dns_item -->
     </tbody>
 </table>
-<!-- EDP: dns_list -->
-<!-- EDP: custom_dns_records_block -->
+<!-- EDP: dns_items -->
+<!-- EDP: dns_block -->

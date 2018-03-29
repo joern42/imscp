@@ -76,7 +76,7 @@ return [
                 ]
             ],
             'add_domain_alias'      => [
-                'label'              => tr('Add domain alias'),
+                'label'              => isset($_SESSION['logged_from_type']) ? tr('Add domain alias') : tr('Order domain alias'),
                 'uri'                => '/client/alias_add.php',
                 'title_class'        => 'domains',
                 'privilege_callback' => [
@@ -94,7 +94,7 @@ return [
                 ]
             ],
             'add_custom_dns_record' => [
-                'label'              => tr('Add DNS resource record'),
+                'label'              => tr('Add DNS record'),
                 'uri'                => '/client/dns_add.php',
                 'title_class'        => 'domains',
                 'privilege_callback' => [

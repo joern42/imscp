@@ -28,17 +28,14 @@ require_once 'imscp-lib.php';
 
 check_login('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-
-if (!customerHasFeature('domain_aliases') || !isset($_GET['del_id'])) {
-    showBadRequestErrorPage();
-}
+customerHasFeature('domain_aliases') && isset($_GET['id']) or showBadRequestErrorPage();
 
 $stmt = exec_query('DELETE FROM domain_aliasses WHERE alias_id = ? AND domain_id = ? AND alias_status = ?', [
-    intval($_GET['del_id']), get_user_domain_id($_SESSION['user_id']), 'ordered'
+    intval($_GET['id']), get_user_domain_id($_SESSION['user_id']), 'ordered'
 ]);
 
 if ($stmt->rowCount()) {
-    set_page_message(tr('Order successfully deleted.'), 'success');
+    set_page_message(tr('Order successfully canceled.'), 'success');
     redirectTo('domains_manage.php');
 }
 

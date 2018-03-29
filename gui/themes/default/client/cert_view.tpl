@@ -26,7 +26,7 @@
         });
     });
 </script>
-<form name="ssl_cert_frm" method="post" action="cert_view.php?domain_id={DOMAIN_ID}&domain_type={DOMAIN_TYPE}" autocomplete="off">
+<form name="ssl_cert_frm" method="post" action="cert_view.php?id={DOMAIN_ID}&type={DOMAIN_TYPE}" autocomplete="off">
     <table class="firstColFixed">
         <thead>
         <tr>
