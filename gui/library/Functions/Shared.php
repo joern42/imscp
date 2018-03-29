@@ -127,7 +127,7 @@ function createDefaultMailAccounts($mainDmnId, $userEmail, $dmnName, $forwardTyp
         $db->commit();
     } catch (PDOException $e) {
         $db->rollBack();
-        throw new $e;
+        throw $e;
     }
 }
 
@@ -1265,7 +1265,6 @@ function utils_getMaxFileUpload()
  * See http://fr2.php.net/manual/en/faq.using.php#faq.using.shorthandbytes for
  * further explaination
  *
- * @throws iMSCPException
  * @param int|string PHP directive value
  * @return int Value in bytes
  */
