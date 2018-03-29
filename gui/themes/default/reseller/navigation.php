@@ -95,8 +95,8 @@ return [
                     ]
                 ]
             ],
-            'manage_aliasses'   => [
-                'label'              => tr('Domain aliases'),
+            'domain_alias_orders'   => [
+                'label'              => tr('Domain alias orders'),
                 'uri'                => '/reseller/alias.php',
                 'title_class'        => 'domains',
                 'privilege_callback' => [
@@ -106,20 +106,6 @@ return [
                     ],
                     [
                         'name' => 'resellerHasCustomers'
-                    ]
-                ],
-                'pages'              => [
-                    'add_alias'  => [
-                        'label'       => tr('Add domain alias'),
-                        'uri'         => '/reseller/alias_add.php',
-                        'visible'     => '0',
-                        'title_class' => 'domains'
-                    ],
-                    'edit_alias' => [
-                        'label'       => tr('Edit domain alias'),
-                        'uri'         => '/reseller/alias_edit.php',
-                        'visible'     => '0',
-                        'title_class' => 'domains'
                     ]
                 ]
             ],

@@ -32,8 +32,8 @@ use iMSCP\TemplateEngine;
  */
 function reseller_getDatatable()
 {
-    $columns = ['alias_name', 'alias_mount', 'url_forward', 'admin_name', 'alias_status'];
-    $columnAliases = ['t1.alias_name', 't1.alias_mount', 't1.url_forward', 't3.admin_name', 't1.alias_status'];
+    $columns = ['alias_name', 'alias_mount', 'url_forward', 'admin_name'];
+    $columnAliases = ['t1.alias_name', 't1.alias_mount', 't1.url_forward', 't3.admin_name'];
     $nbColumns = count($columns);
 
     /* Paging */
@@ -74,7 +74,7 @@ function reseller_getDatatable()
     }
 
     /* Filtering */
-    $where = 'WHERE created_by = ' . quoteValue($_SESSION['user_id'], PDO::PARAM_INT);
+    $where = 'WHERE t3.created_by = ' . quoteValue($_SESSION['user_id'], PDO::PARAM_INT) . " AND t1.alias_status = 'ordered'";
 
     if (isset($_GET['sSearch'])
         && $_GET['sSearch'] != ''
@@ -90,11 +90,7 @@ function reseller_getDatatable()
 
     /* Individual column filtering */
     for ($i = 0; $i < $nbColumns; $i++) {
-        if (isset($_GET["bSearchable_$i"])
-            && $_GET["bSearchable_$i"] == 'true'
-            && isset($_GET["sSearch_$i"])
-            && $_GET["sSearch_$i"] != ''
-        ) {
+        if (isset($_GET["bSearchable_$i"]) && $_GET["bSearchable_$i"] == 'true' && isset($_GET["sSearch_$i"]) && $_GET["sSearch_$i"] != '') {
             $where .= "AND {$columnAliases[$i]} LIKE " . quoteValue("%{$_GET["sSearch_$i"]}%");
         }
     }
@@ -118,10 +114,12 @@ function reseller_getDatatable()
     /* Total record before any filtering */
     $stmt = exec_query(
         "
-            SELECT COUNT(t1.alias_id) FROM domain_aliasses AS t1
+            SELECT COUNT(t1.alias_id)
+            FROM domain_aliasses AS t1
             JOIN domain AS t2 USING(domain_id)
             JOIN admin AS t3 ON(t3.admin_id = t2.domain_admin_id)
             WHERE t3.created_by = ?
+            AND t1.alias_status = 'ordered'
         ",
         [$_SESSION['user_id']]
     );
@@ -136,9 +134,8 @@ function reseller_getDatatable()
         'aaData'               => []
     ];
 
-    $trDelete = tr('Delete');
-    $trEdit = tr('Edit');
-    $trActivate = tr('Activate');
+    $trDelete = tr('Reject order');
+    $trActivate = tr('Validate order');
 
     while ($data = $rResult->fetch()) {
         $row = [];
@@ -146,44 +143,17 @@ function reseller_getDatatable()
 
         for ($i = 0; $i < $nbColumns; $i++) {
             if ($columns[$i] == 'alias_name') {
-                if ($data['alias_status'] == 'ok') {
-                    $row[$columns[$i]] = "<a href=\"http://www.$aliasName\" target=\"_blank\" class=\"icon i_domain_icon\">" .
-                        $aliasName . '</a>';
-                } else {
-                    $row[$columns[$i]] = '<span class="icon i_domain_icon">' . decode_idna($data[$columns[$i]]) .
-                        '</span>';
-                }
+                $row[$columns[$i]] = '<span class="icon i_disabled">' . decode_idna($data[$columns[$i]]) . '</span>';
             } elseif ($columns[$i] == 't3.admin_name') {
                 $row[$columns[$i]] = tohtml(decode_idna($data[$columns[$i]]));
-            } elseif ($columns[$i] == 't1.alias_status') {
-                $row[$columns[$i]] = translate_dmn_status($data[$columns[$i]]);
             } else {
                 $row[$columns[$i]] = tohtml($data[$columns[$i]]);
             }
         }
 
-        $aliasId = $data['alias_id'];
-
-        switch ($data['alias_status']) {
-            case 'ok':
-                $actions = "<a href=\"alias_edit.php?id=$aliasId\" class=\"icon i_edit\" " .
-                    "title=\"$trEdit\">$trEdit</a>";
-
-                $actions .= "\n<a href=\"alias_delete.php?id=$aliasId\" onclick=\"return delete_alias(this, '" . tojs($aliasName) . "')\" " .
-                    "class=\"icon i_close\" title=\"$trDelete\">$trDelete</a>";
-                break;
-            case 'ordered':
-                $actions = "<a href=\"alias_order.php?action=activate&act_id=$aliasId\" class=\"icon i_open\" " .
-                    "title=\"$trActivate\">$trActivate</a>";
-
-                $actions .= "\n<a href=\"alias_order.php?action=delete&del_id=$aliasId\" " .
-                    "onclick=\"return delete_alias_order(this, '" . tojs($aliasName) . "')\" class=\"icon i_close\" " .
-                    "title=\"$trDelete\">$trDelete</a>";
-                break;
-            default;
-                $actions = tr('n\a');
-        }
-
+        $actions = "<a href=\"alias_order.php?action=validate&id={$data['alias_id']}\" class=\"icon i_open\">$trActivate</a>";
+        $actions .= "\n<a href=\"alias_order.php?action=reject&id={$data['alias_id']}\" "
+            . "onclick=\"return delete_alias_order(this, '" . tojs($aliasName) . "')\" class=\"icon i_close\">$trDelete</a>";
         $row['actions'] = $actions;
         $output['aaData'][] = $row;
     }
@@ -215,20 +185,17 @@ $tpl = new TemplateEngine();
 $tpl->define([
     'layout'         => 'shared/layouts/ui.tpl',
     'page'           => 'reseller/alias.tpl',
-    'page_message'   => 'layout',
-    'als_add_button' => 'page'
+    'page_message'   => 'layout'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'                 => tr('Reseller / Customers / Domain Aliases'),
+    'TR_PAGE_TITLE'                 => tr('Reseller / Customers / Ordered Domain Aliases'),
     'TR_ALIAS_NAME'                 => tr('Domain alias name'),
     'TR_MOUNT_POINT'                => tr('Mount point'),
     'TR_FORWARD_URL'                => tr('Forward URL'),
     'TR_STATUS'                     => tr('Status'),
     'TR_CUSTOMER'                   => tr('Customer'),
     'TR_ACTIONS'                    => tr('Actions'),
-    'TR_ADD_DOMAIN_ALIAS'           => tr('Add domain alias'),
-    'TR_MESSAGE_DELETE_ALIAS'       => tojs(tr('Are you sure you want to delete the %s domain alias?', '%s')),
-    'TR_MESSAGE_DELETE_ALIAS_ORDER' => tojs(tr('Are you sure you want to delete the %s domain alias order?', '%s')),
+    'TR_MESSAGE_REJECT_ALIAS_ORDER' => tojs(tr('Are you sure you want to reject the order for the %s domain alias?', '%s')),
     'TR_PROCESSING_DATA'            => tr('Processing...')
 ]);
 
@@ -236,14 +203,6 @@ Registry::get('iMSCP_Application')->getEventsManager()->registerListener('onGetJ
     /** @var $e \iMSCP_Events_Event */
     $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
 });
-
-$resellerProps = imscp_getResellerProperties($_SESSION['user_id']);
-
-if ($resellerProps['max_als_cnt'] != 0
-    && $resellerProps['current_als_cnt'] >= $resellerProps['max_als_cnt']
-) {
-    $tpl->assign('ALS_ADD_BUTTON', '');
-}
 
 generateNavigation($tpl);
 generatePageMessage($tpl);

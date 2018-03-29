@@ -37,8 +37,8 @@ check_login('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
 resellerHasFeature('domain_aliases') or showBadRequestErrorPage();
 
-if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['del_id'])) {
-    $id = intval($_GET['del_id']);
+if (isset($_GET['action']) && $_GET['action'] === 'reject' && isset($_GET['id'])) {
+    $id = intval($_GET['id']);
     $stmt = exec_query(
         '
             SELECT alias_id
@@ -62,22 +62,22 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['del_i
         exec_query("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'als'", [$id]);
         exec_query("DELETE FROM domain_aliasses WHERE alias_id = ? AND alias_status = 'ordered'", [$id]);
         $db->commit();
-        write_log(sprintf('An alias order has been deleted by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
-        set_page_message('Alias order successfully deleted.', 'success');
+        write_log(sprintf('An alias order has been rejected by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
+        set_page_message('Alias order successfully rejected.', 'success');
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
-        write_log(sprintf('System was unable to remove alias order: %s', $e->getMessage()), E_USER_ERROR);
-        set_page_message('Could not remove alias order. An unexpected error occurred.');
+        write_log(sprintf('System was unable to reject alias order: %s', $e->getMessage()), E_USER_ERROR);
+        set_page_message('Could not reject alias order. An unexpected error occurred.');
     }
 
     redirectTo('alias.php');
 }
 
-if (!isset($_GET['action']) || $_GET['action'] !== 'activate' || !isset($_GET['act_id'])) {
+if (!isset($_GET['action']) || $_GET['action'] !== 'validate' || !isset($_GET['id'])) {
     showBadRequestErrorPage();
 }
 
-$id = intval($_GET['act_id']);
+$id = intval($_GET['id']);
 $stmt = exec_query(
     "
         SELECT alias_name, domain_id, email
@@ -121,12 +121,12 @@ try {
 
     $db->commit();
     send_request();
-    write_log(sprintf('An alias order has been processed by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
-    set_page_message(tr('Order successfully processed.'), 'success');
+    write_log(sprintf('An alias order has been validated by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
+    set_page_message(tr('Order successfully validated.'), 'success');
 } catch (iMSCP_Exception $e) {
     $db->rollBack();
-    write_log(sprintf('System was unable to process alias order: %s', $e->getMessage()), E_USER_ERROR);
-    set_page_message('Could not process alias order. An unexpected error occurred.', 'error');
+    write_log(sprintf('System was unable to validate alias order: %s', $e->getMessage()), E_USER_ERROR);
+    set_page_message('Could not validate alias order. An unexpected error occurred.', 'error');
 }
 
 redirectTo('alias.php');
