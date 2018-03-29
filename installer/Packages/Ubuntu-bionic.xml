@@ -189,7 +189,7 @@
             Ubuntu starting with version 17.10 make use of netplan.io and
             systemd-networkd for setting up networking by default. Because we
             don't have a provider for it yet, we need to switch back to historical
-            ifupdown tools. This is done right now by the hiding the netplan networking
+            ifupdown tools. This is done right now by hiding the netplan networking
             configuration provider alternative which will be made available when the
             provider will be ready.
             See

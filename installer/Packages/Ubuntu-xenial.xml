@@ -266,9 +266,6 @@
         <ifupdown default="1" description="ifup/ifdown (historical)" class="iMSCP::Providers::Networking::Debian::Ifupdown">
             <package>ifupdown</package>
         </ifupdown>
-        <whatever description="netplan (with systemd-networkd)" class="iMSCP::Providers::Networking::Debian::Ifupdown">
-            <package>ifupdown</package>
-        </whatever>
     </networking>
     <perl>
         <package>libcapture-tiny-perl</package>
