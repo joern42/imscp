@@ -176,7 +176,7 @@ sub build
         && length $::imscpConfig{'iMSCP::Servers::Httpd'} && length $::imscpConfig{'iMSCP::Servers::Mta'}
         && length $::imscpConfig{'iMSCP::Servers::Named'} && length $::imscpConfig{'iMSCP::Servers::Php'}
         && length $::imscpConfig{'iMSCP::Servers::Po'} && length $::imscpConfig{'iMSCP::Servers::Server'}
-        && length $::imscpConfig{'iMSCP::Servers::Sqld'}
+        && length $::imscpConfig{'iMSCP::Servers::Sqld'} && length $::imscpConfig{'iMSCP::Providers::Networking'}
     ) {
         iMSCP::Getopt->noprompt( 0 ) unless iMSCP::Getopt->preseed;
         iMSCP::Getopt->verbose( 0 ) unless iMSCP::Getopt->noprompt;
