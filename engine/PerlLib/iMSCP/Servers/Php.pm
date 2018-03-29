@@ -785,9 +785,9 @@ EOF
                     ? '{PHP_CONFIG_LEVEL_DOMAIN}'
                     : '127.0.0.1:' . ( $phpServer->{'config'}->{'PHP_FPM_LISTEN_PORT_START'}+$mdata->{'PHP_FPM_LISTEN_PORT'} )
                 ) ),
-                0,
-                5,
-                $mdata->{'MAX_EXECUTION_TIME'}+10
+                $phpServer->{'config'}->{'PROXY_FCGI_RETRY'},
+                $phpServer->{'config'}->{'PROXY_FCGI_CONNECTION_TIMEOUT'},
+                $mdata->{'MAX_EXECUTION_TIME'}+$phpServer->{'config'}->{'PROXY_FCGI_TIMEOUT'}
             );
 
             replaceBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", <<"EOF", $cfgTpl );
@@ -879,6 +879,8 @@ sub beforeNginxBuildConfFile
 =item afterHttpdAddFiles( \%moduleData )
 
  Event listener that create PHP (phptmp) directory in customer Web folders
+
+ FIXME: Should we remove the directory when PHP is being disabled?
 
  Param hashref \%moduleData Data as provided by te Alias|Domain|Subdomain|SubAlias modules
  Return void, die on failure

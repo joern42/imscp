@@ -83,6 +83,12 @@ PHP_FPM_PROCESS_CONTROL_TIMEOUT = 60s
 PHP_FPM_PROCESS_MAX = 0
 PHP_FPM_RLIMIT_FILES = 4096
 
+# Apache2 proxy_fcgi parameters (only relevant with Apache2 Httpd server implementation)
+PROXY_FCGI_RETRY = 0
+PROXY_FCGI_CONNECTION_TIMEOUT = 5
+# Final value will be PHP max_execution_time + PROXY_FCGI_TIMEOUT
+PROXY_FCGI_TIMEOUT = 10
+
 ## Pool parameters
 
 # Listen mode (FPM FastCGI addresse type):
