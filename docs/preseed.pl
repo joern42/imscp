@@ -3,7 +3,7 @@
 # See the documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.03.26
+# Last update: 2018.03.30
 
 %::questions = (
     # Mandatory parameters
@@ -40,6 +40,15 @@
     # Parameters below are optional. If they are not filled, default value
     # will be used.
 
+    # Networking configuration provider
+    #
+    # Possible values, depending on your distributions:
+    # - Debian-like distributions:
+    #  - iMSCP::Providers::Networking::Debian::Ifupdown (default)
+    #
+    # Leave empty for default: Depend on distribution default value.
+    'iMSCP::Providers::Networking'      => '',
+    
     # IPv6 support
     #
     # Possible values: yes, no
