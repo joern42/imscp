@@ -25,9 +25,9 @@ int main(int argc, char **argv)
                 fprintf(stderr, "i-MSCP Daemon.\n\n");
                 fprintf(stderr, "Usage: %s [options]\n\n", argv[0]);
                 fprintf(stderr, "Options:\n");
-                fprintf(stderr, "    -b FILE     i-MSCP backend script path\n");
-                fprintf(stderr, "    -f FILE     Pid file path\n");
-                fprintf(stderr, "    -h          This help\n");
+                fprintf(stderr, "  -b FILE  i-MSCP backend script path\n");
+                fprintf(stderr, "  -p FILE  Pid file path\n");
+                fprintf(stderr, "  -h       This help\n");
                 exit(EXIT_FAILURE);
         }
     }
@@ -62,23 +62,23 @@ int main(int argc, char **argv)
         }
 
 #ifdef SO_REUSEPORT
-    /*
-        Even if defined, SO_REUSEPORT could be unsupported. Thus we just ignore error if errno is equal to ENOPROTOOPT
-        See http://man7.org/linux/man-pages/man2/setsockopt.2.html
-    */
-    if(setsockopt(servsockfd, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof(reuse)) < 0 && errno != ENOPROTOOPT) {
-        say(message(MSG_ERROR_SOCKET_OPTION), strerror(errno));
+        /*
+         Even if defined, SO_REUSEPORT could be unsupported. Thus we just ignore error if errno is equal to ENOPROTOOPT
+         See http://man7.org/linux/man-pages/man2/setsockopt.2.html
+        */
+        if(setsockopt(servsockfd, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof(reuse)) < 0 && errno != ENOPROTOOPT) {
+            say(message(MSG_ERROR_SOCKET_OPTION), strerror(errno));
             close(servsockfd);
             notify(-1);
         }
 #endif
 
 #ifdef SO_REUSEADDR
-    if(setsockopt(servsockfd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0) {
-        say(message(MSG_ERROR_SOCKET_OPTION), strerror(errno));
-        close(servsockfd);
-        notify(-1);
-    }
+        if(setsockopt(servsockfd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuse, sizeof(reuse)) < 0) {
+            say(message(MSG_ERROR_SOCKET_OPTION), strerror(errno));
+            close(servsockfd);
+            notify(-1);
+        }
 #endif
 
         /* ident socket */
