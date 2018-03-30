@@ -222,7 +222,10 @@
         <package>mysql-common</package>
     </sqld>
     <networking description="networking configuration provider" class="iMSCP::Providers::Networking" type="provider">
-        <ifupdown default="1" description="ifup/ifdown (historical)" class="iMSCP::Providers::Networking::Debian::Ifupdown">
+        <ifupdown
+                description="ifup/ifdown (historical)"
+                class="iMSCP::Providers::Networking::Debian::Ifupdown"
+        >
             <package_conflict>nplan</package_conflict>
             <package_conflict>netplan.io</package_conflict>
             <package>ifupdown</package>
