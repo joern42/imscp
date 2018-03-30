@@ -86,9 +86,7 @@ function getClientTrafficAndDiskStats($clientId)
     if (NULL === $stmt) {
         /** @var iMSCP_Database $db */
         $db = Registry::get('iMSCP_Application')->getDatabase();
-        $stmt = $db->prepare(
-            'SELECT domain_id, IFNULL(domain_disk_usage, 0) AS disk_usage FROM domain WHERE domain_admin_id = ?'
-        );
+        $stmt = $db->prepare('SELECT domain_id, IFNULL(domain_disk_usage, 0) AS disk_usage FROM domain WHERE domain_admin_id = ?');
     }
 
     $stmt->execute([$clientId]);
@@ -97,9 +95,7 @@ function getClientTrafficAndDiskStats($clientId)
         showBadRequestErrorPage();
     }
 
-    list($webTraffic, $ftpTraffic, $smtpTraffic, $popTraffic, $totalTraffic) = getClientMonthlyTrafficStats(
-        $row['domain_id']
-    );
+    list($webTraffic, $ftpTraffic, $smtpTraffic, $popTraffic, $totalTraffic) = getClientMonthlyTrafficStats($row['domain_id']);
 
     return [$webTraffic, $ftpTraffic, $smtpTraffic, $popTraffic, $totalTraffic, $row['disk_usage']];
 }
@@ -121,10 +117,10 @@ function getClientItemCountsAndLimits($clientId)
         $db = Registry::get('iMSCP_Application')->getDatabase();
         $stmt = $db->prepare(
             '
-               SELECT domain_id, domain_subd_limit, domain_alias_limit, domain_mailacc_limit, domain_ftpacc_limit,
-                    domain_sqld_limit, domain_sqlu_limit, domain_traffic_limit, domain_disk_limit
-                FROM domain
-                WHERE domain_admin_id = ?
+               SELECT domain_id, domain_subd_limit, domain_alias_limit, domain_mailacc_limit, domain_ftpacc_limit, domain_sqld_limit,
+                domain_sqlu_limit, domain_traffic_limit, domain_disk_limit
+               FROM domain
+               WHERE domain_admin_id = ?
             '
         );
     }
@@ -167,12 +163,7 @@ function getResellerStats($resellerId)
         /** @var iMSCP_Database $db */
         $db = Registry::get('iMSCP_Application')->getDatabase();
         $stmt = $db->prepare(
-            '
-                SELECT t1.domain_admin_id
-                FROM domain AS t1
-                JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
-                WHERE t2.created_by = ?
-            '
+            'SELECT t1.domain_admin_id FROM domain AS t1 JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id) WHERE t2.created_by = ?'
         );
     }
 

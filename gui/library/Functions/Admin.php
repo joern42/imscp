@@ -31,9 +31,7 @@ function systemHasResellers($minNbResellers = 1)
     static $resellersCount = NULL;
 
     if (NULL === $resellersCount) {
-        $resellersCount = execute_query(
-            "SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'reseller'"
-        )->fetchColumn();
+        $resellersCount = execute_query("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'reseller'")->fetchColumn();
     }
 
     return $resellersCount >= $minNbResellers;
@@ -50,9 +48,7 @@ function systemHasCustomers($minNbCustomers = 1)
     static $customersCount = NULL;
 
     if (NULL === $customersCount) {
-        $customersCount = execute_query(
-            "SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND admin_status <> 'todelete'"
-        )->fetchColumn();
+        $customersCount = execute_query("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND admin_status <> 'todelete'")->fetchColumn();
     }
 
     return $customersCount >= $minNbCustomers;
@@ -104,8 +100,7 @@ function systemHasAntiRootkits()
 {
     $config = Registry::get('config');
 
-    if ((isset($config['ANTI_ROOTKITS_PACKAGES']) && $config['ANTI_ROOTKITS_PACKAGES'] != 'no'
-            && $config['ANTI_ROOTKITS_PACKAGES'] != ''
+    if ((isset($config['ANTI_ROOTKITS_PACKAGES']) && $config['ANTI_ROOTKITS_PACKAGES'] != 'no' && $config['ANTI_ROOTKITS_PACKAGES'] != ''
             && ((isset($config['CHKROOTKIT_LOG']) && $config['CHKROOTKIT_LOG'] != '')
                 || (isset($config['RKHUNTER_LOG']) && $config['RKHUNTER_LOG'] != '')))
         || isset($config['OTHER_ROOTKIT_LOG']) && $config['OTHER_ROOTKIT_LOG'] != ''

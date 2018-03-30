@@ -78,9 +78,7 @@ function reseller_limits_check($resellerId, $hp)
 
     if ($maxSubLimit != 0 && $newSubLimit != -1) {
         if ($newSubLimit == 0) {
-            set_page_message(
-                tr('You have a subdomains limit. You cannot add a user with unlimited subdomains.'), 'error'
-            );
+            set_page_message(tr('You have a subdomains limit. You cannot add a user with unlimited subdomains.'), 'error');
             $ret = false;
         } else if ($currentSubLimit + $newSubLimit > $maxSubLimit) {
             set_page_message(tr('You are exceeding your subdomains limit.'), 'error');
@@ -90,9 +88,7 @@ function reseller_limits_check($resellerId, $hp)
 
     if ($maxAlsLimit != 0 && $newAlsLimit != -1) {
         if ($newAlsLimit == 0) {
-            set_page_message(
-                tr('You have a domain aliases limit. You cannot add a user with unlimited domain aliases.'), 'error'
-            );
+            set_page_message(tr('You have a domain aliases limit. You cannot add a user with unlimited domain aliases.'), 'error');
             $ret = false;
         } else if ($currentAlsLimit + $newAlsLimit > $maxAlsLimit) {
             set_page_message(tr('You are exceeding you domain aliases limit.'), 'error');
@@ -102,9 +98,7 @@ function reseller_limits_check($resellerId, $hp)
 
     if ($maxMailLimit != 0) {
         if ($newMailLimit == 0) {
-            set_page_message(
-                tr('You have a mail accounts limit. You cannot add a user with unlimited mail accounts.'), 'error'
-            );
+            set_page_message(tr('You have a mail accounts limit. You cannot add a user with unlimited mail accounts.'), 'error');
             $ret = false;
         } else if ($currentMailLimit + $newMailLimit > $maxMailLimit) {
             set_page_message(tr('You are exceeding your mail accounts limit.'), 'error');
@@ -114,9 +108,7 @@ function reseller_limits_check($resellerId, $hp)
 
     if ($ftpMaxLimit != 0) {
         if ($newFtpLimit == 0) {
-            set_page_message(
-                tr('You have a FTP accounts limit. You cannot add a user with unlimited FTP accounts.'), 'error'
-            );
+            set_page_message(tr('You have a FTP accounts limit. You cannot add a user with unlimited FTP accounts.'), 'error');
             $ret = false;
         } else if ($currentFtpLimit + $newFtpLimit > $ftpMaxLimit) {
             set_page_message(tr('You are exceeding your FTP accounts limit.'), 'error');
@@ -126,9 +118,7 @@ function reseller_limits_check($resellerId, $hp)
 
     if ($maxSqlDbLimit != 0 && $newSqlDbLimit != -1) {
         if ($newSqlDbLimit == 0) {
-            set_page_message(
-                tr('You have a SQL databases limit. You cannot add a user with unlimited SQL databases.'), 'error'
-            );
+            set_page_message(tr('You have a SQL databases limit. You cannot add a user with unlimited SQL databases.'), 'error');
             $ret = false;
         } else if ($currentSqlDbLimit + $newSqlDbLimit > $maxSqlDbLimit) {
             set_page_message(tr('You are exceeding your SQL databases limit.'), 'error');
@@ -138,14 +128,10 @@ function reseller_limits_check($resellerId, $hp)
 
     if ($maxSqlUserLimit != 0 && $newSqlUserLimit != -1) {
         if ($newSqlUserLimit == 0) {
-            set_page_message(
-                tr('You have a SQL users limit. You cannot add a user with unlimited SQL users.'), 'error'
-            );
+            set_page_message(tr('You have a SQL users limit. You cannot add a user with unlimited SQL users.'), 'error');
             $ret = false;
         } elseif ($newSqlDbLimit == -1) {
-            set_page_message(
-                tr('You have disabled SQL databases for this user. You cannot have SQL users here.'), 'error'
-            );
+            set_page_message(tr('You have disabled SQL databases for this user. You cannot have SQL users here.'), 'error');
             $ret = false;
         } elseif ($currentSqlUserLimit + $newSqlUserLimit > $maxSqlUserLimit) {
             set_page_message(tr('You are exceeding your SQL users limit.'), 'error');
@@ -155,9 +141,7 @@ function reseller_limits_check($resellerId, $hp)
 
     if ($maxTrafficLimit != 0) {
         if ($newTrafficLimit == 0) {
-            set_page_message(
-                tr('You have a monthly traffic limit. You cannot add a user with unlimited monthly traffic.'), 'error'
-            );
+            set_page_message(tr('You have a monthly traffic limit. You cannot add a user with unlimited monthly traffic.'), 'error');
             $ret = false;
         } elseif ($currentTrafficLimit + $newTrafficLimit > $maxTrafficLimit) {
             set_page_message(tr('You are exceeding your monthly traffic limit.'), 'error');
@@ -167,9 +151,7 @@ function reseller_limits_check($resellerId, $hp)
 
     if ($maxDiskspaceLimit != 0) {
         if ($newDiskspaceLimit == 0) {
-            set_page_message(
-                tr('You have a disk space limit. You cannot add a user with unlimited disk space.'), 'error'
-            );
+            set_page_message(tr('You have a disk space limit. You cannot add a user with unlimited disk space.'), 'error');
             $ret = false;
         } elseif ($currentDiskspaceLimit + $newDiskspaceLimit > $maxDiskspaceLimit) {
             set_page_message(tr('You are exceeding your disk space limit.'), 'error');
@@ -218,9 +200,7 @@ function resellerHasFeature($featureName, $forceReload = false)
     }
 
     if (!array_key_exists($featureName, $availableFeatures)) {
-        throw new iMSCPException(
-            sprintf("Feature %s is not known by the resellerHasFeature() function.", $featureName)
-        );
+        throw new iMSCPException(sprintf("Feature %s is not known by the resellerHasFeature() function.", $featureName));
     }
 
     return $availableFeatures[$featureName];
@@ -239,16 +219,9 @@ function resellerHasCustomers($minNbCustomers = 1)
     static $customerCount = NULL;
 
     if (NULL === $customerCount) {
-        $customerCount = exec_query(
-            "
-                SELECT COUNT(admin_id)
-                FROM admin
-                WHERE admin_type = 'user'
-                AND created_by = ?
-                AND admin_status <> 'todelete'
-            ",
-            [$_SESSION['user_id']]
-        )->fetchColumn();
+        $customerCount = exec_query("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND created_by = ? AND admin_status <> 'todelete'", [
+            $_SESSION['user_id']
+        ])->fetchColumn();
     }
 
     return ($customerCount >= $minNbCustomers);

@@ -118,18 +118,14 @@ function setPassword($userType, $uniqueKey, $userPassword)
     $passwordHash = Crypt::apr1MD5($userPassword);
 
     if ($userType == 'user') {
-        exec_query(
-            'UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL, admin_status = ? WHERE uniqkey = ?',
-            [$passwordHash, 'tochangepwd', $uniqueKey]
-        );
-
+        exec_query('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL, admin_status = ? WHERE uniqkey = ?', [
+            $passwordHash, 'tochangepwd', $uniqueKey
+        ]);
         send_request();
         return;
     }
 
-    exec_query('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey = ?', [
-        $passwordHash, $uniqueKey
-    ]);
+    exec_query('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey = ?', [$passwordHash, $uniqueKey]);
 }
 
 /**
@@ -216,11 +212,7 @@ function sendPasswordRequestValidation($adminName)
 function sendPassword($uniqueKey)
 {
     $stmt = exec_query(
-        "
-          SELECT admin_id, admin_name, admin_type, created_by, fname, lname, email, uniqkey, admin_status
-          FROM admin
-          WHERE uniqkey = ?
-        ",
+        'SELECT admin_id, admin_name, admin_type, created_by, fname, lname, email, uniqkey, admin_status FROM admin WHERE uniqkey = ?',
         [$uniqueKey]
     );
 
@@ -238,8 +230,7 @@ function sendPassword($uniqueKey)
 
     $cfg = Registry::get('config');
     $userPassword = Crypt::randomStr(
-        isset($cfg['PASSWD_CHARS']) ? $cfg['PASSWD_CHARS'] : 6,
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+        isset($cfg['PASSWD_CHARS']) ? $cfg['PASSWD_CHARS'] : 6, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
     );
     setPassword($row['admin_type'], $uniqueKey, $userPassword);
     write_log(sprintf('Lostpassword: A New password has been set for the %s user', $row['admin_name']), E_USER_NOTICE);

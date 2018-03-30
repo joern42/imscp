@@ -18,9 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+use iMSCP\TemplateEngine;
 use iMSCP_Events as Events;
 use iMSCP_Exception as iMSCPException;
-use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
 use Zend_Controller_Action_Helper_FlashMessenger as FlashMessenger;
 use Zend_Navigation as Navigation;
@@ -34,7 +34,6 @@ use Zend_Navigation as Navigation;
 function get_user_gui_props($userId)
 {
     $cfg = Registry::get('config');
-
     $stmt = exec_query('SELECT lang, layout FROM user_gui_props WHERE user_id = ?', [$userId]);
 
     if (!$stmt->rowCount()) {
@@ -43,9 +42,7 @@ function get_user_gui_props($userId)
 
     $row = $stmt->fetch();
 
-    if (empty($row['lang'])
-        && empty($row['layout'])
-    ) {
+    if (empty($row['lang']) && empty($row['layout'])) {
         return [$cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']];
     }
 
@@ -91,9 +88,7 @@ function generatePageMessage(TemplateEngine $tpl)
 {
     $flashMessenger = Registry::isRegistered('flashMessenger') ? Registry::get('flashMessenger') : new FlashMessenger();
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onGeneratePageMessages, [
-        'flashMessenger' => $flashMessenger
-    ]);
+    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onGeneratePageMessages, ['flashMessenger' => $flashMessenger]);
 
     $tpl->assign('PAGE_MESSAGE', '');
 
@@ -103,7 +98,7 @@ function generatePageMessage(TemplateEngine $tpl)
         $messages = array_merge($messages, $flashMessenger->getMessages($level));
         $flashMessenger->clearMessages($level);
 
-        if(empty($messages)) {
+        if (empty($messages)) {
             continue;
         }
 
@@ -152,11 +147,7 @@ function get_menu_vars($menuLink)
     }
 
     $row = exec_query(
-        '
-            SELECT fname, lname, firm, zip, city, state, country, email, phone, fax, street1, street2
-            FROM admin
-            WHERE admin_id = ?
-        ',
+        'SELECT fname, lname, firm, zip, city, state, country, email, phone, fax, street1, street2 FROM admin WHERE admin_id = ?',
         [$_SESSION['user_id']]
     )->fetch();
 
@@ -321,11 +312,7 @@ function layout_setUserLayoutColor($userId, $color)
     // Dealing with sessions across multiple browsers for same user identifier - Begin
 
     $sessionId = session_id();
-    $stmt = exec_query(
-        'SELECT session_id FROM login WHERE user_name = ? AND session_id <> ?', [
-            encode_idna($_SESSION['user_logged']), $sessionId
-        ]
-    );
+    $stmt = exec_query('SELECT session_id FROM login WHERE user_name = ? AND session_id <> ?', [encode_idna($_SESSION['user_logged']), $sessionId]);
 
     if (!$stmt->rowCount()) {
         return true;
@@ -380,10 +367,7 @@ function layout_getUserLogo($searchForCreator = true, $returnDefault = true)
 
     // No logo is found for the user, let see for it creator
     if (!$stmt->rowCount() && $searchForCreator && $userId != 1) {
-        $stmt = exec_query(
-            'SELECT b.logo FROM admin a LEFT JOIN user_gui_props b ON (b.user_id = a.created_by) WHERE a.admin_id= ?',
-            [$userId]
-        );
+        $stmt = exec_query('SELECT b.logo FROM admin a LEFT JOIN user_gui_props b ON (b.user_id = a.created_by) WHERE a.admin_id= ?', [$userId]);
     }
 
     $logo = $stmt->fetchColumn();
@@ -551,9 +535,7 @@ function layout_LoadNavigation()
             $userLevel = 'client';
     }
 
-    Registry::set('navigation', new Navigation(
-        include(Registry::get('config')['ROOT_TEMPLATE_PATH'] . "/$userLevel/navigation.php")
-    ));
+    Registry::set('navigation', new Navigation(include(Registry::get('config')['ROOT_TEMPLATE_PATH'] . "/$userLevel/navigation.php")));
 
     // Set main menu labels visibility for the current environment
     Registry::get('iMSCP_Application')->getEventsManager()->registerListener(
@@ -569,9 +551,7 @@ function layout_LoadNavigation()
  */
 function layout_isMainMenuLabelsVisible($userId)
 {
-    return (bool)exec_query('SELECT show_main_menu_labels FROM user_gui_props WHERE user_id = ?', [
-        $userId
-    ])->fetchColumn();
+    return (bool)exec_query('SELECT show_main_menu_labels FROM user_gui_props WHERE user_id = ?', [$userId])->fetchColumn();
 }
 
 /**

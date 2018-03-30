@@ -18,8 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Exception_Database as DatabaseException;
 use iMSCP\TemplateEngine;
+use iMSCP_Exception_Database as DatabaseException;
 use iMSCP_Registry as Registry;
 
 /**
@@ -35,9 +35,7 @@ use iMSCP_Registry as Registry;
  */
 function createTicket($userId, $adminId, $urgency, $subject, $message, $userLevel)
 {
-    if ($userLevel < 1
-        || $userLevel > 2
-    ) {
+    if ($userLevel < 1 || $userLevel > 2) {
         set_page_message(tr('Wrong user level provided.'), 'error');
         return false;
     }
@@ -128,7 +126,7 @@ function showTicketContent($tpl, $ticketId, $userId)
  * @param String $message The ticket replys' message
  * @param int $ticketLevel The tickets's level (1 = user; 2 = super)
  * @param int $userLevel The user's level (1 = client; 2 = reseller; 3 = admin)
- * @return bool TRUE on success, FALSE otherwise
+ * @return void
  */
 function updateTicket($ticketId, $userId, $urgency, $subject, $message, $ticketLevel, $userLevel)
 {
@@ -136,20 +134,10 @@ function updateTicket($ticketId, $userId, $urgency, $subject, $message, $ticketL
     $db = Registry::get('iMSCP_Application')->getDatabase();
     $subject = clean_input($subject);
     $userMessage = clean_input($message);
-    $stmt = exec_query(
-        '
-            SELECT ticket_from, ticket_to, ticket_status
-            FROM tickets
-            WHERE ticket_id = ?
-            AND (ticket_from = ? OR ticket_to = ?)
-        ',
-        [$ticketId, $userId, $userId]
-    );
-
-    if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
-    }
-
+    $stmt = exec_query('SELECT ticket_from, ticket_to, ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)', [
+        $ticketId, $userId, $userId
+    ]);
+    $stmt->rowCount() or showBadRequestErrorPage();
     $row = $stmt->fetch();
 
     try {
@@ -166,11 +154,12 @@ function updateTicket($ticketId, $userId, $urgency, $subject, $message, $ticketL
             $ticketFrom = $row['ticket_to'];
         }
 
-        $db->prepare(
+        $db->beginTransaction();
+
+        exec_query(
             '
                 INSERT INTO tickets (
-                    ticket_from, ticket_to, ticket_status, ticket_reply, ticket_urgency, ticket_date,
-                    ticket_subject, ticket_message
+                    ticket_from, ticket_to, ticket_status, ticket_reply, ticket_urgency, ticket_date, ticket_subject, ticket_message
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?
                 )
@@ -191,15 +180,14 @@ function updateTicket($ticketId, $userId, $urgency, $subject, $message, $ticketL
             if ($ticketLevel == 1 && ($row['ticket_status'] == 0 || $row['ticket_status'] == 3)) {
                 changeTicketStatus($ticketId, 2);
             } elseif ($ticketLevel == 2 && ($row['ticket_status'] == 0 || $row['ticket_status'] == 3)) {
-                if (!changeTicketStatus($ticketId, 4)) {
-                    return false;
-                }
+                changeTicketStatus($ticketId, 4);
             }
         }
 
+        $db->commit();
+
         set_page_message(tr('Your message has been successfully sent.'), 'success');
         sendTicketNotification($ticketTo, $subject, $userMessage, $ticketId, $urgency);
-        return true;
     } catch (DatabaseException $e) {
         $db->rollBack();
         throw $e;
@@ -244,17 +232,9 @@ function deleteTickets($status, $userId)
 function generateTicketList($tpl, $userId, $start, $count, $userLevel, $status)
 {
     $condition = ($status == 'open') ? "ticket_status != 0" : 'ticket_status = 0';
-    $rowsCount = exec_query(
-        "
-            SELECT COUNT(ticket_id)
-            FROM tickets
-            WHERE (ticket_from = ? OR ticket_to = ?)
-            AND ticket_reply = '0'
-            AND $condition
-        "
-        ,
-        [$userId, $userId]
-    )->fetchColumn();
+    $rowsCount = exec_query("SELECT COUNT(ticket_id) FROM tickets WHERE (ticket_from = ? OR ticket_to = ?) AND ticket_reply = '0' AND $condition", [
+        $userId, $userId
+    ])->fetchColumn();
 
     if ($rowsCount > 0) {
         $stmt = exec_query(
@@ -294,18 +274,12 @@ function generateTicketList($tpl, $userId, $start, $count, $userLevel, $status)
         while ($row = $stmt->fetch()) {
             if ($row['ticket_status'] == 1) {
                 $tpl->assign('TICKET_STATUS_VAL', tr('[New]'));
-            } elseif (
-                $row['ticket_status'] == 2 &&
-                (($row['ticket_level'] == 1 && $userLevel == 'client')
-                    || ($row['ticket_level'] == 2 && $userLevel == 'reseller')
-                )
+            } elseif ($row['ticket_status'] == 2 && (($row['ticket_level'] == 1 && $userLevel == 'client')
+                    || ($row['ticket_level'] == 2 && $userLevel == 'reseller'))
             ) {
                 $tpl->assign('TICKET_STATUS_VAL', tr('[Re]'));
-            } elseif (
-                $row['ticket_status'] == 4 &&
-                (($row['ticket_level'] == 1 && $userLevel == 'reseller')
-                    || ($row['ticket_level'] == 2 && $userLevel == 'admin')
-                )
+            } elseif ($row['ticket_status'] == 4 && (($row['ticket_level'] == 1 && $userLevel == 'reseller')
+                    || ($row['ticket_level'] == 2 && $userLevel == 'admin'))
             ) {
                 $tpl->assign('TICKET_STATUS_VAL', tr('[Re]'));
             } else {
@@ -391,10 +365,9 @@ function reopenTicket($ticketId)
  */
 function getTicketStatus($ticketId)
 {
-    $stmt = exec_query(
-        'SELECT ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)',
-        [$ticketId, $_SESSION['user_id'], $_SESSION['user_id']]
-    );
+    $stmt = exec_query('SELECT ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)', [
+        $ticketId, $_SESSION['user_id'], $_SESSION['user_id']
+    ]);
 
     if (!$stmt->rowCount()) {
         set_page_message(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
@@ -421,15 +394,9 @@ function getTicketStatus($ticketId)
  */
 function changeTicketStatus($ticketId, $ticketStatus)
 {
-    $stmt = exec_query(
-        '
-            UPDATE tickets
-            SET ticket_status = ?
-            WHERE ticket_id = ? OR ticket_reply = ?
-            AND (ticket_from = ? OR ticket_to = ?)
-        ',
-        [$ticketStatus, $ticketId, $ticketId, $_SESSION['user_id'], $_SESSION['user_id']]
-    );
+    $stmt = exec_query('UPDATE tickets SET ticket_status = ? WHERE ticket_id = ? OR ticket_reply = ? AND (ticket_from = ? OR ticket_to = ?)', [
+        $ticketStatus, $ticketId, $ticketId, $_SESSION['user_id'], $_SESSION['user_id']
+    ]);
 
     return $stmt->rowCount() > 0;
 }
@@ -487,12 +454,7 @@ function getTicketUrgency($ticketUrgency)
 function _getTicketSender($ticketId)
 {
     $stmt = exec_query(
-        '
-            SELECT a.admin_name, a.fname, a.lname, a.admin_type
-            FROM tickets t
-            LEFT JOIN admin a ON (t.ticket_from = a.admin_id)
-            WHERE ticket_id = ?
-        ',
+        'SELECT a.admin_name, a.fname, a.lname, a.admin_type FROM tickets t LEFT JOIN admin a ON (t.ticket_from = a.admin_id) WHERE ticket_id = ?',
         [$ticketId]
     );
 
@@ -503,8 +465,7 @@ function _getTicketSender($ticketId)
 
     $row = $stmt->fetch();
 
-    return $row['fname'] . ' ' . $row['lname'] . ' (' .
-        (($row['admin_type'] == 'user') ? decode_idna($row['admin_name']) : $row['admin_name']) . ')';
+    return $row['fname'] . ' ' . $row['lname'] . ' (' . (($row['admin_type'] == 'user') ? decode_idna($row['admin_name']) : $row['admin_name']) . ')';
 }
 
 /**
@@ -517,9 +478,7 @@ function _getTicketSender($ticketId)
  */
 function _ticketGetLastDate($ticketId)
 {
-    $stmt = exec_query('SELECT ticket_date FROM tickets WHERE ticket_reply = ? ORDER BY ticket_date DESC LIMIT 1', [
-        $ticketId
-    ]);
+    $stmt = exec_query('SELECT ticket_date FROM tickets WHERE ticket_reply = ? ORDER BY ticket_date DESC LIMIT 1', [$ticketId]);
 
     if (!$stmt->rowCount()) {
         return tr('Never');
@@ -540,12 +499,7 @@ function _ticketGetLastDate($ticketId)
 function _showTicketReplies($tpl, $ticketId)
 {
     $stmt = exec_query(
-        '
-            SELECT ticket_id, ticket_urgency, ticket_date, ticket_message
-            FROM tickets
-            WHERE ticket_reply = ?
-            ORDER BY ticket_date DESC
-        ',
+        'SELECT ticket_id, ticket_urgency, ticket_date, ticket_message FROM tickets WHERE ticket_reply = ? ORDER BY ticket_date DESC',
         [$ticketId]
     );
 

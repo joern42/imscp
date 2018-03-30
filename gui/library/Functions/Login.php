@@ -24,10 +24,10 @@ use iMSCP_Authentication_AuthEvent as AuthEvent;
 use iMSCP_Authentication_Result as AuthResult;
 use iMSCP_Events as Events;
 use iMSCP_Events_Event as Event;
+use iMSCP_Events_Manager_Interface as EventsManagerInterface;
 use iMSCP_Exception as iMSCPException;
 use iMSCP_Plugin_Bruteforce as BrutforcePlugin;
 use iMSCP_Registry as Registry;
-use iMSCP_Events_Manager_Interface as EventsManagerInterface;
 
 /**
  * Initialize login
@@ -73,33 +73,22 @@ function login_credentials(AuthEvent $authEvent)
         }
 
         $authEvent->setAuthenticationResult(new AuthResult(
-            (count($message) == 2) ? AuthResult::FAILURE_CREDENTIAL_EMPTY : AuthResult::FAILURE_CREDENTIAL_INVALID,
-            NULL,
-            $message
+            (count($message) == 2) ? AuthResult::FAILURE_CREDENTIAL_EMPTY : AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, $message
         ));
         return;
     }
 
-    $stmt = exec_query(
-        'SELECT admin_id, admin_name, admin_pass, admin_type, email, created_by FROM admin WHERE admin_name = ?', [
-        $username
-    ]);
+    $stmt = exec_query('SELECT admin_id, admin_name, admin_pass, admin_type, email, created_by FROM admin WHERE admin_name = ?', [$username]);
 
     if (!$stmt->rowCount()) {
-        $authEvent->setAuthenticationResult(new AuthResult(
-            AuthResult::FAILURE_IDENTITY_NOT_FOUND, NULL, tr('Unknown username.')
-        ));
+        $authEvent->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_IDENTITY_NOT_FOUND, NULL, tr('Unknown username.')));
         return;
     }
 
     $identity = $stmt->fetch(PDO::FETCH_OBJ);
 
-    if (!Crypt::hashEqual($identity->admin_pass, md5($password))
-        && !Crypt::verify($password, $identity->admin_pass)
-    ) {
-        $authEvent->setAuthenticationResult(new AuthResult(
-            AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, tr('Bad password.')
-        ));
+    if (!Crypt::hashEqual($identity->admin_pass, md5($password)) && !Crypt::verify($password, $identity->admin_pass)) {
+        $authEvent->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, tr('Bad password.')));
         return;
     }
 
@@ -119,14 +108,9 @@ function login_credentials(AuthEvent $authEvent)
                 $identity = $authResult->getIdentity();
 
                 exec_query('UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?', [
-                    Crypt::apr1MD5($password), ($identity->admin_type) == 'user' ? 'tochangepwd' : 'ok',
-                    $identity->admin_id
+                    Crypt::apr1MD5($password), ($identity->admin_type) == 'user' ? 'tochangepwd' : 'ok', $identity->admin_id
                 ]);
-
-                write_log(
-                    sprintf('Password for user %s has been re-encrypted using APR-1 algorithm', $identity->admin_name),
-                    E_USER_NOTICE
-                );
+                write_log(sprintf('Password for user %s has been re-encrypted using APR-1 algorithm', $identity->admin_name), E_USER_NOTICE);
 
                 if ($identity->admin_type == 'user') {
                     send_request();
@@ -157,12 +141,7 @@ function login_checkDomainAccount($event)
     }
 
     $stmt = exec_query(
-        '
-            SELECT domain_expires, domain_status, admin_status
-            FROM domain
-            JOIN admin ON(domain_admin_id = admin_id)
-            WHERE domain_admin_id = ?
-        ',
+        'SELECT domain_expires, domain_status, admin_status FROM domain JOIN admin ON(domain_admin_id = admin_id) WHERE domain_admin_id = ?',
         [$identity->admin_id]
     );
 
@@ -176,16 +155,12 @@ function login_checkDomainAccount($event)
 
     $row = $stmt->fetch();
 
-    if ($row['admin_status'] == 'disabled'
-        || $row['domain_status'] == 'disabled'
-    ) {
+    if ($row['admin_status'] == 'disabled' || $row['domain_status'] == 'disabled') {
         set_page_message(tr('Your account has been disabled. Please, contact your reseller.'), 'error');
         return;
     }
 
-    if ($row['domain_expires'] > 0
-        && $row['domain_expires'] < time()
-    ) {
+    if ($row['domain_expires'] > 0 && $row['domain_expires'] < time()) {
         set_page_message(tr('Your account has expired. Please, contact your reseller.'), 'error');
         return;
     }
@@ -201,9 +176,7 @@ function login_checkDomainAccount($event)
 function do_session_timeout()
 {
     // We must not remove bruteforce plugin data (AND `user_name` IS NOT NULL)
-    exec_query('DELETE FROM login WHERE lastaccess < ? AND user_name IS NOT NULL', [
-        time() - Registry::get('config')['SESSION_TIMEOUT'] * 60
-    ]);
+    exec_query('DELETE FROM login WHERE lastaccess < ? AND user_name IS NOT NULL', [time() - Registry::get('config')['SESSION_TIMEOUT'] * 60]);
 }
 
 /**
@@ -230,8 +203,7 @@ function check_login($userLevel, $preventExternalLogin = true)
     $identity = $auth->getIdentity();
 
     // When the panel is in maintenance mode, only administrators can access the interface
-    if (Registry::get('config')['MAINTENANCEMODE']
-        && $identity->admin_type != 'admin'
+    if (Registry::get('config')['MAINTENANCEMODE'] && $identity->admin_type != 'admin'
         && (!isset($_SESSION['logged_from_type']) || $_SESSION['logged_from_type'] != 'admin')
     ) {
         $auth->unsetIdentity();
@@ -245,9 +217,7 @@ function check_login($userLevel, $preventExternalLogin = true)
     }
 
     // prevent external login / check for referer
-    if ($preventExternalLogin
-        && !empty($_SERVER['HTTP_REFERER'])
-        && ($fromHost = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST))
+    if ($preventExternalLogin && !empty($_SERVER['HTTP_REFERER']) && ($fromHost = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST))
         && $fromHost !== getRequestHost()
     ) {
         $auth->unsetIdentity();
@@ -272,13 +242,7 @@ function change_user_interface($fromId, $toId)
 
     while (1) { // We loop over nothing here, it's just a way to avoid code repetition
         $stmt = exec_query(
-            '
-              SELECT admin_id, admin_name, admin_type, email, created_by
-              FROM admin
-              WHERE admin_id IN(?, ?)
-              ORDER BY FIELD(admin_id, ?, ?)
-              LIMIT 2
-            ',
+            'SELECT admin_id, admin_name, admin_type, email, created_by FROM admin WHERE admin_id IN(?, ?) ORDER BY FIELD(admin_id, ?, ?) LIMIT 2',
             [$fromId, $toId, $fromId, $toId]
         );
 
@@ -298,10 +262,7 @@ function change_user_interface($fromId, $toId)
         if (!isset($fromToMap[$from->admin_type][$to->admin_type]) || ($from->admin_type == $to->admin_type)) {
             if (!isset($_SESSION['logged_from_id']) || $_SESSION['logged_from_id'] != $to->admin_id) {
                 set_page_message(tr('Bad request.'), 'error');
-                write_log(
-                    sprintf("%s tried to switch onto %s's interface", $from->admin_name, decode_idna($to->admin_name)),
-                    E_USER_WARNING
-                );
+                write_log(sprintf("%s tried to switch onto %s's interface", $from->admin_name, decode_idna($to->admin_name)), E_USER_WARNING);
                 break;
             }
 
@@ -319,15 +280,9 @@ function change_user_interface($fromId, $toId)
             $_SESSION['logged_from_type'] = $from->admin_type;
             $_SESSION['logged_from'] = $from->admin_name;
             $_SESSION['logged_from_id'] = $from->admin_id;
-            write_log(
-                sprintf("%s switched onto %s's interface", $from->admin_name, decode_idna($to->admin_name)),
-                E_USER_NOTICE
-            );
+            write_log(sprintf("%s switched onto %s's interface", $from->admin_name, decode_idna($to->admin_name)), E_USER_NOTICE);
         } else {
-            write_log(
-                sprintf("%s switched back from %s's interface", $to->admin_name, decode_idna($from->admin_name)),
-                E_USER_NOTICE
-            );
+            write_log(sprintf("%s switched back from %s's interface", $to->admin_name, decode_idna($from->admin_name)), E_USER_NOTICE);
         }
 
         $auth->setIdentity($to);

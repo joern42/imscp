@@ -220,13 +220,7 @@ function get_reseller_domains_count($resellerId)
         /** @var iMSCP_Database $db */
         $db = Registry::get('iMSCP_Application')->getDatabase();
         $stmt = $db->prepare(
-            "
-               SELECT COUNT(domain_id)
-                FROM domain
-                JOIN admin ON(admin_id = domain_admin_id)
-                WHERE created_by = ?
-                AND domain_status <> 'todelete'
-            "
+            "SELECT COUNT(domain_id) FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?AND domain_status <> 'todelete'"
         );
     }
 
@@ -318,13 +312,7 @@ function get_reseller_mail_accounts_count($resellerId)
     static $stmt = NULL;
 
     if (NULL === $stmt) {
-        $query = '
-            SELECT COUNT(mail_id)
-            FROM mail_users
-            JOIN domain USING(domain_id)
-            JOIN admin ON(admin_id = domain_admin_id)
-            WHERE created_by = ?
-        ';
+        $query = 'SELECT COUNT(mail_id) FROM mail_users JOIN domain USING(domain_id) JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?';
 
         if (!Registry::get('config')['COUNT_DEFAULT_EMAIL_ADDRESSES']) {
             # A default mail account is composed of a name matching with:
@@ -368,15 +356,7 @@ function get_reseller_ftp_users_count($resellerId)
     if (NULL === $stmt) {
         /** @var iMSCP_Database $db */
         $db = Registry::get('iMSCP_Application')->getDatabase();
-        $stmt = $db->prepare(
-            "
-                SELECT COUNT(userid)
-                FROM ftp_users
-                JOIN admin USING(admin_id)
-                WHERE created_by = ?
-                AND status <> 'todelete'
-            "
-        );
+        $stmt = $db->prepare("SELECT COUNT(userid) FROM ftp_users JOIN admin USING(admin_id) WHERE created_by = ? AND status <> 'todelete'");
     }
 
     $stmt->execute([$resellerId]);
@@ -397,13 +377,7 @@ function get_reseller_sql_databases_count($resellerId)
         /** @var iMSCP_Database $db */
         $db = Registry::get('iMSCP_Application')->getDatabase();
         $stmt = $db->prepare(
-            '
-                SELECT COUNT(sqld_id)
-                FROM sql_database
-                JOIN domain USING(domain_id)
-                JOIN admin ON(admin_id = domain_admin_id)
-                WHERE created_by = ?
-            '
+            'SELECT COUNT(sqld_id) FROM sql_database JOIN domain USING(domain_id) JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?'
         );
     }
 
@@ -513,14 +487,7 @@ function get_customer_domain_aliases_count($domainId)
     if (NULL === $stmt) {
         /** @var iMSCP_Database $db */
         $db = Registry::get('iMSCP_Application')->getDatabase();
-        $stmt = $db->prepare(
-            "
-                SELECT COUNT(alias_id)
-                FROM domain_aliasses
-                WHERE domain_id = ?
-                AND alias_status NOT IN('ordered', 'todelete')
-            "
-        );
+        $stmt = $db->prepare("SELECT COUNT(alias_id) FROM domain_aliasses WHERE domain_id = ? AND alias_status NOT IN('ordered', 'todelete')");
     }
 
     $stmt->execute([$domainId]);
@@ -625,9 +592,7 @@ function get_customer_sql_users_count($domainId)
     if (NULL === $stmt) {
         /** @var iMSCP_Database $db */
         $db = Registry::get('iMSCP_Application')->getDatabase();
-        $stmt = $db->prepare(
-            'SELECT COUNT(DISTINCT sqlu_name) FROM sql_user JOIN sql_database USING(sqld_id) WHERE domain_id = ?'
-        );
+        $stmt = $db->prepare('SELECT COUNT(DISTINCT sqlu_name) FROM sql_user JOIN sql_database USING(sqld_id) WHERE domain_id = ?');
     }
 
     $stmt->execute([$domainId]);

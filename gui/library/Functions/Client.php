@@ -104,10 +104,8 @@ function customerHasFeature($featureNames, $forceReload = false)
         ];
 
         if ($cfg['IMSCP_SUPPORT_SYSTEM']) {
-            $stmt = exec_query('SELECT support_system FROM reseller_props WHERE reseller_id = ?', [
-                $_SESSION['user_created_by']
-            ]);
-            $availableFeatures['support'] = ($stmt->fetchColumn() == 'yes');
+            $stmt = exec_query('SELECT support_system FROM reseller_props WHERE reseller_id = ?', [$_SESSION['user_created_by']]);
+            $availableFeatures['support'] = $stmt->fetchColumn() == 'yes';
         } else {
             $availableFeatures['support'] = false;
         }
@@ -118,9 +116,7 @@ function customerHasFeature($featureNames, $forceReload = false)
         $featureName = strtolower($featureName);
 
         if ($debug && !array_key_exists($featureName, $availableFeatures)) {
-            throw new iMSCPException(
-                sprintf("Feature %s is not known by the customerHasFeature() function.", $featureName)
-            );
+            throw new iMSCPException(sprintf("Feature %s is not known by the customerHasFeature() function.", $featureName));
         }
 
         if (!$availableFeatures[$featureName]) {
@@ -154,9 +150,7 @@ function customerHasDomain($domainName, $customerId)
     $domainName = encode_idna($domainName);
 
     // Check in domain table
-    $stmt = exec_query("SELECT 1 FROM domain WHERE domain_admin_id = ? AND domain_name = ?", [
-        $customerId, $domainName
-    ]);
+    $stmt = exec_query("SELECT 1 FROM domain WHERE domain_admin_id = ? AND domain_name = ?", [$customerId, $domainName]);
 
     if ($stmt->rowCount()) {
         return true;
@@ -314,8 +308,7 @@ function getDomainMountpoint($domainId, $domainType, $ownerId)
  */
 function parseMaildirsize($maildirsizeFilePath, $refreshData = false)
 {
-    if (!$refreshData
-        && !empty($_SESSION['maildirsize'][$maildirsizeFilePath])
+    if (!$refreshData && !empty($_SESSION['maildirsize'][$maildirsizeFilePath])
         && $_SESSION['maildirsize'][$maildirsizeFilePath]['timestamp'] < (time() + 300)
     ) {
         return $_SESSION['maildirsize'][$maildirsizeFilePath];
@@ -345,9 +338,7 @@ function parseMaildirsize($maildirsizeFilePath, $refreshData = false)
 
     $quotaDefinition = explode(',', $line, 2);
 
-    if (!isset($quotaDefinition[0])
-        || !preg_match('/(\d+)S/i', $quotaDefinition[0], $m)
-    ) {
+    if (!isset($quotaDefinition[0]) || !preg_match('/(\d+)S/i', $quotaDefinition[0], $m)) {
         // No quota definition. Skip processing...
         fclose($fh);
         return false;
@@ -355,9 +346,7 @@ function parseMaildirsize($maildirsizeFilePath, $refreshData = false)
 
     $maildirsize['quota_bytes'] = $m[1];
 
-    if (isset($quotaDefinition[1])
-        && preg_match('/(\d+)C/i', $quotaDefinition[1], $m)
-    ) {
+    if (isset($quotaDefinition[1]) && preg_match('/(\d+)C/i', $quotaDefinition[1], $m)) {
         $maildirsize['quota_messages'] = $m[1];
     }
 
@@ -395,11 +384,7 @@ function deleteSubdomain($id)
         ",
         [$id, $_SESSION['user_id']]
     );
-
-    if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
-    }
-
+    $stmt->rowCount() or showBadRequestErrorPage();
     $row = $stmt->fetch();
 
     /** @var iMSCP_Database $db */
@@ -504,7 +489,6 @@ function deleteSubdomainAlias($id)
     set_time_limit(0);
 
     $domainId = get_user_domain_id($_SESSION['user_id']);
-
     $stmt = exec_query(
         "
             SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) AS subdomain_alias_name,
@@ -516,11 +500,7 @@ function deleteSubdomainAlias($id)
         ",
         [$domainId, $id]
     );
-
-    if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
-    }
-
+    $stmt->rowCount() or showBadRequestErrorPage();
     $row = $stmt->fetch();
 
     /** @var iMSCP_Database $db */
@@ -561,9 +541,7 @@ function deleteSubdomainAlias($id)
                 exec_query('DELETE FROM quotalimits WHERE name = ?', $ftpGroupData['groupname']);
                 exec_query('DELETE FROM quotatallies WHERE name = ?', $ftpGroupData['groupname']);
             } else {
-                exec_query('UPDATE ftp_group SET members = ? WHERE groupname = ?', [
-                    implode(',', $members), $ftpGroupData['groupname']
-                ]);
+                exec_query('UPDATE ftp_group SET members = ? WHERE groupname = ?', [implode(',', $members), $ftpGroupData['groupname']]);
             }
 
             unset($ftpGroupData, $members);
@@ -624,8 +602,7 @@ function customerSqlDbLimitIsReached()
 {
     $domainProps = get_domain_default_props($_SESSION['user_id']);
 
-    if ($domainProps['domain_sqld_limit'] == 0
-        || get_customer_sql_databases_count($domainProps['domain_id']) < $domainProps['domain_sqld_limit']) {
+    if ($domainProps['domain_sqld_limit'] == 0 || get_customer_sql_databases_count($domainProps['domain_id']) < $domainProps['domain_sqld_limit']) {
         return false;
     }
 

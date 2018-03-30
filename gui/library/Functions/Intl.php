@@ -18,9 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+use iMSCP\i18n\GettextParser;
 use iMSCP_Events as Events;
 use iMSCP_Exception as iMSCPException;
-use iMSCP\i18n\GettextParser;
 use iMSCP_Registry as Registry;
 use iMSCP_Utility_OpcodeCache as OpcodeCacheManager;
 use Zend_Locale as Locale;
@@ -102,11 +102,9 @@ function replace_html($string)
         '#&lt;[ ]*em[ ]*&gt;#i', '#&lt;[ ]*/[ ]*em[ ]*&gt;#i',
         '#&lt;[ ]*i[ ]*&gt;#i', '#&lt;[ ]*/[ ]*i[ ]*&gt;#i',
         '#&lt;[ ]*small[ ]*&gt;#i', '#&lt;[ ]*/[ ]*small[ ]*&gt;#i',
-        '#&lt;[ ]*br[ ]*(/|)[ ]*&gt;#i'];
-
-    $replacement = [
-        '<b>', '</b>', '<strong>', '</strong>', '<em>', '</em>', '<i>', '</i>', '<small>', '</small>', '<br>'
+        '#&lt;[ ]*br[ ]*(/|)[ ]*&gt;#i'
     ];
+    $replacement = ['<b>', '</b>', '<strong>', '</strong>', '<em>', '</em>', '<i>', '</i>', '<small>', '</small>', '<br>'];
 
     return preg_replace($pattern, $replacement, $string);
 }
@@ -132,9 +130,7 @@ function i18n_buildLanguageIndex()
     # Clear opcode cache if any
     OpcodeCacheManager::clearAllActive();
 
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($cfg['GUI_ROOT_DIR'] . '/i18n/locales/', FilesystemIterator::SKIP_DOTS)
-    );
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($cfg['GUI_ROOT_DIR'] . '/i18n/locales/', FilesystemIterator::SKIP_DOTS));
 
     $availableLanguages = [];
 
@@ -167,9 +163,7 @@ function i18n_buildLanguageIndex()
         }
 
         if (PHP_SAPI != 'cli') {
-            set_page_message(
-                tr('The %s translation file has been ignored: Translation table is empty.', $basename), 'warning'
-            );
+            set_page_message(tr('The %s translation file has been ignored: Translation table is empty.', $basename), 'warning');
         }
     }
 
@@ -190,9 +184,7 @@ function i18n_getAvailableLanguages($localesOnly = false)
 {
     $cfg = Registry::get('config');
 
-    if (!isset($cfg['AVAILABLE_LANGUAGES'])
-        || !isSerialized($cfg['AVAILABLE_LANGUAGES'])
-    ) {
+    if (!isset($cfg['AVAILABLE_LANGUAGES']) || !isSerialized($cfg['AVAILABLE_LANGUAGES'])) {
         i18n_buildLanguageIndex();
     }
 
@@ -250,15 +242,8 @@ function i18n_importMachineObjectFile()
 
         $language = isset($translationTable['_: Localised language']) ? $translationTable['_: Localised language'] : '';
 
-        if (empty($encoding)
-            || empty($locale)
-            || empty($creation)
-            || empty($lastTranslator)
-            || empty($language)
-        ) {
-            set_page_message(
-                tr("%s is not a valid i-MSCP language file.", tohtml($_FILES['languageFile']['name'])), 'error'
-            );
+        if (empty($encoding) || empty($locale) || empty($creation) || empty($lastTranslator) || empty($language)) {
+            set_page_message(tr("%s is not a valid i-MSCP language file.", tohtml($_FILES['languageFile']['name'])), 'error');
             return false;
         }
 
@@ -348,7 +333,6 @@ function l10n_addTranslations($dirPath, $type = 'Array', $tag = 'iMSCP_Translate
     /** @var Zend_Translate_Adapter $primaryTranslator */
     $primaryTranslator = Registry::get('Zend_Translate')->getAdapter();
     $locale = $primaryTranslator->getLocale();
-
     $pluginTranslator = new Translator([
         'adapter'        => $type,
         'content'        => $dirPath,

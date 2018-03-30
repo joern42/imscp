@@ -19,10 +19,10 @@
  */
 
 use iMSCP_Exception as iMSCPException;
+use iMSCP_Registry as Registry;
 use Zend\Escaper\Escaper as Escaper;
 use Zend_Filter_Digits as FilterDigits;
 use Zend_Validate_File_MimeType as FileMimeTypeValidator;
-use iMSCP_Registry as Registry;
 
 global $ESCAPER;
 $ESCAPER = new Escaper('UTF-8');
@@ -311,9 +311,7 @@ function isValidDomainName($domainName)
  */
 function imscp_limit_check($data, $extra = -1)
 {
-    if ($extra !== NULL
-        && !is_bool($extra)
-    ) {
+    if ($extra !== NULL && !is_bool($extra)) {
         if (is_array($extra)) {
             $nextra = '';
             $max = count($extra);
@@ -377,8 +375,8 @@ function getUserLoginDataForm($usernameRequired = true, $passwordRequired = true
                 ['Callback', true, [
                     function ($username) {
                         return exec_query(
-                            'SELECT COUNT(admin_id) FROM admin WHERE admin_name = ?', [$username]
-                        )->fetchColumn() == 0;
+                                'SELECT COUNT(admin_id) FROM admin WHERE admin_name = ?', [$username]
+                            )->fetchColumn() == 0;
                     },
                     'messages' => tr("The '%value%' username is not available.")
                 ]]

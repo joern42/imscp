@@ -36,9 +36,7 @@ function generateLoggedFrom(TemplateEngine $tpl)
 {
     $tpl->define('logged_from', 'layout');
 
-    if (!isset($_SESSION['logged_from'])
-        || !isset($_SESSION['logged_from_id'])
-    ) {
+    if (!isset($_SESSION['logged_from']) || !isset($_SESSION['logged_from_id'])) {
         $tpl->assign('LOGGED_FROM', '');
         return;
     }
@@ -131,9 +129,7 @@ function generateDMYlists(TemplateEngine $tpl, $day, $month, $year, $nPastYears)
  */
 function generateNavigation(TemplateEngine $tpl)
 {
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeGenerateNavigation, [
-        'templateEngine' => $tpl
-    ]);
+    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeGenerateNavigation, ['templateEngine' => $tpl]);
 
     $cfg = Registry::get('config');
     $tpl->define([
@@ -201,8 +197,9 @@ function generateNavigation(TemplateEngine $tpl)
     ]);
 
     // Remove support system page if feature is globally disabled
-    if (!$cfg['IMSCP_SUPPORT_SYSTEM'])
+    if (!$cfg['IMSCP_SUPPORT_SYSTEM']) {
         $navigation->removePage($navigation->findOneBy('class', 'support'));
+    }
 
     // Custom menus
     if (NULL !== $customMenus = getCustomMenus($_SESSION['user_type'])) {
@@ -218,8 +215,9 @@ function generateNavigation(TemplateEngine $tpl)
     }
 
     /** @var $activePage Zend_Navigation_Page_Uri */
-    foreach ($navigation->findAllBy('uri', $_SERVER['SCRIPT_NAME']) as $activePage)
+    foreach ($navigation->findAllBy('uri', $_SERVER['SCRIPT_NAME']) as $activePage) {
         $activePage->setActive();
+    }
 
     $query = !empty($_GET) ? '?' . http_build_query($_GET) : '';
 
@@ -236,7 +234,9 @@ function generateNavigation(TemplateEngine $tpl)
             }
         }
 
-        if (!$page->isVisible()) continue;
+        if (!$page->isVisible()) {
+            continue;
+        }
 
         $tpl->assign([
             'HREF'                    => $page->getHref(),
@@ -251,7 +251,9 @@ function generateNavigation(TemplateEngine $tpl)
         // Add page to main menu
         $tpl->parse('MAIN_MENU_LINK_BLOCK', '.main_menu_link_block');
 
-        if (!$page->isActive(true)) continue;
+        if (!$page->isActive(true)) {
+            continue;
+        }
 
         $tpl->assign([
             'TR_SECTION_TITLE'    => tohtml($page->getLabel()),
@@ -290,19 +292,22 @@ function generateNavigation(TemplateEngine $tpl)
                 'TARGET'          => $subpage->getTarget() ?: '_self'
             ]);
 
-            if ($subpage->isVisible())
+            if ($subpage->isVisible()) {
                 $tpl->parse('LEFT_MENU_LINK_BLOCK', '.left_menu_link_block'); // Add subpage to left menu
+            }
 
-            if (!$subpage->isActive(true)) continue;
+            if (!$subpage->isActive(true)) {
+                continue;
+            }
 
             $tpl->assign([
-                'TR_TITLE'    => $subpage->get('dynamic_title')
-                    ? $subpage->get('dynamic_title') : tohtml($subpage->getLabel()),
+                'TR_TITLE'    => $subpage->get('dynamic_title') ? $subpage->get('dynamic_title') : tohtml($subpage->getLabel()),
                 'TITLE_CLASS' => $subpage->get('title_class')
             ]);
 
-            if (!$subpage->hasPages())
+            if (!$subpage->hasPages()) {
                 $tpl->assign('HREF', $subpage->getHref() . $query);
+            }
 
             // add subpage to breadcrumbs
             $tpl->assign('BREADCRUMB_LABEL', tohtml($subpage->get('dynamic_title') ?: $subpage->getLabel()));
@@ -318,9 +323,7 @@ function generateNavigation(TemplateEngine $tpl)
         'CODENAME'       => !empty($cfg['CodeName']) ? $cfg['CodeName'] : tohtml(tr('Unknown'))
     ]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterGenerateNavigation, [
-        'templateEngine' => $tpl
-    ]);
+    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterGenerateNavigation, ['templateEngine' => $tpl]);
 }
 
 /**
@@ -377,15 +380,12 @@ function gen_admin_list(TemplateEngine $tpl)
     }
 
     $tpl->assign('ADMINISTRATOR_MESSAGE', '');
-
     $cfg = Registry::get('config');
 
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'ADMINISTRATOR_USERNAME'   => tohtml($row['admin_name']),
-            'ADMINISTRATOR_CREATED_ON' => tohtml(
-                $row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])
-            ),
+            'ADMINISTRATOR_CREATED_ON' => tohtml($row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])),
             'ADMINISTRATPR_CREATED_BY' => tohtml(is_null($row['created_by']) ? tr('System') : $row['created_by']),
             'ADMINISTRATOR_ID'         => $row['admin_id']
         ]);
@@ -424,15 +424,12 @@ function gen_reseller_list(TemplateEngine $tpl)
     }
 
     $tpl->assign('RESELLER_MESSAGE', '');
-
     $cfg = Registry::get('config');
 
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'RESELLER_USERNAME'   => tohtml($row['admin_name']),
-            'RESELLER_CREATED_ON' => tohtml(
-                $row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])
-            ),
+            'RESELLER_CREATED_ON' => tohtml($row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])),
             'RESELLER_CREATED_BY' => tohtml(is_null($row['created_by']) ? tr('Unknown') : $row['created_by']),
             'RESELLER_ID'         => $row['admin_id']
         ]);
@@ -482,9 +479,7 @@ function get_search_user_queries($sLimit, $eLimit, $searchField = NULL, $searchV
         }
 
         $searchValue = str_replace(['!', '_', '%'], ['!!!', '!_', '!%'], $searchValue);
-        $where .= ' LIKE '
-            . quoteValue('%' . ($searchField == 'domain_name' ? encode_idna($searchValue) : $searchValue) . '%')
-            . " ESCAPE '!'";
+        $where .= ' LIKE ' . quoteValue('%' . ($searchField == 'domain_name' ? encode_idna($searchValue) : $searchValue) . '%') . " ESCAPE '!'";
     }
 
     return [
@@ -593,15 +588,11 @@ function gen_user_domain_aliases_list(TemplateEngine $tpl, $domainId)
 {
     $tpl->assign('CLIENT_DOMAIN_ALIAS_BLK', '');
 
-    if (!isset($_SESSION['client_domain_aliases_switch'])
-        || $_SESSION['client_domain_aliases_switch'] != 'show'
-    ) {
+    if (!isset($_SESSION['client_domain_aliases_switch']) || $_SESSION['client_domain_aliases_switch'] != 'show') {
         return;
     }
 
-    $stmt = exec_query('SELECT alias_name FROM domain_aliasses WHERE domain_id = ? ORDER BY alias_name ASC', [
-        $domainId
-    ]);
+    $stmt = exec_query('SELECT alias_name FROM domain_aliasses WHERE domain_id = ? ORDER BY alias_name ASC', [$domainId]);
 
     if (!$stmt->rowCount()) {
         return;
@@ -627,9 +618,7 @@ function gen_user_list(TemplateEngine $tpl)
     $cfg = Registry::get('config');
 
     if (!empty($_POST)) {
-        if (!isset($_POST['search_status'])
-            || !isset($_POST['search_field'])
-            || !isset($_POST['client_domain_aliases_switch'])
+        if (!isset($_POST['search_status']) || !isset($_POST['search_field']) || !isset($_POST['client_domain_aliases_switch'])
             || !in_array($_POST['client_domain_aliases_switch'], ['show', 'hide'])
         ) {
             showBadRequestErrorPage();
@@ -740,9 +729,7 @@ function gen_user_list(TemplateEngine $tpl)
             'CLIENT_USERNAME'          => tohtml(decode_idna($row['domain_name']), 'htmlAttr'),
             'CLIENT_DOMAIN_ID'         => $row['domain_id'],
             'CLIENT_ID'                => $row['admin_id'],
-            'CLIENT_CREATED_ON'        => tohtml(
-                $row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])
-            ),
+            'CLIENT_CREATED_ON'        => tohtml($row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])),
             'CLIENT_CREATED_BY'        => tohtml($row['reseller_name'])
         ]);
 
