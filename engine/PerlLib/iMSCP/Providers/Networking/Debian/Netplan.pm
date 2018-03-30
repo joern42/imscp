@@ -123,7 +123,7 @@ sub removeIpAddr
 
     $self->_updateConfig( 'remove', $data );
 
-    return unless $data->{'ip_config_mode'} eq 'auto' || !$self->{'net'}->isKnownDevice( $vlan );
+    return unless $data->{'ip_config_mode'} eq 'auto' || !$self->{'net'}->isKnownDevice( $data->{'ip_card'} );
 
     $self->{'net'}->delAddr( $data->{'ip_address'} );
     $self;
