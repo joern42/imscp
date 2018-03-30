@@ -170,7 +170,7 @@ sub _updateConfig
         {
             iface      => $data->{'ip_card'},
             ip_address => $self->{'net'}->normalizeAddr( $data->{'ip_address'} ),
-            ip_netmask => $data->{'ip_netmask'},
+            ip_netmask => $data->{'ip_netmask'}
         },
         <<"CONFIG"
 network:
