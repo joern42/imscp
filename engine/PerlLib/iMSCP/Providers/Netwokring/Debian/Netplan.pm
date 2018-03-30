@@ -39,6 +39,9 @@ my %COMMANDS = (
     netplan => '/usr/sbin/netplan'
 );
 
+#  Netplan configuration directory
+my $NETPLAN_CONF_DIR = '/etc/netplan';
+
 =head1 DESCRIPTION
 
  Netplan networking configuration provider implementation for Debian like distributions
