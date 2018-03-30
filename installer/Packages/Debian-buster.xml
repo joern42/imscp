@@ -237,6 +237,7 @@
         <package>git</package>
         <package>gzip</package>
         <package>iptables</package>
+        <package>locales-all</package>
         <package>lsb-release</package>
         <package condition="'${DISTRO_ARCH}'eq 'amd64'">libc6-dev-i386</package>
         <package condition="'${DISTRO_ARCH}'eq 'amd64'">libc6-dev-x32</package>
