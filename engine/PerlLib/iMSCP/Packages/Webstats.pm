@@ -92,13 +92,12 @@ sub showDialog
 Please select the Webstats packages you want to install:
 \\Z \\Zn
 EOF
-        push @{ $self->{'SELECTED_PACKAGES'} }, 'no' unless @{ $self->{'SELECTED_PACKAGES'} };
         return $rs unless $rs < 30;
     }
 
-    ::setupSetQuestion( 'WEBSTATS_PACKAGES', join ',', @{ $self->{'SELECTED_PACKAGES'} } );
+    ::setupSetQuestion( 'WEBSTATS_PACKAGES', @{ $self->{'SELECTED_PACKAGES'} } ? join ',', @{ $self->{'SELECTED_PACKAGES'} } : 'no' );
 
-    return 0 if $self->{'SELECTED_PACKAGES'}->[0] eq 'no';
+    return 0 unless @{ $self->{'SELECTED_PACKAGES'} };
 
     for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
         my $fpackage = "iMSCP::Packages::Webstats::${package}::${package}";
