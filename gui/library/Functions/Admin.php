@@ -104,7 +104,7 @@ function systemHasAntiRootkits()
 {
     $config = Registry::get('config');
 
-    if ((isset($config['ANTI_ROOTKITS_PACKAGES']) && $config['ANTI_ROOTKITS_PACKAGES'] != 'No'
+    if ((isset($config['ANTI_ROOTKITS_PACKAGES']) && $config['ANTI_ROOTKITS_PACKAGES'] != 'no'
             && $config['ANTI_ROOTKITS_PACKAGES'] != ''
             && ((isset($config['CHKROOTKIT_LOG']) && $config['CHKROOTKIT_LOG'] != '')
                 || (isset($config['RKHUNTER_LOG']) && $config['RKHUNTER_LOG'] != '')))
