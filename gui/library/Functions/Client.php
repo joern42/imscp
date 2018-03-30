@@ -84,29 +84,23 @@ function customerHasFeature($featureNames, $forceReload = false)
                 || $dmnProps['phpini_perm_system'] == 'yes'
                 || $cfg['ENABLE_SSL']) ? true : false,
             */
-            'external_mail'      => ($dmnProps['domain_external_mail'] == 'yes'),
-            'php'                => ($dmnProps['domain_php'] == 'yes'),
-            'php_editor'         => (
-                $dmnProps['phpini_perm_system'] == 'yes'
-                && $dmnProps['phpini_perm_allow_url_fopen'] == 'yes'
-                || $dmnProps['phpini_perm_display_errors'] == 'yes'
-                || in_array($dmnProps['phpini_perm_disable_functions'], ['yes', 'exec'])
-            ),
-            'cgi'                => ($dmnProps['domain_cgi'] == 'yes'),
-            'ftp'                => ($dmnProps['domain_ftpacc_limit'] != '-1'),
-            'sql'                => ($dmnProps['domain_sqld_limit'] != '-1'),
-            'mail'               => ($dmnProps['domain_mailacc_limit'] != '-1'),
-            'subdomains'         => ($dmnProps['domain_subd_limit'] != '-1'),
-            'domain_aliases'     => ($dmnProps['domain_alias_limit'] != '-1'),
-            'custom_dns_records' => ($dmnProps['domain_dns'] != 'no' && $cfg['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer'),
-            'webstats'           => ($cfg['WEBSTATS_PACKAGES'] != 'No'),
-            'backup'             => ($cfg['BACKUP_DOMAINS'] != 'no' && $dmnProps['allowbackup'] != ''),
+            'external_mail'      => $dmnProps['domain_external_mail'] == 'yes',
+            'php'                => $dmnProps['domain_php'] == 'yes',
+            'php_editor'         => $dmnProps['phpini_perm_system'] == 'yes' && $dmnProps['phpini_perm_allow_url_fopen'] == 'yes'
+                || $dmnProps['phpini_perm_display_errors'] == 'yes' || in_array($dmnProps['phpini_perm_disable_functions'], ['yes', 'exec']),
+            'cgi'                => $dmnProps['domain_cgi'] == 'yes',
+            'ftp'                => $dmnProps['domain_ftpacc_limit'] != '-1',
+            'sql'                => $dmnProps['domain_sqld_limit'] != '-1',
+            'mail'               => $dmnProps['domain_mailacc_limit'] != '-1',
+            'subdomains'         => $dmnProps['domain_subd_limit'] != '-1',
+            'domain_aliases'     => $dmnProps['domain_alias_limit'] != '-1',
+            'custom_dns_records' => $dmnProps['domain_dns'] != 'no' && $cfg['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+            'webstats'           => $cfg['WEBSTATS_PACKAGES'] != 'no',
+            'backup'             => $cfg['BACKUP_DOMAINS'] != 'no' && $dmnProps['allowbackup'] != '',
             'protected_areas'    => true,
             'custom_error_pages' => true,
-            'aps'                => (
-                $dmnProps['domain_software_allowed'] != 'no' && $dmnProps['domain_ftpacc_limit'] != '-1'
-            ),
-            'ssl'                => ($cfg['ENABLE_SSL'] == 1)
+            'aps'                => $dmnProps['domain_software_allowed'] != 'no' && $dmnProps['domain_ftpacc_limit'] != '-1',
+            'ssl'                => $cfg['ENABLE_SSL'] == 1
         ];
 
         if ($cfg['IMSCP_SUPPORT_SYSTEM']) {

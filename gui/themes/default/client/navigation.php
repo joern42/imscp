@@ -143,7 +143,12 @@ return [
             'file_manager'    => [
                 'label'  => tr('FileManager'),
                 'uri'    => '/ftp/',
-                'target' => '_blank'
+                'target' => '_blank',
+                'privilege_callback' => [
+                    'name' => function () {
+                        return Registry::get('config')['FILEMANAGER_PACKAGES'] != 'no';
+                    }
+                ]
             ]
         ]
     ],
