@@ -170,7 +170,7 @@ sub _updateConfig
     my ( $self, $action, $data ) = @_;
 
     my $file = iMSCP::File->new( filename => "$NETPLAN_CONF_DIR/99-imscp-$data->{'ip_id'}.yaml" );
-    return $file->delete() if $action eq 'remove' && -f $file;
+    return $file->remove() if $action eq 'remove' && -f $file;
 
     $file->set( process(
         {
