@@ -123,8 +123,6 @@ sub removeIpAddr
 
     $self->_updateConfig( 'remove', $data );
 
-    my $vlan = "veth$data->{'ip_id'}";
-
     return unless $data->{'ip_config_mode'} eq 'auto' || !$self->{'net'}->isKnownDevice( $vlan );
 
     $self->{'net'}->delAddr( $data->{'ip_address'} );
