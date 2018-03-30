@@ -135,7 +135,7 @@ sub setEnginePermissions
 
 sub getDistroPackages
 {
-    return( 'awstats', 'libnet-dns-perl' ) if $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    return 'awstats' if $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
     ();
 }
 
