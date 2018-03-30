@@ -92,6 +92,8 @@ EOF
         return $rs unless $rs < 30;
     }
 
+    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'no', @{ $self->{'SELECTED_PACKAGES'} } );
+
     ::setupSetQuestion( 'WEBMAIL_PACKAGES', @{ $self->{'SELECTED_PACKAGES'} } ? join ',', @{ $self->{'SELECTED_PACKAGES'} } : 'no' );
 
     return 0 unless @{ $self->{'SELECTED_PACKAGES'} };
