@@ -78,13 +78,15 @@ sub new
             )
         );
         $self->{'_attrs'}->{'user'} //= $pwent[0];
-        $self->{'_euid'} = $pwent[3];
+        $self->{'_euid'} = $pwent[2];
 
         if ( defined $self->{'_attrs'}->{'group'} ) {
-            $self->{'_egid'} = getgrnam( $self->{'_attrs'}->{'group'} ) or croak( "Couldn't find %s group in group database" );
+            $self->{'_egid'} = getgrnam( $self->{'_attrs'}->{'group'} ) or croak(
+                sprintf( "Couldn't find %s group in group database", $self->{'_attrs'}->{'group'} )
+            );
         } else {
             $self->{'_egid'} = ( split /\s+/, $EGID )[0];
-            $self->{'_attrs'}->{'group'} = getgrgid( $EGID ) or croak( "Couldn't find group with ID %d in group database" );
+            $self->{'_attrs'}->{'group'} = getgrgid( $EGID ) or croak( sprintf( "Couldn't find group with ID %d in group database", $EGID ));
         }
         undef @pwent;
 
@@ -230,7 +232,8 @@ sub installPackages
         iMSCP::Dir->new( dirname => $self->{'_attrs'}->{'working_dir'} )->make( {
             user           => $self->{'_euid'},
             group          => $self->{'_egid'},
-            mode           => 0750
+            mode           => 0750,
+            fixpermissions => TRUE
         } );
     }
 
@@ -281,7 +284,8 @@ sub updatePackages
         iMSCP::Dir->new( dirname => $self->{'_attrs'}->{'working_dir'} )->make( {
             user           => $self->{'_euid'},
             group          => $self->{'_egid'},
-            mode           => 0750
+            mode           => 0750,
+            fixpermissions => TRUE
         } );
     }
 
@@ -377,13 +381,11 @@ sub getComposerJson
 {
     my ( $self, $scalar ) = @_;
 
-    $scalar ? $self->{'_attrs'}->{'composer_json'} : to_json( $self->{'_attrs'}->{'composer_json'},
-        {
-            utf8      => TRUE,
-            indent    => TRUE,
-            canonical => TRUE
-        }
-    );
+    $scalar ? $self->{'_attrs'}->{'composer_json'} : to_json( $self->{'_attrs'}->{'composer_json'}, {
+        utf8      => TRUE,
+        indent    => TRUE,
+        canonical => TRUE
+    } );
 }
 
 =item setStdRoutines( [ $subStdout = sub { print STDOUT @_ } [, $subStderr = sub { print STDERR @_ }  ] ] )
@@ -456,11 +458,7 @@ sub _getSuCmd
     }
 
     delete $ENV{'COMPOSER_ALLOW_SUPERUSER'};
-
-    [
-        '/bin/su', '-l', $self->{'_attrs'}->{'user'}, '-s', '/bin/sh', '-c',
-        "COMPOSER_HOME=$self->{'_attrs'}->{'home_dir'}/.composer @_"
-    ];
+    [ '/bin/su', '-l', $self->{'_attrs'}->{'user'}, '-s', '/bin/sh', '-c', "COMPOSER_HOME=$self->{'_attrs'}->{'home_dir'}/.composer @_" ];
 }
 
 =back
