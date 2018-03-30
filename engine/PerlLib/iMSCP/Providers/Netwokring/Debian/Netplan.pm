@@ -127,11 +127,7 @@ sub removeIpAddr
 
     return unless $data->{'ip_config_mode'} eq 'auto' || !$self->{'net'}->isKnownDevice( $vlan );
 
-    my ( $stdout, $stderr );
-    execute( [ $COMMANDS{'ip'}, 'link', 'delete', $vlan ], \$stdout, \$stderr ) == 0 or die(
-        sprintf( "Couldn't bring down the %s network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
-    );
-
+    $self->{'net'}->delAddr( $data->{'ip_address'} );
     $self;
 }
 
@@ -174,22 +170,19 @@ sub _updateConfig
 
     $file->set( process(
         {
-            vlan_id    => $data->{'ip_id'},
-            iface      => "veth$data->{'ip_id'}",
+            iface      => $data->{'ip_card'},
             ip_address => $self->{'net'}->normalizeAddr( $data->{'ip_address'} ),
             ip_netmask => $data->{'ip_netmask'},
         },
-        <<"STANZA"
+        <<"CONFIG"
 network:
   version: 2
   renderer: networkd
-  vlans:
-   veth{vlan_id}:
-    id: {vlan_id}
-    link: iface
+  ethernets:
+   {iface}:
     addresses:
-     - {ip_address}/{ip_netmask}
-STANZA
+     - @{[ $self->{'net'}->getAddrVersion( $data->{'ip_address'} ) eq 'ipv4' ? '{ip_address}/{ip_netmask}' : '\'{ip_address}/{ip_netmask}\'' ] }
+CONFIG
     ))->save();
 }
 
