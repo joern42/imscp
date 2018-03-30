@@ -342,7 +342,7 @@ sub make
         mkdir $self->{'dirname'} or die( sprintf( "Failed to create '%s': %s", $self->{'dirname'}, $! ));
     }
 
-    return $self unless !@dst || $self->{'fixpermissions'};
+    return $self unless !@dst || $options->{'fixpermissions'};
 
     if ( defined $options->{'user'} || defined $options->{'group'} ) {
         $self->owner( $options->{'user'} // -1, $options->{'group'} // -1, $self->{'dirname'} );
