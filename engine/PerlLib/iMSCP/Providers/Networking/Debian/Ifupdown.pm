@@ -71,7 +71,7 @@ sub addIpAddr
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
     # We localize the modification as we do not want propagate it to caller
-    local $data->{'ip_id'} += 1000;
+    local $data->{'ip_id'} = $data->{'ip_id'} + 1000;
 
     $self->{'net'}->isKnownDevice( $data->{'ip_card'} ) or croak( sprintf( 'The %s network interface is unknown', $data->{'ip_card'} ));
     $self->{'net'}->isValidAddr( $data->{'ip_address'} ) or croak( sprintf( 'The %s IP address is not valid', $data->{'ip_address'} ));
@@ -126,7 +126,7 @@ sub removeIpAddr
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
     # We localize the modification as we do not want propagate it to caller
-    local $data->{'ip_id'} += 1000;
+    local $data->{'ip_id'} = $data->{'ip_id'} + 1000;
 
     if ( $data->{'ip_config_mode'} eq 'auto'
         && $self->{'net'}->getAddrVersion( $data->{'ip_address'} ) eq 'ipv4'
