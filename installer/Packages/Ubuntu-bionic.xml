@@ -36,9 +36,52 @@
         </nginx>
     </httpd>
     <php class="iMSCP::Servers::Php" type="server">
-        <php class="iMSCP::Servers::Php::Debian">
+        <php
+                class="iMSCP::Servers::Php::Debian"
+                repository="http://ppa.launchpad.net/ondrej/php/ubuntu bionic main"
+                repository_key_id="E5267A6C"
+                repository_key_srv="keyserver.ubuntu.com"
+        >
+            <package>libapache2-mod-php5.6</package>
+            <package>libapache2-mod-php7.0</package>
             <package>libapache2-mod-php7.1</package>
             <package>libapache2-mod-php7.2</package>
+            <package>php5.6</package>
+            <package>php5.6-cgi</package>
+            <package>php5.6-cli</package>
+            <package>php5.6-fpm</package>
+            <package>php5.6-common</package>
+            <package>php5.6-curl</package>
+            <package>php5.6-gd</package>
+            <package>php5.6-gmp</package>
+            <package>php5.6-imap</package>
+            <package>php5.6-intl</package>
+            <package>php5.6-json</package>
+            <package>php5.6-mbstring</package>
+            <package>php5.6-mcrypt</package>
+            <package>php5.6-mysql</package>
+            <package>php5.6-opcache</package>
+            <package>php5.6-pspell</package>
+            <package>php5.6-xml</package>
+            <package>php5.6-zip</package>
+            <package>php7.0</package>
+            <package>php7.0-cgi</package>
+            <package>php7.0-cli</package>
+            <package>php7.0-fpm</package>
+            <package>php7.0-common</package>
+            <package>php7.0-curl</package>
+            <package>php7.0-gd</package>
+            <package>php7.0-gmp</package>
+            <package>php7.0-imap</package>
+            <package>php7.0-intl</package>
+            <package>php7.0-json</package>
+            <package>php7.0-mbstring</package>
+            <package>php7.0-mcrypt</package>
+            <package>php7.0-mysql</package>
+            <package>php7.0-opcache</package>
+            <package>php7.0-pspell</package>
+            <package>php7.0-xml</package>
+            <package>php7.0-zip</package>
             <package>php7.1</package>
             <package>php7.1-cli</package>
             <package>php7.1-cgi</package>
@@ -182,32 +225,16 @@
         <ifupdown default="1" description="ifup/ifdown (historical)" class="iMSCP::Providers::Networking::Debian::Ifupdown">
             <package_conflict>nplan</package_conflict>
             <package_conflict>netplan.io</package_conflict>
-            <package_conflict>ubuntu-minimal</package_conflict>
             <package>ifupdown</package>
         </ifupdown>
-        <!--
-            Ubuntu starting with version 17.10 make use of netplan.io and
-            systemd-networkd for setting up networking by default. Because we
-            don't have a provider for it yet, we need to switch back to historical
-            ifupdown tools. This is done right now by hiding the netplan networking
-            configuration provider alternative which will be made available when the
-            provider will be ready.
-            See
-                - https://wiki.ubuntu.com/BionicBeaver/ReleaseNotes#New_features_in_18.04
-                - https://wiki.ubuntu.com/Netplan
-                - https://netplan.io/
-                - https://arador.com/how-to-configure-a-static-ip-address-in-ubuntu-18-04/
-        -->
         <netplan
+                default="1"
                 description="netplan (with systemd-networkd)"
                 class="iMSCP::Providers::Networking::Debian::Netplan"
-                hidden="1"
                 condition="'${SYSTEM_INIT}' eq 'Systemd'"
         >
-            <package>nplan</package>
             <package>netplan.io</package>
             <package_conflict>ifupdown</package_conflict>
-            <!--<service disable="1" mask="1" condition="'${SYSTEM_INIT}' eq 'Systemd'">systemd-networkd</service>-->
         </netplan>
     </networking>
     <perl>
