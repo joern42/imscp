@@ -9,7 +9,7 @@ server {
 
     # FIXME check format (default to combined)
     # It must include I/O bytes and be compatible with AWStats
-    access_log {HTTPD_LOG_DIR}/access.log;
+    access_log {HTTPD_LOG_DIR}/access.log imscp;
     error_log {HTTPD_LOG_DIR}/error.log crit;
 
     location ^~ /errors/ {
