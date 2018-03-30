@@ -4,9 +4,9 @@ i-MSCP listener files
 ### Introduction
 
 Listeners files are simple Perl scripts which are automatically loaded by the
-i-MSCP event manager at runtime, and this, before any event triggering. These
-listener files make it possible to hook into i-MSCP by registering event
-listeners which listen events that are triggered by various i-MSCP components.
+i-MSCP event manager at runtime. These listener files make it possible to hook
+into i-MSCP by registering event listeners which listen events that are
+triggered by various i-MSCP components.
 
 There are a lot of events triggered, in different contexts. Unfortunately,
 there is not documentation yet for them but that will be fixed soon. At the
@@ -43,8 +43,8 @@ contexts.
 
 There is also the **installer** sub-directory. That directory meant to hold
 listener files that act in installer context only. It is best avoided to load
-those listener files in context other than installer as this would involve a
-useless performance penality, even though registration of event listeners is
+those listener files in context other than installer as this would involve
+useless performance penality, even though, registration of event listeners is
 relatively cheap.
 
 ### Listener file namespaces

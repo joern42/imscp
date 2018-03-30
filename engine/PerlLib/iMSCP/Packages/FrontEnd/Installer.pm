@@ -621,12 +621,8 @@ EOT
             };
             if ( $@ ) {
                 endDetail;
-                undef $self->{'_composer'};
-                error( $@ );
-                return 1;
+                die;
             }
-
-            0;
         }
     );
 }
@@ -952,7 +948,7 @@ sub _makeDirs
 
     for my $dir ( [ $nginxTmpDir, $rootUName, $rootGName, 0755 ],
         [ $self->{'config'}->{'HTTPD_CONF_DIR'}, $rootUName, $rootGName, 0755 ],
-        [ $self->{'config'}->{'HTTPD_LOG_DIR'}, $rootUName, $rootGName, 0755 ],
+        [ "$self->{'config'}->{'HTTPD_LOG_DIR'}/@{ [ ::setupGetQuestion( 'BASE_SERVER_VHOST' ) ] }", $rootUName, $rootGName, 0755 ],
         [ $self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}, $rootUName, $rootGName, 0755 ],
         [ $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}, $rootUName, $rootGName, 0755 ]
     ) {
@@ -1094,7 +1090,6 @@ sub _buildHttpdConfig
             HTTPD_LOG_DIR            => $self->{'config'}->{'HTTPD_LOG_DIR'},
             HTTPD_PID_FILE           => $self->{'config'}->{'HTTPD_PID_FILE'},
             HTTPD_CONF_DIR           => $self->{'config'}->{'HTTPD_CONF_DIR'},
-            HTTPD_LOG_DIR            => $self->{'config'}->{'HTTPD_LOG_DIR'},
             HTTPD_SITES_ENABLED_DIR  => $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'}
         },
         {
@@ -1140,7 +1135,8 @@ sub _buildHttpdConfig
         BASE_SERVER_VHOST_HTTPS_PORT => $httpsPort,
         WEB_DIR                      => $::imscpConfig{'GUI_ROOT_DIR'},
         CONF_DIR                     => $::imscpConfig{'CONF_DIR'},
-        PLUGINS_DIR                  => $::imscpConfig{'PLUGINS_DIR'}
+        PLUGINS_DIR                  => $::imscpConfig{'PLUGINS_DIR'},
+        HTTPD_LOG_DIR                => $self->{'config'}->{'HTTPD_LOG_DIR'}
     };
 
     $self->{'frontend'}->disableSites( 'default', '00_master.conf', '00_master_ssl.conf' );

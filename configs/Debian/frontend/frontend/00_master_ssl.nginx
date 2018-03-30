@@ -11,6 +11,9 @@ server {
     ssl_certificate {CONF_DIR}/{BASE_SERVER_VHOST}.pem;
     ssl_certificate_key {CONF_DIR}/{BASE_SERVER_VHOST}.pem;
 
+    access_log {HTTPD_LOG_DIR}/{BASE_SERVER_VHOST}/access.log imscp;
+    error_log {HTTPD_LOG_DIR}/{BASE_SERVER_VHOST}/error.log crit;
+
     root {WEB_DIR}/public;
 
     index index.php index.html;

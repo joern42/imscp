@@ -7,6 +7,9 @@ server {
 
     # SECTION http BEGIN.
     server_name {BASE_SERVER_VHOST};
+    
+    access_log {HTTPD_LOG_DIR}/{BASE_SERVER_VHOST}/access.log imscp;
+    error_log {HTTPD_LOG_DIR}/{BASE_SERVER_VHOST}/error.log crit;
 
     root {WEB_DIR}/public;
 
