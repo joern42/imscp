@@ -135,27 +135,27 @@ sub getBloc( $$$;$ )
  Param string|Regexp $endingTag Bloc ending tag
  Param string $repl Bloc replacement string
  param scalaref $template Reference to template content
- Param bool $preserveTags OPTIONAL Whether or not begin and ending tags must be preverved
+ Param bool $preserveBloc OPTIONAL Whether or not block must be preserved
  Return void, croak on failure
 
 =cut
 
 sub replaceBlocByRef( $$$$;$ )
 {
-    my ( $beginTag, $endingTag, $repl, $template, $preserveTags ) = @_;
+    my ( $beginTag, $endingTag, $repl, $template, $preserveBloc ) = @_;
 
     ref $template eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar expected.' );
 
-    if ( $preserveTags ) {
-        $beginTag = "(\Q$beginTag\E)" unless ref $beginTag eq 'Regexp';
-        $endingTag = "(\Q$endingTag\E)" unless ref $endingTag eq 'Regexp';
-        ${ $template } =~ s/[\t ]*$beginTag.*?[\t ]*$endingTag/$repl$1$2/gs;
+    if ( $preserveBloc ) {
+        $beginTag = "\Q$beginTag\E" unless ref $beginTag eq 'Regexp';
+        $endingTag = "\Q$endingTag\E" unless ref $endingTag eq 'Regexp';
+        ${ $template } =~ s/([\t ]*)($beginTag)(.*?)([\t ]*$endingTag)/$1$repl$1$2$3$4/gs;
         return;
     }
 
     $beginTag = "\Q$beginTag\E" unless ref $beginTag eq 'Regexp';
     $endingTag = "\Q$endingTag\E" unless ref $endingTag eq 'Regexp';
-    ${ $template } =~ s/[\t ]*$beginTag.*?[\t ]*$endingTag/$repl/gs;
+    ${ $template } =~ s/([\t ]*)$beginTag.*?[\t ]*$endingTag/$1$repl/gs;
 }
 
 =item replaceBloc( $beginTag, $endingTag, $repl, $template [, $preserveTags = false ] )

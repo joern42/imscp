@@ -80,9 +80,9 @@ sub addIpAddr
 
     $data->{'ip_netmask'} ||= ( $addrVersion eq 'ipv4' ) ? 24 : 64;
 
+    return $self->_updateInterfacesFile( 'remove', $data ) unless $data->{'ip_config_mode'} eq 'auto';
+    
     $self->_updateInterfacesFile( 'add', $data );
-
-    return $self unless $data->{'ip_config_mode'} eq 'auto';
 
     # Handle case where the IP netmask or NIC has been changed
     if ( $self->{'net'}->isKnownAddr( $data->{'ip_address'} )
@@ -196,7 +196,7 @@ sub _updateInterfacesFile
     );
 
     if ( $action eq 'add'
-        && $data->{'ip_config_mode'} eq 'auto'
+        #&& $data->{'ip_config_mode'} eq 'auto'
         && ${ $fileContentRef } !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$cAddr|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
     ) {
         my $iface = $data->{'ip_card'} . ( ( $addrVersion eq 'ipv4' ) ? ':' . $data->{'ip_id'} : '' );
