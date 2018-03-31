@@ -585,8 +585,8 @@ sub _migrateFromCourier
 
     my $rs = execute(
         [
-            'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/courier-dovecot-migrate.pl", '--to-dovecot', '--quiet', '--convert',
-            '--overwrite', '--recursive', $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
+            'perl', "$::imscpConfig{'TOOLS_ROOT_DIR'}/courier-dovecot-migrate.pl", '--to-dovecot', '--quiet', '--convert', '--overwrite',
+            '--recursive', $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
         ],
         \my $stdout,
         \my $stderr
