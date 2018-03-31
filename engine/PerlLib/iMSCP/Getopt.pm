@@ -196,6 +196,7 @@ my %RECONFIGURATION_ITEMS = (
     po                => 'IMAP/POP servers',
     primary_ip        => 'Server primary IP address',
     providers         => 'All providers',
+    resolver          => 'Local DNS resolver', 
     servers           => 'All servers',
     servers_ssl       => 'SSL for the IMAP/POP, SMTP and FTP servers',
     sqld              => 'SQL server',
