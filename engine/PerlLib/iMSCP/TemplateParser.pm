@@ -28,7 +28,7 @@ use warnings;
 use Carp qw/ croak /;
 use parent 'Exporter';
 
-our @EXPORT = qw/ process processByRef getBloc getBlocByRef replaceBloc replaceBlocByRef /;
+our @EXPORT_OK = qw/ process processByRef getBloc getBlocByRef replaceBloc replaceBlocByRef /;
 
 =head1 DESCRIPTION
 
@@ -82,13 +82,13 @@ sub process( $$;$ )
 
 =item getBlocByRef( $beginTag, $endingTag, \$template [, $includeTags = false ] )
 
- Get the first block matching the given begin and ending tags within the given template
+ Get the first template bloc matching the given begin and ending tags within the given template
 
  Param string $beginTag Bloc begin tag
  Param string $endingTag Bloc ending tag
  param string \$template Reference to template content
  Param bool $includeTags OPTIONAL Whether or not begin and ending tag should be included in result
- Return string Bloc content, including or not the begin and ending tags, croak on failure
+ Return string Bloc content, including or not the begin and ending template bloc tags, croak on failure
 
 =cut
 
@@ -105,14 +105,13 @@ sub getBlocByRef( $$$;$ )
 
 =item getBloc( $beginTag, $endingTag, $template [, $includeTags = false ] )
 
- Get the first block matching the given begin and ending tags within the given
- template
+ Get the first template bloc matching the given begin and ending tags within the given template
 
  Param string $beginTag Bloc begin tag
  Param string $endingTag Bloc ending tag
  param string $template Template content
  Param bool $includeTags OPTIONAL Whether or not begin and ending tag should be included in result
- Return string Bloc content, including or not the begin and ending tags
+ Return string Bloc content, including or not the begin and ending template bloc tags
 
 =cut
 
@@ -125,17 +124,13 @@ sub getBloc( $$$;$ )
 
 =item replaceBlocByRef( $beginTag, $endingTag, $repl, $template [, $preserveTags = false ] )
 
- Replace all blocs matching the given begin and ending tags within the given
- template
- 
- Note that when passing Regexp for begin or ending tags and that you want
- preserve tags, you're responsible for adding capturing parentheses.
+ Replace all template blocs matching the given begin and ending tags within the given template
 
  Param string|Regexp $beginTag Bloc begin tag
  Param string|Regexp $endingTag Bloc ending tag
  Param string $repl Bloc replacement string
  param scalaref $template Reference to template content
- Param bool $preserveBloc OPTIONAL Whether or not block must be preserved
+ Param bool $preserveBloc OPTIONAL Whether or not template bloc must be preserved
  Return void, croak on failure
 
 =cut
@@ -160,17 +155,13 @@ sub replaceBlocByRef( $$$$;$ )
 
 =item replaceBloc( $beginTag, $endingTag, $repl, $template [, $preserveTags = false ] )
 
- Replace all blocs matching the given begin and ending tags within the given
- template
- 
- Note that when passing Regexp for begin or ending tags and that you want
- preserve tags, you're responsible for adding capturing parentheses.
+ Replace all template blocs matching the given begin and ending tags within the given template
 
  Param string|Regexp $beginTag Bloc begin tag
  Param string|Regexp $endingTag Bloc ending tag
  Param string $repl Bloc replacement string
  param string $template Template content
- Param bool $preserveTags OPTIONAL Whether or not begin and ending tags must be preverved
+ Param bool $preserveTags OPTIONAL Whether or not begin and ending bloc tags must be preverved
  Return string Template content
 
 =cut
