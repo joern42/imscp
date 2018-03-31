@@ -25,6 +25,7 @@ package iMSCP::Servers::NoServer;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
 use parent 'iMSCP::Servers::Abstract';
 
 our $VERSION = '2.0.0';
@@ -154,6 +155,25 @@ sub reload
 sub buildConfFile
 {
     my ( $self ) = @_;
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _init( )
+
+ See iMSCP::Common::Singleton::_init()
+
+=cut
+
+sub _init
+{
+    my ( $self ) = @_;
+
+    $self;
 }
 
 =back
