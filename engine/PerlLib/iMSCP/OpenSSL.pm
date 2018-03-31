@@ -155,7 +155,7 @@ sub importPrivateKey
     }
 
     my $srcFile = File::Temp->new();
-    print $srcFile iMSCP::File->new( filename => $self->{'certificate_container_path'} )->get() =~ s/\015\012?/\012/gr;
+    print $srcFile iMSCP::File->new( filename => $self->{'private_key_container_path'} )->get() =~ s/\015\012?/\012/gr;
     $srcFile->close();
 
     my $cmd = [
@@ -180,11 +180,8 @@ sub importCertificate
 {
     my ( $self ) = @_;
 
-    my $dstFile = iMSCP::File->new( filename => "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" );
-    $dstFile->set( <<"EOF" );
-@{ [ iMSCP::File->new( filename => $self->{'certificate_container_path'} )->get() =~ s/\015\012?/\012/gr ] }
-@{ [ $dstFile->get() ] }
-EOF
+    my $file = iMSCP::File->new( filename => "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" );
+    $file->set( $file->get() . iMSCP::File->new( filename => $self->{'certificate_container_path'} )->get() =~ s/\015\012?/\012/gr )->save();
     $self;
 }
 
@@ -202,11 +199,8 @@ sub importCaBundle
 
     return $self unless length $self->{'ca_bundle_container_path'};
 
-    my $dstFile = iMSCP::File->new( filename => "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" );
-    $dstFile->set( <<"EOF" );
-@{ [ iMSCP::File->new( filename => $self->{'ca_bundle_container_path'} )->get() =~ s/\015\012?/\012/gr ] }
-@{ [ $dstFile->get() ] }
-EOF
+    my $file = iMSCP::File->new( filename => "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" );
+    $file->set( $file->get() . iMSCP::File->new( filename => $self->{'ca_bundle_container_path'} )->get() =~ s/\015\012?/\012/gr )->save();
     $self;
 }
 
