@@ -197,13 +197,11 @@
         <mariadb_10.1
                 description="MariaDB 10.1 server"
                 class="iMSCP::Servers::Sqld::Mariadb::Debian"
-                repository="http://mirror.netcologne.de/mariadb/repo/10.1/ubuntu bionic main"
-                pinning_package="libmariadbclient18 mariadb-client-10.1 mariadb-common mariadb-server-core-10.1 mysql-common"
+                pinning_package="libmysqlclient20 mariadb-client-10.1 mariadb-common mariadb-server-core-10.1 mysql-common"
                 pinning_pin="release o=Ubuntu,n=bionic"
                 pinning_pin_priority="1001"
         >
-            <package>libmariadbclient18</package>
-            <package>libmysqlclient18</package>
+            <package>libmysqlclient20</package>
             <package>mariadb-client-10.1</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.1</package>
