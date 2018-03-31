@@ -1,6 +1,6 @@
 =head1 NAME
 
-iMSCP::OpenSSL - i-MSCP OpenSSL library
+ iMSCP::OpenSSL - i-MSCP OpenSSL library
 
 =cut
 
@@ -32,7 +32,7 @@ use iMSCP::Boolean;
 use iMSCP::Debug qw/ error debug /;
 use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::File;
-use iMSCP::TemplateParser;
+use iMSCP::TemplateParser qw/ process /;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
@@ -72,12 +72,8 @@ sub validatePrivateKey
     ];
     my $rs = execute( $cmd, \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die(
-        sprintf(
-            "Couldn't import SSL private key from %s file: %s",
-            $self->{'private_key_container_path'},
-            $stderr || 'unknown error'
-        )
+    $rs == 0 or die(
+        sprintf( "Couldn't import SSL private key from %s file: %s", $self->{'private_key_container_path'}, $stderr || 'unknown error' )
     );
     $self;
 }
@@ -111,13 +107,12 @@ sub validateCertificate
     }
 
     my $cmd = [
-        'openssl', 'verify',
-        ( ( length $self->{'ca_bundle_container_path'} ) ? ( '-CAfile', $self->{'ca_bundle_container_path'} ) : () ),
+        'openssl', 'verify', ( ( length $self->{'ca_bundle_container_path'} ) ? ( '-CAfile', $self->{'ca_bundle_container_path'} ) : () ),
         '-purpose', 'sslserver', $self->{'certificate_container_path'}
     ];
     my $rs = execute( $cmd, \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( sprintf(
+    $rs == 0 or die( sprintf(
         "SSL certificate is not valid: %s", ( $stderr || $stdout || 'Unknown error' ) =~ s/$self->{'certificate_container_path'}:\s+//r
     ));
     $self->{'ca_bundle_container_path'} = '' unless $caBundle;
@@ -159,14 +154,17 @@ sub importPrivateKey
         $passphraseFile->close();
     }
 
+    my $srcFile = File::Temp->new();
+    print $srcFile iMSCP::File->new( filename => $self->{'certificate_container_path'} )->get() =~ s/\015\012?/\012/gr;
+    $srcFile->close();
+
     my $cmd = [
-        'openssl', 'pkey', '-in', $self->{'private_key_container_path'},
-        '-out', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem",
+        'openssl', 'pkey', '-in', $srcFile->filename(), '-out', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem",
         ( ( $passphraseFile ) ? ( '-passin', 'file:' . $passphraseFile->filename ) : () )
     ];
     my $rs = execute( $cmd, \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( sprintf( "Couldn't import SSL private key: %s", $stderr || 'unknown error' ));
+    $rs == 0 or die( sprintf( "Couldn't import SSL private key: %s", $stderr || 'unknown error' ));
     $self;
 }
 
@@ -182,19 +180,11 @@ sub importCertificate
 {
     my ( $self ) = @_;
 
-    my $file = iMSCP::File->new( filename => $self->{'certificate_container_path'} );
-    my $certificateRef = $file->getAsRef();
-    ${ $certificateRef } =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
-    ${ $certificateRef } .= "\n";
-    $file->save();
-
-    my @cmd = (
-        '/bin/cat', escapeShell( $self->{'certificate_container_path'} ),
-        '>>', escapeShell( "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" )
-    );
-    my $rs = execute( "@cmd", \my $stdout, \my $stderr );
-    debug( $stdout ) if length $stdout;
-    !$rs or die( sprintf( "Couldn't import SSL certificate: %s", $stderr || 'unknown error' ));
+    my $dstFile = iMSCP::File->new( filename => "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" );
+    $dstFile->set( <<"EOF" );
+@{ [ iMSCP::File->new( filename => $self->{'certificate_container_path'} )->get() =~ s/\015\012?/\012/gr ] }
+@{ [ $dstFile->get() ] }
+EOF
     $self;
 }
 
@@ -210,21 +200,13 @@ sub importCaBundle
 {
     my ( $self ) = @_;
 
-    return $self unless $self->{'ca_bundle_container_path'};
+    return $self unless length $self->{'ca_bundle_container_path'};
 
-    my $file = iMSCP::File->new( filename => $self->{'ca_bundle_container_path'} );
-    my $caBundleRef = $file->getAsRef();
-    ${ $caBundleRef } =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
-    ${ $caBundleRef } .= "\n";
-    $file->save();
-
-    my @cmd = (
-        '/bin/cat', escapeShell( $self->{'ca_bundle_container_path'} ),
-        '>>', escapeShell( "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" )
-    );
-    my $rs = execute( "@cmd", \my $stdout, \my $stderr );
-    debug( $stdout ) if length $stdout;
-    !$rs or die( sprintf( "Couldn't import SSL CA Bundle: %s", $stderr || 'unknown error' ));
+    my $dstFile = iMSCP::File->new( filename => "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" );
+    $dstFile->set( <<"EOF" );
+@{ [ iMSCP::File->new( filename => $self->{'ca_bundle_container_path'} )->get() =~ s/\015\012?/\012/gr ] }
+@{ [ $dstFile->get() ] }
+EOF
     $self;
 }
 
@@ -249,29 +231,27 @@ sub createSelfSignedCertificate
     my $openSSLConffileTpl = "$::imscpConfig{'CONF_DIR'}/openssl/openssl.cnf.tpl";
     my $commonName = $data->{'wildcard'} ? '*.' . $data->{'common_name'} : $data->{'common_name'};
 
-    # Load openssl configuration template file for self-signed SSL certificates
-    my $openSSLConffileTplContent = iMSCP::File->new( filename => $openSSLConffileTpl )->get();
-
     # Write openssl configuration file into temporary file
     my $openSSLConffile = File::Temp->new();
     print $openSSLConffile process(
         {
             COMMON_NAME   => $commonName,
             EMAIL_ADDRESS => $data->{'email'},
-            ALT_NAMES     => ( $data->{'wildcard'} ? "DNS.1 = $commonName\n" : "DNS.1 = $commonName\nDNS.2 = www.$commonName\n" )
+            ALT_NAMES     => $data->{'wildcard'} ? "DNS.1 = $commonName\n" : "DNS.1 = $commonName\nDNS.2 = www.$commonName\n"
         },
-        $openSSLConffileTplContent
+        # openssl configuration template file for self-signed SSL certificates
+        iMSCP::File->new( filename => $openSSLConffileTpl )->get()
     );
     $openSSLConffile->close();
 
     my $cmd = [
-        'openssl', 'req', '-x509', '-nodes', '-days', '365', '-config', $openSSLConffile->filename, '-newkey', 'rsa',
+        'openssl', 'req', '-x509', '-nodes', '-days', '365', '-config', $openSSLConffile->filename(), '-newkey', 'rsa',
         '-keyout', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem",
         '-out', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem"
     ];
     my $rs = execute( $cmd, \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( sprintf( "Couldn't generate self-signed certificate: %s", $stderr || 'unknown error' ));
+    $rs == 0 or die( sprintf( "Couldn't generate self-signed certificate: %s", $stderr || 'unknown error' ));
     $self;
 }
 
@@ -287,9 +267,7 @@ sub createCertificateChain
 {
     my ( $self ) = @_;
 
-    $self->importPrivateKey();
-    $self->importCertificate();
-    $self->importCaBundle();
+    $self->importPrivateKey()->importCertificate()->importCaBundle();
 }
 
 =item getCertificateExpiryTime( [ certificatePath = $self->{'certificate_container_path'} ] )
@@ -310,7 +288,7 @@ sub getCertificateExpiryTime
 
     my $rs = execute( [ 'openssl', 'x509', '-enddate', '-noout', '-in', $certificatePath ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs && $stdout =~ /^notAfter=(.*)/i or die( sprintf( "Couldn't get SSL certificate expiry time: %s", $stderr || 'unknown error' ));
+    $rs == 0 && $stdout =~ /^notAfter=(.*)/i or die( sprintf( "Couldn't get SSL certificate expiry time: %s", $stderr || 'unknown error' ));
 
     str2time( $1 );
 }
@@ -336,7 +314,7 @@ sub _init
     # Full path to the certificate chains storage directory
     $self->{'certificate_chains_storage_dir'} //= '';
     # Certificate chain name
-    $self->{'certificate_chain_name'} //= '';
+    $self->{'certificate_chain_name'} //= 'chain';
     # Full path to the private key container
     $self->{'private_key_container_path'} //= '';
     # Private key passphrase if any

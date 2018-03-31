@@ -258,7 +258,7 @@ sub askLocalDnsResolver
         || !isStringInList( $value, keys %choices )
     ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
-Do you want to use the local DNS resolver?
+Do you want to use Bind9 as local DNS resolver?
 \\Z \\Zn
 EOF
         return $rs unless $rs < 30;
