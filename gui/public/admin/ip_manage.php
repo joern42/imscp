@@ -130,7 +130,7 @@ function generateIpsList($tpl)
             $actionName = ($row['ip_status'] == 'ok') ? tr('Assigned to at least one reseller') : translate_dmn_status($row['ip_status']);
             $actionIpId = NULL;
         } elseif ($row['ip_status'] == 'ok') {
-            $actionName = tr('Remove IP');
+            $actionName = tr('Delete');
             $actionIpId = $row['ip_id'];
         } else {
             $actionName = translate_dmn_status($row['ip_status']);
@@ -204,9 +204,10 @@ function generateDevicesList($tpl)
  * @param int $ipNetmask IP netmask
  * @param string $ipConfigMode IP configuration mode
  * @param string $ipCard IP network card
+ * @param bool $checkDuplicate Whether or not check for duplicate IP
  * @return bool TRUE if data are valid, FALSE otherwise
  */
-function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard)
+function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicate = true)
 {
     $errFieldsStack = [];
 
@@ -240,6 +241,25 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard)
     // Validate IP addr configuration mode
     if (!in_array($ipConfigMode, ['auto', 'manual'], true)) {
         showBadRequestErrorPage();
+    }
+
+    if ($checkDuplicate) {
+        $net = Net::getInstance();
+
+        if ($net->getVersion($ipAddr) == 6) {
+            $ipAddr = $net->compress($ipAddr);
+        }
+
+        // Make sure that $ipAddr is not already under the control of i-MSCP
+        $stmt = execute_query('SELECT ip_number FROM server_ips');
+        while ($row = $stmt->fetch()) {
+            $cIpaddr = ($net->getVersion($row['ip_number']) == 6) ? $net->compress($row['ip_number']) : $row['ip_number'];
+            if ($cIpaddr === $ipAddr) {
+                set_page_message(tr('IP address already under the control of i-MSCP.'), 'error');
+                $errFieldsStack[] = 'ip_number';
+                break;
+            }
+        }
     }
 
     if (!empty($errFieldsStack)) {
@@ -280,7 +300,7 @@ function editIpAddr()
         $ipCard = isset($_POST['ip_card']) ? clean_input($_POST['ip_card']) : $row['ip_card'];
         $ipConfigMode = isset($_POST['ip_config_mode'][$ipId]) ? clean_input($_POST['ip_config_mode'][$ipId]) : $row['ip_config_mode'];
 
-        if (!checkIpData($row['ip_number'], $ipNetmask, $ipConfigMode, $ipCard)) {
+        if (!checkIpData($row['ip_number'], $ipNetmask, $ipConfigMode, $ipCard, false)) {
             Session::namespaceUnset('pageMessages');
             sendJsonResponse(400, ['message' => tr('Bad request.')]);
         }
@@ -318,23 +338,6 @@ function addIpAddr()
 
     if (!checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard)) {
         return;
-    }
-
-    $net = Net::getInstance();
-
-    if ($net->getVersion($ipAddr) == 6) {
-        $ipAddr = $net->compress($ipAddr);
-    }
-
-    // Make sure that $ipAddr is not already under the control of i-MSCP
-    $stmt = execute_query('SELECT ip_number FROM server_ips');
-    while ($row = $stmt->fetch()) {
-        $cIpaddr = ($net->getVersion($row['ip_number']) == 6) ? $net->compress($row['ip_number']) : $row['ip_number'];
-        if ($cIpaddr === $ipAddr) {
-            set_page_message(tr('IP address already under the control of i-MSCP.'), 'error');
-            $errFieldsStack[] = 'ip_number';
-            break;
-        }
     }
 
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAddIpAddr, [
@@ -395,8 +398,8 @@ $tpl->assign([
     'TR_ADD_NEW_IP'           => tr('Add new IP address'),
     'TR_TIP'                  => tr('This interface allow to add or remove IP addresses.'),
     'TR_CONFIG_MODE'          => tr('Configuration mode'),
-    'TR_CONFIG_MODE_TOOLTIPS' => tr("When set to `Auto', the IP address is automatically configured.") . '<br>'
-        . tr("When set to `Manual', the configuration is left to the administrator.") . '<br><br>'
+    'TR_CONFIG_MODE_TOOLTIPS' => tr("When set to 'Auto', the IP address is automatically configured.") . '<br>'
+        . tr("When set to 'Manual', the configuration is left to the administrator.") . '<br><br>'
         . tr('Note that in manual mode, the NIC and the subnet mask are only indicative.'),
     'TR_AUTO'                 => tr('Auto'),
     'TR_MANUAL'               => tr('Manual')
@@ -407,7 +410,7 @@ Registry::get('iMSCP_Application')->getEventsManager()->registerListener('onGetJ
     $translation = $e->getParam('translations');
     $translation['core']['datatable'] = getDataTablesPluginTranslations(false);
     $translation['core']['err_fields_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
-    $translation['core']['confirm_deletion_msg'] = tr("Are you sure you want to delete the `%%s' IP address?");
+    $translation['core']['confirm_deletion_msg'] = tr("Are you sure you want to delete the %%s IP address?");
     $translation['core']['edit_tooltip'] = tr("Click to edit");
 });
 
