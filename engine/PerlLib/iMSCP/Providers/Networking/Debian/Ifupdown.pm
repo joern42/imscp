@@ -84,7 +84,7 @@ sub addIpAddr
 
     $self->_updateInterfacesFile( 'add', $data );
 
-    # In case the IP netmask or NIC has been changed, we need first remote the IP
+    # In case the IP netmask or NIC has been changed, we need first remove the IP
     if ( $self->{'net'}->isKnownAddr( $data->{'ip_address'} )
         && ( $self->{'net'}->getAddrDevice( $data->{'ip_address'} ) ne $data->{'ip_card'}
         || $self->{'net'}->getAddrNetmask( $data->{'ip_address'} ) ne $data->{'ip_netmask'} )
@@ -97,7 +97,7 @@ sub addIpAddr
 
         my ( $stdout, $stderr );
         execute( [ $COMMANDS{'ifup'}, '--force', $nic ], \$stdout, \$stderr ) == 0 or die(
-            sprintf( "Couldn't bring up the %s network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
+            sprintf( "Couldn't add the %s IP address: %s", $data->{'ip_address'}, $stderr || 'Unknown error' )
         );
         return $self;
     }
@@ -134,7 +134,7 @@ sub removeIpAddr
     ) {
         my ( $stdout, $stderr );
         execute( "$COMMANDS{'ifdown'} --force $data->{'ip_card'}:$data->{'ip_id'}", \$stdout, \$stderr ) == 0 or die(
-            sprintf( "Couldn't bring down the %s network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
+            sprintf( "Couldn't remove the %s IP address: %s", $data->{'ip_address'}, $stderr || 'Unknown error' )
         );
 
         iMSCP::File->new( filename => $IFUP_STATE_DIR . "/ifup.$data->{'ip_card'}:$data->{'ip_id'}" )->remove();

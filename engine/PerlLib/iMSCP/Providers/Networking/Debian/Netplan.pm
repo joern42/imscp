@@ -93,7 +93,7 @@ sub addIpAddr
 
     my ( $stdout, $stderr );
     execute( [ $COMMANDS{'netplan'}, 'apply' ], \$stdout, \$stderr ) == 0 or die(
-        sprintf( "Couldn't bring up the %s network interface: %s", "$data->{'ip_card'}:$data->{'ip_id'}", $stderr || 'Unknown error' )
+        sprintf( "Couldn't add the %s IP address: %s", $data->{'ip_address'}, $stderr || 'Unknown error' )
     );
 
     $self;
