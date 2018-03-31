@@ -55,7 +55,7 @@ my @masterCfParameters = (
 ## Please, don't edit anything below this line unless you known what you're doing
 #
 
-version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or die(
     sprintf( "The 10_postfix_tuning.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 

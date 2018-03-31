@@ -42,7 +42,7 @@ my $SERVER_IDENT_MESSAGE = 'i-MSCP FTP server.';
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or die(
     sprintf( "The 10_proftpd_serverident.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 

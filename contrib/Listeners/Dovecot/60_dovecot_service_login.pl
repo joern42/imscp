@@ -64,7 +64,7 @@ my $POP3_SERVICE_COUNT = 0;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or die(
     sprintf( "The 60_dovecot_service_login.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 

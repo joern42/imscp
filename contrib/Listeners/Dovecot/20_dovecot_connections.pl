@@ -42,7 +42,7 @@ my $MAX_CONNECTION_PER_IP = 50;
 ## Please, don't edit anything below this line
 #
 
-version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.5.1' ) or die(
+version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or die(
     sprintf( "The 20_dovecot_connections.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
