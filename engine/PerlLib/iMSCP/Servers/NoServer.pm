@@ -165,7 +165,7 @@ sub buildConfFile
 
 =item _init( )
 
- See iMSCP::Common::Singleton::_init()
+ See iMSCP::Servers::Abstract::_init()
 
 =cut
 
