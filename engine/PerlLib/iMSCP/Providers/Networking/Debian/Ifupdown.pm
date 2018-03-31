@@ -30,7 +30,7 @@ use iMSCP::Boolean;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Net;
-use iMSCP::TemplateParser qw/ process replaceBlocByRef /;
+use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
 use parent qw/ iMSCP::Common::Object iMSCP::Providers::Networking::Interface /;
 
 # Commands used in that package
@@ -71,7 +71,7 @@ sub addIpAddr
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
     # We localize the modification as we do not want propagate it to caller
-    local $data->{'ip_id'} = $data->{'ip_id'} + 1000;
+    local $data->{'ip_id'} = $data->{'ip_id'}+1000;
 
     $self->{'net'}->isKnownDevice( $data->{'ip_card'} ) or croak( sprintf( 'The %s network interface is unknown', $data->{'ip_card'} ));
     $self->{'net'}->isValidAddr( $data->{'ip_address'} ) or croak( sprintf( 'The %s IP address is not valid', $data->{'ip_address'} ));
@@ -81,10 +81,10 @@ sub addIpAddr
     $data->{'ip_netmask'} ||= ( $addrVersion eq 'ipv4' ) ? 24 : 64;
 
     return $self->_updateInterfacesFile( 'remove', $data ) unless $data->{'ip_config_mode'} eq 'auto';
-    
+
     $self->_updateInterfacesFile( 'add', $data );
 
-    # Handle case where the IP netmask or NIC has been changed
+    # In case the IP netmask or NIC has been changed, we need first remote the IP
     if ( $self->{'net'}->isKnownAddr( $data->{'ip_address'} )
         && ( $self->{'net'}->getAddrDevice( $data->{'ip_address'} ) ne $data->{'ip_card'}
         || $self->{'net'}->getAddrNetmask( $data->{'ip_address'} ) ne $data->{'ip_netmask'} )
@@ -126,7 +126,7 @@ sub removeIpAddr
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
     # We localize the modification as we do not want propagate it to caller
-    local $data->{'ip_id'} = $data->{'ip_id'} + 1000;
+    local $data->{'ip_id'} = $data->{'ip_id'}+1000;
 
     if ( $data->{'ip_config_mode'} eq 'auto'
         && $self->{'net'}->getAddrVersion( $data->{'ip_address'} ) eq 'ipv4'
@@ -187,6 +187,7 @@ sub _updateInterfacesFile
     my $cAddr = $self->{'net'}->normalizeAddr( $data->{'ip_address'} );
     my $eAddr = $self->{'net'}->expandAddr( $data->{'ip_address'} );
 
+    # We search also by ip_id for backward compatibility
     my $fileContentRef = $file->getAsRef();
     replaceBlocByRef(
         qr/^\s*# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$cAddr\E)\] entry BEGIN\n/m,
@@ -196,32 +197,27 @@ sub _updateInterfacesFile
     );
 
     if ( $action eq 'add'
-        #&& $data->{'ip_config_mode'} eq 'auto'
+        # We need make sure that the IP is not already configured somewhere else. Beginner could enable 'auto' mode while
+        # the IP is already manually configured...
         && ${ $fileContentRef } !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$cAddr|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
     ) {
         my $iface = $data->{'ip_card'} . ( ( $addrVersion eq 'ipv4' ) ? ':' . $data->{'ip_id'} : '' );
+        my $beginTag = "# i-MSCP [$cAddr] entry BEGIN";
+        my $endingTag = "# i-MSCP [$cAddr] entry ENDING";
+        ${ $fileContentRef } .= <<"STANZA";
 
-        ${ $fileContentRef } .= process(
-            {
-                ip_id       => $data->{'ip_id'},
-                # For IPv6 addr, we do not create aliased interface because that is not suppported everywhere.
-                iface       => $iface,
-                ip_address  => $cAddr,
-                ip_netmask  => $data->{'ip_netmask'},
-                addr_family => $addrVersion eq 'ipv4' ? 'inet' : 'inet6'
-            },
-            <<"STANZA"
-
-# i-MSCP [{ip_address}] entry BEGIN
-iface {iface} {addr_family} static
-    address {ip_address}
-    netmask {ip_netmask}
-# i-MSCP [{ip_address}] entry ENDING
+$beginTag
+iface $iface @{ [ $addrVersion eq 'ipv4' ? 'inet' : 'inet6' ] } static
+    address $cAddr
+    netmask $data->{'ip_netmask'}
+$endingTag
 STANZA
-        );
-
-        # We do add the `auto' stanza only for aliased interfaces, hence, for IPv4 only
-        ${ $fileContentRef } =~ s/^(# i-MSCP \[$cAddr\] entry BEGIN\n)/${1}auto $iface\n/m if $addrVersion eq 'ipv4';
+        # We do add the 'auto' stanza only for aliased interfaces, hence, for IPv4 only
+        replaceBlocByRef( "$beginTag\n", "$endingTag\n", <<"STANZA", $fileContentRef ) if $addrVersion eq 'ipv4';
+$beginTag
+auto $iface
+@{ [ getBlocByRef( "$beginTag\n", "$endingTag\n", $fileContentRef ) ] }$endingTag
+STANZA
     }
 
     $file->save();

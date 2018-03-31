@@ -30,7 +30,6 @@ use iMSCP::Boolean;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Net;
-use iMSCP::TemplateParser qw/ process replaceBlocByRef /;
 use parent qw/ iMSCP::Common::Object iMSCP::Providers::Networking::Interface /;
 
 # Commands used in that package
@@ -73,7 +72,7 @@ sub addIpAddr
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
     # We localize the modification as we do not want propagate it to caller
-    local $data->{'ip_id'} = $data->{'ip_id'} + 1000;
+    local $data->{'ip_id'} = $data->{'ip_id'}+1000;
 
     $self->{'net'}->isKnownDevice( $data->{'ip_card'} ) or croak( sprintf( 'The %s network interface is unknown', $data->{'ip_card'} ));
     $self->{'net'}->isValidAddr( $data->{'ip_address'} ) or croak( sprintf( 'The %s IP address is not valid', $data->{'ip_address'} ));
@@ -119,7 +118,7 @@ sub removeIpAddr
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
     # We localize the modification as we do not want propagate it to caller
-    local $data->{'ip_id'} = $data->{'ip_id'} + 1000;
+    local $data->{'ip_id'} = $data->{'ip_id'}+1000;
 
     $self->_updateConfig( 'remove', $data );
 
@@ -166,22 +165,15 @@ sub _updateConfig
     my $file = iMSCP::File->new( filename => "$NETPLAN_CONF_DIR/99-imscp-$data->{'ip_id'}.yaml" );
     return $file->remove() if $action eq 'remove';
 
-    $file->set( process(
-        {
-            iface      => $data->{'ip_card'},
-            ip_address => $self->{'net'}->normalizeAddr( $data->{'ip_address'} ),
-            ip_netmask => $data->{'ip_netmask'}
-        },
-        <<"CONFIG"
+    $file->set( <<"CONFIG" )->save();
 network:
   version: 2
   renderer: networkd
   ethernets:
-   {iface}:
+   $data->{'ip_card'}:
     addresses:
-     - @{[ $self->{'net'}->getAddrVersion( $data->{'ip_address'} ) eq 'ipv4' ? '{ip_address}/{ip_netmask}' : '\'{ip_address}/{ip_netmask}\'' ] }
+     - @{ [ $self->{'net'}->normalizeAddr( $data->{'ip_address'} ) ] }/$data->{'ip_netmask'}
 CONFIG
-    ))->save();
 }
 
 =back
