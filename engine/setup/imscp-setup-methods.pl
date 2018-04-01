@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl#!/usr/bin/perl
 
 # i-MSCP - internet Multi Server Control Panel
 # Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
@@ -167,7 +167,7 @@ sub setupSaveConfig
 
     while ( my ( $key, $value ) = each( %::questions ) ) {
         next unless exists $::imscpConfig{$key};
-        $::imscpConfig{$key} = $value;
+        $::imscpConfig{$key} = length $value ? $value : $::imscpConfig{$key};
     }
 
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupSaveConfig' );
@@ -457,10 +457,10 @@ sub setupGetQuestion
     my ( $qname, $default ) = @_;
 
     if ( iMSCP::Getopt->preseed ) {
-        return exists $::questions{$qname} && length $::questions{$qname} ? $::questions{$qname} : $default // '';
+        return length $::questions{$qname} ? $::questions{$qname} : $default // '';
     }
 
-    return $::questions{$qname} if exists $::questions{$qname};
+    return $::questions{$qname} if length $::questions{$qname};
 
     exists $::imscpConfig{$qname} && length $::imscpConfig{$qname} ? $::imscpConfig{$qname} : $default // '';
 }
