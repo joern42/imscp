@@ -151,7 +151,7 @@
     <tr>
         <td colspan="5">
             <div class="buttons">
-                <a class="link_as_button" id="reconfigure_action"  href="?reconfigure" title="{TR_RECONFIGURE_TOOLTIP}">{TR_RECONFIGURE}</a>
+                <a class="link_as_button" id="reconfigure_action" href="?reconfigure" title="{TR_RECONFIGURE_TOOLTIP}">{TR_RECONFIGURE}</a>
             </div>
         </td>
     </tr>

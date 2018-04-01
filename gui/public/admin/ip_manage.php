@@ -408,7 +408,7 @@ $tpl->assign([
     'TR_ACTION'               => tohtml(tr('Action')),
     'TR_NETWORK_CARD'         => tohtml(tr('Network interface (NIC)')),
     'TR_RECONFIGURE'          => tohtml(tr('Force reconfiguration')),
-    'TR_RECONFIGURE_TOOLTIP'  => tohtml(tr('Schedule reconfiguration of all server IP addresses.')),
+    'TR_RECONFIGURE_TOOLTIP'  => tohtml(tr('Schedule reconfiguration of all server IP addresses.', 'htmlAttr')),
     'TR_ADD'                  => tohtml(tr('Add')),
     'TR_CANCEL'               => tohtml(tr('Cancel')),
     'TR_CONFIGURED_IPS'       => tohtml(tr('IP addresses under control of i-MSCP')),
