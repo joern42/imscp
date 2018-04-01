@@ -159,7 +159,7 @@ sub getTableColumns
 =item dumpdb( $dbName, $dbDumpTargetDir )
 
  Dump the given database
- 
+
  # TODO: Sign the SQL dump using SSL and verify the signature
 
  Param string $dbName Database name
@@ -190,19 +190,20 @@ host = $self->{'db'}->{'DATABASE_HOST'}
 port = $self->{'db'}->{'DATABASE_PORT'}
 user = "@{ [ $self->{'db'}->{'DATABASE_USER'} =~ s/"/\\"/gr ] }"
 password = "@{ [ $self->{'db'}->{'DATABASE_PASSWORD'} =~ s/"/\\"/gr ] }"
-max_allowed_packet = 500M
+add-drop-database = true
 add-drop-table = false
 add-locks = true
-create-options = true
-disable-keys = true
-extended-insert = true
-lock-tables = true
-quick = true
-set-charset = true
-add-drop-database = true
 allow-keywords = true
-quote-names = true
+disable-keys = true
 complete-insert = true
+create-options = true
+extended-insert = true
+insert-ignore = true
+lock-tables = true
+max_allowed_packet = 500M
+set-charset = true
+quick = true
+quote-names = true
 @{ [ $innoDbOnly ? 'single-transaction = true' : 'lock-tables = true' ] }
 @{ [ $innoDbOnly ? 'skip-lock-tables = true' : '' ] }
 @{ [ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ? 'compress = true' : '' ] }

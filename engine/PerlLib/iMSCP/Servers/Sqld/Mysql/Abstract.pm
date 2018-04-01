@@ -179,10 +179,8 @@ sub sqlUserHostDialog
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqld', 'servers', 'all', 'forced' ] )
-        || ( $hostname ne '%' && !isValidHostname( $hostname )
-        && !isValidIpAddr( $hostname,
-        ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 )
-            ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ ) )
+        || ( $hostname ne '%' && !isValidHostname( $hostname ) && !isValidIpAddr( $hostname, ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes'
+        || index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) != -1 ) ? qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ : qr/^PUBLIC$/ ) )
     ) {
         my $rs = 0;
 

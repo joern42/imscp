@@ -190,17 +190,6 @@
         <package>resolvconf</package>
     </named>
     <sqld class="iMSCP::Servers::Sqld" description="SQL server" type="server">
-        <mysql_5.7
-                default="1"
-                description="MySQL 5.7 server"
-                class="iMSCP::Servers::Sqld::Mysql::Debian"
-                pinning_package="libmysqlclient20 mysql-client-5.7 mysql-common mysql-server-5.7"
-                pinning_pin="release o=Ubuntu,n=xenial"
-                pinning_pin_priority="1001"
-        >
-            <package>mysql-client-5.7</package>
-            <package>mysql-server-5.7</package>
-        </mysql_5.7>
         <mariadb_10.1
                 description="MariaDB 10.1 server"
                 class="iMSCP::Servers::Sqld::Mariadb::Debian"
@@ -235,6 +224,17 @@
             <package>mariadb-server-10.2</package>
             <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
         </mariadb_10.2>
+        <mysql_5.7
+                default="1"
+                description="MySQL 5.7 server"
+                class="iMSCP::Servers::Sqld::Mysql::Debian"
+                pinning_package="libmysqlclient20 mysql-client-5.7 mysql-common mysql-server-5.7"
+                pinning_pin="release o=Ubuntu,n=xenial"
+                pinning_pin_priority="1001"
+        >
+            <package>mysql-client-5.7</package>
+            <package>mysql-server-5.7</package>
+        </mysql_5.7>
         <percona_5.7
                 description="Percona 5.7 server"
                 class="iMSCP::Servers::Sqld::Percona::Debian"

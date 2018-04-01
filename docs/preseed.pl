@@ -3,7 +3,7 @@
 # See the documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.04.01
+# Last update: 2018.04.02
 
 %::questions = (
     # Mandatory parameters
@@ -69,13 +69,13 @@
 
     # Server primary IP
     #
-    # Possible values: An already configured IPv4, IPv6 or `None'
+    # Possible values: An already configured IPv4, IPv6 or 'None'
     #
-    # The `None' option is more suitable for Cloud computing services such as
+    # The 'None' option is more suitable for Cloud computing services such as
     # Scaleway and Amazon EC2, or when using a Vagrant box where the public IP
     # address that is assigned through DHCP can changes over the time.
     #
-    # Selecting the `None' option means that i-MSCP will configure the
+    # Selecting the 'None' option means that i-MSCP will configure the
     # services to listen on all interfaces.
     #
     # Leave empty for default: None
@@ -118,12 +118,12 @@
     # Possible values, depending on your distributions:
     # - Debian-like distributions:
     #  - iMSCP::Servers:Sqld::Mariadb::Debian (Default for Debian Stretch/Buster)
-    #  - iMSCP::Servers:Sqld::Mysql::Debian   (default for Debian/Devuan Jessie, Ubuntu Trusty/Xenial, not available for Debian Buster)
+    #  - iMSCP::Servers:Sqld::Mysql::Debian   (default for Debian/Devuan Jessie, Ubuntu Trusty/Xenial/Bionic, not available for Debian Buster)
     #  - iMSCP::Servers:Sqld::Percona::Debian (Not available for Debian Buster)
     #  - iMSCP::Servers:Sqld::Remote::Debian
     #
     # Note that it is not possible to choose the SQL server version in preseed mode.
-    # The installer will automatically choose the best available version for your distribution.
+    # The installer will select the best version for you.
     #
     # Leave empty for default: Depend on distribution default value
     'iMSCP::Servers::Sqld'              => '',
@@ -423,7 +423,7 @@
     #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Cdb   (A read-optimized structure; default)
     #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Btree (A sorted, balanced tree structure)
     #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Hash  (An indexed file type based on hashing)
-    #   - iMSCP::Servers::Mta::Postfix::Driver::Database::MySQL (MySQL database client (experimental))
+    #   - iMSCP::Servers::Mta::Postfix::Driver::Database::MySQL (MySQL database client)
     #
     # Leave empty for default: Depend on distribution default value
     MTA_DB_DRIVER                       => '',

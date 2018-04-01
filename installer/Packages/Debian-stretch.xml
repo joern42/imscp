@@ -180,20 +180,6 @@
         <package>resolvconf</package>
     </named>
     <sqld class="iMSCP::Servers::Sqld" description="SQL server" type="server">
-        <mysql_5.7
-                description="MySQL 5.7 server"
-                class="iMSCP::Servers::Sqld::Mysql::Debian"
-                repository="http://repo.mysql.com/apt/debian/ stretch mysql-5.7"
-                repository_key_id="5072E1F5"
-                repository_key_srv="keyserver.ubuntu.com"
-                pinning_package="*"
-                pinning_pin="origin repo.mysql.com"
-                pinning_pin_priority="1001"
-        >
-            <package>libmysqlclient20</package>
-            <package>mysql-community-client</package>
-            <package>mysql-community-server</package>
-        </mysql_5.7>
         <mariadb_10.1
                 default="1"
                 description="MariaDB 10.1 server"
@@ -222,6 +208,20 @@
             <package>mariadb-server-10.2</package>
             <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
         </mariadb_10.2>
+        <mysql_5.7
+                description="MySQL 5.7 server"
+                class="iMSCP::Servers::Sqld::Mysql::Debian"
+                repository="http://repo.mysql.com/apt/debian/ stretch mysql-5.7"
+                repository_key_id="5072E1F5"
+                repository_key_srv="keyserver.ubuntu.com"
+                pinning_package="*"
+                pinning_pin="origin repo.mysql.com"
+                pinning_pin_priority="1001"
+        >
+            <package>libmysqlclient20</package>
+            <package>mysql-community-client</package>
+            <package>mysql-community-server</package>
+        </mysql_5.7>
         <percona_5.7
                 description="Percona 5.7 server"
                 class="iMSCP::Servers::Sqld::Percona::Debian"

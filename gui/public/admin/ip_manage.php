@@ -204,7 +204,7 @@ function generateDevicesList($tpl)
  */
 function reconfigureIpAddresses()
 {
-    execute_query("UPDATE server_ips set ip_status = 'tochange' WHERE ip_status <> 'todelete'");
+    execute_query("UPDATE server_ips SET ip_status = 'tochange' WHERE ip_status <> 'todelete'");
     set_page_message(tohtml(tr('Server IP addresses scheduled for reconfiguration.')), 'success');
     send_request();
     redirectTo('ip_manage.php');

@@ -169,7 +169,7 @@ sub getAvailableDbDrivers
 
     {
         CDB   => {
-            desc    => 'A read-optimized structure (recommended)',
+            desc    => 'A read-optimized structure',
             class   => 'iMSCP::Servers::Mta::Postfix::Driver::Database::CDB',
             default => TRUE
         },
@@ -182,7 +182,7 @@ sub getAvailableDbDrivers
             class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::Hash'
         },
         MySQL => {
-            desc  => 'MySQL database client (experimental)',
+            desc  => 'MySQL database client',
             class => 'iMSCP::Servers::Mta::Postfix::Driver::Database::MySQL'
         }
     };
