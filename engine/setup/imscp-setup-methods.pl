@@ -105,7 +105,7 @@ sub setupDialog
             require Data::Dumper;
             local $Data::Dumper::Deparse = TRUE;
             die( sprintf( "Unexpected return value from the following setup dialog routine:\n\n%s\n 0, 30 (BACK) or 50 (ESC) expected.",
-                Data::Dumper::Dumper( $dialogStack->[$state] ) . "\n"
+                Data::Dumper::Dumper( $dialogStack->[$state] )
             ));
         }
 
