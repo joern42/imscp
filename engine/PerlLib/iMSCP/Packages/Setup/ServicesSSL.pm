@@ -26,6 +26,7 @@ package iMSCP::Packages::Setup::ServicesSSL;
 use strict;
 use warnings;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
+use File::Basename;
 use iMSCP::Boolean;
 use iMSCP::File;
 use iMSCP::Getopt;
@@ -77,7 +78,7 @@ sub servicesSslDialog
     my $passphrase = ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' );
     my $certificatePath = ::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH' );
     my $caBundlePath = ::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH' );
-    my $fselectRootDir = length $privateKeyPath ? dirname( $privateKeyPath ) // '/root/' : '/root/';
+    my $fselectRootDir = ( length $privateKeyPath ? dirname( $privateKeyPath ) // '/root' : '/root' ) . '/';
     my $openSSL = iMSCP::OpenSSL->new();
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'servers_ssl', 'ssl', 'all', 'forced' ] )

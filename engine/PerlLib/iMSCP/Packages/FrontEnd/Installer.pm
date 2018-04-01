@@ -310,7 +310,7 @@ sub askSsl
     my $passphrase = ::setupGetQuestion( 'PANEL_SSL_PRIVATE_KEY_PASSPHRASE' );
     my $caBundlePath = ::setupGetQuestion( 'PANEL_SSL_CA_BUNDLE_PATH' );
     my $certificatePath = ::setupGetQuestion( 'PANEL_SSL_CERTIFICATE_PATH' );
-    my $fselectRootDir = length $privateKeyPath ? dirname( $privateKeyPath ) // '/root/' : '/root/';
+    my $fselectRootDir = ( length $privateKeyPath ? dirname( $privateKeyPath ) // '/root' : '/root' ) . '/';
     my $openSSL = iMSCP::OpenSSL->new();
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'panel_ssl', 'ssl', 'all', 'forced' ] )
