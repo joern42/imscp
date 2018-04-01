@@ -105,7 +105,7 @@ function generateIpsList($tpl)
     $stmt = execute_query('SELECT * FROM server_ips');
     if (!$stmt->rowCount()) {
         $tpl->assign('IP_ADDRESSES_BLOCK', '');
-        set_page_message(tr('No IP address found.'), 'info');
+        set_page_message(tohtml(tr('No IP address found.')), 'info');
         return;
     }
 
@@ -124,22 +124,22 @@ function generateIpsList($tpl)
         $ipAddr = ($ipAddrVersion == 6) ? $net->compress($row['ip_number']) : $row['ip_number'];
 
         if ($baseServerIp === $ipAddr) {
-            $actionName = $row['ip_status'] == 'ok' ? tr('Protected') : translate_dmn_status($row['ip_status']);
+            $actionName = $row['ip_status'] == 'ok' ? tohtml(tr('Protected')) : tohtml(translate_dmn_status($row['ip_status']));
             $actionIpId = NULL;
         } elseif (in_array($row['ip_id'], $assignedIps)) {
-            $actionName = ($row['ip_status'] == 'ok') ? tr('Assigned to at least one reseller') : translate_dmn_status($row['ip_status']);
+            $actionName = ($row['ip_status'] == 'ok') ? tohtml(tr('Assigned to at least one reseller')) : tohtml(translate_dmn_status($row['ip_status']));
             $actionIpId = NULL;
         } elseif ($row['ip_status'] == 'ok') {
-            $actionName = tr('Delete');
+            $actionName = tohtml(tr('Delete'));
             $actionIpId = $row['ip_id'];
         } else {
-            $actionName = translate_dmn_status($row['ip_status']);
+            $actionName = tohtml(translate_dmn_status($row['ip_status']));
             $actionIpId = NULL;
         }
 
         $tpl->assign([
-            'IP'           => tohtml(($row['ip_number'] == '0.0.0.0') ? tr('Any') : $row['ip_number']),
-            'IP_NETMASK'   => $net->getIpPrefixLength($net->compress($row['ip_number'])) ?: $row['ip_netmask'] ?: tr('N/A'),
+            'IP'           => tohtml(($row['ip_number'] == '0.0.0.0') ? tohtml(tr('Any')) : tohtml($row['ip_number'])),
+            'IP_NETMASK'   => $net->getIpPrefixLength($net->compress($row['ip_number'])) ?: $row['ip_netmask'] ?: tohtml(tr('N/A')),
             'IP_EDITABLE'  => ($row['ip_status'] == 'ok' && $baseServerIp != $ipAddr && $row['ip_config_mode'] != 'manual') ? true : false,
             'NETWORK_CARD' => ($row['ip_card'] === NULL) ? '' : (($row['ip_card'] !== 'any') ? tohtml($row['ip_card']) : tohtml(tr('Any')))
         ]);
@@ -152,7 +152,7 @@ function generateIpsList($tpl)
             ]);
             $tpl->parse('IP_CONFIG_MODE_BLOCK', 'ip_config_mode_block');
         } else {
-            $tpl->assign('IP_CONFIG_MODE_BLOCK', tr('N/A'));
+            $tpl->assign('IP_CONFIG_MODE_BLOCK', tohtml(tr('N/A')));
         }
 
         if ($actionIpId === NULL) {
@@ -182,7 +182,7 @@ function generateDevicesList($tpl)
     });
 
     if (empty($netDevices)) {
-        set_page_message(tr('Could not find any network interface. You cannot add new IP addresses.'), 'error');
+        set_page_message(tohtml(tr('Could not find any network interface. You cannot add new IP addresses.')), 'error');
         $tpl->assign('IP_ADDRESS_FORM_BLOCK', '');
         return;
     }
@@ -195,6 +195,19 @@ function generateDevicesList($tpl)
         ]);
         $tpl->parse('NETWORK_CARD_BLOCK', '.network_card_block');
     }
+}
+
+/**
+ * Reconfigure all server IP addresses
+ *
+ * @return void
+ */
+function reconfigureIpAddresses()
+{
+    execute_query("UPDATE server_ips set ip_status = 'tochange' WHERE ip_status <> 'todelete'");
+    set_page_message(tohtml(tr('Server IP addresses scheduled for reconfiguration.')), 'success');
+    send_request();
+    redirectTo('ip_manage.php');
 }
 
 /**
@@ -222,13 +235,13 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
     $isIPv6Allowed = Registry::get('config')['IPV6_SUPPORT'] == 'yes';
 
     if (!$isIPv6Allowed && $isIPv6) {
-        set_page_message(tr('IPv6 support is currently disabled. You cannot add new IPv6 IP addresses.'), 'error');
+        set_page_message(tohtml(tr('IPv6 support is currently disabled. You cannot add new IPv6 IP addresses.')), 'error');
         $errFieldsStack[] = 'ip_number';
     }
 
     // Validate IP netmask
     if (!ctype_digit($ipNetmask) || $ipNetmask < 1 || ($isIPv6 && (!$isIPv6Allowed || $ipNetmask > 128)) || (!$isIPv6 && $ipNetmask > 32)) {
-        set_page_message(tr('Wrong or unallowed IP netmask.'), 'error');
+        set_page_message(tohtml(tr('Wrong or unallowed IP netmask.')), 'error');
         $errFieldsStack[] = 'ip_netmask';
     }
 
@@ -255,7 +268,7 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
         while ($row = $stmt->fetch()) {
             $cIpaddr = ($net->getVersion($row['ip_number']) == 6) ? $net->compress($row['ip_number']) : $row['ip_number'];
             if ($cIpaddr === $ipAddr) {
-                set_page_message(tr('IP address already under the control of i-MSCP.'), 'error');
+                set_page_message(tohtml(tr('IP address already under the control of i-MSCP.')), 'error');
                 $errFieldsStack[] = 'ip_number';
                 break;
             }
@@ -317,7 +330,7 @@ function editIpAddr()
         ]);
         send_request();
         write_log(sprintf("Configuration for the %s IP address has been updated by %s", $row['ip_number'], $_SESSION['user_logged']), E_USER_NOTICE);
-        set_page_message(tr('IP address successfully scheduled for modification.'), 'success');
+        set_page_message(tohtml(tr('IP address successfully scheduled for modification.')), 'success');
         sendJsonResponse(200);
     } catch (\Exception $e) {
         sendJsonResponse(500, ['message' => sprintf('An unexpected error occurred: %s', $e->getMessage())]);
@@ -352,7 +365,7 @@ function addIpAddr()
     ]);
 
     send_request();
-    set_page_message(tr('IP address successfully scheduled for addition.'), 'success');
+    set_page_message(tohtml(tr('IP address successfully scheduled for addition.')), 'success');
     write_log(sprintf("An IP address (%s) has been added by %s", $ipAddr, $_SESSION['user_logged']), E_USER_NOTICE);
     redirectTo('ip_manage.php');
 }
@@ -372,6 +385,8 @@ if (!empty($_POST)) {
     }
 
     addIpAddr();
+} elseif (isset($_GET['reconfigure'])) {
+    reconfigureIpAddresses();
 }
 
 $tpl = new TemplateEngine();
@@ -387,22 +402,24 @@ $tpl->define([
     'network_card_block'    => 'ip_address_form_block'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'           => tr('Admin / Settings / IP Management'),
-    'TR_IP'                   => tr('IP address'),
-    'TR_IP_NETMASK'           => tr('IP netmask'),
-    'TR_ACTION'               => tr('Action'),
-    'TR_NETWORK_CARD'         => tr('Network interface (NIC)'),
-    'TR_ADD'                  => tr('Add'),
-    'TR_CANCEL'               => tr('Cancel'),
-    'TR_CONFIGURED_IPS'       => tr('IP addresses under control of i-MSCP'),
-    'TR_ADD_NEW_IP'           => tr('Add new IP address'),
-    'TR_TIP'                  => tr('This interface allow to add or remove IP addresses.'),
-    'TR_CONFIG_MODE'          => tr('Configuration mode'),
-    'TR_CONFIG_MODE_TOOLTIPS' => tr("When set to 'Auto', the IP address is automatically configured.") . '<br>'
-        . tr("When set to 'Manual', the configuration is left to the administrator.") . '<br><br>'
-        . tr('Note that in manual mode, the NIC and the subnet mask are only indicative.'),
-    'TR_AUTO'                 => tr('Auto'),
-    'TR_MANUAL'               => tr('Manual')
+    'TR_PAGE_TITLE'           => tohtml(tr('Admin / Settings / IP Management')),
+    'TR_IP'                   => tohtml(tr('IP address')),
+    'TR_IP_NETMASK'           => tohtml(tr('IP netmask')),
+    'TR_ACTION'               => tohtml(tr('Action')),
+    'TR_NETWORK_CARD'         => tohtml(tr('Network interface (NIC)')),
+    'TR_RECONFIGURE'          => tohtml(tr('Force reconfiguration')),
+    'TR_RECONFIGURE_TOOLTIP'  => tohtml(tr('Schedule reconfiguration of all server IP addresses.')),
+    'TR_ADD'                  => tohtml(tr('Add')),
+    'TR_CANCEL'               => tohtml(tr('Cancel')),
+    'TR_CONFIGURED_IPS'       => tohtml(tr('IP addresses under control of i-MSCP')),
+    'TR_ADD_NEW_IP'           => tohtml(tr('Add new IP address')),
+    'TR_TIP'                  => tohtml(tr('This interface allow to add or remove IP addresses.')),
+    'TR_CONFIG_MODE'          => tohtml(tr('Configuration mode')),
+    'TR_CONFIG_MODE_TOOLTIPS' => tohtml(tr("When set to 'Auto', the IP address is automatically configured.") . '<br>', 'htmlAttr')
+        . tohtml(tr("When set to 'Manual', the configuration is left to the administrator.") . '<br><br>', 'htmlAttr')
+        . tohtml(tr('Note that in manual mode, the NIC and the subnet mask are only indicative.'), 'htmlAttr'),
+    'TR_AUTO'                 => tohtml(tr('Auto')),
+    'TR_MANUAL'               => tohtml(tr('Manual'))
 ]);
 
 Registry::get('iMSCP_Application')->getEventsManager()->registerListener('onGetJsTranslations', function ($e) {
@@ -411,6 +428,7 @@ Registry::get('iMSCP_Application')->getEventsManager()->registerListener('onGetJ
     $translation['core']['datatable'] = getDataTablesPluginTranslations(false);
     $translation['core']['err_fields_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
     $translation['core']['confirm_deletion_msg'] = tr("Are you sure you want to delete the %%s IP address?");
+    $translation['core']['confirm_reconfigure_msg'] = tr("Are you sure you want to schedule reconfiguration of all server IP addresses?");
     $translation['core']['edit_tooltip'] = tr("Click to edit");
 });
 

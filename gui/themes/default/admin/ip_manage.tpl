@@ -102,6 +102,10 @@
         $(".i_delete").on("click", function () {
             return jQuery.imscp.confirmOnclick(this, sprintf(imscp_i18n.core.confirm_deletion_msg, $(this).data("ip")));
         });
+
+        $("#reconfigure_action").on("click", function () {
+            return jQuery.imscp.confirmOnclick(this, imscp_i18n.core.confirm_reconfigure_msg);
+        });
     });
 </script>
 <p class="hint" style="font-variant: small-caps;font-size: small;">{TR_TIP}</p>
@@ -142,6 +146,15 @@
         </td>
     </tr>
     <!-- EDP: ip_address_block -->
+    </tbody>
+    <tbody>
+    <tr>
+        <td colspan="5">
+            <div class="buttons">
+                <a class="link_as_button" id="reconfigure_action"  href="?reconfigure" title="{TR_RECONFIGURE_TOOLTIP}">{TR_RECONFIGURE}</a>
+            </div>
+        </td>
+    </tr>
     </tbody>
 </table>
 <!-- EDP: ip_addresses_block -->
