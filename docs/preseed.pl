@@ -3,7 +3,7 @@
 # See the documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.03.30
+# Last update: 2018.04.01
 
 %::questions = (
     # Mandatory parameters
@@ -44,7 +44,8 @@
     #
     # Possible values, depending on your distributions:
     # - Debian-like distributions:
-    #  - iMSCP::Providers::Networking::Debian::Ifupdown (default)
+    #  - iMSCP::Providers::Networking::Debian::Ifupdown (default for Debian, Ubuntu Trusty/Xenia)
+    #  - iMSCP::Providers::Networking::Debian::Netplan  (default for Ubuntu Bionic, only available for Ubuntu Bionic)
     #
     # Leave empty for default: Depend on distribution default value.
     'iMSCP::Providers::Networking'      => '',
@@ -124,7 +125,7 @@
     # Note that it is not possible to choose the SQL server version in preseed mode.
     # The installer will automatically choose the best available version for your distribution.
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     'iMSCP::Servers::Sqld'              => '',
 
     # Database name
@@ -177,7 +178,7 @@
     #
     # Possible values: behind, infront, none
     #
-    # Leave empty for default: none.
+    # Leave empty for default: none
     MYSQL_PREFIX                        => '',
 
     # Control panel hostname
@@ -262,7 +263,7 @@
     #   - iMSCP::Servers::Named::Bind9::Debian (default)
     #   - iMSCP::Servers::NoServer
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     'iMSCP::Servers::Named'             => '',
 
     # DNS server mode (Only relevant with 'bind')
@@ -309,7 +310,7 @@
     #   - iMSCP::Servers::Cron::Vixie::Debian   (Historical CRON(8) daemon; default)
     #   - iMSCP::Servers::Cron::Systemd::Debian (cron daemon functionality as provided by SYSTEMD.CRON(7), not available for Ubuntu Trusty)
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     'iMSCP::Servers::Cron'              => '',
 
     # HTTPd server implementation
@@ -318,14 +319,14 @@
     # - Debian-like distributions:
     #   - iMSCP::Servers::Httpd::Apache2::Debian (default)
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     'iMSCP::Servers::Httpd'             => '',
 
     # Apache2 MPM (only relevant for the Apache2 httpd server)
     #
     # Possibles values: event, itk, prefork, worker
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     HTTPD_MPM                           => '',
 
     # PHP version for customers
@@ -337,7 +338,7 @@
     #   - 7.1
     #   - 7.2 
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     PHP_VERSION                         => '',
 
     # PHP SAPI for customers
@@ -368,7 +369,7 @@
     #   - iMSCP::Servers::Ftpd::Proftpd::Debian (default)
     #   - iMSCP::Servers::Ftpd::Vsftpd::Debian
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     'iMSCP::Servers::Ftpd'              => '',
 
     # FTPd maximum clients
@@ -422,8 +423,9 @@
     #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Cdb   (A read-optimized structure; default)
     #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Btree (A sorted, balanced tree structure)
     #   - iMSCP::Servers::Mta::Postfix::Driver::Database::Hash  (An indexed file type based on hashing)
+    #   - iMSCP::Servers::Mta::Postfix::Driver::Database::MySQL (MySQL database client (experimental))
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     MTA_DB_DRIVER                       => '',
 
     # POP/IMAP servers implementation
@@ -433,7 +435,7 @@
     #   - iMSCP::Servers::Po::Courier::Debian
     #   - iMSCP::Servers::Po::Dovecot::Debian (default)
     #
-    # Leave empty for default: Depend on distribution default value.
+    # Leave empty for default: Depend on distribution default value
     'iMSCP::Servers::Po'                => '',
 
     # Authdaemon SQL user (only relevant with 'courier')
@@ -498,7 +500,7 @@
     # Available packages:
     # - Awstats (default)
     #
-    # Leave empty for default.
+    # Leave empty for default: Awstats
     WEBSTATS_PACKAGES                   => '',
 
     # FTP Web file manager packages
@@ -509,7 +511,7 @@
     # - Pydio (currently not available due to PHP version constraint that is not met)
     # - MonstaFTP (default)
     #
-    # Leave empty for default.
+    # Leave empty for default: MonstaFTP
     FILEMANAGER_PACKAGE                 => '',
 
     # SQL user for PhpMyAdmin
@@ -529,7 +531,7 @@
     # - RainLoop (default)
     # - Roundcube (default)
     #
-    # Leave empty for default.
+    # Leave empty for default RainLoop,Roundcube
     WEBMAIL_PACKAGES                    => '',
 
     # SQL user for Roundcube package (only if you use Roundcube)
@@ -552,12 +554,12 @@
 
     # Anti-rootkits packages
     #
-    # Possible values:
+    # Possible values: 'no' or a list of comma separated packages names.
     # - no
     # - Chkrootkit (default)
     # - Rkhunter (default)
     #
-    # Leave empty for default. 
+    # Leave empty for default: Chkrootkit,Rkhunter
     ANTI_ROOTKITS_PACKAGES              => ''
 );
 
