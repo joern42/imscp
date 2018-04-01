@@ -1,4 +1,4 @@
-#!/usr/bin/perl#!/usr/bin/perl
+#!/usr/bin/perl
 
 # i-MSCP - internet Multi Server Control Panel
 # Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
