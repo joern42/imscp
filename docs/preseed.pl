@@ -44,7 +44,7 @@
     #
     # Possible values, depending on your distributions:
     # - Debian-like distributions:
-    #  - iMSCP::Providers::Networking::Debian::Ifupdown (default for Debian, Ubuntu Trusty/Xenia)
+    #  - iMSCP::Providers::Networking::Debian::Ifupdown (default for Debian, Ubuntu Trusty/Xenial)
     #  - iMSCP::Providers::Networking::Debian::Netplan  (default for Ubuntu Bionic, only available for Ubuntu Bionic)
     #
     # Leave empty for default: Depend on distribution default value.
