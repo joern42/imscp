@@ -69,7 +69,7 @@ sub registerSetupListeners
  Ask for server hostname
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -109,12 +109,12 @@ EOF
     0;
 }
 
-=item askIPv6Support(\%dialog)
+=item askIPv6Support( \%dialog )
 
  Ask for IPv6 support
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -134,6 +134,7 @@ sub askIPv6Support
         || !isStringInList( $value, keys %choices )
     ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
+
 Do you want to enable IPv6 support?
 
 If you select the 'No' option, IPv6 support will be disabled globally. You'll not be able to add new IPv6 addresses and services will be configured to listen on IPv4 only.
@@ -152,7 +153,7 @@ EOF
  Ask for server primary IP
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -195,6 +196,7 @@ sub primaryIpDialog
             my %choices;
             @choices{@ipList} = @ipList;
             ( $rs, $lanIP ) = $dialog->radiolist( <<"EOF", \%choices, grep ( $_ eq $lanIP, @ipList ) ? $lanIP : $ipList[0] );
+
 Please select your server primary IP address:
 
 The \\Zb`None'\\ZB option means that i-MSCP will configure the services to listen on all interfaces.
@@ -237,6 +239,7 @@ EOF
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'all', 'forced' ] ) ) {
         if ( ( my $rs = $dialog->yesno( <<"EOF", TRUE, TRUE ) ) == 0 ) {
+
 Do you want to replace the IP address of all clients with the new primary IP address?
 EOF
             return $rs unless $rs < 30;
@@ -258,7 +261,7 @@ EOF
  Ask for server timezone
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 

@@ -61,7 +61,7 @@ our $VERSION = '0.2.0.*@dev';
  Show dialog
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -79,8 +79,7 @@ sub showDialog
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webmails', 'all', 'forced' ] )
-        || !isValidUsername( $dbUser )
-        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
+        || !isValidUsername( $dbUser ) || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
         || !isAvailableSqlUser( $dbUser )
     ) {
         my $rs = 0;
@@ -96,10 +95,8 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter a username for the RainLoop SQL user (leave empty for default):
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && ( !isValidUsername( $dbUser )
-            || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
-            || !isAvailableSqlUser( $dbUser )
+        } while $rs < 30 && ( !isValidUsername( $dbUser )
+            || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' ) || !isAvailableSqlUser( $dbUser )
         );
 
         return $rs unless $rs < 30;

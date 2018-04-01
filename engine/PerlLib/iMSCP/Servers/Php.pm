@@ -98,7 +98,7 @@ sub registerSetupListeners
  Ask for PHP version (PHP version for customers)
 
  Param iMSCP::Dialog \%dialog
- Return int 0 to go on next question, 30 to go back to the previous question, croak on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -119,6 +119,7 @@ sub askForPhpVersion
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || ( sort keys %choices )[0] );
+
 \Z4\Zb\ZuPHP version for customers\Zn
 
 Please choose the PHP version for the customers:
@@ -139,7 +140,7 @@ EOF
  Ask for PHP SAPI
 
  Param iMSCP::Dialog \%dialog
- Return int 0 to go on next question, 30 to go back to the previous question
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -174,6 +175,7 @@ sub askForPhpSapi
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'fpm' );
+
 \Z4\Zb\ZuPHP SAPI for customers\Zn
 
 Please choose the PHP SAPI for the customers:
@@ -192,7 +194,7 @@ EOF
  Ask for FastCGI connection type (PHP-FPM)
 
  Param iMSCP::Dialog \%dialog
- Return int 0 to go on next question, 30 to go back to the previous question
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -207,6 +209,7 @@ sub askForFastCGIconnectionType
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'uds' );
+
 \Z4\Zb\ZuPHP-FPM - FastCGI connection type\Zn
 
 Please choose the FastCGI connection type that you want use:

@@ -66,7 +66,7 @@ our $VERSION = '~1.0.0';
  Show dialog
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 

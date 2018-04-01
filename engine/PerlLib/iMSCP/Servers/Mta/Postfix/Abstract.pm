@@ -804,7 +804,7 @@ sub _init
  Ask for Postfix database driver to use
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
  
 =cut
 
@@ -822,6 +822,7 @@ sub _askForDatabaseDriver
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'mta', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || $defaultDbDriver, TRUE );
+
 Please choose the Postfix database driver you want use for lookup tables.
 
 See http://www.postfix.org/DATABASE_README.html for further details.

@@ -93,7 +93,7 @@ sub registerSetupListeners
  Ask for Apache MPM
 
  Param iMSCP::Dialog \%dialog
- Return int 0 to go on next question, 30 to go back to the previous question
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -115,6 +115,7 @@ sub askForApacheMPM
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || $default );
+
 \\Z4\\Zb\\ZuApache MPM\\Zn
 
 Please choose the Apache MPM you want use:

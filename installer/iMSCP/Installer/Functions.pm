@@ -515,6 +515,7 @@ sub _askInstallerMode
 
     my %choices = ( 'auto', 'Automatic installation', 'manual', 'Manual installation' );
     my ( $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, 'auto' );
+
 Please choose the installer mode:
 
 See https://wiki.i-mscp.net/doku.php?id=start:installer#installer_modes for a full description of the installer modes.

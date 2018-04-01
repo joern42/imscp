@@ -142,7 +142,7 @@ sub _unregisterConfig
     ${ $fileContentRef } =~ s/[\t ]*include imscp_rainloop.conf;\n//;
     $file->save();
 
-    $self->{'frontend'}->{'reload'} ||= 1;
+    $self->{'frontend'}->{'reload'} ||= TRUE;
 }
 
 =item _removeFiles( )

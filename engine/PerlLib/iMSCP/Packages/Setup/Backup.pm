@@ -60,7 +60,7 @@ sub registerSetupListeners
  Ask for i-MSCP backup
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -73,6 +73,7 @@ sub imscpBackupDialog
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
+
 \\Z4\\Zb\\Zui-MSCP Backup Feature\\Zn
 
 Do you want to activate the backup feature for i-MSCP (config files and database)?
@@ -90,7 +91,7 @@ EOF
  Ask for customers backup
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -103,6 +104,7 @@ sub customersBackupDialog
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
+
 \\Z4\\Zb\\ZuDomains Backup Feature\\Zn
 
 Do you want to activate the backup feature for customers?

@@ -26,6 +26,7 @@ package iMSCP::Packages::Webmail::Roundcube::Roundcube;
 use strict;
 use warnings;
 use Class::Autouse qw/ :nostat iMSCP::Packages::Webmail::Roundcube::Installer iMSCP::Packages::Webmail::Roundcube::Uninstaller /;
+use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Database;
 use iMSCP::Debug qw/ error /;
@@ -53,7 +54,7 @@ use parent 'iMSCP::Common::Singleton';
  Show dialog
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -170,10 +171,10 @@ sub _init
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
 
     if ( -f "$self->{'cfgDir'}/roundcube.data" ) {
-        tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/roundcube.data", readonly => 1;
+        tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/roundcube.data", readonly => TRUE;
     } else {
         $self->{'config'} = {};
-        $self->{'skip_uninstall'} = 1;
+        $self->{'skip_uninstall'} = TRUE;
     }
 
     $self;

@@ -199,14 +199,14 @@ sub setEnginePermissions
         group     => $::imscpConfig{'ROOT_GROUP'},
         dirmode   => '0755',
         filemode  => '0644',
-        recursive => 1
+        recursive => TRUE
     } );
     setRights( $self->{'config'}->{'HTTPD_LOG_DIR'}, {
         user      => $::imscpConfig{'ROOT_USER'},
         group     => $::imscpConfig{'ROOT_GROUP'},
         dirmode   => '0755',
         filemode  => '0640',
-        recursive => 1
+        recursive => TRUE
     } );
 
     # Temporary directories as provided by nginx package (from Debian Team)
@@ -224,7 +224,7 @@ sub setEnginePermissions
                 group     => $self->{'config'}->{'HTTPD_GROUP'},
                 dirnmode  => '0700',
                 filemode  => '0640',
-                recursive => 1
+                recursive => TRUE
             } );
             setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp", {
                 user  => $self->{'config'}->{'HTTPD_USER'},
@@ -250,7 +250,7 @@ sub setEnginePermissions
             group     => $self->{'config'}->{'HTTPD_GROUP'},
             dirnmode  => '0700',
             filemode  => '0640',
-            recursive => 1
+            recursive => TRUE
         } );
         setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp", {
             user  => $self->{'config'}->{'HTTPD_USER'},
@@ -277,7 +277,7 @@ sub setGuiPermissions
         group     => $usergroup,
         dirmode   => '0750',
         filemode  => '0640',
-        recursive => 1
+        recursive => TRUE
     } );
 }
 
@@ -324,7 +324,7 @@ sub enableSites
             sprintf( "Couldn't enable the `%s` site: %s", $site, $! )
         );
 
-        $self->{'reload'} ||= 1;
+        $self->{'reload'} ||= TRUE;
     }
 }
 
@@ -345,7 +345,7 @@ sub disableSites
         my $symlink = File::Spec->canonpath( $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'} . '/' . basename( $site, '.conf' ));
         next unless -e $symlink;
         unlink( $symlink ) or die( sprintf( "Couldn't unlink the %s file: %s", $! ));
-        $self->{'reload'} ||= 1;
+        $self->{'reload'} ||= TRUE;
     }
 }
 
@@ -602,7 +602,7 @@ sub _init
 {
     my ( $self ) = @_;
 
-    @{ $self }{qw/ start reload restart cfgDir / } = ( 0, 0, 0, "$::imscpConfig{'CONF_DIR'}/frontend" );
+    @{ $self }{qw/ start reload restart cfgDir / } = ( FALSE, FALSE, FALSE, "$::imscpConfig{'CONF_DIR'}/frontend" );
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/frontend.data.dist";
     tie %{ $self->{'config'} },
         'iMSCP::Config',
@@ -676,15 +676,13 @@ END
 
         my $instance = __PACKAGE__->hasInstance();
 
-        return 0 unless $instance && ( my $action = $instance->{'restart'}
+        return unless $instance && ( my $action = $instance->{'restart'}
             ? 'restart' : ( $instance->{'reload'} ? 'reload' : ( $instance->{'start'} ? ' start' : undef ) ) );
 
         my $nginxAction = "${action}Nginx";
         my $fpmAction = "${action}PhpFpm";
 
-        iMSCP::Service->getInstance()->registerDelayedAction(
-            "nginx", [ $action, sub { $instance->$nginxAction(); } ], __PACKAGE__->getPriority()
-        );
+        iMSCP::Service->getInstance()->registerDelayedAction( "nginx", [ $action, sub { $instance->$nginxAction(); } ], __PACKAGE__->getPriority());
 
         iMSCP::Service->getInstance()->registerDelayedAction(
             "imscp_panel", [ $action, sub { $instance->$fpmAction(); } ], __PACKAGE__->getPriority()

@@ -77,7 +77,7 @@ sub registerSetupListeners
  Ask user for Dovecot restricted SQL user
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 

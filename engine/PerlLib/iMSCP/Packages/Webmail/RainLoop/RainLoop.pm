@@ -26,6 +26,7 @@ package iMSCP::Packages::Webmail::RainLoop::RainLoop;
 use strict;
 use warnings;
 use Class::Autouse qw/ :nostat iMSCP::Packages::Webmail::RainLoop::Installer iMSCP::Packages::Webmail::RainLoop::Uninstaller /;
+use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Database;
 use iMSCP::Debug qw/ error /;
@@ -181,11 +182,11 @@ sub _init
     $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/rainloop";
 
     if ( -f "$self->{'cfgDir'}/rainloop.data" ) {
-        return tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/rainloop.data", readonly => 1;
+        return tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/rainloop.data", readonly => TRUE;
     }
 
     $self->{'config'} = {};
-    $self->{'skip_uninstall'} = 1;
+    $self->{'skip_uninstall'} = TRUE;
     $self;
 }
 

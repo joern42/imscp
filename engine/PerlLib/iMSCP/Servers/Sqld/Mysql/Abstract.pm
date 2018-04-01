@@ -76,7 +76,7 @@ sub registerSetupListeners
  Ask for i-MSCP master SQL user
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -157,7 +157,7 @@ EOF
  Ask for SQL user hostname
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -210,7 +210,7 @@ EOF
  Ask for i-MSCP database name
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -255,6 +255,7 @@ EOF
 
         if ( $oldDbName && $dbName ne $oldDbName && $self->setupIsImscpDb( $oldDbName ) ) {
             if ( $rs = $dialog->yesno( <<"EOF", TRUE, TRUE ) ) {
+
 A database '$::imscpConfig{'DATABASE_NAME'}' for i-MSCP already exists.
 
 Are you sure you want to create a new database for i-MSCP?
@@ -277,7 +278,7 @@ EOF
  Ask for database prefix
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -290,6 +291,7 @@ sub databasePrefixDialog
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqld', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'none' );
+
 \\Z4\\Zb\\ZuMySQL Database Prefix/Suffix\\Zn
 
 Do you want to use a prefix or suffix for customer's SQL databases?
@@ -484,9 +486,12 @@ sub _init
     $self->SUPER::_init();
 }
 
-=item _askSqlRootUser( )
+=item _askSqlRootUser( \%dialog )
 
  Ask for SQL root user
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -576,6 +581,7 @@ EOF
         local $dialog->{'opts'}->{'extra-label'} = 'Abort';
         local $ENV{'DIALOG_EXTRA'} = 1;
         exit if $dialog->msgbox( <<"EOF" );
+
 \\Z1Connection to SQL server failed\\Zn
 
 i-MSCP installer couldn't connect to SQL server using the following data:

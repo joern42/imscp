@@ -68,7 +68,7 @@ sub registerSetupListeners
  Show dialog
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30, die on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -89,6 +89,7 @@ sub showDialog
     ) {
         ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checkbox(
             <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} } ] );
+
 Please select the Webstats packages you want to install:
 \\Z \\Zn
 EOF

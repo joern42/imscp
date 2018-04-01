@@ -74,7 +74,7 @@ sub registerSetupListeners
  Show dialog
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -156,7 +156,7 @@ EOF
  Ask for VsFTPd port range to use for passive data transfers
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -212,7 +212,7 @@ EOF
  Ask for VsFTPd max clients
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -260,7 +260,7 @@ EOF
  Ask for VsFTPd max clients per IP
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 

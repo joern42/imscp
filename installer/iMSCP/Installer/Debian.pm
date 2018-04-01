@@ -492,6 +492,7 @@ sub _processPackagesFile
             @choices{ values @supportedAlts } = map { $data->{$_}->{'description'} // $_ } @supportedAlts;
 
             ( my $ret, $sAlt ) = $dialog->radiolist( <<"EOF", \%choices, $sAlt );
+
 Please make your choice for the $altDesc:
 \\Z \\Zn
 EOF
@@ -1059,6 +1060,7 @@ sub processSqldSection
             $dialog->endGauge();
             local $dialog->{'opts'}->{'no-cancel'} = undef;
             exit 50 if $dialog->yesno( <<"EOF", TRUE );
+
 \\Zb\\Z1WARNING \\Z0CURRENT SQL SERVER VENDOR IS NOT SUPPORTED \\Z1WARNING\\Zn
 
 The installer detected that your current SQL server ($sqldVendor $sqldVersion) is not supported and that there is no alternative version for that vendor.

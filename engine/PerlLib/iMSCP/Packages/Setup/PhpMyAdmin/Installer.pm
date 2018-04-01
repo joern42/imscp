@@ -74,7 +74,7 @@ sub registerSetupListeners
  Show dialog
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -92,8 +92,7 @@ sub showDialog
     );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'sqlmanager', 'all', 'forced' ] )
-        || !isValidUsername( $dbUser )
-        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
+        || !isValidUsername( $dbUser ) || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
         || !isAvailableSqlUser( $dbUser )
     ) {
         my $rs = 0;

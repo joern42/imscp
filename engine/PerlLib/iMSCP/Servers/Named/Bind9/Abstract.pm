@@ -72,7 +72,7 @@ sub registerSetupListeners
  Ask user for DNS server type to configure
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -85,6 +85,7 @@ sub askDnsServerMode
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'master' );
+
 Please choose the type of DNS server to configure:
 \\Z \\Zn
 EOF
@@ -101,7 +102,7 @@ EOF
  Ask user for DNS server adresses IP
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -125,6 +126,7 @@ sub askDnsServerIps
         ) {
             my %choices = ( 'yes', 'Yes', 'no', 'No' );
             ( $rs, $answer ) = $dialog->radiolist( <<"EOF", \%choices, !@slaveDnsIps || $slaveDnsIps[0] eq 'no' ? 'no' : 'yes' );
+
 Do you want to add slave DNS servers?
 \\Z \\Zn
 EOF
@@ -206,7 +208,7 @@ EOF
  Ask user for DNS server IPv6 support
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -225,6 +227,7 @@ sub askIPv6Support
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'no' );
+
 Do you want to enable IPv6 support for the DNS server?
 \\Z \\Zn
 EOF
@@ -241,7 +244,7 @@ EOF
  Ask user for local DNS resolver
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -258,6 +261,7 @@ sub askLocalDnsResolver
         || !isStringInList( $value, keys %choices )
     ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
+
 Do you want to use Bind9 as local DNS resolver?
 \\Z \\Zn
 EOF

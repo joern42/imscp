@@ -44,7 +44,7 @@ use parent 'iMSCP::Common::Object';
  setup dialog.
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 

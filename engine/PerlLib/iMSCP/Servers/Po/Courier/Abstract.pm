@@ -82,12 +82,12 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne( 'beforePostfixConfigure', $self );
 }
 
-=item authdaemonSqlUserDialog(\%dialog)
+=item authdaemonSqlUserDialog( \%dialog )
 
  Authdaemon SQL user dialog
 
  Param iMSCP::Dialog \%dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 

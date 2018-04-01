@@ -100,7 +100,14 @@ sub setupDialog
 
         my $rs = $dialogStack->[$state]->( $dialog );
         exit $rs if $rs == 50;
-        return $rs if $rs && $rs < 30;
+        
+        if ( $rs != 0 && $rs != 30 ) {
+            require Data::Dumper;
+            local $Data::Dumper::Deparse = TRUE;
+            die( sprintf( "Unexpected return value from the following setup dialog routine:\n\n%s\n 0, 30 (BACK) or 50 (ESC) expected.",
+                Data::Dumper::Dumper( $dialogStack->[$state] ) . "\n"
+            ));
+        }
 
         if ( $rs == 30 ) {
             iMSCP::Getopt->reconfigure( 'forced' ) if isStringInList( 'none', @{ iMSCP::Getopt->reconfigure } );

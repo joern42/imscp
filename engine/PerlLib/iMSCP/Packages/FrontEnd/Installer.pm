@@ -30,7 +30,7 @@ use iMSCP::Boolean;
 use iMSCP::Composer;
 use iMSCP::Crypt qw/ apr1MD5 randomStr /;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Dialog::InputValidation qw/
     isNumber isNumberInRange isOneOfStringsInList isStringInList isStringNotInList isValidDomain isValidEmail isValidPassword isValidUsername
 /;
@@ -71,48 +71,48 @@ sub registerSetupListeners
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog',
-        sub {
-            push @{ $_[0] },
-                sub { $self->askMasterAdminCredentials( @_ ) }, sub { $self->askMasterAdminEmail( @_ ) }, sub { $self->askDomain( @_ ) },
-                sub { $self->askSsl( @_ ) }, sub { $self->askHttpPorts( @_ ) }, sub { $self->askAltUrlsFeature( @_ ) };
-        }
-    )->registerOne(
-        'beforeSetupPreInstallServers', sub { $self->_createMasterWebUser() }
-    )->registerOne( 'beforeSetupPreInstallServers',
-        sub {
-            $self->{'frontend'}->setGuiPermissions();
-            my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
-            my $composer = iMSCP::Composer->new(
-                user          => $usergroup,
-                group         => $usergroup,
-                home_dir      => "$::imscpConfig{'GUI_ROOT_DIR'}/data/persistent/frontend",
-                working_dir   => $::imscpConfig{'GUI_ROOT_DIR'},
-                composer_json => iMSCP::File->new( filename => "$::imscpConfig{'GUI_ROOT_DIR'}/composer.json" )->get(),
-                composer_path => '/usr/local/bin/composer'
-            );
-            $composer->getComposerJson( 'scalar' )->{'config'} = {
-                %{ $composer->getComposerJson( 'scalar' )->{'config'} },
-                cafile => $::imscpConfig{'DISTRO_CA_BUNDLE'},
-                capath => $::imscpConfig{'DISTRO_CA_PATH'}
-            };
-            startDetail;
-            $composer->setStdRoutines( sub {}, sub {
-                ( my $stdout = $_[0] ) =~ s/^\s+|\s+$//g;
-                return unless length $stdout;
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub {
+        push @{ $_[0] },
+            sub { $self->askMasterAdminCredentials( @_ ) },
+            sub { $self->askMasterAdminEmail( @_ ) },
+            sub { $self->askDomain( @_ ) },
+            sub { $self->askSsl( @_ ) },
+            sub { $self->askDefaultAccessMode( @_ ) },
+            sub { $self->askHttpPorts( @_ ) },
+            sub { $self->askAltUrlsFeature( @_ ) };
+    } )->registerOne( 'beforeSetupPreInstallServers', sub {
+        $self->_createMasterWebUser()
+    } )->registerOne( 'beforeSetupPreInstallServers', sub {
+        $self->{'frontend'}->setGuiPermissions();
+        my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+        my $composer = iMSCP::Composer->new(
+            user          => $usergroup,
+            group         => $usergroup,
+            home_dir      => "$::imscpConfig{'GUI_ROOT_DIR'}/data/persistent/frontend",
+            working_dir   => $::imscpConfig{'GUI_ROOT_DIR'},
+            composer_json => iMSCP::File->new( filename => "$::imscpConfig{'GUI_ROOT_DIR'}/composer.json" )->get(),
+            composer_path => '/usr/local/bin/composer'
+        );
+        $composer->getComposerJson( 'scalar' )->{'config'} = {
+            %{ $composer->getComposerJson( 'scalar' )->{'config'} },
+            cafile => $::imscpConfig{'DISTRO_CA_BUNDLE'},
+            capath => $::imscpConfig{'DISTRO_CA_PATH'}
+        };
+        startDetail;
+        $composer->setStdRoutines( sub {}, sub {
+            ( my $stdout = $_[0] ) =~ s/^\s+|\s+$//g;
+            return unless length $stdout;
 
-                step( undef, <<"EOT", 1, 1 )
+            step( undef, <<"EOT", 1, 1 )
 Installing/Updating i-MSCP frontEnd (dependencies) composer packages...
 
 $stdout
 
 Depending on your connection speed, this may take few minutes...
 EOT
-            }
-            )->installPackages();
-            endDetail;
-        }
-    );
+        } )->installPackages();
+        endDetail;
+    } );
 }
 
 =item askMasterAdminCredentials( \%dialog )
@@ -120,7 +120,7 @@ EOT
  Ask for master administrator credentials
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30, die on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -149,15 +149,13 @@ sub askMasterAdminCredentials
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    ADMIN_LOGIN_NAME:
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'admin', 'admin_credentials', 'all', 'forced' ] )
-        || !isValidUsername( $username )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'admin', 'admin_credentials', 'all', 'forced' ] ) || !isValidUsername( $username )
         || !length $password
     ) {
         $password = '';
         my $rs = 0;
 
+        Q1:
         do {
             unless ( length $username ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -196,9 +194,8 @@ Please enter a password for the master administrator (leave empty for autogenera
 EOF
         } while $rs < 30 && !isValidPassword( $password );
 
-        goto ADMIN_LOGIN_NAME if $rs == 30; # Go back
-        return $rs if $rs != 0;             # Abort or error
-        #return $rs unless $rs < 30;
+        goto Q1 if $rs == 30;
+        return $rs if $rs == 50;
     } else {
         $password = '' unless iMSCP::Getopt->preseed
     }
@@ -213,7 +210,7 @@ EOF
  Ask for master administrator email address
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -235,8 +232,7 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter an email address for the master administrator:
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && !isValidEmail( $email );
+        } while $rs < 30 && !isValidEmail( $email );
 
         return $rs unless $rs < 30;
     }
@@ -250,7 +246,7 @@ EOF
  Show for frontEnd domain name
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -258,16 +254,10 @@ sub askDomain
 {
     my ( undef, $dialog ) = @_;
 
-    my $domainName = ::setupGetQuestion(
-        'BASE_SERVER_VHOST',
-        ( iMSCP::Getopt->preseed
-            ? do {
-            my @labels = split /\./, ::setupGetQuestion( 'SERVER_HOSTNAME' );
-            'panel.' . join( '.', @labels[1 .. $#labels] );
-        }
-            : ''
-        )
-    );
+    my $domainName = ::setupGetQuestion( 'BASE_SERVER_VHOST', ( iMSCP::Getopt->preseed ? do {
+        my @labels = split /\./, ::setupGetQuestion( 'SERVER_HOSTNAME' );
+        'panel.' . join( '.', @labels[1 .. $#labels] );
+    } : '' ));
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
@@ -304,7 +294,7 @@ EOF
  Ask for frontEnd SSL certificate
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -313,141 +303,140 @@ sub askSsl
     my ( undef, $dialog ) = @_;
 
     my $domainName = ::setupGetQuestion( 'BASE_SERVER_VHOST' );
-    my $domainNameUnicode = idn_to_unicode( $domainName, 'utf-8' ) // '';
+    my $domainNameUnicode = idn_to_unicode( $domainName, 'utf-8' ) // $domainName;
     my $sslEnabled = ::setupGetQuestion( 'PANEL_SSL_ENABLED', iMSCP::Getopt->preseed ? 'yes' : '' );
     my $selfSignedCertificate = ::setupGetQuestion( 'PANEL_SSL_SELFSIGNED_CERTIFICATE', iMSCP::Getopt->preseed ? 'yes' : 'no' );
-    my $privateKeyPath = ::setupGetQuestion( 'PANEL_SSL_PRIVATE_KEY_PATH', '/root' );
+    my $privateKeyPath = ::setupGetQuestion( 'PANEL_SSL_PRIVATE_KEY_PATH' );
     my $passphrase = ::setupGetQuestion( 'PANEL_SSL_PRIVATE_KEY_PASSPHRASE' );
-    my $certificatePath = ::setupGetQuestion( 'PANEL_SSL_CERTIFICATE_PATH', '/root' );
-    my $caBundlePath = ::setupGetQuestion( 'PANEL_SSL_CA_BUNDLE_PATH', '/root' );
-    my $baseServerVhostPrefix = ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX', 'http://' );
+    my $caBundlePath = ::setupGetQuestion( 'PANEL_SSL_CA_BUNDLE_PATH' );
+    my $certificatePath = ::setupGetQuestion( 'PANEL_SSL_CERTIFICATE_PATH' );
+    my $fselectRootDir = length $privateKeyPath ? dirname( $privateKeyPath ) // '/root/' : '/root/';
     my $openSSL = iMSCP::OpenSSL->new();
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'panel_ssl', 'ssl', 'all', 'forced' ] )
         || !isStringInList( $sslEnabled, 'yes', 'no' )
         || ( $sslEnabled eq 'yes' && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel_hostname', 'hostnames' ] ) )
-    ) {
+        || ( $sslEnabled eq 'yes' && iMSCP::Getopt->preseed && !$selfSignedCertificate && ( !length $privateKeyPath || !length $certificatePath
+        || !eval {
+        local $openSSL->{'private_key_container_path'} = $privateKeyPath;
+        local $openSSL->{'ca_bundle_container_path'} = $caBundlePath;
+        local $openSSL->{'certificate_container_path'} = $certificatePath;
+        $openSSL->validateCertificateChain();
+    } ) ) ) {
+        my $msg = '';
+
+        Q1:
         my $rs = $dialog->yesno( <<'EOF', $sslEnabled eq 'no', TRUE );
+
 Do you want to enable SSL for the control panel?
 EOF
         return $rs unless $rs < 30;
 
-        if ( $rs == 0 ) {
-            $sslEnabled = 'yes';
+        if ( $rs ) {
+            ::setupSetQuestion( 'PANEL_SSL_ENABLED', 'no' );
+            return 0; # SSL disabled; return early
+        }
 
-            $rs = $dialog->yesno( <<"EOF", $selfSignedCertificate eq 'no', TRUE );
-Do you have a SSL certificate for the $domainNameUnicode domain?
+        $sslEnabled = 'yes';
+
+        Q2:
+        $rs = $dialog->yesno( <<"EOF", $selfSignedCertificate eq 'no', TRUE );
+
+Do you have an SSL certificate for the $domainNameUnicode domain?
 EOF
-            return $rs unless $rs < 30;
+        goto Q1 if $rs == 30;
+        return $rs if $rs == 50;
 
-            if ( $rs == 0 ) {
-                my $msg = '';
-
-                do {
-                    $rs = $dialog->msgbox( <<"EOF" );
+        unless ( $rs ) {
+            Q3:
+            $rs = $dialog->msgbox( <<"EOF" );
 $msg
-Please select your private key in next dialog.
+Please select the private key associated to your SSL certificate in next dialog.
 EOF
-                    return $rs unless $rs < 30;
+            return $rs unless $rs < 50;
 
-                    do {
-                        ( $rs, $privateKeyPath ) = $dialog->fselect( $privateKeyPath );
-                    } while $rs < 30 && !( length $privateKeyPath && -f $privateKeyPath );
+            do {
+                ( $rs, $privateKeyPath ) = $dialog->fselect( length $privateKeyPath ? $privateKeyPath : $fselectRootDir );
+            } while $rs < 30 && !( length $privateKeyPath && -f $privateKeyPath );
 
-                    return $rs unless $rs < 30;
+            goto Q2 if $rs == 30;
+            return $rs if $rs == 50;
 
-                    ( $rs, $passphrase ) = $dialog->passwordbox( <<"EOF", $passphrase );
+            Q4:
+            ( $rs, $passphrase ) = $dialog->passwordbox( <<"EOF", $passphrase );
+
 Please enter the passphrase for your private key if any:
 \\Z \\Zn
 EOF
-                    return $rs unless $rs < 30;
+            goto Q3 if $rs == 30;
+            return $rs if $rs == 50;
 
-                    $openSSL->{'private_key_container_path'} = $privateKeyPath;
-                    $openSSL->{'private_key_passphrase'} = $passphrase;
+            $openSSL->{'private_key_container_path'} = $privateKeyPath;
+            $openSSL->{'private_key_passphrase'} = $passphrase;
 
-                    $msg = '';
-                    unless ( eval { $openSSL->validatePrivateKey(); } ) {
-                        getMessageByType( 'error', { amount => 1, remove => TRUE } );
-                        $msg = <<"EOF";
+            $msg = eval { $openSSL->validatePrivateKey(); } ? '' : <<"EOF";
 \\Z1Invalid private key or passphrase.\\Zn
 EOF
-                    }
-                } while $rs < 30 && length $msg;
+            goto Q4 if length $msg;
 
-                return $rs unless $rs < 30;
+            Q5:
+            $rs = $dialog->yesno( <<'EOF', FALSE, TRUE );
 
-                $rs = $dialog->yesno( <<'EOF', FALSE, TRUE );
-Do you have a SSL CA Bundle?
+Do you have a CA bundle (file containing root and intermediate certificates)?
 EOF
-                return $rs unless $rs < 30;
+            return $rs if $rs == 50;
+            goto Q4 if $rs == 30;
 
-                if ( $rs == 0 ) {
-                    do {
-                        ( $rs, $caBundlePath ) = $dialog->fselect( $caBundlePath );
-                    } while $rs < 30 && !( length $caBundlePath && -f $caBundlePath );
+            Q6:
+            unless ( $rs ) {
+                do {
+                    ( $rs, $caBundlePath ) = $dialog->fselect( length $caBundlePath ? $caBundlePath : $fselectRootDir );
+                } while $rs < 30 && !( length $caBundlePath && -f $caBundlePath );
 
-                    return $rs unless $rs < 30;
+                goto Q5 if $rs == 30;
+                return $rs if $rs == 50;
 
-                    $openSSL->{'ca_bundle_container_path'} = $caBundlePath;
-                } else {
-                    $openSSL->{'ca_bundle_container_path'} = '';
-                }
+                $openSSL->{'ca_bundle_container_path'} = $caBundlePath;
+            } else {
+                $openSSL->{'ca_bundle_container_path'} = '';
+            }
 
-                $rs = $dialog->msgbox( <<'EOF' );
+            Q7:
+            $rs = $dialog->msgbox( <<"EOF" );
+$msg
 Please select your SSL certificate in next dialog.
 EOF
-                return $rs unless $rs < 30;
+            return $rs if $rs == 50;
 
-                $rs = TRUE;
+            do {
+                ( $rs, $certificatePath ) = $dialog->fselect( length $certificatePath ? $certificatePath : $fselectRootDir );
+            } while $rs < 30 && !( length $certificatePath && -f $certificatePath );
 
-                do {
-                    $rs = $dialog->msgbox( <<"EOF" ) unless $rs;
+            goto Q6 if $rs == 30;
+            return $rs if $rs == 50;
+
+            $openSSL->{'certificate_container_path'} = $certificatePath;
+            $msg = eval { $openSSL->validateCertificate(); } ? '' : <<"EOF";
 \\Z1Invalid SSL certificate.\\Zn
 EOF
-                    return $rs unless $rs < 30;
-
-                    do {
-                        ( $rs, $certificatePath ) = $dialog->fselect( $certificatePath );
-                    } while $rs < 30 && !( length $certificatePath && -f $certificatePath );
-
-                    return $rs unless $rs < 30;
-
-                    getMessageByType( 'error', { amount => 1, remove => TRUE } );
-                    $openSSL->{'certificate_container_path'} = $certificatePath;
-                } while $rs < 30 && !eval { $openSSL->validateCertificate(); };
-
-                return $rs unless $rs < 30;
-            } else {
-                $selfSignedCertificate = 'yes';
-            }
-
-            if ( $sslEnabled eq 'yes' ) {
-                my %choices = ( 'http://', 'No secure access (No SSL)', 'https://', 'Secure access (SSL)' );
-                ( $rs, $baseServerVhostPrefix ) = $dialog->radiolist(
-                    <<"EOF", \%choices, ( grep ( $baseServerVhostPrefix eq $_, keys %choices ) )[0] || 'https://' );
-Please choose the default access mode for the control panel:
-\\Z \\Zn
-EOF
-            }
+            goto Q7 if length $msg;
         } else {
-            $sslEnabled = 'no';
+            $selfSignedCertificate = 'yes';
         }
-    } elsif ( $sslEnabled eq 'yes' && !iMSCP::Getopt->preseed ) {
+    } elsif ( $sslEnabled eq 'yes' && !iMSCP::Getopt->preseed && !eval {
         $openSSL->{'private_key_container_path'} = "$::imscpConfig{'CONF_DIR'}/$domainName.pem";
         $openSSL->{'ca_bundle_container_path'} = "$::imscpConfig{'CONF_DIR'}/$domainName.pem";
         $openSSL->{'certificate_container_path'} = "$::imscpConfig{'CONF_DIR'}/$domainName.pem";
+        $openSSL->validateCertificateChain();
+        # The SSL certificate is valid so we skip SSL setup
+        ::setupSetQuestion( 'PANEL_SSL_SETUP', 'no' );
+    } ) {
+        $dialog->msgbox( <<'EOF' );
 
-        unless ( eval { $openSSL->validateCertificateChain(); } ) {
-            getMessageByType( 'error', { amount => 1, remove => TRUE } );
-            $dialog->msgbox( <<'EOF' );
 Your SSL certificate for the control panel is missing or invalid.
 EOF
-            ::setupSetQuestion( 'PANEL_SSL_ENABLED', '' );
-            goto &{ askSsl };
-        }
-
-        # In case the certificate is valid, we skip SSL setup process
-        ::setupSetQuestion( 'PANEL_SSL_SETUP', 'no' );
+        ::setupSetQuestion( 'PANEL_SSL_ENABLED', '' );
+        goto &{ askSsl };
     }
 
     ::setupSetQuestion( 'PANEL_SSL_ENABLED', $sslEnabled );
@@ -456,7 +445,41 @@ EOF
     ::setupSetQuestion( 'PANEL_SSL_PRIVATE_KEY_PASSPHRASE', $passphrase );
     ::setupSetQuestion( 'PANEL_SSL_CERTIFICATE_PATH', $certificatePath );
     ::setupSetQuestion( 'PANEL_SSL_CA_BUNDLE_PATH', $caBundlePath );
-    ::setupSetQuestion( 'BASE_SERVER_VHOST_PREFIX', $sslEnabled eq 'yes' ? $baseServerVhostPrefix : 'http://' );
+    0;
+}
+
+=item askDefaultAccessMode()
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
+
+=cut
+
+sub askDefaultAccessMode
+{
+    my ( undef, $dialog ) = @_;
+
+    unless ( ::setupGetQuestion( 'PANEL_SSL_ENABLED' ) eq 'yes' ) {
+        ::setupSetQuestion( 'BASE_SERVER_VHOST_PREFIX', 'http://' );
+        return 0;
+    }
+
+    my $scheme = ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX', iMSCP::Getopt->preseed ? 'http://' : '' );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'panel_ssl', 'ssl', 'all', 'forced' ] )
+        || !isStringInList( $scheme, 'http://', 'https://' )
+    ) {
+        my %choices = ( 'http://', 'No secure access (No SSL)', 'https://', 'Secure access (SSL)' );
+        ( my $rs, $scheme ) = $dialog->radiolist(
+            <<"EOF", \%choices, ( grep ( $scheme eq $_, keys %choices ) )[0] || 'https://' );
+
+Please choose the default access mode for the control panel:
+\\Z \\Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    ::setupSetQuestion( 'BASE_SERVER_VHOST_PREFIX', $scheme );
     0;
 }
 
@@ -465,7 +488,7 @@ EOF
  Ask for frontEnd http ports
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -475,13 +498,12 @@ sub askHttpPorts
 
     my $httpPort = ::setupGetQuestion( 'BASE_SERVER_VHOST_HTTP_PORT', iMSCP::Getopt->preseed ? 8880 : '' );
     my $httpsPort = ::setupGetQuestion( 'BASE_SERVER_VHOST_HTTPS_PORT', iMSCP::Getopt->preseed ? 8443 : '' );
-    my $ssl = ::setupGetQuestion( 'PANEL_SSL_ENABLED', iMSCP::Getopt->preseed ? 'yes' : '' );
+    my $sslEnabled = ::setupGetQuestion( 'PANEL_SSL_ENABLED', iMSCP::Getopt->preseed ? 'yes' : '' );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'panel_ports', 'all', 'forced' ] )
-        || !isNumber( $httpPort )
-        || !isNumberInRange( $httpPort, 1025, 65535 )
+        || !isNumber( $httpPort ) || !isNumberInRange( $httpPort, 1025, 65535 )
     ) {
         my $rs = 0;
 
@@ -503,11 +525,9 @@ EOF
 
     ::setupSetQuestion( 'BASE_SERVER_VHOST_HTTP_PORT', $httpPort );
 
-    if ( $ssl eq 'yes' ) {
+    if ( $sslEnabled eq 'yes' ) {
         if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'panel_ports', 'panel_ssl', 'ssl', 'all', 'forced' ] )
-            || !isNumber( $httpsPort )
-            || !isNumberInRange( $httpsPort, 1025, 65535 )
-            || !isStringNotInList( $httpsPort, $httpPort )
+            || !isNumber( $httpsPort ) || !isNumberInRange( $httpsPort, 1025, 65535 ) || !isStringNotInList( $httpsPort, $httpPort )
         ) {
             my $rs = 0;
 
@@ -522,8 +542,8 @@ $iMSCP::Dialog::InputValidation::lastValidationError
 Please enter the HTTPS port for the control panel:
 \\Z \\Zn
 EOF
-            } while $rs < 30 && ( !isNumber( $httpsPort ) || !isNumberInRange( $httpsPort, 1025, 65535 ) || !isStringNotInList( $httpsPort,
-                $httpPort ) );
+            } while $rs < 30 && ( !isNumber( $httpsPort ) || !isNumberInRange( $httpsPort, 1025, 65535 )
+                || !isStringNotInList( $httpsPort, $httpPort ) );
 
             return $rs unless $rs < 30;
         }
@@ -540,7 +560,7 @@ EOF
  Ask for alternative URL feature
 
  Param iMSCP::Dialog \%dialog
- Return int 0 to go on next question, 30 to go back to the previous question
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -551,10 +571,9 @@ sub askAltUrlsFeature
     my $value = ::setupGetQuestion( 'CLIENT_DOMAIN_ALT_URLS', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'alt_urls', 'all', 'forced' ] )
-        || !isStringInList( $value, keys %choices )
-    ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'panel', 'alt_urls', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
+
 Do you want to enable the alternative URLs feature for client domains?
 
 This feature allows the clients to access their websites through alternative URLs such as http://dmn1.panel.domain.tld
@@ -856,13 +875,14 @@ sub _setupSsl
     }
 
     if ( ::setupGetQuestion( 'PANEL_SSL_SELFSIGNED_CERTIFICATE' ) eq 'yes' ) {
-        return iMSCP::OpenSSL->new(
+        iMSCP::OpenSSL->new(
             certificate_chains_storage_dir => $::imscpConfig{'CONF_DIR'},
             certificate_chain_name         => $domainName
         )->createSelfSignedCertificate( {
             common_name => $domainName,
             email       => ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' )
         } );
+        return;
     }
 
     iMSCP::OpenSSL->new(
@@ -1101,26 +1121,20 @@ sub _buildHttpdConfig
     );
 
     # Build FastCGI configuration file
-    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/imscp_fastcgi.nginx",
-        { APPLICATION_ENV => $self->{'config'}->{'APPLICATION_ENV'} },
-        {
-            destination => "$self->{'config'}->{'HTTPD_CONF_DIR'}/imscp_fastcgi.conf",
-            user        => $::imscpConfig{'ROOT_USER'},
-            group       => $::imscpConfig{'ROOT_GROUP'},
-            mode        => 0644
-        }
-    );
+    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/imscp_fastcgi.nginx", { APPLICATION_ENV => $self->{'config'}->{'APPLICATION_ENV'} }, {
+        destination => "$self->{'config'}->{'HTTPD_CONF_DIR'}/imscp_fastcgi.conf",
+        user        => $::imscpConfig{'ROOT_USER'},
+        group       => $::imscpConfig{'ROOT_GROUP'},
+        mode        => 0644
+    } );
 
     # Build PHP backend configuration file
-    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/imscp_php.nginx",
-        {},
-        {
-            destination => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/imscp_php.conf",
-            user        => $::imscpConfig{'ROOT_USER'},
-            group       => $::imscpConfig{'ROOT_GROUP'},
-            mode        => 0644
-        }
-    );
+    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/imscp_php.nginx", {}, {
+        destination => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/imscp_php.conf",
+        user        => $::imscpConfig{'ROOT_USER'},
+        group       => $::imscpConfig{'ROOT_GROUP'},
+        mode        => 0644
+    } );
     $self->{'eventManager'}->trigger( 'afterFrontEndBuildHttpdConfig' );
     $self->{'eventManager'}->trigger( 'beforeFrontEndBuildHttpdVhosts' );
 
@@ -1161,14 +1175,12 @@ sub _buildHttpdConfig
             replaceBlocByRef( "# SECTION https redirect BEGIN.\n", "# SECTION https redirect END.", '', $cfgTpl );
         }
     );
-    $self->{'frontend'}->buildConfFile( '00_master.nginx', $tplVars,
-        {
-            destination => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf",
-            user        => $::imscpConfig{'ROOT_USER'},
-            group       => $::imscpConfig{'ROOT_GROUP'},
-            mode        => 0644
-        }
-    );
+    $self->{'frontend'}->buildConfFile( '00_master.nginx', $tplVars, {
+        destination => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf",
+        user        => $::imscpConfig{'ROOT_USER'},
+        group       => $::imscpConfig{'ROOT_GROUP'},
+        mode        => 0644
+    } );
     $self->{'frontend'}->enableSites( '00_master.conf' );
 
     if ( ::setupGetQuestion( 'PANEL_SSL_ENABLED' ) eq 'yes' ) {

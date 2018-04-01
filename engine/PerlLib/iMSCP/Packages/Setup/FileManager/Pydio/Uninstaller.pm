@@ -25,6 +25,7 @@ package iMSCP::Packages::Setup::FileManager::Pydio::Uninstaller;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
 use iMSCP::File;
@@ -96,7 +97,7 @@ sub _unregisterConfig
     ${ $fileContentRef } =~ s/[\t ]*include imscp_pydio.conf;\n//;
     $file->save();
 
-    $self->{'frontend'}->{'reload'} ||= 1;
+    $self->{'frontend'}->{'reload'} ||= TRUE;
 }
 
 =item _removeFiles( )

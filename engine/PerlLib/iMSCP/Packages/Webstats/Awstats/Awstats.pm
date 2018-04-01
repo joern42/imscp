@@ -27,6 +27,7 @@ use strict;
 use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Class::Autouse qw/ :nostat iMSCP::Packages::Webstats::Awstats::Installer iMSCP::Packages::Webstats::Awstats::Uninstaller iMSCP::Servers::Httpd /;
+use iMSCP::Boolean;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
@@ -116,7 +117,7 @@ sub setEnginePermissions
         group     => $httpd->getRunningGroup(),
         dirmode   => '02750',
         filemode  => '0640',
-        recursive => 1
+        recursive => TRUE
     } );
     setRights( "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats", {
         user  => $::imscpConfig{'ROOT_USER'},
@@ -166,7 +167,7 @@ sub addUser
     ${ $fileContentRef } =~ s/^$moduleData->{'USERNAME'}:[^\n]*\n//gim;
     ${ $fileContentRef } .= "$moduleData->{'USERNAME'}:$moduleData->{'PASSWORD_HASH'}\n";
     $file->save();
-    $httpd->{'reload'} ||= 1;
+    $httpd->{'reload'} ||= TRUE;
 
 }
 
@@ -184,7 +185,7 @@ sub preaddDomain
 
     return if $self->{'_is_registered_event_listener'};
 
-    $self->{'_is_registered_event_listener'} = 1;
+    $self->{'_is_registered_event_listener'} = TRUE;
     $self->{'eventManager'}->register( 'beforeApacheBuildConfFile', $self );
 }
 
@@ -240,7 +241,7 @@ sub preaddSubdomain
 
     return if $self->{'_is_registered_event_listener'};
 
-    $self->{'_is_registered_event_listener'} = 1;
+    $self->{'_is_registered_event_listener'} = TRUE;
     $self->{'eventManager'}->register( 'beforeApacheBuildConfFile', $self );
 
 }
@@ -301,7 +302,7 @@ sub _init
 {
     my ( $self ) = @_;
 
-    @{ $self }{qw/ _is_registered_event_listener _admin_names /} = ( 0, {} );
+    @{ $self }{qw/ _is_registered_event_listener _admin_names /} = ( FALSE, {} );
     $self;
 }
 

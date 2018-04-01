@@ -26,6 +26,7 @@ package iMSCP::Packages::Setup::Daemon;
 use strict;
 use warnings;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Cwd;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringInList /;
@@ -66,7 +67,7 @@ sub registerSetupListeners
  Ask for the i-MSCP daemon type
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -79,6 +80,7 @@ sub imscpDaemonTypeDialog
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'daemon', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'imscp' );
+
 \\Z4\\Zb\\Zui-MSCP Daemon Type\\Zn
 
 Please choose how the i-MSCP backend requests must be processed:
@@ -131,9 +133,9 @@ sub install
 
     iMSCP::Service->getInstance()->enable( 'imscp_daemon' );
 
-    $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { iMSCP::Service->getInstance()->start( 'imscp_daemon' ); }, 'i-MSCP Daemon' ]; }, 99
-    );
+    $self->{'eventManager'}->registerOne( 'beforeSetupRestartServices', sub {
+        push @{ $_[0] }, [ sub { iMSCP::Service->getInstance()->start( 'imscp_daemon' ); }, 'i-MSCP Daemon' ];
+    }, 99 );
 }
 
 =item uninstall( )
@@ -192,7 +194,7 @@ sub setEnginePermissions
         user      => $::imscpConfig{'ROOT_USER'},
         group     => $::imscpConfig{'IMSCP_GROUP'},
         mode      => '0750',
-        recursive => 1
+        recursive => TRUE
     } ) if -d "$::imscpConfig{'ROOT_DIR'}/daemon";
 }
 
@@ -222,7 +224,7 @@ sub _compileDaemon
 
     # Install the daemon
     iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/daemon" )->make();
-    iMSCP::File->new( filename => 'imscp_daemon' )->copy( "$::imscpConfig{'ROOT_DIR'}/daemon", { preserve => 1 } );
+    iMSCP::File->new( filename => 'imscp_daemon' )->copy( "$::imscpConfig{'ROOT_DIR'}/daemon", { preserve => TRUE } );
 
     # Leave the directory clean
     $rs = execute( 'make clean', \$stdout, \$stderr );

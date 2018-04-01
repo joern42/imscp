@@ -61,12 +61,12 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->showDialog( @_ ) }; } );
 }
 
-=item askAntiRootkits(\%dialog)
+=item askAntiRootkits( \%dialog )
 
  Show dialog
 
  Param iMSCP::Dialog \%dialog
- Return int 0 or 30, die on failure
+ Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
 
 =cut
 
@@ -82,11 +82,11 @@ sub showDialog
     @choices{@{ $self->{'AVAILABLE_PACKAGES'} }} = @{ $self->{'AVAILABLE_PACKAGES'} };
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antirootkits', 'all', 'forced' ] )
-        || !@{ $self->{'SELECTED_PACKAGES'} }
-        || grep { !exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} }
+        || !@{ $self->{'SELECTED_PACKAGES'} } || grep { !exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} }
     ) {
         ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checkbox(
             <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} } ] );
+
 Please select the Anti-Rootkits packages you want to install:
 \\Z \\Zn
 EOF
