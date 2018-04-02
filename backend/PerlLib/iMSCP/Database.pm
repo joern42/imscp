@@ -178,7 +178,7 @@ sub dumpdb
 
     debug( sprintf( 'Dump %s database into %s', $dbName, $dbDumpTargetDir . '/' . $encodedDbName . '.sql' ));
 
-    my $innoDbOnly = !$self->connect()->selectrow_array(
+    my ($innoDbOnly) = !$self->connect()->selectrow_array(
         "SELECT COUNT(ENGINE) FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND ENGINE <> 'InnoDB'", undef, $dbName
     );
 
@@ -199,11 +199,12 @@ complete-insert = true
 create-options = true
 extended-insert = true
 insert-ignore = true
-lock-tables = true
 max_allowed_packet = 500M
 set-charset = true
 quick = true
 quote-names = true
+routines = true
+triggers = true
 @{ [ $innoDbOnly ? 'single-transaction = true' : 'lock-tables = true' ] }
 @{ [ $innoDbOnly ? 'skip-lock-tables = true' : '' ] }
 @{ [ index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ? 'compress = true' : '' ] }

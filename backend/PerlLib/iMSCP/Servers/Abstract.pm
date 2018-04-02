@@ -246,7 +246,7 @@ sub postuninstall
 
  Sets backend permissions
 
- This method is called by the i-MSCP bckend permission management script.
+ This method is called by the i-MSCP backend permission management script.
 
  Any server relying on configuration files or scripts *SHOULD* implement this
  method.
