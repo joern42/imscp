@@ -57,7 +57,7 @@ $> == 0 or prntError( 'The i-MSCP installer must be run with the privileges of s
 
 chomp( our $ROOTDIR = `dirname @{ [ abs_path __FILE__ ] } 2>/dev/null` );
 chdir( $ROOTDIR ) or prntError( sprintf( "couldn't chdir: %s", $! || 'Unknown error' ));
-unshift @INC, ( $ROOTDIR, "$ROOTDIR/engine/PerlLib" );
+unshift @INC, ( $ROOTDIR, "$ROOTDIR/backend/PerlLib" );
 system( 'clear 2>/dev/null' );
 
 DIST_BOOTSTRAP:
@@ -105,9 +105,9 @@ if ( $forceDistBootstrap || !-f '/etc/imscp/imscp.conf' ) {
 
 # checksum for amd64 (most used)
 # TODO i386 checksum
-unless ( system( 'echo 696bf0f5902ff1f58df1b0d7d7eacbb8 engine/PerlLib/iMSCP/H2ph.pm | md5sum -c > /dev/null 2>&1' ) == 0 ) {
+unless ( system( 'echo 696bf0f5902ff1f58df1b0d7d7eacbb8 backend/PerlLib/iMSCP/H2ph.pm | md5sum -c > /dev/null 2>&1' ) == 0 ) {
     prntInfo 'Generating iMSCP::H2ph Perl package...';
-    system( "cd engine/PerlLib; make clean all" ) == 0 or prntError( "Couldn't generate iMSCP::H2ph Perl package." );
+    system( "cd backend/PerlLib; make clean all" ) == 0 or prntError( "Couldn't generate iMSCP::H2ph Perl package." );
 }
 
 # Execute the real installer

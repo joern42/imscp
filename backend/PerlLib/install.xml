@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${IMSCP_BACKEND_DIR}/PerlLib</folder>
+    <copy>${IMSCP_BACKEND_DIR}/PerlLib/iMSCP</copy>
+    <copy>${IMSCP_BACKEND_DIR}/PerlLib/h2ph</copy>
+</install>

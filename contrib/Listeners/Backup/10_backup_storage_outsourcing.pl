@@ -24,7 +24,7 @@ package iMSCP::Listener::Backup::Storage::Outsourcing;
 # 1. Upload that listener file into the /etc/imscp/listeners.d directory
 # 2. Edit the /etc/imscp/listeners.d/10_backup_storage_outsourcing.pl file
 #    and set the $STORAGE_ROOT_PATH variable below according your needs
-# 3. Trigger an i-MSCP reconfiguration: perl /var/www/imscp/engine/setup/imscp-reconfigure -danv
+# 3. Trigger an i-MSCP reconfiguration: perl /var/www/imscp/backend/setup/imscp-reconfigure -danv
 
 our $VERSION = '1.0.1';
 

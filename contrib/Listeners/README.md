@@ -92,7 +92,7 @@ also to activate IPv6 support if needed. All this can be done by reconfiguring
 the `named` service as follow:
 
 ```
-   perl /var/www/imscp/engine/setup/imscp-reconfigure -dr named
+   perl /var/www/imscp/backend/setup/imscp-reconfigure -dr named
 ```
 
 If you don't do so, zone transfers to your slave DNS servers won't be allowed.
@@ -144,7 +144,7 @@ Note: When you want operate on a per domain basis, don't forget to set the PHP
 configuration level to 'per_site'. You can do this by running:
 
 ```
-# perl /var/www/imscp/engine/setup/imscp-reconfigure -dar php
+# perl /var/www/imscp/backend/setup/imscp-reconfigure -dar php
 ```
 
 ### 10_phpfpm_settings_override.pl
@@ -155,7 +155,7 @@ Note: When you want operate on a per domain basis, don't forget to set the PHP
 configuration level to 'per_site'. You can do this by running:
 
 ```
-# perl /var/www/imscp/engine/setup/imscp-reconfigure -dar php
+# perl /var/www/imscp/backend/setup/imscp-reconfigure -dar php
 ```
 
 ## PhpMyAdmin listener files

@@ -15,7 +15,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 NAME=imscp_mountall
 LFILE=/var/run/$NAME
-TOOLSDIR="/var/www/imscp/engine/tools"
+TOOLSDIR="/var/www/imscp/backend/tools"
 
 . /lib/lsb/init-functions
 

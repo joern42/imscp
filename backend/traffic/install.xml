@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${IMSCP_BACKEND_DIR}/traffic</folder>
+    <copy>${SYSTEM_USR_LOCAL_SBIN_DIR}/maillogconvert.pl</copy>
+    <copy>${IMSCP_BACKEND_DIR}/traffic/imscp-srv-traff</copy>
+    <copy>${IMSCP_BACKEND_DIR}/traffic/imscp-vrl-traff</copy>
+    <copy mode="0750" copy_if="index('${iMSCP::Servers::Httpd}', '::Apache2::') != -1">${IMSCP_BACKEND_DIR}/traffic/vlogger</copy>
+</install>

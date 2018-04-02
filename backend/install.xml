@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder export="IMSCP_BACKEND_DIR">${IMSCP_ROOT_DIR}/backend</folder>
+    <copy>${IMSCP_BACKEND_DIR}/imscp-pkt-mngr</copy>
+    <copy>${IMSCP_BACKEND_DIR}/imscp-rqst-mngr</copy>
+    <copy>${IMSCP_BACKEND_DIR}/imscp-sw-mngr</copy>
+    <copy>${IMSCP_BACKEND_DIR}/imscp_common_code.pl</copy>
+    <copy>${IMSCP_BACKEND_DIR}/imscp_common_methods.pl</copy>
+</install>

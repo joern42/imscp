@@ -23,7 +23,7 @@
 # Don't forget also to activate IPv6 support if needed. All this can
 # be done by reconfiguring the named service as follow:
 #
-#   perl /var/www/imscp/engine/setup/imscp-reconfigure -dr named
+#   perl /var/www/imscp/backend/setup/imscp-reconfigure -dr named
 #
 
 package iMSCP::Listener::Named::Global::NS;

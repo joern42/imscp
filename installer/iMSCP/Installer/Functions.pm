@@ -200,7 +200,7 @@ sub build
         # the imscp-reconfigure script doesn't invoke the distribution installer
         # and therefore, packages won't be installed. This could be solved merging
         # both imscp-installer and imscp-reconfigure scripts together, and installing
-        # the installer libraries in the engine/ directory.
+        # the installer libraries in the backend/ directory.
         ( iMSCP::Getopt->skippackages ? () : [ \&_installDistributionPackages, 'Installing distribution packages' ] ),
         [ \&_packDistributionFiles, 'Packing distribution files' ],
         [ \&_removeObsoleteFiles, 'Removing obsolete files' ],
@@ -257,10 +257,10 @@ sub build
 
 To continue, you must execute the following commands:
 
- rm -fR $::imscpConfig{'ROOT_DIR'}/{engine,gui}
+ rm -fR $::imscpConfig{'ROOT_DIR'}/{backend,gui}
  cp -PRT --preserve=ownership,mode $::{'DESTDIR'} /
  rm -fR $::{'DESTDIR'}
- perl $::imscpConfig{'ROOT_DIR'}/engine/setup/imscp-reconfigure -d
+ perl $::imscpConfig{'ROOT_DIR'}/backend/setup/imscp-reconfigure -d
 EOF
     iMSCP::Getopt->noprompt ? print STDOUT output( $output, 'ok' ) : iMSCP::Dialog->getInstance()->infobox( $output );
 }
@@ -279,7 +279,7 @@ sub install
 
     {
         package main;
-        require "$FindBin::Bin/engine/setup/imscp-setup-methods.pl";
+        require "$FindBin::Bin/backend/setup/imscp-setup-methods.pl";
     }
 
     my $bootstrapper = iMSCP::Bootstrapper->getInstance();
@@ -551,7 +551,7 @@ sub _installDistributionPackages
 sub _packDistributionFiles
 {
     _packConfigFiles();
-    _packEngineFiles();
+    _packBackendFiles();
     _packFrontendFiles();
 }
 
@@ -596,21 +596,21 @@ sub _packConfigFiles
     iMSCP::Dir->new( dirname => "$FindBin::Bin/configs/database" )->copy( "$::{'IMSCP_CONF_DIR'}/database", { umask => 0027, preserve => FALSE } );
 }
 
-=item _packEngineFiles( )
+=item _packBackendFiles( )
 
- Pack engine files
+ Pack backend files
 
  Return void, die on failure
 
 =cut
 
-sub _packEngineFiles
+sub _packBackendFiles
 {
-    _processXmlInstallFile( "$FindBin::Bin/engine/install.xml" );
+    _processXmlInstallFile( "$FindBin::Bin/backend/install.xml" );
 
-    for my $dir ( iMSCP::Dir->new( dirname => "$FindBin::Bin/engine" )->getDirs() ) {
-        next unless -f "$FindBin::Bin/engine/$dir/install.xml";
-        _processXmlInstallFile( "$FindBin::Bin/engine/$dir/install.xml" );
+    for my $dir ( iMSCP::Dir->new( dirname => "$FindBin::Bin/backend" )->getDirs() ) {
+        next unless -f "$FindBin::Bin/backend/$dir/install.xml";
+        _processXmlInstallFile( "$FindBin::Bin/backend/$dir/install.xml" );
     }
 }
 
@@ -781,7 +781,7 @@ sub installDistributionFiles
 {
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::FrontEnd
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Setup::Backend
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/$_" )->remove() for qw/ engine gui /;
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/$_" )->remove() for qw/ backend engine gui /; # 'engine' only for update reasons
     iMSCP::Dir->new( dirname => $::{'DESTDIR'} )->copy( '/', { preserve => TRUE } );
 }
 
@@ -789,7 +789,7 @@ sub installDistributionFiles
 
  Expand variables in the given string
 
- Param string $string string containing variables to expands
+ Param string $string string containfing variables to expands
  Return string
 
 =cut

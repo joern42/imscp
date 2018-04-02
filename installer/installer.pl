@@ -33,7 +33,7 @@ use strict;
 use warnings;
 use File::Basename;
 use FindBin;
-use lib "$FindBin::Bin/installer", "$FindBin::Bin/engine/PerlLib";
+use lib "$FindBin::Bin/installer", "$FindBin::Bin/backend/PerlLib";
 use iMSCP::Installer::Functions qw/ loadConfig build install /;
 use iMSCP::Debug qw/ newDebug /;
 use iMSCP::Getopt;

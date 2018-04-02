@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <folder>${IMSCP_BACKEND_DIR}/messenger</folder>
+    <copy>${IMSCP_BACKEND_DIR}/messenger/imscp-arpl-msgr</copy>
+</install>
