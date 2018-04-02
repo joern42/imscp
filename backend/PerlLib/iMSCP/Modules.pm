@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules - Package that allows to load and get list of available i-MSCP modules
+ iMSCP::Modules - Library for loading and retrieval of i-MSCP modules
 
 =cut
 
@@ -25,12 +25,13 @@ package iMSCP::Modules;
 
 use strict;
 use warnings;
-use File::Basename;
+use File::Basename qw/ dirname /;
+use iMSCP::Cwd;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- Package that allows to load and get list of available i-MSCP modules
+ Library for loading and retrieval of i-MSCP modules
 
 =head1 PUBLIC METHODS
 
@@ -38,28 +39,15 @@ use parent 'iMSCP::Common::Singleton';
 
 =item getList( )
 
- Get modules list, sorted in descending order of priority
+ Get list of modules sorted in descending order of priority
 
- Return server list
+ Return list of modules
 
 =cut
 
 sub getList
 {
-    @{ $_[0]->{'modules'} };
-}
-
-=item getListWithFullNames( )
-
- Get modules list with full names, sorted in descending order of priority
-
- Return server list
-
-=cut
-
-sub getListWithFullNames
-{
-    @{ $_[0]->{'modules_full_names'} };
+    @{ $_[0]->{'_modules'} };
 }
 
 =back
@@ -80,17 +68,10 @@ sub _init
 {
     my ( $self ) = @_;
 
-    s%^.*?([^/]+)\.pm$%$1% for @{ $self->{'modules'} } = grep (!/Abstract\.pm$/, glob( dirname( __FILE__ ) . '/Modules/*.pm' ) );
-
-    # Load all modules
-    for my $module ( @{ $self->{'modules'} } ) {
-        my $fmodule = "iMSCP::Modules::${module}";
-        eval "require $fmodule; 1" or die( sprintf( "Couldn't load %s module class: %s", $fmodule, $@ ));
-    }
-
-    # Sort modules by priority (descending order)
-    @{ $self->{'modules'} } = sort { "iMSCP::Modules::${b}"->getPriority() <=> "iMSCP::Modules::${a}"->getPriority() } @{ $self->{'modules'} };
-    @{ $self->{'modules_full_names'} } = map { "iMSCP::Modules::${_}" } @{ $self->{'modules'} };
+    local $CWD = dirname( __FILE__ ) . '/Modules';
+    s%(.*)\.pm$%iMSCP::Modules::$1% for @{ $self->{'_modules'} } = grep !/Abstract\.pm$/, <*.pm>;
+    eval "require $_; 1" or die( sprintf( "Couldn't load %s module class: %s", $_, $@ )) for @{ $self->{'_modules'} };
+    @{ $self->{'_modules'} } = sort { $b->getModulePriority() <=> $a->getModulePriority() } @{ $self->{'_modules'} };
     $self;
 }
 

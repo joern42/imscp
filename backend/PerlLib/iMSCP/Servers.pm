@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers - Package that allows to load and get list of available i-MSCP servers
+ iMSCP::Servers - Library for loading and retrieval of i-MSCP servers
 
 =cut
 
@@ -25,12 +25,13 @@ package iMSCP::Servers;
 
 use strict;
 use warnings;
-use File::Basename;
+use File::Basename qw/ dirname /;
+use iMSCP::Cwd;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- Package that allows to load and get list of available i-MSCP servers
+ Library for loading and retrieval of i-MSCP servers.
 
 =head1 PUBLIC METHODS
 
@@ -38,28 +39,15 @@ use parent 'iMSCP::Common::Singleton';
 
 =item getList( )
 
- Get server list, sorted in descending order of priority
+ Get list of servers sorted in descending order of priority
 
- Return server list
+ Return list of servers
 
 =cut
 
 sub getList
 {
-    @{ $_[0]->{'servers'} };
-}
-
-=item getListWithFullNames( )
-
- Get server list with full names, sorted in descending order of priority
-
- Return server list
-
-=cut
-
-sub getListWithFullNames
-{
-    @{ $_[0]->{'servers_full_names'} };
+    @{ $_[0]->{'_servers'} };
 }
 
 =back
@@ -72,7 +60,7 @@ sub getListWithFullNames
 
  Initialize instance
 
- Return iMSCP::Servers, die on failure
+ Return self, die on failure
 
 =cut
 
@@ -80,17 +68,10 @@ sub _init
 {
     my ( $self ) = @_;
 
-    s%^.*?([^/]+)\.pm$%$1% for @{ $self->{'servers'} } = grep (!/(?:Abstract|NoServer)\.pm$/, glob( dirname( __FILE__ ) . '/Servers/*.pm' ) );
-
-    # Load all server
-    for my $server ( @{ $self->{'servers'} } ) {
-        my $fserver = "iMSCP::Servers::${server}";
-        eval "require $fserver; 1" or die( sprintf( "Couldn't load %s server class: %s", $fserver, $@ ));
-    }
-
-    # Sort servers by priority (descending order)
-    @{ $self->{'servers'} } = sort { "iMSCP::Servers::${b}"->getPriority() <=> "iMSCP::Servers::${a}"->getPriority() } @{ $self->{'servers'} };
-    @{ $self->{'servers_full_names'} } = map { "iMSCP::Servers::${_}" } @{ $self->{'servers'} };
+    local $CWD = dirname( __FILE__ ) . '/Servers';
+    s%(.*)\.pm$%iMSCP::Servers::$1% for @{ $self->{'_servers'} } = grep !/(?:Abstract|NoServer)\.pm$/, <*.pm>;
+    eval "require $_; 1" or die( sprintf( "Couldn't load %s server class: %s", $_, $@ )) for @{ $self->{'_servers'} };
+    @{ $self->{'_servers'} } = sort { $b->getServerPriority() <=> $a->getServerPriority() } @{ $self->{'_servers'} };
     $self;
 }
 

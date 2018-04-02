@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages - Package that allows to load and get list of available i-MSCP packages
+ iMSCP::Packages - Library for loading and retrieval of i-MSCP packages
 
 =cut
 
@@ -25,12 +25,13 @@ package iMSCP::Packages;
 
 use strict;
 use warnings;
-use File::Basename;
+use File::Basename qw/ dirname /;
+use iMSCP::Cwd;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- Package that allows to load and get list of available i-MSCP packages
+ Library for loading and retrieval of i-MSCP packages.
 
 =head1 PUBLIC METHODS
 
@@ -38,28 +39,15 @@ use parent 'iMSCP::Common::Singleton';
 
 =item getList( )
 
- Get package list
+ Get list of packages sorted in descending order of priority
 
- Return package list, sorted in descending order of priority
+ Return list of packages
 
 =cut
 
 sub getList
 {
-    @{ $_[0]->{'packages'} };
-}
-
-=item getListWithFullNames( )
-
- Get package list with full names, sorted in descending order of priority
-
- Return package list
-
-=cut
-
-sub getListWithFullNames
-{
-    @{ $_[0]->{'packages_full_names'} };
+    @{ $_[0]->{'_packages'} };
 }
 
 =back
@@ -72,7 +60,7 @@ sub getListWithFullNames
 
  Initialize instance
  
- Return iMSCP::Packages, die on failure
+ Return self, die on failure
 
 =cut
 
@@ -80,25 +68,17 @@ sub _init
 {
     my ( $self ) = @_;
 
-    my $packageRootDir = dirname( __FILE__ );
+    local $CWD = dirname( __FILE__ ) . '/Packages';
+    s%(.*)\.pm$%iMSCP::Packages::$1% for @{ $self->{'_packages'} } = grep !/Abstract\.pm$/, <*.pm>;
 
-    s%^.*?([^/]+)\.pm$%$1% for @{ $self->{'packages'} } = glob( "$packageRootDir/Packages/*.pm" );
-
-    # In installer/uninstaller contexts, we also load setup packages
+    # In installer/uninstaller contexts, also load setup packages
     if ( grep ( iMSCP::Getopt->context() eq $_, 'installer', 'uninstaller' ) ) {
-        s%^.*?([^/]+)\.pm$%Setup::$1% for my @setupPackages = glob( "$packageRootDir/Packages/Setup/*.pm" );
-        push @{ $self->{'packages'} }, @setupPackages;
+        local $CWD = $CWD . '/Setup';
+        push @{ $self->{'_packages'} }, map { s%(.*)\.pm$%iMSCP::Packages::Setup::$1%r } <*.pm>;
     }
 
-    # Load all packages
-    for my $package ( @{ $self->{'packages'} } ) {
-        my $fpackage = "iMSCP::Packages::${package}";
-        eval "require $fpackage; 1" or die( sprintf( "Couldn't load %s package class: %s", $fpackage, $@ ));
-    }
-
-    # Sort packages by priority (descending order)
-    @{ $self->{'packages'} } = sort { "iMSCP::Packages::${b}"->getPriority() <=> "iMSCP::Packages::${a}"->getPriority() } @{ $self->{'packages'} };
-    @{ $self->{'packages_full_names'} } = map { "iMSCP::Packages::${_}" } @{ $self->{'packages'} };
+    eval "require $_; 1" or die( sprintf( "Couldn't load %s package class: %s", $_, $@ )) for @{ $self->{'_packages'} };
+    @{ $self->{'_packages'} } = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } @{ $self->{'_packages'} };
     $self;
 }
 
