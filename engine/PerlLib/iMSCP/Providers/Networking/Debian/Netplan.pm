@@ -26,7 +26,6 @@ package iMSCP::Providers::Networking::Debian::Netplan;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug /;
 use iMSCP::Boolean;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
