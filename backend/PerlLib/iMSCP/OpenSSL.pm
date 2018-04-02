@@ -208,7 +208,7 @@ sub importCaBundle
 
  Generate a self-signed SSL certificate
 
- Param hash \%data Certificate data (common_name, email, wildcard = false)
+ Param hashref \%data Certificate data (common_name, email, wildcard = false)
  Param bool $wildcardSSL OPTIONAL Does a wildcard SSL certificate must be generated (default FALSE)
  Return self, die on failure
 

@@ -35,7 +35,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- Provide a datababase abstraction layer (DAL) for MySQL
+ Provide a datababase abstraction layer (DAL) for MySQL.
 
 =cut
 

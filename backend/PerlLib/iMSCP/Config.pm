@@ -33,7 +33,7 @@ use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
 
- Provides access to various i-MSCP configuration files through tied hash
+ Provides access to various i-MSCP configuration files through tied hash.
 
 =head1 PUBLIC METHODS
 

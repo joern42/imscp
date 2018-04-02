@@ -39,11 +39,7 @@ use constant ALPHA64 => './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 use constant BASE64 => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 our @EXPORT_OK = qw/
-    ALNUM ALPHA64 BASE64
-    randomStr
-    md5 sha256 sha512 bcrypt apr1MD5 htpasswd
-    verify hashEqual
-    encryptBlowfishCBC decryptBlowfishCBC
+    ALNUM ALPHA64 BASE64 randomStr md5 sha256 sha512 bcrypt apr1MD5 htpasswd verify hashEqual encryptBlowfishCBC decryptBlowfishCBC
     encryptRijndaelCBC decryptRijndaelCBC
 /;
 
@@ -280,9 +276,7 @@ sub htpasswd( $;$$ )
     my ( $password, $cost, $salt, $format ) = @_;
     $format //= 'md5';
 
-    if ( $format eq 'bcrypt' ) {
-        return bcrypt( $password, $cost, $salt );
-    }
+    return bcrypt( $password, $cost, $salt ) if $format eq 'bcrypt';
 
     if ( $format eq 'crypt' ) {
         if ( $salt ) {
@@ -296,13 +290,8 @@ sub htpasswd( $;$$ )
         return crypt( $password, $salt );
     }
 
-    if ( $format eq 'sha1' ) {
-        return '{SHA}' . encode_base64( Digest::SHA::sha1( $password ), '' );
-    }
-
-    if ( $format eq 'md5' ) {
-        return apr1MD5( $password, $salt );
-    }
+    return '{SHA}' . encode_base64( Digest::SHA::sha1( $password ), '' ) if $format eq 'sha1';
+    return apr1MD5( $password, $salt ) if $format eq 'md5';
 
     croak( sprintf( 'The %s format is not valid. The supported formats are: %s', $format, 'bcrypt, crypt, md5, sha1' ));
 }
@@ -321,9 +310,8 @@ sub verify( $$ )
 {
     my ( $password, $hash ) = @_;
 
-    if ( substr( $hash, 0, 5 ) eq '{SHA}' ) { # htpasswd sha1 hashed password
-        return hashEqual( $hash, '{SHA}' . encode_base64( Digest::SHA::sha1( $password ), '' ));
-    }
+    # htpasswd sha1 hashed password
+    return hashEqual( $hash, '{SHA}' . encode_base64( Digest::SHA::sha1( $password ), '' )) if substr( $hash, 0, 5 ) eq '{SHA}';
 
     if ( substr( $hash, 0, 6 ) eq '$apr1$' ) {
         # htpasswd md5 (APR1) hashed password
@@ -332,9 +320,8 @@ sub verify( $$ )
         return hashEqual( $hash, apr1MD5( $password, $token[2] ));
     }
 
-    if ( substr( $hash, 0, 4 ) eq '$2a$' ) { # bcrypt hashed password
-        return hashEqual( $hash, Crypt::Eksblowfish::Bcrypt::bcrypt( $password, $hash ));
-    }
+    # bcrypt hashed password
+    return hashEqual( $hash, Crypt::Eksblowfish::Bcrypt::bcrypt( $password, $hash )) if substr( $hash, 0, 4 ) eq '$2a$';
 
     hashEqual( $hash, crypt( $password, $hash ));
 }

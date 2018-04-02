@@ -27,11 +27,12 @@ use strict;
 use warnings;
 use Carp qw/ croak /;
 use File::Basename;
+use iMSCP::Boolean;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- Package that allows to get list of available plugins and their class names
+ Package that allows to get list of available plugins and their class names.
 
 =head1 PUBLIC METHODS
 
@@ -39,7 +40,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =item getList( )
 
- Get list of available plugins
+ Get list of plugins
 
  Return server list
 
@@ -47,7 +48,7 @@ use parent 'iMSCP::Common::Singleton';
 
 sub getList
 {
-    @{ $_[0]->{'availables_plugins'} };
+    @{ $_[0]->{'_plugins'} };
 }
 
 =item getClass( $pluginName )
@@ -64,10 +65,10 @@ sub getClass
 {
     my ( $self, $pluginName ) = @_;
 
-    unless ( $self->{'loaded_plugins'}->{$pluginName} ) {
-        grep ( $_ eq $pluginName, @{ $self->{'availables_plugins'} } ) or croak( sprintf( "Plugin %s isn't available", $pluginName ));
-        require "$::imscpConfig{'PLUGINS_DIR'}/$pluginName/backend/$pluginName.pm";
-        $self->{'loaded_plugins'}->{$pluginName} = 1;
+    unless ( $self->{'_loaded_plugins'}->{$pluginName} ) {
+        grep ( $_ eq $pluginName, @{ $self->{'_plugins'} } ) or croak( sprintf( "Plugin %s isn't available", $pluginName ));
+        require "$::imscpConfig{'FRONTEND_ROOT_DIR'}/plugins/$pluginName/backend/$pluginName.pm";
+        $self->{'_loaded_plugins'}->{$pluginName} = TRUE;
     }
 
     "Plugin::$pluginName";
@@ -91,8 +92,8 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $_ = basename( $_, '.pm' ) for @{ $self->{'availables_plugins'} } = glob( "$::imscpConfig{'PLUGINS_DIR'}/*/backend/*.pm" );
-    $self->{'loaded_plugins'} = {};
+    $_ = basename( $_, '.pm' ) for @{ $self->{'_plugins'} } = glob( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/plugins/*/backend/*.pm" );
+    $self->{'_loaded_plugins'} = {};
     $self;
 }
 

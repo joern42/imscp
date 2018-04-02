@@ -34,9 +34,9 @@ use constant true => !!1;
 use constant FALSE => !!0;
 use constant false => !!0;
 
-=head1 DESCRIPTION
+=head1 DESCRIPTION.
 
- Provide boolean as constant
+ Provide boolean as constant.
 
 =head1 AUTHOR
 

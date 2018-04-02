@@ -47,7 +47,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- Bootstrap class for i-MSCP
+ Bootstrap class for i-MSCP.
 
 =head1 PUBLIC METHODS
 

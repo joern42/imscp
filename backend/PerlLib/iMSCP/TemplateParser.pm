@@ -33,7 +33,7 @@ our @EXPORT_OK = qw/ process processByRef getBloc getBlocByRef replaceBloc repla
 =head1 DESCRIPTION
 
  The template parser allow to parse pseudo-variables within i-MSCP template files.
- It can parse simple variables or variable tag pairs
+ It can parse simple variables or variable tag pairs.
 
 =head1 PUBLIC METHODS
 

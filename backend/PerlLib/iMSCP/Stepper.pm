@@ -40,7 +40,7 @@ my $stepperRoutine = lazy { iMSCP::Getopt->noprompt ? \&_callback : \&_step; };
 
 =head1 DESCRIPTION
 
- i-MSCP stepper
+ i-MSCP stepper.
 
 =head1 PUBLIC FUNCTIONS
 

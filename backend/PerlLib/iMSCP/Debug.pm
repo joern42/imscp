@@ -54,7 +54,7 @@ $self = {
 
 =head1 DESCRIPTION
 
- Debug library
+ Debug library.
 
 =head1 FUNCTIONS
 
@@ -193,7 +193,7 @@ sub getLastError
  Get message by type from current logger, according given options
 
  Param string $type Type (debug, warning, error) or a Regexp such as qr/error|warning/ ...
- Param hash \%options OPTIONAL Option for message retrieval
+ Param hashref \%options OPTIONAL Option for message retrieval
   - amount: Number of message to retrieve (default all)
   - chrono: If TRUE, retrieve messages in chronological order (default TRUE)
   - message: A Regexp for retrieving messages with specific string

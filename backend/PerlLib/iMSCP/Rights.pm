@@ -49,7 +49,7 @@ our @EXPORT = qw/ setRights /;
  FIXME: When only CHOWN(2) is involved, should we restablish any clearedoff setuid/setgid bits or should that task left to caller?
 
  Param string $target Target file or directory
- Param hash \%attrs:
+ Param hashref \%attrs:
   mode      : OPTIONAL Set mode on the given target
   dirmode   : OPTIONAL Set mode on directories
   filemode  : OPTIONAL Set mode on files

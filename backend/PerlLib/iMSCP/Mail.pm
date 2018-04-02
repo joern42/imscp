@@ -38,7 +38,7 @@ $Text::Wrap::break = qr/[\s\n\|]/;
 
 =head1 DESCRIPTION
 
- Send warning or error message to system administrator
+ Send warning or error message to system administrator.
 
 =head1 PUBLIC METHODS
 
