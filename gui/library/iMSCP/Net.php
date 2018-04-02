@@ -147,30 +147,11 @@ class Net
      */
     public function compress($ipAddr)
     {
-        $ipAddr = $this->expand($ipAddr);
-
-        $ipp = explode(':', $ipAddr);
-
-        for ($i = 0; $i < count($ipp); $i++) {
-            $ipp[$i] = dechex(hexdec($ipp[$i]));
+        if ($this->getVersion($ipAddr) == 4) {
+            return $ipAddr;
         }
 
-        $ipAddr = ':' . join(':', $ipp) . ':';
-        preg_match_all('/(:0)(:0)+/', $ipAddr, $zeros);
-
-        if (count($zeros[0]) > 0) {
-            $match = '';
-            foreach ($zeros[0] as $zero) {
-                if (strlen($zero) > strlen($match)) {
-                    $match = $zero;
-                }
-            }
-
-            $ipAddr = preg_replace('/' . $match . '/', ':', $ipAddr, 1);
-        }
-
-        $ipAddr = preg_replace('/((^:)|(:$))/', '', $ipAddr);
-        return preg_replace('/((^:)|(:$))/', '::', $ipAddr);
+        return inet_ntop(inet_pton($ipAddr));
     }
 
     /**
@@ -181,48 +162,12 @@ class Net
      */
     public function expand($ipAddr)
     {
-        if (false !== strpos($ipAddr, '::')) {
-            list($ip1, $ip2) = explode('::', $ipAddr);
-
-            if ('' == $ip1) {
-                $c1 = -1;
-            } else {
-                $c1 = (0 < ($pos = substr_count($ip1, ':'))) ? $pos : 0;
-            }
-
-            if ('' == $ip2) {
-                $c2 = -1;
-            } else {
-                $c2 = (0 < ($pos = substr_count($ip2, ':'))) ? $pos : 0;
-            }
-
-            if (strstr($ip2, '.')) {
-                $c2++;
-            }
-
-            if (-1 == $c1 && -1 == $c2) {
-                $ipAddr = '0:0:0:0:0:0:0:0';
-            } elseif (-1 == $c1) {
-                $fill = str_repeat('0:', 7 - $c2);
-                $ipAddr = str_replace('::', $fill, $ipAddr);
-            } elseif (-1 == $c2) {
-                $fill = str_repeat(':0', 7 - $c1);
-                $ipAddr = str_replace('::', $fill, $ipAddr);
-            } else {
-                $fill = str_repeat(':0:', 6 - $c2 - $c1);
-                $ipAddr = str_replace('::', $fill, $ipAddr);
-                $ipAddr = str_replace('::', ':', $ipAddr);
-            }
+        if ($this->getVersion($ipAddr) == 4) {
+            return $ipAddr;
         }
 
-        $uipT = [];
-        $uiparts = explode(':', $ipAddr);
-
-        foreach ($uiparts as $p) {
-            $uipT[] = sprintf('%04s', $p);
-        }
-
-        return implode(':', $uipT);
+        $hex = unpack("H*hex", inet_pton($ipAddr));
+        return substr(preg_replace("/([A-f0-9]{4})/", "$1:", $hex['hex']), 0, -1);
     }
 
     /**
@@ -284,7 +229,7 @@ class Net
      */
     public function getVersion($ipAddr)
     {
-        return (strpos($ipAddr, ':') !== false) ? 6 : 4;
+        return strpos($ipAddr, ':') !== false ? 6 : 4;
     }
 
     /**

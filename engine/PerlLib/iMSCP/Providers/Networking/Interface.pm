@@ -39,11 +39,11 @@ use Carp qw/ croak /;
 
  Add an IP address
 
- Param hash \%data IP address data:
+ Param hashref \%data IP address data:
    ip_id          : IP address unique identifier
    ip_card        : Network card to which the IP address must be added
    ip_address     : Either an IPv4 or IPv6 address
-   ip_netmask     : OPTIONAL Netmask (default: 32 for IPv4, 128 for IPv6)
+   ip_netmask     : OPTIONAL Netmask (default: 24 for IPv4, 64 for IPv6)
    ip_config_mode : IP configuration mode (auto|manual)
  Return iMSCP::Providers::Networking::Interface, die on failure
 
@@ -60,11 +60,11 @@ sub addIpAddr
 
  Remove an IP address
 
- Param hash \%data IP address data:
+ Param hashref \%data IP address data:
    ip_id          : IP address unique identifier
    ip_card        : Network card from which the IP address must be removed
    ip_address     : Either an IPv4 or IPv6 address
-   ip_netmask     : OPTIONAL Netmask (default: 32 for IPv4, 128 for IPv6)
+   ip_netmask     : OPTIONAL Netmask (default: 24 for IPv4, 64 for IPv6)
    ip_config_mode : IP configuration mode (auto|manual)
  Return iMSCP::Providers::Networking::Interface, die on failure
 

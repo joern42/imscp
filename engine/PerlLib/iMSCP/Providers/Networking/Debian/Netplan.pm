@@ -26,6 +26,7 @@ package iMSCP::Providers::Networking::Debian::Netplan;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Boolean;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -70,6 +71,9 @@ sub addIpAddr
     }
 
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
+
+    # Work locally with compressed IP
+    local $data->{'ip_address'} = $self->{'net'}->compressAddr( $data->{'ip_address'} );
 
     # We localize the modification as we do not want propagate it to caller
     local $data->{'ip_id'} = $data->{'ip_id'}+1000;
@@ -117,6 +121,9 @@ sub removeIpAddr
 
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
+    # Work locally with compressed IP
+    local $data->{'ip_address'} = $self->{'net'}->compressAddr( $data->{'ip_address'} );
+
     # We localize the modification as we do not want propagate it to caller
     local $data->{'ip_id'} = $data->{'ip_id'}+1000;
 
@@ -153,14 +160,14 @@ sub _init
  Write or remove netplan configuration file for the given vlan
 
  Param string $action Action to perform (add|remove)
- Param string $data Template data
+ Param hashref \%data IP data
  Return void, die on failure
 
 =cut
 
 sub _updateConfig
 {
-    my ( $self, $action, $data ) = @_;
+    my ( undef, $action, $data ) = @_;
 
     my $file = iMSCP::File->new( filename => "$NETPLAN_CONF_DIR/99-imscp-$data->{'ip_id'}.yaml" );
     return $file->remove() if $action eq 'remove';
@@ -172,7 +179,7 @@ network:
   ethernets:
    $data->{'ip_card'}:
     addresses:
-     - @{ [ $self->{'net'}->normalizeAddr( $data->{'ip_address'} ) ] }/$data->{'ip_netmask'}
+     - $data->{'ip_address'}/$data->{'ip_netmask'}
 CONFIG
 }
 

@@ -35,39 +35,26 @@ require 'imscp-lib.php';
 
 check_login('admin');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
-
-if (!isset($_GET['ip_id'])) {
-    showBadRequestErrorPage();
-}
+isset($_GET['ip_id']) or showBadRequestErrorPage();
 
 $ipId = intval($_GET['ip_id']);
-
-$stmt = exec_query('SELECT ip_number FROM server_ips WHERE ip_id = ?', [$ipId]);
-if (!$stmt->rowCount()) {
-    showBadRequestErrorPage();
-}
-
-$row = $stmt->fetch();
-$ipAddr = $row['ip_number'];
+($ipAddr = exec_query('SELECT ip_number FROM server_ips WHERE ip_id = ?', [$ipId])->fetchColumn() !== FALSE) or showBadRequestErrorPage();
 
 $stmt = execute_query('SELECT reseller_ips FROM reseller_props');
 while ($row = $stmt->fetch()) {
     if (in_array($ipId, explode(';', $row['reseller_ips'], -1))) {
-        set_page_message(tr('You cannot remove an IP that is assigned to a reseller.'), 'error');
+        set_page_message(tr('You cannot delete an IP that is assigned to a reseller.'), 'error');
         redirectTo('ip_manage.php');
     }
 }
 
-$stmt = execute_query('SELECT count(*) cnt FROM server_ips');
-$row = $stmt->fetch();
-
-if ($row ['cnt'] < 2) {
+if (execute_query('SELECT COUNT(ip_id) FROM server_ips')->fetchColumn() < 2) {
     set_page_message(tr('You cannot delete the last active IP address.'), 'error');
     redirectTo('ip_manage.php');
 }
 
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onDeleteIpAddr);
-exec_query('UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', ['todelete', $ipId]);
+exec_query("UPDATE server_ips SET ip_status = 'todelete' WHERE ip_id = ?", [$ipId]);
 send_request();
 write_log(sprintf("An IP address (%s) has been deleted by %s", $ipAddr, $_SESSION['user_logged']), E_USER_NOTICE);
 set_page_message(tr('IP address successfully scheduled for deletion.'), 'success');

@@ -26,7 +26,7 @@
 
 package iMSCP::Listener::Bind9::DualStack;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -148,7 +148,7 @@ iMSCP::EventManager->getInstance()->register(
             for my $ipAddr( @{$name} ) {
                 next unless $net->isValidAddr( $ipAddr );
                 push @names, <<"EOT";
-$_\t$DNS_TTL\t@{[ $net->getAddrVersion( $ipAddr ) eq 'ipv4' ? 'A' : 'AAAA']}\t@{[ $net->normalizeAddr( $ipAddr ) ]}
+$_\t$DNS_TTL\t@{[ $net->getAddrVersion( $ipAddr ) eq 'ipv4' ? 'A' : 'AAAA']}\t@{[ $net->compressAddr( $ipAddr ) ]}
 EOT
             }
         }

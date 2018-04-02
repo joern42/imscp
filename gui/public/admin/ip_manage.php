@@ -112,18 +112,18 @@ function generateIpsList($tpl)
     $cfg = Registry::get('config');
     $isIPv6Allowed = $cfg['IPV6_SUPPORT'] == 'yes';
     $net = Net::getInstance();
-    $baseServerIp = ($net->getVersion($cfg['BASE_SERVER_IP']) == 6) ? $net->compress($cfg['BASE_SERVER_IP']) : $cfg['BASE_SERVER_IP'];
+    $baseServerIp = $net->compress($cfg['BASE_SERVER_IP']);
 
 
     while ($row = $stmt->fetch()) {
-        $ipAddrVersion = $net->getVersion($row['ip_number']) == 6;
-        if ($ipAddrVersion == 6 && !$isIPv6Allowed) {
+        $isIpV6Addr = $net->getVersion($row['ip_number']) == 6;
+        if ($isIpV6Addr && !$isIPv6Allowed) {
             continue;
         }
 
-        $ipAddr = ($ipAddrVersion == 6) ? $net->compress($row['ip_number']) : $row['ip_number'];
+        $ipAddr = $net->compress($row['ip_number']);
 
-        if ($baseServerIp === $ipAddr) {
+        if ($baseServerIp == $ipAddr) {
             $actionName = $row['ip_status'] == 'ok' ? tohtml(tr('Protected')) : tohtml(translate_dmn_status($row['ip_status']));
             $actionIpId = NULL;
         } elseif (in_array($row['ip_id'], $assignedIps)) {
@@ -138,13 +138,13 @@ function generateIpsList($tpl)
         }
 
         $tpl->assign([
-            'IP'           => tohtml(($row['ip_number'] == '0.0.0.0') ? tohtml(tr('Any')) : tohtml($row['ip_number'])),
+            'IP'           => tohtml($ipAddr == '0.0.0.0' ? tohtml(tr('Any')) : tohtml($ipAddr)),
             'IP_NETMASK'   => $net->getIpPrefixLength($net->compress($row['ip_number'])) ?: $row['ip_netmask'] ?: tohtml(tr('N/A')),
-            'IP_EDITABLE'  => ($row['ip_status'] == 'ok' && $baseServerIp != $ipAddr && $row['ip_config_mode'] != 'manual') ? true : false,
-            'NETWORK_CARD' => ($row['ip_card'] === NULL) ? '' : (($row['ip_card'] !== 'any') ? tohtml($row['ip_card']) : tohtml(tr('Any')))
+            'IP_EDITABLE'  => $row['ip_status'] == 'ok' && $baseServerIp != $ipAddr && $row['ip_config_mode'] != 'manual' ? true : false,
+            'NETWORK_CARD' => is_null($row['ip_card']) ? '' : (($row['ip_card'] !== 'any') ? tohtml($row['ip_card']) : tohtml(tr('Any')))
         ]);
 
-        if ($row['ip_status'] == 'ok' && $row['ip_card'] != 'any' && $row['ip_number'] !== '0.0.0.0') {
+        if ($row['ip_status'] == 'ok' && $row['ip_card'] != 'any' && $row['ip_number'] != '0.0.0.0') {
             $tpl->assign([
                 'IP_ID'            => $row['ip_id'],
                 'IP_CONFIG_AUTO'   => $row['ip_config_mode'] != 'manual' ? ' checked' : '',
@@ -259,15 +259,10 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
     if ($checkDuplicate) {
         $net = Net::getInstance();
 
-        if ($net->getVersion($ipAddr) == 6) {
-            $ipAddr = $net->compress($ipAddr);
-        }
-
         // Make sure that $ipAddr is not already under the control of i-MSCP
         $stmt = execute_query('SELECT ip_number FROM server_ips');
         while ($row = $stmt->fetch()) {
-            $cIpaddr = ($net->getVersion($row['ip_number']) == 6) ? $net->compress($row['ip_number']) : $row['ip_number'];
-            if ($cIpaddr === $ipAddr) {
+            if ($net->compress($row['ip_number']) == $net->compress($ipAddr)) {
                 set_page_message(tohtml(tr('IP address already under the control of i-MSCP.')), 'error');
                 $errFieldsStack[] = 'ip_number';
                 break;
@@ -305,8 +300,9 @@ function editIpAddr()
             sendJsonResponse(400, ['message' => tr('Bad request.')]);
         }
 
-        $net = Net::getInstance();
         $row = $stmt->fetch();
+
+        $net = Net::getInstance();
         $ipNetmask = isset($_POST['ip_netmask'])
             ? clean_input($_POST['ip_netmask'])
             : ($net->getIpPrefixLength($row['ip_number']) ?: ($row['ip_netmask'] ?: ($net->getVersion() == 4 ? 24 : 64)));
@@ -320,7 +316,7 @@ function editIpAddr()
 
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onEditIpAddr, [
             'ip_id'          => $ipId,
-            'ip_number'      => $row['ip_number'],
+            'ip_number'      => $net->compress($row['ip_number']),
             'ip_netmask'     => $ipNetmask,
             'ip_card'        => $ipCard,
             'ip_config_mode' => $ipConfigMode
@@ -352,6 +348,8 @@ function addIpAddr()
     if (!checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard)) {
         return;
     }
+
+    $ipAddr = Net::getInstance()->compress($ipAddr);
 
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAddIpAddr, [
         'ip_number'      => $ipAddr,

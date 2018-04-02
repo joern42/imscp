@@ -909,7 +909,7 @@ sub _disableDomain
 
     # If INADDR_ANY is found, map it to the wildcard sign and discard any other
     # IP, else, remove any duplicate IP address from the list
-    @domainIPs = sort grep ($_ eq '0.0.0.0', @domainIPs) ? ( '*' ) : unique( map { $net->normalizeAddr( $_ ) } @domainIPs );
+    @domainIPs = sort grep ($_ eq '0.0.0.0', @domainIPs) ? ( '*' ) : unique( map { $net->compressAddr( $_ ) } @domainIPs );
 
     my $serverData = {
         DOMAIN_IPS      => join( ' ', map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':80' } @domainIPs ),
@@ -982,7 +982,7 @@ sub _addCfg
 
     # If INADDR_ANY is found, map it to the wildcard sign and discard any other
     # IP, else, remove any duplicate IP address from the list
-    @domainIPs = sort grep ($_ eq '0.0.0.0', @domainIPs) ? ( '*' ) : unique( map { $net->normalizeAddr( $_ ) } @domainIPs );
+    @domainIPs = sort grep ($_ eq '0.0.0.0', @domainIPs) ? ( '*' ) : unique( map { $net->compressAddr( $_ ) } @domainIPs );
 
     my $serverData = {
         DOMAIN_IPS             => join( ' ', map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':80' } @domainIPs ),

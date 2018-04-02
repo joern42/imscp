@@ -102,7 +102,7 @@ sub delAddr
 {
     my ( $self, $addr ) = @_;
 
-    $addr = $self->normalizeAddr( $addr );
+    $addr = $self->compressAddr( $addr );
 
     return $self unless $self->isKnownAddr( $addr );
 
@@ -167,7 +167,7 @@ sub getAddrDevice
     my ( $self, $addr ) = @_;
 
     $self->isKnownAddr( $addr ) or croak( sprintf( 'Unknown IP address: %s', $addr ));
-    $self->{'addresses'}->{$addr}->{'device'};
+    $self->{'addresses'}->{$self->compressAddr( $addr )}->{'device'};
 }
 
 =item getAddrLabel( $addr )
@@ -184,7 +184,7 @@ sub getAddrLabel
     my ( $self, $addr ) = @_;
 
     $self->isKnownAddr( $addr ) or croak( sprintf( 'Unknown IP address: %s', $addr ));
-    $self->{'addresses'}->{$addr}->{'device_label'};
+    $self->{'addresses'}->{$self->compressAddr( $addr )}->{'device_label'};
 }
 
 =item getAddrNetmask( $addr )
@@ -201,7 +201,7 @@ sub getAddrNetmask
     my ( $self, $addr ) = @_;
 
     $self->isKnownAddr( $addr ) or croak( sprintf( 'Unknown IP address: %s', $addr ));
-    $self->{'addresses'}->{$self->normalizeAddr( $addr )}->{'prefix_length'};
+    $self->{'addresses'}->{$self->compressAddr( $addr )}->{'prefix_length'};
 }
 
 =item isKnownAddr( $addr )
@@ -217,7 +217,7 @@ sub isKnownAddr
 {
     my ( $self, $addr ) = @_;
 
-    exists $self->{'addresses'}->{$self->normalizeAddr( $addr )};
+    exists $self->{'addresses'}->{$self->compressAddr( $addr )};
 }
 
 =item isValidAddr( $addr )
@@ -274,16 +274,16 @@ sub isValidNetmask
     1;
 }
 
-=item normalizeAddr( $addr )
+=item compressAddr( $addr )
 
- Normalize the given IP
+ Compress the given IP
 
  Param string $addr IP address
  Return string Normalized IP address, die on failure
 
 =cut
 
-sub normalizeAddr
+sub compressAddr
 {
     my ( $self, $addr ) = @_;
 
@@ -493,14 +493,12 @@ sub _extractAddresses
     );
 
     my $addresses = {};
-    $addresses->{$self->normalizeAddr( $3 )} = {
+    $addresses->{$self->compressAddr( $3 )} = {
         device        => $1,
         version       => $2 eq 'inet' ? 'ipv4' : 'ipv6',
         prefix_length => $4,
         addr_label    => $5 // $1
-    } while $stdout =~ /
-        ^[^\s]+:\s+([^\s]+)\s+([^\s]+)\s+(?:([^\s]+)(?:\s+peer\s+[^\s]+)?\/([\d]+))\s+(?:.*?(\1(?::\d+)?)\\)?
-        /gmx;
+    } while $stdout =~ /^[^\s]+:\s+([^\s]+)\s+([^\s]+)\s+(?:([^\s]+)(?:\s+peer\s+[^\s]+)?\/([\d]+))\s+(?:.*?(\1(?::\d+)?)\\)?/gm;
     $addresses;
 }
 

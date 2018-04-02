@@ -70,6 +70,9 @@ sub addIpAddr
 
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
+    # Work locally with compressed IP
+    local $data->{'ip_address'} = $self->{'net'}->compressAddr( $data->{'ip_address'} );
+
     # We localize the modification as we do not want propagate it to caller
     local $data->{'ip_id'} = $data->{'ip_id'}+1000;
 
@@ -125,11 +128,13 @@ sub removeIpAddr
 
     $data->{'ip_id'} =~ /^\d+$/ or croak( 'ip_id parameter must be an integer' );
 
+    # Work locally with compressed IP
+    local $data->{'ip_address'} = $self->{'net'}->compressAddr( $data->{'ip_address'} );
+
     # We localize the modification as we do not want propagate it to caller
     local $data->{'ip_id'} = $data->{'ip_id'}+1000;
 
-    if ( $data->{'ip_config_mode'} eq 'auto'
-        && $self->{'net'}->getAddrVersion( $data->{'ip_address'} ) eq 'ipv4'
+    if ( $data->{'ip_config_mode'} eq 'auto' && $self->{'net'}->getAddrVersion( $data->{'ip_address'} ) eq 'ipv4'
         && $self->_isDefinedInterface( "$data->{'ip_card'}:$data->{'ip_id'}" )
     ) {
         my ( $stdout, $stderr );
@@ -173,7 +178,7 @@ sub _init
  Add or remove IP address in the interfaces configuration file
 
  Param string $action Action to perform (add|remove)
- Param string $data Template data
+ Param hashref \%data IP data
  Return void, die on failure
 
 =cut
@@ -184,14 +189,13 @@ sub _updateInterfacesFile
 
     my $file = iMSCP::File->new( filename => $INTERFACES_FILE_PATH )->copy( $INTERFACES_FILE_PATH . '.bak', { preserve => TRUE } );
     my $addrVersion = $self->{'net'}->getAddrVersion( $data->{'ip_address'} );
-    my $cAddr = $self->{'net'}->normalizeAddr( $data->{'ip_address'} );
     my $eAddr = $self->{'net'}->expandAddr( $data->{'ip_address'} );
 
     # We search also by ip_id for backward compatibility
     my $fileContentRef = $file->getAsRef();
     replaceBlocByRef(
-        qr/^\s*# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$cAddr\E)\] entry BEGIN\n/m,
-        qr/# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$cAddr\E)\] entry ENDING\n/,
+        qr/^\s*# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$data->{'ip_address'}\E)\] entry BEGIN\n/m,
+        qr/# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$data->{'ip_address'}\E)\] entry ENDING\n/,
         '',
         $fileContentRef
     );
@@ -199,16 +203,16 @@ sub _updateInterfacesFile
     if ( $action eq 'add'
         # We need make sure that the IP is not already configured somewhere else. Beginner could enable 'auto' mode while
         # the IP is already manually configured...
-        && ${ $fileContentRef } !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$cAddr|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
+        && ${ $fileContentRef } !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$data->{'ip_address'}|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
     ) {
         my $iface = $data->{'ip_card'} . ( ( $addrVersion eq 'ipv4' ) ? ':' . $data->{'ip_id'} : '' );
-        my $beginTag = "# i-MSCP [$cAddr] entry BEGIN";
-        my $endingTag = "# i-MSCP [$cAddr] entry ENDING";
+        my $beginTag = "# i-MSCP [$data->{'ip_address'}] entry BEGIN";
+        my $endingTag = "# i-MSCP [$data->{'ip_address'}] entry ENDING";
         ${ $fileContentRef } .= <<"STANZA";
 
 $beginTag
 iface $iface @{ [ $addrVersion eq 'ipv4' ? 'inet' : 'inet6' ] } static
-    address $cAddr
+    address $data->{'ip_address'}
     netmask $data->{'ip_netmask'}
 $endingTag
 STANZA
