@@ -62,13 +62,8 @@ sub handleEntity
 
     $self->_loadEntityData( $entityId );
 
-    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change(?:pwd)?)$/ ) {
-        $self->_add();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
-        $self->_delete();
-    } else {
-        die( sprintf( 'Unknown action (%s) for user (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
-    }
+    return $self->_add() if $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change(?:pwd)?)$/;
+    return $self->_delete() if $self->{'_data'}->{'STATUS'} eq 'todelete';
 }
 
 =back
@@ -93,8 +88,7 @@ sub _loadEntityData
             FROM admin
             WHERE admin_id = ?
         ',
-        undef,
-        $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'User (ID %d) has not been found', $entityId ));
 
@@ -172,7 +166,7 @@ sub _delete
     };
     if ( $@ ) {
         $self->{'_dbh'}->do( 'UPDATE admin SET admin_status = ? WHERE admin_id = ?', undef, $@, $self->{'_data'}->{'USER_ID'} );
-        return $self;
+        return;
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM admin WHERE admin_id = ?', undef, $self->{'_data'}->{'USER_ID'} );

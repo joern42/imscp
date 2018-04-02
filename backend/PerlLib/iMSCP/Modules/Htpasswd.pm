@@ -61,15 +61,9 @@ sub handleEntity
 
     $self->_loadEntityData( $entityId );
 
-    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->_add();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
-        $self->_disable();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
-        $self->_delete();
-    } else {
-        die( sprintf( 'Unknown action (%s) for htuser (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
-    }
+    return $self->_add() if $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/;
+    return $self->_disable() if $self->{'_data'}->{'STATUS'} eq 'todisable';
+    return $self->_delete() if $self->{'_data'}->{'STATUS'} eq 'todelete';
 }
 
 =back
@@ -95,8 +89,7 @@ sub _loadEntityData
             JOIN domain AS t2 ON (t1.dmn_id = t2.domain_id)
             WHERE t1.id = ?
         ',
-        undef,
-        $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'Data not found for htuser (ID %d)', $entityId ));
 
@@ -142,7 +135,7 @@ sub _delete
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
         $self->{'_dbh'}->do( 'UPDATE htaccess_users SET status = ? WHERE id = ?', undef, $@, $self->{'_data'}->{'ID'} );
-        return $self;
+        return;
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM htaccess_users WHERE id = ?', undef, $self->{'_data'}->{'ID'} );

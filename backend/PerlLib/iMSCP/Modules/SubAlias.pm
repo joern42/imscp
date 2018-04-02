@@ -62,17 +62,10 @@ sub handleEntity
 
     $self->_loadEntityData( $entityId );
 
-    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->_add();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
-        $self->_delete();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
-        $self->_disable();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'torestore' ) {
-        $self->_restore();
-    } else {
-        die( sprintf( 'Unknown action (%s) for subdomain alias (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
-    }
+    return $self->_add() if $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/;
+    return $self->_delete() if $self->{'_data'}->{'STATUS'} eq 'todelete';
+    return $self->_disable() if $self->{'_data'}->{'STATUS'} eq 'todisable';
+    return $self->_restore() if $self->{'_data'}->{'STATUS'} eq 'torestore';
 }
 
 =back
@@ -107,8 +100,7 @@ sub _loadEntityData
             LEFT JOIN ssl_certs AS t5 ON(t5.domain_id = t1.subdomain_alias_id AND t5.domain_type = 'alssub' AND t5.status = 'ok')
             WHERE t1.subdomain_alias_id = ?
         ",
-        undef,
-        $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'Data not found for subdomain alias (ID %d)', $entityId ));
 
@@ -117,7 +109,7 @@ sub _loadEntityData
     my $webDir = File::Spec->canonpath( "$homeDir/$row->{'subdomain_alias_mount'}" );
     my ( $ssl, $hstsMaxAge, $hstsIncSub, $phpini ) = ( FALSE, 0, '', {} );
 
-    if ( $row->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'subdomain_alias_name'}.$row->{'alias_name'}.pem.pem" ) {
+    if ( $row->{'certificate'} && -f "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/certs/$row->{'subdomain_alias_name'}.$row->{'alias_name'}.pem.pem" ) {
         $ssl = TRUE;
         if ( $row->{'allow_hsts'} eq 'on' ) {
             $hstsMaxAge = $row->{'hsts_max_age'} if length $row->{'hsts_max_age'};
@@ -128,10 +120,9 @@ sub _loadEntityData
     if ( $row->{'domain_php'} eq 'yes' ) {
         $phpini = $self->{'_dbh'}->selectrow_hashref(
             'SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?',
-            undef,
-            ( $row->{'php_config_level'} eq 'per_user'
-                ? $row->{'domain_id'} : ( $row->{'php_config_level'} eq 'per_domain' ? $row->{'alias_id'} : $row->{'subdomain_alias_id'} )
-            ),
+            undef, ( $row->{'php_config_level'} eq 'per_user'
+            ? $row->{'domain_id'} : ( $row->{'php_config_level'} eq 'per_domain' ? $row->{'alias_id'} : $row->{'subdomain_alias_id'} )
+        ),
             ( $row->{'php_config_level'} eq 'per_user' ? 'dmn' : ( $row->{'php_config_level'} eq 'per_domain' ? 'als' : 'subals' ) )
         ) || {};
     }
@@ -171,8 +162,7 @@ sub _loadEntityData
         FORWARD                 => $row->{'subdomain_alias_url_forward'} || 'no',
         FORWARD_TYPE            => $row->{'subdomain_alias_type_forward'} || '',
         FORWARD_PRESERVE_HOST   => $row->{'subdomain_alias_host_forward'} || 'Off',
-        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'}
-            // 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
+        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'} // '',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
         MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
         MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,
@@ -215,10 +205,8 @@ sub _delete
 
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
-        $self->{'_dbh'}->do(
-            'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE domain_id = ?', undef, $@, $self->{'_data'}->{'DOMAIN_ID'}
-        );
-        return $self;
+        $self->{'_dbh'}->do( 'UPDATE subdomain_alias SET subdomain_alias_status = ? WHERE domain_id = ?', undef, $@, $self->{'_data'}->{'DOMAIN_ID'} );
+        return;
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM subdomain_alias WHERE subdomain_alias_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
@@ -284,14 +272,8 @@ sub _sharedMountPoint
                 AND subdomain_alias_mount RLIKE ?
             ) AS tmp
         ",
-        undef,
-        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
-        $regexp,
-        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
-        $regexp,
-        $self->{'_data'}->{'DOMAIN_ID'},
-        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
-        $regexp
+        undef, $self->{'_data'}->{'ROOT_DOMAIN_ID'}, $regexp, $self->{'_data'}->{'ROOT_DOMAIN_ID'}, $regexp, $self->{'_data'}->{'DOMAIN_ID'},
+        $self->{'_data'}->{'ROOT_DOMAIN_ID'}, $regexp
     );
     $nbSharedMountPoints || $self->{'_data'}->{'MOUNT_POINT'} eq '/';
 }

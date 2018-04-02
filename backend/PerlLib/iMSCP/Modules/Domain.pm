@@ -62,19 +62,10 @@ sub handleEntity
 
     $self->_loadEntityData( $entityId );
 
-    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->_add();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
-        $self->_delete();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
-        $self->_disable();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'torestore' ) {
-        $self->_restore();
-    } else {
-        die( sprintf( 'Unknown action (%s) for domain (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
-    }
-
-    $self;
+    return $self->_add() if $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/;
+    return $self->_delete() if $self->{'_data'}->{'STATUS'} eq 'todelete';
+    return $self->_disable() if $self->{'_data'}->{'STATUS'} eq 'todisable';
+    return $self->_restore() if $self->{'_data'}->{'STATUS'} eq 'torestore';
 }
 
 =back
@@ -106,8 +97,7 @@ sub _loadEntityData
             LEFT JOIN ssl_certs AS t3 ON(t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok')
             WHERE t1.domain_id = ?
         ",
-        undef,
-        $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'Data not found for domain (ID %d)', $entityId ));
 
@@ -115,7 +105,7 @@ sub _loadEntityData
     my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" );
     my ( $ssl, $hstsMaxAge, $hstsIncSub, $phpini ) = ( FALSE, 0, '', {} );
 
-    if ( $row->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'domain_name'}.pem" ) {
+    if ( $row->{'certificate'} && -f "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/certs/$row->{'domain_name'}.pem" ) {
         $ssl = TRUE;
         if ( $row->{'allow_hsts'} eq 'on' ) {
             $hstsMaxAge = $row->{'hsts_max_age'} if length $row->{'hsts_max_age'};
@@ -147,7 +137,7 @@ sub _loadEntityData
         WEB_DIR                 => $homeDir,
         MOUNT_POINT             => '/',
         DOCUMENT_ROOT           => File::Spec->canonpath( "$homeDir/$row->{'document_root'}" ),
-        SHARED_MOUNT_POINT      => 0,
+        SHARED_MOUNT_POINT      => FALSE,
         USER                    => $usergroup,
         GROUP                   => $usergroup,
         PHP_SUPPORT             => $row->{'domain_php'},
@@ -163,8 +153,7 @@ sub _loadEntityData
         FORWARD                 => $row->{'url_forward'} || 'no',
         FORWARD_TYPE            => $row->{'type_forward'} || '',
         FORWARD_PRESERVE_HOST   => $row->{'host_forward'} || 'Off',
-        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'}
-            // 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
+        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'} // '',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
         MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
         MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,
@@ -205,7 +194,7 @@ sub _delete
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
         $self->{'_dbh'}->do( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $@, $self->{'_data'}->{'DOMAIN_ID'} );
-        return $self;
+        return;
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM domain WHERE domain_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
@@ -225,14 +214,12 @@ sub _disable
         if ( $self->{'_data'}->{'DOMAIN_TYPE'} eq 'dmn' ) {
             $self->{'_dbh'}->do(
                 "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'",
-                undef,
-                $self->{'_data'}->{'DOMAIN_ID'}
+                undef, $self->{'_data'}->{'DOMAIN_ID'}
             );
         } else {
             $self->{'_dbh'}->do(
                 "UPDATE subdomain_alias SET subdomain_alias_status = 'todisable' WHERE alias_id = ? AND subdomain_alias_status <> 'todelete'",
-                undef,
-                $self->{'_data'}->{'DOMAIN_ID'}
+                undef, $self->{'_data'}->{'DOMAIN_ID'}
             );
         }
 
@@ -262,8 +249,7 @@ sub _restore
                     SET subdomain_alias_status = 'torestore'
                     WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
                 ",
-                undef,
-                $self->{'_data'}->{'DOMAIN_ID'}
+                undef, $self->{'_data'}->{'DOMAIN_ID'}
             );
             $self->{'_dbh'}->commit();
         };

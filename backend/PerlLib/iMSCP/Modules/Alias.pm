@@ -62,17 +62,10 @@ sub handleEntity
 
     $self->_loadEntityData( $entityId );
 
-    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->_add();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
-        $self->_delete();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
-        $self->_disable();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'torestore' ) {
-        $self->_restore();
-    } else {
-        die( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
-    }
+    return $self->_add() if $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/;
+    return $self->_delete() if $self->{'_data'}->{'STATUS'} eq 'todelete';
+    return $self->_disable() if $self->{'_data'}->{'STATUS'} eq 'todisable';
+    return $self->_restore() if $self->{'_data'}->{'STATUS'} eq 'torestore';
 }
 
 =back
@@ -105,8 +98,7 @@ sub _loadEntityData
             LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.alias_id AND t4.domain_type = 'als' AND t4.status = 'ok')
             WHERE t1.alias_id = ?
         ",
-        undef,
-        $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'Data not found for domain alias (ID %d)', $entityId ));
 
@@ -115,7 +107,7 @@ sub _loadEntityData
     my $webDir = File::Spec->canonpath( "$homeDir/$row->{'alias_mount'}" );
     my ( $ssl, $hstsMaxAge, $hstsIncSub, $phpini ) = ( FALSE, 0, '', {} );
 
-    if ( $row->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$row->{'alias_name'}.pem" ) {
+    if ( $row->{'certificate'} && -f "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/certs/$row->{'alias_name'}.pem" ) {
         $ssl = TRUE;
         if ( $row->{'allow_hsts'} eq 'on' ) {
             $hstsMaxAge = $row->{'hsts_max_age'} if length $row->{'hsts_max_age'};
@@ -165,8 +157,7 @@ sub _loadEntityData
         FORWARD                 => $row->{'url_forward'} || 'no',
         FORWARD_TYPE            => $row->{'type_forward'} || '',
         FORWARD_PRESERVE_HOST   => $row->{'host_forward'} || 'Off',
-        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'}
-            // 'exec,passthru,phpinfo,popen,proc_open,show_source,shell,shell_exec,symlink,system',
+        DISABLE_FUNCTIONS       => $phpini->{'disable_functions'} // '',
         MAX_EXECUTION_TIME      => $phpini->{'max_execution_time'} || 30,
         MAX_INPUT_TIME          => $phpini->{'max_input_time'} || 60,
         MEMORY_LIMIT            => $phpini->{'memory_limit'} || 128,
@@ -207,7 +198,7 @@ sub _delete
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
         $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@, $self->{'_data'}->{'DOMAIN_ID'} );
-        return $self;
+        return;
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
@@ -276,14 +267,8 @@ sub _sharedMountPoint
                 AND subdomain_alias_mount RLIKE ?
             ) AS tmp
         ",
-        undef,
-        $self->{'_data'}->{'DOMAIN_ID'},
-        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
-        $regexp,
-        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
-        $regexp,
-        $self->{'_data'}->{'ROOT_DOMAIN_ID'},
-        $regexp
+        undef, $self->{'_data'}->{'DOMAIN_ID'}, $self->{'_data'}->{'ROOT_DOMAIN_ID'}, $regexp, $self->{'_data'}->{'ROOT_DOMAIN_ID'}, $regexp,
+        $self->{'_data'}->{'ROOT_DOMAIN_ID'}, $regexp
     );
     $nbSharedMountPoints || $self->{'_data'}->{'MOUNT_POINT'} eq '/';
 }

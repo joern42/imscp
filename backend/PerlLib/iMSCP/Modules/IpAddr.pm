@@ -60,15 +60,8 @@ sub handleEntity
 
     $self->_loadEntityData( $entityId );
 
-    if ( $self->{'_data'}->{'ip_status'} =~ /^to(?:add|change)$/ ) {
-        $self->_add();
-    } elsif ( $self->{'_data'}->{'ip_status'} eq 'todelete' ) {
-        $self->_delete();
-    } else {
-        die( sprintf( 'Unknown action (%s) for server IP with ID %s', $self->{'_data'}->{'ip_status'}, $entityId ));
-    }
-
-    $self;
+    return $self->_add() if $self->{'_data'}->{'ip_status'} =~ /^to(?:add|change)$/;
+    return $self->_delete() if $self->{'_data'}->{'ip_status'} eq 'todelete';
 }
 
 =back
@@ -120,7 +113,7 @@ sub _delete
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
         $self->{'_dbh'}->do( 'UPDATE server_ips SET ip_status = ? WHERE ip_id = ?', undef, $@, $self->{'_data'}->{'ip_id'} );
-        return $self;
+        return;
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM server_ips WHERE ip_id = ?', undef, $self->{'_data'}->{'ip_id'} );

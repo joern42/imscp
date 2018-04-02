@@ -65,15 +65,9 @@ sub handleEntity
     $self->_loadEntityData( $entityId );
 
     # Handle case of orphaned SSL certificate which has been removed
-    return $self unless $self->{'_data'}->{'domain_name'};
-
-    if ( $self->{'_data'}->{'status'} =~ /^to(?:add|change)$/ ) {
-        $self->_add();
-    } elsif ( $self->{'_data'}->{'status'} eq 'todelete' ) {
-        $self->_delete();
-    } else {
-        die( sprintf( 'Unknown action (%s) for SSL certificate (ID %d)', $self->{'_data'}->{'status'}, $entityId ));
-    }
+    return unless $self->{'_data'}->{'domain_name'};
+    return $self->_add() if $self->{'_data'}->{'status'} =~ /^to(?:add|change)$/;
+    return $self->_delete() if $self->{'_data'}->{'status'} eq 'todelete';
 }
 
 =back
@@ -105,8 +99,7 @@ sub _loadEntityData
     } elsif ( $self->{'_data'}->{'domain_type'} eq 'sub' ) {
         $row = $self->{'_dbh'}->selectrow_hashref(
             "SELECT CONCAT(subdomain_name, '.', domain_name) AS domain_name FROM subdomain JOIN domain USING(domain_id) WHERE subdomain_id = ?",
-            undef,
-            $self->{'_data'}->{'domain_id'}
+            undef, $self->{'_data'}->{'domain_id'}
         );
     } else {
         $row = $self->{'_dbh'}->selectrow_hashref(
@@ -116,8 +109,7 @@ sub _loadEntityData
                 JOIN domain_aliasses USING(alias_id)
                 WHERE subdomain_alias_id = ?
             ",
-            undef,
-            $self->{'_data'}->{'domain_id'}
+            undef, $self->{'_data'}->{'domain_id'}
         );
     }
 
@@ -127,7 +119,7 @@ sub _loadEntityData
         return;
     }
 
-    @{ $self->{'_data'} }{qw/ domain_name cert_dir /} = ( $row->{'domain_name'}, "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs" );
+    @{ $self->{'_data'} }{qw/ domain_name cert_dir /} = ( $row->{'domain_name'}, "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/certs" );
 }
 
 =item _add()
@@ -158,23 +150,17 @@ sub _add
             $caBundleContainer->close();
         }
 
-        iMSCP::OpenSSL->new(
-            {
-                certificate_chains_storage_dir => $self->{'_data'}->{'cert_dir'},
-                certificate_chain_name         => $self->{'_data'}->{'domain_name'},
-                private_key_container_path     => $privateKeyContainer->filename(),
-                certificate_container_path     => $certificateContainer->filename(),
-                ca_bundle_container_path       => defined $caBundleContainer ? $caBundleContainer->filename() : ''
-            }
-        )
-            ->validateCertificateChain()
-            ->createCertificateChain();
+        iMSCP::OpenSSL->new( {
+            certificate_chains_storage_dir => $self->{'_data'}->{'cert_dir'},
+            certificate_chain_name         => $self->{'_data'}->{'domain_name'},
+            private_key_container_path     => $privateKeyContainer->filename(),
+            certificate_container_path     => $certificateContainer->filename(),
+            ca_bundle_container_path       => defined $caBundleContainer ? $caBundleContainer->filename() : ''
+        } )->validateCertificateChain()->createCertificateChain();
     };
 
     $self->{'_dbh'}->do(
-        'UPDATE ssl_certs SET status = ? WHERE cert_id = ?',
-        undef,
-        ( $@ ? $@ =~ s/iMSCP::OpenSSL::validateCertificate:\s+//r : 'ok' ),
+        'UPDATE ssl_certs SET status = ? WHERE cert_id = ?', undef, ( $@ ? $@ =~ s/iMSCP::OpenSSL::validateCertificate:\s+//r : 'ok' ),
         $self->{'_data'}->{'cert_id'}
     );
 }
@@ -192,7 +178,7 @@ sub _delete
     eval { iMSCP::File->new( filename => "$self->{'_data'}->{'cert_dir'}/$self->{'_data'}->{'domain_name'}.pem" )->remove(); };
     if ( $@ ) {
         $self->{'_dbh'}->do( 'UPDATE ssl_certs SET status = ? WHERE cert_id = ?', undef, $@, $self->{'_data'}->{'cert_id'} );
-        return $self;
+        return;
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM ssl_certs WHERE cert_id = ?', undef, $self->{'_data'}->{'cert_id'} );

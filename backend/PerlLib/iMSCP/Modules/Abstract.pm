@@ -97,7 +97,7 @@ sub handleEntity
 
 =item _init( )
 
- See iMSCP::Common::Object::_init()
+ See iMSCP::Common::Singleton::_init()
 
 =cut
 

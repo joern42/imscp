@@ -70,10 +70,7 @@ sub handleEntity
     if ( $@ ) {
         $self->{'_dbh'}->do(
             "UPDATE domain_dns SET domain_dns_status = ? WHERE domain_id = ? AND alias_id = ? AND domain_dns_status <> 'disabled'",
-            undef,
-            $@,
-            $domainId,
-            $aliasId
+            undef, $@, $domainId, $aliasId
         );
         return;
     }
@@ -89,9 +86,7 @@ sub handleEntity
                 WHERE domain_id = ?
                 AND alias_id = ?
             ",
-            undef,
-            $domainId,
-            $aliasId
+            undef, $domainId, $aliasId
         );
         $self->{'_dbh'}->do(
             "DELETE FROM domain_dns WHERE domain_id = ? AND alias_id = ? AND domain_dns_status = 'todelete'", undef, $domainId, $aliasId,
@@ -130,8 +125,7 @@ sub _loadEntityData
                 WHERE t1.alias_id = ?
               '
         ),
-        undef,
-        ( $aliasId eq '0' ? $domainId : $aliasId )
+        undef, ( $aliasId eq '0' ? $domainId : $aliasId )
     );
     %{ $row } or die( sprintf( 'Data not found for custom DNS records group (%d;%d)', $domainId, $aliasId ));
     @{ $self->{'_data'} }{qw/ DOMAIN_NAME DOMAIN_IP /} = ( $row->{'domain_name'}, $row->{'ip_number'} );
@@ -145,9 +139,7 @@ sub _loadEntityData
             AND alias_id = ?
             AND domain_dns_status NOT IN('todelete', 'todisable', 'disabled')
         ",
-        undef,
-        $domainId,
-        $aliasId
+        undef, $domainId, $aliasId
     );
 
     return unless @{ $rows };

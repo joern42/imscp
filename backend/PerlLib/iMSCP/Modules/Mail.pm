@@ -60,17 +60,9 @@ sub handleEntity
 
     $self->_loadEntityData( $entityId );
 
-    if ( $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/ ) {
-        $self->_add();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todelete' ) {
-        $self->_delete();
-    } elsif ( $self->{'_data'}->{'STATUS'} eq 'todisable' ) {
-        $self->_disable();
-    } else {
-        die( sprintf( 'Unknown action (%s) for mail user (ID %d)', $self->{'_data'}->{'STATUS'}, $entityId ));
-    }
-
-    $self;
+    return $self->_add() if $self->{'_data'}->{'STATUS'} =~ /^to(?:add|change|enable)$/;
+    return $self->_delete() if $self->{'_data'}->{'STATUS'} eq 'todelete';
+    return $self->_disable() if $self->{'_data'}->{'STATUS'} eq 'todisable';
 }
 
 =back
@@ -91,8 +83,7 @@ sub _loadEntityData
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         'SELECT mail_id, mail_acc, mail_pass, mail_forward, mail_type, mail_auto_respond, status, quota, mail_addr FROM mail_users WHERE mail_id = ?',
-        undef,
-        $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'Data not found for mail user (ID %d)', $entityId ));
 
@@ -141,7 +132,7 @@ sub _delete
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
         $self->{'_dbh'}->do( 'UPDATE mail_users SET status = ? WHERE mail_id = ?', undef, $@, $self->{'_data'}->{'MAIL_ID'} );
-        return $self;
+        return;
     }
 
     $self->{'_dbh'}->do( 'DELETE FROM mail_users WHERE mail_id = ?', undef, $self->{'_data'}->{'MAIL_ID'} );

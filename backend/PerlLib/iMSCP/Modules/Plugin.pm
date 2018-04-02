@@ -105,9 +105,7 @@ sub handleEntity
 
     $self->{'dbh'}->do(
         "UPDATE plugin SET " . ( $@ ? 'plugin_error' : 'plugin_status' ) . " = ? WHERE plugin_id = ?",
-        undef,
-        ( $@ ? $@ : $pluginNextStateMap{$self->{'plugin_status'}} ),
-        $entityId
+        undef, ( $@ ? $@ : $pluginNextStateMap{$self->{'plugin_status'}} ), $entityId
     );
 
     return $self if iMSCP::Getopt->context() eq 'installer';
@@ -260,9 +258,7 @@ sub _change
         $self->{'_data'}->{'plugin_info'}->{'__need_change__'} = JSON::false;
         $self->{'_data'}->{'_dbh'}->do(
             'UPDATE plugin SET plugin_info = ?, plugin_config_prev = plugin_config WHERE plugin_id = ?',
-            undef,
-            encode_json( $self->{'_data'}->{'plugin_info'} ),
-            $self->{'_data'}->{'pluginId'}
+            undef, encode_json( $self->{'_data'}->{'plugin_info'} ), $self->{'_data'}->{'pluginId'}
         );
     }
 
@@ -287,9 +283,7 @@ sub _update
     $self->{'_data'}->{'plugin_info'}->{'version'} = $self->{'_data'}->{'plugin_info'}->{'__nversion__'};
     $self->{'_dbh'}->do(
         'UPDATE plugin SET plugin_info = ? WHERE plugin_id = ?',
-        undef,
-        encode_json( $self->{'_data'}->{'plugin_info'} ),
-        $self->{'_data'}->{'pluginId'}
+        undef, encode_json( $self->{'_data'}->{'plugin_info'} ), $self->{'_data'}->{'pluginId'}
     );
     $self->{'eventManager'}->trigger( 'onAfterUpdatePlugin', $self->{'_data'}->{'plugin_name'} );
 
@@ -300,9 +294,7 @@ sub _update
         $self->{'_data'}->{'plugin_info'}->{'__need_change__'} = JSON::false;
         $self->{'_dbh'}->do(
             'UPDATE plugin SET plugin_info = ?, plugin_config_prev = plugin_config WHERE plugin_id = ?',
-            undef,
-            encode_json( $self->{'_data'}->{'plugin_info'} ),
-            $self->{'_data'}->{'pluginId'}
+            undef, encode_json( $self->{'_data'}->{'plugin_info'} ), $self->{'_data'}->{'pluginId'}
         );
         $self->{'eventManager'}->trigger( 'onAfterChangePlugin', $self->{'_data'}->{'plugin_name'} );
     }
