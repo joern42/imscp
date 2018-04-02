@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::Abstract - Base class for i-MSCP modules
+ iMSCP::Modules::Abstract - Abstract implementation for i-MSCP modules
 
 =cut
 
@@ -34,13 +34,13 @@ use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
 
- i-MSCP modules abstract class.
+ Abstract implementation for i-MSCP modules.
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item getPriority( )
+=item getModulePriority( )
 
  Get module priority
 
@@ -48,11 +48,11 @@ use parent 'iMSCP::Common::Singleton';
   Installer -- *Modules -- *Servers -- *InstallationRoutines
   Installer -- *Servers -- *InstallationRoutines (current)
 
- Return int module priority
+ Return int Module priority
 
 =cut
 
-sub getPriority
+sub getModulePriority
 {
     my ( $self ) = @_;
 
@@ -71,7 +71,7 @@ sub getEntityType
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s module must implements the getEntityType( ) method', ref $self ));
+    die( sprintf( 'The %s module must implements the getEntityType() method', ref $self ));
 }
 
 =item handleEntity( )
@@ -86,7 +86,7 @@ sub handleEntity
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s module must implements the handleEntity( ) method', ref $self ));
+    die( sprintf( 'The %s module must implements the handleEntity() method', ref $self ));
 }
 
 =back
@@ -115,7 +115,7 @@ sub _init
 
  Load entity data
  
- Data must be loaded into the '_data' attribute.
+ Data must be loaded into the '_data' property.
 
  Param int $entityId Entity unique identifier
  Return void, die on failure
@@ -133,8 +133,8 @@ sub _loadEntityData
 
  Return entity data for i-MSCP servers and packages
 
- Param string $action Action being executed <pre|post>?<action><entityType> on servers/packages
- Return hashref Reference to a hash containing data, die on failure
+ Param string $action Action being executed <pre|post>?<action><entityType> on servers and packages
+ Return hashref Reference to a hash containing entity data, die on failure
 
 =cut
 
@@ -150,9 +150,7 @@ sub _getEntityData
 
  Execute the 'add' action on servers, packages
 
- Should be executed for entities with 'toadd|tochange|toenable' status.
-
- Return void
+ Return void, die on failure
 
 =cut
 
@@ -165,9 +163,7 @@ sub _add
 
  Execute the 'delete' action on servers, packages
 
- Should be executed for entities with 'todelete' status.
-
- Return void
+ Return void, die on failure
 
 =cut
 
@@ -180,9 +176,7 @@ sub _delete
 
  Execute the 'restore' action on servers, packages
 
- Should be executed for entities with 'torestore' status.
-
- Return void
+ Return void, die on failure
 
 =cut
 
@@ -195,9 +189,7 @@ sub _restore
 
  Execute the 'disable' action on servers, packages
 
- Should be executed for entities with 'todisable' status.
-
- Return void
+ Return void, die on failure
 
 =cut
 
@@ -208,9 +200,9 @@ sub _disable
 
 =item _execActions( $action )
 
- Execute the pre$action, $action, post$action action on servers and packages
+ Execute the pre$action, $action and post$action actions on servers and packages
 
- Param string $action Action to execute on servers, packages (add|delete|restore|disable)
+ Param string $action Action to execute on servers and packages
  Return void, die on failure
 
 =cut
@@ -222,37 +214,29 @@ sub _execActions
     my $entityType = $self->getEntityType();
 
     if ( $action =~ /^(?:add|restore)$/ ) {
-        for my $actionPrefix ( 'pre', '', 'post' ) {
-            my $method = "$actionPrefix$action$entityType";
+        for ( 'pre', '', 'post' ) {
+            my $method = "$_$action$entityType";
             my $moduleData = $self->_getEntityData( $method );
 
-            debug( sprintf( "Executing %s action on i-MSCP servers...", $method ));
-            $_->factory()->$method( $moduleData ) for iMSCP::Servers->getInstance()->getListWithFullNames();
+            debug( sprintf( 'Executing %s action on i-MSCP servers...', $method ));
+            $_->factory()->$method( $moduleData ) for iMSCP::Servers->getInstance()->getList();
 
-            debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
-            for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
-                ( my $subref = $package->can( $method ) ) or next;
-                $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
-            }
+            debug( sprintf( 'Executing %s action on i-MSCP packages...', $method ));
+            $_->getInstance()->$method( $moduleData ) for iMSCP::Packages->getInstance()->getList();
         }
 
         return;
     }
 
-    for my $actionPrefix ( 'pre', '', 'post' ) {
-        my $method = "$actionPrefix$action$entityType";
+    for ( 'pre', '', 'post' ) {
+        my $method = "$_$action$entityType";
         my $moduleData = $self->_getEntityData( $method );
 
-        debug( sprintf( "Executing %s action on i-MSCP packages...", $method ));
-        for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
-            ( my $subref = $package->can( $method ) ) or next;
-            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ), $moduleData );
-        }
+        debug( sprintf( 'Executing %s action on i-MSCP packages...', $method ));
+        $_->getInstance()->$method( $moduleData ) for iMSCP::Packages->getInstance()->getList();
 
-        debug( sprintf( "Executing %s action on i-MSCP servers...", $method ));
-        for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-            $server->factory()->$method( $moduleData );
-        }
+        debug( sprintf( 'Executing %s action on i-MSCP servers...', $method ));
+        $_->factory()->$method( $moduleData ) for iMSCP::Servers->getInstance()->getList();
     }
 }
 
