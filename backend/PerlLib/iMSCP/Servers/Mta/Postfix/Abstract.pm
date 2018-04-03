@@ -62,7 +62,7 @@ sub registerSetupListeners
     my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->_askForDatabaseDriver( @_ ) } }, $self->getPriority()
+        'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->_askForDatabaseDriver( @_ ) } }, $self->getServerPriority()
     );
 }
 
@@ -124,7 +124,7 @@ sub postinstall
                 $self->postmap( $path, $type );
             }
         },
-        $self->getPriority()
+        $self->getServerPriority()
     );
     $self->SUPER::postinstall();
 }
@@ -203,26 +203,26 @@ sub getServerName
     'Postfix';
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'Postfix %s', $self->getVersion());
+    sprintf( 'Postfix %s', $self->getServerVersion());
 }
 
-=item getVersion( )
+=item getServerVersion( )
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 

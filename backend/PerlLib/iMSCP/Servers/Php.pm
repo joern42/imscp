@@ -54,13 +54,13 @@ use parent 'iMSCP::Servers::Abstract';
 
 =over 4
 
-=item getPriority( )
+=item getServerPriority( )
 
- See iMSCP::Servers::Abstract::getPriority()
+ See iMSCP::Servers::Abstract::getServerPriority()
 
 =cut
 
-sub getPriority
+sub getServerPriority
 {
     250;
 }
@@ -89,7 +89,7 @@ sub registerSetupListeners
         },
         # We want show these dialogs after the httpd server dialog because
         # we rely on httpd server configuration parameters (httpd server priority - 10)
-        $self->{'httpd'}->getPriority()-10
+        $self->{'httpd'}->getServerPriority()-10
     );
 }
 
@@ -268,26 +268,26 @@ sub getServerName
     'Php';
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
     sprintf( 'PHP %s (%s)', $self->{'config'}->{'PHP_VERSION_FULL'}, $self->{'config'}->{'PHP_SAPI'} );
 }
 
-=item getVersion( )
+=item getServerVersion( )
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 

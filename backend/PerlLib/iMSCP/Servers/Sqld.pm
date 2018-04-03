@@ -36,13 +36,13 @@ use parent 'iMSCP::Servers::Abstract';
 
 =over 4
 
-=item getPriority( )
+=item getServerPriority( )
 
- See iMSCP::Servers::Abstract::getPriority()
+ See iMSCP::Servers::Abstract::getServerPriority()
 
 =cut
 
-sub getPriority
+sub getServerPriority
 {
     400;
 }
@@ -66,10 +66,10 @@ sub postinstall
     $self->{'eventManager'}->registerOne(
         'beforeSetupRestartServices',
         sub {
-            push @{ $_[0] }, [ sub { $self->restart(); }, $self->getHumanServerName() ];
+            push @{ $_[0] }, [ sub { $self->restart(); }, $self->getServerHumanName() ];
             0;
         },
-        $self->getPriority()
+        $self->getServerPriority()
     );
 
     0;
@@ -90,13 +90,13 @@ sub getVendor
     $self->{'config'}->{'SQLD_VENDOR'};
 }
 
-=item getVersion( )
+=item getServerVersion( )
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 

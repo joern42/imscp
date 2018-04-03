@@ -76,26 +76,26 @@ sub getServerName
     'NoServer';
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
     'No server (BlackHole) 1.0.0';
 }
 
-=item getVersion()
+=item getServerVersion()
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 

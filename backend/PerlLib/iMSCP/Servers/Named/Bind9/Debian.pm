@@ -119,7 +119,7 @@ sub postinstall
 
     # We need restart the service since it is already started
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->restart(); }, $self->getHumanServerName() ]; }, $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->restart(); }, $self->getServerHumanName() ]; }, $self->getServerPriority()
     );
 }
 

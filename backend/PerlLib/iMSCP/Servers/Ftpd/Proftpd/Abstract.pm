@@ -32,7 +32,7 @@ use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isNumberI
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Getopt iMSCP::Servers::Sqld /;
+use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::Servers::Sqld /;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug /;
 use parent 'iMSCP::Servers::Ftpd';
@@ -63,7 +63,7 @@ sub registerSetupListeners
             push @{ $_[0] }, sub { $self->sqlUserDialog( @_ ); }, sub { $self->passivePortRangeDialog( @_ ); },
                 sub { $self->maxClientsDialog( @_ ); }, sub { $self->maxCLientsPerIpDialog( @_ ); };
         },
-        $self->getPriority()
+        $self->getServerPriority()
     );
 }
 
@@ -360,26 +360,26 @@ sub getServerName
     'Proftpd';
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'ProFTPD %s', $self->getVersion());
+    sprintf( 'ProFTPD %s', $self->getServerVersion());
 }
 
-=item getVersion( )
+=item getServerVersion( )
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 
@@ -400,19 +400,17 @@ sub addUser
 
     $self->{'eventManager'}->trigger( 'beforeProftpdAddUser', $moduleData );
 
-    my $dbh = iMSCP::Database->getInstance();
-
     eval {
-        $dbh->begin_work();
-        $dbh->do(
+        $self->{'dbh'}->begin_work();
+        $self->{'dbh'}->do(
             'UPDATE ftp_users SET uid = ?, gid = ? WHERE admin_id = ?',
             undef, $moduleData->{'USER_SYS_UID'}, $moduleData->{'USER_SYS_GID'}, $moduleData->{'USER_ID'}
         );
-        $dbh->do( 'UPDATE ftp_group SET gid = ? WHERE groupname = ?', undef, $moduleData->{'USER_SYS_GID'}, $moduleData->{'USERNAME'} );
-        $dbh->commit();
+        $self->{'dbh'}->do( 'UPDATE ftp_group SET gid = ? WHERE groupname = ?', undef, $moduleData->{'USER_SYS_GID'}, $moduleData->{'USERNAME'} );
+        $self->{'dbh'}->commit();
     };
     if ( $@ ) {
-        $dbh->rollback();
+        $self->{'dbh'}->rollback();
         die;
     }
 
@@ -695,14 +693,12 @@ sub _setupSqlUser
         $::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
     }
 
-    my $dbh = iMSCP::Database->getInstance();
-
     # GRANT privileges to the SQL user
     # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
-    my $quotedDbName = $dbh->quote_identifier( $dbName );
+    my $quotedDbName = $self->{'dbh'}->quote_identifier( $dbName );
 
-    $dbh->do( "GRANT SELECT ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw/ ftp_users ftp_group /;
-    $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw/ quotalimits quotatallies /;
+    $self->{'dbh'}->do( "GRANT SELECT ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw/ ftp_users ftp_group /;
+    $self->{'dbh'}->do( "GRANT SELECT, INSERT, UPDATE ON $quotedDbName.$_ TO ?\@?", undef, $dbUser, $dbUserHost ) for qw/ quotalimits quotatallies /;
 
     $self->{'config'}->{'FTPD_SQL_USER'} = $dbUser;
     $self->{'config'}->{'FTPD_SQL_PASSWORD'} = $dbPass;

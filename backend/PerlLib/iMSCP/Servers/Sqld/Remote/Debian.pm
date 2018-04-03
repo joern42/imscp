@@ -28,7 +28,6 @@ use warnings;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use iMSCP::Boolean;
-use iMSCP::Database;
 use version;
 use parent 'iMSCP::Servers::Sqld::Mysql::Debian';
 
@@ -53,17 +52,17 @@ sub postinstall
     my ( $self ) = @_;
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Sqld::Mysql::Abstract::getHumanServerName()
+ See iMSCP::Servers::Sqld::Mysql::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'Remote %s %s', $self->getVendor(), $self->getVersion());
+    sprintf( 'Remote %s %s', $self->getVendor(), $self->getServerVersion());
 }
 
 =item restart( )
@@ -124,12 +123,11 @@ sub createUser
     defined $host or croak( '$host parameter is not defined' );
     defined $password or croak( '$password parameter is not defined' );
 
-    my $dbh = iMSCP::Database->getInstance();
-    unless ( $dbh->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
+    unless ( $self->{'dbh'}->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
         # User doesn't already exist. We create it
-        $dbh->do(
+        $self->{'dbh'}->do(
             'CREATE USER ?@? IDENTIFIED BY ?'
-                . ( ( $self->getVendor() ne 'MariaDB' && version->parse( $self->getVersion()) >= version->parse( '5.7.6' ) )
+                . ( ( $self->getVendor() ne 'MariaDB' && version->parse( $self->getServerVersion()) >= version->parse( '5.7.6' ) )
                 ? ' PASSWORD EXPIRE NEVER' : ''
             ),
             undef, $user, $host, $password
@@ -138,12 +136,12 @@ sub createUser
     }
 
     # User does already exists. We update his password
-    if ( $self->getVendor() eq 'MariaDB' || version->parse( $self->getVersion()) < version->parse( '5.7.6' ) ) {
-        $dbh->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
+    if ( $self->getVendor() eq 'MariaDB' || version->parse( $self->getServerVersion()) < version->parse( '5.7.6' ) ) {
+        $self->{'dbh'}->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
         return;
     }
 
-    $dbh->do( 'ALTER USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', undef, $user, $host, $password )
+    $self->{'dbh'}->do( 'ALTER USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', undef, $user, $host, $password )
 }
 
 =back
@@ -164,7 +162,7 @@ sub _setVendor
 {
     my ( $self ) = @_;
 
-    my $row = iMSCP::Database->getInstance()->selectrow_hashref( 'SELECT @@version, @@version_comment' ) or die( "Could't find SQL server vendor" );
+    my $row = $self->{'dbh'}->selectrow_hashref( 'SELECT @@version, @@version_comment' ) or die( "Could't find SQL server vendor" );
     my $vendor = 'MySQL';
 
     if ( index( lc $row->{'@@version'}, 'mariadb' ) != -1 ) {
@@ -239,13 +237,12 @@ sub _updateServerConfig
 {
     my ( $self ) = @_;
 
-    return if ( $self->getVendor() eq 'MariaDB' && version->parse( $self->getVersion()) < version->parse( '10.0' ) )
-        || version->parse( $self->getVersion()) < version->parse( '5.6.6' );
+    return if ( $self->getVendor() eq 'MariaDB' && version->parse( $self->getServerVersion()) < version->parse( '10.0' ) )
+        || version->parse( $self->getServerVersion()) < version->parse( '5.6.6' );
 
     # Disable unwanted plugins (bc reasons)
-    my $dbh = iMSCP::Database->getInstance();
     for my $plugin ( qw/ cracklib_password_check simple_password_check validate_password / ) {
-        $dbh->do( "UNINSTALL PLUGIN $plugin" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
+        $self->{'dbh'}->do( "UNINSTALL PLUGIN $plugin" ) if $self->{'dbh'}->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
     }
 }
 

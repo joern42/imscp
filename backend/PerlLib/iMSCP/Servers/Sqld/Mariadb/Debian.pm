@@ -32,7 +32,6 @@ use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use File::Temp;
 use iMSCP::Boolean;
-use iMSCP::Database;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Service;
 use version;
@@ -61,7 +60,7 @@ sub postinstall
     iMSCP::Service->getInstance()->enable( 'mariadb' );
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->restart(); }, $self->getHumanServerName() ]; }, $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->restart(); }, $self->getServerHumanName() ]; }, $self->getServerPriority()
     );
 }
 
@@ -135,17 +134,17 @@ sub reload
     iMSCP::Service->getInstance()->reload( 'mariadb' );
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Sqld::Mysql::Abstract::getHumanServerName()
+ See iMSCP::Servers::Sqld::Mysql::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'MariaDB %s', $self->getVersion());
+    sprintf( 'MariaDB %s', $self->getServerVersion());
 }
 
 =item createUser( $user, $host, $password )
@@ -162,15 +161,13 @@ sub createUser
     defined $host or croak( '$host parameter is not defined' );
     defined $password or croak( '$password parameter is not defined' );
 
-    my $dbh = iMSCP::Database->getInstance();
-
-    unless ( $dbh->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
+    unless ( $self->{'dbh'}->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
         # User doesn't already exist. We create it
-        $dbh->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
+        $self->{'dbh'}->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
         return;
     }
 
-    $dbh->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
+    $self->{'dbh'}->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
 }
 
 =back
@@ -297,12 +294,11 @@ EOF
         !$rs or die( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' ));
     }
 
-    return if version->parse( $self->getVersion()) < version->parse( '10.0' );
+    return if version->parse( $self->getServerVersion()) < version->parse( '10.0' );
 
     # Disable unwanted plugins (bc reasons)
-    my $dbh = iMSCP::Database->getInstance();
     for my $plugin ( qw/ cracklib_password_check simple_password_check unix_socket validate_password / ) {
-        $dbh->do( "UNINSTALL PLUGIN $plugin" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
+        $self->{'dbh'}->do( "UNINSTALL PLUGIN $plugin" ) if $self->{'dbh'}->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
     }
 
 }

@@ -35,13 +35,13 @@ use parent 'iMSCP::Servers::Abstract';
 
 =over 4
 
-=item getPriority( )
+=item getServerPriority( )
 
- See iMSCP::Servers::Abstract::getPriority()
+ See iMSCP::Servers::Abstract::getServerPriority()
 
 =cut
 
-sub getPriority
+sub getServerPriority
 {
     200;
 }

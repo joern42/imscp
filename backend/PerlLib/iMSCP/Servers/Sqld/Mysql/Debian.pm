@@ -31,7 +31,6 @@ use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File /;
 use File::Temp;
 use iMSCP::Boolean;
-use iMSCP::Database;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Service;
 use version;
@@ -189,7 +188,7 @@ sub _buildConf
     $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
-            return unless version->parse( $self->getVersion()) >= version->parse( '5.7.4' );
+            return unless version->parse( $self->getServerVersion()) >= version->parse( '5.7.4' );
 
             # For backward compatibility - We will review this in later version
             ${ $_[0] } .= "default_password_lifetime = {DEFAULT_PASSWORD_LIFETIME}\n";
@@ -267,12 +266,11 @@ EOF
         !$rs or die( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' ));
     }
 
-    return if version->parse( $self->getVersion()) < version->parse( '5.6.6' );
+    return if version->parse( $self->getServerVersion()) < version->parse( '5.6.6' );
 
     # Disable unwanted plugins (bc reasons)
-    my $dbh = iMSCP::Database->getInstance();
     for my $plugin ( qw/ cracklib_password_check simple_password_check validate_password / ) {
-        $dbh->do( "UNINSTALL PLUGIN $plugin" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
+        $self->{'dbh'}->do( "UNINSTALL PLUGIN $plugin" ) if $self->{'dbh'}->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
     }
 }
 

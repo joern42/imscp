@@ -113,13 +113,13 @@ sub getServerName
     'Cron';
 }
 
-=item getVersion( )
+=item getServerVersion( )
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 

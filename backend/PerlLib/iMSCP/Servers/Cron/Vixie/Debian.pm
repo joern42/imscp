@@ -57,17 +57,17 @@ sub postinstall
     $self->SUPER::postinstall();
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'Cron (Vixie) %s', $self->getVersion());
+    sprintf( 'Cron (Vixie) %s', $self->getServerVersion());
 }
 
 =item start( )

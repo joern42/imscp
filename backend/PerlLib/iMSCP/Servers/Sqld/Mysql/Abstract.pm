@@ -37,7 +37,6 @@ use File::Basename;
 use File::Spec;
 use File::Temp;
 use iMSCP::Boolean;
-use iMSCP::Database;
 use iMSCP::Debug qw/ debug /;
 use version;
 use parent 'iMSCP::Servers::Sqld';
@@ -67,7 +66,7 @@ sub registerSetupListeners
                 sub { $self->masterSqlUserDialog( @_ ) }, sub { $self->sqlUserHostDialog( @_ ) }, sub { $self->databaseNameDialog( @_ ) },
                 sub { $self->databasePrefixDialog( @_ ) };
         },
-        $self->getPriority()
+        $self->getServerPriority()
     );
 }
 
@@ -237,8 +236,7 @@ Please enter a database name for i-MSCP:
 \\Z \\Zn
 EOF
             if ( $rs < 30 && isValidDbName( $dbName ) ) {
-                my $db = iMSCP::Database->getInstance();
-                eval { $db->useDatabase( $dbName ); };
+                eval { $self->{'dbh'}->useDatabase( $dbName ); };
                 if ( !$@ && !$self->_setupIsImscpDb( $dbName ) ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = <<"EOF";
 \\Z1Database '$dbName' exists but doesn't look like an i-MSCP database.\\Zn
@@ -360,17 +358,17 @@ sub getServerName
     'Mysql';
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'MySQL %s', $self->getVersion());
+    sprintf( 'MySQL %s', $self->getServerVersion());
 }
 
 =item createUser( $user, $host, $password )
@@ -387,24 +385,23 @@ sub createUser
     defined $host or croak( '$host parameter is not defined' );
     defined $password or croak( '$password parameter is not defined' );
 
-    my $dbh = iMSCP::Database->getInstance();
-
-    unless ( $dbh->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
+    unless ( $self->{'dbh'}->selectrow_array( 'SELECT EXISTS(SELECT 1 FROM mysql.user WHERE User = ? AND Host = ?)', undef, $user, $host ) ) {
         # User doesn't already exist. We create it
-        $dbh->do(
-            'CREATE USER ?@? IDENTIFIED BY ?' . ( version->parse( $self->getVersion()) >= version->parse( '5.7.6' ) ? ' PASSWORD EXPIRE NEVER' : '' ),
+        $self->{'dbh'}->do(
+            'CREATE USER ?@? IDENTIFIED BY ?'
+                . ( version->parse( $self->getServerVersion()) >= version->parse( '5.7.6' ) ? ' PASSWORD EXPIRE NEVER' : '' ),
             undef, $user, $host, $password
         );
         return;
     }
 
     # User does already exists. We update his password
-    if ( version->parse( $self->getVersion()) < version->parse( '5.7.6' ) ) {
-        $dbh->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
+    if ( version->parse( $self->getServerVersion()) < version->parse( '5.7.6' ) ) {
+        $self->{'dbh'}->do( 'SET PASSWORD FOR ?@? = PASSWORD(?)', undef, $user, $host, $password );
         return;
     }
 
-    $dbh->do( 'ALTER USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', undef, $user, $host, $password )
+    $self->{'dbh'}->do( 'ALTER USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', undef, $user, $host, $password )
 }
 
 =item dropUser( $user, $host )
@@ -415,17 +412,16 @@ sub createUser
 
 sub dropUser
 {
-    my ( undef, $user, $host ) = @_;
+    my ( $self, $user, $host ) = @_;
 
     defined $user or croak( '$user parameter not defined' );
     defined $host or croak( '$host parameter not defined' );
 
     # Prevent deletion of system SQL users
     return if grep ($_ eq lc $user, 'debian-sys-maint', 'mysql.sys', 'root');
+    return unless $self->{'dbh'}->selectrow_hashref( 'SELECT 1 FROM mysql.user WHERE user = ? AND host = ?', undef, $user, $host );
 
-    my $dbh = iMSCP::Database->getInstance();
-    return unless $dbh->selectrow_hashref( 'SELECT 1 FROM mysql.user WHERE user = ? AND host = ?', undef, $user, $host );
-    $dbh->do( 'DROP USER ?@?', undef, $user, $host );
+    $self->{'dbh'}->do( 'DROP USER ?@?', undef, $user, $host );
     !$@ or die( sprintf( "Couldn't drop the %s\@%s SQL user: %s", $user, $host, $@ ));
 }
 
@@ -442,7 +438,7 @@ sub restoreDomain
     $self->{'eventManager'}->trigger( 'before' . $self->getServerName . 'RestoreDomain' );
 
     # Restore known databases only
-    my $rows = iMSCP::Database->getInstance()->selectall_arrayref(
+    my $rows = $self->{'dbh'}->selectall_arrayref( 
         'SELECT sqld_name FROM sql_database WHERE domain_id = ?', { Slice => {} }, $moduleData->{'DOMAIN_ID'}
     );
 
@@ -625,7 +621,7 @@ sub _setVersion
 {
     my ( $self ) = @_;
 
-    my $row = iMSCP::Database->getInstance()->selectrow_hashref( 'SELECT @@version' ) or die( "Could't find SQL server version" );
+    my $row = $self->{'dbh'}->selectrow_hashref( 'SELECT @@version' ) or die( "Could't find SQL server version" );
     my ( $version ) = $row->{'@@version'} =~ /^([0-9]+(?:\.[0-9]+){1,2})/;
     defined $version or die( "Couldn't guess SQL server version with the `SELECT \@\@version` SQL query" );
     debug( sprintf( 'SQL server version set to: %s', $version ));
@@ -678,7 +674,7 @@ sub _setupMasterSqlUser
     $self->createUser( $user, $userHost, $pwd );
 
     # Grant all privileges to that user, including GRANT OPTION
-    iMSCP::Database->getInstance()->do( 'GRANT ALL PRIVILEGES ON *.* TO ?@? WITH GRANT OPTION', undef, $user, $userHost );
+    $self->{'dbh'}->do( 'GRANT ALL PRIVILEGES ON *.* TO ?@? WITH GRANT OPTION', undef, $user, $userHost );
 }
 
 =item _updateServerConfig( )
@@ -717,19 +713,18 @@ sub _secureInstallation
 {
     my ( $self ) = @_;
 
-    my $db = iMSCP::Database->getInstance();
-    my $oldDbName = $db->useDatabase( 'mysql' );
-    $db->do( "DELETE FROM user WHERE User = ''" ); # Remove anonymous users
-    $db->do( 'DROP DATABASE IF EXISTS `test`' ); # Remove test database if any
-    $db->do( "DELETE FROM db WHERE Db = 'test' OR Db = 'test\\_%'" ); # Remove privileges on test database
+    my $oldDbName = $self->{'dbh'}->useDatabase( 'mysql' );
+    $self->{'dbh'}->do( "DELETE FROM user WHERE User = ''" ); # Remove anonymous users
+    $self->{'dbh'}->do( 'DROP DATABASE IF EXISTS `test`' ); # Remove test database if any
+    $self->{'dbh'}->do( "DELETE FROM db WHERE Db = 'test' OR Db = 'test\\_%'" ); # Remove privileges on test database
 
     # Disallow remote root login
     if ( index( $::imscpConfig{'iMSCP::Servers::Sqld'}, '::Remote::' ) == -1 ) {
-        $db->do( "DELETE FROM user WHERE User = 'root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" );
+        $self->{'dbh'}->do( "DELETE FROM user WHERE User = 'root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" );
     }
 
-    $db->do( 'FLUSH PRIVILEGES' );
-    $db->useDatabase( $oldDbName ) if length $oldDbName;
+    $self->{'dbh'}->do( 'FLUSH PRIVILEGES' );
+    $self->{'dbh'}->useDatabase( $oldDbName ) if length $oldDbName;
 }
 
 =item _setupDatabase( )
@@ -800,22 +795,19 @@ EOF
 
 sub _setupIsImscpDb
 {
-    my ( undef, $dbName ) = @_;
+    my ( $self, $dbName ) = @_;
 
-    return 0 unless length $dbName;
+    return FALSE unless length $dbName;
+    return FALSE unless $self->{'dbh'}->selectrow_hashref( 'SHOW DATABASES LIKE ?', undef, $dbName );
 
-    my $db = iMSCP::Database->getInstance();
-
-    return 0 unless $db->selectrow_hashref( 'SHOW DATABASES LIKE ?', undef, $dbName );
-
-    my $tables = $db->getDbTables( $dbName );
+    my $tables = $self->{'dbh'}->getDbTables( $dbName );
     ref $tables eq 'ARRAY' or die( $tables );
 
     for my $table ( qw/ server_ips user_gui_props reseller_props / ) {
-        return 0 unless grep ( $_ eq $table, @{ $tables } );
+        return FALSE unless grep ( $_ eq $table, @{ $tables } );
     }
 
-    1;
+    TRUE;
 }
 
 =item _tryDbConnect( $host, $port, $user, $pwd )
@@ -832,19 +824,18 @@ sub _setupIsImscpDb
 
 sub _tryDbConnect
 {
-    my ( undef, $host, $port, $user, $pwd ) = @_;
+    my ( $self, $host, $port, $user, $pwd ) = @_;
 
     defined $host or croak( '$host parameter is not defined' );
     defined $port or croak( '$port parameter is not defined' );
     defined $user or croak( '$user parameter is not defined' );
     defined $pwd or croak( '$pwd parameter is not defined' );
 
-    my $db = iMSCP::Database->getInstance();
-    $db->set( 'DATABASE_HOST', idn_to_ascii( $host, 'utf-8' ) // '' );
-    $db->set( 'DATABASE_PORT', $port );
-    $db->set( 'DATABASE_USER', $user );
-    $db->set( 'DATABASE_PASSWORD', $pwd );
-    $db->connect();
+    $self->{'dbh'}->set( 'DATABASE_HOST', idn_to_ascii( $host, 'utf-8' ) // '' );
+    $self->{'dbh'}->set( 'DATABASE_PORT', $port );
+    $self->{'dbh'}->set( 'DATABASE_USER', $user );
+    $self->{'dbh'}->set( 'DATABASE_PASSWORD', $pwd );
+    $self->{'dbh'}->connect();
 }
 
 =item _restoreDatabase( $dbName, $dbDumpFilePath )
@@ -883,23 +874,21 @@ sub _restoreDatabase
     $self->createUser( $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'}, $tmpPassword );
 
     eval {
-        my $dbh = iMSCP::Database->getInstance();
-
         # According MySQL documentation (http://dev.mysql.com/doc/refman/5.5/en/grant.html#grant-accounts-passwords)
         # The '_' and '%' wildcards are permitted when specifying database names in GRANT statements that grant privileges
         # at the global or database levels. This means, for example, that if you want to use a '_' character as part of a
         # database name, you should specify it as '\_' in the GRANT statement, to prevent the user from being able to
         # access additional databases matching the wildcard pattern; for example, GRANT ... ON `foo\_bar`.* TO ....
         # In practice, without escaping, an user added for db `a_c` would also have access to a db `abc`.
-        $dbh->do(
-            "GRANT ALL PRIVILEGES ON @{ [ $dbh->quote_identifier( $dbName ) =~ s/([%_])/\\$1/gr ] }.* TO ?\@?",
+        $self->{'dbh'}->do(
+            "GRANT ALL PRIVILEGES ON @{ [ $self->{'dbh'}->quote_identifier( $dbName ) =~ s/([%_])/\\$1/gr ] }.* TO ?\@?",
             undef, $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'}
         );
         # The SUPER privilege is needed to restore objects such as the procedures, functions, triggers, events and views
         # for which the definer is not the CURRENT_USER(). Another way is to remove the definer statements in the dump
         # prior restoring but that is a non viable solution as the definer *MUST* remain the same, that is, the one which
         # has been used while objects creation.
-        $dbh->do( "GRANT SUPER ON *.* TO ?\@?", undef, $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} );
+        $self->{'dbh'}->do( "GRANT SUPER ON *.* TO ?\@?", undef, $tmpUser, $::imscpConfig{'DATABASE_USER_HOST'} );
 
         my $defaultsExtraFile = File::Temp->new();
         print $defaultsExtraFile <<"EOF";

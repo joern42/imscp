@@ -42,17 +42,17 @@ our $VERSION = '2.0.0';
 
 =over 4
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'Percona %s', $self->getVersion());
+    sprintf( 'Percona %s', $self->getServerVersion());
 }
 
 =back
@@ -111,7 +111,7 @@ sub _buildConf
     $self->{'eventManager'}->registerOne(
         'beforeMysqlBuildConfFile',
         sub {
-            my $version = version->parse( $self->getVersion());
+            my $version = version->parse( $self->getServerVersion());
 
             # For backward compatibility - We will review this in later version
             if ( $version >= version->parse( '5.7.4' ) ) {

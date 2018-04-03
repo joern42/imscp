@@ -56,17 +56,17 @@ sub postinstall
     $self->iMSCP::Servers::Cron::postinstall();
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Cron::Vixie::Debian::getHumanServerName()
+ See iMSCP::Servers::Cron::Vixie::Debian::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'Cron (Systemd) %s', $self->getVersion());
+    sprintf( 'Cron (Systemd) %s', $self->getServerVersion());
 }
 
 =item start( )

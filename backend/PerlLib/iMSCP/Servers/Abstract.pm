@@ -30,6 +30,7 @@ use File::Basename;
 use File::Spec;
 use iMSCP::Boolean;
 use iMSCP::Config;
+use iMSCP::Database;
 use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::EventManager;
 use iMSCP::File;
@@ -52,27 +53,27 @@ my %_SERVER_INSTANCES;
 
 =over 4
 
-=item getPriority( )
+=item getServerPriority( )
 
  Return the server priority
   
  The server priority determines the priority at which the server will be
- treated by the installer, the database tasks processor, and some other
- scripts. It also determines the priority for the server shutdown tasks
- where the start, restart and reload actions *SHOULD* be triggered.
+ treated by the installer, the backend, and some other scripts. It also
+ determines the priority for the server shutdown tasks where the start,
+ restart and reload actions *SHOULD* be triggered.
 
  Return int Server priority
 
 =cut
 
-sub getPriority
+sub getServerPriority
 {
     0;
 }
 
 =item factory( [ $serverClass = $::imscpConfig{$class} ] )
 
- Creates and returns an iMSCP::Servers::Abstract server instance
+ Create and return an iMSCP::Servers::Abstract server instance
 
  This method is not intented to be called on final iMSCP::Servers::Abstract
  server classes. if you do so, an error will be raised.
@@ -100,10 +101,16 @@ sub factory
         # this would prevent load of those which are implicit.
         # This also means that the _shutdown() method on these server instances
         # will not be called automatically.
-        return $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
+        return $serverClass->getInstance(
+            dbh          => iMSCP::Database->getInstance(),
+            eventManager => iMSCP::EventManager->getInstance()
+        );
     }
 
-    $_SERVER_INSTANCES{$class} = $serverClass->getInstance( eventManager => iMSCP::EventManager->getInstance());
+    $_SERVER_INSTANCES{$class} = $serverClass->getInstance(
+        dbh          => iMSCP::Database->getInstance(),
+        eventManager => iMSCP::EventManager->getInstance()
+    );
 }
 
 =back
@@ -187,7 +194,7 @@ sub postinstall
     my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->start(); }, $self->getHumanServerName() ]; }, $self->getPriority()
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->start(); }, $self->getServerHumanName() ]; }, $self->getServerPriority()
     );
 }
 
@@ -244,7 +251,7 @@ sub postuninstall
 
 =item setBackendPermissions( )
 
- Sets backend permissions
+ Set backend permissions
 
  This method is called by the i-MSCP backend permission management script.
 
@@ -260,11 +267,11 @@ sub setBackendPermissions
     my ( $self ) = @_;
 }
 
-=item setGuiPermissions( )
+=item setFrontendPermissions( )
 
- Sets the GUI permissions
+ Set frontEnd permissions
 
- This method is called by the i-MSCP GUI permission management script.
+ This method is called by the i-MSCP frontEnd permission management script.
 
  Any server managing GUI files *SHOULD* implement this method.
 
@@ -272,14 +279,14 @@ sub setBackendPermissions
 
 =cut
 
-sub setGuiPermissions
+sub setFrontendPermissions
 {
     my ( $self ) = @_;
 }
 
 =item getServerName( )
 
- Return internal CamelCase service name implemented by this server class
+ Return internal CamelCase service name implemented by this server
  
  Server name must follow CamelCase naming convention such as Apache, Courier,
  Dovecot, LocalServer... See https://en.wikipedia.org/wiki/Camel_case
@@ -299,9 +306,9 @@ sub getServerName
     die( sprintf( 'The %s class must implement the getServerName() method', ref $self ));
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- Return the humanized name of the service implemented by this server class
+ Return the humanized name of this server
 
  For instance: Apache 2.4.25 (MPM Event)
 
@@ -309,22 +316,37 @@ sub getServerName
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s class must implement the getHumanServerName() method', ref $self ));
+    die( sprintf( 'The %s class must implement the getServerHumanName() method', ref $self ));
 }
 
-=item getImplVersion()
+=item getServerVersion()
 
- Return the implementation version of this server
+ Return the version of this server
 
  Return string Server version
 
 =cut
 
-sub getImplVersion
+sub getServerVersion
+{
+    my ( $self ) = @_;
+
+    die( sprintf( 'The %s class must implement the getServerVersion() method', ref $self ));
+}
+
+=item getServerImplVersion()
+
+ Return the implementation version of this server
+
+ Return string Server implementation version
+
+=cut
+
+sub getServerImplVersion
 {
     my ( $self ) = @_;
 
@@ -332,27 +354,12 @@ sub getImplVersion
     ${ "@{ [ ref $self ] }::VERSION" } // '0.0.0';
 }
 
-=item getVersion()
-
- Return the version of the service implemented by this server class
-
- Return string Server version
-
-=cut
-
-sub getVersion
-{
-    my ( $self ) = @_;
-
-    die( sprintf( 'The %s class must implement the getVersion() method', ref $self ));
-}
-
 =item dpkgPostInvokeTasks()
 
  Process dpkg(1) post-invoke tasks
 
  This method is called after each dpkg(1) invocation. This make it possible to
- perform some maintenance tasks such as updating server versions.
+ perform some maintenance tasks such as updating server version.
 
  Only Debian server implementations *SHOULD* implement that method.
 
@@ -554,7 +561,7 @@ sub buildConfFile
  Implements autoloading for undefined methods
 
  The default implementation will raise an error for any method that is not known
- to be called by the iMSCP::Modules::* modules.
+ to be called by the iMSCP::Modules::Abstract class.
 
  Return void, die on failure
 
@@ -740,7 +747,7 @@ sub _shutdown
 END {
     return if $? || !%_SERVER_INSTANCES || iMSCP::Getopt->context() eq 'installer';
 
-    $_->_shutdown() for sort { $b->getPriority() <=> $a->getPriority() } values %_SERVER_INSTANCES;
+    $_->_shutdown() for sort { $b->getServerPriority() <=> $a->getServerPriority() } values %_SERVER_INSTANCES;
 }
 
 =back

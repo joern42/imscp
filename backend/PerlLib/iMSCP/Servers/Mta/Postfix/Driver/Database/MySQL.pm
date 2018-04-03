@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use autouse 'iMSCP::Crypt' => qw/ ALNUM randomStr /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
-use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Dir iMSCP::File iMSCP::Servers::Sqld /;
+use Class::Autouse qw/ :nostat iMSCP::Dir iMSCP::File iMSCP::Servers::Sqld /;
 use iMSCP::Boolean;
 use iMSCP::Umask;
 use parent 'iMSCP::Servers::Mta::Postfix::Driver::Database::Abstract';
@@ -67,15 +67,14 @@ sub uninstall
 {
     my ( $self ) = @_;
 
-    my $dbh = iMSCP::Database->getInstance();
-    my $oldDbName = $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
-    $dbh->do(
+    my $oldDbName = $self->{'mta'}->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    $self->{'mta'}->{'dbh'}->do(
         "
             DROP VIEW IF EXISTS postfix_virtual_alias_maps, postfix_virtual_mailbox_domains, postfix_virtual_mailbox_maps, postfix_relay_domains,
             postfix_transport_maps
         "
     );
-    $dbh->useDatabase( $oldDbName ) if length $oldDbName;
+    $self->{'mta'}->{'dbh'}->useDatabase( $oldDbName ) if length $oldDbName;
     iMSCP::Dir->new( dirname => $self->{'mta'}->{'config'}->{'MTA_DB_DIR'} )->remove();
     iMSCP::Servers::Sqld->factory()->dropUser( 'imscp_postfix_user', $::imscpOldConfig{'DATABASE_USER_HOST'} );
 }
@@ -155,11 +154,10 @@ sub _setupDatabases
 
     # Grant privileges to SQL user
 
-    my $dbh = iMSCP::Database->getInstance();
-    my $qDbName = $dbh->quote_identifier( ::setupGetQuestion( 'DATABASE_NAME' ));
+    my $qDbName = $self->{'mta'}->{'dbh'}->quote_identifier( ::setupGetQuestion( 'DATABASE_NAME' ));
 
     for ( qw/ virtual_alias_maps virtual_mailbox_domains virtual_mailbox_maps relay_domains transport_maps / ) {
-        $dbh->do( "GRANT SELECT ON $qDbName.postfix_$_ TO ?\@?", undef, $sdata->{'DATABASE_USER'}, $sqlUserHost );
+        $self->{'mta'}->{'dbh'}->do( "GRANT SELECT ON $qDbName.postfix_$_ TO ?\@?", undef, $sdata->{'DATABASE_USER'}, $sqlUserHost );
     }
 
     # Create MySQL source files
@@ -264,17 +262,16 @@ sub _createSqlViews
 {
     my ( $self ) = @_;
 
-    my $dbh = iMSCP::Database->getInstance();
-    my $oldDbName = $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    my $oldDbName = $self->{'mta'}->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
 
     # Create the SQL view for the virtual_alias_maps map
-    $dbh->do( <<'EOF' );
+    $self->{'mta'}->{'dbh'}->do( <<'EOF' );
 CREATE OR REPLACE VIEW postfix_virtual_alias_maps AS
 SELECT mail_forward AS goto, mail_addr AS address FROM mail_users WHERE mail_type LIKE '%forward%' AND status = 'ok'
 UNION ALL SELECT mail_acc AS goto, mail_addr AS address FROM mail_users WHERE mail_type LIKE '%catchall%' AND status = 'ok'
 EOF
     # Create the SQL view for the virtual_mailbox_domains map
-    $dbh->do( <<'EOF' );
+    $self->{'mta'}->{'dbh'}->do( <<'EOF' );
 CREATE OR REPLACE VIEW postfix_virtual_mailbox_domains AS
 SELECT domain_name FROM domain WHERE domain_status <> 'disabled' AND external_mail = 'off'
 UNION ALL
@@ -287,25 +284,25 @@ SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) FROM subdomain_alias 
 WHERE t1.subdomain_alias_status <> 'disabled' AND t2.external_mail = 'off'
 EOF
     # Create the SQL view for the virtual_mailbox_maps map
-    $dbh->do( <<"EOF" );
+    $self->{'mta'}->{'dbh'}->do( <<"EOF" );
 CREATE OR REPLACE VIEW postfix_virtual_mailbox_maps AS
 SELECT CONCAT('$self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}/', SUBSTRING(mail_addr, LOCATE('\@', mail_addr) + 1), '/', mail_acc, '/') AS maildir,
 mail_addr AS username FROM mail_users WHERE mail_type LIKE '%mail%' AND status = 'ok'
 EOF
     # Create SQL view for the relay_domains map
-    $dbh->do( <<"EOF" );
+    $self->{'mta'}->{'dbh'}->do( <<"EOF" );
 CREATE OR REPLACE VIEW postfix_relay_domains AS
 SELECT domain_name FROM domain WHERE domain_status <> 'disabled' AND external_mail = 'on'
 UNION ALL
 SELECT alias_name FROM domain_aliasses WHERE alias_status <> 'disabled' AND external_mail = 'on'
 EOF
     # Create the SQL view for the transport_maps map (for vacation entries only)
-    $dbh->do( <<'EOF' );
+    $self->{'mta'}->{'dbh'}->do( <<'EOF' );
 CREATE OR REPLACE VIEW postfix_transport_maps AS
 SELECT mail_addr AS address, 'imscp-arpl:' AS transport FROM mail_users WHERE mail_auto_respond = 1 AND mail_auto_respond_text IS NOT NULL
 AND status = 'ok'
 EOF
-    $dbh->useDatabase( $oldDbName ) if length $oldDbName;
+    $self->{'mta'}->{'dbh'}->useDatabase( $oldDbName ) if length $oldDbName;
 }
 
 =back

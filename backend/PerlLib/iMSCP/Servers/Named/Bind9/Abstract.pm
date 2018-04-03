@@ -63,7 +63,7 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub { push @{ $_[0] }, sub { $self->askDnsServerMode( @_ ) }, sub { $self->askIPv6Support( @_ ) }, sub { $self->askLocalDnsResolver( @_ ) }; },
-        $self->getPriority()
+        $self->getServerPriority()
     );
 }
 
@@ -331,26 +331,26 @@ sub getServerName
     'Bind';
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'Bind %s', $self->getVersion());
+    sprintf( 'Bind %s', $self->getServerVersion());
 }
 
-=item getVersion( )
+=item getServerVersion( )
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 
@@ -1110,7 +1110,7 @@ sub _configure
             'beforeBindBuildConfFile',
             sub {
                 ${ $_[0] } =~ s/listen-on-v6\s+\{\s+any;\s+\};/listen-on-v6 { none; };/ if $_[5]->{'NAMED_IPV6_SUPPORT'} eq 'no';
-                ${ $_[0] } =~ s%//\s+(check-spf\s+ignore;)%$1% if version->parse( $self->getVersion()) >= version->parse( '9.9.3' );
+                ${ $_[0] } =~ s%//\s+(check-spf\s+ignore;)%$1% if version->parse( $self->getServerVersion()) >= version->parse( '9.9.3' );
             }
         );
 

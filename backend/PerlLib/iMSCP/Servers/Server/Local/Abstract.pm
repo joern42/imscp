@@ -30,7 +30,7 @@ use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStrin
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'Net::LibIDN' => qw/ idn_to_ascii idn_to_unicode /;
 use Carp qw/ croak /;
-use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::Database iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Networking iMSCP::Servers::Sqld /;
+use Class::Autouse qw/ :nostat DateTime::TimeZone iMSCP::File iMSCP::Getopt iMSCP::Net iMSCP::Networking iMSCP::Servers::Sqld /;
 use iMSCP::Boolean;
 use LWP::Simple qw/ $ua get /;
 use parent 'iMSCP::Servers::Server';
@@ -60,7 +60,7 @@ sub registerSetupListeners
                 sub { $self->timezoneDialog( @_ ); };
         },
         # We want show these dialog before the sqld server dialogs (sqld priority + 10)
-        iMSCP::Servers::Sqld->getPriority()+10
+        iMSCP::Servers::Sqld->getServerPriority()+10
     );
 }
 
@@ -350,26 +350,26 @@ sub getServerName
     'LocalServer';
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( '%s %s (%s)', $self->{'config'}->{'DISTRO_ID'}, $self->{'config'}->{'DISTRO_RELEASE'}, $self->{'config'}->{'DISTRO_CODENAME'} );
+    sprintf( '%s %s (%s)', $self->{'config'}->{'DISTRO_ID'}, $self->getServerVersion(), $self->{'config'}->{'DISTRO_CODENAME'} );
 }
 
-=item getVersion( )
+=item getServerVersion( )
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 
@@ -629,33 +629,32 @@ sub _setupPrimaryIP
     my $netCard = ( $primaryIP eq '0.0.0.0' ) ? 'any' : iMSCP::Net->getInstance()->getAddrDevice( $primaryIP );
     defined $netCard or die( sprintf( "Couldn't find network card for the %s IP address", $primaryIP ));
 
-    my $db = iMSCP::Database->getInstance();
-    my $oldDbName = $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    my $oldDbName = $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
 
-    $db->selectrow_hashref( 'SELECT 1 FROM server_ips WHERE ip_number = ?', undef, $primaryIP )
-        ? $db->do( 'UPDATE server_ips SET ip_card = ? WHERE ip_number = ?', undef, $netCard, $primaryIP )
-        : $db->do(
+    $self->{'dbh'}->selectrow_hashref( 'SELECT 1 FROM server_ips WHERE ip_number = ?', undef, $primaryIP )
+        ? $self->{'dbh'}->do( 'UPDATE server_ips SET ip_card = ? WHERE ip_number = ?', undef, $netCard, $primaryIP )
+        : $self->{'dbh'}->do(
         'INSERT INTO server_ips (ip_number, ip_card, ip_config_mode, ip_status) VALUES(?, ?, ?, ?)', undef, $primaryIP, $netCard, 'manual', 'ok'
     );
 
     if ( ::setupGetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP' ) ) {
-        my $resellers = $db->selectall_arrayref( 'SELECT reseller_id, reseller_ips FROM reseller_props', { Slice => {} } );
+        my $resellers = $self->{'dbh'}->selectall_arrayref( 'SELECT reseller_id, reseller_ips FROM reseller_props', { Slice => {} } );
         if ( @{ $resellers } ) {
-            my $primaryIpID = $db->selectrow_array( 'SELECT ip_id FROM server_ips WHERE ip_number = ?', undef, $primaryIP );
+            my $primaryIpID = $self->{'dbh'}->selectrow_array( 'SELECT ip_id FROM server_ips WHERE ip_number = ?', undef, $primaryIP );
 
             for my $reseller ( @{ $resellers } ) {
                 my @ipIDS = split( ';', $reseller->{'reseller_ips'} );
                 next if grep ($_ eq $primaryIpID, @ipIDS );
                 push @ipIDS, $primaryIpID;
-                $db->do( 'UPDATE reseller_props SET reseller_ips = ? WHERE reseller_id = ?', undef, join( ';', @ipIDS ) . ';' );
+                $self->{'dbh'}->do( 'UPDATE reseller_props SET reseller_ips = ? WHERE reseller_id = ?', undef, join( ';', @ipIDS ) . ';' );
             }
 
-            $db->do( 'UPDATE domain SET domain_ip_id = ?', undef, $primaryIpID );
-            $db->do( 'UPDATE domain_aliasses SET alias_ip_id = ?', undef, $primaryIpID );
+            $self->{'dbh'}->do( 'UPDATE domain SET domain_ip_id = ?', undef, $primaryIpID );
+            $self->{'dbh'}->do( 'UPDATE domain_aliasses SET alias_ip_id = ?', undef, $primaryIpID );
         }
     }
 
-    $db->useDatabase( $oldDbName ) if length $oldDbName;
+    $self->{'dbh'}->useDatabase( $oldDbName ) if length $oldDbName;
     $self->{'eventManager'}->trigger( 'afterLocalServerSetupPrimaryIP', $primaryIP );
 }
 

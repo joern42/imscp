@@ -82,7 +82,7 @@ sub postinstall
     iMSCP::Service->getInstance()->enable( 'apache2' );
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->start(); }, $self->getHumanServerName() ]; }, 3
+        'beforeSetupRestartServices', sub { push @{ $_[0] }, [ sub { $self->start(); }, $self->getServerHumanName() ]; }, 3
     );
 }
 

@@ -35,7 +35,6 @@ use File::Spec;
 use File::Temp;
 use iMSCP::Boolean;
 use iMSCP::Config;
-use iMSCP::Database;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute executeNoWait /;
@@ -74,7 +73,7 @@ sub registerSetupListeners
     my ( $self ) = @_;
 
     $self->{'eventManager'}->registerOne(
-        'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->authdaemonSqlUserDialog( @_ ) }; }, $self->getPriority()
+        'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->authdaemonSqlUserDialog( @_ ) }; }, $self->getServerPriority()
     );
 
     return if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) == -1;
@@ -277,26 +276,26 @@ sub getServerName
     'Courier';
 }
 
-=item getHumanServerName( )
+=item getServerHumanName( )
 
- See iMSCP::Servers::Abstract::getHumanServerName()
+ See iMSCP::Servers::Abstract::getServerHumanName()
 
 =cut
 
-sub getHumanServerName
+sub getServerHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'Courier %s', $self->getVersion());
+    sprintf( 'Courier %s', $self->getServerVersion());
 }
 
-=item getVersion( )
+=item getServerVersion( )
 
- See iMSCP::Servers::Abstract::getVersion()
+ See iMSCP::Servers::Abstract::getServerVersion()
 
 =cut
 
-sub getVersion
+sub getServerVersion
 {
     my ( $self ) = @_;
 
@@ -525,12 +524,10 @@ sub _setupSqlUser
         $::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
     }
 
-    my $dbh = iMSCP::Database->getInstance();
-
     # Give required privileges to this SQL user
     # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
-    my $quotedDbName = $dbh->quote_identifier( $dbName );
-    $dbh->do( "GRANT SELECT ON $quotedDbName.mail_users TO ?\@?", undef, $dbUser, $dbUserHost );
+    my $quotedDbName = $self->{'dbh'}->quote_identifier( $dbName );
+    $self->{'dbh'}->do( "GRANT SELECT ON $quotedDbName.mail_users TO ?\@?", undef, $dbUser, $dbUserHost );
 
     $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_USER'} = $dbUser;
     $self->{'config'}->{'PO_AUTHDAEMON_DATABASE_PASSWORD'} = $dbPass;
