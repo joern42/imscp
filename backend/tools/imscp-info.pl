@@ -180,27 +180,28 @@ EOF
                 print output "Package human name    : @{ [ $_->getPackageHumanName() ] }", 'info';
                 print output "Package priority      : @{ [ $_->getPackagePriority() ] }", 'info';
                 print "\n";
-
-            }
-        } else {
-            if ( iMSCP::Getopt->json ) {
-                $json->{'packages'}->{$_} = {
-                    implementation => ref $pkgInstance,
-                    version        => $pkgInstance->getPackageImplVersion(),
-                    internal_name  => $pkgInstance->getPackageName(),
-                    human_name     => $pkgInstance->getPackageHumanName(),
-                    priority       => $pkgInstance->getPackagePriority()
-                };
-                next;
             }
 
-            print output "Package               : $_", 'info';
-            print output "Package version       : @{ [ $pkgInstance->getPackageImplVersion() ] }", 'info';
-            print output "Package name          : @{ [ $pkgInstance->getPackageName() ] }", 'info';
-            print output "Package human name    : @{ [ $pkgInstance->getPackageHumanName() ] }", 'info';
-            print output "Package priority      : @{ [ $pkgInstance->getPackagePriority() ] }", 'info';
-            print "\n";
+            next;
         }
+
+        if ( iMSCP::Getopt->json ) {
+            $json->{'packages'}->{$_} = {
+                implementation => ref $pkgInstance,
+                version        => $pkgInstance->getPackageImplVersion(),
+                internal_name  => $pkgInstance->getPackageName(),
+                human_name     => $pkgInstance->getPackageHumanName(),
+                priority       => $pkgInstance->getPackagePriority()
+            };
+            next;
+        }
+
+        print output "Package               : $_", 'info';
+        print output "Package version       : @{ [ $pkgInstance->getPackageImplVersion() ] }", 'info';
+        print output "Package name          : @{ [ $pkgInstance->getPackageName() ] }", 'info';
+        print output "Package human name    : @{ [ $pkgInstance->getPackageHumanName() ] }", 'info';
+        print output "Package priority      : @{ [ $pkgInstance->getPackagePriority() ] }", 'info';
+        print "\n";
     }
 }
 
