@@ -184,6 +184,11 @@ sub postinstall
 sub preuninstall
 {
     my ( $self ) = @_;
+
+    for ( $self->getCollection() ) {
+        debug( sprintf( 'Executing install action on %s', $fpackage ));
+        $_->preuninstall();
+    }
 }
 
 =item uninstall( )
@@ -274,9 +279,9 @@ sub dpkgPostInvokeTasks
 
 =item getCollection()
 
- Get list of selected packages from this collection, sorted in descending order of priority
+ Get list of selected package instances from this collection, sorted in descending order of priority
 
- Return list of packages
+ Return list of package instances
 
 =cut
 
