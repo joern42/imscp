@@ -138,8 +138,7 @@ sub getCollection
         eval "require $package; 1" or die( $@ );
         $package->getInstance();
     } @{ $self->{'SELECTED_PACKAGES'} } unless $self->{'_package_instances'};
-
-    @{ $self->{'_package_instances'} }
+    @{ $self->{'_package_instances'} };
 }
 
 =back
