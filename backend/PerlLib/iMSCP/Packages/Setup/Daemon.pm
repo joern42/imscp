@@ -37,11 +37,32 @@ use iMSCP::Getopt;
 use iMSCP::Rights qw/ setRights /;
 use iMSCP::Servers::Cron;
 use iMSCP::Service;
-use parent 'iMSCP::Common::Singleton';
+use parent 'iMSCP::Packages::Abstract';
+
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
  Package responsible to setup the i-MSCP daemon for processing of backend requests.
+
+=head1 CLASS METHODS
+
+=over 4
+
+=item getPackagePriority( )
+
+ See iMSCP::Packages::Abstract::getPackagePriority()
+
+=cut
+
+sub getPackagePriority
+{
+    my ( $self ) = @_;
+
+    250;
+}
+
+=back
 
 =head1 PUBLIC METHODS
 
@@ -49,9 +70,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =item registerSetupListeners( )
 
- Register setup event listeners
-
- Return int 0 on success, other on failure
+ See iMSCP::Packages::Abstract::registerSetupListeners()
 
 =cut
 
@@ -59,10 +78,10 @@ sub registerSetupListeners
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->imscpDaemonTypeDialog( @_ ) }; } );
+    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->showDialog( @_ ) }; } );
 }
 
-=item imscpDaemonTypeDialog( \%dialog )
+=item showDialog( \%dialog )
 
  Ask for the i-MSCP daemon type
 
@@ -71,7 +90,7 @@ sub registerSetupListeners
 
 =cut
 
-sub imscpDaemonTypeDialog
+sub showDialog
 {
     my ( $self, $dialog ) = @_;
 
@@ -93,26 +112,48 @@ EOF
     0;
 }
 
-=item getPriority( )
+=item getPackageName( )
 
- Get package priority
-
- Return int package priority
+ See iMSCP::Packages::Abstract::getPackageName()
 
 =cut
 
-sub getPriority
+sub getPackageName
 {
     my ( $self ) = @_;
 
-    250;
+    'Daemon';
+}
+
+=item getPackageHumanName( )
+
+ See iMSCP::Packages::Abstract::getPackageHumanName()
+
+=cut
+
+sub getPackageHumanName
+{
+    my ( $self ) = @_;
+
+    sprintf( 'i-MSCP daemon installer (%s)', $self->getPackageVersion());
+}
+
+=item getPackageVersion( )
+
+ See iMSCP::Packages::Abstract::getPackageVersion()
+
+=cut
+
+sub getPackageVersion
+{
+    my ( $self ) = @_;
+
+    $::imscpConfig{'Version'};
 }
 
 =item install( )
 
- Process installation tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::install()
 
 =cut
 
@@ -140,9 +181,7 @@ sub install
 
 =item uninstall( )
 
- Process uninstallation tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::uninstall()
 
 =cut
 
@@ -180,9 +219,7 @@ sub uninstall
 
 =item setBackendPermissions( )
 
- Set backend permissions
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::setBackendPermissions()
 
 =cut
 
@@ -220,7 +257,7 @@ sub _compileDaemon
     local $CWD = dirname( __FILE__ ) . '/Daemon';
     my $rs = execute( 'make clean imscp_daemon', \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 
     # Install the daemon
     iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/daemon" )->make();
@@ -229,7 +266,7 @@ sub _compileDaemon
     # Leave the directory clean
     $rs = execute( 'make clean', \$stdout, \$stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 }
 
 =back

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Webstats::Awstats::Awstats - i-MSCP AWStats package
+ iMSCP::Packages::Webstats::Awstats - i-MSCP AWStats package
 
 =cut
 
@@ -21,19 +21,23 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Webstats::Awstats::Awstats;
+package iMSCP::Packages::Webstats::Awstats;
 
 use strict;
 use warnings;
+use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
-use Class::Autouse qw/ :nostat iMSCP::Packages::Webstats::Awstats::Installer iMSCP::Packages::Webstats::Awstats::Uninstaller iMSCP::Servers::Httpd /;
+use Class::Autouse qw/ :nostat iMSCP::Servers::Cron iMSCP::Servers::Httpd /;
 use iMSCP::Boolean;
-use iMSCP::Database;
-use iMSCP::Debug qw/ debug error /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::File;
+use iMSCP::File::Attributes qw/ :immutable /;
 use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
-use parent 'iMSCP::Common::Singleton';
+use version;
+use parent 'iMSCP::Packages::Abstract';
+
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
@@ -52,9 +56,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =item install( )
 
- Process install tasks
-
- Return void, die on failure 
+ See iMSCP::Packages::Abstract::install()
 
 =cut
 
@@ -62,14 +64,15 @@ sub install
 {
     my ( $self ) = @_;
 
-    iMSCP::Packages::Webstats::Awstats::Installer->getInstance( eventManager => $self->{'eventManager'} )->install();
+    $self->_disableDefaultConfig();
+    $self->_createCacheDir();
+    $self->_setupApache();
+    $self->_cleanup();
 }
 
 =item postinstall( )
 
- Process post install tasks
-
- Return void, die on failure 
+ See iMSCP::Packages::Abstract::postinstall()
 
 =cut
 
@@ -77,14 +80,12 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    iMSCP::Packages::Webstats::Awstats::Installer->getInstance( eventManager => $self->{'eventManager'} )->postinstall();
+    $self->_addAwstatsCronTask();
 }
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return void, die on failure 
+ See iMSCP::Packages::Abstract::uninstall()
 
 =cut
 
@@ -92,14 +93,14 @@ sub uninstall
 {
     my ( $self ) = @_;
 
-    iMSCP::Packages::Webstats::Awstats::Uninstaller->getInstance( eventManager => $self->{'eventManager'} )->uninstall();
+    $self->_deleteFiles();
+    $self->_removeVhost();
+    $self->_restoreDebianConfig();
 }
 
 =item setBackendPermissions( )
 
- Set backend permissions
-
- Return void, die on failure 
+ See iMSCP::Packages::Abstract::setBackendPermissions()
 
 =cut
 
@@ -126,16 +127,55 @@ sub setBackendPermissions
     } );
 }
 
+=item getPackageName( )
+
+ See iMSCP::Packages::Abstract::getPackageName()
+
+=cut
+
+sub getPackageName
+{
+    my ( $self ) = @_;
+
+    'AWStats';
+}
+
+=item getPackageHumanName( )
+
+ See iMSCP::Packages::Abstract::getPackageHumanName()
+
+=cut
+
+sub getPackageHumanName
+{
+    my ( $self ) = @_;
+
+    sprintf( 'AWStats (%s)', $self->getPackageVersion());
+}
+
+=item getPackageVersion( )
+
+ See iMSCP::Packages::Abstract::getPackageVersion()
+
+=cut
+
+sub getPackageVersion
+{
+    my ( $self ) = @_;
+
+    $::imscpConfig{'Version'};
+}
+
 =item getDistroPackages( )
 
- Get list of distribution packages
-
- Return list List of packages
+ See iMSCP::Packages::Abstract::getDistroPackages()
 
 =cut
 
 sub getDistroPackages
 {
+    my ( $self ) = @_;
+
     return 'awstats' if $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
     ();
 }
@@ -151,7 +191,7 @@ sub getDistroPackages
 
 sub addUser
 {
-    my ( undef, $moduleData ) = @_;
+    my ( $self, $moduleData ) = @_;
 
     my $httpd = iMSCP::Servers::Httpd->factory();
     my $file = iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" );
@@ -168,7 +208,6 @@ sub addUser
     ${ $fileContentRef } .= "$moduleData->{'USERNAME'}:$moduleData->{'PASSWORD_HASH'}\n";
     $file->save();
     $httpd->{'reload'} ||= TRUE;
-
 }
 
 =item preaddDomain( )
@@ -216,7 +255,7 @@ sub addDomain
 
 sub deleteDomain
 {
-    my ( undef, $moduleData ) = @_;
+    my ( $self, $moduleData ) = @_;
 
     iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
@@ -243,7 +282,6 @@ sub preaddSubdomain
 
     $self->{'_is_registered_event_listener'} = TRUE;
     $self->{'eventManager'}->register( 'beforeApacheBuildConfFile', $self );
-
 }
 
 =item addSubdomain( \%moduleData )
@@ -273,7 +311,7 @@ sub addSubdomain
 
 sub deleteSubdomain
 {
-    my ( undef, $moduleData ) = @_;
+    my ( $self, $moduleData ) = @_;
 
     iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )->remove();
 
@@ -292,9 +330,7 @@ sub deleteSubdomain
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Packages::Awstats
+ See iMSCP::Packages::Abstract::_init()
 
 =cut
 
@@ -303,7 +339,131 @@ sub _init
     my ( $self ) = @_;
 
     @{ $self }{qw/ _is_registered_event_listener _admin_names /} = ( FALSE, {} );
-    $self;
+    $self->SUPER::_init();
+}
+
+=item _disableDefaultConfig( )
+
+ Disable default configuration
+
+ Return void, die on failure
+
+=cut
+
+sub _disableDefaultConfig
+{
+    return unless $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+
+    if ( -f "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" ) {
+        iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" )->move(
+            "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled"
+        );
+    }
+
+    if ( -f '/etc/cron.d/awstats.disable' ) {
+        # Transitional -- Will be removed in a later release
+        iMSCP::File->new( filename => '/etc/cron.d/awstats.disable' )->move( '/etc/cron.d/awstats' );
+    }
+
+    iMSCP::Servers::Cron->factory()->disableSystemTask( 'awstats', 'cron.d' );
+}
+
+=item _createCacheDir( )
+
+ Create cache directory
+
+ Return void, die on failure
+
+=cut
+
+sub _createCacheDir
+{
+    my ( $self ) = @_;
+
+    iMSCP::Dir->new( dirname => $::imscpConfig{'AWSTATS_CACHE_DIR'} )->make( {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => iMSCP::Servers::Httpd->factory()->getRunningGroup(),
+        mode  => 02750
+    } );
+}
+
+=item _setupApache( )
+
+ Setup Apache for AWStats
+
+ Return void, die on failure
+
+=cut
+
+sub _setupApache
+{
+    my ( $self ) = @_;
+
+    my $httpd = iMSCP::Servers::Httpd->factory();
+
+    # Create Basic authentication file
+    iMSCP::File
+        ->new( filename => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" )
+        ->set( '' ) # Make sure to start with an empty file on update/reconfiguration
+        ->save()
+        ->owner( $::imscpConfig{'ROOT_USER'}, $httpd->getRunningGroup())
+        ->mode( 0640 );
+
+    $httpd->enableModules( 'authn_socache' );
+    $httpd->buildConfFile(
+        "$::imscpConfig{'BACKEND_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Config/01_awstats.conf",
+        "$httpd->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/01_awstats.conf",
+        undef,
+        {
+            AWSTATS_AUTH_USER_FILE_PATH => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats",
+            AWSTATS_ENGINE_DIR          => $::imscpConfig{'AWSTATS_ENGINE_DIR'},
+            AWSTATS_WEB_DIR             => $::imscpConfig{'AWSTATS_WEB_DIR'}
+        }
+    );
+    $httpd->enableSites( '01_awstats.conf' );
+}
+
+=item _addAwstatsCronTask( )
+
+ Add AWStats cron task for dynamic mode
+
+ Return void, die on failure
+
+=cut
+
+sub _addAwstatsCronTask
+{
+    iMSCP::Servers::Cron->factory()->addTask( {
+        TASKID  => 'iMSCP::Packages::Webstats::Awstats',
+        MINUTE  => '15',
+        HOUR    => '3-21/6',
+        DAY     => '*',
+        MONTH   => '*',
+        DWEEK   => '*',
+        USER    => $::imscpConfig{'ROOT_USER'},
+        COMMAND => 'nice -n 10 ionice -c2 -n5 ' .
+            "perl $::imscpConfig{'BACKEND_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/awstats_updateall.pl now " .
+            "-awstatsprog=$::imscpConfig{'AWSTATS_ENGINE_DIR'}/awstats.pl > /dev/null 2>&1"
+    } );
+}
+
+=item _cleanup()
+
+ Process cleanup tasks
+
+ Return void, die on failure
+
+=cut
+
+sub _cleanup
+{
+    my ( $self ) = @_;
+
+    for my $dir ( iMSCP::Dir->new( dirname => $::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
+        next unless -d "$::imscpConfig{'USER_WEB_DIR'}/$dir/statistics";
+        clearImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" );
+        iMSCP::Dir->new( dirname => "/var/www/virtual/$dir/statistics" )->remove();
+    }
 }
 
 =item _addAwstatsConfig( \%moduleData )
@@ -375,9 +535,9 @@ sub _addAwstatsConfig
  Param hashref \%apacheServerData Apache server data
  Param hashref \%apacheServerConfig Apache server data
  Param hashref \%parameters OPTIONAL Parameters:
-  - user  : File owner (default: root)
-  - group : File group (default: root
-  - mode  : File mode (default: 0644)
+  - user   : File owner (default: root)
+  - group  : File group (default: root
+  - mode   : File mode (default: 0644)
   - cached : Whether or not loaded file must be cached in memory
  Return void, die on failure
 
@@ -385,7 +545,7 @@ sub _addAwstatsConfig
 
 sub beforeApacheBuildConfFile
 {
-    my ( undef, $cfgTpl, $filename, undef, $moduleData ) = @_;
+    my ( $awstats, $cfgTpl, $filename, $trgFile, $moduleData ) = @_;
 
     return if $filename ne 'domain.tpl' || $moduleData->{'FORWARD'} ne 'no';
 
@@ -402,6 +562,64 @@ sub beforeApacheBuildConfFile
     </Location>
     # SECTION addons END.
 EOF
+}
+
+=item _deleteFiles( )
+
+ Delete files
+
+ Return void, die on failure
+
+=cut
+
+sub _deleteFiles
+{
+    my $httpd = iMSCP::Servers::Httpd->factory();
+
+    iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats" )->remove();
+    iMSCP::Dir->new( dirname => $::imscpConfig{'AWSTATS_CACHE_DIR'} )->remove();
+
+    return unless -d $::imscpConfig{'AWSTATS_CONFIG_DIR'};
+
+    iMSCP::Dir->new( dirname => $::imscpConfig{'AWSTATS_CONFIG_DIR'} )->clear( qr/^awstats.*\.conf$/ );
+}
+
+=item _removeVhost( )
+
+ Remove global vhost file if any
+
+ Return void, die on failure
+
+=cut
+
+sub _removeVhost
+{
+    my $httpd = iMSCP::Servers::Httpd->factory();
+
+    $httpd->disableSites( '01_awstats.conf' );
+
+    iMSCP::File->new( filename => "$httpd->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/01_awstats.conf" )->remove();
+}
+
+=item _restoreDebianConfig( )
+
+ Restore default configuration
+
+ Return void, die on failure
+
+=cut
+
+sub _restoreDebianConfig
+{
+    return unless $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+
+    if ( -f "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" ) {
+        iMSCP::File->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled" )->move(
+            "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf"
+        );
+    }
+
+    iMSCP::Servers::Cron->factory()->enableSystemTask( 'awstats', 'cron.d' );
 }
 
 =back

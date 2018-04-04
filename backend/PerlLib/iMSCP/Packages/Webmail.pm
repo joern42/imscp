@@ -25,348 +25,77 @@ package iMSCP::Packages::Webmail;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList /;
-use Class::Autouse qw/ :nostat iMSCP::DistPackageManager /;
-use File::Basename;
-use iMSCP::Debug qw/ debug error /;
-use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
-use iMSCP::Getopt;
-use version;
-use parent 'iMSCP::Common::Singleton';
+use iMSCP::Debug qw/ debug /;
+use parent 'iMSCP::Packages::AbstractCollection';
+
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
  i-MSCP Webmail package.
 
- Wrapper that handles all available Webmail packages found in the Webmail directory.
+ Handles Webmail packages.
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item registerSetupListeners( )
+=item getPackageName( )
 
- Register setup event listeners
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::getPackageName()
 
 =cut
 
-sub registerSetupListeners
+sub getPackageName
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->showDialog( @_ ) }; } );
+    'Webmail';
 }
 
-=item showDialog( \%dialog )
+=item getPackageHumanName( )
 
- Show dialog
-
- Param iMSCP::Dialog \%dialog
- Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
+ See iMSCP::Packages::Abstract::getPackageHumanName()
 
 =cut
 
-sub showDialog
-{
-    my ( $self, $dialog ) = @_;
-
-    @{ $self->{'SELECTED_PACKAGES'} } = split(
-        ',', ::setupGetQuestion( 'WEBMAIL_PACKAGES', iMSCP::Getopt->preseed ? join( ',', @{ $self->{'AVAILABLE_PACKAGES'} } ) : '' )
-    );
-
-    my %choices;
-    @choices{@{ $self->{'AVAILABLE_PACKAGES'} }} = @{ $self->{'AVAILABLE_PACKAGES'} };
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webmails', 'all', 'forced' ] )
-        || !@{ $self->{'SELECTED_PACKAGES'} } || grep { !exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} }
-    ) {
-        ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checkbox(
-            <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} } ] );
-
-Please select the webmail packages you want to install:
-\\Z \\Zn
-EOF
-        return $rs unless $rs < 30;
-    }
-
-    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'no', @{ $self->{'SELECTED_PACKAGES'} } );
-
-    ::setupSetQuestion( 'WEBMAIL_PACKAGES', @{ $self->{'SELECTED_PACKAGES'} } ? join ',', @{ $self->{'SELECTED_PACKAGES'} } : 'no' );
-
-    return 0 unless @{ $self->{'SELECTED_PACKAGES'} };
-
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'showDialog' ) ) or next;
-        debug( sprintf( 'Executing showDialog action on %s', $fpackage ));
-        my $rs = $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $dialog );
-        return $rs if $rs;
-    }
-
-    0;
-}
-
-=item preinstall( )
-
- Process preinstall tasks
-
- /!\ This method also triggers uninstallation of unselected webmail packages.
-
- Return void, die on failure
-
-=cut
-
-sub preinstall
+sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    my @distroPackages = ();
-    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-        next if grep ( $package eq $_, @{ $self->{'SELECTED_PACKAGES'} });
-        $package = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $package" or die( $@ );
-
-        if ( my $subref = $package->can( 'uninstall' ) ) {
-            debug( sprintf( 'Executing uninstall action on %s', $package ));
-            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-        }
-
-        ( my $subref = $package->can( 'getDistroPackages' ) ) or next;
-        debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
-        push @distroPackages, $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-    }
-
-    $self->_removePackages( @distroPackages );
-
-    @distroPackages = ();
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-
-        if ( my $subref = $fpackage->can( 'preinstall' ) ) {
-            debug( sprintf( 'Executing preinstall action on %s', $fpackage ));
-            $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-        }
-
-        ( my $subref = $fpackage->can( 'getDistroPackages' ) ) or next;
-        debug( sprintf( 'Executing getDistroPackages action on %s', $fpackage ));
-        push @distroPackages, $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
-
-    $self->_installPackages( @distroPackages );
+    'i-MSCP Webmail packages';
 }
 
-=item install( )
+=item getPackageVersion( )
 
- Process install tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::getPackageVersion()
 
 =cut
 
-sub install
+sub getPackageVersion
 {
     my ( $self ) = @_;
 
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'install' ) ) or next;
-        debug( sprintf( 'Executing install action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
+    $self->getPackageImplVersion();
 }
 
-=item postinstall( )
-
- Process post install tasks
-
- Return void, die on failure
-
-=cut
-
-sub postinstall
-{
-    my ( $self ) = @_;
-
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'postinstall' ) ) or next;
-        debug( sprintf( 'Executing postinstall action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
-}
-
-=item uninstall( [ $package ])
-
- Process uninstall tasks
-
- Param list @packages OPTIONAL Packages to uninstall
- Return void, die on failure
-
-=cut
-
-sub uninstall
-{
-    my ( $self ) = @_;
-
-    my @distroPackages = ();
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-
-        if ( my $subref = $fpackage->can( 'uninstall' ) ) {
-            debug( sprintf( 'Executing preinstall action on %s', $fpackage ));
-            $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-        }
-
-        ( my $subref = $fpackage->can( 'getDistroPackages' ) ) or next;
-        debug( sprintf( 'Executing getDistroPackages action on %s', $fpackage ));
-        push @distroPackages, $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
-
-    $self->_removePackages( @distroPackages );
-}
-
-=item getPriority( )
-
- Get package priority
-
- Return int package priority
-
-=cut
-
-sub getPriority
-{
-    0;
-}
-
-=item setBackendPermissions( )
-
- Set backend permissions
-
- Return void, die on failure
-
-=cut
-
-sub setBackendPermissions
-{
-    my ( $self ) = @_;
-
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'setBackendPermissions' ) ) or next;
-        debug( sprintf( 'Executing setBackendPermissions action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
-}
-
-=item setGuiPermissions( )
-
- Set gui permissions
-
- Return void, die on failure
-
-=cut
-
-sub setGuiPermissions
-{
-    my ( $self ) = @_;
-
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'setGuiPermissions' ) ) or next;
-        debug( sprintf( 'Executing setGuiPermissions action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
-}
-
-=item deleteMail( \%data )
+=item deleteMail( \%moduleData )
 
  Process deleteMail tasks
 
- Param hash \%data Mail data
+ Param hashref \%moduleData Data as provided by Mail module
  Return void, die on failure
 
 =cut
 
-sub deleteMail
+sub deleteMailDisabled
 {
-    my ( $self, $data ) = @_;
+    my ( $self, $moduleData ) = @_;
 
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Webmail::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'deleteMail' ) ) or next;
-        debug( sprintf( 'Executing deleteMail action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $data );
+    for ( $self->getCollection() ) {
+        debug( sprintf( 'Executing deleteMail action on %s', ref $_ ));
+        $_->deleteMail( $moduleData );
     }
-}
-
-=back
-
-=head1 PRIVATE METHODS
-
-=over 4
-
-=item init( )
-
- Initialize insance
-
- Return iMSCP::Packages::Webmails, die on failure
-
-=cut
-
-sub _init
-{
-    my ( $self ) = @_;
-
-    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/Webmail' )->getDirs();
-    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'no', split( ',', $::imscpConfig{'WEBMAIL_PACKAGES'} ));
-    $self;
-}
-
-=item _installPackages( @packages )
-
- Install distribution packages
-
- Param list @packages List of packages to install
- Return void, die on failure
-
-=cut
-
-sub _installPackages
-{
-    my ( undef, @packages ) = @_;
-
-    return unless @packages && !iMSCP::Getopt->skippackages;
-
-    iMSCP::DistPackageManager->getInstance()->installPackages( @packages );
-}
-
-=item _removePackages( @packages )
-
- Remove distribution packages
-
- Param list @packages Packages to remove
- Return int 0 on success, other on failure
-
-=cut
-
-sub _removePackages
-{
-    my ( undef, @packages ) = @_;
-
-    return unless @packages && !iMSCP::Getopt->skippackages;
-
-    iMSCP::DistPackageManager->getInstance()->uninstallPackages( @packages );
 }
 
 =back

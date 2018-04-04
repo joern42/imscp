@@ -28,11 +28,32 @@ use warnings;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
 use Class::Autouse qw/ :nostats iMSCP::Servers::Cron /;
 use iMSCP::Getopt;
-use parent 'iMSCP::Common::Singleton';
+use parent 'iMSCP::Packages::Abstract';
+
+our $VERSION = '1.0.0';
 
 =head1 DESCRIPTION
 
  Package responsible to setup the i-MSCP backup feature.
+
+=head1 CLASS METHODS
+
+=over 4
+
+=item getPackagePriority( )
+
+ See iMSCP::Packages::Abstract::getPackagePriority()
+
+=cut
+
+sub getPackagePriority
+{
+    my ( $self ) = @_;
+
+    200;
+}
+
+=back
 
 =head1 PUBLIC METHODS
 
@@ -40,9 +61,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =item registerSetupListeners( )
 
- Register setup event listeners
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::registerSetupListeners()
 
 =cut
 
@@ -117,26 +136,48 @@ EOF
     0;
 }
 
-=item getPriority( )
+=item getPackageName( )
 
- Get package priority
-
- Return int package priority
+ See iMSCP::Packages::Abstract::getPackageName()
 
 =cut
 
-sub getPriority
+sub getPackageName
 {
     my ( $self ) = @_;
 
-    200;
+    'Backup';
+}
+
+=item getPackageHumanName( )
+
+ See iMSCP::Packages::Abstract::getPackageHumanName()
+
+=cut
+
+sub getPackageHumanName
+{
+    my ( $self ) = @_;
+
+    sprintf( 'i-MSCP backup configurator (%s)', $self->getPackageVersion());
+}
+
+=item getPackageVersion( )
+
+ See iMSCP::Packages::Abstract::getPackageVersion()
+
+=cut
+
+sub getPackageVersion
+{
+    my ( $self ) = @_;
+
+    $::imscpConfig{'Version'};
 }
 
 =item install( )
 
- Process installation tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::install()
 
 =cut
 
@@ -166,9 +207,7 @@ sub install
 
 =item uninstall( )
 
- Process uninstallation tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::uninstall()
 
 =cut
 

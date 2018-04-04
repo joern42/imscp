@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer - i-MSCP Chkrootkit package installer
+ iMSCP::Packages::Setup::AntiRootkits::Chkrootkit - i-MSCP Chkrootkit package
 
 =cut
 
@@ -21,42 +21,85 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Setup::AntiRootkits::Chkrootkit::Installer;
+package iMSCP::Packages::Setup::AntiRootkits::Chkrootkit;
 
 use strict;
 use warnings;
+use autouse 'iMSCP::Rights' => qw/ setRights /;
+use Class::Autouse qw/ :nostat iMSCP::File iMSCP::Servers::Cron /;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Execute qw/ execute /;
-use iMSCP::File;
-use iMSCP::Servers::Cron;
-use parent 'iMSCP::Common::Singleton';
+use parent 'iMSCP::Packages::Abstract';
+
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
- Chkrootkit package installer.
+ i-MSCP Chkrootkit package.
+
+ The chkrootkit security scanner searches the local system for signs that it is infected with a 'rootkit'. Rootkits are
+ set of programs and hacks designed to take control of a target machine by using known security flaws.
 
 =head1 PUBLIC METHODS
 
 =over 4
 
+=item getPackageName( )
+
+ See iMSCP::Packages::Abstract::getPackageName()
+
+=cut
+
+sub getPackageName
+{
+    my ( $self ) = @_;
+
+    'Chkrootkit';
+}
+
+=item getPackageHumanName( )
+
+ See iMSCP::Packages::Abstract::getPackageHumanName()
+
+=cut
+
+sub getPackageHumanName
+{
+    my ( $self ) = @_;
+
+    sprintf( 'Chkrootkit antirootkit (%s)', $self->getPackageVersion());
+}
+
+=item getPackageVersion( )
+
+ See iMSCP::Packages::Abstract::getPackageVersion()
+
+=cut
+
+sub getPackageVersion
+{
+    my ( $self ) = @_;
+    my $stdout = `chkrootkit -V 2>&1`;
+    $stdout =~ /version\s+([\d.]+)/mi or die( "Couldn't guess Chkrootkit version from the `chkrootkit -V` command output" );
+    $1;
+}
+
 =item preinstall( )
 
- Process preinstall tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::preinstall()
 
 =cut
 
 sub preinstall
 {
-    $_[0]->_disableDebianConfig();
+    my ( $self ) = @_;
+
+    $self->_disableDebianConfig();
 }
 
 =item postinstall( )
 
- Process post install tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::postinstall()
 
 =cut
 
@@ -66,6 +109,50 @@ sub postinstall
 
     $self->_addCronTask();
     $self->_scheduleCheck();
+}
+
+=item uninstall( )
+
+ See iMSCP::Packages::Abstract::uninstall()
+
+=cut
+
+sub uninstall
+{
+    my ( $self ) = @_;
+
+    iMSCP::Servers::Cron->factory()->enableSystemTask( 'chkrootkit', 'cron.daily' );
+}
+
+=item setBackendPermissions( )
+
+ See iMSCP::Packages::Abstract::setBackendPermissions()
+
+=cut
+
+sub setBackendPermissions
+{
+    my ( $self ) = @_;
+
+    setRights( $::imscpConfig{'CHKROOTKIT_LOG'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'IMSCP_GROUP'},
+        mode  => '0640'
+    } );
+}
+
+=item getDistroPackages( )
+
+ See iMSCP::Packages::Abstract::getDistroPackages()
+
+=cut
+
+sub getDistroPackages
+{
+    my ( $self ) = @_;
+
+    return 'chkrootkit' if $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian';
+    ();
 }
 
 =back
@@ -119,14 +206,14 @@ sub _addCronTask
 
 sub _scheduleCheck
 {
-    return 0 if -f -s $::imscpConfig{'CHKROOTKIT_LOG'};
+    return if -f -s $::imscpConfig{'CHKROOTKIT_LOG'};
 
     # Create an empty file to avoid planning multiple checks if installer is run more than once
     iMSCP::File->new( filename => $::imscpConfig{'CHKROOTKIT_LOG'} )->set( "Check scheduled...\n" )->save();
 
     my $rs = execute( "echo 'bash chkrootkit -e > $::imscpConfig{'CHKROOTKIT_LOG'} 2>&1' | at now + 20 minutes", \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 }
 
 =back

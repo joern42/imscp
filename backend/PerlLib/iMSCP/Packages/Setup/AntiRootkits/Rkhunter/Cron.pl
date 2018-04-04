@@ -41,9 +41,11 @@ exit unless iMSCP::ProgramFinder::find( 'rkhunter' );
 
 my $logFile = $::imscpConfig{'RKHUNTER_LOG'} || '/var/log/rkhunter.log';
 
-# Error handling is specific with rkhunter. Therefore, we do not handle the exit code, but we write the output
-# into the imscp-rkhunter-package.log file. This is calqued on the cron task as provided by the Rkhunter Debian
-# package except that instead of sending an email on error or warning, we write in log file.
+# Error handling is specific with rkhunter. Therefore, we do not handle the
+# exit code, but we write the output into the imscp-rkhunter-package.log file.
+# This is calqued on the cron task as provided by the Rkhunter Debian package
+# except that instead of sending an email on error or warning, we write in log
+# file.
 execute( "rkhunter --cronjob --logfile $logFile", \my $stdout, \my $stderr );
 debug( $stdout ) if length $stdout;
 debug( $stderr ) if length $stderr;

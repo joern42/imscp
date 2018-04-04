@@ -32,11 +32,30 @@ use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::OpenSSL;
 use Net::LibIDN qw/ idn_to_unicode /;
-use parent 'iMSCP::Common::Singleton';
+use parent 'iMSCP::Packages::Abstract';
+
+our $VERSION = '1.0.0';
 
 =head1 DESCRIPTION
 
  Setup SSL certificates for various services (FTP, SMTP, IMAP/POP)
+
+=head1 CLASS METHODS
+
+=over 4
+
+=item getPackagePriority( )
+
+ See iMSCP::Packages::Abstract::getPackagePriority()
+
+=cut
+
+sub getPackagePriority
+{
+    300;
+}
+
+=back
 
 =head1 PUBLIC METHODS
 
@@ -44,9 +63,7 @@ use parent 'iMSCP::Common::Singleton';
 
 =item registerSetupListeners( )
 
- Register setup event listeners
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::registerSetupListeners()
 
 =cut
 
@@ -68,7 +85,7 @@ sub registerSetupListeners
 
 sub servicesSslDialog
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $hostnameUnicode = idn_to_unicode( $hostname, 'utf-8' ) // $hostname;
@@ -218,14 +235,14 @@ EOF
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::getPackageHumanName()
 
 =cut
 
 sub preinstall
 {
+    my ( $self ) = @_;
+
     my $sslEnabled = ::setupGetQuestion( 'SERVICES_SSL_ENABLED' );
 
     if ( $sslEnabled eq 'no' || ::setupGetQuestion( 'SERVICES_SSL_SETUP', 'yes' ) eq 'no' ) {
@@ -254,17 +271,43 @@ sub preinstall
     )->createCertificateChain();
 }
 
-=item getPriority( )
+=item getPackageName( )
 
- Get package priority
-
- Return int package priority
+ See iMSCP::Packages::Abstract::getPackageName()
 
 =cut
 
-sub getPriority
+sub getPackageName
 {
-    150;
+    my ( $self ) = @_;
+
+    'ServiceSSL';
+}
+
+=item getPackageHumanName( )
+
+ See iMSCP::Packages::Abstract::getPackageHumanName()
+
+=cut
+
+sub getPackageHumanName
+{
+    my ( $self ) = @_;
+
+    sprintf( 'i-MSCP SSL (services) configurator (%s)', $self->getPackageVersion());
+}
+
+=item getPackageVersion( )
+
+ See iMSCP::Packages::Abstract::getPackageVersion()
+
+=cut
+
+sub getPackageVersion
+{
+    my ( $self ) = @_;
+
+    $::imscpConfig{'Version'};
 }
 
 =back

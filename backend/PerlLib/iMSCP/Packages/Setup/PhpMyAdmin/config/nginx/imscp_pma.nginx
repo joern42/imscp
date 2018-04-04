@@ -3,7 +3,7 @@ location = /pma {
 }
 
 location ^~ /pma/ {
-    root {GUI_PUBLIC_DIR}/tools;
+    root {FRONTEND_ROOT_DIR}/public/tools;
 
     location ~ \.php$ {
         include imscp_fastcgi.conf;

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::FrontEnd::Installer - i-MSCP FrontEnd package installer
+ iMSCP::Packages::Setup::FrontEnd - i-MSCP FrontEnd package
 
 =cut
 
@@ -21,15 +21,18 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::FrontEnd::Installer;
+package iMSCP::Packages::Setup::FrontEnd;
 
 use strict;
 use warnings;
+use autouse 'iMSCP::Rights' => qw/ setRights /;
+use Cwd qw/ realpath /;
 use File::Basename;
+use File::Spec;
 use iMSCP::Boolean;
 use iMSCP::Composer;
-use iMSCP::Crypt qw/ apr1MD5 randomStr /;
-use iMSCP::Database;
+use iMSCP::Config;
+use iMSCP::Crypt qw/ apr1MD5 randomStr ALNUM /;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dialog::InputValidation qw/
     isNumber isNumberInRange isOneOfStringsInList isStringInList isStringNotInList isValidDomain isValidEmail isValidPassword isValidUsername
@@ -38,26 +41,51 @@ use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::OpenSSL;
 use iMSCP::Net;
+use iMSCP::OpenSSL;
+use iMSCP::Servers::Mta;
+use iMSCP::Servers::Named;
 use iMSCP::Service;
 use iMSCP::Stepper qw/ step startDetail endDetail /;
+use iMSCP::SystemGroup;
 use iMSCP::SystemUser;
 use iMSCP::TemplateParser qw/ getBloc processByRef replaceBlocByRef /;
 use Net::LibIDN qw/ idn_to_ascii idn_to_unicode /;
-use iMSCP::Packages::FrontEnd;
-use iMSCP::Servers::Mta;
-use iMSCP::Servers::Named;
 use version;
-use parent 'iMSCP::Common::Singleton';
+use parent 'iMSCP::Packages::Abstract';
+
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
- i-MSCP FrontEnd package installer.
+ i-MSCP FrontEnd package.
+
+=head1 CLASS METHODS
+
+=over 4
+
+=item getPackagePriority( )
+
+ See iMSCP::Packages::Abstract::getPackagePriority()
+
+=cut
+
+sub getPackagePriority
+{
+    100;
+}
+
+=back
 
 =head1 PUBLIC METHODS
 
 =over 4
+
+=item registerSetupListeners( )
+
+ See iMSCP::Packages::Abstract::registerSetupListeners()
+
+=cut
 
 =item registerSetupListeners( )
 
@@ -81,16 +109,16 @@ sub registerSetupListeners
             sub { $self->askHttpPorts( @_ ) },
             sub { $self->askAltUrlsFeature( @_ ) };
     } )->registerOne( 'beforeSetupPreInstallServers', sub {
-        $self->_createMasterWebUser()
-    } )->registerOne( 'beforeSetupPreInstallServers', sub {
-        $self->{'frontend'}->setGuiPermissions();
+        $self->_createMasterWebUser();
+        $self->setFrontendPermissions();
+
         my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
         my $composer = iMSCP::Composer->new(
             user          => $usergroup,
             group         => $usergroup,
-            home_dir      => "$::imscpConfig{'GUI_ROOT_DIR'}/data/persistent/frontend",
-            working_dir   => $::imscpConfig{'GUI_ROOT_DIR'},
-            composer_json => iMSCP::File->new( filename => "$::imscpConfig{'GUI_ROOT_DIR'}/composer.json" )->get(),
+            home_dir      => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/persistent/frontend",
+            working_dir   => $::imscpConfig{'FRONTEND_ROOT_DIR'},
+            composer_json => iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/composer.json" )->get(),
             composer_path => '/usr/local/bin/composer'
         );
         $composer->getComposerJson( 'scalar' )->{'config'} = {
@@ -126,19 +154,17 @@ EOT
 
 sub askMasterAdminCredentials
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     my ( $username, $password ) = ( '', '' );
-    my $dbh = iMSCP::Database->getInstance();
-
-    eval { $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); };
-    $dbh = undef if $@; # Fresh installation case
+    
+    #$self->{'dbh'} = undef if $@; # Fresh installation case
 
     if ( iMSCP::Getopt->preseed ) {
         $username = ::setupGetQuestion( 'ADMIN_LOGIN_NAME', 'admin' );
         $password = ::setupGetQuestion( 'ADMIN_PASSWORD' );
-    } elsif ( $dbh ) {
-        my $row = $dbh->selectrow_hashref( "SELECT admin_name, admin_pass FROM admin WHERE created_by = 0 AND admin_type = 'admin'", );
+    } elsif ( eval { $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); TRUE; } ) {
+        my $row = $self->{'dbh'}->selectrow_hashref( "SELECT admin_name, admin_pass FROM admin WHERE created_by = 0 AND admin_type = 'admin'", );
         if ( $row ) {
             $username = $row->{'admin_name'} // '';
             $password = $row->{'admin_pass'} // '';
@@ -168,8 +194,8 @@ Please enter a username for the master administrator (leave empty for default):
 \\Z \\Zn
 EOF
             if ( isValidUsername( $username ) ) {
-                if ( $dbh ) {
-                    my $row = $dbh->selectrow_hashref( 'SELECT 1 FROM admin WHERE admin_name = ? AND created_by <> 0', undef, $username );
+                if ( $self->{'dbh'} ) {
+                    my $row = $self->{'dbh'}->selectrow_hashref( 'SELECT 1 FROM admin WHERE admin_name = ? AND created_by <> 0', undef, $username );
                     if ( $row ) {
                         $iMSCP::Dialog::InputValidation::lastValidationError = <<"EOF";
 \\Z1This username is not available.\\Zn
@@ -184,7 +210,7 @@ EOF
         do {
             unless ( length $password ) {
                 $iMSCP::Dialog::InputValidation::lastValidationError = '';
-                $password = randomStr( 16, iMSCP::Crypt::ALNUM );
+                $password = randomStr( 16, ALNUM );
             }
 
             ( $rs, $password ) = $dialog->inputbox( <<"EOF", $password );
@@ -216,7 +242,7 @@ EOF
 
 sub askMasterAdminEmail
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $email = ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' );
 
@@ -252,7 +278,7 @@ EOF
 
 sub askDomain
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $domainName = ::setupGetQuestion( 'BASE_SERVER_VHOST', ( iMSCP::Getopt->preseed ? do {
         my @labels = split /\./, ::setupGetQuestion( 'SERVER_HOSTNAME' );
@@ -300,7 +326,7 @@ EOF
 
 sub askSsl
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $domainName = ::setupGetQuestion( 'BASE_SERVER_VHOST' );
     my $domainNameUnicode = idn_to_unicode( $domainName, 'utf-8' ) // $domainName;
@@ -457,7 +483,7 @@ EOF
 
 sub askDefaultAccessMode
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     unless ( ::setupGetQuestion( 'PANEL_SSL_ENABLED' ) eq 'yes' ) {
         ::setupSetQuestion( 'BASE_SERVER_VHOST_PREFIX', 'http://' );
@@ -494,7 +520,7 @@ EOF
 
 sub askHttpPorts
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $httpPort = ::setupGetQuestion( 'BASE_SERVER_VHOST_HTTP_PORT', iMSCP::Getopt->preseed ? 8880 : '' );
     my $httpsPort = ::setupGetQuestion( 'BASE_SERVER_VHOST_HTTPS_PORT', iMSCP::Getopt->preseed ? 8443 : '' );
@@ -566,7 +592,7 @@ EOF
 
 sub askAltUrlsFeature
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'CLIENT_DOMAIN_ALT_URLS', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
@@ -588,9 +614,7 @@ EOF
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::Packages::Abstract::preinstall()
 
 =cut
 
@@ -598,6 +622,8 @@ sub preinstall
 {
     my ( $self ) = @_;
 
+    $self->stopNginx();
+    $self->stopPhpFpm();
     $self->{'eventManager'}->registerOne(
         'afterSetupPreInstallPackages',
         sub {
@@ -648,9 +674,7 @@ EOT
 
 =item install( )
 
- Process install tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::install()
 
 =cut
 
@@ -672,11 +696,9 @@ sub install
     $self->_cleanup();
 }
 
-=item install( )
+=item postinstall( )
 
- Process postnstall tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::postinstall()
 
 =cut
 
@@ -685,20 +707,46 @@ sub postinstall
     my ( $self ) = @_;
 
     my $stderr;
-    execute( "perl $::imscpConfig{'BACKEND_ROOT_DIR'}/tools/imscp-info.pl --json", \my $stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
+    execute( "perl $::imscpConfig{'BACKEND_ROOT_DIR'}/tools/imscp-info.pl -rsj", \my $stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
     chomp( $stdout );
-    my $dbh = iMSCP::Database->getInstance();
-    $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
-    $dbh->do( 'REPLACE INTO `config` VALUES(?,?)', undef, 'iMSCP_INFO', $stdout );
+
+    $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    $self->{'dbh'}->do( 'REPLACE INTO config VALUES(?,?)', undef, 'iMSCP_INFO', $stdout );
+
+    my $srvProvider = iMSCP::Service->getInstance( eventManager => $self->{'eventManager'} );
+    $srvProvider->enable( 'nginx' );
+    $srvProvider->enable( 'imscp_panel' );
+
+    $self->{'eventManager'}->registerOne(
+        'beforeSetupRestartServices',
+        sub {
+            push @{ $_[0] }, [ sub { $self->startNginx(); }, 'Nginx' ];
+            push @{ $_[0] }, [ sub { $self->startPhpFpm(); }, 'i-MSCP panel (PHP FastCGI process manager)' ];
+        },
+        2
+    );
+}
+
+=item uninstall( )
+
+ See iMSCP::Packages::Abstract::()
+
+=cut
+
+sub uninstall
+{
+    my ( $self ) = @_;
+
+    $self->_deleteSystemFiles();
+    $self->_deconfigurePHP();
+    $self->_deconfigureHTTPD();
+    $self->_deleteMasterWebUser();
+    $self->restartNginx() if iMSCP::Service->getInstance()->hasService( 'nginx' );
 }
 
 =item dpkgPostInvokeTasks( )
 
- Process dpkg post-invoke tasks
-
- See #IP-1641 for further details.
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::dpkgPostInvokeTasks()
 
 =cut
 
@@ -709,7 +757,7 @@ sub dpkgPostInvokeTasks
     if ( -f '/usr/local/sbin/imscp_panel' ) {
         unless ( -f $self->{'config'}->{'PHP_FPM_BIN_PATH'} ) {
             # Cover case where administrator removed the package
-            $self->{'frontend'}->stop();
+            $self->stop();
             iMSCP::File->new( filename => '/usr/local/sbin/imscp_panel' )->remove();
         }
 
@@ -719,12 +767,146 @@ sub dpkgPostInvokeTasks
         debug( sprintf( "Updating i-MSCP frontEnd PHP-FPM binary from version %s to version %s", $v2, $v1 ));
     }
 
-    $self->{'frontend'}->stopPhpFpm();
+    $self->stopPhpFpm();
     $self->_copyPhpBinary();
 
     return unless -f '/usr/local/etc/imscp_panel/php-fpm.conf';
 
-    $self->{'frontend'}->startPhpFpm();
+    $self->startPhpFpm();
+}
+
+=item setBackendPermissions( )
+
+ See iMSCP::Packages::Abstract::setBackendPermissions()
+
+=cut
+
+sub setBackendPermissions
+{
+    my ( $self ) = @_;
+
+    setRights( $self->{'config'}->{'HTTPD_CONF_DIR'}, {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'ROOT_GROUP'},
+        dirmode   => '0755',
+        filemode  => '0644',
+        recursive => TRUE
+    } );
+    setRights( $self->{'config'}->{'HTTPD_LOG_DIR'}, {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'ROOT_GROUP'},
+        dirmode   => '0755',
+        filemode  => '0640',
+        recursive => TRUE
+    } );
+
+    # Temporary directories as provided by nginx package (from Debian Team)
+    if ( -d "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}" ) {
+        setRights( $self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}, {
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'}
+        } );
+
+        for my $tmp ( 'body', 'fastcgi', 'proxy', 'scgi', 'uwsgi' ) {
+            next unless -d "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp";
+
+            setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp", {
+                user      => $self->{'config'}->{'HTTPD_USER'},
+                group     => $self->{'config'}->{'HTTPD_GROUP'},
+                dirnmode  => '0700',
+                filemode  => '0640',
+                recursive => TRUE
+            } );
+            setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_DEBIAN'}/$tmp", {
+                user  => $self->{'config'}->{'HTTPD_USER'},
+                group => $::imscpConfig{'ROOT_GROUP'},
+                mode  => '0700'
+            } );
+        }
+    }
+
+    # Temporary directories as provided by nginx package (from nginx Team)
+    return unless -d "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}";
+
+    setRights( $self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'}
+    } );
+
+    for my $tmp ( 'client_temp', 'fastcgi_temp', 'proxy_temp', 'scgi_temp', 'uwsgi_temp' ) {
+        next unless -d "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp";
+
+        setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp", {
+            user      => $self->{'config'}->{'HTTPD_USER'},
+            group     => $self->{'config'}->{'HTTPD_GROUP'},
+            dirnmode  => '0700',
+            filemode  => '0640',
+            recursive => TRUE
+        } );
+        setRights( "$self->{'config'}->{'HTTPD_CACHE_DIR_NGINX'}/$tmp", {
+            user  => $self->{'config'}->{'HTTPD_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
+            mode  => '0700'
+        } );
+    }
+}
+
+=item setFrontendPermissions( )
+
+ See iMSCP::Packages::Abstract::setFrontendPermissions()
+
+=cut
+
+sub setFrontendPermissions
+{
+    my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+
+    setRights( $::imscpConfig{'FRONTEND_ROOT_DIR'}, {
+        user      => $usergroup,
+        group     => $usergroup,
+        dirmode   => '0750',
+        filemode  => '0640',
+        recursive => TRUE
+    } );
+}
+
+=item getPackageName( )
+
+ See iMSCP::Packages::Abstract::getPackageName()
+
+=cut
+
+sub getPackageName
+{
+    my ( $self ) = @_;
+
+    'FrontEnd';
+}
+
+=item getPackageHumanName( )
+
+ See iMSCP::Packages::Abstract::getPackageHumanName()
+
+=cut
+
+sub getPackageHumanName
+{
+    my ( $self ) = @_;
+
+    sprintf( 'i-MSCP FrontEnd (%s)', $self->getPackageVersion());
+}
+
+=item getPackageVersion( )
+
+ See iMSCP::Packages::Abstract::getPackageVersion()
+
+=cut
+
+sub getPackageVersion
+{
+    my ( $self ) = @_;
+
+    $::imscpConfig{'Version'};
 }
 
 =item getComposer( )
@@ -747,6 +929,291 @@ sub getComposer
     );
 }
 
+=item addUser( \%data )
+
+ Process addUser tasks
+
+ Param hashref \%data user data as provided by Modules::User module
+ Return void, die on failure
+
+=cut
+
+sub addUser
+{
+    my ( $self, $data ) = @_;
+
+    return if $data->{'STATUS'} eq 'tochangepwd';
+
+    iMSCP::SystemUser->new()->addToGroup( $data->{'GROUP'}, $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'} );
+}
+
+=item enableSites( @sites )
+
+ Enable the given site(s)
+
+ Param array @sites List of sites to enable
+ Return void, die on failure
+
+=cut
+
+sub enableSites
+{
+    my ( $self, @sites ) = @_;
+
+    for my $site ( @sites ) {
+        my $target = File::Spec->canonpath( "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$site" );
+        my $symlink = File::Spec->canonpath( $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'} . '/' . basename( $site, '.conf' ));
+        -f $target or die( sprintf( "Site '%s' doesn't exist", $site ));
+        next if -l $symlink && realpath( $symlink ) eq $target;
+        unlink $symlink or die( sprintf( "Couldn't unlink the %s file: %s", $! )) if -e _;
+        symlink File::Spec->abs2rel( $target, $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'} ), $symlink or die(
+            sprintf( "Couldn't enable the `%s` site: %s", $site, $! )
+        );
+        $self->{'reload'} ||= TRUE;
+    }
+}
+
+=item disableSites( @sites )
+
+ Disable the given site(s)
+
+ Param array @sites List of sites to disable
+ Return void, die on failure
+
+=cut
+
+sub disableSites
+{
+    my ( $self, @sites ) = @_;
+
+    for my $site ( @sites ) {
+        my $symlink = File::Spec->canonpath( $self->{'config'}->{'HTTPD_SITES_ENABLED_DIR'} . '/' . basename( $site, '.conf' ));
+        next unless -e $symlink;
+        unlink( $symlink ) or die( sprintf( "Couldn't unlink the %s file: %s", $! ));
+        $self->{'reload'} ||= TRUE;
+    }
+}
+
+=item start( )
+
+ Start frontEnd
+
+ Return void, die on failure
+
+=cut
+
+sub start
+{
+    my ( $self ) = @_;
+
+    $self->startPhpFpm();
+    $self->startNginx();
+}
+
+=item stop( )
+
+ Stop frontEnd
+
+ Return void, die on failure
+
+=cut
+
+sub stop
+{
+    my ( $self ) = @_;
+
+    $self->stopPhpFpm();
+    $self->stopNginx();
+}
+
+=item reload( )
+
+ Reload frontEnd
+
+ Return void, die on failure
+
+=cut
+
+sub reload
+{
+    my ( $self ) = @_;
+
+    $self->reloadPhpFpm();
+    $self->reloadNginx();
+}
+
+=item restart( )
+
+ Restart frontEnd
+
+ Return void, die on failure
+
+=cut
+
+sub restart
+{
+    my ( $self ) = @_;
+
+    $self->restartPhpFpm();
+    $self->restartNginx();
+}
+
+=item startNginx( )
+
+ Start frontEnd (Nginx only)
+
+ Return void, die on failure
+
+=cut
+
+sub startNginx
+{
+    my ( $self ) = @_;
+
+    iMSCP::Service->getInstance()->start( $self->{'config'}->{'HTTPD_SNAME'} );
+}
+
+=item stopNginx( )
+
+ Stop frontEnd (Nginx only)
+
+ Return void, die on failure
+
+=cut
+
+sub stopNginx
+{
+    my ( $self ) = @_;
+
+    iMSCP::Service->getInstance()->stop( "$self->{'config'}->{'HTTPD_SNAME'}" );
+}
+
+=item reloadNginx( )
+
+ Reload frontEnd (Nginx only)
+
+ Return void, die on failure
+
+=cut
+
+sub reloadNginx
+{
+    my ( $self ) = @_;
+
+    iMSCP::Service->getInstance()->reload( $self->{'config'}->{'HTTPD_SNAME'} );
+}
+
+=item restartNginx( )
+
+ Restart frontEnd (Nginx only)
+
+ Return void, die on failure
+
+=cut
+
+sub restartNginx
+{
+    my ( $self ) = @_;
+
+    iMSCP::Service->getInstance()->restart( $self->{'config'}->{'HTTPD_SNAME'} );
+}
+
+=item startPhpFpm( )
+
+ Start frontEnd (PHP-FPM instance only)
+
+ Return void, die on failure
+
+=cut
+
+sub startPhpFpm
+{
+    my ( $self ) = @_;
+
+    iMSCP::Service->getInstance()->start( 'imscp_panel' );
+}
+
+=item stopPhpFpm( )
+
+ Stop frontEnd (PHP-FPM instance only)
+
+ Return void, die on failure
+
+=cut
+
+sub stopPhpFpm
+{
+    my ( $self ) = @_;
+
+    iMSCP::Service->getInstance()->stop( 'imscp_panel' );
+}
+
+=item reloadPhpFpm( )
+
+ Reload frontEnd (PHP-FPM instance only)
+
+ Return void, die on failure
+
+=cut
+
+sub reloadPhpFpm
+{
+    my ( $self ) = @_;
+
+    iMSCP::Service->getInstance()->reload( 'imscp_panel' );
+}
+
+=item restartPhpFpm( )
+
+ Restart frontEnd (PHP-FPM instance only)
+
+ Return void, die on failure
+
+=cut
+
+sub restartPhpFpm
+{
+    my ( $self ) = @_;
+
+    iMSCP::Service->getInstance()->restart( 'imscp_panel' );
+}
+
+=item buildConfFile( $file [, \%tplVars = { } [, \%options = { } ] ] )
+
+ Build the given configuration file
+
+ Param string $file Absolute filepath or filepath relative to the frontend configuration directory
+ Param hashref \%tplVars OPTIONAL Template variables
+ Param hashref \%options OPTIONAL Options such as destination, mode, user and group for final file
+ Return void, die on failure
+
+=cut
+
+sub buildConfFile
+{
+    my ( $self, $file, $tplVars, $options ) = @_;
+
+    $tplVars ||= {};
+    $options ||= {};
+
+    my ( $filename, $path ) = fileparse( $file );
+    $file = File::Spec->canonpath( "$self->{'cfgDir'}/$path/$filename" ) if index( $path, '/' ) != 0;
+    $file = iMSCP::File->new( filename => $file );
+
+    my $cfgTpl = $file->getAsRef( TRUE );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', 'frontend', $filename, $cfgTpl, $tplVars );
+    $file->getAsRef();
+
+    $self->{'eventManager'}->trigger( 'beforeFrontEndBuildConfFile', $cfgTpl, $filename, $tplVars, $options );
+    $self->_buildConf( $cfgTpl, $filename, $tplVars );
+    $self->{'eventManager'}->trigger( 'afterFrontEndBuildConfFile', $cfgTpl, $filename, $tplVars, $options );
+
+    ${ $cfgTpl } =~ s/^\s*(?:[#;].*)?\n//gmi; # Final cleanup
+
+    $file->{'filename'} = $options->{'destination'} // "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$filename";
+    $file->save()->owner( $options->{'user'}, $options->{'group'} )->mode( $options->{'mode'} );
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -757,7 +1224,7 @@ sub getComposer
 
  Initialize instance
 
- Return iMSCP::Packages::FrontEnd::Installer
+ Return iMSCP::Packages::Setup::FrontEnd
 
 =cut
 
@@ -765,11 +1232,43 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
-    $self->{'eventManager'} = $self->{'frontend'}->{'eventManager'};
-    $self->{'cfgDir'} = $self->{'frontend'}->{'cfgDir'};
-    $self->{'config'} = $self->{'frontend'}->{'config'};
-    $self;
+    @{ $self }{qw/ start reload restart cfgDir / } = ( FALSE, FALSE, FALSE, "$::imscpConfig{'CONF_DIR'}/frontend" );
+    $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/frontend.data.dist";
+    tie %{ $self->{'config'} },
+        'iMSCP::Config',
+        filename    => "$self->{'cfgDir'}/frontend.data",
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer';
+    $self->SUPER::_init();
+}
+
+=item _mergeConfig( )
+
+ Merge distribution configuration with production configuration
+
+ Return void, die on failure
+
+=cut
+
+sub _mergeConfig
+{
+    my ( $self ) = @_;
+
+    if ( -f "$self->{'cfgDir'}/frontend.data" ) {
+        tie my %newConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/frontend.data.dist";
+        tie my %oldConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/frontend.data", readonly => 1;
+        debug( 'Merging old configuration with new configuration...' );
+
+        while ( my ( $key, $value ) = each( %oldConfig ) ) {
+            next unless exists $newConfig{$key};
+            $newConfig{$key} = $value;
+        }
+
+        untie( %newConfig );
+        untie( %oldConfig );
+    }
+
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/frontend.data.dist" )->move( "$self->{'cfgDir'}/frontend.data" );
 }
 
 =item _createMasterWebUser
@@ -788,21 +1287,21 @@ sub _createMasterWebUser
 
     iMSCP::SystemUser->new(
         comment        => 'i-MSCP Control Panel Web User',
-        home           => $::imscpConfig{'GUI_ROOT_DIR'},
+        home           => $::imscpConfig{'FRONTEND_ROOT_DIR'},
         skipCreateHome => TRUE
     )->addSystemUser( $usergroup, $usergroup );
 
-    # Add the panel user (vu2000) into the i-MSCP backend group)
+    # Add the panel user (vu2000) into the i-MSCP backend group
     # FIXME: This is needed for?
-    iMSCP::SystemUser->new( username => $usergroup )->addToGroup( $::imscpConfig{'IMSCP_GROUP'} );
+    iMSCP::SystemUser->new()->addToGroup( $::imscpConfig{'IMSCP_GROUP'}, $usergroup );
 
-    # Add panel user (vu2000) into the mailbox groum (e.g: mail)
+    # Add panel user (vu2000) into the mailbox group (e.g: mail)
     # Control panel need access to customer maildirsize files to calculate quota (realtime quota)
-    iMSCP::SystemUser->new( username => $usergroup )->addToGroup( iMSCP::Servers::Mta->factory()->{'config'}->{'MTA_MAILBOX_GID_NAME'} );
+    iMSCP::SystemUser->new()->addToGroup( iMSCP::Servers::Mta->factory()->{'config'}->{'MTA_MAILBOX_GID_NAME'}, $usergroup );
 
     # Add panel Web user (vu2000) into the Web server group
     # FIXME: This is needed for?
-    iMSCP::SystemUser->new( username => $self->{'config'}->{'HTTPD_USER'} )->addToGroup( $usergroup );
+    iMSCP::SystemUser->new()->addToGroup( $usergroup, $self->{'config'}->{'HTTPD_USER'} );
 }
 
 =item _setupMasterAdmin( )
@@ -815,6 +1314,8 @@ sub _createMasterWebUser
 
 sub _setupMasterAdmin
 {
+    my ($self) = @_;
+
     my $login = ::setupGetQuestion( 'ADMIN_LOGIN_NAME' );
     my $loginOld = ::setupGetQuestion( 'ADMIN_OLD_LOGIN_NAME' );
     my $password = ::setupGetQuestion( 'ADMIN_PASSWORD' );
@@ -824,30 +1325,31 @@ sub _setupMasterAdmin
 
     $password = apr1MD5( $password );
 
-    my $dbh = iMSCP::Database->getInstance();
-    my $oldDbName = $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    my $oldDbName = $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
 
     eval {
-        $dbh->begin_work();
+        $self->{'dbh'}->begin_work();
 
-        my $row = $dbh->selectrow_hashref( "SELECT admin_id FROM admin WHERE admin_name = ?", undef, $loginOld );
+        my $row = $self->{'dbh'}->selectrow_hashref( "SELECT admin_id FROM admin WHERE admin_name = ?", undef, $loginOld );
         if ( $row ) {
-            $dbh->do(
+            $self->{'dbh'}->do(
                 'UPDATE admin SET admin_name = ?, admin_pass = ?, email = ? WHERE admin_id = ?', undef, $login, $password, $email, $row->{'admin_id'}
             );
         } else {
-            $dbh->do( 'INSERT INTO admin (admin_name, admin_pass, admin_type, email) VALUES (?, ?, ?, ?)', undef, $login, $password, 'admin', $email );
-            $dbh->do( 'INSERT INTO user_gui_props SET user_id = LAST_INSERT_ID()' );
+            $self->{'dbh'}->do(
+                'INSERT INTO admin (admin_name, admin_pass, admin_type, email) VALUES (?, ?, ?, ?)', undef, $login, $password, 'admin', $email
+            );
+            $self->{'dbh'}->do( 'INSERT INTO user_gui_props SET user_id = LAST_INSERT_ID()' );
         }
 
-        $dbh->commit();
+        $self->{'dbh'}->commit();
     };
     if ( $@ ) {
-        $dbh->rollback();
+        $self->{'dbh'}->rollback();
         die
     }
 
-    $dbh->useDatabase( $oldDbName ) if length $oldDbName;
+    $self->{'dbh'}->useDatabase( $oldDbName ) if length $oldDbName;
 }
 
 =item _setupSsl( )
@@ -909,7 +1411,7 @@ sub _setHttpdVersion( )
 
     my $rs = execute( 'nginx -v', \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' ) if $rs;
+    $rs == 0 or die( $stderr || 'Unknown error' ) if $rs;
     $stderr =~ m%nginx/([\d.]+)% or die( "Couldn't guess Nginx version" );
     $self->{'config'}->{'HTTPD_VERSION'} = $1;
     debug( sprintf( 'Nginx version set to: %s', $1 ));
@@ -932,9 +1434,8 @@ sub _addMasterWebUser
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
     my ( $uid, $gid ) = ( getpwnam( $usergroup ) )[2, 3];
 
-    my $dbh = iMSCP::Database->getInstance();
-    $dbh->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
-    $dbh->do(
+    $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+    $self->{'dbh'}->do(
         "UPDATE admin SET admin_sys_name = ?, admin_sys_uid = ?, admin_sys_gname = ?, admin_sys_gid = ? WHERE admin_type = 'admin'",
         undef, $usergroup, $uid, $usergroup, $gid
     );
@@ -1002,7 +1503,7 @@ sub _copyPhpBinary
 {
     my ( $self ) = @_;
 
-    length $self->{'config'}->{'PHP_FPM_BIN_PATH'} or die( "PHP `PHP_FPM_BIN_PATH' configuration parameter is not set." );
+    length $self->{'config'}->{'PHP_FPM_BIN_PATH'} or die( "PHP 'PHP_FPM_BIN_PATH' configuration parameter is not set." );
 
     iMSCP::File->new( filename => $self->{'config'}->{'PHP_FPM_BIN_PATH'} )->copy( '/usr/local/sbin/imscp_panel', { preserve => TRUE } );
 }
@@ -1019,11 +1520,9 @@ sub _buildPhpConfig
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeFrontEndBuildPhpConfig' );
-
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
-    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/php-fpm.conf",
+    $self->buildConfFile( "$self->{'cfgDir'}/php-fpm.conf",
         {
             # FPM configuration
             PHP_FPM_LOG_LEVEL                   => $self->{'config'}->{'PHP_FPM_LOG_LEVEL'},
@@ -1048,12 +1547,12 @@ sub _buildPhpConfig
             DOMAIN                              => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
             DISTRO_OPENSSL_CNF                  => $::imscpConfig{'DISTRO_OPENSSL_CNF'},
             DISTRO_CA_BUNDLE                    => $::imscpConfig{'DISTRO_CA_BUNDLE'},
-            HOME_DIR                            => $::imscpConfig{'GUI_ROOT_DIR'},
+            HOME_DIR                            => $::imscpConfig{'FRONTEND_ROOT_DIR'},
             MTA_VIRTUAL_MAIL_DIR                => iMSCP::Servers::Mta->factory()->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
             OTHER_ROOTKIT_LOG                   => length $::imscpConfig{'OTHER_ROOTKIT_LOG'} ? ":$::imscpConfig{'OTHER_ROOTKIT_LOG'}" : '',
             RKHUNTER_LOG                        => $::imscpConfig{'RKHUNTER_LOG'},
             TIMEZONE                            => ::setupGetQuestion( 'TIMEZONE' ),
-            WEB_DIR                             => $::imscpConfig{'GUI_ROOT_DIR'}
+            WEB_DIR                             => $::imscpConfig{'FRONTEND_ROOT_DIR'}
         },
         {
             destination => "/usr/local/etc/imscp_panel/php-fpm.conf",
@@ -1062,7 +1561,7 @@ sub _buildPhpConfig
             mode        => 0640
         }
     );
-    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/php.ini",
+    $self->buildConfFile( "$self->{'cfgDir'}/php.ini",
         {
             PHP_OPCODE_CACHE_ENABLED    => $self->{'config'}->{'PHP_OPCODE_CACHE_ENABLED'},
             PHP_OPCODE_CACHE_MAX_MEMORY => $self->{'config'}->{'PHP_OPCODE_CACHE_MAX_MEMORY'},
@@ -1077,7 +1576,6 @@ sub _buildPhpConfig
             mode        => 0640
         }
     );
-    $self->{'eventManager'}->trigger( 'afterFrontEndBuildPhpConfig' );
 }
 
 =item _buildHttpdConfig( )
@@ -1092,8 +1590,6 @@ sub _buildHttpdConfig
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeFrontEndBuildHttpdConfig' );
-
     my $availableCPUcores = $self->_getNbCPUcores();
     my $nbCPUcores = $self->{'config'}->{'HTTPD_WORKER_PROCESSES'};
     $nbCPUcores = $availableCPUcores if $self->{'config'}->{'HTTPD_WORKER_PROCESSES'} eq 'auto' || $nbCPUcores > $availableCPUcores;
@@ -1101,7 +1597,7 @@ sub _buildHttpdConfig
 
 
     # Build main nginx configuration file
-    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/nginx.nginx",
+    $self->buildConfFile( "$self->{'cfgDir'}/nginx.nginx",
         {
             HTTPD_USER               => $self->{'config'}->{'HTTPD_USER'},
             HTTPD_WORKER_PROCESSES   => $nbCPUcores,
@@ -1121,7 +1617,7 @@ sub _buildHttpdConfig
     );
 
     # Build FastCGI configuration file
-    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/imscp_fastcgi.nginx", { APPLICATION_ENV => $self->{'config'}->{'APPLICATION_ENV'} }, {
+    $self->buildConfFile( "$self->{'cfgDir'}/imscp_fastcgi.nginx", { APPLICATION_ENV => $self->{'config'}->{'APPLICATION_ENV'} }, {
         destination => "$self->{'config'}->{'HTTPD_CONF_DIR'}/imscp_fastcgi.conf",
         user        => $::imscpConfig{'ROOT_USER'},
         group       => $::imscpConfig{'ROOT_GROUP'},
@@ -1129,7 +1625,7 @@ sub _buildHttpdConfig
     } );
 
     # Build PHP backend configuration file
-    $self->{'frontend'}->buildConfFile( "$self->{'cfgDir'}/imscp_php.nginx", {}, {
+    $self->buildConfFile( "$self->{'cfgDir'}/imscp_php.nginx", {}, {
         destination => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/imscp_php.conf",
         user        => $::imscpConfig{'ROOT_USER'},
         group       => $::imscpConfig{'ROOT_GROUP'},
@@ -1147,13 +1643,12 @@ sub _buildHttpdConfig
             ? ::setupGetQuestion( 'BASE_SERVER_IP' ) =~ s/^\Q0.0.0.0\E$/*/r : '[' . ::setupGetQuestion( 'BASE_SERVER_IP' ) . ']',
         BASE_SERVER_VHOST_HTTP_PORT  => ::setupGetQuestion( 'BASE_SERVER_VHOST_HTTP_PORT' ),
         BASE_SERVER_VHOST_HTTPS_PORT => $httpsPort,
-        WEB_DIR                      => $::imscpConfig{'GUI_ROOT_DIR'},
+        WEB_DIR                      => $::imscpConfig{'FRONTEND_ROOT_DIR'},
         CONF_DIR                     => $::imscpConfig{'CONF_DIR'},
-        PLUGINS_DIR                  => $::imscpConfig{'PLUGINS_DIR'},
         HTTPD_LOG_DIR                => $self->{'config'}->{'HTTPD_LOG_DIR'}
     };
 
-    $self->{'frontend'}->disableSites( 'default', '00_master.conf', '00_master_ssl.conf' );
+    $self->disableSites( 'default', '00_master.conf', '00_master_ssl.conf' );
     $self->{'eventManager'}->register(
         'beforeFrontEndBuildConf',
         sub {
@@ -1175,22 +1670,22 @@ sub _buildHttpdConfig
             replaceBlocByRef( "# SECTION https redirect BEGIN.\n", "# SECTION https redirect END.", '', $cfgTpl );
         }
     );
-    $self->{'frontend'}->buildConfFile( '00_master.nginx', $tplVars, {
+    $self->buildConfFile( '00_master.nginx', $tplVars, {
         destination => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf",
         user        => $::imscpConfig{'ROOT_USER'},
         group       => $::imscpConfig{'ROOT_GROUP'},
         mode        => 0644
     } );
-    $self->{'frontend'}->enableSites( '00_master.conf' );
+    $self->enableSites( '00_master.conf' );
 
     if ( ::setupGetQuestion( 'PANEL_SSL_ENABLED' ) eq 'yes' ) {
-        $self->{'frontend'}->buildConfFile( '00_master_ssl.nginx', $tplVars, {
+        $self->buildConfFile( '00_master_ssl.nginx', $tplVars, {
             destination => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master_ssl.conf",
             user        => $::imscpConfig{'ROOT_USER'},
             group       => $::imscpConfig{'ROOT_GROUP'},
             mode        => 0644
         } );
-        $self->{'frontend'}->enableSites( '00_master_ssl.conf' );
+        $self->enableSites( '00_master_ssl.conf' );
     } else {
         iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master_ssl.conf" )->remove();
     }
@@ -1201,8 +1696,6 @@ sub _buildHttpdConfig
             "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled"
         );
     }
-
-    $self->{'eventManager'}->trigger( 'afterFrontEndBuildHttpdVhosts' );
 }
 
 =item _addDnsZone( )
@@ -1277,7 +1770,7 @@ sub _installSystemFiles
         my $fileContentRef = iMSCP::File->new( filename => "$self->{'cfgDir'}/$dir/imscp_frontend" )->getAsRef();
         processByRef(
             {
-                WEB_DIR     => $::imscpConfig{'GUI_ROOT_DIR'},
+                WEB_DIR     => $::imscpConfig{'FRONTEND_ROOT_DIR'},
                 PANEL_USER  => $usergroup,
                 PANEL_GROUP => $usergroup
             },
@@ -1313,10 +1806,10 @@ sub _cleanup
 
 sub _getFullPhpVersionFor
 {
-    my ( undef, $binaryPath ) = @_;
+    my ( $self, $binaryPath ) = @_;
 
     my $rs = execute( [ $binaryPath, '-nv' ], \my $stdout, \my $stderr );
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     return undef unless length $stdout;
     $stdout =~ /PHP\s+([^\s]+)/;
     $1;
@@ -1336,6 +1829,137 @@ sub _getNbCPUcores
     $stdout =~ /^(\d+)/;
     $1 || 1;
 }
+
+=item _buildConf( \$cfgTpl, $filename [, \%tplVars ] )
+
+ Build the given configuration template
+
+ Param scalarref \$cfgTpl Reference to Temmplate's content
+ Param string $filename Template filename
+ Param hashref \%tplVars OPTIONAL Template variables
+ Return void, die on failure
+
+=cut
+
+sub _buildConf
+{
+    my ( $self, $cfgTpl, $filename, $tplVars ) = @_;
+
+    $tplVars ||= {};
+    $self->{'eventManager'}->trigger( 'beforeFrontEndBuildConf', $cfgTpl, $filename, $tplVars );
+    processByRef( $tplVars, $cfgTpl );
+    $self->{'eventManager'}->trigger( 'afterFrontEndBuildConf', $cfgTpl, $filename, $tplVars );
+}
+
+=item _deleteSystemFiles()
+
+ Delete system files
+
+ Return void, die on failure
+
+=cut
+
+sub _deleteSystemFiles
+{
+    iMSCP::File->new( filename => "/etc/$_/imscp_frontend" )->remove() for 'cron.daily', 'logrotate.d';
+}
+
+=item _deconfigurePHP( )
+
+ Deconfigure PHP (imscp_panel service)
+
+ Return void, die on failure
+
+=cut
+
+sub _deconfigurePHP
+{
+    iMSCP::Service->getInstance()->remove( 'imscp_panel' );
+
+    for my $dir ( '/etc/default/imscp_panel', '/etc/tmpfiles.d/imscp_panel.conf', "$::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp_panel",
+        '/usr/local/sbin/imscp_panel', '/var/log/imscp_panel.log'
+    ) {
+        iMSCP::File->new( filename => $dir )->remove();
+    }
+
+    iMSCP::Dir->new( dirname => '/usr/local/lib/imscp_panel' )->remove();
+    iMSCP::Dir->new( dirname => '/usr/local/etc/imscp_panel' )->remove();
+    iMSCP::Dir->new( dirname => '/var/run/imscp' )->remove();
+}
+
+=item _deconfigureHTTPD( )
+
+ Deconfigure HTTPD (nginx)
+
+ Return void, die on failure
+
+=cut
+
+sub _deconfigureHTTPD
+{
+    my ( $self ) = @_;
+
+    $self->disableSites( '00_master.conf' );
+
+    iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" )->remove();
+    iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/imscp_fastcgi.conf" )->remove();
+    iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/imscp_php.conf" )->remove();
+
+    if ( -f "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/default" ) {
+        # Nginx as provided by Debian
+        $self->enableSites( 'default' );
+        return;
+    }
+
+    if ( $::imscpConfig{'DISTRO_FAMILY'} eq 'Debian' && -f "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" ) {
+        # Nginx package as provided by Nginx
+        iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf.disabled" )->move(
+            "$self->{'config'}->{'HTTPD_CONF_DIR'}/conf.d/default.conf"
+        );
+    }
+}
+
+=item _deleteMasterWebUser( )
+
+ Delete i-MSCP master Web user
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _deleteMasterWebUser
+{
+    iMSCP::SystemUser->new( force => 'yes' )->delSystemUser( $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'} );
+    iMSCP::SystemGroup->getInstance()->delSystemGroup( $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'} );
+}
+
+=item END
+
+ Start, restart or reload frontEnd services: nginx or/and imscp_panel when required
+
+ Return int Exit code
+
+=cut
+
+END
+    {
+        return if $? || iMSCP::Getopt->context() eq 'installer';
+
+        my $instance = __PACKAGE__->hasInstance();
+
+        return unless $instance && ( my $action = $instance->{'restart'}
+            ? 'restart' : ( $instance->{'reload'} ? 'reload' : ( $instance->{'start'} ? ' start' : undef ) ) );
+
+        my $nginxAction = "${action}Nginx";
+        my $fpmAction = "${action}PhpFpm";
+
+        iMSCP::Service->getInstance()->registerDelayedAction(
+            "nginx", [ $action, sub { $instance->$nginxAction(); } ], __PACKAGE__->getPackagePriority()
+        );
+        iMSCP::Service->getInstance()->registerDelayedAction(
+            "imscp_panel", [ $action, sub { $instance->$fpmAction(); } ], __PACKAGE__->getPackagePriority()
+        );
+    }
 
 =back
 

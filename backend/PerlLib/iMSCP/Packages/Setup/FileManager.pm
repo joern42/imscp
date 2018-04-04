@@ -25,99 +25,25 @@ package iMSCP::Packages::Setup::FileManager;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList /;
-use Class::Autouse qw/ :nostat iMSCP::DistPackageManager /;
-use File::Basename;
-use iMSCP::Debug qw/ debug error /;
+use File::Basename qw/ dirname /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
-use iMSCP::Getopt;
-use iMSCP::Packages::FrontEnd;
-use version;
-use parent 'iMSCP::Common::Singleton';
+use parent 'iMSCP::Packages::AbstractCollection';
+
+our $VERSION = '2.0.0';
 
 =head1 DESCRIPTION
 
  i-MSCP FileManager package.
 
- Handles FileManager packages found in the FileManager directory.
+ Handles FileManager packages.
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item registerSetupListeners( )
-
- Register setup event listeners
-
- Return void, die on failure
-
-=cut
-
-sub registerSetupListeners
-{
-    my ( $self ) = @_;
-
-    $self->{'eventManager'}->registerOne( 'beforeSetupDialog', sub { push @{ $_[0] }, sub { $self->showDialog( @_ ) }; } );
-}
-
-=item showDialog( \%dialog )
-
- Show dialog
-
- Param iMSCP::Dialog \%dialog
- Return int 0 (NEXT), 30 (BACK) or 50 (ESC)
-
-=cut
-
-sub showDialog
-{
-    my ( $self, $dialog ) = @_;
-
-    @{ $self->{'SELECTED_PACKAGES'} } = split(
-        ',', ::setupGetQuestion( 'FILEMANAGER_PACKAGES', iMSCP::Getopt->preseed ? join( ',', @{ $self->{'AVAILABLE_PACKAGES'} } ) : '' )
-    );
-
-    my %choices;
-    @choices{@{ $self->{'AVAILABLE_PACKAGES'} }} = @{ $self->{'AVAILABLE_PACKAGES'} };
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'filemanagers', 'all', 'forced' ] )
-        || !@{ $self->{'SELECTED_PACKAGES'} } || grep { !exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} }
-    ) {
-        ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checkbox(
-            <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $self->{'SELECTED_PACKAGES'} } ] );
-
-Please select the FTP filemanager packages you want to install:
-\\Z \\Zn
-EOF
-        return $rs unless $rs < 30;
-    }
-
-    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'no', @{ $self->{'SELECTED_PACKAGES'} } );
-
-    ::setupSetQuestion( 'FILEMANAGER_PACKAGES', @{ $self->{'SELECTED_PACKAGES'} } ? join ',', @{ $self->{'SELECTED_PACKAGES'} } : 'no' );
-
-    return 0 unless @{ $self->{'SELECTED_PACKAGES'} };
-
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'showDialog' ) ) or next;
-        debug( sprintf( 'Executing showDialog action on %s', $fpackage ));
-        my $rs = $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ), $dialog );
-        return $rs if $rs;
-    }
-
-    0;
-}
-
 =item preinstall( )
 
- Process preinstall tasks
-
- /!\ This method also trigger uninstallation of unselected file manager packages.
-
- Return void, die on failure
+ See iMSCP::Packages::AbstractCollection::preinstall()
 
 =cut
 
@@ -127,166 +53,89 @@ sub preinstall
 
     my @distroPackages = ();
     for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-        next if grep ( $package eq $_, @{ $self->{'SELECTED_PACKAGES'} });
-        $package = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
+        next if grep $package eq $_, @{ $self->{'SELECTED_PACKAGES'} };
+        $package = "iMSCP::Packages::Setup::FileManager::${package}";
         eval "require $package" or die( $@ );
 
-        if ( my $subref = $package->can( 'uninstall' ) ) {
-            debug( sprintf( 'Executing uninstall action on %s', $package ));
-            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-        }
+        debug( sprintf( 'Executing uninstall action on %s', $package ));
+        $package->getInstance()->uninstall();
 
-        ( my $subref = $package->can( 'getDistroPackages' ) ) or next;
         debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
-        push @distroPackages, $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
+        push @distroPackages, $package->getInstance()->getDistroPackages();
     }
 
-    $self->_removePackages( @distroPackages );
+    $self->_uninstallPackages( @distroPackages );
 
     @distroPackages = ();
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
+    for ( $self->getCollection() ) {
+        debug( sprintf( 'Executing preinstall action on %s', ref $_ ));
+        $_->preinstall();
 
-        if ( my $subref = $fpackage->can( 'preinstall' ) ) {
-            debug( sprintf( 'Executing preinstall action on %s', $fpackage ));
-            $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-        }
-
-        ( my $subref = $fpackage->can( 'getDistroPackages' ) ) or next;
-        debug( sprintf( 'Executing getDistroPackages action on %s', $fpackage ));
-        push @distroPackages, $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
+        debug( sprintf( 'Executing getDistroPackages action on %s', ref $_ ));
+        push @distroPackages, $_->getDistroPackages();
     }
 
     $self->_installPackages( @distroPackages );
 }
 
-=item install( )
+=item getPackageName( )
 
- Process install tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::getPackageName()
 
 =cut
 
-sub install
+sub getPackageName
 {
     my ( $self ) = @_;
 
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'install' ) ) or next;
-        debug( sprintf( 'Executing install action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
+    'FileManager';
 }
 
-=item postinstall( )
+=item getPackageHumanName( )
 
- Process post install tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::getPackageHumanName()
 
 =cut
 
-sub postinstall
+sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'postinstall' ) ) or next;
-        debug( sprintf( 'Executing postinstall action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
+    sprintf( 'i-MSCP Filemanager packages (%s)', $self->getPackageVersion());
 }
 
-=item uninstall( [ $package ])
+=item getPackageVersion( )
 
- Process uninstall tasks
-
- Param string $package OPTIONAL Package to uninstall
- Return void, die on failure
+ See iMSCP::Packages::Abstract::getPackageVersion()
 
 =cut
 
-sub uninstall
+sub getPackageVersion
 {
     my ( $self ) = @_;
 
-    my @distroPackages = ();
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-
-        if ( my $subref = $fpackage->can( 'uninstall' ) ) {
-            debug( sprintf( 'Executing preinstall action on %s', $fpackage ));
-            $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-        }
-
-        ( my $subref = $fpackage->can( 'getDistroPackages' ) ) or next;
-        debug( sprintf( 'Executing getDistroPackages action on %s', $fpackage ));
-        push @distroPackages, $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
-
-    $self->_removePackages( @distroPackages );
+    $::imscpConfig{'Version'};
 }
 
-=item getPriority( )
+=item getCollection()
 
- Get package priority
-
- Return int package priority
+ See iMSCP::Packages::AbstractCollection::getCollection()
 
 =cut
 
-sub getPriority
-{
-    0;
-}
-
-=item setBackendPermissions( )
-
- Set backend permissions
-
- Return void, die on failure
-
-=cut
-
-sub setBackendPermissions
+sub getCollection
 {
     my ( $self ) = @_;
 
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'setBackendPermissions' ) ) or next;
-        debug( sprintf( 'Executing setBackendPermissions action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
-}
+    CORE::state @collection;
 
-=item setGuiPermissions( )
+    @collection = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
+        my $package = "iMSCP::Packages::Setup::@{ [ $self->getPackageName() ] }::${_}";
+        eval "require $package; 1" or die( $@ );
+        $package->getInstance();
+    } @{ $self->{'SELECTED_PACKAGES'} };
 
- Set gui permissions
-
- Return void, die on failure
-
-=cut
-
-sub setGuiPermissions
-{
-    my ( $self ) = @_;
-
-    for my $package ( @{ $self->{'SELECTED_PACKAGES'} } ) {
-        my $fpackage = "iMSCP::Packages::Setup::FileManager::${package}::${package}";
-        eval "require $fpackage" or die( $@ );
-        ( my $subref = $fpackage->can( 'setGuiPermissions' ) ) or next;
-        debug( sprintf( 'Executing setGuiPermissions action on %s', $fpackage ));
-        $subref->( $fpackage->getInstance( eventManager => $self->{'eventManager'} ));
-    }
+    @collection;
 }
 
 =back
@@ -295,58 +144,20 @@ sub setGuiPermissions
 
 =over 4
 
-=item init( )
+=item _loadAvailablePackages()
 
- Initialize insance
-
- Return iMSCP::Packages::Setup::FileManager, die on failure
+ See iMSCP::Packages::AbstractCollection::_loadAvailablePackages()
 
 =cut
 
-sub _init
+sub _loadAvailablePackages
 {
     my ( $self ) = @_;
 
     # Pydio package temporarily disabled due to PHP version constraint that is not met
-    @{ $self->{'AVAILABLE_PACKAGES'} } = grep ( $_ ne 'Pydio', iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/FileManager' )->getDirs());
-    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'no', split( ',', $::imscpConfig{'FILEMANAGER_PACKAGES'} ));
-    $self;
-}
-
-=item _installPackages( @packages )
-
- Install distribution packages
-
- Param list @packages List of packages to install
- Return void, die on failure
-
-=cut
-
-sub _installPackages
-{
-    my ( undef, @packages ) = @_;
-
-    return unless @packages && !iMSCP::Getopt->skippackages;
-
-    iMSCP::DistPackageManager->getInstance()->installPackages( @packages );
-}
-
-=item _removePackages( @packages )
-
- Remove distribution packages
-
- Param list @packages Packages to remove
- Return void, die on failure
-
-=cut
-
-sub _removePackages
-{
-    my ( undef, @packages ) = @_;
-
-    return unless @packages && !iMSCP::Getopt->skippackages;
-
-    iMSCP::DistPackageManager->getInstance()->uninstallPackages( @packages );
+    s/(Pydio)?\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new(
+        dirname => dirname( __FILE__ ) . '/' . $self->getPackageName()
+    )->getFiles();
 }
 
 =back

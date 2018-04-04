@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Webmail::RainLoop::Installer - i-MSCP RainLoop package installer
+ iMSCP::Packages::Webmail::RainLoop - i-MSCP RainLoop package
 
 =cut
 
@@ -21,36 +21,36 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Webmail::RainLoop::Installer;
+package iMSCP::Packages::Webmail::RainLoop;
 
 use strict;
 use warnings;
+use autouse 'iMSCP::Crypt' => qw/ randomStr ALNUM /;
+use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isOneOfStringsInList isStringNotInList isValidPassword isValidUsername /;
+use autouse 'iMSCP::TemplateParser' => qw/ getBlocByRef processByRef replaceBlocByRef /;
+use Class::Autouse qw/
+    :nostat iMSCP::Composer iMSCP::Config iMSCP::Dir iMSCP::File iMSCP::Getopt JSON iMSCP::Packages::Setup::FrontEnd iMSCP::Servers::Sqld
+/;
 use File::Basename;
 use iMSCP::Boolean;
-use iMSCP::Composer;
 use iMSCP::Config;
-use iMSCP::Crypt qw/ randomStr /;
-use iMSCP::Database;
-use iMSCP::Debug qw/ debug error /;
-use iMSCP::Dialog::InputValidation qw/ isAvailableSqlUser isOneOfStringsInList isStringNotInList isValidPassword isValidUsername /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
-use iMSCP::File;
-use iMSCP::Getopt;
-use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
 use JSON;
-use iMSCP::Packages::FrontEnd;
-use iMSCP::Servers::Sqld;
-use parent 'iMSCP::Common::Singleton';
+use parent 'iMSCP::Packages::Abstract';
 
-our $VERSION = '0.2.0.*@dev';
+our $VERSION = '2.0.0';
 
 %::sqlUsers = () unless %::sqlUsers;
+my $dbInitialized = undef;
 
 =head1 DESCRIPTION
 
- This is the installer for the i-MSCP RainLoop package.
+ RainLoop package for i-MSCP.
 
- See iMSCP::Packages::Webmail::RainLoop::RainLoop for more information.
+ RainLoop Webmail is a simple, modern and fast Web-based email client.
+
+ Project homepage: http://http://rainloop.net/
 
 =head1 PUBLIC METHODS
 
@@ -73,7 +73,7 @@ sub showDialog
     my $dbUser = ::setupGetQuestion( 'RAINLOOP_SQL_USER', $self->{'config'}->{'DATABASE_USER'} || ( iMSCP::Getopt->preseed ? 'imscp_srv_user' : '' ));
     my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = ::setupGetQuestion(
-        'RAINLOOP_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, iMSCP::Crypt::ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'} )
+        'RAINLOOP_SQL_PASSWORD', ( iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'} )
     );
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
@@ -110,7 +110,7 @@ EOF
             do {
                 unless ( length $dbPass ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = '';
-                    $dbPass = randomStr( 16, iMSCP::Crypt::ALNUM );
+                    $dbPass = randomStr( 16, ALNUM );
                 }
 
                 ( $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass );
@@ -138,9 +138,7 @@ EOF
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::preinstall()
 
 =cut
 
@@ -148,15 +146,13 @@ sub preinstall
 {
     my ( $self ) = @_;
 
-    $self->{'frontend'}->getComposer()->requirePackage( 'imscp/rainloop', $VERSION );
+    iMSCP::Packages::Setup::FrontEnd->getInstance()->getComposer()->requirePackage( 'imscp/rainloop', '0.2.0.*@dev' );
     $self->{'eventManager'}->register( 'afterFrontEndBuildConfFile', \&afterFrontEndBuildConfFile );
 }
 
-=item install( 
+=item install( )
 
- Process install tasks
-
- Return void, die on failure
+ See iMSCP::Packages::Abstract::install()
 
 =cut
 
@@ -172,6 +168,112 @@ sub install
     $self->_setVersion();
     $self->_removeOldVersionFiles();
     $self->_cleanup();
+}
+
+=item uninstall( )
+
+ See iMSCP::Packages::Abstract::uninstall()
+
+=cut
+
+sub uninstall
+{
+    my ( $self ) = @_;
+
+    return if $self->{'skip_uninstall'} || !%{ $self->{'config'} };
+
+    $self->_removeSqlUser();
+    $self->_removeSqlDatabase();
+    $self->_unregisterConfig();
+    $self->_removeFiles();
+}
+
+=item getPackageName( )
+
+ See iMSCP::Packages::Abstract::getPackageName()
+
+=cut
+
+sub getPackageName
+{
+    my ( $self ) = @_;
+
+    'RainLoop';
+}
+
+=item getPackageHumanName( )
+
+ See iMSCP::Packages::Abstract::getPackageHumanName()
+
+=cut
+
+sub getPackageHumanName
+{
+    my ( $self ) = @_;
+
+    sprintf( 'RainLoop Webmail (%s)', $self->getPackageVersion());
+}
+
+=item getPackageVersion( )
+
+ See iMSCP::Packages::Abstract::getPackageVersion()
+
+=cut
+
+sub getPackageVersion
+{
+    my ( $self ) = @_;
+
+    $::imscpConfig{'Version'};
+}
+
+=item deleteMail( \%moduleData )
+
+ Process deleteMail tasks
+
+ Param hashref \%moduleData Data as provided by the Mail module
+ Return void, die on failure 
+
+=cut
+
+sub deleteMail
+{
+    my ( $self, $moduleData ) = @_;
+
+    return if index( $moduleData->{'MAIL_TYPE'}, '_mail' ) == -1;
+
+    unless ( $dbInitialized ) {
+        my $quotedRainLoopDbName = $self->{'dbh'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' );
+        my $row = $self->{'dbh'}->selectrow_hashref( "SHOW TABLES FROM $quotedRainLoopDbName" );
+        $dbInitialized = TRUE if $row;
+    }
+
+    if ( $dbInitialized ) {
+        my $oldDbName = $self->{'dbh'}->useDatabase( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' );
+        $self->{'dbh'}->do(
+            '
+                DELETE u, c, p
+                FROM rainloop_users u
+                LEFT JOIN rainloop_ab_contacts c USING(id_user)
+                LEFT JOIN rainloop_ab_properties p USING(id_user)
+                WHERE rl_email = ?
+            ',
+            undef, $moduleData->{'MAIL_ADDR'}
+        );
+        $self->{'dbh'}->useDatabase( $oldDbName ) if length $oldDbName;
+    }
+
+    my $storageDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/rainloop/data/_data_/_default_/storage";
+    ( my $email = $moduleData->{'MAIL_ADDR'} ) =~ s/[^a-z0-9\-\.@]+/_/;
+    ( my $storagePath = substr( $email, 0, 2 ) ) =~ s/\@$//;
+
+    for my $storageType ( qw/ cfg data files / ) {
+        iMSCP::Dir->new( dirname => "$storageDir/$storageType/$storagePath/$email" )->remove();
+        next unless -d "$storageDir/$storageType/$storagePath";
+        my $dir = iMSCP::Dir->new( dirname => "$storageDir/$storageType/$storagePath" );
+        next unless $dir->isEmpty();
+        $dir->remove();
+    }
 }
 
 =back
@@ -215,7 +317,7 @@ EOF
 
  Initialize instance
 
- Return iMSCP::Packages::Webmail::RainLoop::Installer
+ Return iMSCP::Packages::Webmail::RainLoop::RainLoop
 
 =cut
 
@@ -223,11 +325,16 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'rainloop'} = iMSCP::Packages::Webmail::RainLoop::RainLoop->getInstance();
-    $self->{'frontend'} = iMSCP::Packages::FrontEnd->getInstance();
-    $self->{'cfgDir'} = $self->{'rainloop'}->{'cfgDir'};
-    $self->{'config'} = $self->{'rainloop'}->{'config'};
-    $self;
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/rainloop";
+
+    if ( -f "$self->{'cfgDir'}/rainloop.data" ) {
+        tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/rainloop.data", readonly => TRUE;
+        return $self;
+    }
+
+    $self->{'config'} = {};
+    $self->{'skip_uninstall'} = TRUE;
+    $self->SUPER::_init();
 }
 
 =item _installFiles( )
@@ -244,7 +351,7 @@ sub _installFiles
 
     my $srcDir = "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/rainloop";
     -d $srcDir or die( "Couldn't find the imscp/rainloop package in the packages cache directory" );
-    my $destDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop";
+    my $destDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/rainloop";
 
     # Remove unwanted file to avoid hash naming convention for data directory
     iMSCP::File->new( filename => "$destDir/data/DATA.php" )->remove();
@@ -258,7 +365,6 @@ sub _installFiles
     iMSCP::Dir->new( dirname => "$srcDir/src" )->copy( $destDir );
     iMSCP::Dir->new( dirname => "$srcDir/iMSCP/src" )->copy( $destDir );
     iMSCP::Dir->new( dirname => "$srcDir/iMSCP/config" )->copy( $self->{'cfgDir'} );
-
 }
 
 =item _mergeConfig( )
@@ -310,11 +416,9 @@ sub _setupDatabase
     my $oldDbUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
     my $dbPass = ::setupGetQuestion( 'RAINLOOP_SQL_PASSWORD' );
     my $dbOldUser = $self->{'config'}->{'DATABASE_USER'};
+    my $quotedDbName = $self->{'dbh'}->quote_identifier( $rainLoopDbName );
 
-    my $dbh = iMSCP::Database->getInstance();
-    my $quotedDbName = $dbh->quote_identifier( $rainLoopDbName );
-
-    $dbh->do( "CREATE DATABASE IF NOT EXISTS $quotedDbName CHARACTER SET utf8 COLLATE utf8_unicode_ci" );
+    $self->{'dbh'}->do( "CREATE DATABASE IF NOT EXISTS $quotedDbName CHARACTER SET utf8 COLLATE utf8_unicode_ci" );
 
     my $sqlServer = iMSCP::Servers::Sqld->factory();
 
@@ -323,7 +427,7 @@ sub _setupDatabase
         next unless length $sqlUser;
 
         for my $host ( $dbUserHost, $oldDbUserHost ) {
-            next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
+            next if !length $host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
             $sqlServer->dropUser( $sqlUser, $host );
         }
     }
@@ -336,11 +440,11 @@ sub _setupDatabase
     }
 
     $quotedDbName =~ s/([%_])/\\$1/g;
-    $dbh->do( "GRANT ALL PRIVILEGES ON $quotedDbName.* TO ?\@?", undef, $dbUser, $dbUserHost );
+    $self->{'dbh'}->do( "GRANT ALL PRIVILEGES ON $quotedDbName.* TO ?\@?", undef, $dbUser, $dbUserHost );
 
     # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
-    $quotedDbName = $dbh->quote_identifier( $imscpDbName );
-    $dbh->do( "GRANT SELECT (mail_addr, mail_pass), UPDATE (mail_pass) ON $quotedDbName.mail_users TO ?\@?", undef, $dbUser, $dbUserHost );
+    $quotedDbName = $self->{'dbh'}->quote_identifier( $imscpDbName );
+    $self->{'dbh'}->do( "GRANT SELECT (mail_addr, mail_pass), UPDATE (mail_pass) ON $quotedDbName.mail_users TO ?\@?", undef, $dbUser, $dbUserHost );
 
     $self->{'config'}->{'DATABASE_USER'} = $dbUser;
     $self->{'config'}->{'DATABASE_PASSWORD'} = $dbPass;
@@ -358,7 +462,7 @@ sub _buildConfig
 {
     my ( $self ) = @_;
 
-    my $confDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/data/_data_/_default_/configs";
+    my $confDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/rainloop/data/_data_/_default_/configs";
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
     for my $confFile ( 'application.ini', 'plugin-imscp-change-password.ini' ) {
@@ -383,8 +487,6 @@ sub _buildConfig
 
         $file->save()->owner( $usergroup, $usergroup )->mode( 0640 )
     }
-
-    0;
 }
 
 =item _setVersion( )
@@ -399,7 +501,9 @@ sub _setVersion
 {
     my ( $self ) = @_;
 
-    my $json = decode_json( iMSCP::File->new( filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/rainloop/composer.json" )->get());
+    my $json = JSON->new()->utf8()->decode(
+        iMSCP::File->new( filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/rainloop/composer.json" )->get()
+    );
     debug( sprintf( 'Set new rainloop version to %s', $json->{'version'} ));
     $self->{'config'}->{'RAINLOOP_VERSION'} = $json->{'version'};
 }
@@ -416,7 +520,7 @@ sub _removeOldVersionFiles
 {
     my ( $self ) = @_;
 
-    my $versionsDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/rainloop/v";
+    my $versionsDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/rainloop/rainloop/v";
 
     for my $versionDir ( iMSCP::Dir->new( dirname => $versionsDir )->getDirs() ) {
         next if $versionDir eq $self->{'config'}->{'RAINLOOP_VERSION'};
@@ -436,10 +540,11 @@ sub _buildHttpdConfig
 {
     my ( $self ) = @_;
 
-    $self->{'frontend'}->buildConfFile(
+    my $frontend = iMSCP::Packages::Setup::FrontEnd->getInstance();
+    $frontend->buildConfFile(
         "$self->{'cfgDir'}/nginx/imscp_rainloop.conf",
-        { GUI_PUBLIC_DIR => $::imscpConfig{'GUI_PUBLIC_DIR'} },
-        { destination => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_rainloop.conf" }
+        { GUI_PUBLIC_DIR => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public" },
+        { destination => "$frontend->{'config'}->{'HTTPD_CONF_DIR'}/imscp_rainloop.conf" }
     );
 }
 
@@ -455,9 +560,86 @@ sub _cleanup
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeRainloopCleanup' );
     iMSCP::File->new( filename => "$self->{'cfgDir'}/rainloop.old.data" )->remove();
-    $self->{'eventManager'}->trigger( 'afterRainloopCleanup' );
+}
+
+=item _removeSqlUser( )
+
+ Remove SQL user
+
+ Return void, die on failure 
+
+=cut
+
+sub _removeSqlUser
+{
+    my ( $self ) = @_;
+
+    return unless length $self->{'config'}->{'DATABASE_USER'};
+
+    my $sqlServer = iMSCP::Servers::Sqld->factory();
+
+    for my $host ( $::imscpConfig{'DATABASE_USER_HOST'}, $::imscpConfig{'BASE_SERVER_IP'}, 'localhost', '127.0.0.1', '%' ) {
+        next unless length $host;
+        $sqlServer->dropUser( $self->{'config'}->{'DATABASE_USER'}, $host );
+    }
+}
+
+=item _removeSqlDatabase( )
+
+ Remove database
+
+ Return void, die on failure 
+
+=cut
+
+sub _removeSqlDatabase
+{
+    my ( $self ) = @_;
+
+    $self->{'db'}->do( 'DROP DATABASE IF EXISTS ' . $self->{'db'}->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' ));
+}
+
+=item _unregisterConfig
+
+ Remove include directive from frontEnd vhost files
+
+ Return void, die on failure 
+
+=cut
+
+sub _unregisterConfig
+{
+    my ( $self ) = @_;
+
+    my $frontend = iMSCP::Packages::Setup::FrontEnd->getInstance();
+
+    return unless -f "$frontend->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf";
+
+    my $file = iMSCP::File->new( filename => "$frontend->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
+    my $fileContentRef = $file->getAsRef();
+    ${ $fileContentRef } =~ s/[\t ]*include imscp_rainloop.conf;\n//;
+    $file->save();
+
+    $frontend->{'reload'} ||= TRUE;
+}
+
+=item _removeFiles( )
+
+ Remove files
+
+ Return void, die on failure 
+
+=cut
+
+sub _removeFiles
+{
+    my ( $self ) = @_;
+
+    my $frontend = iMSCP::Packages::Setup::FrontEnd->getInstance();
+    iMSCP::File->new( filename => "$frontend->{'config'}->{'HTTPD_CONF_DIR'}/imscp_rainloop.conf" )->remove();
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/rainloop" )->remove();
+    iMSCP::Dir->new( dirname => $self->{'cfgDir'} )->remove();
 }
 
 =back
