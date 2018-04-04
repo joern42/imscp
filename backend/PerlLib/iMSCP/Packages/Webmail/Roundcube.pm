@@ -25,7 +25,7 @@ package iMSCP::Packages::Webmail::Roundcube;
 
 use strict;
 use warnings;
-use autouse 'Fcntl' => qw/ S_IMODE S_ISLNK S_IXUSR /;
+use autouse Fcntl => qw/ S_IMODE S_ISLNK S_IXUSR /;
 use autouse 'File::Find' => qw/ find /;
 use autouse 'iMSCP::Crypt' => qw/ randomStr ALNUM /;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isOneOfStringsInList isStringNotInList isValidPassword isValidUsername /;
@@ -338,11 +338,11 @@ sub _init
 
     if ( -f "$self->{'cfgDir'}/roundcube.data" ) {
         tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/roundcube.data", readonly => TRUE;
-    } else {
-        $self->{'config'} = {};
-        $self->{'skip_uninstall'} = TRUE;
+        return $self->SUPER::_init();
     }
 
+    $self->{'config'} = {};
+    $self->{'skip_uninstall'} = TRUE;
     $self->SUPER::_init();
 }
 

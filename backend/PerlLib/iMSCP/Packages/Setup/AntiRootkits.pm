@@ -26,6 +26,7 @@ package iMSCP::Packages::Setup::AntiRootkits;
 use strict;
 use warnings;
 use File::Basename qw/ dirname /;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use parent 'iMSCP::Packages::AbstractCollection';
 

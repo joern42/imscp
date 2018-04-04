@@ -134,7 +134,7 @@ sub setupTasks
         [ \&setupCoreServices, 'Setup core services' ],
         [ \&setupComposer, 'Setup PHP dependency manager (composer)' ],
         [ \&setupRegisterPluginListeners, 'Registering plugin setup listeners' ],
-        [ \&setupServersAndPackages, 'Processing servers/packages' ],
+        [ \&setupServersAndPackages, 'Processing servers and packages' ],
         [ \&setupSetPermissions, 'Setting up permissions' ],
         [ \&setupDbTasks, 'Processing DB tasks' ],
         [ \&setupRestartServices, 'Restarting services' ],

@@ -329,7 +329,7 @@ sub _init
 
     if ( -f "$self->{'cfgDir'}/rainloop.data" ) {
         tie %{ $self->{'config'} }, 'iMSCP::Config', filename => "$self->{'cfgDir'}/rainloop.data", readonly => TRUE;
-        return $self;
+        return $self->SUPER::_init();
     }
 
     $self->{'config'} = {};
