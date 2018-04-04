@@ -2457,7 +2457,7 @@ function getFilemanagerList()
     $config = Registry::get('config');
 
     if (isset($config['FILEMANAGERS']) && strtolower($config['FILEMANAGERS']) != 'no') {
-        return explode(',', $config['FILEMANAGERs']);
+        return explode(',', $config['FILEMANAGERS']);
     }
 
     return [];
