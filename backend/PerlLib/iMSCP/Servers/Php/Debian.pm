@@ -354,7 +354,7 @@ sub enableModules
 
     my $rs = execute( [ 'phpenmod', '-v', $phpVersion, '-s', $phpSapi, @{ $modules } ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 
     $self->{'restart'}->{$phpVersion} ||= TRUE;
 }
@@ -376,7 +376,7 @@ sub disableModules
 
     my $rs = execute( [ 'phpdismod', '-v', $phpVersion, '-s', $phpSapi, @{ $modules } ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 
     $self->{'restart'}->{$phpVersion} ||= TRUE;
 }

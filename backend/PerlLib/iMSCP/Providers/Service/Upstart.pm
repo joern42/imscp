@@ -412,7 +412,7 @@ sub _isEnabledPre067
 
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
 
-    # Upstart version < 0.6.7 means no `manual' stanza.
+    # Upstart version < 0.6.7 means no 'manual' stanza.
     $jobFileContent =~ /$START_ON/;
 }
 
@@ -432,7 +432,7 @@ sub _isEnabledPre090
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
 
     # Upstart versions < 0.9.0 means no override files. Thus,
-    # we check to see if an uncommented `start on' or `manual'
+    # we check to see if an uncommented 'start on' or 'manual'
     # stanza is the last one in the file. The last one in the
     # file wins.
     open my $fh, '<', \$jobFileContent or croak( sprintf( "Couldn't open in-memory file handle: %s", $! ));
@@ -465,9 +465,9 @@ sub _isEnabledPost090
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
     defined $jobOverrideFileContent or croak( 'Missing or undefined $jobOverrideFileContent parameter' );
 
-    # Upstart versions >= 0.9.0 has `manual' stanzas and override
-    # files. Thus, we check to see if an uncommented `start on' or
-    # `manual' stanza is the last one in the conf file and any
+    # Upstart versions >= 0.9.0 has 'manual' stanzas and override
+    # files. Thus, we check to see if an uncommented 'start on' or
+    # 'manual' stanza is the last one in the conf file and any
     # override files. The last one in the file wins.
     my $enabled = 0;
     for my $fcontent ( \$jobFileContent, \$jobOverrideFileContent ) {
@@ -501,10 +501,10 @@ sub _enablePre090
     defined $job or croak( 'Missing or undefined $job parameter' );
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
 
-    # Remove `manual' stanzas if any
+    # Remove 'manual' stanzas if any
     $jobFileContent = $self->_removeManualStanzaFrom( $jobFileContent );
 
-    # Add or uncomment `START ON' stanza if needed
+    # Add or uncomment 'START ON' stanza if needed
     unless ( $self->_isEnabledPre090( $jobFileContent ) ) {
         $jobFileContent = ( $jobFileContent =~ /$COMMENTED_START_ON/ )
             ? $self->_uncommentStartOnStanzaIn( $jobFileContent ) : $self->_addDefaultStartOnStanzaTo( $jobFileContent );
@@ -532,10 +532,10 @@ sub _enablePost090
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
     defined $jobOverrideFileContent or croak( 'Missing or undefined $jobOverrideFileContent parameter' );
 
-    # Remove `manual' stanzas if any
+    # Remove 'manual' stanzas if any
     $jobOverrideFileContent = $self->_removeManualStanzaFrom( $jobOverrideFileContent );
 
-    # Add or uncomment `START ON' stanza if needed
+    # Add or uncomment 'START ON' stanza if needed
     unless ( $self->_isEnabledPost090( $jobFileContent, $jobOverrideFileContent ) ) {
         if ( $jobFileContent =~ /$START_ON/ ) {
             $jobOverrideFileContent .= $self->_extractStartOnStanzaFrom( $jobFileContent );
@@ -682,10 +682,10 @@ sub _countUnbalancedRoundBrackets
 
 =item _removeManualStanzaFrom( $string )
 
- Remove any upstart `manual' stanza from the given $string
+ Remove any upstart 'manual' stanza from the given $string
 
  Param string $string String to process
- Return string String without upstart `manual' stanza
+ Return string String without upstart 'manual' stanza
 
 =cut
 
@@ -700,10 +700,10 @@ sub _removeManualStanzaFrom
 
 =item _commentStartOnStanza( $text )
 
- Comment any upstart `start on' stanza in the given text
+ Comment any upstart 'start on' stanza in the given text
 
  Param string $text Text to process
- Return string Text with commented upstart `start on' stanza if any
+ Return string Text with commented upstart 'start on' stanza if any
 
 =cut
 
@@ -720,7 +720,7 @@ sub _commentStartOnStanza
             if ( $roundBrackets > 0 || /$START_ON/ ) {
                 # If there are more opening round brackets than closing
                 # round brackets, we need to comment out a multiline
-                # `start on' stanza
+                # 'start on' stanza
                 $roundBrackets += $self->_countUnbalancedRoundBrackets( $self->_removeTrailingComments( $_ ));
                 '#' . $_;
             } else {
@@ -731,10 +731,10 @@ sub _commentStartOnStanza
 
 =item _uncommentStartOnStanzaIn( $text )
 
- Uncomment any upstart `start on' stanza in the given text
+ Uncomment any upstart 'start on' stanza in the given text
 
  Param string Text to process
- Return string Text with uncommented upstart `start on' stanza if any
+ Return string Text with uncommented upstart 'start on' stanza if any
 
 =cut
 
@@ -750,7 +750,7 @@ sub _uncommentStartOnStanzaIn
             if ( $roundBrackets > 0 || /$COMMENTED_START_ON/ ) {
                 # If there are more opening round brackets than closing
                 # round brackets, we need to comment out a multiline
-                # `start on' stanza
+                # 'start on' stanza
                 $roundBrackets += $self->_countUnbalancedRoundBrackets(
                     $self->_removeTrailingCommentsFromCommentedLine( $_ )
                 );
@@ -763,10 +763,10 @@ sub _uncommentStartOnStanzaIn
 
 =item _extractStartOnStanzaFrom( $string )
 
- Extract the upstart `start on' stanza from the given string if any
+ Extract the upstart 'start on' stanza from the given string if any
 
  Param string $string String to process
- Return string Text without any upstart `start in stanza'
+ Return string Text without any upstart 'start in stanza'
 
 =cut
 
@@ -788,10 +788,10 @@ sub _extractStartOnStanzaFrom
 
 =item _addDefaultStartOnStanzaTo( $string )
 
- Add default upstart `start on' stanza to the given string
+ Add default upstart 'start on' stanza to the given string
 
- Param string $string String into which default `start on' stanza must be added
- Return string Text with upstart default `start on' stanza
+ Param string $string String into which default 'start on' stanza must be added
+ Return string Text with upstart default 'start on' stanza
 
 =cut
 
@@ -806,10 +806,10 @@ sub _addDefaultStartOnStanzaTo
 
 =item _ensureDisabledWithManualStanza( $string )
 
- Ensure that the given string contains the upstart `manual' stanza
+ Ensure that the given string contains the upstart 'manual' stanza
 
  Param string $string String to process
- Return string String with upstart `manual' stanza
+ Return string String with upstart 'manual' stanza
 
 =cut
 

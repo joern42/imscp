@@ -568,7 +568,7 @@ sub _setVersion
     # Version is print through STDIN (see: strace vsftpd -v)
     my $rs = execute( "$self->{'config'}->{'FTPD_BIN'} -v 0>&1", \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     $stdout =~ /([\d.]+)/ or die( "Couldn't find VsFTPd version from the `$self->{'config'}->{'FTPD_BIN'} -v 0>&1` command output" );
     $self->{'config'}->{'FTPD_VERSION'} = $1;
     debug( sprintf( 'VsFTPd version set to: %s', $1 ));

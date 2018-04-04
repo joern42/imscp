@@ -77,7 +77,7 @@ sub run
         while ( $stdout =~ /-N\s+(.*)/gm ) {
             $rs = execute( "$exec -t filter -nvxL $1", $chains{$1}, \$stderr );
             debug( ${ $chains{$1} } ) if ${ $chains{$1} };
-            !$rs or die( $stderr || 'Unknown error' ) if $rs;
+            $rs == 0 or die( $stderr || 'Unknown error' ) if $rs;
         }
 
         # Parse input and output traffic data

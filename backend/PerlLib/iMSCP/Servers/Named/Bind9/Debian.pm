@@ -223,7 +223,7 @@ sub _setVersion
     my ( $self ) = @_;
 
     my $rs = execute( [ 'bind9-config', '--version' ], \my $stdout, \my $stderr );
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     $stdout =~ /version=([\d.]+)/i or die( "Couldn't guess Bind version from the `bind9-config --version` command output" );
     $self->{'config'}->{'NAMED_VERSION'} = $1;
     debug( sprintf( 'Bind version set to: %s', $1 ));
@@ -248,7 +248,7 @@ sub _cleanup
     if ( my $resolvconf = iMSCP::ProgramFinder::find( 'resolvconf' ) ) {
         my $rs = execute( [ $resolvconf, '-d', 'lo.imscp' ], \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
-        !$rs or die( $stderr || 'Unknown error' ) if $rs;
+        $rs == 0 or die( $stderr || 'Unknown error' ) if $rs;
     }
 
     iMSCP::Dir->new( dirname => $self->{'config'}->{'NAMED_DB_ROOT_DIR'} )->clear( qr/\.db$/ );

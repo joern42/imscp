@@ -587,7 +587,7 @@ sub _setVersion
     my ( $self ) = @_;
 
     my $rs = execute( [ 'apache2ctl', '-v' ], \my $stdout, \my $stderr );
-    !$rs or die( $stderr || 'Unknown error' ) if $rs;
+    $rs == 0 or die( $stderr || 'Unknown error' ) if $rs;
     $stdout =~ /apache\/([\d.]+)/i or die( "Couldn't guess Apache version from the `apache2ctl -v` command output" );
     $self->{'config'}->{'HTTPD_VERSION'} = $1;
     debug( sprintf( 'Apache version set to: %s', $1 ));
@@ -743,7 +743,7 @@ sub _cleanup
             iMSCP::Dir->new( dirname => "$::imscpConfig{'USER_WEB_DIR'}/$dir/logs" )->clear( qr/.*\.log$/ );
         }
 
-        # Remove deprecated `domain_disable_page' directory inside customers root Web folder
+        # Remove deprecated 'domain_disable_page' directory inside customers root Web folder
         iMSCP::Dir->new( dirname => "$::imscpConfig{'USER_WEB_DIR'}/$dir/domain_disable_page" )->remove();
 
         setImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" ) if $isImmutable;

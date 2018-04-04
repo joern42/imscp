@@ -68,7 +68,7 @@ EOF
                 \my $stderr
             );
             debug( $stdout ) if length $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
+            $rs == 0 or die( $stderr || 'Unknown error' );
 
             # Workaround https://bugs.launchpad.net/ubuntu/+source/gnupg2/+bug/1633754
             execute( [ 'pkill', '-TERM', 'dirmngr' ], \$stdout, \$stderr );
@@ -80,11 +80,11 @@ EOF
                 [ 'wget', '--prefer-family=IPv4', '--timeout=30', '-O', $keyFile, $repository->{'repository_key_uri'} ], \my $stdout, \my $stderr
             );
             debug( $stdout ) if length $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
+            $rs == 0 or die( $stderr || 'Unknown error' );
 
             $rs = execute( [ 'apt-key', 'add', $keyFile ], \$stdout, \$stderr );
             debug( $stdout ) if length $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
+            $rs == 0 or die( $stderr || 'Unknown error' );
         }
     }
 
@@ -138,8 +138,7 @@ sub installPackages
         'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew', '--option',
         'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
         '--auto-remove', '--purge', '--no-install-recommends',
-        ( version->parse( `apt-get --version 2>/dev/null` =~ /^apt\s+(\d\.\d)/ ) < version->parse( '1.1' )
-            ? '--force-yes' : '--allow-downgrades' ),
+        ( version->parse( `apt-get --version 2>/dev/null` =~ /^apt\s+(\d\.\d)/ ) < version->parse( '1.1' ) ? '--force-yes' : '--allow-downgrades' ),
         'install'
     );
 
@@ -217,7 +216,7 @@ sub _updateAptIndex
         [ ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ), 'apt-get', 'update' ],
         ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ), \my $stderr
     );
-    !$rs or die( sprintf( "Couldn't update APT index: %s", $stderr || 'Unknown error' ));
+    $rs == 0 or die( sprintf( "Couldn't update APT index: %s", $stderr || 'Unknown error' ));
     debug( $stderr );
     $self;
 }

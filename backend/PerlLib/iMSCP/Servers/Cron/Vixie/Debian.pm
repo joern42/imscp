@@ -141,7 +141,7 @@ sub enableSystemTask
         for my $dir ( qw/ cron.d cron.hourly cron.daily cron.weekly cron.monthly / ) {
             my $rs = execute( [ 'dpkg-divert', '--rename', '--remove', "/etc/$dir/$cronTask" ], \my $stdout, \my $stderr );
             debug( $stdout ) if length $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
+            $rs == 0 or die( $stderr || 'Unknown error' );
         }
 
         return;
@@ -151,7 +151,7 @@ sub enableSystemTask
 
     my $rs = execute( [ 'dpkg-divert', '--rename', '--remove', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 }
 
 =item disableSystemTask( $cronTask [, $directory = ALL ] )
@@ -172,7 +172,7 @@ sub disableSystemTask
                 [ 'dpkg-divert', '--divert', "/etc/$dir/$cronTask.disabled", '--rename', "/etc/$dir/$cronTask" ], \my $stdout, \my $stderr
             );
             debug( $stdout ) if length $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
+            $rs == 0 or die( $stderr || 'Unknown error' );
         }
 
         return;
@@ -184,7 +184,7 @@ sub disableSystemTask
         [ 'dpkg-divert', '--divert', "/etc/$directory/$cronTask.disabled", '--rename', "/etc/$directory/$cronTask" ], \my $stdout, \my $stderr
     );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 }
 
 =back
@@ -204,7 +204,7 @@ sub _setVersion
     my ( $self ) = @_;
 
     my $rs = execute( 'dpkg -s cron | grep -i \'^version\'', \my $stdout, \my $stderr );
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     $stdout =~ /version:\s+([\d.]+)/i or die( "Couldn't guess Cron (Vixie) version from the `dpkg -s cron | grep -i '^version'` command output" );
     $self->{'config'}->{'CRON_VERSION'} = $1;
     debug( sprintf( 'Cron (Vixie) version set to: %s', $1 ));

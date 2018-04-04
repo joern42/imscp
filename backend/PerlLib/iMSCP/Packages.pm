@@ -69,7 +69,7 @@ sub _init
     my ( $self ) = @_;
 
     local $CWD = dirname( __FILE__ ) . '/Packages';
-    s%(.*)\.pm$%iMSCP::Packages::$1% for @{ $self->{'_packages'} } = grep !/Abstract\.pm$/, <*.pm>;
+    s%(.*)\.pm$%iMSCP::Packages::$1% for @{ $self->{'_packages'} } = grep !/Abstract(?:Collection)?\.pm$/, <*.pm>;
 
     # In installer/uninstaller contexts, also load setup packages
     if ( grep ( iMSCP::Getopt->context() eq $_, 'installer', 'uninstaller' ) ) {

@@ -576,7 +576,7 @@ sub postmap
 
     my $rs = execute( [ 'postmap', "$lookupTableType:$lookupTable" ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 }
 
 =item postconf( $conffile, %params )
@@ -590,13 +590,13 @@ sub postmap
   - before : OPTIONAL Option that allows to add parameter value(s) before the given value (expressed as a Regexp)
   - after  : OPTIONAL Option that allows to add parameter value(s) after the given value (expressed as a Regexp)
 
-  `replace' action versus `remove' action
-    The `replace' action replace all values of the given parameter while the `remove' action only remove the specified values in the parameter.
-    Note that when the result is an empty value, the parameter is removed from the configuration file unless the `empty' flag has been specified.
+  'replace' action versus 'remove' action
+    The 'replace' action replace all values of the given parameter while the `remove' action only remove the specified values in the parameter.
+    Note that when the result is an empty value, the parameter is removed from the configuration file unless the 'empty' flag has been specified.
 
-  `before' and `after' options:
-    The `before' and `after' options are only relevant for the `add' action. Note also that the `before' option has a highter precedence than the
-    `after' option.
+  'before' and `after' options:
+    The 'before' and `after' options are only relevant for the `add' action. Note also that the `before' option has a highter precedence than the
+    'after' option.
   
   Unknown postfix parameters
     Unknown Postfix parameter are silently ignored
@@ -605,8 +605,8 @@ sub postmap
 
     Adding parameter values
 
-    Let's assume that we want add both, the `check_client_access <table>' value and the `check_recipient_access <table>' value to the
-    `smtpd_recipient_restrictions' parameter, before the `check_policy_service ...' service. The following would do the job:
+    Let's assume that we want add both, the 'check_client_access <table>' value and the 'check_recipient_access <table>' value to the
+    'smtpd_recipient_restrictions' parameter, before the `check_policy_service ...' service. The following would do the job:
 
     iMSCP::Servers::Mta::Postfix::Abstract->getInstance(
         (
@@ -914,7 +914,7 @@ sub _setVersion
 
     my $rs = execute( [ 'postconf', '-d', '-h', 'mail_version' ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     $stdout =~ /^([\d.]+)/ or die( "Couldn't guess Postfix version from the `postconf -d -h mail_version` command output" );
     $self->{'config'}->{'MTA_VERSION'} = $1;
     debug( sprintf( 'Postfix version set to: %s', $stdout ));
@@ -934,7 +934,7 @@ sub _setDefaultDatabaseType
 
     my $rs = execute( [ 'postconf', '-d', '-h', 'default_database_type' ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     length $stdout or die( "Couldn't guess default Postfix database type from the `postconf -d -h default_database_type` command output" );
     chomp( $stdout );
     $self->{'config'}->{'MTA_DB_DEFAULT_TYPE'} = $stdout;
@@ -976,7 +976,7 @@ sub _buildAliasesDb
         [ 'postalias', "$self->{'config'}->{'MTA_DB_DEFAULT_TYPE'}:$self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'}" ], \my $stdout, \my $stderr
     );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 }
 
 =item _buildMainCfFile( )

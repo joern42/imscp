@@ -64,9 +64,9 @@ sub pkt_mngr_engine
 
     my ($rs);
     my $sw_src_path = '';
-    my $gui_software_dir = $::cfg{'GUI_APS_DIR'};
-    my $gui_softwaredepot_dir = $::cfg{'GUI_APS_DEPOT_DIR'};
-    my $software_tmp_dir = $::cfg{'SOFTWARE_TMP_DIR'};
+    my $gui_software_dir = $::cfg{'FRONTEND_ROOT_DIR'} . '/data/persistent/softwares';
+    my $gui_softwaredepot_dir = $::cfg{'FRONTEND_ROOT_DIR'} . '/data/persistent/softwares/sw_depot';
+    my $software_tmp_dir = $::cfg{'FRONTEND_ROOT_DIR'} . '/data/tmp';
 
     if ( $sw_software_depot eq 'yes' ) {
         $sw_src_path = "$gui_softwaredepot_dir/$sw_software_archive";

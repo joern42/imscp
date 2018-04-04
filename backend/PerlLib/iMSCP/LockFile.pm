@@ -27,6 +27,7 @@ use strict;
 use warnings;
 use Errno qw/ ENOENT EWOULDBLOCK /;
 use Fcntl qw/ :flock /;
+use iMSCP::Boolean;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
@@ -55,10 +56,10 @@ sub acquire
         open my $fd, '>', $self->{'path'} or die( sprintf( "Couldn't open %s file", $self->{'path'} ));
 
         eval {
-            return 0 unless $self->_tryLock( $fd );
+            return FALSE unless $self->_tryLock( $fd );
             $self->{'_fd'} = $fd if $self->_lockSuccess( $fd );
-            1;
-        } or return 0;
+            TRUE;
+        } or return FALSE;
 
         # Close the file if it is not the required one
         close( $fd ) unless $self->{'_fd'};
@@ -66,7 +67,7 @@ sub acquire
         !$@ or die;
     }
 
-    1;
+    TRUE;
 }
 
 =item release( )

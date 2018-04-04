@@ -38,7 +38,7 @@ my %COMMANDS = (
  SysVinit service provider for Debian like distributions.
 
  Differences with the base sysvinit provider are support for enabling,
- disabling and removing services via `update-rc.d' and the ability to determine
+ disabling and removing services via 'update-rc.d' and the ability to determine
  enabled status.
 
 

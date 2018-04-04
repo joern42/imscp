@@ -20,7 +20,7 @@ set -e
 
 cd ../..
 
-if [ ! -f "gui/public/index.php" ]; then
+if [ ! -f "frontend/public/index.php" ]; then
 	echo "You must run this script from the i18n/tools directory!"
 	exit 1
 fi
@@ -33,12 +33,12 @@ fi
 #done
 
 # Purge any old language file
-rm -fR gui/i18n/locales/*
+rm -fR frontend/i18n/locales/*
 
 for i in `find i18n/po -name '*.po' | sed -r 's/.*\/(.*)/\1/'`; do
 	echo "Compiling machine object file: ${i}"
 	LOCALE=`echo ${i} | cut -d '.' -f 1`
-	DESTDIR="gui/i18n/locales/${LOCALE}/LC_MESSAGES"
+	DESTDIR="frontend/i18n/locales/${LOCALE}/LC_MESSAGES"
 	mkdir -p ${DESTDIR}
 	msgfmt --strict --no-hash --use-fuzzy -o ${DESTDIR}/${LOCALE}.mo i18n/po/${i}
 done

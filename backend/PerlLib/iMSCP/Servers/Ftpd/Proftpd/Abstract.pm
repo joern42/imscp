@@ -552,7 +552,7 @@ sub _setVersion
 
     my $rs = execute( [ $self->{'config'}->{'FTPD_BIN'}, '-v' ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     $stdout =~ /([\d.]+)/ or die( "Couldn't find ProFTPD version from the `$self->{'config'}->{'FTPD_BIN'} -v` command output" );
     $self->{'config'}->{'FTPD_VERSION'} = $1;
     debug( "ProFTPD version set to: $1" );

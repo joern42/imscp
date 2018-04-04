@@ -226,10 +226,10 @@ sub umount( $;$ )
     $recursive //= 1; # Operation is recursive by default
     $fsFile = File::Spec->canonpath( $fsFile );
 
-    return 0 if $fsFile eq '/'; # Prevent umounting root fs
+    return if $fsFile eq '/'; # Prevent umounting root fs
 
     unless ( $recursive ) {
-        return 0 unless $MOUNTS->{$fsFile};
+        return unless $MOUNTS->{$fsFile};
 
         do {
             debug( $fsFile );
@@ -257,8 +257,6 @@ sub umount( $;$ )
             ( $MOUNTS->{$mount} > 1 ) ? $MOUNTS->{$mount}-- : delete $MOUNTS->{$mount};
         } while $MOUNTS->{$mount};
     }
-
-    0;
 }
 
 =item setPropagationFlag( $fsFile [, $flag = private|slave|shared|unbindable|rprivate|rslave|rshared|runbindable ] )
@@ -355,7 +353,7 @@ sub addMountEntry( $ )
 sub removeMountEntry( $;$ )
 {
     my ( $entry, $saveFile ) = @_;
-    $saveFile //= 1;
+    $saveFile //= TRUE;
 
     defined $entry or croak( '$entry parameter is not defined' );
 

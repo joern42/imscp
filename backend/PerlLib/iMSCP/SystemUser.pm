@@ -123,7 +123,7 @@ sub addSystemUser
     if ( @userProps && $oldUsername ne $username && defined $newGroupname ) {
         my $rs = execute( [ 'groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
-        !$rs or die( $stderr || 'Unknown error' );
+        $rs == 0 or die( $stderr || 'Unknown error' );
     }
 
     setImmutable( $home ) if $isImmutableHome;
@@ -213,7 +213,7 @@ sub addToGroup
 
     my $rs = execute( [ 'gpasswd', '-a', $username, $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs || $rs == 3 or die( $stderr || 'Unknown error' );
+    $rs == 0 || $rs == 3 or die( $stderr || 'Unknown error' );
     $self;
 }
 
@@ -240,7 +240,7 @@ sub removeFromGroup
 
     my $rs = execute( [ 'gpasswd', '-d', $username, $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs || $rs == 3 or die( $stderr || 'Unknown error' );
+    $rs == 0 || $rs == 3 or die( $stderr || 'Unknown error' );
     $self;
 }
 

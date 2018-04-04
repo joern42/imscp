@@ -73,11 +73,11 @@ sub setupBoot
 
 sub setupRegisterListeners
 {
-    $_->factory()->registerSetupListeners() for iMSCP::Servers->getInstance()->getListWithFullNames();
+    $_->factory()->registerSetupListeners() for iMSCP::Servers->getInstance()->getList();
 
     my $eventManager = iMSCP::EventManager->getInstance();
 
-    for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+    for my $package ( iMSCP::Packages->getInstance()->getList() ) {
         ( my $subref = $package->can( 'registerSetupListeners' ) ) or next;
         $subref->( $package->getInstance( eventManager => $eventManager ));
     }
@@ -100,7 +100,7 @@ sub setupDialog
 
         my $rs = $dialogStack->[$state]->( $dialog );
         exit $rs if $rs == 50;
-        
+
         if ( $rs != 0 && $rs != 30 ) {
             require Data::Dumper;
             local $Data::Dumper::Deparse = TRUE;
@@ -255,12 +255,11 @@ sub setupSetPermissions
 {
     iMSCP::EventManager->getInstance()->trigger( 'beforeSetupSetPermissions' );
 
-    for my $script ( 'set-backend-permissions.pl', 'set-gui-permissions.pl' ) {
+    for my $script ( 'set-backend-permissions.pl', 'set-frontend-permissions.pl' ) {
         startDetail();
 
         my @options = (
-            '--installer',
-            ( iMSCP::Getopt->debug ? '--debug' : '' ),
+            '--installer', ( iMSCP::Getopt->debug ? '--debug' : '' ),
             ( $script eq 'set-backend-permissions.pl' && iMSCP::Getopt->fixPermissions ? '--fix-permissions' : '' )
         );
 
@@ -278,7 +277,7 @@ sub setupSetPermissions
         );
 
         endDetail();
-        !$rs or die( sprintf( 'Error while setting permissions: %s', $stderr || 'Unknown error' ));
+        $rs == 0 or die( sprintf( 'Error while setting permissions: %s', $stderr || 'Unknown error' ));
     }
 
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupSetPermissions' );
@@ -376,25 +375,27 @@ sub setupRegisterPluginListeners
 sub setupServersAndPackages
 {
     my $eventManager = iMSCP::EventManager->getInstance();
-    my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
-    my @packages = iMSCP::Packages->getInstance()->getListWithFullNames();
+    my @servers = iMSCP::Servers->getInstance()->getList();
+    my @packages = iMSCP::Packages->getInstance()->getList();
     my $nSteps = @servers;
 
     # Uninstall older servers (switch to another alternative)
     for my $task ( qw/ PreUninstall Uninstall PostUninstall / ) {
-        my $lcTask = lc( $task );
+        my ( $nStep, $lcTask ) = ( 1, lc( $task ) );
+
         $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
         startDetail();
-        my $nStep = 1;
+
         # For un-installation, we reverse server priorities
         for my $server ( reverse @servers ) {
             next if $::imscpOldConfig{$server} eq '' || $::imscpOldConfig{$server} eq $::imscpConfig{$server};
 
             step(
                 sub { $server->factory( $::imscpOldConfig{$server} )->$lcTask(); },
-                sprintf( "Executing %s %s tasks...", $::imscpOldConfig{$server}, $lcTask ), $nSteps, $nStep++
+                sprintf( 'Executing %s %s tasks...', $::imscpOldConfig{$server}, $lcTask ), $nSteps, $nStep++
             );
         }
+
         endDetail();
         $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
     }
@@ -402,26 +403,24 @@ sub setupServersAndPackages
     $nSteps = @servers+@packages;
 
     for my $task ( qw/ PreInstall Install PostInstall / ) {
-        my $lcTask = lc( $task );
+        my ( $nStep, $lcTask ) = ( 1, lc( $task ) );
+
         startDetail();
 
         $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
-        my $nStep = 1;
+
         for my $server ( @servers ) {
-            step( sub { $server->factory()->$lcTask(); }, sprintf( "Executing %s %s tasks...", $server, $lcTask ), $nSteps, $nStep++ );
-            $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
+            step( sub { $server->factory()->$lcTask(); }, sprintf( 'Executing %s %s tasks...', $server, $lcTask ), $nSteps, $nStep++ );
         }
 
+        $eventManager->trigger( 'afterSetup' . $task . 'Servers' );
         $eventManager->trigger( 'beforeSetup' . $task . 'Packages' );
-        for my $package ( @packages ) {
-            ( my $subref = $package->can( $lcTask ) ) or $nStep++ && next;
-            step(
-                sub { $subref->( $package->getInstance( eventManager => $eventManager )) },
-                sprintf( "Executing %s %s tasks...", $package, $lcTask ), $nSteps, $nStep++
-            );
-        }
-        $eventManager->trigger( 'afterSetup' . $task . 'Packages' );
 
+        for my $package ( @packages ) {
+            step( sub { $package->getInstance()->$lcTask(); }, sprintf( 'Executing %s %s tasks...', $package, $lcTask ), $nSteps, $nStep++ );
+        }
+
+        $eventManager->trigger( 'afterSetup' . $task . 'Packages' );
         endDetail();
     }
 }

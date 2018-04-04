@@ -139,7 +139,7 @@ sub _setVersion
     my ( $self ) = @_;
 
     my $rs = execute( 'dpkg -s systemd-cron | grep -i \'^version\'', \my $stdout, \my $stderr );
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     $stdout =~ /version:\s+([\d.]+)/i or die(
         "Couldn't guess Cron (Systemd) version from the `dpkg -s systemd-cron | grep -i '^version'` command output"
     );

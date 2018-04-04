@@ -28,6 +28,7 @@ use warnings;
 use Carp qw/ croak /;
 use File::Find;
 use POSIX qw/ lchown /;
+use iMSCP::Boolean;
 use parent 'Exporter';
 
 our @EXPORT = qw/ setRights /;
@@ -66,7 +67,7 @@ sub setRights
     my ( $target, $attrs ) = @_;
 
     defined $target or croak( '$target parameter is not defined' );
-    ref $attrs eq 'HASH' && %{ $attrs } or croak( 'attrs parameter is not defined or is not a hashref' );
+    ref $attrs eq 'HASH' && %{ $attrs } or croak( "'attrs' parameter is not defined or is not a hashref" );
 
     # Return early if none of accepted attributes is defined. This is the case
     # when that function is used dynamically, and when setting of permissions
@@ -75,13 +76,13 @@ sub setRights
         || defined $attrs->{'group'};
 
     if ( defined $attrs->{'mode'} && ( defined $attrs->{'dirmode'} || defined $attrs->{'filemode'} ) ) {
-        croak( '`mode` attribute and the dirmode or filemode attributes are mutally exclusive' );
+        croak( "'mode' attribute and the dirmode or filemode attributes are mutally exclusive" );
     }
 
     my $uid = $attrs->{'user'} ? getpwnam( $attrs->{'user'} ) : -1;
     my $gid = $attrs->{'group'} ? getgrnam( $attrs->{'group'} ) : -1;
-    defined $uid or croak( sprintf( 'user attribute refers to inexistent user: %s', $attrs->{'user'} ));
-    defined $gid or croak( sprintf( 'group attribute refers to inexistent group: %s', $attrs->{'group'} ));
+    defined $uid or croak( sprintf( "'user' attribute refers to inexistent user: %s", $attrs->{'user'} ));
+    defined $gid or croak( sprintf( "'group' attribute refers to inexistent group: %s", $attrs->{'group'} ));
 
     my $mode = defined $attrs->{'mode'} ? oct( $attrs->{'mode'} ) : undef;
     my $dirmode = defined $attrs->{'dirmode'} ? oct( $attrs->{'dirmode'} ) : undef;
@@ -109,7 +110,7 @@ sub setRights
                         chmod $filemode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
                     }
                 },
-                no_chdir => 1
+                no_chdir => TRUE
             },
             $target
         );

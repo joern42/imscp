@@ -170,32 +170,28 @@ sub _removeCustomers
 
 sub _uninstallPackages
 {
-    startDetail();
-
     # For uninstallation, we reverse package priorities
-    my @packages = reverse iMSCP::Packages->getInstance()->getListWithFullNames();
-    my ( $step, $nbSteps ) = ( 1, scalar @packages );
-    for my $package ( @packages ) {
-        ( my $subref = $package->can( 'uninstall' ) ) or $step++ && next;
-        step( sub { $subref->( $package->getInstance()) }, sprintf( 'Executing %s uninstall tasks...', $package ), $nbSteps, $step );
-    }
+    my @packages = reverse iMSCP::Packages->getInstance()->getList();
 
-    endDetail();
+    for my $task ( qw/ preuninstall uninstall postuninstall / ) {
+        startDetail();
+        my ( $step, $nbSteps ) = ( 1, scalar @packages );
+        step( sub { $_->getInstance()->$task() }, sprintf( 'Executing %s %s tasks...', $_, $task ), $nbSteps, $step++ ) for @packages;
+        endDetail();
+    }
 }
 
 sub _uninstallServers
 {
     # For uninstallation, we reverse servers priorities
-    my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
-    my ( $step, $nbSteps ) = ( 1, scalar @servers );
+    my @servers = iMSCP::Servers->getInstance()->getList();
 
-    startDetail();
     for my $task ( qw/ preuninstall uninstall postuninstall / ) {
-        for my $server ( @servers ) {
-            step( sub { $server->factory()->$task() }, sprintf( 'Executing %s uninstall tasks...', $server ), $nbSteps, $step++ );
-        }
+        startDetail();
+        my ( $step, $nbSteps ) = ( 1, scalar @servers );
+        step( sub { $_->factory()->$task() }, sprintf( 'Executing %s %s tasks...', $_, $task ), $nbSteps, $step++ ) for @servers;
+        endDetail();
     }
-    endDetail();
 }
 
 sub _uninstallServices
@@ -209,12 +205,8 @@ sub _uninstallServices
     # FIXME: Should be done by the Bind9 server implementation...
     for my $service ( 'bind9', 'bind9-resolvconf' ) {
         $srvProvider->disable( $service ) if $srvProvider->isSystemd();
-
         iMSCP::File->new( filename => "/etc/systemd/system/$service.service" )->remove();
-
-        if ( -f "/lib/systemd/system/$service.service" ) {
-            $srvProvider->enable( $service ) if $srvProvider->isSystemd();
-        }
+        $srvProvider->enable( $service ) if -f "/lib/systemd/system/$service.service" && $srvProvider->isSystemd();
     }
 }
 
@@ -242,7 +234,7 @@ sub _removeSqlData
 # FIXME: Should be done by the Local server implementation
 sub _removeiMSCPSystemUser
 {
-    iMSCP::SystemUser->new( force => 1 )->delSystemUser( $::imscpConfig{'IMSCP_USER'} );
+    iMSCP::SystemUser->new( force => TRUE )->delSystemUser( $::imscpConfig{'IMSCP_USER'} );
 }
 
 # FIXME: Should be done by the Local server implementation
@@ -250,13 +242,12 @@ sub _removeFiles
 {
     chdir( '/' );
 
-    for my $file ( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
-        iMSCP::File->new( filename => $file )->remove();
-    }
+    iMSCP::File->new( filename => $_ )->remove() for '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp';
 
-    for my $dir ( $::imscpConfig{'CONF_DIR'}, $::imscpConfig{'USER_WEB_DIR'}, $::imscpConfig{'LOG_DIR'}, $::imscpConfig{'ROOT_DIR'} ) {
-        iMSCP::Dir->new( dirname => $dir )->remove();
+    for ($::imscpConfig{'CONF_DIR'}, $::imscpConfig{'USER_WEB_DIR'}, $::imscpConfig{'LOG_DIR'}, $::imscpConfig{'ROOT_DIR'}) {
+        iMSCP::Dir->new( dirname => $_ )->remove();
     }
+    
 }
 
 startUp();

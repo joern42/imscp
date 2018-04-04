@@ -5,6 +5,6 @@
     <copy>${IMSCP_BACKEND_DIR}/setup/imscp-setup-methods.pl</copy>
     <copy>${IMSCP_BACKEND_DIR}/setup/imscp-uninstall</copy>
     <copy>${IMSCP_BACKEND_DIR}/setup/set-backend-permissions.pl</copy>
-    <copy>${IMSCP_BACKEND_DIR}/setup/set-gui-permissions.pl</copy>
+    <copy>${IMSCP_BACKEND_DIR}/setup/set-frontend-permissions.pl</copy>
     <copy>${IMSCP_BACKEND_DIR}/setup/updDB.php</copy>
 </install>

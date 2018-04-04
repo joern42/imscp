@@ -81,7 +81,7 @@ sub run
         'iMSCP::Servers::Mta'   => {},
         'iMSCP::Servers::Po'    => {}
     );
-    my @servers = grep (/::(?:httpd|ftpd|mta|po)$/, iMSCP::Servers->getInstance()->getListWithFullNames() );
+    my @servers = grep (/::(?:httpd|ftpd|mta|po)$/, iMSCP::Servers->getInstance()->getList() );
 
     # Collects traffic data from servers that implement the getTraffic() method
     for my $server ( @servers ) {

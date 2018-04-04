@@ -28,7 +28,7 @@
 
 package iMSCP::Listener::Named::Slave::Provisioning;
 
-our $VERSION = '1.0.4';
+our $VERSION = '1.0.5';
 
 use strict;
 use warnings;
@@ -79,7 +79,7 @@ sub createHtpasswdFile
     index( $AUTH_USERNAME, ':' ) == -1 or die( "htpasswd: username contains illegal character ':'" );
 
     iMSCP::File
-        ->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/.htpasswd" )
+        ->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/provisioning/.htpasswd" )
         ->set( "$AUTH_USERNAME:" . ( $AUTH_PASSWORD_IS_HASHED ? $AUTH_PASSWORD : htpasswd( $AUTH_PASSWORD ) ))
         ->save()
         ->owner(
@@ -103,14 +103,14 @@ iMSCP::EventManager->getInstance()->register(
 
         my $locationSnippet = <<"EOF";
     location ^~ /provisioning/ {
-        root /var/www/imscp/gui/public;
+        root /var/www/imscp/frontend/public;
 
         location ~ \\.php\$ {
             include imscp_fastcgi.conf;
             satisfy any;
             deny all;
             auth_basic "$realm";
-            auth_basic_user_file $::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/.htpasswd;
+            auth_basic_user_file $::imscpConfig{'FRONTEND_ROOT_DIR'}/public/provisioning/.htpasswd;
         }
     }
 EOF
@@ -175,7 +175,7 @@ if ($rowCount > 0) {
 }
 EOF
 
-        iMSCP::Dir->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning" )->make( {
+        iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/provisioning" )->make( {
             user  => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
             group => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
             mode  => 0550
@@ -183,7 +183,7 @@ EOF
 
         createHtpasswdFile() if defined $AUTH_USERNAME;
 
-        iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/slave_provisioning.php" )
+        iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/provisioning/slave_provisioning.php" )
             ->set( $fileContent )
             ->save()
             ->owner(

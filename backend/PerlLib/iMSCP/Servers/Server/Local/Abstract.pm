@@ -199,7 +199,7 @@ sub primaryIpDialog
 
 Please select your server primary IP address:
 
-The \\Zb`None'\\ZB option means that i-MSCP will configure the services to listen on all interfaces.
+The \\Zb'None'\\ZB option means that i-MSCP will configure the services to listen on all interfaces.
 This option is more suitable for Cloud computing services such as Scaleway and Amazon EC2, or when using a Vagrant box where the IP that is set through DHCP can changes over the time.
 \\Z \\Zn
 EOF
@@ -575,7 +575,7 @@ EOF
     # Make new hostname effective
     my $rs = execute( 'hostname --file /etc/hostname', \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || "Couldn't set server hostname" );
+    $rs == 0 or die( $stderr || "Couldn't set server hostname" );
 }
 
 =item _setupSysctl()

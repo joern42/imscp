@@ -147,7 +147,7 @@ sub backupConfig
 
         my $rs = execute( "@backupCommand", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
-        !$rs or die( $stderr || 'Unknown error' );
+        $rs == 0 or die( $stderr || 'Unknown error' );
     };
     !$@ or error( $@ );
 }
@@ -181,7 +181,7 @@ sub backupAll
         my $rs = execute( "find $::imscpConfig{'ROOT_DIR'}/backups/* -maxdepth 0 -type f -mtime +7 -print | xargs -r rm", \my $stdout,
             \my $stderr );
         debug( $stdout ) if length $stdout;
-        !$rs or die( $stderr || 'Unknown error' );
+        $rs == 0 or die( $stderr || 'Unknown error' );
     };
     !$@ or error( $@ );
 }

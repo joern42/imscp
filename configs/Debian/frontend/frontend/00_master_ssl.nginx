@@ -47,7 +47,7 @@ server {
     }
 
     location ~ ^/(.*)/themes/(.*)/assets/ {
-        root {PLUGINS_DIR};
+        root {WEB_DIR}/plugins;
         expires 30d;
     }
 

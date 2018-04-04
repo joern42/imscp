@@ -34,6 +34,7 @@ use warnings;
 use File::Basename;
 use FindBin;
 use lib "$FindBin::Bin/installer", "$FindBin::Bin/backend/PerlLib";
+use iMSCP::Boolean;
 use iMSCP::Installer::Functions qw/ loadConfig build install /;
 use iMSCP::Debug qw/ newDebug /;
 use iMSCP::Getopt;
@@ -44,7 +45,7 @@ setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
 
-# Ensure that this script is run by root user
+# Ensure that this script is run by super user
 iMSCP::Requirements->new()->user();
 
 newDebug( 'imscp-installer.log' );
@@ -64,11 +65,11 @@ if ( iMSCP::Getopt->preseed ) {
     # The preseed option supersede the reconfigure option
     iMSCP::Getopt->reconfigure( 'none' );
     # The preseed option involves the noprompt option
-    iMSCP::Getopt->noprompt( 1 );
+    iMSCP::Getopt->noprompt( TRUE );
 }
 
 # Inhibit verbose mode if we are not in non-interactive mode
-iMSCP::Getopt->verbose( 0 ) unless iMSCP::Getopt->noprompt;
+iMSCP::Getopt->verbose( FALSE ) unless iMSCP::Getopt->noprompt;
 
 loadConfig();
 build();

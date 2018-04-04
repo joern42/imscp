@@ -94,7 +94,7 @@ iMSCP::EventManager->getInstance()->register(
                 processByRef( { NS_NAME => $name }, \$nsRecordB );
 
                 # Glue RR must be set only if $data->{'DOMAIN_NAME'] is equal to $ZONE_NAME
-                # Note that if $name is out-of-zone, it will be automatically ignored by the `named-compilezone'
+                # Note that if $name is out-of-zone, it will be automatically ignored by the 'named-compilezone'
                 # command during the dump (expected behavior).
                 processByRef(
                     {

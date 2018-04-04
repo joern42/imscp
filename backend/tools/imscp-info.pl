@@ -30,13 +30,14 @@
 use strict;
 use warnings;
 use autouse 'iMSCP::Debug' => qw/ output /;
-use Class::Autouse qw/ :nostat iMSCP::Packages iMSCP::Servers JSON /;
+use Class::Autouse qw/ :nostat iMSCP::Packages iMSCP::Servers /;
 use File::Basename;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Getopt;
+use JSON;
 
 iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 

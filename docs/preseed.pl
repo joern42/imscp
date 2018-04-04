@@ -560,7 +560,7 @@
     # - Rkhunter (default)
     #
     # Leave empty for default: Chkrootkit,Rkhunter
-    ANTI_ROOTKITS_PACKAGES              => ''
+    ANTIROOTKITS_PACKAGES              => ''
 );
 
 1;

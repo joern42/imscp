@@ -71,13 +71,8 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-set-backend-permissions.lock", 'nowait' );
 
 my @items = ();
-for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
-    push @items, [ $server, sub { $server->factory()->setBackendPermissions(); } ];
-}
-for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
-    ( my $subref = $package->can( 'setBackendPermissions' ) ) or next;
-    push @items, [ $package, sub { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); } ];
-}
+push @items, [ $_, sub { $_->factory()->setBackendPermissions(); } ] for iMSCP::Servers->getInstance()->getList();
+push @items, [ $_, sub { $_->getInstance()->setBackendPermissions(); } ] for iMSCP::Packages->getInstance()->getList();
 
 my $totalItems = @items+1;
 my $count = 1;

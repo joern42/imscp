@@ -133,7 +133,7 @@ iMSCP::EventManager->getInstance()->register(
 
         if ( $data->{'REAL_PARENT_DOMAIN_NAME'} && $data->{'REAL_PARENT_DOMAIN_NAME'} ne $data->{'PARENT_DOMAIN_NAME'} ) {
             # When adding entry for the alternative URLs feature we do have
-            # interest only in `@' DNS name
+            # interest only in '@' DNS name
             @DEFAULT_DNS_NAMES = grep('@' eq $_, @DEFAULT_DNS_NAMES);
             return unless @DEFAULT_DNS_NAMES;
         }

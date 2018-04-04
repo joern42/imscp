@@ -57,7 +57,7 @@ sub addSystemGroup
 
     my $rs = execute( [ 'groupadd', '-f', ( $systemgroup ? '-r' : () ), $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     $self;
 }
 

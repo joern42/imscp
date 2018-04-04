@@ -273,7 +273,7 @@ sub setBackendPermissions
 
  This method is called by the i-MSCP frontEnd permission management script.
 
- Any server managing GUI files *SHOULD* implement this method.
+ Any server managing FrontEnd files *SHOULD* implement this method.
 
  Return void, die on failure
 
@@ -581,7 +581,7 @@ sub AUTOLOAD
     no strict 'refs';
     *{ $AUTOLOAD } = sub {};
 
-    # Erase the stack frame
+    # Execute the subroutine, erasing AUTOLOAD stack frame without trace
     goto &{ $AUTOLOAD };
 }
 

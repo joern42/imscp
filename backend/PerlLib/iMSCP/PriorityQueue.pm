@@ -30,6 +30,7 @@ use Data::Clone qw/ clone /;
 use Data::Compare;
 use List::Util qw/ max /;
 use Scalar::Util qw/ looks_like_number /;
+use iMSCP::Boolean;
 
 =head1 DESCRIPTION
 
@@ -55,8 +56,7 @@ sub new
         count_items      => 0,
         highest_priority => undef,
         queue            => {}
-    },
-        $class;
+    }, $class;
 }
 
 =item hasItem( $item )
@@ -74,11 +74,11 @@ sub hasItem
 
     for my $items ( values %{ $self->{'queue'} } ) {
         for my $v ( @{ $items } ) {
-            return 1 if Compare $item, $v;
+            return TRUE if Compare $item, $v;
         }
     }
 
-    return;
+    return FALSE;
 }
 
 =item addItem( $item [, $priority = 0 ] )
@@ -136,13 +136,13 @@ sub removeItem
 
             # Reset internal hash iterator; see http://www.perlmonks.org/?node_id=294285
             keys %{ $self->{'queue'} };
-            return 1;
+            return TRUE;
         }
     }
 
     # Reset internal hash iterator; see http://www.perlmonks.org/?node_id=294285
     keys %{ $self->{'queue'} };
-    return;
+    return FALSE;
 }
 
 =item isEmpty( )

@@ -236,8 +236,8 @@ Please enter a database name for i-MSCP:
 \\Z \\Zn
 EOF
             if ( $rs < 30 && isValidDbName( $dbName ) ) {
-                eval { $self->{'dbh'}->useDatabase( $dbName ); };
-                if ( !$@ && !$self->_setupIsImscpDb( $dbName ) ) {
+                
+                if ( eval { $self->{'dbh'}->useDatabase( $dbName ); TRUE } && !$self->_setupIsImscpDb( $dbName ) ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = <<"EOF";
 \\Z1Database '$dbName' exists but doesn't look like an i-MSCP database.\\Zn
 EOF
@@ -768,7 +768,7 @@ EOF
 
         my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
-        !$rs or die( $stderr || 'Unknown error' );
+        $rs == 0 or die( $stderr || 'Unknown error' );
     }
 
     # In all cases, we process database update. This is important because sometime developers forget to update the
@@ -904,7 +904,7 @@ EOF
         my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', "mysql --defaults-extra-file=$defaultsExtraFile", escapeShell( $dbName ) );
         my $rs = execute( "@cmd", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
-        !$rs or die( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' ));
+        $rs == 0 or die( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' ));
     };
 
     # We need drop tmp SQL user even on error

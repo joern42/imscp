@@ -424,7 +424,7 @@ sub _setVersion
     my ( $self ) = @_;
 
     my $rs = execute( [ $self->{'config'}->{'PO_BIN'}, '--version' ], \my $stdout, \my $stderr );
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
     $stdout =~ m/^([\d.]+)/ or die( "Couldn't guess Dovecot version from the `$self->{'config'}->{'PO_BIN'}--version` command output" );
     $self->{'config'}->{'PO_VERSION'} = $1;
     debug( sprintf( 'Dovecot version set to: %s', $1 ));
@@ -592,7 +592,7 @@ sub _migrateFromCourier
         \my $stderr
     );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 
     $self->{'quotaRecalc'} = 1;
     $::imscpOldConfig{'iMSCP::Servers::Po'} = $::imscpConfig{'iMSCP::Servers::Po'};

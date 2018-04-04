@@ -86,7 +86,7 @@ function cli_getMailData($domainName)
     throw new iMSCP_Exception('This script can only add mail accounts for domains which are already managed by i-MSCP.');
 }
 
-include '/var/www/imscp/gui/library/imscp-lib.php';
+include '/var/www/imscp/frontend/library/imscp-lib.php';
 
 error_reporting(0);
 ini_set('display_errors', 0);

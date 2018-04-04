@@ -230,7 +230,7 @@ sub _restoreConffiles
 
     my $rs = execute( 'newaliases', \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 }
 
 =back

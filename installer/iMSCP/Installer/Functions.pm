@@ -178,9 +178,9 @@ sub build
         && length $::imscpConfig{'iMSCP::Servers::Po'} && length $::imscpConfig{'iMSCP::Servers::Server'}
         && length $::imscpConfig{'iMSCP::Servers::Sqld'} && length $::imscpConfig{'iMSCP::Providers::Networking'}
     ) {
-        iMSCP::Getopt->noprompt( 0 ) unless iMSCP::Getopt->preseed;
-        iMSCP::Getopt->verbose( 0 ) unless iMSCP::Getopt->noprompt;
-        iMSCP::Getopt->skippackages( 0 );
+        iMSCP::Getopt->noprompt( FALSE ) unless iMSCP::Getopt->preseed;
+        iMSCP::Getopt->verbose( FALSE ) unless iMSCP::Getopt->noprompt;
+        iMSCP::Getopt->skippackages( FALSE );
     }
 
     print STDOUT output( 'Build steps in progress... Please wait.', 'info' ) if iMSCP::Getopt->noprompt;
@@ -257,7 +257,7 @@ sub build
 
 To continue, you must execute the following commands:
 
- rm -fR $::imscpConfig{'ROOT_DIR'}/{backend,gui}
+ rm -fR $::imscpConfig{'ROOT_DIR'}/{backend,frontend}
  cp -PRT --preserve=ownership,mode $::{'DESTDIR'} /
  rm -fR $::{'DESTDIR'}
  perl $::imscpConfig{'ROOT_DIR'}/backend/setup/imscp-reconfigure -d
@@ -624,7 +624,7 @@ sub _packBackendFiles
 
 sub _packFrontendFiles
 {
-    iMSCP::Dir->new( dirname => "$FindBin::Bin/gui" )->copy( "$::{'IMSCP_ROOT_DIR'}/gui", { umask => 0027, preserve => FALSE } );
+    iMSCP::Dir->new( dirname => "$FindBin::Bin/frontend" )->copy( "$::{'IMSCP_ROOT_DIR'}/frontend", { umask => 0027, preserve => FALSE } );
 }
 
 =item _savePersistentData( )
@@ -656,43 +656,48 @@ sub _savePersistentData
         "$::imscpConfig{'CONF_DIR'}/listeners.d"
     ) if -d "$::imscpConfig{'CONF_DIR'}/hooks.d";
 
+    # Update to 1.6.x
+    if ( exists $::imscpOldConfig{'GUI_ROOT_DIR'} && -d $::imscpOldConfig{'GUI_ROOT_DIR'} ) {
+        iMSCP::Dir->new( dirname => $::imscpOldConfig{'GUI_ROOT_DIR'} )->move( $::imscpConfig{'FRONTEND_ROOT_DIR'} );
+    }
+
     # Save ISP logos (older location)
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/gui/themes/user_logos" )->copy(
-        "$::{'DESTDIR'}$::imscpConfig{'ROOT_DIR'}/gui/data/persistent/ispLogos"
-    ) if -d "$::imscpConfig{'ROOT_DIR'}/gui/themes/user_logos";
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/themes/user_logos" )->copy(
+        "$::{'DESTDIR'}$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/persistent/ispLogos"
+    ) if -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/themes/user_logos";
 
     # Save ISP logos (new location)
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/gui/data/ispLogos" )->copy(
-        "$::{'DESTDIR'}$::imscpConfig{'ROOT_DIR'}/gui/data/persistent/ispLogos"
-    ) if -d "$::imscpConfig{'ROOT_DIR'}/gui/data/ispLogos";
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/ispLogos" )->copy(
+        "$::{'DESTDIR'}$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/persistent/ispLogos"
+    ) if -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/ispLogos";
 
-    # Save GUI logs
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/gui/data/logs" )->copy(
-        "$::{'DESTDIR'}$::imscpConfig{'ROOT_DIR'}/gui/data/logs"
-    ) if -d "$::imscpConfig{'ROOT_DIR'}/gui/data/logs";
+    # Save frontEnd logs
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/logs" )->copy(
+        "$::{'DESTDIR'}$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/logs"
+    ) if -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/logs";
 
-    # Save GUI persistent data
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/gui/data/persistent" )->copy(
-        "$::{'DESTDIR'}$::imscpConfig{'ROOT_DIR'}/gui/data/persistent"
-    ) if -d "$::imscpConfig{'ROOT_DIR'}/gui/data/persistent";
+    # Save frontEnd persistent data
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/persistent" )->copy(
+        "$::{'DESTDIR'}$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/persistent"
+    ) if -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/persistent";
 
-    # Save software (older path ./gui/data/softwares) to new path (./gui/data/persistent/softwares)
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/gui/data/softwares" )->copy(
-        "$::{'DESTDIR'}$::imscpConfig{'ROOT_DIR'}/gui/data/persistent/softwares"
-    ) if -d "$::imscpConfig{'ROOT_DIR'}/gui/data/softwares";
+    # Save software (older path data/softwares to new path persistent/softwares)
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/softwares" )->copy(
+        "$::{'DESTDIR'}$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/persistent/softwares"
+    ) if -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/softwares";
 
     # Save plugins
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'PLUGINS_DIR'}" )->copy(
-        "$::{'DESTDIR'}$::imscpConfig{'PLUGINS_DIR'}"
-    ) if -d $::imscpConfig{'PLUGINS_DIR'};
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/plugins" )->copy(
+        "$::{'DESTDIR'}$::imscpConfig{'FRONTEND_ROOT_DIR'}/plugins"
+    ) if -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/plugins";
 
     # Quick fix for #IP-1340 (Removes old filemanager directory which is no longer used)
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/gui/public/tools/filemanager" )->remove();
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/filemanager" )->remove();
 
     # Save tools
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/gui/public/tools" )->copy(
-        "$::{'DESTDIR'}$::imscpConfig{'ROOT_DIR'}/gui/public/tools"
-    ) if -d "$::imscpConfig{'ROOT_DIR'}/gui/public/tools";
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools" )->copy(
+        "$::{'DESTDIR'}$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools"
+    ) if -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools";
 }
 
 =item _removeObsoleteFiles( )
@@ -755,15 +760,15 @@ sub _removeObsoleteFiles
         "$::imscpConfig{'CONF_DIR'}/skel/domain/.htpasswd",                           # To be moved in cleanup routine from apache server
         "$::imscpConfig{'IMSCP_HOMEDIR'}/composer.phar",
         "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/composer.phar",
-        "$::imscpConfig{'CONF_DIR'}/imscp.old.conf",                                  # To be moved in cleanup routine from local server
-        "$::imscpConfig{'CONF_DIR'}/imscp-db-keys",                                   # To be moved in cleanup routine from local server
-        '/etc/default/imscp_panel',                                                   # To be moved in cleanup routine from php server
-        '/etc/init/php5-fpm.override',                                                # To be moved in cleanup routine from php server
-        '/etc/logrotate.d/imscp',                                                     # To be moved in cleanup routine from local server
-        '/etc/nginx/imscp_net2ftp.conf',                                              # To be moved in cleanup routine from local server
-        '/etc/systemd/system/php5-fpm.override',                                      # To be moved in cleanup routine from php server
-        '/usr/local/lib/imscp_panel/imscp_panel_checkconf',                           # To be moved in cleanup routine from frontend package
-        '/usr/sbin/maillogconvert.pl'                                                 # To be moved in cleanup routine from postfix server
+        "$::imscpConfig{'CONF_DIR'}/imscp.old.conf",        # To be moved in cleanup routine from local server
+        "$::imscpConfig{'CONF_DIR'}/imscp-db-keys",         # To be moved in cleanup routine from local server
+        '/etc/default/imscp_panel',                         # To be moved in cleanup routine from php server
+        '/etc/init/php5-fpm.override',                      # To be moved in cleanup routine from php server
+        '/etc/logrotate.d/imscp',                           # To be moved in cleanup routine from local server
+        '/etc/nginx/imscp_net2ftp.conf',                    # To be moved in cleanup routine from local server
+        '/etc/systemd/system/php5-fpm.override',            # To be moved in cleanup routine from php server
+        '/usr/local/lib/imscp_panel/imscp_panel_checkconf', # To be moved in cleanup routine from frontend package
+        '/usr/sbin/maillogconvert.pl'                       # To be moved in cleanup routine from postfix server
     ) {
         iMSCP::File->new( filename => $file )->remove();
     }
@@ -781,7 +786,8 @@ sub installDistributionFiles
 {
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::FrontEnd
     # FIXME: Should be done by a specific package, eg: iMSCP::Packages::Setup::Backend
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/$_" )->remove() for qw/ backend engine gui /; # 'engine' only for update reasons
+    # 'engine' and 'frontend' only for update reasons (update to 1.6.x)
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/$_" )->remove() for qw/ backend engine frontend gui /;
     iMSCP::Dir->new( dirname => $::{'DESTDIR'} )->copy( '/', { preserve => TRUE } );
 }
 

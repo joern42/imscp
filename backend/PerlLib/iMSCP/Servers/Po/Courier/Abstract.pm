@@ -351,7 +351,7 @@ sub addMail
         ) {
             my $rs = execute( [ 'maildirmake', '-q', "$moduleData->{'MAIL_QUOTA'}S", $mailDir ], \my $stdout, \my $stderr );
             debug( $stdout ) if length $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
+            $rs == 0 or die( $stderr || 'Unknown error' );
 
             iMSCP::File
                 ->new( filename => "$mailDir/maildirsize" )
@@ -636,7 +636,7 @@ sub _setupPostfixSasl
 {
     my ( $self ) = @_;
 
-    # Add postfix user in `mail' group to make it able to access
+    # Add postfix user in 'mail' group to make it able to access
     # authdaemon rundir
     iMSCP::SystemUser->new()->addToGroup( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
 
@@ -715,7 +715,7 @@ sub _buildDHparametersFile
             };
 
             my $rs = executeNoWait( $cmd, ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? sub {} : $outputHandler ), $outputHandler );
-            !$rs or die( $output || 'Unknown error' );
+            $rs == 0 or die( $output || 'Unknown error' );
 
             iMSCP::File->new( filename => $tmpFile->filename )->move( "$self->{'config'}->{'PO_CONF_DIR'}/dhparams.pem" ) if $tmpFile;
         }, 'Generating DH parameter file', 1, 1
@@ -794,7 +794,7 @@ sub _migrateFromDovecot
         \my $stderr
     );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || 'Unknown error' );
+    $rs == 0 or die( $stderr || 'Unknown error' );
 
     $self->{'quotaRecalc'} = TRUE;
     $::imscpOldConfig{'iMSCP::Servers::Po'} = $::imscpConfig{'iMSCP::Servers::Po'};
@@ -840,7 +840,7 @@ sub _removeConfig
 
     iMSCP::Dir->new( dirname => $fsFile )->remove();
 
-    # Remove the `postfix' user from the `mail' group
+    # Remove the 'postfix' user from the 'mail' group
     iMSCP::SystemUser->new()->removeFromGroup( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_USER'} );
 
     # Remove i-MSCP configuration stanza from configuration files

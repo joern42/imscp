@@ -418,7 +418,7 @@ sub _detectInit
 
 sub _getLastError
 {
-    getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error';
+    getMessageByType( 'error', { amount => TRUE, remove => TRUE } ) || 'Unknown error';
 }
 
 =item _executeDelayedActions( )

@@ -335,7 +335,7 @@ sub restoreDomain
 
             my $rs = execute( $cmd, \my $stdout, \my $stderr );
             debug( $stdout ) if length $stdout;
-            !$rs or die( $stderr || 'Unknown error' );
+            $rs == 0 or die( $stderr || 'Unknown error' );
             last;
         }
     }
@@ -1320,7 +1320,7 @@ EOF
 
         my $rs = execute( "mysql --defaults-extra-file=$defaultsExtraFile < $dbSchemaFile", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
-        !$rs or die( $stderr || 'Unknown error' );
+        $rs == 0 or die( $stderr || 'Unknown error' );
     }
 
     my $dbHost = ::setupGetQuestion( 'DATABASE_HOST' );

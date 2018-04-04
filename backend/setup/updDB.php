@@ -20,7 +20,7 @@
 
 try {
     chdir(dirname(__FILE__));
-    require_once '../../gui/library/imscp-lib.php';
+    require_once '../../frontend/library/imscp-lib.php';
     $dbUpdater = new iMSCP\Update\UpdateDatabase();
 
     if ($dbUpdater->getLastAppliedUpdate() > $dbUpdater->getLastUpdate()) {

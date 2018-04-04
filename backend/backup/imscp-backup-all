@@ -162,7 +162,7 @@ sub backupDatabases
 
         my $rs = execute( "$command->{$cmpAlgo}->{'command'} -$cmpLevel --force $dbDumpFilePath", \my $stdout, \my $stderr );
         debug( $stdout ) if length $stdout;
-        !$rs or error( sprintf( "Couldn't compress %s database dump: %s", $dbName, $stderr || 'Unknown error' ));
+        $rs == 0 or error( sprintf( "Couldn't compress %s database dump: %s", $dbName, $stderr || 'Unknown error' ));
     }
 }
 

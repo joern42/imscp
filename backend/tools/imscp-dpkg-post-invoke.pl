@@ -69,13 +69,13 @@ exit unless iMSCP::Bootstrapper->getInstance()->getInstance()->boot( {
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-dpkg-post-invoke.lock", 'nowait' );
 
 debug( 'Executing servers dpkg(1) post-invoke tasks' );
-for my $server ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+for my $server ( iMSCP::Servers->getInstance()->getList() ) {
     eval { $server->factory()->dpkgPostInvokeTasks(); };
     !$@ or error( $@ )
 }
 
 debug( 'Executing packages dpkg(1) post-invoke tasks' );
-for my $package ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+for my $package ( iMSCP::Packages->getInstance()->getList() ) {
     next unless my $subref = $package->can( 'dpkgPostInvokeTasks' );
     eval { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); };
     !$@ or error( $@ )

@@ -1032,7 +1032,7 @@ sub _compileZone
         \my $stderr
     );
     debug( $stdout ) if length $stdout;
-    !$rs or die( sprintf( "Couldn't compile the %s zone: %s", $zonename, $stderr || 'Unknown error' ));
+    $rs == 0 or die( sprintf( "Couldn't compile the %s zone: %s", $zonename, $stderr || 'Unknown error' ));
 }
 
 =item _bkpConfFile($cfgFile)

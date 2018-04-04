@@ -72,14 +72,13 @@ sub preBuild
 
     return if iMSCP::Getopt->skippackages;
 
-    unshift @{ $steps },
-        (
-            [ sub { $self->_processPackagesFile() }, 'Processing distribution packages file' ],
-            [ sub { $self->_installAPTsourcesList(); }, 'Installing new APT sources.list(5) file' ],
-            [ sub { $self->_addAPTrepositories() }, 'Adding APT repositories' ],
-            [ sub { $self->_processAptPreferences() }, 'Setting APT preferences' ],
-            [ sub { $self->_prefillDebconfDatabase() }, 'Setting Debconf database' ]
-        );
+    unshift @{ $steps }, (
+        [ sub { $self->_processPackagesFile() }, 'Processing distribution packages file' ],
+        [ sub { $self->_installAPTsourcesList(); }, 'Installing new APT sources.list(5) file' ],
+        [ sub { $self->_addAPTrepositories() }, 'Adding APT repositories' ],
+        [ sub { $self->_processAptPreferences() }, 'Setting APT preferences' ],
+        [ sub { $self->_prefillDebconfDatabase() }, 'Setting Debconf database' ]
+    );
 }
 
 =item installPackages( )
@@ -313,23 +312,21 @@ sub _parsePackageNode
 
     # APT repository
     if ( defined $node->{'repository'} ) {
-        push @{ $self->{'aptRepositoriesToAdd'} },
-            {
-                repository         => $node->{'repository'},
-                repository_key_uri => $node->{'repository_key_uri'} || undef,
-                repository_key_id  => $node->{'repository_key_id'} || undef,
-                repository_key_srv => $node->{'repository_key_srv'} || undef
-            };
+        push @{ $self->{'aptRepositoriesToAdd'} }, {
+            repository         => $node->{'repository'},
+            repository_key_uri => $node->{'repository_key_uri'} || undef,
+            repository_key_id  => $node->{'repository_key_id'} || undef,
+            repository_key_srv => $node->{'repository_key_srv'} || undef
+        };
     }
 
     # APT preferences
     if ( defined $node->{'pinning_package'} ) {
-        push @{ $self->{'aptPreferences'} },
-            {
-                pinning_package      => $node->{'pinning_package'},
-                pinning_pin          => $node->{'pinning_pin'} || undef,
-                pinning_pin_priority => $node->{'pinning_pin_priority'} || undef
-            };
+        push @{ $self->{'aptPreferences'} }, {
+            pinning_package      => $node->{'pinning_package'},
+            pinning_pin          => $node->{'pinning_pin'} || undef,
+            pinning_pin_priority => $node->{'pinning_pin_priority'} || undef
+        };
     }
 }
 
@@ -385,23 +382,21 @@ sub _processPackagesFile
 
         # APT repository
         if ( defined $data->{'repository'} ) {
-            push @{ $self->{'aptRepositoriesToAdd'} },
-                {
-                    repository         => $data->{'repository'},
-                    repository_key_uri => $data->{'repository_key_uri'} || undef,
-                    repository_key_id  => $data->{'repository_key_id'} || undef,
-                    repository_key_srv => $data->{'repository_key_srv'} || undef
-                };
+            push @{ $self->{'aptRepositoriesToAdd'} }, {
+                repository         => $data->{'repository'},
+                repository_key_uri => $data->{'repository_key_uri'} || undef,
+                repository_key_id  => $data->{'repository_key_id'} || undef,
+                repository_key_srv => $data->{'repository_key_srv'} || undef
+            };
         }
 
         # APT preferences
         if ( defined $data->{'pinning_package'} ) {
-            push @{ $self->{'aptPreferences'} },
-                {
-                    pinning_package      => $data->{'pinning_package'},
-                    pinning_pin          => $data->{'pinning_pin'} || undef,
-                    pinning_pin_priority => $data->{'pinning_pin_priority'} || undef,
-                };
+            push @{ $self->{'aptPreferences'} }, {
+                pinning_package      => $data->{'pinning_package'},
+                pinning_pin          => $data->{'pinning_pin'} || undef,
+                pinning_pin_priority => $data->{'pinning_pin_priority'} || undef,
+            };
         }
 
         # Pre-install tasks
@@ -415,8 +410,10 @@ sub _processPackagesFile
         }
 
         # Delete items that were already processed
-        delete @{ $data }{qw/ package package_delayed package_conflict pinning_package repository repository_key_uri repository_key_id
-            repository_key_srv post_install_task post_install_task /};
+        delete @{ $data }{
+            qw/ package package_delayed package_conflict pinning_package repository repository_key_uri repository_key_id
+                repository_key_srv post_install_task post_install_task /
+        };
 
         # Jump in next section, unless the section defines alternatives
         next unless %{ $data };
@@ -433,7 +430,7 @@ sub _processPackagesFile
         my $sAlt = $::questions{ $sectionClass } || $::imscpConfig{ $sectionClass };
 
         # Retrieve alternative type (server|provider), default to server
-        my $altType = delete($data->{'type'}) || 'server';
+        my $altType = delete( $data->{'type'} ) || 'server';
 
         # Builds list of supported alternatives for dialogs
         # Discard hidden alternatives that are hidden or for which  evaluation
@@ -481,8 +478,8 @@ sub _processPackagesFile
 
         # Set the dialog flag in any case if there are many alternatives available and if user asked for alternative reconfiguration
         $showDialog ||= @supportedAlts > 1 && (
-            (isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] ) && $altType eq 'server' )
-            || (isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'providers', 'all' ] ) && $altType eq 'provider' )
+            ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] ) && $altType eq 'server' )
+                || ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'providers', 'all' ] ) && $altType eq 'provider' )
         );
 
         # Process alternative dialogs
@@ -527,23 +524,21 @@ EOF
 
                 # APT repository
                 if ( defined $altData->{'repository'} ) {
-                    push @{ $self->{'aptRepositoriesToAdd'} },
-                        {
-                            repository         => $altData->{'repository'},
-                            repository_key_uri => $altData->{'repository_key_uri'} || undef,
-                            repository_key_id  => $altData->{'repository_key_id'} || undef,
-                            repository_key_srv => $altData->{'repository_key_srv'} || undef
-                        };
+                    push @{ $self->{'aptRepositoriesToAdd'} }, {
+                        repository         => $altData->{'repository'},
+                        repository_key_uri => $altData->{'repository_key_uri'} || undef,
+                        repository_key_id  => $altData->{'repository_key_id'} || undef,
+                        repository_key_srv => $altData->{'repository_key_srv'} || undef
+                    };
                 }
 
                 # APT preferences
                 if ( defined $altData->{'pinning_package'} ) {
-                    push @{ $self->{'aptPreferences'} },
-                        {
-                            pinning_package      => $altData->{'pinning_package'},
-                            pinning_pin          => $altData->{'pinning_pin'} || undef,
-                            pinning_pin_priority => $altData->{'pinning_pin_priority'} || undef,
-                        }
+                    push @{ $self->{'aptPreferences'} }, {
+                        pinning_package      => $altData->{'pinning_package'},
+                        pinning_pin          => $altData->{'pinning_pin'} || undef,
+                        pinning_pin_priority => $altData->{'pinning_pin_priority'} || undef,
+                    }
                 }
 
                 # Pre-install tasks
@@ -760,10 +755,8 @@ EOF
             my $tmpDir = File::Temp->newdir();
 
             if ( my $uid = ( getpwnam( '_apt' ) )[2] ) {
-                # Prevent Fix `W: Download is performed unsandboxed as root as file...' warning with newest APT versions
-                chown $uid, -1, $tmpDir or die(
-                    sprintf( "Couldn't change ownership for the %s directory: %s", $tmpDir, $! || 'Unknown error' )
-                );
+                # Prevent Fix 'W: Download is performed unsandboxed as root as file...' warning with newest APT versions
+                chown $uid, -1, $tmpDir or die( sprintf( "Couldn't change ownership for the %s directory: %s", $tmpDir, $! || 'Unknown error' ));
             }
 
             local $CWD = $tmpDir;
@@ -781,7 +774,7 @@ EOF
             $rs ||= execute( [ 'debconf-loadtemplate', $package, <$tmpDir/$package.template.*> ], \$stdout, \$stderr );
             $rs || debug( $stdout ) if length $stdout;
 
-            !$rs or die( $stderr || 'Unknown errror' );
+            $rs == 0 or die( $stderr || 'Unknown errror' );
             endDetail;
 
             $isManualTplLoading = TRUE;
@@ -806,7 +799,7 @@ EOF
                     #    sub {
                     #        my $rs = execute( "echo SET $qNamePrefix/$qName | debconf-communicate $qOwner", \ my $stdout, \ my $stderr );
                     #        debug( $stdout ) if length $stdout;
-                    #        !$rs or die( $stderr || 'Unknown error' ) if $rs;
+                    #        $rs == 0 or die( $stderr || 'Unknown error' ) if $rs;
                     #    }
                     #);
                 }
@@ -824,7 +817,7 @@ EOF
 
     my $rs = execute( [ 'debconf-set-selections', $debconfSelectionsFile ], \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
-    !$rs or die( $stderr || "Couldn't pre-fill Debconf database" );
+    $rs == 0 or die( $stderr || "Couldn't pre-fill Debconf database" );
 }
 
 =item _rebuildAndInstallPackage( $pkg, $pkgSrc, $patchesDir [, $patchesToDiscard = [] [,  $patchFormat = 'quilt' ]] )
@@ -858,7 +851,7 @@ sub _rebuildAndInstallPackage
 
     my $srcDownloadDir = File::Temp->newdir( CLEANUP => TRUE );
 
-    # Fix `W: Download is performed unsandboxed as root as file...' warning with newest APT versions
+    # Fix 'W: Download is performed unsandboxed as root as file...' warning with newest APT versions
     if ( ( undef, undef, my $uid ) = getpwnam( '_apt' ) ) {
         chown $uid, -1, $srcDownloadDir or die( sprintf( "Couldn't change ownership for the %s directory: %s", $srcDownloadDir, $! ));
     }
@@ -887,14 +880,11 @@ sub _rebuildAndInstallPackage
                 ];
 
                 executeNoWait(
-                    $cmd,
-                    ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose
-                        ? sub {}
-                        : sub {
-                        return unless ( shift ) =~ /^i:\s*(.*)/i;
-                        step( undef, $msgHeader . ucfirst( $1 ) . $msgFooter, 5, 1 );
-                    }
-                    ),
+                    $cmd, ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose
+                    ? sub {} : sub {
+                    return unless ( shift ) =~ /^i:\s*(.*)/i;
+                    step( undef, $msgHeader . ucfirst( $1 ) . $msgFooter, 5, 1 );
+                } ),
                     sub { $stderr .= shift; }
                 ) == 0 or die( sprintf( "Couldn't create/update pbuilder environment: %s", $stderr || 'Unknown error' ));
             }
@@ -941,7 +931,7 @@ sub _rebuildAndInstallPackage
                     \$stderr
                 );
                 debug( $stdout ) if length $stdout;
-                !$rs or die( sprintf( "Couldn't add `imscp' local suffix: %s", $stderr || 'Unknown error' ));
+                $rs == 0 or die( sprintf( "Couldn't add 'imscp' local suffix: %s", $stderr || 'Unknown error' ));
             },
             sprintf( 'Patching %s %s source package...', $pkgSrc, $::imscpConfig{'DISTRO_ID'} ), 5, 3
         );
@@ -957,12 +947,10 @@ sub _rebuildAndInstallPackage
                         '--configfile', "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/pbuilder/pbuilderrc"
                     ],
                     ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose
-                        ? sub {}
-                        : sub {
+                        ? sub {} : sub {
                         return unless ( shift ) =~ /^i:\s*(.*)/i;
                         step( undef, $msgHeader . ucfirst( $1 ) . $msgFooter, 5, 4 );
-                    }
-                    ),
+                    } ),
                     sub { $stderr .= shift }
                 ) == 0 or die(
                     sprintf( "Couldn't build local %s %s package: %s", $pkg, $::imscpConfig{'DISTRO_ID'}, $stderr || 'Unknown error' )
