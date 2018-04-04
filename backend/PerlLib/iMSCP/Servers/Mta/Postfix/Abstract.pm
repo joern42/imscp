@@ -496,7 +496,7 @@ sub getTraffic
     debug( sprintf( 'Processing SMTP %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or die %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => TRUE;
+    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => TRUE;
     my ( $idx, $idxContent ) = ( $trafficIndexDb->{'smtp_lineNo'} || 0, $trafficIndexDb->{'smtp_lineContent'} );
 
     # Extract and standardize SMTP logs in temporary file, using
