@@ -85,7 +85,7 @@ try {
 
     $cfg = Registry::get('config');
 
-    if (in_array('Pydio', explode(',', $cfg['FILEMANAGER_PACKAGES']))) {
+    if (in_array('Pydio', explode(',', $cfg['FILEMANAGERS']))) {
         $userPrefDir = $cfg['FRONTEND_ROOT_DIR'] . '/public/tools/ftp/data/plugins/auth.serial/' . $userid;
         if (is_dir($userPrefDir)) {
             utils_removeDir($userPrefDir);

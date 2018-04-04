@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Setup::FileManager::Pydio - i-MSCP Pydio package
+ iMSCP::Packages::Setup::FileManagers::Pydio - i-MSCP Pydio package
 
 =cut
 
@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Setup::FileManager::Pydio;
+package iMSCP::Packages::Setup::FileManagers::Pydio;
 
 use strict;
 use warnings;

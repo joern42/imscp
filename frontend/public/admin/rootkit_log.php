@@ -48,8 +48,8 @@ $tpl->assign('TR_PAGE_TITLE', tr('Admin / System Tools / Anti-Rootkits Logs'));
 
 $antiRootkits = [];
 
-if (isset($config['ANTIROOTKITS_PACKAGES'])) {
-    $antiRootkits = explode(',', $config['ANTIROOTKITS_PACKAGES']);
+if (isset($config['ANTIROOTKITS'])) {
+    $antiRootkits = explode(',', $config['ANTIROOTKITS']);
 }
 
 $antiRootkits[] = 'Other';

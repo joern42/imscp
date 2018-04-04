@@ -71,7 +71,7 @@ sub showDialog
     my $ucPackageName = uc $packageName;
 
     @{ $self->{'SELECTED_PACKAGES'} } = split(
-        ',', ::setupGetQuestion( "${ucPackageName}_PACKAGES", iMSCP::Getopt->preseed ? join( ',', @{ $self->{'AVAILABLE_PACKAGES'} } ) : '' )
+        ',', ::setupGetQuestion( $ucPackageName, iMSCP::Getopt->preseed ? join( ',', @{ $self->{'AVAILABLE_PACKAGES'} } ) : '' )
     );
 
     my %choices;
@@ -91,7 +91,7 @@ EOF
 
     @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'no', @{ $self->{'SELECTED_PACKAGES'} } );
 
-    ::setupSetQuestion( "${ucPackageName}_PACKAGES", @{ $self->{'SELECTED_PACKAGES'} } ? join ',', @{ $self->{'SELECTED_PACKAGES'} } : 'no' );
+    ::setupSetQuestion( $ucPackageName, @{ $self->{'SELECTED_PACKAGES'} } ? join ',', @{ $self->{'SELECTED_PACKAGES'} } : 'no' );
 
     for ( $self->getCollection() ) {
         next unless $_->can( 'showDialog' );
@@ -117,7 +117,7 @@ sub preinstall
     my @distroPackages = ();
     for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next if grep $package eq $_, @{ $self->{'SELECTED_PACKAGES'} };
-        $package = "iMSCP::Packages::Webmail::${package}::${package}";
+        $package = "iMSCP::Packages::Webmails::${package}::${package}";
         eval "require $package" or die( $@ );
 
         debug( sprintf( 'Executing uninstall action on %s', $package ));
@@ -381,7 +381,7 @@ sub _loadSelectedPackages
 {
     my ( $self ) = @_;
 
-    @{ $self->{'SELECTED_PACKAGES'} } = grep $_ ne 'no', split( ',', $::imscpConfig{"@{ [ uc $self->getPackageName() ] }_PACKAGES"} );
+    @{ $self->{'SELECTED_PACKAGES'} } = grep $_ ne 'no', split( ',', $::imscpConfig{ uc $self->getPackageName() } );
 }
 
 =back

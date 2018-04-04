@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Webmail - i-MSCP Webmail package
+ iMSCP::Packages::Webmails - i-MSCP Webmails package
 
 =cut
 
@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Webmail;
+package iMSCP::Packages::Webmails;
 
 use strict;
 use warnings;
@@ -50,7 +50,7 @@ sub getPackageName
 {
     my ( $self ) = @_;
 
-    'Webmail';
+    'Webmails';
 }
 
 =item getPackageHumanName( )
@@ -63,7 +63,7 @@ sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    'i-MSCP Webmail packages';
+    'i-MSCP Webmails packages';
 }
 
 =item getPackageVersion( )

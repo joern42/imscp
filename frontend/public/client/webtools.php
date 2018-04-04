@@ -54,7 +54,7 @@ function client_hideDisabledFeatures($tpl)
         }
     }
 
-    if (!customerHasFeature('ftp') || Registry::get('config')['FILEMANAGER_PACKAGES'] == 'no') {
+    if (!customerHasFeature('ftp') || Registry::get('config')['FILEMANAGERS'] == 'no') {
         $tpl->assign('FTP_FEATURE', '');
     }
 

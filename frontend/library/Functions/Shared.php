@@ -2440,8 +2440,8 @@ function getWebmailList()
 {
     $config = Registry::get('config');
 
-    if (isset($config['WEBMAIL_PACKAGES']) && strtolower($config['WEBMAIL_PACKAGES']) != 'no') {
-        return explode(',', $config['WEBMAIL_PACKAGES']);
+    if (isset($config['WEBMAILS']) && strtolower($config['WEBMAILS']) != 'no') {
+        return explode(',', $config['WEBMAILS']);
     }
 
     return [];
@@ -2456,8 +2456,8 @@ function getFilemanagerList()
 {
     $config = Registry::get('config');
 
-    if (isset($config['FILEMANAGER_PACKAGES']) && strtolower($config['FILEMANAGER_PACKAGES']) != 'no') {
-        return explode(',', $config['FILEMANAGER_PACKAGES']);
+    if (isset($config['FILEMANAGERS']) && strtolower($config['FILEMANAGERS']) != 'no') {
+        return explode(',', $config['FILEMANAGERs']);
     }
 
     return [];

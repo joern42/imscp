@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Setup::FileManager::MonstaFTP - i-MSCP package
+ iMSCP::Packages::Setup::FileManagers::MonstaFTP - i-MSCP package
 
 =cut
 
@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Setup::FileManager::MonstaFTP;
+package iMSCP::Packages::Setup::FileManagers::MonstaFTP;
 
 use strict;
 use warnings;
@@ -137,9 +137,7 @@ sub getPackageVersion
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Packages::Setup::FileManager::MonstaFTP::Installer
+ See iMSCP::Packages::Abstract::_init()
 
 =cut
 

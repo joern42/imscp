@@ -146,7 +146,7 @@ return [
                 'target' => '_blank',
                 'privilege_callback' => [
                     'name' => function () {
-                        return Registry::get('config')['FILEMANAGER_PACKAGES'] != 'no';
+                        return Registry::get('config')['FILEMANAGERS'] != 'no';
                     }
                 ]
             ]

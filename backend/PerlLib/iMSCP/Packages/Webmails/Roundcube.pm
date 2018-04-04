@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Webmail::Roundcube - i-MSCP Roundcube package
+ iMSCP::Packages::Webmails::Roundcube - i-MSCP Roundcube package
 
 =cut
 
@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Webmail::Roundcube;
+package iMSCP::Packages::Webmails::Roundcube;
 
 use strict;
 use warnings;
@@ -322,9 +322,7 @@ EOF
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Packages::Webmail::Roundcube::Roundcube
+ See iMSCP::Packages::Abstract::_init() 
 
 =cut
 

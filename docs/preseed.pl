@@ -49,7 +49,7 @@
     #
     # Leave empty for default: Depend on distribution default value.
     'iMSCP::Providers::Networking'      => '',
-    
+
     # IPv6 support
     #
     # Possible values: yes, no
@@ -501,7 +501,7 @@
     # - Awstats (default)
     #
     # Leave empty for default: Awstats
-    WEBSTATS_PACKAGES                   => '',
+    WEBSTATS                            => '',
 
     # FTP Web file manager packages
     #
@@ -512,7 +512,7 @@
     # - MonstaFTP (default)
     #
     # Leave empty for default: MonstaFTP
-    FILEMANAGER_PACKAGE                 => '',
+    FILEMANAGERS                        => '',
 
     # SQL user for PhpMyAdmin
     #
@@ -532,7 +532,7 @@
     # - Roundcube (default)
     #
     # Leave empty for default RainLoop,Roundcube
-    WEBMAIL_PACKAGES                    => '',
+    WEBMAILS                            => '',
 
     # SQL user for Roundcube package (only if you use Roundcube)
     #
@@ -560,7 +560,7 @@
     # - Rkhunter (default)
     #
     # Leave empty for default: Chkrootkit,Rkhunter
-    ANTIROOTKITS_PACKAGES              => ''
+    ANTIROOTKITS                        => ''
 );
 
 1;

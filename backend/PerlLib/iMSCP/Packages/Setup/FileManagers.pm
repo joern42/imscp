@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages::Setup::FileManager - i-MSCP FileManager package
+ iMSCP::Packages::Setup::FileManagers - i-MSCP FileManager package
 
 =cut
 
@@ -21,11 +21,13 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Setup::FileManager;
+package iMSCP::Packages::Setup::FileManagers;
 
 use strict;
 use warnings;
 use File::Basename qw/ dirname /;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use parent 'iMSCP::Packages::AbstractCollection';
 
@@ -54,7 +56,7 @@ sub preinstall
     my @distroPackages = ();
     for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next if grep $package eq $_, @{ $self->{'SELECTED_PACKAGES'} };
-        $package = "iMSCP::Packages::Setup::FileManager::${package}";
+        $package = "iMSCP::Packages::Setup::FileManagers::${package}";
         eval "require $package" or die( $@ );
 
         debug( sprintf( 'Executing uninstall action on %s', $package ));
@@ -88,7 +90,7 @@ sub getPackageName
 {
     my ( $self ) = @_;
 
-    'FileManager';
+    'FileManagers';
 }
 
 =item getPackageHumanName( )
@@ -101,7 +103,7 @@ sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'i-MSCP Filemanager packages (%s)', $self->getPackageVersion());
+    sprintf( 'i-MSCP FileManagers packages (%s)', $self->getPackageVersion());
 }
 
 =item getPackageVersion( )
@@ -151,10 +153,9 @@ sub _loadAvailablePackages
 {
     my ( $self ) = @_;
 
-    # Pydio package temporarily disabled due to PHP version constraint that is not met
-    s/(Pydio)?\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new(
-        dirname => dirname( __FILE__ ) . '/' . $self->getPackageName()
-    )->getFiles();
+    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/' . $self->getPackageName())->getFiles(
+        qr/Pydio/, TRUE # Pydio package temporarily disabled due to PHP version constraint that is not met
+    );
 }
 
 =back
