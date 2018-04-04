@@ -108,7 +108,7 @@ sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'i-MSCP AntiRootkits packages (%s)', $self->getPackageVersion());
+    sprintf( 'i-MSCP AntiRootkit packages collection (%s)', $self->getPackageVersion());
 }
 
 =item getPackageVersion( )

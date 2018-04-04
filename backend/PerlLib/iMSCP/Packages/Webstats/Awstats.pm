@@ -137,7 +137,7 @@ sub getPackageName
 {
     my ( $self ) = @_;
 
-    'AWStats';
+    'Awstats';
 }
 
 =item getPackageHumanName( )

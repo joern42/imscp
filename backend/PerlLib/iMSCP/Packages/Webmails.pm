@@ -25,7 +25,6 @@ package iMSCP::Packages::Webmails;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ debug /;
 use parent 'iMSCP::Packages::AbstractCollection';
 
 our $VERSION = '2.0.0';
@@ -63,7 +62,7 @@ sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    'i-MSCP Webmails packages';
+    sprintf( 'i-MSCP Webmails packages collection (%s)', $self->getPackageVersion());
 }
 
 =item getPackageVersion( )
@@ -77,25 +76,6 @@ sub getPackageVersion
     my ( $self ) = @_;
 
     $self->getPackageImplVersion();
-}
-
-=item deleteMail( \%moduleData )
-
- Process deleteMail tasks
-
- Param hashref \%moduleData Data as provided by Mail module
- Return void, die on failure
-
-=cut
-
-sub deleteMailDisabled
-{
-    my ( $self, $moduleData ) = @_;
-
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing deleteMail action on %s', ref $_ ));
-        $_->deleteMail( $moduleData );
-    }
 }
 
 =back

@@ -25,7 +25,6 @@ package iMSCP::Packages::Webstats;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ debug /;
 use parent 'iMSCP::Packages::AbstractCollection';
 
 our $VERSION = '2.0.0';
@@ -63,7 +62,7 @@ sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    'i-MSCP Webstats packages';
+    sprintf( 'i-MSCP Webstats packages collection (%s)', $self->getPackageVersion());
 }
 
 =item getPackageVersion( )
@@ -77,139 +76,6 @@ sub getPackageVersion
     my ( $self ) = @_;
 
     $self->getPackageImplVersion();
-}
-
-=item addUser( \%moduleData )
-
- Process addUser tasks
-
- Param hashref \%moduleData Data as provided by User module
- Return void, die on failure
-
-=cut
-
-sub addUserDisabled
-{
-    my ( $self, $moduleData ) = @_;
-
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing addUser action on %s', ref $_ ));
-        $_->addUser( $moduleData );
-    }
-}
-
-=item preaddDomain( \%moduleData )
-
- Process preaddDomain tasks
-
- Param hashref \%moduleData Data as provided by Alias|Domain modules
- Return int 0 on success, other on failure
-
-=cut
-
-sub preaddDomainDisabled
-{
-    my ( $self, $moduleData ) = @_;
-
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing preaddDomain action on %s', ref $_ ));
-        $_->preaddDomain( $moduleData );
-    }
-}
-
-=item addDomain( \%moduleData )
-
- Process addDomain tasks
-
- Param hashref \%moduleData Data as provided by Alias|Domain modules
- Return void, die on failure
-
-=cut
-
-sub addDomainDisabled
-{
-    my ( $self, $moduleData ) = @_;
-
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing addDomain action on %s', ref $_ ));
-        $_->addDomain( $moduleData );
-    }
-}
-
-=item deleteDomain( \%moduleData )
-
- Process deleteDomain tasks
-
- Param hashref \%moduleData Data as provided by Alias|Domain modules
- Return void, die on failure
-
-=cut
-
-sub deleteDomainDisabled
-{
-    my ( $self, $moduleData ) = @_;
-
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing deleteDomain action on %s', ref $_ ));
-        $_->deleteDomain( $moduleData );
-    }
-}
-
-=item preaddSubdomain(\%moduleData)
-
- Process preaddSubdomain tasks
-
- Param hashref \%moduleData Data as provided by SubAlias|Subdomain modules
- Return void, die on failure
-
-=cut
-
-sub preaddSubdomainDisabled
-{
-    my ( $self, $moduleData ) = @_;
-
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing preaddSubdomain action on %s', ref $_ ));
-        $_->preaddSubdomain( $moduleData );
-    }
-}
-
-=item addSubdomain( \%moduleData )
-
- Process addSubdomain tasks
-
- Param hashref \%moduleData Data as provided by SubAlias|Subdomain modules
- Return void, die on failure
-
-=cut
-
-sub addSubdomainDisabled
-{
-    my ( $self, $moduleData ) = @_;
-
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing addSubdomain action on %s', ref $_ ));
-        $_->addSubdomain( $moduleData );
-    }
-}
-
-=item deleteSubdomain( \%moduleData )
-
- Process deleteSubdomain tasks
-
- Param hashref \%moduleData Data as provided by SubAlias|Subdomain modules
- Return void, die on failure
-
-=cut
-
-sub deleteSubdomainDisabled
-{
-    my ( $self, $moduleData ) = @_;
-
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing deleteSubdomain action on %s', ref $_ ));
-        $_->deleteSubdomain( $moduleData );
-    }
 }
 
 =back

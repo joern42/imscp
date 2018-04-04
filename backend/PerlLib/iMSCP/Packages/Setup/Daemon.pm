@@ -148,7 +148,7 @@ sub getPackageVersion
 {
     my ( $self ) = @_;
 
-    $::imscpConfig{'Version'};
+    $self->getPackageImplVersion();
 }
 
 =item install( )

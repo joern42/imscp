@@ -157,8 +157,6 @@ sub askMasterAdminCredentials
     my ( $self, $dialog ) = @_;
 
     my ( $username, $password ) = ( '', '' );
-    
-    #$self->{'dbh'} = undef if $@; # Fresh installation case
 
     if ( iMSCP::Getopt->preseed ) {
         $username = ::setupGetQuestion( 'ADMIN_LOGIN_NAME', 'admin' );
@@ -906,7 +904,7 @@ sub getPackageVersion
 {
     my ( $self ) = @_;
 
-    $::imscpConfig{'Version'};
+    $self->getPackageImplVersion();
 }
 
 =item getComposer( )

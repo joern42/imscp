@@ -103,7 +103,7 @@ sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'i-MSCP FileManagers packages (%s)', $self->getPackageVersion());
+    sprintf( 'i-MSCP FileManager packages collection (%s)', $self->getPackageVersion());
 }
 
 =item getPackageVersion( )
@@ -116,7 +116,7 @@ sub getPackageVersion
 {
     my ( $self ) = @_;
 
-    $::imscpConfig{'Version'};
+    $self->getPackageImplVersion();
 }
 
 =item getCollection()
