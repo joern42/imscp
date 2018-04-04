@@ -319,11 +319,11 @@ sub AUTOLOAD
     # Define the method
     no strict 'refs';
     *{ $AUTOLOAD } = sub {
-        my ( $self ) = @_;
+        my ( $self, $moduleData ) = @_;
 
         for ( $self->getCollection() ) {
             debug( sprintf( 'Executing %s action on %s', $method, ref $_ ));
-            $_->$method();
+            $_->$method( $moduleData );
         }
     };
 
