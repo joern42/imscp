@@ -705,7 +705,7 @@ sub postinstall
     my ( $self ) = @_;
 
     my $stderr;
-    execute( "perl $::imscpConfig{'BACKEND_ROOT_DIR'}/tools/imscp-info.pl -rsj", \my $stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
+    execute( "perl $::imscpConfig{'BACKEND_ROOT_DIR'}/tools/imscp-info.pl -j", \my $stdout, \$stderr ) == 0 or die( $stderr || 'Unknown error' );
     chomp( $stdout );
 
     $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
