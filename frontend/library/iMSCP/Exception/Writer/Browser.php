@@ -134,6 +134,12 @@ class iMSCP_Exception_Writer_Browser extends iMSCP_Exception_Writer_Abstract
 </html>
 HTML;
         } else {
+            // We have to disable cache before rendering as the layout for the
+            // current page could be cached already, leading wrong layout used.
+            // See the Template Engine::resolveTemplate() method for further
+            // details.
+            Registry::get('iMSCP_Application')->getCache()->setOption('caching', false);
+
             $event->setParam('templateEngine', $tpl);
             layout_init($event);
             $tpl->parse('LAYOUT', 'layout');
