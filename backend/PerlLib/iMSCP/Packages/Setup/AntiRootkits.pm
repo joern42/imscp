@@ -133,15 +133,13 @@ sub getCollection
 {
     my ( $self ) = @_;
 
-    CORE::state @collection;
-
-    @collection = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
+    @{ $self->{'_package_instances'} } = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
         my $package = "iMSCP::Packages::Setup::@{ [ $self->getPackageName() ] }::${_}";
         eval "require $package; 1" or die( $@ );
         $package->getInstance();
-    } @{ $self->{'SELECTED_PACKAGES'} };
+    } @{ $self->{'SELECTED_PACKAGES'} } unless $self->{'_package_instances'};
 
-    @collection;
+    @{ $self->{'_package_instances'} }
 }
 
 =back
