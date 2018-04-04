@@ -160,7 +160,7 @@ function generateNavigation(TemplateEngine $tpl)
 
                 foreach ($webmails as $webmail) {
                     $page = [
-                        'label'  => tohtml(tr('%s webmail', $webmail)),
+                        'label'  => tohtml(tr('%s Webmail', $webmail)),
                         'uri'    => '/' . ($webmail == 'Roundcube' ? 'webmail' : strtolower($webmail)) . '/',
                         'target' => '_blank',
                     ];
@@ -179,7 +179,7 @@ function generateNavigation(TemplateEngine $tpl)
 
                 foreach ($filemanagers as $filemanager) {
                     $page = [
-                        'label'  => tohtml(tr('%s webmail', $filemanager)),
+                        'label'  => tohtml(tr('%s Filemanager', $filemanager)),
                         'uri'    => '/' . ($filemanager == 'MonstaFTP' ? 'ftp' : strtolower($filemanager)) . '/',
                         'target' => '_blank',
                     ];
@@ -190,15 +190,15 @@ function generateNavigation(TemplateEngine $tpl)
         }
     }
 
-    // Dynamic links (All levels)
-    $tpl->assign([
-        'SUPPORT_SYSTEM_PATH'   => 'ticket_system.php',
-        'SUPPORT_SYSTEM_TARGET' => '_self'
-    ]);
-
     // Remove support system page if feature is globally disabled
     if (!$cfg['IMSCP_SUPPORT_SYSTEM']) {
         $navigation->removePage($navigation->findOneBy('class', 'support'));
+    } else {
+        // Dynamic links (All levels)
+        $tpl->assign([
+            'SUPPORT_SYSTEM_PATH'   => 'ticket_system.php',
+            'SUPPORT_SYSTEM_TARGET' => '_self'
+        ]);
     }
 
     // Custom menus
