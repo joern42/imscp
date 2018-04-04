@@ -26,13 +26,11 @@ package iMSCP::Packages::Abstract;
 use strict;
 use warnings;
 use Class::Autouse qw/ :nostat iMSCP::DistPackageManager /;
-use Carp qw/ confess croak /;
+use Carp qw/ croak /;
 use File::Basename;
 use File::Spec;
 use iMSCP::Boolean;
-use iMSCP::Config;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::EventManager;
 use iMSCP::File;
 use iMSCP::Getopt;
@@ -213,7 +211,7 @@ sub setBackendPermissions
 
  This method is called by the i-MSCP frontEnd permission management script.
 
- Any package managing GUI files *SHOULD* implement this method.
+ Any package managing FrontEnd files *SHOULD* implement this method.
 
  Return void, die on failure
 
@@ -226,16 +224,9 @@ sub setFrontendPermissions
 
 =item getPackageName( )
 
- Return internal CamelCase service name implemented by this package
- 
- Package name must follow CamelCase naming convention such as RoundCube
- FrontEnd... See https://en.wikipedia.org/wiki/Camel_case
- 
- This method is primarily used for event names construct at runtime, and at
- some other places where the internal package name must be showed such as in
- the backend/tools/imscp-info.pl script.
+ Return internal package name
 
- Return string CamelCase service name
+ Return string internal package name
 
 =cut
 
@@ -248,9 +239,9 @@ sub getPackageName
 
 =item getPackageHumanName( )
 
- Return the humanized name of the service implemented by this package
+ Return humanized package name
 
- For instance: RoundCube 1.3.4
+ For instance: Roundcube 1.3.4
 
  Return string Humanized service name
 
@@ -265,7 +256,7 @@ sub getPackageHumanName
 
 =item getPackageVersion()
 
- Return the version of the service implemented by this package
+ Return package version, generally the version of the service provided by the package but not always
 
  Return string Service version
 
@@ -451,7 +442,7 @@ sub AUTOLOAD
     no strict 'refs';
     *{ $AUTOLOAD } = sub {};
 
-    # Erase the stack frame
+    # Execute the subroutine, erasing AUTOLOAD stack frame without trace
     goto &{ $AUTOLOAD };
 }
 
@@ -484,98 +475,9 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'dbh'} = iMSCP::Database->getInstance();
-    $self->_loadConfig();
+    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self;
-}
-
-=item _loadConfig( [ $filename = lc( $self->getPackageName() . 'data ) ] )
-
- Load the package configuration
- 
- In installer context, also merge the old configuration with new configuration and make
- old configuration available through the 'old_config' attribute.
-
- Param string $filename OPTIONAL i-MSCP package configuration filename
- Return void, die on failure
-
-=cut
-
-sub _loadConfig
-{
-    my ( $self, $filename ) = @_;
-    $filename //= lc( $self->getPackageName() . '.data' );
-
-    defined $filename or croak( 'Missing $filename parameter' );
-    defined $self->{'cfgDir'} or croak( sprintf( "The %s class must define the 'cfgDir' property", ref $self ));
-
-    if ( iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/$filename.dist" ) {
-        if ( -f "$self->{'cfgDir'}/$filename" ) {
-            debug( sprintf( 'Merging old %s package configuration with new %s package configuration...', $filename, "$filename.dist" ));
-
-            tie my %oldConfig, 'iMSCP::Config',
-                filename => "$self->{'cfgDir'}/$filename",
-                readonly => TRUE,
-                # We do not want croak when accessing non-existing parameters
-                # in old configuration file. The new configuration file can
-                # refers to old parameters for new parameter values but in case
-                # the parameter doesn't exist in old conffile, we want simply
-                # an empty value. 
-                nocroak  => TRUE;
-
-            # Sometime, a configuration parameter get renamed. In such case the
-            # developer could want set the new parameter value with the old
-            # parameter name as a placeholder. For instance:
-            #
-            # Old parameter: DATABASE_USER
-            # New parameter: FTP_SQL_USER
-            #
-            # The value of the new parameter should be set as follows in the
-            # configuration file:
-            #
-            #   FTP_SQL_USER = {DATABASE_USER}
-            #
-            # By doing this, the value of the old DATABASE_USER parameter will
-            # be automatically used as value for the new FTP_SQL_USER parameter.
-            my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
-            processByRef( \%oldConfig, $file->getAsRef(), TRUE );
-            $file->save();
-            undef( $file );
-
-            tie my %newConfig, 'iMSCP::Config', filename => "$self->{'cfgDir'}/$filename.dist";
-
-            while ( my ( $key, $value ) = each( %oldConfig ) ) {
-                $newConfig{$key} = $value if exists $newConfig{$key};
-            }
-
-            # Make the old configuration available through the 'old_config' property
-            %{ $self->{'old_config'} } = %oldConfig;
-
-            untie %newConfig;
-            untie %oldConfig;
-        } else {
-            # For a fresh installation, we make the configuration file free of any placeholder
-            my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
-            processByRef( {}, $file->getAsRef(), TRUE );
-            $file->save();
-            undef( $file );
-        }
-
-        iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" )->move( "$self->{'cfgDir'}/$filename" );
-    }
-
-    debug( sprintf( 'Loading %s package configuration...', $self->getPackageName()));
-
-    tie %{ $self->{'config'} },
-        'iMSCP::Config',
-        filename    => "$self->{'cfgDir'}/$filename",
-        readonly    => iMSCP::Getopt->context() ne 'installer',
-        nodeferring => iMSCP::Getopt->context() eq 'installer';
-
-    # Make the new configuration also available through the 'old_config'
-    # property, unless the property is alreadys set, or if we are not in installer context
-    %{ $self->{'old_config'} } = %{ $self->{'config'} } unless exists $self->{'old_config'} || iMSCP::Getopt->context() ne 'installer';
 }
 
 =item _installPackages( @packages )
@@ -589,27 +491,27 @@ sub _loadConfig
 
 sub _installPackages
 {
-    my ( undef, @packages ) = @_;
+    my ( $self, @packages ) = @_;
 
-    return unless @packages && !iMSCP::Getopt->skippackages;
+    return if iMSCP::Getopt->skippackages || !@packages;
 
     iMSCP::DistPackageManager->getInstance()->installPackages( @packages );
 }
 
-=item _removePackages( @packages )
+=item _uninstallPackages( @packages )
 
- Remove distribution packages
+ Uninstall distribution packages
 
  Param list @packages Packages to remove
  Return int 0 on success, other on failure
 
 =cut
 
-sub _removePackages
+sub _uninstallPackages
 {
-    my ( undef, @packages ) = @_;
+    my ( $self, @packages ) = @_;
 
-    return unless @packages && !iMSCP::Getopt->skippackages;
+    return if iMSCP::Getopt->skippackages || !@packages;
 
     iMSCP::DistPackageManager->getInstance()->uninstallPackages( @packages );
 }

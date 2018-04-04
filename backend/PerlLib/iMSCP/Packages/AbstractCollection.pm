@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Packages::Collection;
+package iMSCP::Packages::AbstractCollection;
 
 use strict;
 use warnings;
@@ -31,7 +31,6 @@ use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::Getopt;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
-use Carp qw/ confess croak /;
 use parent 'iMSCP::Packages::Abstract';
 
 =head1 DESCRIPTION
@@ -97,7 +96,7 @@ EOF
     for ( $self->getCollection() ) {
         next unless $_->can( 'showDialog' );
 
-        debug( sprintf( 'Executing showDialog action on %s', $fpackage ));
+        debug( sprintf( 'Executing showDialog action on %s', ref $_ ));
         my $rs = $_->showDialog();
         return $rs if $rs;
     }
@@ -116,29 +115,26 @@ sub preinstall
     my ( $self ) = @_;
 
     my @distroPackages = ();
-    #    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-    #        next if grep ( $package eq $_, @{ $self->{'SELECTED_PACKAGES'} });
-    #        $package = "iMSCP::Packages::Webmail::${package}::${package}";
-    #        eval "require $package" or die( $@ );
-    #
-    #        if ( my $subref = $package->can( 'uninstall' ) ) {
-    #            debug( sprintf( 'Executing uninstall action on %s', $package ));
-    #            $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-    #        }
-    #
-    #        ( my $subref = $package->can( 'getDistroPackages' ) ) or next;
-    #        debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
-    #        push @distroPackages, $subref->( $package->getInstance( eventManager => $self->{'eventManager'} ));
-    #    }
-    #
-    #    $self->_removePackages( @distroPackages );
+    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
+        next if grep $package eq $_, @{ $self->{'SELECTED_PACKAGES'} };
+        $package = "iMSCP::Packages::Webmail::${package}::${package}";
+        eval "require $package" or die( $@ );
+
+        debug( sprintf( 'Executing uninstall action on %s', $package ));
+        $package->getInstance()->uninstall();
+
+        debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
+        push @distroPackages, $package->getInstance()->getDistroPackages();
+    }
+
+    $self->_uninstallPackages( @distroPackages );
 
     @distroPackages = ();
     for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing preinstall action on %s', $fpackage ));
+        debug( sprintf( 'Executing preinstall action on %s', ref $_ ));
         $_->preinstall();
 
-        debug( sprintf( 'Executing getDistroPackages action on %s', $fpackage ));
+        debug( sprintf( 'Executing getDistroPackages action on %s', ref $_ ));
         push @distroPackages, $_->getDistroPackages();
     }
 
@@ -153,8 +149,10 @@ sub preinstall
 
 sub install
 {
+    my ( $self ) = @_;
+
     for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing install action on %s', $fpackage ));
+        debug( sprintf( 'Executing install action on %s', ref $_ ));
         $_->install();
     }
 }
@@ -170,7 +168,7 @@ sub postinstall
     my ( $self ) = @_;
 
     for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing postinstall action on %s', $fpackage ));
+        debug( sprintf( 'Executing postinstall action on %s', ref $_ ));
         $_->postinstall();
     }
 }
@@ -186,7 +184,7 @@ sub preuninstall
     my ( $self ) = @_;
 
     for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing install action on %s', $fpackage ));
+        debug( sprintf( 'Executing install action on %s', ref $_ ));
         $_->preuninstall();
     }
 }
@@ -206,11 +204,11 @@ sub uninstall
         debug( sprintf( 'Executing uninstall action on %s', ref $_ ));
         $_->uninstall();
 
-        debug( sprintf( 'Executing getDistroPackages action on %s', $fpackage ));
+        debug( sprintf( 'Executing getDistroPackages action on %s', ref $_ ));
         push @distroPackages, $_->getDistroPackages();
     }
 
-    $self->_removePackages( @distroPackages );
+    $self->_uninstallPackages( @distroPackages );
 }
 
 =item postuninstall( )
@@ -224,7 +222,7 @@ sub postuninstall
     my ( $self ) = @_;
 
     for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing postuninstall action on %s', $fpackage ));
+        debug( sprintf( 'Executing postuninstall action on %s', ref $_ ));
         $_->postuninstall();
     }
 }
@@ -240,7 +238,7 @@ sub setBackendPermissions
     my ( $self ) = @_;
 
     for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing setBackendPermissions action on %s', $fpackage ));
+        debug( sprintf( 'Executing setBackendPermissions action on %s', ref $_ ));
         $_->setBackendPermissions();
     }
 }
@@ -256,7 +254,7 @@ sub setFrontendPermissions
     my ( $self ) = @_;
 
     for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing setFrontendPermissions action on %s', $fpackage ));
+        debug( sprintf( 'Executing setFrontendPermissions action on %s', ref $_ ));
         $_->setFrontendPermissions();
     }
 }
@@ -272,7 +270,7 @@ sub dpkgPostInvokeTasks
     my ( $self ) = @_;
 
     for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing dpkgPostInvokeTasks action on %s', $fpackage ));
+        debug( sprintf( 'Executing dpkgPostInvokeTasks action on %s', ref $_ ));
         $_->dpkgPostInvokeTasks();
     }
 }
@@ -289,13 +287,12 @@ sub getCollection
 {
     my ( $self ) = @_;
 
-    CORE::state @collection = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
-        my $package = "iMSCP::Packages::@{ [ $self->getPackageName() ] }::$_::$_";
+    @{ $self->{'_package_instances'} } = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
+        my $package = "iMSCP::Packages::@{ [ $self->getPackageName() ] }::${_}";
         eval "require $package; 1" or die( $@ );
         $package->getInstance();
-    } $self->{'SELECTED_PACKAGES'};
-
-    @collection;
+    } @{ $self->{'SELECTED_PACKAGES'} } unless $self->{'_package_instances'};
+    @{ $self->{'_package_instances'} };
 }
 
 =item AUTOLOAD()
@@ -325,12 +322,12 @@ sub AUTOLOAD
         my ( $self ) = @_;
 
         for ( $self->getCollection() ) {
-            debug( sprintf( 'Executing %s action on %s', $method, $fpackage ));
+            debug( sprintf( 'Executing %s action on %s', $method, ref $_ ));
             $_->$method();
         }
     };
 
-    # Erase the stack frame by calling the method
+    # Execute the subroutine, erasing AUTOLOAD stack frame without trace
     goto &{ $AUTOLOAD };
 }
 
@@ -352,25 +349,39 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    if ( iMSCP::Getopt->context() eq 'installer' ) {
-        @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/' . $self->getPackageName())->getDirs();
-    }
-
-    @{ $self->{'SELECTED_PACKAGES'} } = grep $_ ne 'no', split( ',', $::imscpConfig{'WEBSTATS_PACKAGES'} );
+    $self->_loadAvailablePackages() if iMSCP::Getopt->context() eq 'installer';
+    $self->_loadSelectedPackages();
     $self->SUPER::_init();
 }
 
-=item _loadConfig( [ $filename = lc( $self->getPackageName() . 'data ) ] )
+=item _loadAvailablePackages()
 
- See iMSCP::Packages::Abstract::_loadConfig()
+ Load list of available packages for this collection
+
+ Return void, die on failure
 
 =cut
 
-sub _loadConfig
+sub _loadAvailablePackages
 {
-    my ( $self, $filename ) = @_;
+    my ( $self ) = @_;
 
-    # Nothing to do here (collection)
+    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => dirname( __FILE__ ) . '/' . $self->getPackageName())->getFiles();
+}
+
+=item _loadAvailablePackages()
+
+ Load list of selected packages for this collection
+
+ Return void, die on failure
+
+=cut
+
+sub _loadSelectedPackages
+{
+    my ( $self ) = @_;
+
+    @{ $self->{'SELECTED_PACKAGES'} } = grep $_ ne 'no', split( ',', $::imscpConfig{"@{ [ uc $self->getPackageName() ] }_PACKAGES"} );
 }
 
 =back
