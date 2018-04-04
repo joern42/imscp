@@ -75,7 +75,7 @@ sub getFiles
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
-    opendir my $dh, $self->{'dirname'} or die( "Failed to open dir '%s': %s", $self->{'dirname'}, $! );
+    opendir my $dh, $self->{'dirname'} or die( sprintf( "Failed to open dir '%s': %s", $self->{'dirname'}, $! ) );
 
     my @files;
 
@@ -117,7 +117,7 @@ sub getDirs
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
-    opendir my $dh, $self->{'dirname'} or die( "Failed to open dir '%s': %s", $self->{'dirname'}, $! );
+    opendir my $dh, $self->{'dirname'} or die( sprintf( "Failed to open dir '%s': %s", $self->{'dirname'}, $! ) );
 
     my @files;
 
@@ -160,7 +160,7 @@ sub getAll
 
     !defined $regexp || ref $regexp eq 'Regexp' or croak( '$regexp parameter is invalid' );
 
-    opendir my $dh, $self->{'dirname'} or die( "Failed to open '%s': %s", $self->{'dirname'}, $! );
+    opendir my $dh, $self->{'dirname'} or die( sprintf( "Failed to open '%s': %s", $self->{'dirname'}, $! ) );
 
     my @files;
 
