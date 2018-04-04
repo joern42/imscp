@@ -260,7 +260,7 @@ function layout_getUserLayoutColor($userId)
  * @return void
  * @todo Use cookies to store user UI properties (Remember me implementation?)
  */
-function layout_init($event)
+function layout_init(iMSCP_Events_Event $event)
 {
     $cfg = Registry::get('config');
 
@@ -288,10 +288,10 @@ function layout_init($event)
         'THEME_ASSETS_PATH'    => '/themes/' . $cfg['USER_INITIAL_THEME'] . '/assets',
         'THEME_ASSETS_VERSION' => $themesAssetsVersion,
         'THEME_COLOR'          => $color,
-        'ISP_LOGO'             => (isset($_SESSION['user_id'])) ? layout_getUserLogo() : '',
+        'ISP_LOGO'             => isset($_SESSION['user_id']) ? layout_getUserLogo() : '',
         'JS_TRANSLATIONS'      => i18n_getJsTranslations()
     ]);
-    $tpl->parse('LAYOUT', 'layout');
+    $tpl->parse('LAYOUT', $event->getParam('layout') ?: 'layout');
 }
 
 /**

@@ -18,8 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
+use iMSCP_Registry as Registry;
 
 /**
  * iMSCP_Exception_Writer_Browser
@@ -67,14 +67,9 @@ class iMSCP_Exception_Writer_Browser extends iMSCP_Exception_Writer_Abstract
             $debug = 1;
         }
 
-        if ($debug) {
+        if ($debug || isset($_SESSION['logged_from_type']) && $_SESSION['logged_from_type'] == 'admin') {
             $exception = $event->getException();
-            $this->message .= sprintf(
-                "An exception has been thrown in file %s at line %s:\n\n",
-                $exception->getFile(),
-                $exception->getLine()
-            );
-
+            $this->message .= sprintf("An exception has been thrown in file %s at line %s:\n\n", $exception->getFile(), $exception->getLine());
             $this->message .= preg_replace('#([\t\n]+|<br \/>)#', ' ', $exception->getMessage());
 
             /** @var $exception iMSCP_Exception_Database */
@@ -134,15 +129,8 @@ class iMSCP_Exception_Writer_Browser extends iMSCP_Exception_Writer_Abstract
 </html>
 HTML;
         } else {
-            // We have to disable cache before rendering as the layout for the
-            // current page could be cached already, leading wrong layout used.
-            // See the Template Engine::resolveTemplate() method for further
-            // details.
-            Registry::get('iMSCP_Application')->getCache()->setOption('caching', false);
-
-            $event->setParam('templateEngine', $tpl);
+            $event->setParams(['templateEngine' => $tpl, 'layout' => 'layout_browser_exception']);
             layout_init($event);
-            $tpl->parse('LAYOUT', 'layout');
             $tpl->prnt();
         }
     }
@@ -159,11 +147,15 @@ HTML;
         }
 
         $tpl = new TemplateEngine();
+
+        # We need set specific template names because template are cached
+        #using the current URL and the template name to generate unique
+        #identifier. Not doing this would lead to wrong template used.
         $tpl->define([
-            'layout'         => 'shared/layouts/simple.tpl',
-            'page'           => $this->templateFile,
-            'page_message'   => 'layout',
-            'backlink_block' => 'page'
+            'layout_browser_exception' => 'shared/layouts/simple.tpl',
+            'page_browser_exception'   => $this->templateFile,
+            'page_message'             => 'layout',
+            'backlink_block'           => 'page'
         ]);
 
         if (Registry::isRegistered('backButtonDestination')) {
@@ -181,7 +173,8 @@ HTML;
             'BACK_BUTTON_DESTINATION' => $backButtonDestination,
             'TR_BACK'                 => 'Back'
         ]);
-        $tpl->parse('LAYOUT_CONTENT', 'page');
+
+        $tpl->parse('LAYOUT_CONTENT', 'page_browser_exception');
         $this->templateEngine = $tpl;
     }
 }
