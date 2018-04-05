@@ -128,7 +128,8 @@ class VirtualFileSystem
      */
     protected function removeFtpUser()
     {
-        exec_query('DELETE FROM ftp_users WHERE userid = ?', [$this->user]);
+        exec_query('DELETE FROM ftp_users WHERE userid = ?', ['imscp_frontend']);
+        exec_query('DELETE FROM ftp_group WHERE groupname = ?', ['imscp_frontend']);
     }
 
     /**
@@ -176,10 +177,7 @@ class VirtualFileSystem
      */
     public function ls($dirname = '/')
     {
-        if (!is_string($dirname)
-            || strlen($dirname) == 0
-            || !$this->open()
-        ) {
+        if (!is_string($dirname) || strlen($dirname) == 0 || !$this->open()) {
             return false;
         }
 
@@ -246,7 +244,7 @@ class VirtualFileSystem
             $this->stream = @ftp_connect('127.0.0.1', 21, 30);
         }
 
-        if (!$this->stream || !@ftp_login($this->stream, $this->user, $this->passwd)) {
+        if (!$this->stream || !@ftp_login($this->stream, 'imscp_frontend', $this->passwd)) {
             $this->writeLog("Couldn't connect to FTP server.");
             $this->close();
             return false;
@@ -281,7 +279,7 @@ class VirtualFileSystem
             exec_query(
                 'INSERT INTO ftp_users (userid, passwd, uid, gid, shell, homedir, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 [
-                    $this->user,
+                    'imscp_frontend',
                     Crypt::sha512($this->passwd),
                     $row['admin_sys_uid'],
                     $row['admin_sys_gid'],
@@ -289,10 +287,9 @@ class VirtualFileSystem
                     utils_normalizePath(Registry::get('config')['USER_WEB_DIR'] . '/' . $this->user), 'ok'
                 ]
             );
+            exec_query('INSERT INTO ftp_group (groupname, gid, members) VALUES (?,?,?)', ['imscp_frontend', $row['admin_sys_gid'], 'imscp_frontend']);
         } catch (\Exception $e) {
-            if ($e instanceof DatabaseException
-                && $e->getCode() == 23000
-            ) {
+            if ($e instanceof DatabaseException && $e->getCode() == 23000) {
                 $this->writeLog('Concurrent FTP connections are not allowed.', E_USER_WARNING);
                 return false;
             }
@@ -311,12 +308,9 @@ class VirtualFileSystem
      * @param int $transferMode OPTIONAL VFS transfer mode
      * @return string|bool File content on success, FALSE on failure
      */
-    public function get($file, $transferMode = self::VFS_ASCII)
+    public function get($file, $transferMode = self::VFS_BINARY)
     {
-        if (is_string($file)
-            || strlen($file) == 0
-            || !$this->open()
-        ) {
+        if (!is_string($file) || strlen($file) == 0 || !$this->open()) {
             return false;
         }
 
@@ -331,32 +325,14 @@ class VirtualFileSystem
             $file = $this->rootDir . $file;
         }
 
-        $tmpFile = @tempnam(Registry::get('config')['FRONTEND_ROOT_DIR'] . '/data/tmp', 'vfs_');
-        if ($tmpFile === false) {
-            $this->writeLog("Couldn't create temporary file.");
+        ob_start();
+
+        if (@ftp_get($this->stream, 'php://output', $file, $transferMode) === false) {
+            $this->writeLog("Couldn't get file content.");
             return false;
         }
 
-        $ret = true;
-        if (@ftp_get($this->stream, $tmpFile, $file, $transferMode) === false) {
-            $this->writeLog("Couldn't get file content.");
-            $ret = false;
-        }
-
-        if ($ret
-            && @file_get_contents($tmpFile) === false
-        ) {
-            $this->writeLog("Couldn't get file content.");
-            $ret = false;
-        }
-
-        if (file_exists($tmpFile)
-            && !@unlink($tmpFile)
-        ) {
-            $this->writeLog("Couldn't remove temporary file.");
-        }
-
-        return $ret;
+        return ob_get_clean();
     }
 
     /**
@@ -367,13 +343,9 @@ class VirtualFileSystem
      * @param int $transferMode VFS transfer mode
      * @return boolean TRUE on success, FALSE on failure
      */
-    public function put($file, $content, $transferMode = self::VFS_ASCII)
+    public function put($file, $content, $transferMode = self::VFS_BINARY)
     {
-        if (!is_string($file)
-            || strlen($file) == 0
-            || !is_string($content)
-            || !$this->open()
-        ) {
+        if (!is_string($file) || strlen($file) == 0 || !is_string($content) || !$this->open()) {
             return false;
         }
 
@@ -405,9 +377,7 @@ class VirtualFileSystem
             $ret = false;
         }
 
-        if (file_exists($tmpFile)
-            && !@unlink($tmpFile)
-        ) {
+        if (file_exists($tmpFile) && !@unlink($tmpFile)) {
             $this->writeLog("Couldn't remove temporary file.");
         }
 
