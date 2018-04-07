@@ -118,7 +118,7 @@ sub getBloc( $$$;$ )
     getBlocByRef( \$tpl, $blcTb, $blcTe, $iBlcT );
 }
 
-=item processBlocByRef( $tpl, $blcTb, $blcTe, [, $blcC = '' [, $pBlcT = FALSE [, $pBlcC = FALSE [, $blcA = FALSE ] ] ] ] ] )
+=item processBlocByRef( $tpl, $blcTb, $blcTe, [, $blcC = '' [, $pBlcT = FALSE [, $pBlcC = FALSE [, $blcA = FALSE ] ] ] ] )
 
  Process the given bloc within the given template
 
@@ -140,13 +140,13 @@ sub processBlocByRef( $$$;$$$$ )
 
     ref $tpl eq 'SCALAR' or croak( 'Invalid $tpl parameter. Scalar reference expected.' );
 
-    my $blcTbReg = ref $blcTb eq 'Regexp' ? $blcTb : "\Q$blcTb\E";
-    my $blcTeReg = ref $blcTe eq 'Regexp' ? $blcTe : "\Q$blcTe\E";
+    my $blcTbReg = ref $blcTb eq 'Regexp' ? $blcTb : qr/\Q$blcTb\E/;
+    my $blcTeReg = ref $blcTe eq 'Regexp' ? $blcTe : qr/\Q$blcTe\E/;
 
     # FIXME Should we act globally (multi-blocs)
     if ( !( ${ $tpl } =~ s%
             (^\n*)                     # Match leading empty lines. Only one is kept and only if bloc tag are kept
-            (^[\t ]+|)?($blcTbReg\n?)  # Match leading whitespace, bloc tag and trailing newline
+            (^[\t ]+|)?($blcTbReg\n?)  # Match leading whitespaces, bloc begin tag and trailing newline
             (.*?)                      # Match current bloc content
             ((?:^[\t ]+)?$blcTeReg\n?) # Match leading whitespaces, bloc ending tag and trailing newline
         %@{ [ ref $blcC eq 'HASH' ? processVars( $4, $blcC ) : $blcC ] }@{ [ $1 && $pBlcT ? "\n" : '' ] }@{ [ $pBlcT ? $2 . $3 : '' ] }@{ [ $pBlcC ? $4 : '' ] }@{ [ $pBlcT ? $5 : '' ] }%msx )
@@ -157,7 +157,7 @@ sub processBlocByRef( $$$;$$$$ )
     }
 }
 
-=item processBloc( $tpl, $blcTb, $blcTe, [, $blcC = '' [, $pBlcT = TRUE [, $pBlcC = TRUE [, $blcA = TRUE ] ] ] ] ] )
+=item processBloc( $tpl, $blcTb, $blcTe, [, $blcC = '' [, $pBlcT = FALSE [, $pBlcC = FALSE [, $blcA = FALSE ] ] ] ] )
 
  Process the given bloc within the given template
 
