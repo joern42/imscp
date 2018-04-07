@@ -26,7 +26,6 @@ package iMSCP::Template::Processor;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Boolean;
 use parent 'Exporter';
 
 our @EXPORT_OK = qw/ getBloc getBlocByRef processBloc processBlocByRef processVars processVarsByRef /;
@@ -131,6 +130,7 @@ sub getBloc( $$$;$ )
  Param bool $pBlcC Flag indicating whether or not current bloc content must be preserved
  Param bool $blcA Flag indicating whether or not a new bloc must be added if it doesn't already exist
  Return void, croak on invalid parameters
+
 =cut
 
 sub processBlocByRef( $$$;$$$$ )
@@ -145,7 +145,7 @@ sub processBlocByRef( $$$;$$$$ )
 
     # FIXME Should we act globally (multi-blocs)
     if ( !( ${ $tpl } =~ s%
-        (^\n*)                         # Match leading empty lines. Only one is kept and only if bloc tag are kept
+            (^\n*)                     # Match leading empty lines. Only one is kept and only if bloc tag are kept
             (^[\t ]+|)?($blcTbReg\n?)  # Match leading whitespace, bloc tag and trailing newline
             (.*?)                      # Match current bloc content
             ((?:^[\t ]+)?$blcTeReg\n?) # Match leading whitespaces, bloc ending tag and trailing newline
