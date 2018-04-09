@@ -785,11 +785,11 @@ sub _addDmnConfig
     my $cfgWrkFileCref = $cfgFile->getAsRef();
     my $tplFileName = "cfg_$self->{'config'}->{'NAMED_MODE'}.tpl";
 
-    $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), $tplFileName, \my $tplCfgEntryContent, $moduleData );
-    $tplCfgEntryContent = iMSCP::File->new( filename => "$self->{'tplDir'}/$tplFileName" )->get() unless defined $tplCfgEntryContent;
-    $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', $cfgWrkFileCref, \$tplCfgEntryContent, $moduleData );
-    
-    chomp( $tplCfgEntryContent );
+    $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), $tplFileName, \my $tplCfgEntryC, $moduleData );
+    $tplCfgEntryC = iMSCP::File->new( filename => "$self->{'tplDir'}/$tplFileName" )->get() unless defined $tplCfgEntryC;
+    $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', $cfgWrkFileCref, \$tplCfgEntryC, $moduleData );
+
+    chomp( $tplCfgEntryC );
 
     my $vars = {
         NAMED_DB_FORMAT => $self->{'config'}->{'NAMED_DB_FORMAT'} =~ s/=\d//r,
@@ -815,14 +815,14 @@ sub _addDmnConfig
     processBlocByRef( $cfgWrkFileCref, '// imscp [{ENTRY_ID}] entry BEGIN.', '// imscp [{ENTRY_ID}] entry ENDING.', <<"EOF", TRUE );
 
 // imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.
-@{ [ processVars( $tplCfgEntryContent, $vars ) ] }
+@{ [ processVars( $tplCfgEntryC, $vars ) ] }
 // imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING.
 EOF
 
     $self->{'eventManager'}->trigger( 'afterBindAddDmnConfig', $cfgWrkFileCref, $moduleData );
-    $cfgFile->save()->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} )->mode( 0640 )->copy(
-        $cfgFileDir . $cfgFileName, { preserve => TRUE }
-    );
+    $cfgFile->save()->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} )->mode( 0640 )->copy( $cfgFileDir . $cfgFileName, {
+        preserve => TRUE
+    } );
 }
 
 =item _deleteDmnConfig( \%moduleData )
