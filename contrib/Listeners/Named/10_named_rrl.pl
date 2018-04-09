@@ -24,11 +24,12 @@
 
 package iMSCP::Listener::Named::Rrl;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::EventManager;
 use iMSCP::TemplateParser qw/ replaceBlocByRef /;
 use iMSCP::Servers::Named;
@@ -49,20 +50,18 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_named_rrl.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterBindBuildConfFile',
-    sub {
-        my ($cfgTpl, $cfgTplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterBindBuildConfFile', sub
+{
+    my ( $cfgTpl, $cfgTplName ) = @_;
 
-        return unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
+    return unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
 
-        replaceBlocByRef( "// imscp [{ENTRY_ID}] entry BEGIN\n", "// imscp [{ENTRY_ID}] entry ENDING\n", <<"EOF", $cfgTpl, 'preserveTags' );
+    replaceBlocByRef( '// imscp [{ENTRY_ID}] entry BEGIN.', '// imscp [{ENTRY_ID}] entry ENDING.', <<"EOF", $cfgTpl, TRUE );
     rate-limit {
         responses-per-second $responsesPerSecond;
     };
 EOF
-    }
-) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
+} ) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
 
 1;
 __END__

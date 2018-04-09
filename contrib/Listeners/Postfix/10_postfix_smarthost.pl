@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::Postfix::Smarthost;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -48,24 +48,21 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_postfix_smarthost.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register( 'beforeInstallPackages', sub { push @{$_[0]}, 'libsasl2-modules'; } );
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixConfigure',
-    sub {
-        my $mta = iMSCP::Servers::Mta->factory();
-        $mta->getDbDriver( 'cbd' )->add( $saslPasswdMapsName, "$relayhost:$relayport", "$saslAuthUser:$saslAuthPasswd" );
-        $mta->postconf(
-            # Relay parameter
-            relayhost                  => { values => [ "$relayhost:$relayport" ] },
-            # smtp SASL parameters
-            smtp_sasl_type             => { values => [ 'cyrus' ] },
-            smtp_sasl_auth_enable      => { values => [ 'yes' ] },
-            smtp_sasl_password_maps    => { 'add', values => [ "cdb:$mta->{'config'}->{'MTA_DB_DIR'}/$saslPasswdDb" ] },
-            smtp_sasl_security_options => { values => [ 'noanonymous' ] }
-        );
-    },
-    -99
-) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+iMSCP::EventManager->getInstance()->register( 'beforeInstallPackages', sub { push @{ $_[0] }, 'libsasl2-modules'; } );
+iMSCP::EventManager->getInstance()->register( 'afterPostfixConfigure', sub
+{
+    my $mta = iMSCP::Servers::Mta->factory();
+    $mta->getDbDriver( 'cbd' )->add( $saslPasswdMapsName, "$relayhost:$relayport", "$saslAuthUser:$saslAuthPasswd" );
+    $mta->postconf(
+        # Relay parameter
+        relayhost                  => { values => [ "$relayhost:$relayport" ] },
+        # smtp SASL parameters
+        smtp_sasl_type             => { values => [ 'cyrus' ] },
+        smtp_sasl_auth_enable      => { values => [ 'yes' ] },
+        smtp_sasl_password_maps    => { 'add', values => [ "cdb:$mta->{'config'}->{'MTA_DB_DIR'}/$saslPasswdDb" ] },
+        smtp_sasl_security_options => { values => [ 'noanonymous' ] }
+    );
+}, -99 ) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

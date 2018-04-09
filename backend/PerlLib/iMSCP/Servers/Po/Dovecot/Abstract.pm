@@ -33,6 +33,7 @@ use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat /;
+use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
@@ -96,10 +97,8 @@ sub showSqlUserDialog
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] )
-        || !isValidUsername( $dbUser )
-        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
-        || !isAvailableSqlUser( $dbUser )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] ) || !isValidUsername( $dbUser )
+        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' ) || !isAvailableSqlUser( $dbUser )
     ) {
         my $rs = 0;
 
@@ -263,7 +262,7 @@ sub getServerVersion
  Process addMail tasks
 
  Param hashref \%moduleData Mail data
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -304,15 +303,14 @@ sub addMail
     undef $file;
 
     if ( $moduleData->{'MAIL_QUOTA'} ) {
-        if ( $self->{'quotaRecalc'}
-            || ( iMSCP::Getopt->context() eq 'backend' && $moduleData->{'STATUS'} eq 'tochange' )
+        if ( $self->{'quotaRecalc'} || ( iMSCP::Getopt->context() eq 'backend' && $moduleData->{'STATUS'} eq 'tochange' )
             || !-f "$mailDir/maildirsize"
         ) {
             # TODO create maildirsize file manually (set quota definition and recalculate byte and file counts)
             iMSCP::File->new( filename => "$mailDir/maildirsize" )->remove();
         }
 
-        return 0;
+        return;
     }
 
     iMSCP::File->new( filename => "$mailDir/maildirsize" )->remove();
@@ -406,7 +404,7 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     @{ $self }{qw/ restart reload quotaRecalc mta cfgDir /} = (
-        0, 0, 0, lazy { iMSCP::Servers::Mta->factory() }, "$::imscpConfig{'CONF_DIR'}/dovecot"
+        FALSE, FALSE, FALSE, lazy { iMSCP::Servers::Mta->factory() }, "$::imscpConfig{'CONF_DIR'}/dovecot"
     );
     $self->SUPER::_init();
 }
@@ -449,30 +447,26 @@ sub _configure
     # installed by i-MSCP listener files.
     iMSCP::Dir->new( dirname => "$self->{'config'}->{'PO_CONF_DIR'}/imscp.d" )->clear( qr/_listener\.conf$/ );
 
-    $self->{'eventManager'}->registerOne(
-        'beforeDovecotBuildConfFile',
-        sub {
-            ${ $_[0] } .= <<"EOF";
+    $self->{'eventManager'}->registerOne( 'beforeDovecotBuildConfFile', sub {
+        ${ $_[0] } .= <<"EOF";
 
 # SSL
 
 ssl = @{[ ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) ]}
 EOF
-            # FIXME Find a better way to guess libssl version (dovecot --build-options ???)
-            if ( ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes' ) {
-                unless ( `ldd /usr/lib/dovecot/libdovecot-login.so | grep libssl.so` =~ /libssl.so.(\d.\d)/ ) {
-                    error( "Couldn't guess libssl version against which Dovecot has been built" );
-                    return 1;
-                }
+        # FIXME Find a better way to guess libssl version (dovecot --build-options ???)
+        if ( ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes' ) {
+            `ldd /usr/lib/dovecot/libdovecot-login.so | grep libssl.so` =~ /libssl.so.(\d.\d)/ or die(
+                "Couldn't guess libssl version against which Dovecot has been built"
+            );
 
-                ${ $_[0] } .= <<"EOF";
+            ${ $_[0] } .= <<"EOF";
 ssl_protocols = @{[ version->parse( $1 ) >= version->parse( '1.1' ) ? '!SSLv3' : '!SSLv2 !SSLv3' ]}
 ssl_cert = <$::imscpConfig{'CONF_DIR'}/imscp_services.pem
 ssl_key = <$::imscpConfig{'CONF_DIR'}/imscp_services.pem
 EOF
-            }
         }
-    );
+    } );
     $self->buildConfFile( 'dovecot.conf', "$self->{'config'}->{'PO_CONF_DIR'}/dovecot.conf", undef,
         {
             PO_CONF_DIR              => $self->{'config'}->{'PO_CONF_DIR'},
@@ -653,41 +647,34 @@ sub beforePostfixConfigure
 {
     my ( $dovecotServer ) = @_;
 
-    $dovecotServer->{'eventManager'}->register(
-        'afterPostfixBuildConfFile',
-        sub {
-            my ( $cfgTpl, $cfgTplName ) = @_;
+    $dovecotServer->{'eventManager'}->register( 'afterPostfixBuildConfFile', sub {
+        my ( $cfgTpl, $cfgTplName ) = @_;
 
-            return unless $cfgTplName eq 'master.cf';
+        return unless $cfgTplName eq 'master.cf';
 
-            ${ $cfgTpl } .= <<"EOF";
+        ${ $cfgTpl } .= <<"EOF";
 dovecot   unix  -       n       n       -       -       pipe
  flags=DRhu user=$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}:$dovecotServer->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} argv=$dovecotServer->{'config'}->{'PO_DELIVER_PATH'} -f \${sender} -d \${user}\@\${nexthop} -m INBOX.\${extension}
 EOF
-        }
-    );
-    $dovecotServer->{'eventManager'}->registerOne(
-        'afterPostfixConfigure',
-        sub {
-            $dovecotServer->{'mta'}->postconf(
-                # Dovecot LDA parameters
-                virtual_transport                     => { action => 'replace', values => [ 'dovecot' ] },
-                dovecot_destination_concurrency_limit => { action => 'replace', values => [ 2 ] },
-                dovecot_destination_recipient_limit   => { action => 'replace', values => [ 1 ] },
-                # Dovecot SASL parameters
-                smtpd_sasl_type                       => { action => 'replace', values => [ 'dovecot' ] },
-                smtpd_sasl_path                       => { action => 'replace', values => [ 'private/auth' ] },
-                smtpd_sasl_auth_enable                => { action => 'replace', values => [ 'yes' ] },
-                smtpd_sasl_security_options           => { action => 'replace', values => [ 'noanonymous' ] },
-                smtpd_sasl_authenticated_header       => { action => 'replace', values => [ 'yes' ] },
-                broken_sasl_auth_clients              => { action => 'replace', values => [ 'yes' ] },
-                # SMTP restrictions
-                smtpd_relay_restrictions              => {
-                    action => 'add', values => [ 'permit_sasl_authenticated' ], after => qr/permit_mynetworks/
-                }
-            );
-        }
-    );
+    } )->registerOne( 'afterPostfixConfigure', sub {
+        $dovecotServer->{'mta'}->postconf(
+            # Dovecot LDA parameters
+            virtual_transport                     => { action => 'replace', values => [ 'dovecot' ] },
+            dovecot_destination_concurrency_limit => { action => 'replace', values => [ 2 ] },
+            dovecot_destination_recipient_limit   => { action => 'replace', values => [ 1 ] },
+            # Dovecot SASL parameters
+            smtpd_sasl_type                       => { action => 'replace', values => [ 'dovecot' ] },
+            smtpd_sasl_path                       => { action => 'replace', values => [ 'private/auth' ] },
+            smtpd_sasl_auth_enable                => { action => 'replace', values => [ 'yes' ] },
+            smtpd_sasl_security_options           => { action => 'replace', values => [ 'noanonymous' ] },
+            smtpd_sasl_authenticated_header       => { action => 'replace', values => [ 'yes' ] },
+            broken_sasl_auth_clients              => { action => 'replace', values => [ 'yes' ] },
+            # SMTP restrictions
+            smtpd_relay_restrictions              => {
+                action => 'add', values => [ 'permit_sasl_authenticated' ], after => qr/permit_mynetworks/
+            }
+        );
+    } );
 }
 
 =back

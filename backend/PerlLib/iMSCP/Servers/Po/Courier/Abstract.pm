@@ -44,7 +44,7 @@ use iMSCP::Mount qw/ addMountEntry removeMountEntry isMountpoint mount umount /;
 use iMSCP::ProgramFinder;
 use iMSCP::Stepper qw/ endDetail startDetail step /;
 use iMSCP::SystemUser;
-use iMSCP::TemplateParser qw/ processByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef /;
 use iMSCP::Servers::Mta;
 use iMSCP::Servers::Sqld;
 use Scalar::Defer qw/ lazy /;
@@ -105,10 +105,8 @@ sub authdaemonSqlUserDialog
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] )
-        || !isValidUsername( $dbUser )
-        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
-        || !isAvailableSqlUser( $dbUser )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] ) || !isValidUsername( $dbUser )
+        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' ) || !isAvailableSqlUser( $dbUser )
     ) {
         my $rs = 0;
 
@@ -339,7 +337,8 @@ sub addMail
     my $file = iMSCP::File->new( filename => "$mailDir/courierimapsubscribed" );
     my $fileContent = $file->getAsRef( !-f $file );
     ${ $fileContent } = join(
-        "\n", nsort unique( 'INBOX.Drafts', 'INBOX.Junk', 'INBOX.Sent', 'INBOX.Trash', ( length ${ $fileContent } ? split /\n/, ${ $fileContent } : () ))
+        "\n", nsort unique( 'INBOX.Drafts', 'INBOX.Junk', 'INBOX.Sent', 'INBOX.Trash',
+        ( length ${ $fileContent } ? split /\n/, ${ $fileContent } : () ))
     ) . "\n";
     $file->save()->owner( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} )->mode( 0640 );
     undef $file;
@@ -385,7 +384,7 @@ sub getTraffic
     debug( sprintf( 'Processing IMAP/POP3 %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => TRUE;
     my ( $idx, $idxContent ) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
 
     tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
@@ -587,18 +586,13 @@ sub _configure
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$sname" );
         my $fileContentRef = $file->getAsRef();
 
-        replaceBlocByRef(
-            qr/(?:^\n)?# iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN\n/m,
-            qr/# iMSCP::Servers::Po::Courier::Abstract::installer - ENDING\n/,
-            '',
-            $fileContentRef
-        );
+        processBlocByRef( $fileContentRef, '# iMSCP::Servers::Po::Courier::Abstract BEGIN.', '# iMSCP::Servers::Po::Courier::Abstract ENDING.' );
 
         ${ $fileContentRef } .= <<"EOF";
 
-# iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN
+# iMSCP::Servers::Po::Courier::Abstract BEGIN.
 . $self->{'cfgDir'}/$sname.local
-# iMSCP::Servers::Po::Courier::Abstract::installer - ENDING
+# iMSCP::Servers::Po::Courier::Abstract ENDING.
 EOF
         $file->save()->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} )->mode( 0644 );
 
@@ -709,7 +703,7 @@ sub _buildDHparametersFile
 
             my $output = '';
             my $outputHandler = sub {
-                next if $_[0] =~ /^[.+]/;
+                return if $_[0] =~ /^[.+]/;
                 $output .= $_[0];
                 step( undef, "Generating DH parameter file\n\n$output", 1, 1 );
             };
@@ -850,12 +844,7 @@ sub _removeConfig
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$sname" );
         my $fileContentRef = $file->getAsRef();
 
-        replaceBlocByRef(
-            qr/(?:^\n)?# iMSCP::Servers::Po::Courier::Abstract::installer - BEGIN\n/m,
-            qr/# iMSCP::Servers::Po::Courier::Abstract::installer - ENDING\n/,
-            '',
-            $fileContentRef
-        );
+        processBlocByRef( $fileContentRef, '# iMSCP::Servers::Po::Courier::Abstract BEGIN.', '# iMSCP::Servers::Po::Courier::Abstract ENDING.' );
 
         $file->save();
     }
@@ -884,41 +873,34 @@ sub beforePostfixConfigure
 {
     my ( $courierServer ) = @_;
 
-    $courierServer->{'eventManager'}->register(
-        'afterPostfixBuildConfFile',
-        sub {
-            my ( $cfgTpl, $cfgTplName ) = @_;
+    $courierServer->{'eventManager'}->register( 'afterPostfixBuildConfFile', sub {
+        my ( $cfgTpl, $cfgTplName ) = @_;
 
-            return unless $cfgTplName eq 'master.cf';
+        return unless $cfgTplName eq 'master.cf';
 
-            ${ $cfgTpl } .= <<"EOF";
+        ${ $cfgTpl } .= <<"EOF";
 maildrop  unix  -       n       n       -       -       pipe
  flags=DRhu user=$courierServer->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'}:$courierServer->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} argv=maildrop -w 90 -d \${user}\@\${nexthop} \${extension} \${recipient} \${user} \${nexthop} \${sender}
 EOF
-        }
-    );
-    $courierServer->{'eventManager'}->registerOne(
-        'afterPostfixConfigure',
-        sub {
-            $courierServer->{'mta'}->postconf(
-                # Maildrop MDA parameters
-                virtual_transport                      => { action => 'replace', values => [ 'maildrop' ] },
-                maildrop_destination_concurrency_limit => { action => 'replace', values => [ 2 ] },
-                maildrop_destination_recipient_limit   => { action => 'replace', values => [ 1 ] },
-                # Cyrus SASL parameters
-                smtpd_sasl_type                        => { action => 'replace', values => [ 'cyrus' ] },
-                smtpd_sasl_path                        => { action => 'replace', values => [ 'smtpd' ] },
-                smtpd_sasl_auth_enable                 => { action => 'replace', values => [ 'yes' ] },
-                smtpd_sasl_security_options            => { action => 'replace', values => [ 'noanonymous' ] },
-                smtpd_sasl_authenticated_header        => { action => 'replace', values => [ 'yes' ] },
-                broken_sasl_auth_clients               => { action => 'replace', values => [ 'yes' ] },
-                # SMTP restrictions
-                smtpd_relay_restrictions               => {
-                    action => 'add', values => [ 'permit_sasl_authenticated' ], after => qr/permit_mynetworks/
-                }
-            );
-        }
-    );
+    } )->registerOne( 'afterPostfixConfigure', sub {
+        $courierServer->{'mta'}->postconf(
+            # Maildrop MDA parameters
+            virtual_transport                      => { action => 'replace', values => [ 'maildrop' ] },
+            maildrop_destination_concurrency_limit => { action => 'replace', values => [ 2 ] },
+            maildrop_destination_recipient_limit   => { action => 'replace', values => [ 1 ] },
+            # Cyrus SASL parameters
+            smtpd_sasl_type                        => { action => 'replace', values => [ 'cyrus' ] },
+            smtpd_sasl_path                        => { action => 'replace', values => [ 'smtpd' ] },
+            smtpd_sasl_auth_enable                 => { action => 'replace', values => [ 'yes' ] },
+            smtpd_sasl_security_options            => { action => 'replace', values => [ 'noanonymous' ] },
+            smtpd_sasl_authenticated_header        => { action => 'replace', values => [ 'yes' ] },
+            broken_sasl_auth_clients               => { action => 'replace', values => [ 'yes' ] },
+            # SMTP restrictions
+            smtpd_relay_restrictions               => {
+                action => 'add', values => [ 'permit_sasl_authenticated' ], after => qr/permit_mynetworks/
+            }
+        );
+    } );
 }
 
 =back

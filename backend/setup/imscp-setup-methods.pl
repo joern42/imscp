@@ -74,13 +74,7 @@ sub setupBoot
 sub setupRegisterListeners
 {
     $_->factory()->registerSetupListeners() for iMSCP::Servers->getInstance()->getList();
-
-    my $eventManager = iMSCP::EventManager->getInstance();
-
-    for my $package ( iMSCP::Packages->getInstance()->getList() ) {
-        ( my $subref = $package->can( 'registerSetupListeners' ) ) or next;
-        $subref->( $package->getInstance( eventManager => $eventManager ));
-    }
+    $_->getInstance()->registerSetupListeners() for iMSCP::Packages->getInstance()->getList();
 }
 
 sub setupDialog

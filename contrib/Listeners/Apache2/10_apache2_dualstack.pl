@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::Apache2::DualStack;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -54,15 +54,12 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_apache2_dualstack.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'onApacheAddVhostIps',
-    sub {
-        my ($data, $domainIps) = @_;
+iMSCP::EventManager->getInstance()->register( 'onApacheAddVhostIps', sub {
+    my ( $data, $domainIps ) = @_;
 
-        push @{$domainIps}, @GLOBAL_IPS if @GLOBAL_IPS;
-        push @{$domainIps}, @{$PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}}} if exists $PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}};
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
+    push @{ $domainIps }, @GLOBAL_IPS if @GLOBAL_IPS;
+    push @{ $domainIps }, @{ $PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}} } if exists $PER_DOMAIN_IPS{$data->{'DOMAIN_NAME'}};
+} ) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 
 1;
 __END__

@@ -31,7 +31,7 @@ use autouse 'iMSCP::Crypt' => qw/ randomStr ALNUM /;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isOneOfStringsInList isStringNotInList isValidPassword isValidUsername /;
 use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
-use autouse 'iMSCP::TemplateParser' => qw/ getBlocByRef processByRef replaceBlocByRef /;
+use autouse 'iMSCP::Template::Processor' => qw/ processVarsByRef processBlocByRef /;
 use Class::Autouse qw/
     :nostat iMSCP::Composer iMSCP::Config iMSCP::Dir iMSCP::File iMSCP::Getopt iMSCP::Packages::Setup::FrontEnd iMSCP::Servers::Sqld;
 /;
@@ -306,11 +306,8 @@ sub afterFrontEndBuildConfFile
     return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
-    replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
-    # SECTION custom BEGIN.
-@{ [ getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent ) ] } 
+    processBlocByRef( $tplContent, '# SECTION custom BEGIN.', '# SECTION custom ENDING.', <<"EOF", TRUE );
     include imscp_roundcube.conf;
-    # SECTION custom END.
 EOF
 }
 
@@ -389,14 +386,11 @@ sub _installFiles
 
         my $fileContentRef = iMSCP::File->new( filename => "$packageDir/iMSCP/$dir/imscp_roundcube" )->getAsRef();
 
-        processByRef(
-            {
-                GUI_PUBLIC_DIR => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public",
-                PANEL_USER     => $usergroup,
-                PANEL_GROUP    => $usergroup
-            },
-            $fileContentRef
-        );
+        processVarsByRef( $fileContentRef, {
+            GUI_PUBLIC_DIR => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public",
+            PANEL_USER     => $usergroup,
+            PANEL_GROUP    => $usergroup
+        } );
 
         iMSCP::File->new( filename => "/etc/$dir/imscp_roundcube" )->set( ${ $fileContentRef } )->save();
     }
@@ -469,7 +463,7 @@ sub _buildRoundcubeConfig
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'roundcube', 'config.inc.php', $cfgTpl, $data );
     $file->getAsRef() unless length ${ $cfgTpl };
 
-    processByRef( $data, $cfgTpl );
+    processVarsByRef( $cfgTpl, $data );
 
     $file->{'filename'} = "$self->{'wrkDir'}/config.inc.php";
     $file
@@ -660,7 +654,7 @@ sub _unregisterConfig
 
     my $file = iMSCP::File->new( filename => "my $frontend->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
     my $fileContentRef = $file->getAsRef();
-    $fileContentRef =~ s/[\t ]*include imscp_roundcube.conf;\n//;
+    ${ $fileContentRef } =~ s/(^[\t ]+)?\Qinclude imscp_roundcube.conf;\E\n//m;
     $file->save();
 
     $frontend->{'reload'} ||= TRUE;

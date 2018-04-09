@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Dovecot::PFS;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -39,14 +39,13 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 40_dovecot_pfs.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->registerOne(
-    'afterDovecotConfigure',
-    sub {
-        my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/40_dovecot_pfs_listener.conf" )->set( <<'EOT' )->save();
+iMSCP::EventManager->getInstance()->registerOne( 'afterDovecotConfigure', sub
+{
+    my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
+    iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/40_dovecot_pfs_listener.conf" )->set( <<'EOT' )->save();
 login_log_format_elements = user=<%u> method=%m rip=%r lip=%l mpid=%e %c %k session=<%{session}>
 EOT
-    }
+}
 ) if index( $::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 
 1;

@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Postfix::BCC::Map;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -46,30 +46,27 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 30_postfix_bcc_maps.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixConfigure',
-    sub {
-        my $mta = iMSCP::Servers::Mta->factory();
-        my $dbDriver = $mta->getDbDriver( 'hash' );
+iMSCP::EventManager->getInstance()->register( 'afterPostfixConfigure', sub
+{
+    my $mta = iMSCP::Servers::Mta->factory();
+    my $dbDriver = $mta->getDbDriver( 'hash' );
 
-        for my $table( $postfixRecipientBccMap, $postfixSenderBccMap ) {
-            my ($database, $storage) = fileparse( $table );
-            $dbDriver->add( $database, undef, undef, $storage );
+    for my $table ( $postfixRecipientBccMap, $postfixSenderBccMap ) {
+        my ( $database, $storage ) = fileparse( $table );
+        $dbDriver->add( $database, undef, undef, $storage );
+    }
+
+    $mta->postconf(
+        recipient_bcc_maps => {
+            action => 'add',
+            values => [ "hash:$postfixRecipientBccMap" ]
+        },
+        sender_bcc_maps    => {
+            action => 'add',
+            values => [ "hash:$postfixSenderBccMap" ]
         }
-
-        $mta->postconf(
-            recipient_bcc_maps => {
-                action => 'add',
-                values => [ "hash:$postfixRecipientBccMap" ]
-            },
-            sender_bcc_maps    => {
-                action => 'add',
-                values => [ "hash:$postfixSenderBccMap" ]
-            }
-        );
-    },
-    -99
-) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+    );
+}, -99 ) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

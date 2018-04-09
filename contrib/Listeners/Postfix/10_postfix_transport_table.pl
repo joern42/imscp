@@ -22,7 +22,7 @@ package iMSCP::Listener::Postfix::Transport::Table;
 ## Allows to add entries in the postfix transport(5) table
 #
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -47,15 +47,13 @@ my %transportTableEntries = (
 #
 
 # Listener responsible to add entries in the Postfix transport(5) table
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixConfigure',
-    sub {
-        my $dbDriver = iMSCP::Servers::Mta->factory()->getDbDriver();
-        while ( my ($recipient, $transport) = each( %transportTableEntries ) ) {
-            $dbDriver->add( 'transport_maps', $recipient, $transport );
-        }
+iMSCP::EventManager->getInstance()->register( 'afterPostfixConfigure', sub
+{
+    my $dbDriver = iMSCP::Servers::Mta->factory()->getDbDriver();
+    while ( my ( $recipient, $transport ) = each( %transportTableEntries ) ) {
+        $dbDriver->add( 'transport_maps', $recipient, $transport );
     }
-) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+} ) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

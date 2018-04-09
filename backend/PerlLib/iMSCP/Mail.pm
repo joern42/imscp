@@ -66,7 +66,9 @@ sub errmsg
     $self->_sendMail( 'i-MSCP - An error has been raised', <<"EOF", 'error' );
 One or many unexpected errors were raised in i-MSCP backend:
 
+==========================================================================
 $message
+==========================================================================
 EOF
     $self
 }
@@ -93,7 +95,9 @@ sub warnMsg
     $self->_sendMail( 'i-MSCP - A warning has been raised', <<"EOF", 'warning' );
 One or many unexpected warnings were raised in i-MSCP backend:
 
+==========================================================================
 $message
+==========================================================================
 EOF
     $self
 }
@@ -139,9 +143,7 @@ Version: $::imscpConfig{'Version'}
 Build: $::imscpConfig{'BuildDate'}
 Message severity: $severity
 
-==========================================================================
 $message
-==========================================================================
 
 Please do not reply to this email.
 

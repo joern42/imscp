@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Postfix::Policy::Whitelist;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -47,30 +47,27 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 20_postfix_policy_whitelist.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixConfigure',
-    sub {
-        my $mta = iMSCP::Servers::Mta->factory();
-        my $dbDriver = $mta->getDbDriver( 'hash' );
+iMSCP::EventManager->getInstance()->register( 'afterPostfixConfigure', sub
+{
+    my $mta = iMSCP::Servers::Mta->factory();
+    my $dbDriver = $mta->getDbDriver( 'hash' );
 
-        for my $table( $policyClientWhitelistTable, $policyRecipientWhitelistTable ) {
-            my ($database, $storage) = fileparse( $table );
-            $dbDriver->add( $database, undef, undef, $storage );
+    for my $table ( $policyClientWhitelistTable, $policyRecipientWhitelistTable ) {
+        my ( $database, $storage ) = fileparse( $table );
+        $dbDriver->add( $database, undef, undef, $storage );
+    }
+
+    $mta->postconf(
+        smtpd_recipient_restrictions => {
+            action => 'add',
+            values => [
+                "check_client_access hash:$policyClientWhitelistTable",
+                "check_recipient_access hash:$policyRecipientWhitelistTable"
+            ],
+            before => qr/permit/,
         }
-
-        $mta->postconf(
-            smtpd_recipient_restrictions => {
-                action => 'add',
-                values => [
-                    "check_client_access hash:$policyClientWhitelistTable",
-                    "check_recipient_access hash:$policyRecipientWhitelistTable"
-                ],
-                before => qr/permit/,
-            }
-        );
-    },
-    -99
-) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+    );
+}, -99 ) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

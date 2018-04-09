@@ -23,7 +23,7 @@
 
 package iMSCP::Listener::APT::Source::List;
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.1';
 
 use strict;
 use warnings;
@@ -36,16 +36,14 @@ my $APT_SOURCES_LIST_FILE_PATH = '/usr/local/src/sources.list';
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'onLoadTemplate',
-    sub {
-        my ($target, $tplFilename, $tplFileContent) = @_;
+iMSCP::EventManager->getInstance()->register( 'onLoadTemplate', sub
+{
+    my ( $target, $tplFilename, $tplFileContent ) = @_;
 
-        return unless $target eq 'apt' && $tplFilename eq 'sources.list';
+    return unless $target eq 'apt' && $tplFilename eq 'sources.list';
 
-        ${$tplFileContent} = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH )->get();
-    }
-);
+    ${ $tplFileContent } = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH )->get();
+} );
 
 1;
 __END__

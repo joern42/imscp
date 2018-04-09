@@ -49,7 +49,7 @@ File `/etc/apache2/imscp/domain.tld.conf`:
 # This file should NOT be deleted.
 <Directory /var/www/virtual/domain.tld/htdocs>
     AllowOverride AuthConfig Indexes Limit Options=Indexes,MultiViews \
-        Fileinfo=RewriteEngine,RewriteOptions,RewriteBase,RewriteCond,RewriteRule Nonfatal=Override
+      Fileinfo=RewriteEngine,RewriteOptions,RewriteBase,RewriteCond,RewriteRule Nonfatal=Override
     DirectoryIndex index.cgi index.pl index.py index.rb
     Options FollowSymLinks ExecCGI
     AddHandler cgi-script .cgi .pl .py .rb

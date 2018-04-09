@@ -37,7 +37,7 @@ use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
-use iMSCP::TemplateParser qw/ getBlocByRef process processByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ getBlocByRef processBlocByRef processVarsByRef processVars /;
 use iMSCP::Umask;
 use version;
 use parent 'iMSCP::Servers::Named';
@@ -120,9 +120,8 @@ sub askDnsServerIps
     my ( $rs, $answer, $msg ) = ( 0, '', '' );
 
     if ( $dnsServerMode eq 'master' ) {
-        if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] )
-            || !@slaveDnsIps
-            || ( $slaveDnsIps[0] ne 'no' && !$self->_checkIps( @slaveDnsIps ) )
+        if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || !@slaveDnsIps ||
+            ( $slaveDnsIps[0] ne 'no' && !$self->_checkIps( @slaveDnsIps ) )
         ) {
             my %choices = ( 'yes', 'Yes', 'no', 'No' );
             ( $rs, $answer ) = $dialog->radiolist( <<"EOF", \%choices, !@slaveDnsIps || $slaveDnsIps[0] eq 'no' ? 'no' : 'yes' );
@@ -158,9 +157,7 @@ EOF
                 @slaveDnsIps = ( 'no' );
             }
         }
-    } elsif ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] )
-        || !@slaveDnsIps
-        || $slaveDnsIps[0] eq 'no'
+    } elsif ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || !@slaveDnsIps || $slaveDnsIps[0] eq 'no'
         || !$self->_checkIps( @masterDnsIps )
     ) {
         @masterDnsIps = () if @masterDnsIps && $masterDnsIps[0] eq 'no';
@@ -399,7 +396,7 @@ sub postaddDomain
             DOMAIN_IP               => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
             DOMAIN_TYPE             => 'sub',
             BASE_SERVER_PUBLIC_IP   => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
-            OPTIONAL_ENTRIES        => 0,
+            OPTIONAL_ENTRIES        => FALSE,
             STATUS                  => $moduleData->{'STATUS'},
             IS_ALT_URL_RECORD       => TRUE
         } );
@@ -509,54 +506,47 @@ sub addSubdomain
     return unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
     my $wrkDbFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$moduleData->{'PARENT_DOMAIN_NAME'}.db" );
-    my $wrkDbFileContentRef = $wrkDbFile->getAsRef();
+    my $wrkDbFileCref = $wrkDbFile->getAsRef();
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), 'db_sub.tpl', \my $subEntry, $moduleData );
     $subEntry = iMSCP::File->new( filename => "$self->{'tplDir'}/db_sub.tpl" )->get() unless defined $subEntry;
 
-    unless ( $self->{'serials'}->{$moduleData->{'PARENT_DOMAIN_NAME'}} ) {
-        $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFileContentRef, $wrkDbFileContentRef );
+    unless ( exists $self->{'serials'}->{$moduleData->{'PARENT_DOMAIN_NAME'}} ) {
+        $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFileCref, $wrkDbFileCref );
     }
 
-    $self->{'eventManager'}->trigger( 'beforeBindAddSubdomain', $wrkDbFileContentRef, \$subEntry, $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindAddSubdomain', $wrkDbFileCref, \$subEntry, $moduleData );
+
     my $net = iMSCP::Net->getInstance();
 
-    replaceBlocByRef(
-        "; sub MAIL entry BEGIN\n",
-        "; sub MAIL entry ENDING\n",
-        $moduleData->{'IS_ALT_URL_RECORD'} || $moduleData->{'EXTERNAL_MAIL'} ? '' : process(
-            {
-                BASE_SERVER_IP_TYPE => ( $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ) ? 'A' : 'AAAA',
-                BASE_SERVER_IP      => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
-                DOMAIN_NAME         => $moduleData->{'PARENT_DOMAIN_NAME'}
-            },
-            getBlocByRef( "; sub MAIL entry BEGIN\n", "; sub MAIL entry ENDING\n", \$subEntry )
-        ),
-        \$subEntry
-    );
+    # Prepare mail entries
+    # FIXME: Should we remove historical smtp, relay, imap, pop... records? See:
+    # https://i-mscp.net/index.php/Thread/18893-Setup-SSL-Let-s-Encrypt-on-mail-client-with-customer-subdomain/?postID=58676#post58676
+    processBlocByRef( \$subEntry, '; sub MAIL entry BEGIN.', '; sub MAIL entry ENDING.', {
+        BASE_SERVER_IP_TYPE => $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ? 'A' : 'AAAA',
+        BASE_SERVER_IP      => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
+        DOMAIN_NAME         => $moduleData->{'PARENT_DOMAIN_NAME'}
+    } );
 
-    if ( defined $moduleData->{'OPTIONAL_ENTRIES'} && !$moduleData->{'OPTIONAL_ENTRIES'} ) {
-        replaceBlocByRef( "; sub OPTIONAL entries BEGIN\n", "; sub OPTIONAL entries ENDING\n", '', \$subEntry );
-    }
+    # Remove optional entries if needed (in any case bloc tags are removed).
+    processBlocByRef( \$subEntry, '; sub OPTIONAL entries BEGIN.', '; sub OPTIONAL entries ENDING.', '', FALSE, $moduleData->{'OPTIONAL_ENTRIES'} );
 
     my $domainIP = $net->isRoutableAddr( $moduleData->{'DOMAIN_IP'} ) ? $moduleData->{'DOMAIN_IP'} : $moduleData->{'BASE_SERVER_PUBLIC_IP'};
 
-    processByRef(
-        {
-            SUBDOMAIN_NAME => $moduleData->{'DOMAIN_NAME'},
-            IP_TYPE        => $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA',
-            DOMAIN_IP      => $domainIP
-        },
-        \$subEntry
-    );
-    replaceBlocByRef(
-        "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', $wrkDbFileContentRef
-    );
-    replaceBlocByRef(
-        "; sub [{SUBDOMAIN_NAME}] entry BEGIN\n", "; sub [{SUBDOMAIN_NAME}] entry ENDING\n", $subEntry, $wrkDbFileContentRef, 'preserve'
-    );
+    # Prepare subdomain entries
+    processVarsByRef( \$subEntry, {
+        SUBDOMAIN_NAME => $moduleData->{'DOMAIN_NAME'},
+        IP_TYPE        => $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA',
+        DOMAIN_IP      => $domainIP
+    } );
 
-    $self->{'eventManager'}->trigger( 'afterBindAddSubdomain', $wrkDbFileContentRef, $moduleData );
+    # Remove previous entry if any
+    processBlocByRef( $wrkDbFileCref, "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING." );
+
+    # Add new entries in DNS zone file
+    processBlocByRef( $wrkDbFileCref, '; sub [{SUBDOMAIN_NAME}] entry BEGIN.', '; sub [{SUBDOMAIN_NAME}] entry ENDING.', $subEntry, TRUE );
+
+    $self->{'eventManager'}->trigger( 'afterBindAddSubdomain', $wrkDbFileCref, $moduleData );
     $wrkDbFile->save();
     $self->_compileZone( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
 }
@@ -582,7 +572,7 @@ sub postaddSubdomain
             DOMAIN_IP               => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
             DOMAIN_TYPE             => 'sub',
             BASE_SERVER_PUBLIC_IP   => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
-            OPTIONAL_ENTRIES        => 0,
+            OPTIONAL_ENTRIES        => FALSE,
             STATUS                  => $moduleData->{'STATUS'},
             IS_ALT_URL_RECORD       => TRUE
         } );
@@ -643,17 +633,15 @@ sub deleteSubdomain
     -f $wrkDbFile or die( sprintf( 'File %s not found. Run imscp-reconfigure script.', $wrkDbFile ));
 
     $wrkDbFile = iMSCP::File->new( filename => $wrkDbFile );
-    my $wrkDbFileContentRef = $wrkDbFile->getAsRef();
+    my $wrkDbFileCref = $wrkDbFile->getAsRef();
 
-    unless ( $self->{'serials'}->{$moduleData->{'PARENT_DOMAIN_NAME'}} ) {
-        $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFileContentRef, $wrkDbFileContentRef );
+    unless ( exists $self->{'serials'}->{$moduleData->{'PARENT_DOMAIN_NAME'}} ) {
+        $self->_updateSOAserialNumber( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFileCref, $wrkDbFileCref );
     }
 
-    $self->{'eventManager'}->trigger( 'beforeBindDeleteSubdomain', $wrkDbFileContentRef, $moduleData );
-    replaceBlocByRef(
-        "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', $wrkDbFileContentRef
-    );
-    $self->{'eventManager'}->trigger( 'afterBindDeleteSubdomain', $wrkDbFileContentRef, $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindDeleteSubdomain', $wrkDbFileCref, $moduleData );
+    processBlocByRef( $wrkDbFileCref, "; sub [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.", "; sub [$moduleData->{'DOMAIN_NAME'}] entry ENDING." );
+    $self->{'eventManager'}->trigger( 'afterBindDeleteSubdomain', $wrkDbFileCref, $moduleData );
     $wrkDbFile->save();
     $self->_compileZone( $moduleData->{'PARENT_DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
 }
@@ -694,22 +682,22 @@ sub addCustomDNS
     return unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
     my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db";
-    -f $wrkDbFile or die( sprintf( 'File %s not found. Run imscp-reconfigure script.', $wrkDbFile ));
+    -f $wrkDbFile or die( sprintf( 'File %s not found. Please rerun the imscp-reconfigure script.', $wrkDbFile ));
 
     $wrkDbFile = iMSCP::File->new( filename => $wrkDbFile );
-    my $wrkDbFileContentRef = $wrkDbFile->getAsRef();
+    my $wrkDbFileCref = $wrkDbFile->getAsRef();
 
     unless ( $self->{'serials'}->{$moduleData->{'DOMAIN_NAME'}} ) {
-        $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, $wrkDbFileContentRef, $wrkDbFileContentRef );
+        $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, $wrkDbFileCref, $wrkDbFileCref );
     }
 
-    $self->{'eventManager'}->trigger( 'beforeBindAddCustomDNS', $wrkDbFileContentRef, $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindAddCustomDNS', $wrkDbFileCref, $moduleData );
 
     my @customDNS = ();
     push @customDNS, join "\t", @{ $_ } for @{ $moduleData->{'DNS_RECORDS'} };
 
-    open my $fh, '<', $wrkDbFileContentRef or die( sprintf( "Couldn't open in-memory file handle: %s", $! ));
-    my ( $newWrkDbFileContent, $origin ) = ( '', '' );
+    open my $fh, '<', $wrkDbFileCref or die( sprintf( "Couldn't open in-memory file handle: %s", $! ));
+    my ( $newWrkDbFileC, $origin ) = ( '', '' );
     while ( my $line = <$fh> ) {
         my $isOrigin = $line =~ /^\$ORIGIN\s+([^\s;]+).*\n$/;
         $origin = $1 if $isOrigin; # Update $ORIGIN if needed
@@ -722,20 +710,19 @@ sub addCustomDNS
             next if $line =~ /^(\S+)\s+.*?\s+"v=\bspf1\b.*?"/ && grep /^\Q$1\E\s+.*?\s+"v=\bspf1\b.*?"/, @customDNS;
         }
 
-        $newWrkDbFileContent .= $line;
+        $newWrkDbFileC .= $line;
     }
     close( $fh );
-    undef $wrkDbFileContentRef;
+    undef $wrkDbFileCref;
 
-    replaceBlocByRef(
-        "; custom DNS entries BEGIN\n",
-        "; custom DNS entries ENDING\n",
-        "; custom DNS entries BEGIN\n" . ( join "\n", @customDNS, '' ) . "; custom DNS entries ENDING\n",
-        \$newWrkDbFileContent
-    );
-    $self->{'eventManager'}->trigger( 'afterBindAddCustomDNS', \$newWrkDbFileContent, $moduleData );
+    processBlocByRef( \$newWrkDbFileC, '; custom DNS entries BEGIN.', '; custom DNS entries ENDING.', <<"EOF" );
+; custom DNS entries BEGIN.
+@{[ join "\n", @customDNS ]}
+; custom DNS entries ENDING.
+EOF
 
-    $wrkDbFile->set( $newWrkDbFileContent )->save();
+    $self->{'eventManager'}->trigger( 'afterBindAddCustomDNS', \$newWrkDbFileC, $moduleData );
+    $wrkDbFile->set( $newWrkDbFileC )->save();
     $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
     $self->{'reload'} ||= TRUE;
 }
@@ -795,39 +782,41 @@ sub _addDmnConfig
 
     my ( $cfgFileName, $cfgFileDir ) = fileparse( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} || $self->{'config'}->{'NAMED_CONF_FILE'} );
     my $cfgFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$cfgFileName" );
-    my $cfgWrkFileContentRef = $cfgFile->getAsRef();
+    my $cfgWrkFileCref = $cfgFile->getAsRef();
     my $tplFileName = "cfg_$self->{'config'}->{'NAMED_MODE'}.tpl";
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), $tplFileName, \my $tplCfgEntryContent, $moduleData );
     $tplCfgEntryContent = iMSCP::File->new( filename => "$self->{'tplDir'}/$tplFileName" )->get() unless defined $tplCfgEntryContent;
-    $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', $cfgWrkFileContentRef, \$tplCfgEntryContent, $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', $cfgWrkFileCref, \$tplCfgEntryContent, $moduleData );
 
-    my $tags = {
+    my $vars = {
         NAMED_DB_FORMAT => $self->{'config'}->{'NAMED_DB_FORMAT'} =~ s/=\d//r,
         DOMAIN_NAME     => $moduleData->{'DOMAIN_NAME'}
     };
 
     if ( $self->{'config'}->{'NAMED_MODE'} eq 'master' ) {
         if ( $self->{'config'}->{'NAMED_SECONDARY_DNS'} ne 'no' ) {
-            $tags->{'NAMED_SECONDARY_DNS'} = join( '; ', split( ';', $self->{'config'}->{'NAMED_SECONDARY_DNS'} )) . '; localhost;';
+            $vars->{'NAMED_SECONDARY_DNS'} = join( '; ', split( ';', $self->{'config'}->{'NAMED_SECONDARY_DNS'} )) . '; localhost;';
         } else {
-            $tags->{'NAMED_SECONDARY_DNS'} = 'localhost;';
+            $vars->{'NAMED_SECONDARY_DNS'} = 'localhost;';
         }
     } else {
-        $tags->{'NAMED_PRIMARY_DNS'} = join( '; ', split( ';', $self->{'config'}->{'NAMED_PRIMARY_DNS'} )) . ';';
+        $vars->{'NAMED_PRIMARY_DNS'} = join( '; ', split( ';', $self->{'config'}->{'NAMED_PRIMARY_DNS'} )) . ';';
     }
 
-    replaceBlocByRef(
-        "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', $cfgWrkFileContentRef
-    );
-    replaceBlocByRef( "// imscp [{ENTRY_ID}] entry BEGIN\n", "// imscp [{ENTRY_ID}] entry ENDING\n", <<"EOF", $cfgWrkFileContentRef, 'preserve' );
-// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN
-@{ [ process( $tags, $tplCfgEntryContent ) ] }
-// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING
+    # Remove previous entry if any
+    processBlocByRef( $cfgWrkFileCref, "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING." );
+
+    # Add new entry
+    processBlocByRef( $cfgWrkFileCref, '// imscp [{ENTRY_ID}] entry BEGIN.', '// imscp [{ENTRY_ID}] entry ENDING.', <<"EOF", TRUE );
+// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.
+@{ [ processVarsByRef( \$tplCfgEntryContent, $vars ) ] }
+// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING.
 EOF
-    $self->{'eventManager'}->trigger( 'afterBindAddDmnConfig', $cfgWrkFileContentRef, $moduleData );
+
+    $self->{'eventManager'}->trigger( 'afterBindAddDmnConfig', $cfgWrkFileCref, $moduleData );
     $cfgFile->save()->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} )->mode( 0640 )->copy(
-        "$cfgFileDir$cfgFileName", { preserve => TRUE }
+        $cfgFileDir . $cfgFileName, { preserve => TRUE }
     );
 }
 
@@ -846,15 +835,13 @@ sub _deleteDmnConfig
 
     my ( $cfgFileName, $cfgFileDir ) = fileparse( $self->{'config'}->{'NAMED_LOCAL_CONF_FILE'} || $self->{'config'}->{'NAMED_CONF_FILE'} );
     my $cfgFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$cfgFileName" );
-    my $cfgWrkFileContentRef = $cfgFile->getAsRef();
+    my $cfgWrkFileCref = $cfgFile->getAsRef();
 
-    $self->{'eventManager'}->trigger( 'beforeBindDeleteDomainConfig', $cfgWrkFileContentRef, $moduleData );
-    replaceBlocByRef(
-        "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN\n", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING\n", '', $cfgWrkFileContentRef
-    );
-    $self->{'eventManager'}->trigger( 'afterBindDeleteDomainConfig', $cfgWrkFileContentRef, $moduleData );
+    $self->{'eventManager'}->trigger( 'beforeBindDeleteDomainConfig', $cfgWrkFileCref, $moduleData );
+    processBlocByRef( $cfgWrkFileCref, "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING." );
+    $self->{'eventManager'}->trigger( 'afterBindDeleteDomainConfig', $cfgWrkFileCref, $moduleData );
     $cfgFile->save()->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'NAMED_GROUP'} )->mode( 0640 )->copy(
-        "$cfgFileDir$cfgFileName", { preserve => TRUE }
+        $cfgFileDir . $cfgFileName, { preserve => TRUE }
     );
 }
 
@@ -872,15 +859,15 @@ sub _addDmnDb
     my ( $self, $moduleData ) = @_;
 
     my $wrkDbFile = iMSCP::File->new( filename => "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db" );
-    my $wrkDbFileContent = -f $wrkDbFile ? $wrkDbFile->get() : undef;
+    my $wrkDbFileC = -f $wrkDbFile ? $wrkDbFile->get() : undef;
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), 'db.tpl', \my $tplDbFileC, $moduleData );
     $tplDbFileC = iMSCP::File->new( filename => "$self->{'tplDir'}/db.tpl" )->get() unless defined $tplDbFileC;
-    $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$tplDbFileC, \$wrkDbFileContent );
+    $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$tplDbFileC, \$wrkDbFileC );
     $self->{'eventManager'}->trigger( 'beforeBindAddDomainDb', \$tplDbFileC, $moduleData );
 
-    my $nsRecordB = getBlocByRef( "; dmn NS RECORD entry BEGIN\n", "; dmn NS RECORD entry ENDING\n", \$tplDbFileC );
-    my $glueRecordB = getBlocByRef( "; dmn NS GLUE RECORD entry BEGIN\n", "; dmn NS GLUE RECORD entry ENDING\n", \$tplDbFileC );
+    my $nsRecordB = getBlocByRef( \$tplDbFileC, '; dmn NS RECORD entry BEGIN.', '; dmn NS RECORD entry ENDING.' );
+    my $glueRecordB = getBlocByRef( \$tplDbFileC, '; dmn NS GLUE RECORD entry BEGIN.', '; dmn NS GLUE RECORD entry ENDING.' );
 
     my $net = iMSCP::Net->getInstance();
     my $domainIP = $net->isRoutableAddr( $moduleData->{'DOMAIN_IP'} ) ? $moduleData->{'DOMAIN_IP'} : $moduleData->{'BASE_SERVER_PUBLIC_IP'};
@@ -895,63 +882,49 @@ sub _addDmnDb
             my $nsNumber = 1;
             for my $ipAddr ( @nsIPs ) {
                 next unless $net->getAddrVersion( $ipAddr ) eq $ipAddrType;
-                $nsRecords .= process( { NS_NAME => 'ns' . $nsNumber }, $nsRecordB ) if length $nsRecordB;
-                $glueRecords .= process(
-                    {
-                        NS_NAME    => 'ns' . $nsNumber,
-                        NS_IP_TYPE => ( $ipAddrType eq 'ipv4' ) ? 'A' : 'AAAA',
-                        NS_IP      => $ipAddr
-                    },
-                    $glueRecordB
-                ) if length $glueRecordB;
+
+                $nsRecords .= processVars( $nsRecordB, { NS_NAME => 'ns' . $nsNumber } ) if length $nsRecordB;
+                $glueRecords .= processVars( $glueRecordB, {
+                    NS_NAME    => 'ns' . $nsNumber,
+                    NS_IP_TYPE => $ipAddrType eq 'ipv4' ? 'A' : 'AAAA',
+                    NS_IP      => $ipAddr
+                } ) if length $glueRecordB;
 
                 $nsNumber++;
             }
         }
 
-        replaceBlocByRef( "; dmn NS RECORD entry BEGIN\n", "; dmn NS RECORD entry ENDING\n", $nsRecords, \$tplDbFileC ) if length $nsRecordB;
+        processBlocByRef( \$tplDbFileC, '; dmn NS RECORD entry BEGIN.', '; dmn NS RECORD entry ENDING.', $nsRecords ) if length $nsRecordB;
 
         if ( length $glueRecordB ) {
-            replaceBlocByRef( "; dmn NS GLUE RECORD entry BEGIN\n", "; dmn NS GLUE RECORD entry ENDING\n", $glueRecords, \$tplDbFileC );
+            processBlocByRef( \$tplDbFileC, '; dmn NS GLUE RECORD entry BEGIN.', '; dmn NS GLUE RECORD entry ENDING.', $glueRecords );
         }
     }
 
-    replaceBlocByRef(
-        "; dmn MAIL entry BEGIN\n",
-        "; dmn MAIL entry ENDING\n",
-        $moduleData->{'IS_ALT_URL_RECORD'} || $moduleData->{'EXTERNAL_MAIL'} ? '' : process(
-            {
-                BASE_SERVER_IP_TYPE => $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ? 'A' : 'AAAA',
-                BASE_SERVER_IP      => $moduleData->{'BASE_SERVER_PUBLIC_IP'}
-            },
-            getBlocByRef( "; dmn MAIL entry BEGIN\n", "; dmn MAIL entry ENDING\n", \$tplDbFileC )
-        ),
-        \$tplDbFileC
-    );
-    processByRef(
-        {
-            DOMAIN_NAME => $moduleData->{'DOMAIN_NAME'},
-            IP_TYPE     => $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA',
-            DOMAIN_IP   => $domainIP
-        },
-        \$tplDbFileC
-    );
+    # Prepare mail entries
+    # FIXME: Should we remove historical  smtp, relay, imap, pop... records? See:
+    # https://i-mscp.net/index.php/Thread/18893-Setup-SSL-Let-s-Encrypt-on-mail-client-with-customer-subdomain/?postID=58676#post58676
+    processBlocByRef( \$tplDbFileC, '; dmn MAIL entry BEGIN.', '; dmn MAIL entry ENDING.', {
+        BASE_SERVER_IP_TYPE => $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ? 'A' : 'AAAA',
+        BASE_SERVER_IP      => $moduleData->{'BASE_SERVER_PUBLIC_IP'}
+    } );
 
-    unless ( !defined $wrkDbFileContent || iMSCP::Getopt->context() eq 'installer' ) {
+    # Prepare domain entries
+    processVarsByRef( \$tplDbFileC, {
+        DOMAIN_NAME => $moduleData->{'DOMAIN_NAME'},
+        IP_TYPE     => $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA',
+        DOMAIN_IP   => $domainIP
+    } );
+
+    unless ( !defined $wrkDbFileC || iMSCP::Getopt->context() eq 'installer' ) {
         # Re-add subdomain entries
-        replaceBlocByRef(
-            "; sub entries BEGIN\n",
-            "; sub entries ENDING\n",
-            getBlocByRef( "; sub entries BEGIN\n", "; sub entries ENDING\n", \$wrkDbFileContent, 'with_tags' ),
-            \$tplDbFileC
-        );
+        processBlocByRef( \$tplDbFileC, '; sub entries BEGIN.', '; sub entries ENDING.', getBlocByRef(
+            \$wrkDbFileC, '; sub entries BEGIN.', '; sub entries ENDING.', TRUE
+        ));
         # Re-add custom DNS entries
-        replaceBlocByRef(
-            "; custom DNS entries BEGIN\n",
-            "; custom DNS entries ENDING\n",
-            getBlocByRef( "; custom DNS entries BEGIN\n", "; custom DNS entries ENDING\n", \$wrkDbFileContent, 'with_tags' ),
-            \$tplDbFileC
-        );
+        processBlocByRef( \$tplDbFileC, '; custom DNS entries BEGIN.', '; custom DNS entries ENDING.', getBlocByRef(
+            \$wrkDbFileC, '; custom DNS entries BEGIN.', '; custom DNS entries ENDING.', TRUE
+        ));
     }
 
     $self->{'eventManager'}->trigger( 'afterBindAddDomainDb', \$tplDbFileC, $moduleData );
@@ -959,25 +932,25 @@ sub _addDmnDb
     $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
 }
 
-=item _updateSOAserialNumber( $zone, \$zoneFileContent, \$oldZoneFileContent )
+=item _updateSOAserialNumber( $zone, \$zoneFileC, \$oldZoneFileC )
 
  Update SOA serial number for the given zone
  
  Note: Format follows RFC 1912 section 2.2 recommendations.
 
  Param string zone Zone name
- Param scalarref \$zoneFileContent Reference to zone file content
- Param scalarref \$oldZoneFileContent Reference to old zone file content
+ Param scalarref \$zoneFileC Reference to zone file content
+ Param scalarref \$oldZoneFileC Reference to old zone file content
  Return void, die on failure
 
 =cut
 
 sub _updateSOAserialNumber
 {
-    my ( $self, $zone, $zoneFileContent, $oldZoneFileContent ) = @_;
+    my ( $self, $zone, $zoneFileC, $oldZoneFileC ) = @_;
 
-    $oldZoneFileContent = $zoneFileContent unless defined ${ $oldZoneFileContent };
-    ${ $oldZoneFileContent } =~ /^\s+(?:(?<date>\d{8})(?<nn>\d{2})|(?<placeholder>\{TIMESTAMP\}))\s*;[^\n]*\n/m or die(
+    $oldZoneFileC = $zoneFileC unless defined ${ $oldZoneFileC };
+    ${ $oldZoneFileC } =~ /^\s+(?:(?<date>\d{8})(?<nn>\d{2})|(?<placeholder>\{TIMESTAMP\}))\s*;[^\n]*\n/m or die(
         sprintf( "Couldn't update SOA serial number for the %s DNS zone: Serial data not found", $zone )
     );
 
@@ -987,7 +960,9 @@ sub _updateSOAserialNumber
 
     if ( exists $+{'placeholder'} ) {
         $self->{'serials'}->{$zone} = $nowDate . '00';
-        processByRef( { TIMESTAMP => $self->{'serials'}->{$zone} }, $zoneFileContent );
+        processVarsByRef( $zoneFileC, {
+            TIMESTAMP => $self->{'serials'}->{$zone}
+        } );
         return;
     }
 
@@ -1004,7 +979,7 @@ sub _updateSOAserialNumber
     }
 
     $self->{'serials'}->{$zone} = $rc{'date'} . $rc{'nn'};
-    ${ $zoneFileContent } =~ s/^(\s+)(?:\d{10}|\{TIMESTAMP\})(\s*;[^\n]*\n)/$1$self->{'serials'}->{$zone}$2/m;
+    ${ $zoneFileC } =~ s/^(\s+)(?:\d{10}|\{TIMESTAMP\})(\s*;[^\n]*\n)/$1$self->{'serials'}->{$zone}$2/m;
 }
 
 =item _compileZone( $zonename, $filename )
@@ -1028,14 +1003,13 @@ sub _compileZone
             'named-compilezone', '-i', 'full', '-f', 'text', '-F', $self->{'config'}->{'NAMED_DB_FORMAT'}, '-s', 'relative', '-o',
             "$self->{'config'}->{'NAMED_DB_MASTER_DIR'}/$zonename.db", $zonename, $filename
         ],
-        \my $stdout,
-        \my $stderr
+        \my $stdout, \my $stderr
     );
     debug( $stdout ) if length $stdout;
     $rs == 0 or die( sprintf( "Couldn't compile the %s zone: %s", $zonename, $stderr || 'Unknown error' ));
 }
 
-=item _bkpConfFile($cfgFile)
+=item _bkpConfFile( $cfgFile )
 
  Backup configuration file
 
@@ -1073,16 +1047,16 @@ sub _makeDirs
 {
     my ( $self ) = @_;
 
-    my @directories = (
+    my @dirs = (
         [ $self->{'config'}->{'NAMED_DB_MASTER_DIR'}, $self->{'config'}->{'NAMED_USER'}, $self->{'config'}->{'NAMED_GROUP'}, 02750 ],
         [ $self->{'config'}->{'NAMED_DB_SLAVE_DIR'}, $self->{'config'}->{'NAMED_USER'}, $self->{'config'}->{'NAMED_GROUP'}, 02750 ]
     );
 
-    for my $directory ( @directories ) {
-        iMSCP::Dir->new( dirname => $directory->[0] )->make( {
-            user  => $directory->[1],
-            group => $directory->[2],
-            mode  => $directory->[3]
+    for my $dir ( @dirs ) {
+        iMSCP::Dir->new( dirname => $dir->[0] )->make( {
+            user  => $dir->[1],
+            group => $dir->[2],
+            mode  => $dir->[3]
         } );
     }
 
@@ -1106,44 +1080,34 @@ sub _configure
 
     # option configuration file
     if ( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} ) {
-        $self->{'eventManager'}->registerOne(
-            'beforeBindBuildConfFile',
-            sub {
-                ${ $_[0] } =~ s/listen-on-v6\s+\{\s+any;\s+\};/listen-on-v6 { none; };/ if $_[5]->{'NAMED_IPV6_SUPPORT'} eq 'no';
-                ${ $_[0] } =~ s%//\s+(check-spf\s+ignore;)%$1% if version->parse( $self->getServerVersion()) >= version->parse( '9.9.3' );
-            }
-        );
+        $self->{'eventManager'}->registerOne( 'beforeBindBuildConfFile', sub {
+            ${ $_[0] } =~ s/listen-on-v6\s+\{\s+any;\s+\};/listen-on-v6 { none; };/ if $_[5]->{'NAMED_IPV6_SUPPORT'} eq 'no';
+            ${ $_[0] } =~ s%//\s+(check-spf\s+ignore;)%$1% if version->parse( $self->getServerVersion()) >= version->parse( '9.9.3' );
+        } );
 
         my $tplName = basename( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
-        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
-            {
-                umask => 0027,
-                mode  => 0640,
-                group => $self->{'config'}->{'NAMED_GROUP'}
-            }
-        );
+        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef, {
+            umask => 0027,
+            mode  => 0640,
+            group => $self->{'config'}->{'NAMED_GROUP'}
+        } );
 
         iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_OPTIONS_CONF_FILE'}, { preserve => TRUE } );
     }
 
     # master configuration file
     if ( length $self->{'config'}->{'NAMED_CONF_FILE'} ) {
-        $self->{'eventManager'}->registerOne(
-            'beforeBindBuildConfFile',
-            sub {
-                return if -f "$_[5]->{'NAMED_CONF_DIR'}/bind.keys";
-                ${ $_[0] } =~ s%include\s+\Q"$_[5]->{'NAMED_CONF_DIR'}\E/bind.keys";\n%%;
-            }
-        );
+        $self->{'eventManager'}->registerOne( 'beforeBindBuildConfFile', sub {
+            return if -f "$_[5]->{'NAMED_CONF_DIR'}/bind.keys";
+            ${ $_[0] } =~ s%include\s+\Q"$_[5]->{'NAMED_CONF_DIR'}\E/bind.keys";\n%%;
+        } );
 
         my $tplName = basename( $self->{'config'}->{'NAMED_CONF_FILE'} );
-        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef,
-            {
-                umask => 0027,
-                mode  => 0640,
-                group => $self->{'config'}->{'NAMED_GROUP'}
-            }
-        );
+        $self->buildConfFile( $tplName, "$self->{'wrkDir'}/$tplName", undef, undef, {
+            umask => 0027,
+            mode  => 0640,
+            group => $self->{'config'}->{'NAMED_GROUP'}
+        } );
 
         iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" )->copy( $self->{'config'}->{'NAMED_CONF_FILE'}, { preserve => TRUE } );
     }
@@ -1163,7 +1127,7 @@ sub _configure
     $self->{'eventManager'}->trigger( 'afterBindConfigure' );
 }
 
-=item _checkIps(@ips)
+=item _checkIps( @ips )
 
  Check IP addresses
 
@@ -1181,10 +1145,10 @@ sub _checkIps
         ? qr/^(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)$/ : qr/^(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)$/;
 
     for my $ipAddr ( @ips ) {
-        return 0 unless $net->isValidAddr( $ipAddr ) && $net->getAddrType( $ipAddr ) =~ $ValidationRegexp;
+        return FALSE unless $net->isValidAddr( $ipAddr ) && $net->getAddrType( $ipAddr ) =~ $ValidationRegexp;
     }
 
-    1;
+    TRUE;
 }
 
 =item _removeConfig( )

@@ -32,7 +32,7 @@ use iMSCP::Boolean;
 use iMSCP::Debug qw/ error debug /;
 use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::File;
-use iMSCP::TemplateParser qw/ process /;
+use iMSCP::Template::Processor qw/ processVarsByRef /;
 use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
@@ -222,21 +222,21 @@ sub createSelfSignedCertificate
     $data->{'common_name'} or croak( 'Missing common_name parameter' );
     $data->{'email'} or croak( 'Missing email parameter' );
 
-    my $openSSLConffileTpl = "$::imscpConfig{'CONF_DIR'}/openssl/openssl.cnf.tpl";
     my $commonName = $data->{'wildcard'} ? '*.' . $data->{'common_name'} : $data->{'common_name'};
 
     # Write openssl configuration file into temporary file
     my $openSSLConffile = File::Temp->new();
-    print $openSSLConffile process(
-        {
-            COMMON_NAME   => $commonName,
-            EMAIL_ADDRESS => $data->{'email'},
-            ALT_NAMES     => $data->{'wildcard'} ? "DNS.1 = $commonName\n" : "DNS.1 = $commonName\nDNS.2 = www.$commonName\n"
-        },
-        # openssl configuration template file for self-signed SSL certificates
-        iMSCP::File->new( filename => $openSSLConffileTpl )->get()
-    );
+
+    # openssl configuration template file for self-signed SSL certificates
+    my $openSSLConffileTplCref = iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/openssl/openssl.cnf.tpl" )->getAsRef();
+
+    print $openSSLConffile processVarsByRef( $openSSLConffileTplCref, {
+        COMMON_NAME   => $commonName,
+        EMAIL_ADDRESS => $data->{'email'},
+        ALT_NAMES     => $data->{'wildcard'} ? "DNS.1 = $commonName\n" : "DNS.1 = $commonName\nDNS.2 = www.$commonName\n"
+    } );
     $openSSLConffile->close();
+    undef $openSSLConffileTplCref;
 
     my $cmd = [
         'openssl', 'req', '-x509', '-nodes', '-days', '365', '-config', $openSSLConffile->filename(), '-newkey', 'rsa',

@@ -23,12 +23,12 @@
 
 package iMSCP::Listener::ProFTPD::ServerIdent;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
 use iMSCP::EventManager;
-use iMSCP::TemplateParser qw/ processByRef /;
+use iMSCP::Template::Processor qw/ processVarsByRef /;
 use version;
 
 #
@@ -46,17 +46,16 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_proftpd_serverident.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'beforeProftpdBuildConfFile',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforeProftpdBuildConfFile', sub
+{
+    my ( $tplContent, $tplName ) = @_;
 
-        return unless $tplName eq 'proftpd.conf';
+    return unless $tplName eq 'proftpd.conf';
 
-        $SERVER_IDENT_MESSAGE =~ s%("|\\)%\\$1%g;
-        processByRef( { SERVER_IDENT_MESSAGE => qq/"$SERVER_IDENT_MESSAGE"/ }, $tplContent );
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
+    processVarsByRef( $tplContent, {
+        SERVER_IDENT_MESSAGE => qq/"@{ [ $SERVER_IDENT_MESSAGE =~ s%("|\\)%\\$1%gr ] }"/
+    } );
+} ) if index( $::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
 
 1;
 __END__

@@ -39,7 +39,7 @@ use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Packages::Setup::FrontEnd;
 use iMSCP::Servers::Sqld;
-use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef processVarsByRef /;
 use JSON;
 use version;
 use parent 'iMSCP::Packages::Abstract';
@@ -296,7 +296,7 @@ sub getPackageVersion
 sub _init
 {
     my ( $self ) = @_;
-    
+
     $self->{'frontend'} = iMSCP::Packages::Setup::FrontEnd->getInstance();
     $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/pma";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
@@ -462,7 +462,7 @@ sub _setupSqlUser
 
 sub _setupDatabase
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $phpmyadminDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pma";
     my $phpmyadminDbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
@@ -586,7 +586,7 @@ sub _buildConfig
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', $cfgTpl, $data );
     $file->getAsRef() unless length ${ $cfgTpl };
 
-    processByRef( $data, $cfgTpl );
+    processVarsByRef( $cfgTpl, $data );
 
     $file->{'filename'} = "$self->{'wrkDir'}/config.inc.php";
     $file->save()->owner( $usergroup, $usergroup )->mode( 0640 )->copy( "$confDir/config.inc.php", { preserve => 1 } );
@@ -654,7 +654,7 @@ sub _unregisterConfig
 
     my $file = iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
     my $fileContentRef = $file->getAsRef();
-    ${ $fileContentRef } =~ s/[\t ]*include imscp_pma.conf;\n//;
+    ${ $fileContentRef } =~ s/(^[\t ]+)?\Qinclude imscp_pma.conf;\E\n//m;
     $file->save();
 
     $self->{'frontend'}->{'reload'} ||= TRUE;
@@ -700,11 +700,8 @@ sub afterFrontEndBuildConfFile
     return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
-    replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
-    # SECTION custom BEGIN.
-    @{ [ getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent ) ] }
+    processBlocByRef( $tplContent, '# SECTION custom BEGIN.', '# SECTION custom ENDING.', <<"EOF", TRUE );
     include imscp_pma.conf;
-    # SECTION custom END.
 EOF
 }
 

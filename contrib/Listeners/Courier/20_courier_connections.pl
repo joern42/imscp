@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::Courier::Connections;
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.1';
 
 use strict;
 use warnings;
@@ -43,16 +43,14 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 20_courier_connections.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'onCourierBuildLocalConf',
-    sub {
-        my ($serviceName, $conffile) = @_;
+iMSCP::EventManager->getInstance()->register( 'onCourierBuildLocalConf', sub
+{
+    my ( $serviceName, $conffile ) = @_;
 
-        return unless grep( $serviceName eq $_, 'pop3d', 'imapd' );
+    return unless grep ( $serviceName eq $_, 'pop3d', 'imapd' );
 
-        $conffile->{'MAXPERIP'} = $MAX_CONNECTION_PER_IP;
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Courier::' ) != -1;
+    $conffile->{'MAXPERIP'} = $MAX_CONNECTION_PER_IP;
+} ) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Courier::' ) != -1;
 
 1;
 __END__

@@ -30,7 +30,7 @@ use iMSCP::Debug qw/ debug /;
 use iMSCP::EventManager;
 use iMSCP::Packages;
 use iMSCP::Servers;
-use parent 'iMSCP::Common::Singleton';
+use parent 'iMSCP::Common::Object';
 
 =head1 DESCRIPTION
 

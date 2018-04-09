@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::PhpMyAdmin::Conffile;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -39,16 +39,14 @@ my $tplFilePath = '/root/imscp.config.inc.php';
 ## Please, don't edit anything below this line
 #
 
-iMSCP::EventManager->getInstance()->register(
-    'onLoadTemplate',
-    sub {
-        my ($pkgName, $tplName, $tplContent) = @_;
+iMSCP::EventManager->getInstance()->register( 'onLoadTemplate', sub
+{
+    my ( $pkgName, $tplName, $tplContent ) = @_;
 
-        return unless $pkgName eq 'phpmyadmin' && $tplName eq 'imscp.config.inc.php' && -f $tplFilePath;
+    return unless $pkgName eq 'phpmyadmin' && $tplName eq 'imscp.config.inc.php' && -f $tplFilePath;
 
-        ${$tplContent} = iMSCP::File->new( filename => $tplFilePath )->get();
-    }
-);
+    ${ $tplContent } = iMSCP::File->new( filename => $tplFilePath )->get();
+} );
 
 1;
 __END__

@@ -1,7 +1,7 @@
 server {
     # SECTION listen BEGIN.
     listen {LISTEN};
-    # SECTION listen END.
+    # SECTION listen ENDING.
 
     server_name {DOMAIN_NAME} {SERVER_ALIASES};
 
@@ -28,14 +28,14 @@ server {
     ssl_certificate {CERTIFICATE};
     ssl_certificate_key {CERTIFICATE};
     add_header Strict-Transport-Security "max-age={HSTS_MAX_AGE}{HSTS_INCLUDE_SUBDOMAINS}";
-    # SECTION ssl END.
+    # SECTION ssl ENDING.
 
     # SECTION dmn BEGIN.
     location / {
         index index.html index.xhtml index.htm;
         disable_symlinks off;
-        # SECTION document root addons BEGIN.
-        # SECTION document root addons END.
+        # SECTION custom document root BEGIN.
+        # SECTION custom document root ENDING.
     }
 
     # SECTION cgi BEGIN.
@@ -49,21 +49,21 @@ server {
         uwsgi_pass unix:{UWSGI_RUN_DIR}/{USER}/socket;
         uwsgi_intercept_errors on;
     }
-    # SECTION cgi END.
-    # SECTION dmn END.
+    # SECTION cgi ENDING.
+    # SECTION dmn ENDING.
 
     # SECTION fwd BEGIN.
     location / {
         disable_symlinks off;
-        # SECTION document root addons BEGIN.
-        # SECTION document root addons END.
+        # SECTION custom document root BEGIN.
+        # SECTION custom document root ENDING.
     }
 
     # SECTION std_fwd BEGIN.
     location ~ ^/((?!(?:errors|\.well-known)/).*) {
         return {FORWARD_TYPE} {FORWARD}$1;
     }
-    # SECTION std_fwd END.
+    # SECTION std_fwd ENDING.
 
     # SECTION proxy_fwd BEGIN.
     location ~ ^/((?!(?:errors|\.well-known)/).*) {
@@ -71,17 +71,17 @@ server {
 
         # SECTION proxy_host BEGIN.
         proxy_set_header Host $host;
-        # SECTION proxy_host END.
+        # SECTION proxy_host ENDING.
 
         proxy_set_header X-Forwarded-Proto "{X_FORWARDED_PROTOCOL}";
         proxy_set_header X-Forwarded-Port {X_FORWARDED_PORT};
         proxy_pass {FORWARD};
     }
-    # SECTION proxy_fwd END.
-    # SECTION fwd END.
+    # SECTION proxy_fwd ENDING.
+    # SECTION fwd ENDING.
 
     # SECTION addons BEGIN.
-    # SECTION addons END.
+    # SECTION addons ENDING.
 
     include {HTTPD_CUSTOM_SITES_DIR}/{DOMAIN_NAME}.conf;
 }

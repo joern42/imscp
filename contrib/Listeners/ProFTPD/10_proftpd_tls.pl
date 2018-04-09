@@ -23,7 +23,7 @@
 
 package iMSCP::Listener::ProFTPD::TLS;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -38,15 +38,13 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_proftpd_serverident.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterProftpdBuildConfFile',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterProftpdBuildConfFile', sub
+{
+    my ( $tplContent, $tplName ) = @_;
 
-        return unless $tplName eq 'proftpd.conf';
-        ${$tplContent} =~ s/(TLSRequired\s+)off/${1}on/im;
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
+    return unless $tplName eq 'proftpd.conf';
+    ${ $tplContent } =~ s/(TLSRequired\s+)off/${1}on/im;
+} ) if index( $::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
 
 1;
 __END__

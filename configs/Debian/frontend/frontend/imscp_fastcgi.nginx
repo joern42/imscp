@@ -37,4 +37,4 @@ fastcgi_read_timeout                    600;
 fastcgi_param APPLICATION_ENV {APPLICATION_ENV};
 
 # SECTION custom BEGIN.
-# SECTION custom END.
+# SECTION custom ENDING.

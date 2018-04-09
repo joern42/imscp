@@ -30,7 +30,7 @@
 
 package iMSCP::Listener::Postfix::PFS;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -45,18 +45,15 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 60_postfix_pfs.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixConfigure',
-    sub {
-        return unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
+iMSCP::EventManager->getInstance()->register( 'afterPostfixConfigure', sub
+{
+    return unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
 
-        iMSCP::Servers::Mta->factory()->postconf(
-            smtpd_tls_dh1024_param_file => { values => [ '/etc/postfix/dh2048.pem' ] },
-            smtpd_tls_dh512_param_file  => { values => [ '/etc/postfix/dh512.pem' ] }
-        );
-    },
-    -99
-) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+    iMSCP::Servers::Mta->factory()->postconf(
+        smtpd_tls_dh1024_param_file => { values => [ '/etc/postfix/dh2048.pem' ] },
+        smtpd_tls_dh512_param_file  => { values => [ '/etc/postfix/dh512.pem' ] }
+    );
+}, -99 ) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

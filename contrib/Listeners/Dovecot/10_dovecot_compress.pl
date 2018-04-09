@@ -26,7 +26,7 @@
 
 package iMSCP::Listener::Dovecot::Compress;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -50,11 +50,10 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_dovecot_compress.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->registerOne(
-    'afterDovecotConfigure',
-    sub {
-        my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/10_dovecot_compress_listener.conf" )->set( <<"EOT" )->save();
+iMSCP::EventManager->getInstance()->registerOne( 'afterDovecotConfigure', sub
+{
+    my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
+    iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/10_dovecot_compress_listener.conf" )->set( <<"EOT" )->save();
 mail_plugins = \$mail_plugins zlib
 
 plugin {
@@ -66,8 +65,7 @@ protocol imap {
     mail_plugins = \$mail_plugins imap_zlib
 }
 EOT
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;
+} ) if index( $::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;
 
 1;
 __END__

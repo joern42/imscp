@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use autouse 'iMSCP::Crypt' => qw/ randomStr ALNUM /;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isAvailableSqlUser isOneOfStringsInList isStringNotInList isValidPassword isValidUsername /;
-use autouse 'iMSCP::TemplateParser' => qw/ getBlocByRef processByRef replaceBlocByRef /;
+use autouse 'iMSCP::Template::Processor' => qw/ processVarsByRef processBlocByRef /;
 use Class::Autouse qw/
     :nostat iMSCP::Composer iMSCP::Config iMSCP::Dir iMSCP::File iMSCP::Getopt JSON iMSCP::Packages::Setup::FrontEnd iMSCP::Servers::Sqld
 /;
@@ -299,11 +299,8 @@ sub afterFrontEndBuildConfFile
     return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
-    replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
-    # SECTION custom BEGIN.
-@{ [ getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent ) ] }
+    processBlocByRef( $tplContent, '# SECTION custom BEGIN.', '# SECTION custom ENDING.', <<"EOF", TRUE );
     include imscp_rainloop.conf;
-    # SECTION custom END.
 EOF
 }
 
@@ -481,7 +478,7 @@ sub _buildConfig
         $self->{'eventManager'}->trigger( 'onLoadTemplate', 'rainloop', $confFile, $cfgTpl, $data );
         $file->getAsRef() unless length ${ $cfgTpl };
 
-        processByRef( $data, $cfgTpl );
+        processVarsByRef( $cfgTpl, $data );
 
         $file->save()->owner( $usergroup, $usergroup )->mode( 0640 )
     }
@@ -616,7 +613,7 @@ sub _unregisterConfig
 
     my $file = iMSCP::File->new( filename => "$frontend->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
     my $fileContentRef = $file->getAsRef();
-    ${ $fileContentRef } =~ s/[\t ]*include imscp_rainloop.conf;\n//;
+    ${ $fileContentRef } =~ s/(^[\t ]+)?\Qinclude imscp_rainloop.conf;\E\n//m;
     $file->save();
 
     $frontend->{'reload'} ||= TRUE;

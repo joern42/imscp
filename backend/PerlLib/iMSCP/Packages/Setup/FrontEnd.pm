@@ -49,7 +49,7 @@ use iMSCP::Service;
 use iMSCP::Stepper qw/ step startDetail endDetail /;
 use iMSCP::SystemGroup;
 use iMSCP::SystemUser;
-use iMSCP::TemplateParser qw/ getBloc processByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef processVarsByRef /;
 use Net::LibIDN qw/ idn_to_ascii idn_to_unicode /;
 use version;
 use parent 'iMSCP::Packages::Abstract';
@@ -84,14 +84,6 @@ sub getPackagePriority
 =item registerSetupListeners( )
 
  See iMSCP::Packages::Abstract::registerSetupListeners()
-
-=cut
-
-=item registerSetupListeners( )
-
- Register setup event listeners
-
- Return int 0 on success, other on failure
 
 =cut
 
@@ -161,7 +153,10 @@ sub askMasterAdminCredentials
     if ( iMSCP::Getopt->preseed ) {
         $username = ::setupGetQuestion( 'ADMIN_LOGIN_NAME', 'admin' );
         $password = ::setupGetQuestion( 'ADMIN_PASSWORD' );
-    } elsif ( eval { $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); TRUE; } ) {
+    } elsif ( eval {
+        $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
+        TRUE;
+    } ) {
         my $row = $self->{'dbh'}->selectrow_hashref( "SELECT admin_name, admin_pass FROM admin WHERE created_by = 0 AND admin_type = 'admin'", );
         if ( $row ) {
             $username = $row->{'admin_name'} // '';
@@ -1312,7 +1307,7 @@ sub _createMasterWebUser
 
 sub _setupMasterAdmin
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $login = ::setupGetQuestion( 'ADMIN_LOGIN_NAME' );
     my $loginOld = ::setupGetQuestion( 'ADMIN_OLD_LOGIN_NAME' );
@@ -1655,17 +1650,17 @@ sub _buildHttpdConfig
             return unless grep ($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
 
             if ( $baseServerIpVersion eq 'ipv6' || ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'no' ) {
-                replaceBlocByRef( '# SECTION IPv6 BEGIN.', '# SECTION IPv6 END.', '', $cfgTpl );
+                processBlocByRef( $cfgTpl, '# SECTION IPv6 BEGIN.', '# SECTION IPv6 ENDING.' );
             }
 
             return unless $tplName eq '00_master.nginx';
 
             if ( ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) eq 'https://' ) {
-                replaceBlocByRef( "# SECTION http BEGIN.\n", "# SECTION http END.", '', $cfgTpl );
+                processBlocByRef( $cfgTpl, '# SECTION http BEGIN.', '# SECTION http ENDING.' );
                 return;
             }
 
-            replaceBlocByRef( "# SECTION https redirect BEGIN.\n", "# SECTION https redirect END.", '', $cfgTpl );
+            processBlocByRef( $cfgTpl, '# SECTION https redirect BEGIN.', '# SECTION https redirect ENDING.' );
         }
     );
     $self->buildConfFile( '00_master.nginx', $tplVars, {
@@ -1766,14 +1761,11 @@ sub _installSystemFiles
 
     for my $dir ( 'cron.daily', 'logrotate.d' ) {
         my $fileContentRef = iMSCP::File->new( filename => "$self->{'cfgDir'}/$dir/imscp_frontend" )->getAsRef();
-        processByRef(
-            {
-                WEB_DIR     => $::imscpConfig{'FRONTEND_ROOT_DIR'},
-                PANEL_USER  => $usergroup,
-                PANEL_GROUP => $usergroup
-            },
-            $fileContentRef
-        );
+        processVarsByRef( $fileContentRef, {
+            WEB_DIR     => $::imscpConfig{'FRONTEND_ROOT_DIR'},
+            PANEL_USER  => $usergroup,
+            PANEL_GROUP => $usergroup
+        } );
         iMSCP::File->new( filename => "/etc/$dir/imscp_frontend" )->set( ${ $fileContentRef } )->save();
     }
 }
@@ -1845,7 +1837,7 @@ sub _buildConf
 
     $tplVars ||= {};
     $self->{'eventManager'}->trigger( 'beforeFrontEndBuildConf', $cfgTpl, $filename, $tplVars );
-    processByRef( $tplVars, $cfgTpl );
+    processVarsByRef( $cfgTpl, $tplVars );
     $self->{'eventManager'}->trigger( 'afterFrontEndBuildConf', $cfgTpl, $filename, $tplVars );
 }
 

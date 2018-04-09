@@ -28,11 +28,11 @@
 
 package iMSCP::Listener::Named::Slave::Provisioning;
 
-our $VERSION = '1.0.5';
+our $VERSION = '1.0.6';
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Boolean;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::File;
@@ -93,15 +93,14 @@ sub createHtpasswdFile
 #
 
 # Listener that is responsible to add authentication configuration
-iMSCP::EventManager->getInstance()->register(
-    'afterFrontEndBuildConfFile',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub
+{
+    my ( $tplContent, $tplName ) = @_;
 
-        return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
-            || $tplName eq '00_master_ssl.nginx';
+    return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
+        || $tplName eq '00_master_ssl.nginx';
 
-        my $locationSnippet = <<"EOF";
+    my $locationSnippet = <<"EOF";
     location ^~ /provisioning/ {
         root /var/www/imscp/frontend/public;
 
@@ -114,20 +113,16 @@ iMSCP::EventManager->getInstance()->register(
         }
     }
 EOF
-        replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
-    # SECTION custom BEGIN.
-@{ [ getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent ) ] }
+    replaceBlocByRef( '# SECTION custom BEGIN.', '# SECTION custom ENDING.', <<"EOF", $tplContent, TRUE );
+@{ [ getBlocByRef( '# SECTION custom BEGIN.', '# SECTION custom ENDING.', $tplContent ) ] }
     $locationSnippet
-    # SECTION custom END
 EOF
-    }
-) if defined $AUTH_USERNAME;
+} ) if defined $AUTH_USERNAME;
 
 # Event listener that create the provisioning script
-iMSCP::EventManager->getInstance()->register(
-    'afterFrontEndInstall',
-    sub {
-        my $fileContent = <<'EOF';
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
+{
+    my $fileContent = <<'EOF';
 <?php
 
 use iMSCP::Registry as Registry;
@@ -175,24 +170,22 @@ if ($rowCount > 0) {
 }
 EOF
 
-        iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/provisioning" )->make( {
-            user  => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-            group => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-            mode  => 0550
-        } );
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/provisioning" )->make( {
+        user  => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+        group => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+        mode  => 0550
+    } );
 
-        createHtpasswdFile() if defined $AUTH_USERNAME;
+    createHtpasswdFile() if defined $AUTH_USERNAME;
 
-        iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/provisioning/slave_provisioning.php" )
-            ->set( $fileContent )
-            ->save()
-            ->owner(
-            "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-            "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}"
-        )
-            ->mode( 0640 );
-    }
-);
+    iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/provisioning/slave_provisioning.php" )
+        ->set( $fileContent )
+        ->save()
+        ->owner(
+        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}"
+    )->mode( 0640 );
+} );
 
 1;
 __END__

@@ -6,8 +6,8 @@ Git 1.6.x
 
 BACKEND
     Added: composer.phar compatibility symlink for backward compatibility with plugins
-    Added: getBlocByRef(), processByRef() and replaceBlocByRef() subroutines (iMSCP::TemplateParser)
     Added: Netplan networking configuration provider for Debian like distributions
+    Added: New library for templates processing: iMSCP::Template::Processor (in replacement of the iMSCP::TemplateParser library)
     Added: Support for .timer unit files (Systemd init provider)
     Added: Version check (minimum version) for non-core Perl modules (iMSCP::Requirements)
     Enhancement: Make it possible to define placeholders in placeholders (iMSCP::TemplateParser)

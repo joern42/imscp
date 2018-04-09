@@ -32,9 +32,9 @@ use warnings;
 use FindBin;
 use lib "/var/www/imscp/backend/PerlLib"; # FIXME: shouldn't be hardcoded
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug error newDebug /;
-use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::Servers;
 use iMSCP::Packages;
@@ -64,22 +64,21 @@ OPTIONS:
 iMSCP::Getopt->context( 'installer' );
 
 exit unless iMSCP::Bootstrapper->getInstance()->getInstance()->boot( {
-    config_readonly => 1,
-    nolock          => 1
+    config_readonly => TRUE,
+    nolock          => TRUE
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-dpkg-post-invoke.lock", 'nowait' );
 
 debug( 'Executing servers dpkg(1) post-invoke tasks' );
-for my $server ( iMSCP::Servers->getInstance()->getList() ) {
-    eval { $server->factory()->dpkgPostInvokeTasks(); };
-    !$@ or error( $@ )
-}
+eval {
+    $_->factory()->dpkgPostInvokeTasks();
+    TRUE;
+} or error( $@ ) for iMSCP::Servers->getInstance()->getList();
 
 debug( 'Executing packages dpkg(1) post-invoke tasks' );
-for my $package ( iMSCP::Packages->getInstance()->getList() ) {
-    next unless my $subref = $package->can( 'dpkgPostInvokeTasks' );
-    eval { $subref->( $package->getInstance( eventManager => iMSCP::EventManager->getInstance())); };
-    !$@ or error( $@ )
-}
+eval {
+    $_->getInstance()->dpkgPostInvokeTasks();
+    TRUE;
+} or error( $@ ) for iMSCP::Packages->getInstance()->getList();
 
 =head1 AUTHOR
 

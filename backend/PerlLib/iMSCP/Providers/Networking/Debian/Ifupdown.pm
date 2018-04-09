@@ -30,7 +30,7 @@ use iMSCP::Boolean;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Net;
-use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ getBlocByRef processBlocByRef /;
 use parent qw/ iMSCP::Common::Object iMSCP::Providers::Networking::Interface /;
 
 # Commands used in that package
@@ -190,14 +190,15 @@ sub _updateInterfacesFile
     my $file = iMSCP::File->new( filename => $INTERFACES_FILE_PATH )->copy( $INTERFACES_FILE_PATH . '.bak', { preserve => TRUE } );
     my $addrVersion = $self->{'net'}->getAddrVersion( $data->{'ip_address'} );
     my $eAddr = $self->{'net'}->expandAddr( $data->{'ip_address'} );
-
-    # We search also by ip_id for backward compatibility
     my $fileContentRef = $file->getAsRef();
-    replaceBlocByRef(
-        qr/^\s*# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$data->{'ip_address'}\E)\] entry BEGIN\n/m,
-        qr/# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$data->{'ip_address'}\E)\] entry ENDING\n/,
-        '',
-        $fileContentRef
+
+    # Remove previous entry if any
+    # We search also by ip_id for backward compatibility
+    # Ending dot in tags present since 1.6.x
+    processBlocByRef(
+        $fileContentRef,
+        qr/# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$data->{'ip_address'}\E)\] entry BEGIN\.?/,
+        qr/# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$data->{'ip_address'}\E)\] entry ENDING\.?/
     );
 
     if ( $action eq 'add'
@@ -206,22 +207,23 @@ sub _updateInterfacesFile
         && ${ $fileContentRef } !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$data->{'ip_address'}|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
     ) {
         my $iface = $data->{'ip_card'} . ( ( $addrVersion eq 'ipv4' ) ? ':' . $data->{'ip_id'} : '' );
-        my $beginTag = "# i-MSCP [$data->{'ip_address'}] entry BEGIN";
-        my $endingTag = "# i-MSCP [$data->{'ip_address'}] entry ENDING";
-        ${ $fileContentRef } .= <<"STANZA";
+        my $tagB = "# i-MSCP [$data->{'ip_address'}] entry BEGIN.";
+        my $tagE = "# i-MSCP [$data->{'ip_address'}] entry ENDING.";
+        ${ $fileContentRef } .= <<"EOF";
 
-$beginTag
+$tagB
 iface $iface @{ [ $addrVersion eq 'ipv4' ? 'inet' : 'inet6' ] } static
     address $data->{'ip_address'}
     netmask $data->{'ip_netmask'}
-$endingTag
-STANZA
+$tagE
+EOF
         # We do add the 'auto' stanza only for aliased interfaces, hence, for IPv4 only
-        replaceBlocByRef( "$beginTag\n", "$endingTag\n", <<"STANZA", $fileContentRef ) if $addrVersion eq 'ipv4';
-$beginTag
+        processBlocByRef( $fileContentRef, $tagB, $tagE, <<"EOF" ) if $addrVersion eq 'ipv4';
+$tagB
 auto $iface
-@{ [ getBlocByRef( "$beginTag\n", "$endingTag\n", $fileContentRef ) ] }$endingTag
-STANZA
+@{ [ getBlocByRef( $tagB, $tagE, $fileContentRef, FALSE, TRUE ) ] }
+$tagE        
+EOF
     }
 
     $file->save();

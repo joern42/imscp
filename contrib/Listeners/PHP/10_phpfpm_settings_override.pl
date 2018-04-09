@@ -17,7 +17,7 @@
 
 package iMSCP::Listener::PhpFpm::Settings::Override;
 
-our $VERSION = '1.1.1';
+our $VERSION = '1.1.2';
 
 use strict;
 use warnings;
@@ -94,29 +94,27 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_phpfpm_settings_override.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'beforePhpBuildConfFile',
-    sub {
-        my ($cfgTpl, $filename, undef, $moduleData) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforePhpBuildConfFile', sub
+{
+    my ( $cfgTpl, $filename, undef, $moduleData ) = @_;
 
-        return unless $filename eq 'pool.conf' && $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} eq $moduleData->{'DOMAIN_NAME'};
+    return unless $filename eq 'pool.conf' && $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} eq $moduleData->{'DOMAIN_NAME'};
 
-        if ( exists $SETTINGS{'*'} ) {
-            # Apply global PHP-FPM settings
-            while ( my ($setting, $value) = each( %{$SETTINGS{'*'}} ) ) {
-                next if exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}}->{$setting};
-                ${$cfgTpl} =~ s/^\Q$setting\E\s+=.*?\n/$setting = $value\n/gm;
-            }
-        }
-
-        return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
-
-        # Apply per domain PHP-FPM settings
-        while ( my ($setting, $value) = each( %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}} ) ) {
-            ${$cfgTpl} =~ s/^\Q$setting\E\s+=.*?\n/$setting = $value\n/gm;
+    if ( exists $SETTINGS{'*'} ) {
+        # Apply global PHP-FPM settings
+        while ( my ( $setting, $value ) = each( %{ $SETTINGS{'*'} } ) ) {
+            next if exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}}->{$setting};
+            ${ $cfgTpl } =~ s/^\Q$setting\E\s+=.*?\n/$setting = $value\n/gm;
         }
     }
-);
+
+    return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
+
+    # Apply per domain PHP-FPM settings
+    while ( my ( $setting, $value ) = each( %{ $SETTINGS{$moduleData->{'DOMAIN_NAME'}} } ) ) {
+        ${ $cfgTpl } =~ s/^\Q$setting\E\s+=.*?\n/$setting = $value\n/gm;
+    }
+} );
 
 1;
 __END__

@@ -1,7 +1,7 @@
 server {
     # SECTION listen BEGIN.
     listen {LISTEN};
-    # SECTION listen END.
+    # SECTION listen ENDING.
 
     server_name {DOMAIN_NAME} {SERVER_ALIASES};
 
@@ -17,7 +17,7 @@ server {
     ssl_certificate {CERTIFICATE};
     ssl_certificate_key {CERTIFICATE};
     add_header Strict-Transport-Security "max-age={HSTS_MAX_AGE}{HSTS_INCLUDE_SUBDOMAINS}";
-    # SECTION ssl END.
+    # SECTION ssl ENDING.
 
     index index.html;
     disable_symlinks off;
@@ -25,11 +25,11 @@ server {
     location ~ ^/(?!(?:images/.+|index\.html|$)) {
         return 303 {HTTP_URI_SCHEME}www.{DOMAIN_NAME}/;
     }
-    # SECTION dmn END.
+    # SECTION dmn ENDING.
 
     # SECTION fwd BEGIN.
     location ~ ^/((?!\.well-known/).*) {
         return {FORWARD_TYPE} {FORWARD}$1;
     }
-    # SECTION fwd END.
+    # SECTION fwd ENDING.
 }

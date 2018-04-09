@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::FrontEnd::Templates::Override;
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.1';
 
 use strict;
 use warnings;
@@ -34,10 +34,9 @@ my $CUSTOM_THEMES_PATH = '/usr/local/src/imscp-custom/themes/default';
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'afterSetupInstallFiles',
-    sub { iMSCP::Dir->new( dirname => $CUSTOM_THEMES_PATH )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/themes/default" ); }
-);
+iMSCP::EventManager->getInstance()->register( 'afterSetupInstallFiles', sub {
+    iMSCP::Dir->new( dirname => $CUSTOM_THEMES_PATH )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/themes/default" );
+} );
 
 1;
 __END__

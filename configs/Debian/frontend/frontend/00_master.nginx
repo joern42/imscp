@@ -3,7 +3,7 @@ server {
     listen 127.0.0.1:{BASE_SERVER_VHOST_HTTP_PORT};
     # SECTION IPv6 BEGIN.
     listen [::]:{BASE_SERVER_VHOST_HTTP_PORT} default_server ipv6only=on;
-    # SECTION IPv6 END.
+    # SECTION IPv6 ENDING.
 
     # SECTION http BEGIN.
     server_name {BASE_SERVER_VHOST};
@@ -69,11 +69,11 @@ server {
     }
 
     # SECTION custom BEGIN.
-    # SECTION custom END.
-    # SECTION http END.
+    # SECTION custom ENDING.
+    # SECTION http ENDING.
 
     # SECTION https redirect BEGIN.
     return 302 https://{BASE_SERVER_VHOST}:{BASE_SERVER_VHOST_HTTPS_PORT}
     $request_uri;
-    # SECTION https redirect END.
+    # SECTION https redirect ENDING.
 }

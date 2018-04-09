@@ -35,7 +35,7 @@ use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
 use iMSCP::File;
-use iMSCP::TemplateParser qw/ processByRef getBlocByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
@@ -657,10 +657,10 @@ sub _buildFpmConfig
 
 =item beforeApacheBuildConfFile( $phpServer, \$cfgTpl, $filename, \$trgFile, \%mdata, \%sdata, \%sconfig, $params )
 
- Event listener that inject PHP configuration in Apache vhosts
+ Event listener that inject PHP configuration in Apache2 vhosts
 
  Param iMSCP::Servers::Php $phpServer instance
- Param scalar \$cfgTpl Reference to Apache template content
+ Param scalarref \$cfgTpl Reference to Apache template content
  Param string $filename Apache template name
  Param scalar \$trgFile Target file path
  Param hashref \%mdata Data as provided by the Alias|Domain|Subdomain|SubAlias modules
@@ -680,13 +680,13 @@ sub beforeApacheBuildConfFile
 {
     my ( $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params ) = @_;
 
-    return unless $filename eq 'domain.tpl' && grep ( $_ eq $sdata->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+    return unless $filename eq 'domain.tpl' && grep ( $_ eq $sdata->{'VHOST_TYPE'}, 'domain', 'domain_ssl' );
 
     $phpServer->{'eventManager'}->trigger(
         'beforePhpApacheBuildConfFile', $phpServer, $cfgTpl, $filename, $trgFile, $mdata, $sdata, $sconfig, $params
     );
 
-    debug( sprintf( 'Injecting PHP configuration in Apache vhost for the %s domain', $mdata->{'DOMAIN_NAME'} ));
+    debug( sprintf( 'Injecting PHP configuration in Apache2 vhost for the %s domain', $mdata->{'DOMAIN_NAME'} ));
 
     if ( $phpServer->{'config'}->{'PHP_SAPI'} eq 'apache2handler' ) {
         if ( $mdata->{'FORWARD'} eq 'no' && $mdata->{'PHP_SUPPORT'} eq 'yes' ) {
@@ -696,10 +696,7 @@ sub beforeApacheBuildConfFile
                 $mdata->{'HOME_DIR'} . '/phptmp'
             );
 
-            replaceBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", <<"EOF", $cfgTpl );
-        # SECTION document root addons BEGIN.
-@{[ getBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", $cfgTpl ) ]}
-        # SECTION php_apache2handler BEGIN.
+            processBlocByRef( $cfgTpl, '# SECTION custom document root BEGIN.', '# SECTION custom document root ENDING.', <<'EOF', TRUE );
         AllowOverride All
         DirectoryIndex index.php
         php_admin_value open_basedir "{HOME_DIR}/:{PHP_PEAR_DIR}/:dev/random:/dev/urandom"
@@ -714,22 +711,15 @@ sub beforeApacheBuildConfFile
         php_admin_value post_max_size "{POST_MAX_SIZE}M"
         php_admin_value upload_max_filesize "{UPLOAD_MAX_FILESIZE}M"
         php_admin_flag allow_url_fopen {ALLOW_URL_FOPEN}
-        # SECTION php_apache2handler END.
-        # SECTION document root addons END.
 EOF
         } else {
-            replaceBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", <<"EOF", $cfgTpl );
-      # SECTION document root addons BEGIN.
-@{[ getBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", $cfgTpl ) ]}
+            processBlocByRef( $cfgTpl, '# SECTION custom document root BEGIN.', '# SECTION custom document root ENDING.', <<'EOF', TRUE );
       AllowOverride AuthConfig Indexes Limit Options=Indexes,MultiViews \
         Fileinfo=RewriteEngine,RewriteOptions,RewriteBase,RewriteCond,RewriteRule Nonfatal=Override
 EOF
-            replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
-    # SECTION addons BEGIN.
-@{[ getBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", $cfgTpl ) ]}
+            processBlocByRef( $cfgTpl, '# SECTION addons BEGIN.', '# SECTION addons ENDING.', <<"EOF", TRUE );
     RemoveHandler .php .php3 .php4 .php5 .php7 .pht .phtml
     php_admin_flag engine off
-    # SECTION addons END.
 EOF
         }
     } elsif ( $phpServer->{'config'}->{'PHP_SAPI'} eq 'cgi' ) {
@@ -741,37 +731,24 @@ EOF
                 $phpServer->{'config'}->{'PHP_FCGID_MAX_PROCESS_PER_CLASS'} || 6
             );
 
-            replaceBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", <<"EOF", $cfgTpl );
-        # SECTION document root addons BEGIN.
-@{[ getBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", $cfgTpl ) ]}
-        # SECTION php_cgi BEGIN.
+            processBlocByRef( $cfgTpl, '# SECTION custom document root BEGIN.', '# SECTION custom document root ENDING.', <<'EOF', TRUE );
         AllowOverride All
         DirectoryIndex index.php
         Options +ExecCGI
         FCGIWrapper {PHP_FCGI_STARTER_DIR}/{PHP_CONFIG_LEVEL_DOMAIN}/php-fcgi-starter
-        # SECTION php_cgi END.
-        # SECTION document root addons END.
 EOF
-            replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
-    # SECTION addons BEGIN.
-@{[ getBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", $cfgTpl ) ]}
+            processBlocByRef( $cfgTpl, '# SECTION addons BEGIN.', '# SECTION addons ENDING.', <<'EOF', TRUE );
     FcgidBusyTimeout {PHP_FCGID_BUSY_TIMEOUT}
     FcgidMinProcessesPerClass {PHP_FCGID_MIN_PROCESSES_PER_CLASS}
     FcgidMaxProcessesPerClass {PHP_FCGID_MAX_PROCESS_PER_CLASS}
-    # SECTION addons END.
 EOF
         } else {
-            replaceBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", <<"EOF", $cfgTpl );
-        # SECTION document root addons BEGIN.
-@{[ getBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", $cfgTpl ) ]}
+            processBlocByRef( $cfgTpl, '# SECTION custom document root BEGIN.', '# SECTION custom document root ENDING.', <<'EOF', TRUE );
         AllowOverride AuthConfig Indexes Limit Options=Indexes,MultiViews \
           Fileinfo=RewriteEngine,RewriteOptions,RewriteBase,RewriteCond,RewriteRule Nonfatal=Override
 EOF
-            replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
-    # SECTION addons BEGIN.
-@{[ getBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", $cfgTpl ) ]}
+            processBlocByRef( $cfgTpl, '# SECTION addons BEGIN.', '# SECTION addons ENDING.', <<'EOF', TRUE );
     RemoveHandler .php .php3 .php4 .php5 .php7 .pht .phtml
-    # SECTION addons END.
 EOF
         }
     } elsif ( $phpServer->{'config'}->{'PHP_SAPI'} eq 'fpm' ) {
@@ -793,41 +770,26 @@ EOF
                 $mdata->{'MAX_EXECUTION_TIME'}+$phpServer->{'config'}->{'PROXY_FCGI_TIMEOUT'}
             );
 
-            replaceBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", <<"EOF", $cfgTpl );
-        # SECTION document root addons BEGIN.
-@{[ getBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", $cfgTpl ) ]}
-        # SECTION php_fpm BEGIN.
+            processBlocByRef( $cfgTpl, '# SECTION custom document root BEGIN.', '# SECTION custom document root ENDING.', <<'EOF', TRUE );
         AllowOverride All
         DirectoryIndex index.php
         <If "%{REQUEST_FILENAME} =~ /\.ph(?:p[3457]?|t|tml)\$/ && -f %{REQUEST_FILENAME}">
             SetEnvIfNoCase ^Authorization\$ "(.+)" HTTP_AUTHORIZATION=\$1
             SetHandler proxy:{PROXY_FCGI_URL}
         </If>
-        # SECTION php_fpm END.
-        # SECTION document root addons END.
 EOF
-            replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
-    # SECTION addons BEGIN.
-@{[ getBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", $cfgTpl ) ]}
-    # SECTION php_fpm_proxy BEGIN.
+            processBlocByRef( $cfgTpl, '# SECTION addons BEGIN.', '# SECTION addons ENDING.', <<'EOF', TRUE );
     <Proxy "{PROXY_FCGI_PATH}{PROXY_FCGI_URL}" retry={PROXY_FCGI_RETRY}>
         ProxySet connectiontimeout={PROXY_FCGI_CONNECTION_TIMEOUT} timeout={PROXY_FCGI_TIMEOUT}
     </Proxy>
-    # SECTION php_fpm_proxy END.
-    # SECTION addons END.
 EOF
         } else {
-            replaceBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", <<"EOF", $cfgTpl );
-        # SECTION document root addons BEGIN.
-@{[ getBlocByRef( "# SECTION document root addons BEGIN.\n", "# SECTION document root addons END.\n", $cfgTpl ) ]}
+            processBlocByRef( $cfgTpl, '# SECTION custom document root BEGIN.', '# SECTION custom document root ENDING.', <<'EOF', TRUE );
         AllowOverride AuthConfig Indexes Limit Options=Indexes,MultiViews \
           Fileinfo=RewriteEngine,RewriteOptions,RewriteBase,RewriteCond,RewriteRule Nonfatal=Override
 EOF
-            replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
-    # SECTION addons BEGIN.
-@{[ getBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", $cfgTpl ) ]}
+            processBlocByRef( $cfgTpl, '# SECTION addons BEGIN.', '# SECTION addons ENDING.', <<'EOF', TRUE );
     RemoveHandler .php .php3 .php4 .php5 .php7 .pht .phtml
-    # SECTION addons END.
 EOF
         }
     } else {

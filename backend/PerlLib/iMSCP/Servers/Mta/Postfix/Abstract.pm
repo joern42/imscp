@@ -714,7 +714,7 @@ sub postconf
         debug( $stdout ) if length $stdout;
     };
 
-    $self->{'reload'} ||= 1;
+    $self->{'reload'} ||= TRUE;
 }
 
 =item getAvailableDbDrivers
@@ -795,7 +795,10 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload cfgDir _db_drivers _db /} = ( FALSE, FALSE, "$::imscpConfig{'CONF_DIR'}/postfix", {}, lazy { $self->getDbDriver() } );
+    @{ $self }{qw/ restart reload cfgDir _db_drivers _db /} = (
+        FALSE, FALSE, "$::imscpConfig{'CONF_DIR'}/postfix", {}, lazy { $self->getDbDriver() }
+    );
+
     $self->SUPER::_init();
 }
 
@@ -959,14 +962,11 @@ sub _buildAliasesDb
     # Remove any previous database (covers case where default database type has been changed)
     iMSCP::Dir->new( dirname => $dbDir )->clear( qr/\Q$dbName.\E(?:c?db)$/ );
 
-    $self->{'eventManager'}->registerOne(
-        'beforePostfixBuildConfFile',
-        sub {
-            # Add alias for local root user
-            ${ $_[0] } =~ s/^root:.*\n//gim;
-            ${ $_[0] } .= 'root: ' . ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' ) . "\n";
-        }
-    );
+    $self->{'eventManager'}->registerOne( 'beforePostfixBuildConfFile', sub {
+        # Add alias for local root user
+        ${ $_[0] } =~ s/^root:.*\n//gim;
+        ${ $_[0] } .= 'root: ' . ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' ) . "\n";
+    } );
     $self->buildConfFile( iMSCP::File->new( filename => $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} ), undef, undef, undef, {
         srcname => $dbName,
         create  => TRUE # If the file doesn't exist, create it instead of raising a failure

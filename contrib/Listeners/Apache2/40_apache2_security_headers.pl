@@ -23,12 +23,13 @@
 
 package iMSCP::Listener::Apache2::Security::Headers;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::EventManager;
-use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef /;
 use Version;
 
 #
@@ -39,18 +40,15 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 40_apache2_security_headers.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'beforeApacheBuildConf',
-    sub {
-        my ($cfgTpl, $tplName, undef, undef, $serverData) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforeApacheBuildConf', sub
+{
+    my ( $cfgTpl, $tplName, undef, undef, $serverData ) = @_;
 
-        return unless $tplName eq 'domain.tpl' && grep( $_ eq $serverData->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
+    return unless $tplName eq 'domain.tpl' && grep ( $_ eq $serverData->{'VHOST_TYPE'}, ( 'domain', 'domain_ssl' ) );
 
-        $serverData->{'CONTENT_SECURITY_POLICY_HEADER_PREFIX'} = $serverData->{'VHOST_TYPE'} eq 'domain' ? 'http' : 'https';
+    $serverData->{'CONTENT_SECURITY_POLICY_HEADER_PREFIX'} = $serverData->{'VHOST_TYPE'} eq 'domain' ? 'http' : 'https';
 
-        replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
-    # SECTION addons BEGIN.
-@{ [ getBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", $cfgTpl ) ] }
+    processBlocByRef( $cfgTpl, '# SECTION addons BEGIN.', '# SECTION addons ENDING.', <<'EOF', TRUE );
     <IfModule mod_headers.c>
         Header always set Content-Security-Policy "default-src {CONTENT_SECURITY_POLICY_HEADER_PREFIX}: data: 'unsafe-inline' 'unsafe-eval'"
         Header always set Referrer-Policy "strict-origin-when-cross-origin"
@@ -58,10 +56,8 @@ iMSCP::EventManager->getInstance()->register(
         Header always set X-Frame-Options "SAMEORIGIN"
         Header always set X-XSS-Protection "1; mode=block"
     </IfModule>
-    # SECTION addons END.
 EOF
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
+} ) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 
 1;
 __END__

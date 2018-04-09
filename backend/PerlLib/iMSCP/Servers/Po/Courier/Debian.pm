@@ -30,7 +30,7 @@ use iMSCP::Debug qw/ debug /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ umount /;
-use iMSCP::TemplateParser qw/ replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef /;
 use Class::Autouse qw/ :nostat File::Spec iMSCP::Dir iMSCP::File iMSCP::SystemUser /;
 use iMSCP::Service;
 use version;
@@ -237,9 +237,7 @@ sub _cleanup
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'PO_CONF_DIR'}/$service" );
         my $fileContentRef = $file->getAsRef();
 
-        replaceBlocByRef(
-            qr/(:?^\n)?# Servers::po::courier::installer - BEGIN\n/m, qr/# Servers::po::courier::installer - ENDING\n/, '', $fileContentRef
-        );
+        processBlocByRef( $fileContentRef, '# Servers::po::courier::installer BEGIN', '# Servers::po::courier::installer ENDING' );
     }
 
     iMSCP::File->new( filename => "$self->{'cfgDir'}/courier.old.data" )->remove();

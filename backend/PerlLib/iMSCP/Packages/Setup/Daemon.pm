@@ -135,7 +135,7 @@ sub getPackageHumanName
 {
     my ( $self ) = @_;
 
-    sprintf( 'i-MSCP daemon installer (%s)', $self->getPackageVersion());
+    sprintf( 'i-MSCP daemon (%s)', $self->getPackageVersion());
 }
 
 =item getPackageVersion( )

@@ -15,7 +15,7 @@
     SSLCertificateChainFile {CERTIFICATE}
 
     Header always set Strict-Transport-Security "max-age={HSTS_MAX_AGE}{HSTS_INCLUDE_SUBDOMAINS}"
-    # SECTION ssl END.
+    # SECTION ssl ENDING.
 
     <Directory {USER_WEB_DIR}/domain_disabled_pages>
         AllowOverride None
@@ -25,9 +25,9 @@
     </Directory>
 
     RedirectMatch 303 ^/(?!(?:images/.+|index\.html|$)) {HTTP_URI_SCHEME}www.{DOMAIN_NAME}/
-    # SECTION dmn END.
+    # SECTION dmn ENDING.
 
     # SECTION fwd BEGIN.
     RedirectMatch {FORWARD_TYPE} ^/((?!\.well-known/).*) {FORWARD}$1
-    # SECTION fwd END.
+    # SECTION fwd ENDING.
 </VirtualHost>

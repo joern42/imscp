@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::Postfix::Tuning;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -60,27 +60,22 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
 );
 
 if ( index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 ) {
-    iMSCP::EventManager->getInstance()->register(
-        'afterPostfixConfigure',
-        sub {
-            my %params = ();
-            while ( my ($param, $value) = each( %mainCfParameters ) ) {
-                $params{$param} = { values => [ split /,\s+/, $value ] };
-            }
-
-            iMSCP::Servers::Mta->factory()->postconf( %params ) if %params;
-        },
-        -99
-    )->register(
-        'afterPostfixBuildConfFile',
-        sub {
-            my ($cfgTpl, $cfgTplName) = @_;
-
-            return unless $cfgTplName eq 'master.cf' && @masterCfParameters;
-
-            ${$cfgTpl} .= join( "\n", @masterCfParameters ) . "\n";
+    iMSCP::EventManager->getInstance()->register( 'afterPostfixConfigure', sub
+    {
+        my %params = ();
+        while ( my ( $param, $value ) = each( %mainCfParameters ) ) {
+            $params{$param} = { values => [ split /,\s+/, $value ] };
         }
-    );
+
+        iMSCP::Servers::Mta->factory()->postconf( %params ) if %params;
+    }, -99 )->register( 'afterPostfixBuildConfFile', sub
+    {
+        my ( $cfgTpl, $cfgTplName ) = @_;
+
+        return unless $cfgTplName eq 'master.cf' && @masterCfParameters;
+
+        ${ $cfgTpl } .= join( "\n", @masterCfParameters ) . "\n";
+    } );
 };
 
 1;

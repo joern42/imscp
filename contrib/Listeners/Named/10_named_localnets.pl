@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::Bind9::Localnets;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -38,16 +38,14 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_named_localnets.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterBindBuildConfFile',
-    sub {
-        my ($cfgTpl, $cfgTplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterBindBuildConfFile', sub
+{
+    my ( $cfgTpl, $cfgTplName ) = @_;
 
-        return unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
+    return unless $cfgTplName eq basename( iMSCP::Servers::Named->factory()->{'config'}->{'NAMED_OPTIONS_CONF_FILE'} );
 
-        ${$cfgTpl} =~ s/^(\s*allow-(?:recursion|query-cache|transfer)).*$/$1 { localnets; };/gm;
-    }
-) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
+    ${ $cfgTpl } =~ s/^(\s*allow-(?:recursion|query-cache|transfer)).*$/$1 { localnets; };/gm;
+} ) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
 
 1;
 __END__

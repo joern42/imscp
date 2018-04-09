@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::Packages::Override;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -34,13 +34,10 @@ my $DISTRO_PACKAGES_FILE = '/path/to/your/own/package/file';
 ## Please don't edit anything below this line
 #
 
-iMSCP::EventManager->getInstance()->register(
-    'onBuildPackageList',
-    sub {
-        my ($pkgFile) = @_;
-        ${$pkgFile} = $DISTRO_PACKAGES_FILE;
-    }
-);
+iMSCP::EventManager->getInstance()->register( 'onBuildPackageList', sub {
+    my ( $pkgFile ) = @_;
+    ${ $pkgFile } = $DISTRO_PACKAGES_FILE;
+} );
 
 1;
 __END__

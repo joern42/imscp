@@ -6,5 +6,5 @@
 // organization
 //include "/etc/bind/zones.rfc1918";
 
-// imscp [{ENTRY_ID}] entry BEGIN
-// imscp [{ENTRY_ID}] entry ENDING
+// imscp [{ENTRY_ID}] entry BEGIN.
+// imscp [{ENTRY_ID}] entry ENDING.

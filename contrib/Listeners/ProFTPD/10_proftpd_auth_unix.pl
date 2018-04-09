@@ -24,7 +24,7 @@
 
 package iMSCP::Listener::ProFTPD::Auth::Unix;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -39,16 +39,15 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_proftpd_serverident.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterProftpdBuildConfFile',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterProftpdBuildConfFile', sub
+{
+    my ( $tplContent, $tplName ) = @_;
 
-        return unless $tplName eq 'proftpd.conf';
-        ${$tplContent} =~ s/(AuthOrder\s+.*)/$1 mod_auth_unix.c/im;
-        ${$tplContent} =~ s/(<\/Global>)/\n  PersistentPasswd         off\n$1/im;
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
+    return unless $tplName eq 'proftpd.conf';
+
+    ${ $tplContent } =~ s/(AuthOrder\s+.*)/$1 mod_auth_unix.c/im;
+    ${ $tplContent } =~ s/(<\/Global>)/\n  PersistentPasswd         off\n$1/im;
+} ) if index( $::imscpConfig{'iMSCP::Servers::Ftpd'}, '::Proftpd::' ) != -1;
 
 1;
 __END__

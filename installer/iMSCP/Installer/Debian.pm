@@ -43,7 +43,7 @@ use iMSCP::Getopt;
 use iMSCP::Installer::Functions qw/ expandVars /;
 use iMSCP::ProgramFinder;
 use iMSCP::Stepper qw/ startDetail endDetail step /;
-use iMSCP::TemplateParser qw/ processByRef /;
+use iMSCP::Template::Processor qw/ processVarsByRef /;
 use iMSCP::Umask;
 use XML::Simple;
 use version;
@@ -597,7 +597,9 @@ sub _installAPTsourcesList
     my $file = iMSCP::File->new( filename => "$FindBin::Bin/configs/$::imscpConfig{'DISTRO_ID'}/apt/sources.list" );
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'apt', 'sources.list', $file->getAsRef( TRUE ));
 
-    processByRef( { codename => $::imscpConfig{'DISTRO_CODENAME'} }, $file->getAsRef());
+    processVarsByRef( $file->getAsRef(), {
+        codename => $::imscpConfig{'DISTRO_CODENAME'}
+    } );
 
     $file->{'filename'} = '/etc/apt/sources.list';
     $file->save();

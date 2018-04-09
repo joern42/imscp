@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Roundcube::TLS;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -32,20 +32,15 @@ use iMSCP::EventManager;
 ## Please, don't edit anything below this line unless you known what you're doing
 #
 
-iMSCP::EventManager->getInstance()->register(
-    'afterSetupTasks',
-    sub {
-        my $file = iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail/config/config.inc.php" );
-        ${$file->getAsRef()} =~ s/(\$config\['(?:default_host|smtp_server)?'\]\s+=\s+').*(';)/$1tls:\/\/$::imscpConfig{'BASE_SERVER_VHOST'}$2/g;
-        $file->save();
-    }
-)->register(
-    'beforeUpdateRoundCubeMailHostEntries',
-    sub {
-        my ($hostname) = @_;
-        ${$hostname} = $::imscpConfig{'BASE_SERVER_VHOST'};
-    }
-);
+iMSCP::EventManager->getInstance()->register( 'afterSetupTasks', sub
+{
+    my $file = iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail/config/config.inc.php" );
+    ${ $file->getAsRef() } =~ s/(\$config\['(?:default_host|smtp_server)?'\]\s+=\s+').*(';)/$1tls:\/\/$::imscpConfig{'BASE_SERVER_VHOST'}$2/g;
+    $file->save();
+} )->register( 'beforeUpdateRoundCubeMailHostEntries', sub {
+    my ( $hostname ) = @_;
+    ${ $hostname } = $::imscpConfig{'BASE_SERVER_VHOST'};
+} );
 
 1;
 __END__

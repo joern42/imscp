@@ -35,7 +35,7 @@ use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::EventManager;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::TemplateParser qw/ processByRef /;
+use iMSCP::Template::Processor qw/ processVarsByRef /;
 use parent 'iMSCP::Common::Singleton';
 
 # Implicite server instances
@@ -534,10 +534,10 @@ sub buildConfFile
         "before${sname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$dest, $mdata, $sdata, $self->{'config'}, $params
     );
 
-    # Expands the template variables using server and module data.
+    # Process the template variables using server and module data.
     # Server data have higher priority.
-    processByRef( $sdata, $cfgTpl ) if %{ $sdata };
-    processByRef( $mdata, $cfgTpl ) if %{ $mdata };
+    processVarsByRef( $cfgTpl, $sdata ) if %{ $sdata };
+    processVarsByRef( $cfgTpl, $mdata ) if %{ $mdata };
 
     # Triggers the after<SNAME>BuildConfFile event so that 3rd-party components
     # are able to act on the template
@@ -667,7 +667,7 @@ sub _loadConfig
             # By doing this, the value of the old DATABASE_USER parameter will
             # be automatically used as value for the new FTP_SQL_USER parameter.
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
-            processByRef( \%oldConfig, $file->getAsRef(), TRUE );
+            processVarsByRef( $file->getAsRef(), \%oldConfig, TRUE );
             $file->save();
             undef( $file );
 
@@ -685,7 +685,7 @@ sub _loadConfig
         } else {
             # For a fresh installation, we make the configuration file free of any placeholder
             my $file = iMSCP::File->new( filename => "$self->{'cfgDir'}/$filename.dist" );
-            processByRef( {}, $file->getAsRef(), TRUE );
+            processVarsByRef( $file->getAsRef(), {}, TRUE );
             $file->save();
             undef( $file );
         }

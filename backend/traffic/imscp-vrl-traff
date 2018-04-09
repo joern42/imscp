@@ -75,20 +75,12 @@ sub run
     my %domains = map { $_ => 0 } keys %{ $domains };
     my $timestamp = time();
     my $halfTimestamp = $timestamp-( $timestamp % 1800 );
-    my %trafficDb = (
-        'iMSCP::Servers::Httpd' => {},
-        'iMSCP::Servers::Ftpd'  => {},
-        'iMSCP::Servers::Mta'   => {},
-        'iMSCP::Servers::Po'    => {}
-    );
-    my @servers = grep (/::(?:httpd|ftpd|mta|po)$/, iMSCP::Servers->getInstance()->getList() );
+    my %trafficDb = map { $_ => {} } grep (/::(?:httpd|ftpd|mta|po)$/i, iMSCP::Servers->getInstance()->getList() );
 
     # Collects traffic data from servers that implement the getTraffic() method
-    for my $server ( @servers ) {
-        next unless $server->can( 'getTraffic' );
-
+    for my $server ( keys %trafficDb ) {
         # Initialize intermediate traffic database
-        tie %{ $trafficDb{$server} }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/$server-vrl-traff.db", nocroak => 1;
+        tie %{ $trafficDb{$server} }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/$server-vrl-traff.db", nocroak => TRUE;
         %{ $trafficDb{$server} } = ( %domains, %{ $trafficDb{$server} } );
 
         # Collect traffic
@@ -110,7 +102,7 @@ sub run
 
     while ( my ( $domainName, $domainData ) = each( %{ $domains } ) ) {
         my $newEntriesFound = 0;
-        for my $server ( @servers ) {
+        for my $server ( keys %trafficDb ) {
             $newEntriesFound++ && last if $trafficDb{$server}->{$domainName} > 0;
         }
 
@@ -125,12 +117,12 @@ sub run
             $trafficDb{'iMSCP::Servers::Mta'}->{$domainName}, $trafficDb{'iMSCP::Servers::Po'}->{$domainName}
         );
 
-        for my $server ( @servers ) {
+        for my $server ( keys %trafficDb ) {
             $trafficDb{$server}->{$domainName} = 0;
         }
     }
 
-    for my $server ( @servers ) {
+    for my $server ( keys %trafficDb ) {
         untie( %{ $trafficDb{$server} } );
         eval { iMSCP::File->new( filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/$server-vrl-traff.db" )->remove() };
     }

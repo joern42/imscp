@@ -23,7 +23,7 @@
 
 package iMSCP::Listener::Dovecot::Service::Login;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
@@ -68,11 +68,10 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 60_dovecot_service_login.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->registerOne(
-    'afterDovecotConfigure',
-    sub {
-        my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
-        iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/60_dovecot_service_login_listener.conf" )->set( <<"EOT" )->save();
+iMSCP::EventManager->getInstance()->registerOne( 'afterDovecotConfigure', sub
+{
+    my $dovecotConfdir = iMSCP::Servers::Po->factory()->{'config'}->{'PO_CONF_DIR'};
+    iMSCP::File->new( filename => "$dovecotConfdir/imscp.d/60_dovecot_service_login_listener.conf" )->set( <<"EOT" )->save();
 service imap-login {
     inet_listener imap {
         port = $IMAP_PORT
@@ -103,8 +102,7 @@ service pop3-login {
     service_count = $POP3_SERVICE_COUNT
 }
 EOT
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
+} ) if index( $::imscpConfig{'iMSCP::Servers::Po'}, '::Dovecot::' ) != -1;;
 
 1;
 __END__

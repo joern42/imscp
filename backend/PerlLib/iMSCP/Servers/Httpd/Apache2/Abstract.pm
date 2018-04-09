@@ -45,7 +45,7 @@ use iMSCP::Mount qw/ mount umount isMountpoint addMountEntry removeMountEntry /;
 use iMSCP::Net;
 use iMSCP::Rights qw/ setRights /;
 use iMSCP::SystemUser;
-use iMSCP::TemplateParser qw/ replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef /;
 use Scalar::Defer;
 use parent qw/ iMSCP::Servers::Httpd /;
 
@@ -595,7 +595,7 @@ Require user $moduleData->{'HTUSERS'}
 EOF
         }
 
-        replaceBlocByRef( $bTag, $eTag, '', $fileContentRef );
+        processBlocByRef( $fileContentRef, $bTag, $eTag );
         ${ $fileContentRef } = $bTag . $tagContent . $eTag . ${ $fileContentRef };
         $self->{'eventManager'}->trigger( 'afterApacheAddHtaccess', $fileContentRef, $moduleData );
         $file->save( 0027 )->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} )->mode( 0640 );
@@ -636,7 +636,7 @@ sub deleteHtaccess
         }
 
         $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtaccess', $fileContentRef, $moduleData );
-        replaceBlocByRef( "### START i-MSCP PROTECTION ###\n", "### END i-MSCP PROTECTION ###\n", '', $fileContentRef );
+        processBlocByRef( $fileContentRef, '### START i-MSCP PROTECTION ###', '### END i-MSCP PROTECTION ###' );
         $self->{'eventManager'}->trigger( 'afterApacheDeleteHtaccess', $fileContentRef, $moduleData );
 
         if ( length ${ $fileContentRef } ) {
@@ -668,16 +668,16 @@ sub buildConfFile
             return unless grep ( $_ eq $_[1], ( 'domain.tpl', 'domain_disabled.tpl' ) );
 
             if ( grep ( $_ eq $sdata->{'VHOST_TYPE'}, 'domain', 'domain_disabled' ) ) {
-                replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', $_[0] );
-                replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', $_[0] );
+                processBlocByRef( $_[0], '# SECTION ssl BEGIN.', '# SECTION ssl ENDING.' );
+                processBlocByRef( $_[0], '# SECTION fwd BEGIN.', '# SECTION fwd ENDING.' );
             } elsif ( grep ( $_ eq $sdata->{'VHOST_TYPE'}, 'domain_fwd', 'domain_ssl_fwd', 'domain_disabled_fwd' ) ) {
                 if ( $sdata->{'VHOST_TYPE'} ne 'domain_ssl_fwd' ) {
-                    replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', $_[0] );
+                    processBlocByRef( $_[0], '# SECTION ssl BEGIN.', '# SECTION ssl ENDING.' );
                 }
 
-                replaceBlocByRef( "# SECTION dmn BEGIN.\n", "# SECTION dmn END.\n", '', $_[0] );
+                processBlocByRef( $_[0], '# SECTION dmn BEGIN.', '# SECTION dmn ENDING.' );
             } elsif ( grep ( $_ eq $sdata->{'VHOST_TYPE'}, 'domain_ssl', 'domain_disabled_ssl' ) ) {
-                replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', $_[0] );
+                processBlocByRef( $_[0], '# SECTION fwd BEGIN.', '# SECTION fwd ENDING.' );
             }
         },
         100
@@ -1396,7 +1396,7 @@ sub _removeVloggerSqlUser
 
 =item afterApacheBuildConfFile( $apacheServer, \$cfgTpl, $filename, \$trgFile, \%moduleData, \%apacheServerData, \%apacheServerConfig, \%parameters )
 
- Event listener that cleanup production files
+ Event listener that minify the Apache2 production files by removing unwanted sections, comments and empty new lines
 
  Param scalar $apacheServer iMSCP::Servers::Httpd::Apache2::Abstract instance
  Param scalar \$scalar Reference to Apache conffile
@@ -1419,39 +1419,39 @@ sub afterApacheBuildConfFile
     my ( $self, $cfgTpl, $filename, undef, $moduleData, $apacheServerData ) = @_;
 
     if ( $apacheServerData->{'SKIP_TEMPLATE_CLEANER'} ) {
-        $apacheServerData->{'SKIP_TEMPLATE_CLEANER'} = 0;
+        $apacheServerData->{'SKIP_TEMPLATE_CLEANER'} = FALSE;
         return;
     }
 
+    # Remove unwanted sections
     if ( $filename eq 'domain.tpl' ) {
         if ( index( $apacheServerData->{'VHOST_TYPE'}, 'fwd' ) == -1 ) {
             if ( $self->{'config'}->{'HTTPD_MPM'} eq 'itk' ) {
-                replaceBlocByRef( "# SECTION suexec BEGIN.\n", "# SECTION suexec END.\n", '', $cfgTpl );
+                processBlocByRef( $cfgTpl, '# SECTION suexec BEGIN.', '# SECTION suexec ENDING.' );
             } else {
-                replaceBlocByRef( "# SECTION itk BEGIN.\n", "# SECTION itk END.\n", '', $cfgTpl );
+                processBlocByRef( $cfgTpl, '# SECTION itk BEGIN.', '# SECTION itk ENDING.' );
             }
 
-            if ( $moduleData->{'CGI_SUPPORT'} ne 'yes' ) {
-                replaceBlocByRef( "# SECTION cgi BEGIN.\n", "# SECTION cgi END.\n", '', $cfgTpl );
-            }
+            processBlocByRef( $cfgTpl, '# SECTION cgi BEGIN.', '# SECTION cgi ENDING.' ) if $moduleData->{'CGI_SUPPORT'} ne 'yes';
         } elsif ( $moduleData->{'FORWARD'} ne 'no' ) {
             if ( $moduleData->{'FORWARD_TYPE'} eq 'proxy'
                 && ( !$moduleData->{'HSTS_SUPPORT'} || index( $apacheServerData->{'VHOST_TYPE'}, 'ssl' ) != -1 )
             ) {
-                replaceBlocByRef( "# SECTION std_fwd BEGIN.\n", "# SECTION std_fwd END.\n", '', $cfgTpl );
+                processBlocByRef( $cfgTpl, '# SECTION std_fwd BEGIN.', '# SECTION std_fwd ENDING.' );
 
                 if ( index( $moduleData->{'FORWARD'}, 'https' ) != 0 ) {
-                    replaceBlocByRef( "# SECTION ssl_proxy BEGIN.\n", "# SECTION ssl_proxy END.\n", '', $cfgTpl );
+                    processBlocByRef( $cfgTpl, '# SECTION ssl_proxy BEGIN.', '# SECTION ssl_proxy ENDING.' );
                 }
             } else {
-                replaceBlocByRef( "# SECTION proxy_fwd BEGIN.\n", "# SECTION proxy_fwd END.\n", '', $cfgTpl );
+                processBlocByRef( $cfgTpl, '# SECTION proxy_fwd BEGIN.', '# SECTION proxy_fwd ENDING.' );
             }
         } else {
-            replaceBlocByRef( "# SECTION proxy_fwd BEGIN.\n", "# SECTION proxy_fwd END.\n", '', $cfgTpl );
+            processBlocByRef( $cfgTpl, '# SECTION proxy_fwd BEGIN.', '# SECTION proxy_fwd ENDING.' );
         }
     }
 
-    ${ $cfgTpl } =~ s/^\s*(?:[#;].*)?\n//gm;
+    # Minify final configuration file by removing comments and empty newlines
+    ${ $cfgTpl } =~ s/^\s*(?:#.*?)?\n//gm;
 }
 
 =item _shutdown( )

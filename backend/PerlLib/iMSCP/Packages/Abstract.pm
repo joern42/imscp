@@ -34,7 +34,7 @@ use iMSCP::Database;
 use iMSCP::EventManager;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::TemplateParser qw/ processByRef /;
+use iMSCP::Template::Processor qw/ processVarsByRef /;
 use parent 'iMSCP::Common::Singleton';
 
 =head1 DESCRIPTION
@@ -395,10 +395,10 @@ sub buildConfFile
         "before${pname}BuildConfFile", $cfgTpl, $params->{'srcname'}, \$dest, $mdata, $pdata, $self->{'config'}, $params
     );
 
-    # Expands the template variables using package and module data.
+    # Process the template variables with package and module data.
     # Package data have higher priority.
-    processByRef( $pdata, $cfgTpl ) if %{ $pdata };
-    processByRef( $mdata, $cfgTpl ) if %{ $mdata };
+    processVarsByRef( $cfgTpl, $pdata ) if %{ $pdata };
+    processVarsByRef( $cfgTpl, $mdata ) if %{ $mdata };
 
     # Triggers the after<PNAME>BuildConfFile event so that 3rd-party components
     # are able to act on the template

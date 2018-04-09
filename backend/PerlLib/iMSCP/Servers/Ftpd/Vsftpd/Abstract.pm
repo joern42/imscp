@@ -34,6 +34,7 @@ use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::Servers::Sqld /;
+use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::File;
@@ -91,10 +92,8 @@ sub sqlUserDialog
 
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
-        || !isValidUsername( $dbUser )
-        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
-        || !isAvailableSqlUser( $dbUser )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] ) || !isValidUsername( $dbUser )
+        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' ) || !isAvailableSqlUser( $dbUser )
     ) {
         my $rs = 0;
 
@@ -172,8 +171,7 @@ sub passivePortRangeDialog
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
-        || !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange )
-        || !isNumberInRange( $startOfRange, 32768, 60999 )
+        || !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange ) || !isNumberInRange( $startOfRange, 32768, 60999 )
         || !isNumberInRange( $endOfRange, $startOfRange, 60999 )
     ) {
         my $rs = 0;
@@ -193,10 +191,8 @@ Please enter the passive port range for VsFTPd.
 Note that if you're behind a NAT, you must forward those ports to this server.
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && ( !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange )
-            || !isNumberInRange( $startOfRange, 32768, 60999 )
-            || !isNumberInRange( $endOfRange, $startOfRange, 60999 )
+        } while $rs < 30 && ( !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange )
+            || !isNumberInRange( $startOfRange, 32768, 60999 ) || !isNumberInRange( $endOfRange, $startOfRange, 60999 )
         );
 
         return $rs unless $rs < 30;
@@ -348,7 +344,7 @@ sub setBackendPermissions
         group     => $::imscpConfig{'ROOT_GROUP'},
         dirmode   => '0750',
         filemode  => '0640',
-        recursive => 1
+        recursive => TRUE
     } );
     setRights( "$self->{'config'}->{'FTPD_CONF_DIR'}/vsftpd.conf", {
         user  => $::imscpConfig{'ROOT_USER'},
@@ -491,7 +487,7 @@ sub getTraffic
     debug( sprintf( 'Processing VsFTPd traffic %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => TRUE;
     my ( $idx, $idxContent ) = ( $trafficIndexDb->{'vsftpd_lineNo'} || 0, $trafficIndexDb->{'vsftpd_lineContent'} );
 
     tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
@@ -549,7 +545,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload cfgDir /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/vsftpd" );
+    @{ $self }{qw/ restart reload cfgDir /} = ( FALSE, FALSE, "$::imscpConfig{'CONF_DIR'}/vsftpd" );
     $self->SUPER::_init();
 }
 
@@ -730,12 +726,10 @@ sub _createFtpUserConffile
 {
     my ( $self, $moduleData ) = @_;
 
-    $self->buildConfFile( 'vsftpd_user.conf', "$self->{'config'}->{'FTPD_USER_CONF_DIR'}/$moduleData->{'USERNAME'}", $moduleData, undef,
-        {
-            umask => 0027,
-            mode  => 0640
-        }
-    );
+    $self->buildConfFile( 'vsftpd_user.conf', "$self->{'config'}->{'FTPD_USER_CONF_DIR'}/$moduleData->{'USERNAME'}", $moduleData, undef, {
+        umask => 0027,
+        mode  => 0640
+    } );
 }
 
 =item _deleteFtpUserConffile(\%moduleData)

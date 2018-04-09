@@ -27,10 +27,11 @@ use strict;
 use warnings;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ error /;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::TemplateParser qw/ replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef /;
 use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
@@ -378,16 +379,16 @@ sub beforeCronBuildConfFile
 
     # Make sure that entry is not added twice in the context of the ::addTask() action.
     # Delete the cron task in context of the ::deleteTask() action.
-    replaceBlocByRef( qr/^\s*\Q# imscp [$sdata->{'TASKID'}] entry BEGIN\E\n/m, qr/\Q# imscp [$sdata->{'TASKID'}] entry ENDING\E\n/, '', $cfgTpl );
+    processBlocByRef( $cfgTpl, "# imscp [$sdata->{'TASKID'}] entry BEGIN.", "# imscp [$sdata->{'TASKID'}] entry ENDING." );
 
     # Return early if that event listener has not been triggered in the context of the ::addTask() action.
     return unless exists $sdata->{'COMMAND'};
 
-    ( ${ $cfgTpl } .= <<"EOF" ) =~ s/^(\@[^\s]+)\s+/$1 /gm;
+    ( ${ $cfgTpl } .= <<"EOF" ) =~ s/^(\@[^\s]+)\s+/$1 /gm; # Remove useless whitespaces in the new cron entry
 
-# imscp [$sdata->{'TASKID'}] entry BEGIN
+# imscp [$sdata->{'TASKID'}] entry BEGIN.
 $sdata->{'MINUTE'} $sdata->{'HOUR'} $sdata->{'DAY'} $sdata->{'MONTH'} $sdata->{'DWEEK'} $sdata->{'USER'} $sdata->{'COMMAND'}
-# imscp [$sdata->{'TASKID'}] entry ENDING
+# imscp [$sdata->{'TASKID'}] entry ENDING.
 EOF
 }
 

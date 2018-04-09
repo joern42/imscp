@@ -28,12 +28,12 @@
 
 package iMSCP::Listener::Named::Global::NS;
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.1';
 
 use strict;
 use warnings;
 use iMSCP::EventManager;
-use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ getBlocByRef processBlocByRef processVarsByRef /;
 use iMSCP::Net;
 
 #
@@ -54,10 +54,10 @@ my $ZONE_NAME = 'zone.tld';
 my @NAMESERVERS = (
     [ "ns1.$ZONE_NAME", '<ipv4>' ], # MASTER DNS IP (IPv4 ; this server)
     [ "ns1.$ZONE_NAME", '<ipv6>' ], # MASTER DNS IP (IPv6 ; this server)
-    [ 'ns2.name.tld', '<ipv4>' ], # SLAVE DNS 1 IP (IPv4)
-    [ 'ns2.name.tld', '<ipv6>' ], # SLAVE DNS 1 IP (IPv6)
-    [ 'ns3.name.tld', '<ipv4>' ], # SLAVE DNS 2 IP (IPv4)
-    [ 'ns3.name.tld', '<ipv6>' ]  # SLAVE DNS 2 IP (IPv6)
+    [ 'ns2.name.tld', '<ipv4>' ],   # SLAVE DNS 1 IP (IPv4)
+    [ 'ns2.name.tld', '<ipv6>' ],   # SLAVE DNS 1 IP (IPv6)
+    [ 'ns3.name.tld', '<ipv4>' ],   # SLAVE DNS 2 IP (IPv4)
+    [ 'ns3.name.tld', '<ipv6>' ]    # SLAVE DNS 2 IP (IPv6)
 );
 
 #
@@ -68,49 +68,46 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_named_global_ns.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'beforeBindAddDomainDb',
-    sub {
-        my ($tpl, $moduleData) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforeBindAddDomainDb', sub
+{
+    my ( $tpl, $moduleData ) = @_;
 
-        # Override default SOA RR (for all zones)
-        my $nameserver = ( @NAMESERVERS )[0]->[0];
-        ${$tpl} =~ s/\Qns1.{DOMAIN_NAME}.\E/$nameserver./gm;
-        ${$tpl} =~ s/\Qhostmaster.{DOMAIN_NAME}.\E/hostmaster.$ZONE_NAME./gm;
+    # Override default SOA RR (for all zones)
+    my $nameserver = ( @NAMESERVERS )[0]->[0];
+    ${ $tpl } =~ s/\Qns1.{DOMAIN_NAME}.\E/$nameserver./gm;
+    ${ $tpl } =~ s/\Qhostmaster.{DOMAIN_NAME}.\E/hostmaster.$ZONE_NAME./gm;
 
-        # Set NS and glue record entries (for all zones)
-        my $nsRecordB = getBlocByRef( "; dmn NS RECORD entry BEGIN\n", "; dmn NS RECORD entry ENDING\n", $tpl );
-        my $glueRecordB = getBlocByRef( "; dmn NS GLUE RECORD entry BEGIN\n", "; dmn NS GLUE RECORD entry ENDING\n", $tpl );
-        my ($nsRecords, $glueRecords) = ( '', '' );
-        my $net = iMSCP::Net->getInstance();
+    # Set NS and glue record entries (for all zones)
+    my $nsRecordB = getBlocByRef( '; dmn NS RECORD entry BEGIN.', '; dmn NS RECORD entry ENDING.', $tpl );
+    my $glueRecordB = getBlocByRef( '; dmn NS GLUE RECORD entry BEGIN.', '; dmn NS GLUE RECORD entry ENDING.', $tpl );
+    my ( $nsRecords, $glueRecords ) = ( '', '' );
+    my $net = iMSCP::Net->getInstance();
 
-        for my $ipAddrType( qw/ ipv4 ipv6 / ) {
-            for my $nameserverData( @NAMESERVERS ) {
-                my ($name, $ipAddr) = @{$nameserverData};
-                next unless $net->getAddrVersion( $ipAddr ) eq $ipAddrType;
+    for my $ipAddrType ( qw/ ipv4 ipv6 / ) {
+        for my $nameserverData ( @NAMESERVERS ) {
+            my ( $name, $ipAddr ) = @{ $nameserverData };
+            next unless $net->getAddrVersion( $ipAddr ) eq $ipAddrType;
 
-                $name .= '.';
+            $name .= '.';
 
-                processByRef( { NS_NAME => $name }, \$nsRecordB );
+            processVarsByRef( \$nsRecordB, {
+                NS_NAME => $name
+            } );
 
-                # Glue RR must be set only if $data->{'DOMAIN_NAME'] is equal to $ZONE_NAME
-                # Note that if $name is out-of-zone, it will be automatically ignored by the 'named-compilezone'
-                # command during the dump (expected behavior).
-                processByRef(
-                    {
-                        NS_NAME    => $name,
-                        NS_IP_TYPE => ( $ipAddrType eq 'ipv4' ) ? 'A' : 'AAAA',
-                        NS_IP      => $ipAddr
-                    },
-                    \$glueRecordB
-                ) unless $ZONE_NAME ne $moduleData->{'DOMAIN_NAME'};
-            }
+            # Glue RR must be set only if $data->{'DOMAIN_NAME'] is equal to $ZONE_NAME
+            # Note that if $name is out-of-zone, it will be automatically ignored by the 'named-compilezone'
+            # command during the dump (expected behavior).
+            processVarsByRef( \$glueRecordB, {
+                NS_NAME    => $name,
+                NS_IP_TYPE => ( $ipAddrType eq 'ipv4' ) ? 'A' : 'AAAA',
+                NS_IP      => $ipAddr
+            } ) unless $ZONE_NAME ne $moduleData->{'DOMAIN_NAME'};
         }
-
-        replaceBlocByRef( "; dmn NS RECORD entry BEGIN\n", "; dmn NS RECORD entry ENDING\n", $nsRecords, $tpl );
-        replaceBlocByRef( "; dmn NS GLUE RECORD entry BEGIN\n", "; dmn NS GLUE RECORD entry ENDING\n", $glueRecords, $tpl );
     }
-) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
+
+    processVarsByRef( $tpl, '; dmn NS RECORD entry BEGIN.', '; dmn NS RECORD entry ENDING.', $nsRecords );
+    processVarsByRef( $tpl, '; dmn NS GLUE RECORD entry BEGIN.', '; dmn NS GLUE RECORD entry ENDING.', $glueRecords );
+} ) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
 
 1;
 __END__

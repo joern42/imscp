@@ -431,7 +431,7 @@ sub _processDbTasks
         return;
     }
 
-    my ( $moduleInstance, $nStep ) = ( $module->getInstance(), 1 );
+    my ( $moduleInstance, $nStep ) = ( $module->new(), 1 );
     while ( my $row = $sth->fetchrow_hashref() ) {
         my $name = encode_utf8( $row->{'name'} );
         debug( sprintf( 'Processing %s DB tasks for: %s (ID %s)', $module, $name, $row->{'id'} ));

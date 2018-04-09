@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Postfix::Submission::TLS;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -39,35 +39,31 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
 );
 
 if ( index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1 ) {
-    iMSCP::EventManager->getInstance()->register(
-        'afterPostfixBuildConfFile',
-        sub {
-            my ($cfgTpl, $cfgTplName) = @_;
+    iMSCP::EventManager->getInstance()->register( 'afterPostfixBuildConfFile', sub
+    {
+        my ( $cfgTpl, $cfgTplName ) = @_;
 
-            return unless $cfgTplName eq 'master.cf';
+        return unless $cfgTplName eq 'master.cf';
 
-            # Redefine submission service
-            # According MASTER(5)), when multiple lines specify the same service
-            # name and type, only the last one is remembered.
-            ${$cfgTpl} .= <<'EOF';
+        # Redefine submission service
+        # According MASTER(5)), when multiple lines specify the same service
+        # name and type, only the last one is remembered.
+        ${ $cfgTpl } .= <<'EOF';
 # Redefines submission service to enforce TLS
 submission inet n       -       y       -       -       smtpd
  -o smtpd_tls_security_level=encrypt
  -o smtpd_sasl_auth_enable=yes
  -o smtpd_client_restrictions=permit_sasl_authenticated,reject
 EOF
-        }
-    )->register(
-        'afterPostfixConfigure',
-        sub {
-            # smtpd_tls_security_level=encrypt means mandatory.
-            # Make sure to disable vulnerable SSL versions
-            iMSCP::Servers::Mta->factory()->postconf(
-                smtpd_tls_mandatory_protocols => { values => [ '!SSLv2', '!SSLv3' ] }
-            );
-        },
-        -99
-    );
+    }
+    )->register( 'afterPostfixConfigure', sub
+    {
+        # smtpd_tls_security_level=encrypt means mandatory.
+        # Make sure to disable vulnerable SSL versions
+        iMSCP::Servers::Mta->factory()->postconf(
+            smtpd_tls_mandatory_protocols => { values => [ '!SSLv2', '!SSLv3' ] }
+        );
+    }, -99 );
 }
 
 1;

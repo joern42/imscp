@@ -33,6 +33,7 @@ use autouse 'iMSCP::Execute' => qw/ execute /;
 use autouse 'iMSCP::Rights' => qw/ setRights /;
 use Carp qw/ croak /;
 use Class::Autouse qw/ :nostat iMSCP::Getopt iMSCP::Servers::Sqld /;
+use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug /;
 use parent 'iMSCP::Servers::Ftpd';
@@ -90,8 +91,7 @@ sub sqlUserDialog
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
-        || !isValidUsername( $dbUser )
-        || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
+        || !isValidUsername( $dbUser ) || !isStringNotInList( lc $dbUser, 'root', 'debian-sys-maint', lc $masterSqlUser, 'vlogger_user' )
         || !isAvailableSqlUser( $dbUser )
     ) {
         my $rs = 0;
@@ -170,8 +170,7 @@ sub passivePortRangeDialog
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'ftpd', 'servers', 'all', 'forced' ] )
-        || !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange )
-        || !isNumberInRange( $startOfRange, 32768, 60999 )
+        || !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange ) || !isNumberInRange( $startOfRange, 32768, 60999 )
         || !isNumberInRange( $endOfRange, $startOfRange, 60999 )
     ) {
         my $rs = 0;
@@ -191,10 +190,8 @@ Please enter the passive port range for ProFTPD (leave empty for default).
 Note that if you're behind a NAT, you must forward those ports to this server.
 \\Z \\Zn
 EOF
-        } while $rs < 30
-            && ( !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange )
-            || !isNumberInRange( $startOfRange, 32768, 60999 )
-            || !isNumberInRange( $endOfRange, $startOfRange, 60999 )
+        } while $rs < 30 && ( !isValidNumberRange( $passivePortRange, \$startOfRange, \$endOfRange )
+            || !isNumberInRange( $startOfRange, 32768, 60999 ) || !isNumberInRange( $endOfRange, $startOfRange, 60999 )
         );
 
         return $rs unless $rs < 30;
@@ -478,7 +475,7 @@ sub getTraffic
     debug( sprintf( 'Processing ProFTPD traffic %s log file', $logFile ));
 
     # We use an index database to keep trace of the last processed logs
-    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => 1;
+    $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', filename => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nocroak => TRUE;
     my ( $idx, $idxContent ) = ( $trafficIndexDb->{'proftpd_lineNo'} || 0, $trafficIndexDb->{'proftpd_lineContent'} );
 
     tie my @logs, 'Tie::File', $logFile, mode => O_RDONLY, memory => 0 or die( sprintf( "Couldn't tie %s file in read-only mode", $logFile ));
@@ -534,7 +531,7 @@ sub _init
 
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
-    @{ $self }{qw/ restart reload cfgDir /} = ( 0, 0, "$::imscpConfig{'CONF_DIR'}/proftpd" );
+    @{ $self }{qw/ restart reload cfgDir /} = ( FALSE, FALSE, "$::imscpConfig{'CONF_DIR'}/proftpd" );
     $self->SUPER::_init();
 }
 
@@ -645,13 +642,7 @@ EOF
     );
 
     if ( -f "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf" ) {
-        $self->{'eventManager'}->registerOne(
-            'beforeProftpdBuildConfFile',
-            sub {
-                ${ $_[0] } =~ s/^(LoadModule\s+mod_tls_memcache.c)/#$1/m;
-                0;
-            }
-        );
+        $self->{'eventManager'}->registerOne( 'beforeProftpdBuildConfFile', sub { ${ $_[0] } =~ s/^(LoadModule\s+mod_tls_memcache.c)/#$1/m; } );
         $self->buildConfFile( "$self->{'config'}->{'FTPD_CONF_DIR'}/modules.conf", undef, undef, undef, { mode => 0644 } );
     }
 

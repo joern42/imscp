@@ -17,7 +17,7 @@
 
 package iMSCP::Listener::Php::IniOptions::Override;
 
-our $VERSION = '1.1.1';
+our $VERSION = '1.1.2';
 
 use strict;
 use warnings;
@@ -90,65 +90,63 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_php_inioptions_override.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'beforePhpBuildConfFile',
-    sub {
-        my ($cfgTpl, $filename, undef, $moduleData) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforePhpBuildConfFile', sub
+{
+    my ( $cfgTpl, $filename, undef, $moduleData ) = @_;
 
-        return unless grep($filename eq $_, 'php.ini.user', 'pool.conf') && $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} eq $moduleData->{'DOMAIN_NAME'};
+    return unless grep ($filename eq $_, 'php.ini.user', 'pool.conf') && $moduleData->{'PHP_CONFIG_LEVEL_DOMAIN'} eq $moduleData->{'DOMAIN_NAME'};
 
-        if ( $tplName eq 'php.ini.user' ) {
-            if ( exists $SETTINGS{'*'} ) {
-                # Adds/Overrides INI options values globally
-                while ( my ($option, $value) = each( %{$SETTINGS{'*'}} ) ) {
-                    next if exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}}->{$option};
-                    next if ${$cfgTpl} =~ s/^$option\s+=.*/$option = $value/gim;
-                    ${$cfgTpl} .= "$option = $value\n";
-                }
-            }
-
-            return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
-
-            # Adds/Overrides per domain INI options values
-            while ( my ($option, $value) = each( %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}} ) ) {
-                next if ${$cfgTpl} =~ s/^$option\s+=.*/$option = $value/gim;
-                ${$cfgTpl} .= "$option = $value\n";
-            }
-
-            return;
-        }
-
-        return unless $tplName eq 'pool.conf';
-
+    if ( $tplName eq 'php.ini.user' ) {
         if ( exists $SETTINGS{'*'} ) {
             # Adds/Overrides INI options values globally
-            while ( my ($option, $value) = each( %{$SETTINGS{'*'}} ) ) {
-                next if ${$cfgTpl} =~ s/^(php_(?:admin_)?(?:value|flag)\[$option\]).*/$1 = $value/gim;
-
-                if ( grep($_ eq lc( $value ), ( 'on', 'off', '1', '0', 'true', 'false', 'yes', 'no' )) ) {
-                    ${$cfgTpl} .= "php_admin_flag[$option] = $value\n";
-                    next;
-                }
-
-                ${$cfgTpl} .= "php_admin_value[$option] = $value\n";
+            while ( my ( $option, $value ) = each( %{ $SETTINGS{'*'} } ) ) {
+                next if exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}}->{$option};
+                next if ${ $cfgTpl } =~ s/^$option\s+=.*/$option = $value/gim;
+                ${ $cfgTpl } .= "$option = $value\n";
             }
         }
 
-        return 0 unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
+        return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
 
         # Adds/Overrides per domain INI options values
-        while ( my ($option, $value) = each( %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}} ) ) {
-            next if ${$cfgTpl} =~ s/^(php_(?:admin_)?(?:value|flag)\[$option\]).*/$1 = $value/gim;
+        while ( my ( $option, $value ) = each( %{ $SETTINGS{$moduleData->{'DOMAIN_NAME'}} } ) ) {
+            next if ${ $cfgTpl } =~ s/^$option\s+=.*/$option = $value/gim;
+            ${ $cfgTpl } .= "$option = $value\n";
+        }
 
-            if ( grep($_ eq lc( $value ), ( 'on', 'off', '1', '0', 'true', 'false', 'yes', 'no' )) ) {
-                ${$cfgTpl} .= "php_admin_flag[$option] = $value\n";
+        return;
+    }
+
+    return unless $tplName eq 'pool.conf';
+
+    if ( exists $SETTINGS{'*'} ) {
+        # Adds/Overrides INI options values globally
+        while ( my ( $option, $value ) = each( %{ $SETTINGS{'*'} } ) ) {
+            next if ${ $cfgTpl } =~ s/^(php_(?:admin_)?(?:value|flag)\[$option\]).*/$1 = $value/gim;
+
+            if ( grep ($_ eq lc( $value ), ( 'on', 'off', '1', '0', 'true', 'false', 'yes', 'no' )) ) {
+                ${ $cfgTpl } .= "php_admin_flag[$option] = $value\n";
                 next;
             }
 
-            ${$cfgTpl} .= "php_admin_value[$option] = $value\n";
+            ${ $cfgTpl } .= "php_admin_value[$option] = $value\n";
         }
     }
-);
+
+    return 0 unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
+
+    # Adds/Overrides per domain INI options values
+    while ( my ( $option, $value ) = each( %{ $SETTINGS{$moduleData->{'DOMAIN_NAME'}} } ) ) {
+        next if ${ $cfgTpl } =~ s/^(php_(?:admin_)?(?:value|flag)\[$option\]).*/$1 = $value/gim;
+
+        if ( grep ($_ eq lc( $value ), ( 'on', 'off', '1', '0', 'true', 'false', 'yes', 'no' )) ) {
+            ${ $cfgTpl } .= "php_admin_flag[$option] = $value\n";
+            next;
+        }
+
+        ${ $cfgTpl } .= "php_admin_value[$option] = $value\n";
+    }
+} );
 
 1;
 __END__

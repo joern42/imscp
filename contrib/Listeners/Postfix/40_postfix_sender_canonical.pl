@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Postfix::Sender::Canonical;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -45,21 +45,18 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 40_postfix_sender_canonical.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPostfixConfigure',
-    sub {
-        my ($database, $storage) = fileparse( $postfixSenderCanoncial );
-        my $mta = iMSCP::Servers::Mta->factory();
-        $mta->getDbDriver( 'hash' )->add( $database, undef, undef, $storage );
-        $mta->postconf(
-            sender_canonical_maps => {
-                action => 'add',
-                values => [ "hash:$postfixSenderCanoncial" ]
-            }
-        );
-    },
-    -99
-) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
+iMSCP::EventManager->getInstance()->register( 'afterPostfixConfigure', sub
+{
+    my ( $database, $storage ) = fileparse( $postfixSenderCanoncial );
+    my $mta = iMSCP::Servers::Mta->factory();
+    $mta->getDbDriver( 'hash' )->add( $database, undef, undef, $storage );
+    $mta->postconf(
+        sender_canonical_maps => {
+            action => 'add',
+            values => [ "hash:$postfixSenderCanoncial" ]
+        }
+    );
+}, -99 ) if index( $::imscpConfig{'iMSCP::Servers::Mta'}, '::Postfix::' ) != -1;
 
 1;
 __END__

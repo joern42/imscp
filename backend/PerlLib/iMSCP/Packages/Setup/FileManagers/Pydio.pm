@@ -30,7 +30,7 @@ use iMSCP::Composer;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::Packages::Setup::FrontEnd;
-use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef /;
 use parent 'iMSCP::Packages::Abstract';
 
 our $VERSION = '2.0.0';
@@ -205,7 +205,7 @@ sub _unregisterConfig
 
     my $file = iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_master.conf" );
     my $fileContentRef = $file->getAsRef();
-    ${ $fileContentRef } =~ s/[\t ]*include imscp_pydio.conf;\n//;
+    ${ $fileContentRef } =~ s/(^[\t ]+)?\Qinclude imscp_pydio.conf;\E\n//m;
     $file->save();
 
     $self->{'frontend'}->{'reload'} ||= TRUE;
@@ -250,11 +250,8 @@ sub afterFrontEndBuildConfFile
     return unless ( $tplName eq '00_master.nginx' && ::setupGetQuestion( 'BASE_SERVER_VHOST_PREFIX' ) ne 'https://' )
         || $tplName eq '00_master_ssl.nginx';
 
-    replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
-    # SECTION custom BEGIN.
-@{ [ getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent ) ] }
+    processBlocByRef( $tplContent, '# SECTION custom BEGIN.', '# SECTION custom ENDING.', <<"EOF", TRUE );
     include imscp_pydio.conf;
-    # SECTION custom END.
 EOF
 }
 

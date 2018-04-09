@@ -21,7 +21,7 @@
 
 package iMSCP::Listener::System::Hosts;
 
-our $VERSION = '1.0.3';
+our $VERSION = '1.0.4';
 
 use strict;
 use warnings;
@@ -46,16 +46,14 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
 );
 
 # Listener responsible to add host entries in the system hosts file, once it was built by i-MSCP
-iMSCP::EventManager->getInstance()->register(
-    'afterLocalServerBuildConfFile',
-    sub {
-        my ($cfgTpl, $cfgTplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterLocalServerBuildConfFile', sub
+{
+    my ( $cfgTpl, $cfgTplName ) = @_;
 
-        return unless $cfgTplName eq 'hosts';
+    return unless $cfgTplName eq 'hosts';
 
-        ${$cfgTpl} .= join( "\n", @hostsFileEntries ) . "\n";
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Server'}, '::Local::' ) != -1;
+    ${ $cfgTpl } .= join( "\n", @hostsFileEntries ) . "\n";
+} ) if index( $::imscpConfig{'iMSCP::Servers::Server'}, '::Local::' ) != -1;
 
 1;
 __END__

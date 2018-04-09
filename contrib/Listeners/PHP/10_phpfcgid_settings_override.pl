@@ -16,12 +16,12 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 #
-## Allows to override the *_PER_CLASS fcgid settings in Apache vhost files
+## Allows to override the *_PER_CLASS fcgid settings in Apache2 vhost files
 ##
 
 package iMSCP::Listener::PhpFcgid::Settings::Override;
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.1';
 
 use strict;
 use warnings;
@@ -63,26 +63,24 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_phpfcgid_settings_override.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPhpApacheBuildConfFile',
-    sub {
-        my ($phpServer, undef, undef, undef, $moduleData, $apacheServerData) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterPhpApacheBuildConfFile', sub
+{
+    my ( $phpServer, undef, undef, undef, $moduleData, $apacheServerData ) = @_;
 
-        return unless $phpServer->{'config'}->{'PHP_SAPI'} eq 'cgi' && $moduleData->{'FORWARD'} eq 'no' && $moduleData->{'PHP_SUPPORT'} eq 'yes';
+    return unless $phpServer->{'config'}->{'PHP_SAPI'} eq 'cgi' && $moduleData->{'FORWARD'} eq 'no' && $moduleData->{'PHP_SUPPORT'} eq 'yes';
 
-        if ( exists $SETTINGS{'*'} ) {
-            # Apply global *_PER_CLASS fcgid settings
-            @{$apacheServerData}{keys %{$SETTINGS{'*'}}} = values %{$SETTINGS{'*'}};
-        }
-
-        return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
-
-        if ( exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}} ) {
-            # Apply per domain *_PER_CLASS fcgid settings
-            @{$apacheServerData}{keys %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}}} = values %{$SETTINGS{$moduleData->{'DOMAIN_NAME'}}};
-        }
+    if ( exists $SETTINGS{'*'} ) {
+        # Apply global *_PER_CLASS fcgid settings
+        @{ $apacheServerData }{keys %{ $SETTINGS{'*'} }} = values %{ $SETTINGS{'*'} };
     }
-);
+
+    return unless exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}};
+
+    if ( exists $SETTINGS{$moduleData->{'DOMAIN_NAME'}} ) {
+        # Apply per domain *_PER_CLASS fcgid settings
+        @{ $apacheServerData }{keys %{ $SETTINGS{$moduleData->{'DOMAIN_NAME'}} }} = values %{ $SETTINGS{$moduleData->{'DOMAIN_NAME'}} };
+    }
+} );
 
 1;
 __END__

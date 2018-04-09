@@ -91,6 +91,7 @@ sub addSystemUser
 
         # If we attempt to modify user' login or home, we must ensure
         # that there is no process running for the user
+        # We need also remove the immutable bit on the home directory if any
         if ( $username ne $oldUsername || $home ne $userProps[7] ) {
             push @commands, [ [ 'pkill', '-KILL', '-u', $userProps[2] ], [ 0, 1 ] ];
             $isImmutableHome = -d $userProps[7] && isImmutable( $userProps[7] );
@@ -103,9 +104,7 @@ sub addSystemUser
             ( defined $self->{'comment'} && $self->{'comment'} ne $userProps[6] ? ( '-c', $self->{'comment'} // 'iMSCP user' ) : () ),
             ( defined $self->{'group'} && ( ( $self->{'group'} =~ /^(\d+)$/ && $1 != $userProps[3] )
                 || getgrnam( $self->{'group'} ) ne $userProps[3] ) ? ( '-g', $self->{'group'} ) : () ),
-
-            ( $home ne $userProps[7] ? ( '-d', $home, ( -d $home ? () : '-m' ) ) : () ),
-
+            ( $home ne $userProps[7] ? ( '-d', $home, '-m' ) : () ),
             ( defined $self->{'shell'} && $self->{'shell'} ne $userProps[8] ? ( '-s', $self->{'shell'} ) : () ),
             ( $username ne $oldUsername ? ( '-l', $username ) : () ),
             $oldUsername,

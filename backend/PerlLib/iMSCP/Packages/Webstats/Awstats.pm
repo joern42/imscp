@@ -33,7 +33,7 @@ use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::File::Attributes qw/ :immutable /;
-use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef processVarsByRef /;
 use version;
 use parent 'iMSCP::Packages::Abstract';
 
@@ -495,19 +495,16 @@ sub _addAwstatsConfig
 
     my $httpd = iMSCP::Servers::Httpd->factory();
 
-    processByRef(
-        {
-            ALIAS               => $moduleData->{'ALIAS'},
-            AUTH_USER           => "$self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}}->{'admin_name'}",
-            AWSTATS_CACHE_DIR   => $::imscpConfig{'AWSTATS_CACHE_DIR'},
-            AWSTATS_ENGINE_DIR  => $::imscpConfig{'AWSTATS_ENGINE_DIR'},
-            AWSTATS_WEB_DIR     => $::imscpConfig{'AWSTATS_WEB_DIR'},
-            CMD_LOGRESOLVEMERGE => "perl $::imscpConfig{'BACKEND_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/logresolvemerge.pl",
-            DOMAIN_NAME         => $moduleData->{'DOMAIN_NAME'},
-            LOG_DIR             => "$httpd->{'config'}->{'HTTPD_LOG_DIR'}/$moduleData->{'DOMAIN_NAME'}"
-        },
-        $fileContentRef
-    );
+    processVarsByRef( $fileContentRef, {
+        ALIAS               => $moduleData->{'ALIAS'},
+        AUTH_USER           => "$self->{'_admin_names'}->{$moduleData->{'DOMAIN_ADMIN_ID'}}->{'admin_name'}",
+        AWSTATS_CACHE_DIR   => $::imscpConfig{'AWSTATS_CACHE_DIR'},
+        AWSTATS_ENGINE_DIR  => $::imscpConfig{'AWSTATS_ENGINE_DIR'},
+        AWSTATS_WEB_DIR     => $::imscpConfig{'AWSTATS_WEB_DIR'},
+        CMD_LOGRESOLVEMERGE => "perl $::imscpConfig{'BACKEND_ROOT_DIR'}/PerlLib/iMSCP/Packages/Webstats/Awstats/Scripts/logresolvemerge.pl",
+        DOMAIN_NAME         => $moduleData->{'DOMAIN_NAME'},
+        LOG_DIR             => "$httpd->{'config'}->{'HTTPD_LOG_DIR'}/$moduleData->{'DOMAIN_NAME'}"
+    } );
 
     iMSCP::File
         ->new( filename => "$::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.$moduleData->{'DOMAIN_NAME'}.conf" )
@@ -525,7 +522,7 @@ sub _addAwstatsConfig
 
 =item afterApacheBuildConfFile( $awstats, \$cfgTpl, $filename, \$trgFile, \%moduleData, \%apacheServerData, \%apacheServerConfig, \%parameters )
 
- Event listener that inject AWstats configuration in Apache vhosts
+ Event listener that inject AWstats configuration in Apache2 vhosts
 
  Param scalar $awstats iMSCP::Packages::Webstats::Awstats::Awstats instance
  Param scalar \$scalar Reference to Apache conffile
@@ -549,18 +546,15 @@ sub beforeApacheBuildConfFile
 
     return if $filename ne 'domain.tpl' || $moduleData->{'FORWARD'} ne 'no';
 
-    debug( sprintf( 'Injecting AWStats configuration in Apache vhost for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
+    debug( sprintf( 'Injecting AWStats configuration in Apache2 vhost for the %s domain', $moduleData->{'DOMAIN_NAME'} ));
 
-    replaceBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", <<"EOF", $cfgTpl );
-    # SECTION addons BEGIN.
-@{[ getBlocByRef( "# SECTION addons BEGIN.\n", "# SECTION addons END.\n", $cfgTpl ) ] }
+    processBlocByRef( $cfgTpl, '# SECTION addons BEGIN.', '# SECTION addons ENDING.', <<"EOF", TRUE );
     <Location /stats>
         ProxyErrorOverride On
         ProxyPreserveHost Off
         ProxyPass http://127.0.0.1:8889/stats/{DOMAIN_NAME} retry=0 acquire=3000 timeout=30 Keepalive=On
         ProxyPassReverse http://127.0.0.1:8889/stats/{DOMAIN_NAME}
     </Location>
-    # SECTION addons END.
 EOF
 }
 

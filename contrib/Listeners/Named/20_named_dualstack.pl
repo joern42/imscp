@@ -26,14 +26,15 @@
 
 package iMSCP::Listener::Bind9::DualStack;
 
-our $VERSION = '1.0.3';
+our $VERSION = '1.0.4';
 
 use strict;
 use warnings;
 use Array::Utils qw/ unique /;
+use iMSCP::Boolean;
 use iMSCP::EventManager;
 use iMSCP::Net;
-use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qx/ getBlocByRef processBlocByRef /;
 use version;
 
 #
@@ -120,69 +121,55 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 20_named_dualstack.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    [ 'afterBindAddDomainDb', 'afterBindAddSubdomain' ],
-    sub {
-        my ($tplContent, $data) = @_;
+iMSCP::EventManager->getInstance()->register( [ 'afterBindAddDomainDb', 'afterBindAddSubdomain' ], sub
+{
+    my ( $tplContent, $data ) = @_;
 
-        my $zone = $ZONE_DEFS{$data->{'REAL_PARENT_DOMAIN_NAME'} || $data->{'PARENT_DOMAIN_NAME'}} || $ZONE_DEFS{'*'} || undef;
+    my $zone = $ZONE_DEFS{$data->{'REAL_PARENT_DOMAIN_NAME'} || $data->{'PARENT_DOMAIN_NAME'}} || $ZONE_DEFS{'*'} || undef;
 
-        return unless defined $zone && %{$zone};
+    return unless defined $zone && %{ $zone };
 
-        local @DEFAULT_DNS_NAMES = @DEFAULT_DNS_NAMES;
+    local @DEFAULT_DNS_NAMES = @DEFAULT_DNS_NAMES;
 
-        if ( $data->{'REAL_PARENT_DOMAIN_NAME'} && $data->{'REAL_PARENT_DOMAIN_NAME'} ne $data->{'PARENT_DOMAIN_NAME'} ) {
-            # When adding entry for the alternative URLs feature we do have
-            # interest only in '@' DNS name
-            @DEFAULT_DNS_NAMES = grep('@' eq $_, @DEFAULT_DNS_NAMES);
-            return unless @DEFAULT_DNS_NAMES;
-        }
+    if ( $data->{'IS_ALT_URL_RECORD'} ) {
+        # When adding entry for the alternative URLs feature we do have
+        # interest only in '@' DNS name
+        return unless @DEFAULT_DNS_NAMES = grep ('@' eq $_, @DEFAULT_DNS_NAMES);
+    }
 
-        my $net = iMSCP::Net->getInstance();
-        my @names = ();
+    my $net = iMSCP::Net->getInstance();
+    my @names = ();
 
-        for ( @DEFAULT_DNS_NAMES ) {
-            my $name = $zone->{$_} || $zone->{'*'} || undef;
-            next unless defined $name && ref $name eq 'ARRAY' && @{$name};
+    for ( @DEFAULT_DNS_NAMES ) {
+        my $name = $zone->{$_} // $zone->{'*'} // undef;
+        next unless defined $name && ref $name eq 'ARRAY' && @{ $name };
 
-            for my $ipAddr( @{$name} ) {
-                next unless $net->isValidAddr( $ipAddr );
-                push @names, <<"EOT";
+        for my $ipAddr ( @{ $name } ) {
+            next unless $net->isValidAddr( $ipAddr );
+            push @names, <<"EOT";
 $_\t$DNS_TTL\t@{[ $net->getAddrVersion( $ipAddr ) eq 'ipv4' ? 'A' : 'AAAA']}\t@{[ $net->compressAddr( $ipAddr ) ]}
 EOT
-            }
         }
+    }
 
-        return unless @names;
+    return unless @names;
 
-        if ( grep( $data->{'DOMAIN_TYPE'} eq $_, 'dmn', 'als' ) ) {
-            if ( getBlocByRef( "; dualstack DNS entries BEGIN\n", "; dualstack DNS entries END\n", $tplContent ) ) {
-                replaceBlocByRef( "; dualstack DNS entries BEGIN\n", "; dualstack DNS entries END\n", <<"EOT", $tplContent );
-; dualstack DNS entries BEGIN
+    if ( grep ( $data->{'DOMAIN_TYPE'} eq $_, 'dmn', 'als' ) ) {
+        ${ $tplContent } .= <<"EOT",
 \$ORIGIN $data->{'DOMAIN_NAME'}.
-@{[ join( '', unique @names ) ]}; dualstack DNS entries END
+@{[ join( '', unique @names ) ]}
 EOT
-                return;
-            }
+            return;
+    }
 
-            ${$tplContent} .= <<"EOT",
-; dualstack DNS entries BEGIN
-\$ORIGIN $data->{'DOMAIN_NAME'}.
-@{[ join( '', unique @names ) ]}; dualstack DNS entries END
-EOT
-                return;
-        }
-
-        replaceBlocByRef( "; sub [$data->{'DOMAIN_NAME'}] entry BEGIN\n", "; sub [$data->{'DOMAIN_NAME'}] entry ENDING\n", <<"EOF", $tplContent );
-; sub [$data->{'DOMAIN_NAME'}] entry BEGIN
-@{ [ getBlocByRef("; sub [$data->{'DOMAIN_NAME'}] entry BEGIN\n","; sub [$data->{'DOMAIN_NAME'}] entry ENDING\n", $tplContent) ] }
+    processBlocByRef( "; sub [$data->{'DOMAIN_NAME'}] entry BEGIN.", "; sub [$data->{'DOMAIN_NAME'}] entry ENDING.", <<"EOF", $tplContent );
+; sub [$data->{'DOMAIN_NAME'}] entry BEGIN.
+@{ [ getBlocByRef("; sub [$data->{'DOMAIN_NAME'}] entry BEGIN.", "; sub [$data->{'DOMAIN_NAME'}] entry ENDING.", $tplContent, FALSE, TRUE ) ] }
 \$ORIGIN $data->{'DOMAIN_NAME'}
 @{ [ join( '', unique @names ) ] }
-; sub [$data->{'DOMAIN_NAME'}] entry ENDING
+; sub [$data->{'DOMAIN_NAME'}] entry ENDING.
 EOF
-    },
-    -99
-) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
+}, -99 ) if index( $imscp::Config{'iMSCP::Servers::Named'}, '::Bind9::' ) != -1;
 
 1;
 __END__

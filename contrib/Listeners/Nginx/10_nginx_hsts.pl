@@ -22,12 +22,13 @@
 
 package iMSCP::Listener::Nginx::HSTS;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::EventManager;
-use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
+use iMSCP::Template::Processor qw/ processBlocByRef /;
 use version;
 
 #
@@ -38,21 +39,16 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 10_nginx_hsts.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterFrontEndBuildConfFile',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub
+{
+    my ( $tplContent, $tplName ) = @_;
 
-        return unless $tplName eq '00_master_ssl.nginx' && $::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes';
+    return unless $tplName eq '00_master_ssl.nginx' && $::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes';
 
-        replaceBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", <<"EOF", $tplContent );
-    # SECTION custom BEGIN.\n".
-@{ [ getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent ) ] }
+    processBlocByRef( $tplContent, '# SECTION custom BEGIN.', '# SECTION custom ENDING.', <<'EOF', TRUE );
     add_header Strict-Transport-Security "max-age=31536000";
-    # SECTION custom END.\n",
 EOF
-    }
-);
+} );
 
 1;
 __END__

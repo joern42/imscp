@@ -22,7 +22,7 @@
 
 package iMSCP::Listener::Apache2::ServerAlias::Override;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
@@ -36,7 +36,7 @@ use version;
 # Map Apache vhosts (domains) to additional server aliases 
 my %serverAliases = (
     'example1.com' => 'example1.in example1.br', # Add example1.in and example1.br server aliases to exemple1.com vhost
-    'example2.com' => 'example2.in example2.br' # Add example2.in and example2.br server aliases to exemple2.com vhost
+    'example2.com' => 'example2.in example2.br'  # Add example2.in and example2.br server aliases to exemple2.com vhost
 );
 
 #
@@ -47,16 +47,14 @@ version->parse( "$::imscpConfig{'PluginApi'}" ) >= version->parse( '1.6.0' ) or 
     sprintf( "The 20_apache2_serveralias_override.pl listener file version %s requires i-MSCP >= 1.6.0", $VERSION )
 );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterApacheBuildConf',
-    sub {
-        my ($tplContent, $tplName, undef, $moduleData) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterApacheBuildConf', sub
+{
+    my ( $tplContent, $tplName, undef, $moduleData ) = @_;
 
-        return unless $tplName eq 'domain.tpl' && $serverAliases{$moduleData->{'DOMAIN_NAME'}};
+    return unless $tplName eq 'domain.tpl' && $serverAliases{$moduleData->{'DOMAIN_NAME'}};
 
-        ${$tplContent} =~ s/^(\s+ServerAlias.*)/$1 $serverAliases{$moduleData->{'DOMAIN_NAME'}}/m;
-    }
-) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
+    ${ $tplContent } =~ s/^(\s+ServerAlias.*)/$1 $serverAliases{$moduleData->{'DOMAIN_NAME'}}/m;
+} ) if index( $::imscpConfig{'iMSCP::Servers::Httpd'}, '::Apache2::' ) != -1;
 
 1;
 __END__

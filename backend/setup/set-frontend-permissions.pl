@@ -71,8 +71,12 @@ exit unless iMSCP::Bootstrapper->getInstance()->boot( {
 } )->lock( "$::imscpConfig{'LOCK_DIR'}/imscp-set-frontend-permissions.lock", 'nowait' );
 
 my @items = ();
-push @items, [ $_, sub { $_->factory()->setFrontendPermissions(); } ] for iMSCP::Servers->getInstance()->getList();
-push @items, [ $_, sub { $_->getInstance()->setFrontendPermissions(); } ] for iMSCP::Packages->getInstance()->getList();
+for my $server (iMSCP::Servers->getInstance()->getList()) {
+    push @items, [ $server, sub { $server->factory()->setFrontendPermissions(); } ];
+}
+for my $package (iMSCP::Packages->getInstance()->getList()) {
+    push @items, [ $package, sub { $package->getInstance()->setFrontendPermissions(); } ]
+}
 
 iMSCP::EventManager->getInstance()->trigger( 'beforeSetGuiPermissions' );
 
