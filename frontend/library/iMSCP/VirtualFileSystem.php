@@ -128,7 +128,7 @@ class VirtualFileSystem
      */
     protected function removeFtpUser()
     {
-        exec_query('DELETE FROM ftp_users WHERE userid = ?', ['imscp_frontend']);
+        exec_query('DELETE FROM ftp_users WHERE userid = ?', [$this->user]);
         exec_query('DELETE FROM ftp_group WHERE groupname = ?', ['imscp_frontend']);
     }
 
@@ -244,7 +244,7 @@ class VirtualFileSystem
             $this->stream = @ftp_connect('127.0.0.1', 21, 30);
         }
 
-        if (!$this->stream || !@ftp_login($this->stream, 'imscp_frontend', $this->passwd)) {
+        if (!$this->stream || !@ftp_login($this->stream, $this->user, $this->passwd)) {
             $this->writeLog("Couldn't connect to FTP server.");
             $this->close();
             return false;
@@ -276,18 +276,15 @@ class VirtualFileSystem
             $row = $stmt->fetch();
             $this->passwd = Crypt::randomStr(16);
 
-            exec_query(
-                'INSERT INTO ftp_users (userid, passwd, uid, gid, shell, homedir, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [
-                    'imscp_frontend',
-                    Crypt::sha512($this->passwd),
-                    $row['admin_sys_uid'],
-                    $row['admin_sys_gid'],
-                    '/bin/sh',
-                    utils_normalizePath(Registry::get('config')['USER_WEB_DIR'] . '/' . $this->user), 'ok'
-                ]
-            );
-            exec_query('INSERT INTO ftp_group (groupname, gid, members) VALUES (?,?,?)', ['imscp_frontend', $row['admin_sys_gid'], 'imscp_frontend']);
+            exec_query('INSERT INTO ftp_users (userid, passwd, uid, gid, shell, homedir, status) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+                $this->user,
+                Crypt::sha512($this->passwd),
+                $row['admin_sys_uid'],
+                $row['admin_sys_gid'],
+                '/bin/sh',
+                utils_normalizePath(Registry::get('config')['USER_WEB_DIR'] . '/' . $this->user), 'ok'
+            ]);
+            exec_query('INSERT INTO ftp_group (groupname, gid, members) VALUES (?,?,?)', ['imscp_frontend', $row['admin_sys_gid'], $this->user]);
         } catch (\Exception $e) {
             if ($e instanceof DatabaseException && $e->getCode() == 23000) {
                 $this->writeLog('Concurrent FTP connections are not allowed.', E_USER_WARNING);
