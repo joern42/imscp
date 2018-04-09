@@ -10,12 +10,14 @@ $ORIGIN {DOMAIN_NAME}.
 ; dmn NS RECORD entry BEGIN.
 @         IN    NS    {NS_NAME}
 ; dmn NS RECORD entry ENDING.
-@         IN    {IP_TYPE}    {DOMAIN_IP}
 ; dmn NS GLUE RECORD entry BEGIN.
 {NS_NAME} IN    {NS_IP_TYPE}    {NS_IP}
 ; dmn NS GLUE RECORD entry ENDING.
+; dmn DOMAIN entries BEGIN.
+@         IN    {IP_TYPE}    {DOMAIN_IP}
 www       IN    CNAME    @
 ftp       IN    {IP_TYPE}    {DOMAIN_IP}
+; dmn DOMAIN entries ENDING.
 ; dmn MAIL entry BEGIN.
 @         IN    MX   10    mail
 @         IN    TXT  "v=spf1 a mx -all"

@@ -518,26 +518,39 @@ sub addSubdomain
     $self->{'eventManager'}->trigger( 'beforeBindAddSubdomain', $wrkDbFileCref, \$subEntry, $moduleData );
 
     my $net = iMSCP::Net->getInstance();
+    my @routableIps;
+
+    for my $ipAddr ( @{ $moduleData->{'DOMAIN_IPS'} } ) {
+        push @routableIps, $ipAddr if $net->isRoutableAddr( $ipAddr );
+    }
+
+    push @routableIps, $moduleData->{'BASE_SERVER_PUBLIC_IP'} unless @routableIps;
 
     # Prepare mail entries
     # FIXME: Should we remove historical smtp, relay, imap, pop... records? See:
     # https://i-mscp.net/index.php/Thread/18893-Setup-SSL-Let-s-Encrypt-on-mail-client-with-customer-subdomain/?postID=58676#post58676
-    processBlocByRef( \$subEntry, '; sub MAIL entry BEGIN.', '; sub MAIL entry ENDING.', {
+    processBlocByRef( \$subEntry, '; sub MAIL entry BEGIN.', '; sub MAIL entry ENDING.', $self->{'config'}->{'MAIL_RECORDS'} ? {
         BASE_SERVER_IP_TYPE => $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ? 'A' : 'AAAA',
         BASE_SERVER_IP      => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
         DOMAIN_NAME         => $moduleData->{'PARENT_DOMAIN_NAME'}
-    } );
+    } : '' );
 
-    # Remove optional entries if needed (in any case bloc tags are removed).
+    # Remove optional entries if needed
     processBlocByRef( \$subEntry, '; sub OPTIONAL entries BEGIN.', '; sub OPTIONAL entries ENDING.', '', FALSE, $moduleData->{'OPTIONAL_ENTRIES'} );
 
-    my $domainIP = $net->isRoutableAddr( $moduleData->{'DOMAIN_IP'} ) ? $moduleData->{'DOMAIN_IP'} : $moduleData->{'BASE_SERVER_PUBLIC_IP'};
-
     # Prepare subdomain entries
+    my ( $i, $ipCount ) = ( 0, scalar @routableIps );
+    for my $ipAddr ( @routableIps ) {
+        $i++;
+        processBlocByRef( \$subEntry, '; sub SUBDOMAIN_entries BEGIN.', '; sub SUBDOMAIN entries ENDING.', {
+            IP_TYPE   => $net->getAddrVersion( $ipAddr ) eq 'ipv4' ? 'A' : 'AAAA',
+            DOMAIN_IP => $ipAddr
+        }, $i < $ipCount, $i < $ipCount );
+    }
+
+    # Process remaining template variable
     processVarsByRef( \$subEntry, {
-        SUBDOMAIN_NAME => $moduleData->{'DOMAIN_NAME'},
-        IP_TYPE        => $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA',
-        DOMAIN_IP      => $domainIP
+        SUBDOMAIN_NAME => $moduleData->{'DOMAIN_NAME'}
     } );
 
     # Remove previous entry if any
@@ -871,16 +884,20 @@ sub _addDmnDb
     $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, \$tplDbFileC, \$wrkDbFileC );
     $self->{'eventManager'}->trigger( 'beforeBindAddDomainDb', \$tplDbFileC, $moduleData );
 
+    my $net = iMSCP::Net->getInstance();
+    my @routableIps;
+
+    for my $ipAddr ( @{ $moduleData->{'DOMAIN_IPS'} } ) {
+        push @routableIps, $ipAddr if $net->isRoutableAddr( $ipAddr );
+    }
+
+    push @routableIps, $moduleData->{'BASE_SERVER_PUBLIC_IP'} unless @routableIps;
+
     my $nsRecordB = getBlocByRef( \$tplDbFileC, '; dmn NS RECORD entry BEGIN.', '; dmn NS RECORD entry ENDING.' );
     my $glueRecordB = getBlocByRef( \$tplDbFileC, '; dmn NS GLUE RECORD entry BEGIN.', '; dmn NS GLUE RECORD entry ENDING.' );
 
-    my $net = iMSCP::Net->getInstance();
-    my $domainIP = $net->isRoutableAddr( $moduleData->{'DOMAIN_IP'} ) ? $moduleData->{'DOMAIN_IP'} : $moduleData->{'BASE_SERVER_PUBLIC_IP'};
-
     if ( length $nsRecordB || length $glueRecordB ) {
-        my @nsIPs = ( $domainIP, ( ( $self->{'config'}->{'NAMED_SECONDARY_DNS'} eq 'no' )
-            ? () : split ';', $self->{'config'}->{'NAMED_SECONDARY_DNS'} )
-        );
+        my @nsIPs = ( @routableIps, $self->{'config'}->{'NAMED_SECONDARY_DNS'} eq 'no' ? () : split ';', $self->{'config'}->{'NAMED_SECONDARY_DNS'} );
         my ( $nsRecords, $glueRecords ) = ( '', '' );
 
         for my $ipAddrType ( qw/ ipv4 ipv6 / ) {
@@ -915,10 +932,18 @@ sub _addDmnDb
     } );
 
     # Prepare domain entries
+    my ( $i, $ipCount ) = ( 0, scalar @routableIps );
+    for my $ipAddr ( @routableIps ) {
+        $i++;
+        processBlocByRef( \$tplDbFileC, '; dmn DOMAIN entries BEGIN.', '; dmn DOMAIN entries ENDING.', {
+            IP_TYPE   => $net->getAddrVersion( $ipAddr ) eq 'ipv4' ? 'A' : 'AAAA',
+            DOMAIN_IP => $ipAddr
+        }, $i < $ipCount, $i < $ipCount );
+    }
+
+    # Process remaining template variable
     processVarsByRef( \$tplDbFileC, {
-        DOMAIN_NAME => $moduleData->{'DOMAIN_NAME'},
-        IP_TYPE     => $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA',
-        DOMAIN_IP   => $domainIP
+        DOMAIN_NAME => $moduleData->{'DOMAIN_NAME'}
     } );
 
     unless ( !defined $wrkDbFileC || iMSCP::Getopt->context() eq 'installer' ) {
