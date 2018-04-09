@@ -529,11 +529,11 @@ sub addSubdomain
     # Prepare mail entries
     # FIXME: Should we remove historical smtp, relay, imap, pop... records? See:
     # https://i-mscp.net/index.php/Thread/18893-Setup-SSL-Let-s-Encrypt-on-mail-client-with-customer-subdomain/?postID=58676#post58676
-    processBlocByRef( \$subEntry, '; sub MAIL entry BEGIN.', '; sub MAIL entry ENDING.', $self->{'config'}->{'MAIL_RECORDS'} ? {
+    processBlocByRef( \$subEntry, '; sub MAIL entry BEGIN.', '; sub MAIL entry ENDING.', {
         BASE_SERVER_IP_TYPE => $net->getAddrVersion( $moduleData->{'BASE_SERVER_PUBLIC_IP'} ) eq 'ipv4' ? 'A' : 'AAAA',
         BASE_SERVER_IP      => $moduleData->{'BASE_SERVER_PUBLIC_IP'},
         DOMAIN_NAME         => $moduleData->{'PARENT_DOMAIN_NAME'}
-    } : '' );
+    } );
 
     # Remove optional entries if needed
     processBlocByRef( \$subEntry, '; sub OPTIONAL entries BEGIN.', '; sub OPTIONAL entries ENDING.', '', FALSE, $moduleData->{'OPTIONAL_ENTRIES'} );
