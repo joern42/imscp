@@ -89,16 +89,20 @@ sub _loadEntityData
             SELECT t1.*,
                 t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php, t2.domain_cgi,
                 t2.external_mail, t2.web_folder_protection, t2.phpini_perm_config_level AS php_config_level,
-                IFNULL(t3.ip_number, '0.0.0.0') AS ip_number,
+                t3.ip_addresses,
                 t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
                 t4.hsts_include_subdomains
             FROM subdomain AS t1
             JOIN domain AS t2 USING(domain_id)
-            JOIN server_ips AS t3 ON (t3.ip_id = t2.domain_ip_id)
+            LEFT JOIN(
+                SELECT ? AS subdomain_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
+                FROM server_ips
+                WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT subdomain_ip_id FROM subdomain WHERE subdomain_id = ?), ',', '|'), ')\$')
+            ) AS t3 ON t1.subdomain_id = t3.subdomain_id
             LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.subdomain_id AND t4.domain_type = 'sub' AND t4.status = 'ok')
             WHERE t1.subdomain_id = ?
         ",
-        undef, $entityId
+        undef, $entityId, $entityId, $entityId
     );
     $row or die( sprintf( 'Data not found for subdomain (ID %d)', $entityId ));
 
@@ -136,7 +140,7 @@ sub _loadEntityData
         PARENT_DOMAIN_NAME      => $row->{'user_home'},
         DOMAIN_NAME             => $row->{'subdomain_name'} . '.' . $row->{'user_home'},
         DOMAIN_TYPE             => 'sub',
-        DOMAIN_IP               => $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $row->{'ip_number'},
+        DOMAIN_IP               => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $webDir,
         MOUNT_POINT             => $row->{'subdomain_mount'},

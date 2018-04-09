@@ -90,17 +90,21 @@ sub _loadEntityData
                 t2.alias_id, t2.alias_name, t2.external_mail, t3.domain_name AS user_home,
                 t3.domain_id, t3.domain_admin_id, t3.domain_mailacc_limit, t3.domain_php, t3.domain_cgi,
                 t3.web_folder_protection, t3.phpini_perm_config_level AS php_config_level,
-                IFNULL(t4.ip_number, '0.0.0.0') AS ip_number,
+                t4.ip_addresses,
                 t5.private_key, t5.certificate, t5.ca_bundle, t5.allow_hsts, t5.hsts_max_age,
                 t5.hsts_include_subdomains
             FROM subdomain_alias AS t1
             JOIN domain_aliasses AS t2 USING(alias_id)
             JOIN domain AS t3 USING (domain_id)
-            LEFT JOIN server_ips AS t4 ON (t4.ip_id = t2.alias_ip_id)
+            LEFT JOIN(
+                SELECT ? AS alias_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
+                FROM server_ips
+                WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT subdomain_alias_ip_id FROM subdomain_alias WHERE subdomain_alias_id = ?), ',', '|'), ')\$')
+            ) AS t4 ON t1.subdomain_alias_id = t4.subdomain_alias_id
             LEFT JOIN ssl_certs AS t5 ON(t5.domain_id = t1.subdomain_alias_id AND t5.domain_type = 'alssub' AND t5.status = 'ok')
             WHERE t1.subdomain_alias_id = ?
         ",
-        undef, $entityId
+        undef, $entityId, $entityId, $entityId
     );
     $row or die( sprintf( 'Data not found for subdomain alias (ID %d)', $entityId ));
 
@@ -140,7 +144,7 @@ sub _loadEntityData
         PARENT_DOMAIN_NAME      => $row->{'alias_name'},
         DOMAIN_NAME             => $row->{'subdomain_alias_name'} . '.' . $row->{'alias_name'},
         DOMAIN_TYPE             => 'alssub',
-        DOMAIN_IP               => $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $row->{'ip_number'},
+        DOMAIN_IP               => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $webDir,
         MOUNT_POINT             => $row->{'subdomain_alias_mount'},

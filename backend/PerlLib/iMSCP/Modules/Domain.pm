@@ -89,15 +89,19 @@ sub _loadEntityData
             SELECT t1.domain_id, t1.domain_admin_id, t1.domain_mailacc_limit, t1.domain_name, t1.domain_status,
                 t1.domain_php, t1.domain_cgi, t1.external_mail, t1.web_folder_protection, t1.document_root,
                 t1.url_forward, t1.type_forward, t1.host_forward, t1.phpini_perm_config_level AS php_config_level,
-                IFNULL(t2.ip_number, '0.0.0.0') AS ip_number,
+                t2.ip_addresses,
                 t3.private_key, t3.certificate, t3.ca_bundle, t3.allow_hsts, t3.hsts_max_age,
                 t3.hsts_include_subdomains
             FROM domain AS t1
-            LEFT JOIN server_ips AS t2 ON (t2.ip_id = t1.domain_ip_id)
+            LEFT JOIN(
+                SELECT ? AS domain_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
+                FROM server_ips
+                WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT domain_ip_id FROM domain WHERE domain_id = ?), ',', '|'), ')\$')
+            ) AS t2 ON t1.domain_id = t2.domain_id
             LEFT JOIN ssl_certs AS t3 ON(t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok')
             WHERE t1.domain_id = ?
         ",
-        undef, $entityId
+        undef, $entityId, $entityId, $entityId
     );
     $row or die( sprintf( 'Data not found for domain (ID %d)', $entityId ));
 
@@ -132,7 +136,7 @@ sub _loadEntityData
         PARENT_DOMAIN_NAME      => $row->{'domain_name'},
         DOMAIN_NAME             => $row->{'domain_name'},
         DOMAIN_TYPE             => 'dmn',
-        DOMAIN_IP               => $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? '0.0.0.0' : $row->{'ip_number'},
+        DOMAIN_IP               => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $homeDir,
         MOUNT_POINT             => '/',
