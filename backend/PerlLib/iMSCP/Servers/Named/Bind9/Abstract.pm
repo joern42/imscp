@@ -788,6 +788,8 @@ sub _addDmnConfig
     $self->{'eventManager'}->trigger( 'onLoadTemplate', lc $self->getServerName(), $tplFileName, \my $tplCfgEntryContent, $moduleData );
     $tplCfgEntryContent = iMSCP::File->new( filename => "$self->{'tplDir'}/$tplFileName" )->get() unless defined $tplCfgEntryContent;
     $self->{'eventManager'}->trigger( 'beforeBindAddDmnConfig', $cfgWrkFileCref, \$tplCfgEntryContent, $moduleData );
+    
+    chomp( $tplCfgEntryContent );
 
     my $vars = {
         NAMED_DB_FORMAT => $self->{'config'}->{'NAMED_DB_FORMAT'} =~ s/=\d//r,
@@ -805,12 +807,15 @@ sub _addDmnConfig
     }
 
     # Remove previous entry if any
-    processBlocByRef( $cfgWrkFileCref, "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING." );
+    processBlocByRef(
+        $cfgWrkFileCref, "// imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.", "// imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING."
+    );
 
     # Add new entry
     processBlocByRef( $cfgWrkFileCref, '// imscp [{ENTRY_ID}] entry BEGIN.', '// imscp [{ENTRY_ID}] entry ENDING.', <<"EOF", TRUE );
+
 // imscp [$moduleData->{'DOMAIN_NAME'}] entry BEGIN.
-@{ [ processVarsByRef( \$tplCfgEntryContent, $vars ) ] }
+@{ [ processVars( $tplCfgEntryContent, $vars ) ] }
 // imscp [$moduleData->{'DOMAIN_NAME'}] entry ENDING.
 EOF
 
