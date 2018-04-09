@@ -76,7 +76,7 @@ sub processVars( $$;$ )
     $tpl;
 }
 
-=item getBlocByRef( $tpl, $blcTb, $blcTe [, $iBlcT = false ] )
+=item getBlocByRef( $tpl, $blcTb, $blcTe [, $iBlcT = FALSE [, $dBlcCnl =  FALSE ] ] )
 
  Get the first bloc matching the given bloc tags within the given template
 
@@ -84,22 +84,30 @@ sub processVars( $$;$ )
  Param string $blcTb Bloc begin tag
  Param string $blcTe Bloc ending tag
  Param bool $iBlcT Flag indicating whether or not bloc tags must be included
+ Param bool $dBlcCnl Flag indicating whether or not bloc content trailing new line must be discarded (only if $iBlcT is FALSE)
  Return string Template bloc, including or not bloc tags, croak on invalid parameters
 
 =cut
 
-sub getBlocByRef( $$$;$ )
+sub getBlocByRef( $$$;$$ )
 {
-    my ( $tpl, $blcTb, $blcTe, $iBlcT ) = @_;
+    my ( $tpl, $blcTb, $blcTe, $iBlcT, $dBlcCnl ) = @_;
 
-    ref $tpl eq 'SCALAR' or croak( 'Invalid $template parameter. Scalar reference expected.' );
+    ref $tpl eq 'SCALAR' or croak( 'Invalid $tpl parameter. Scalar reference expected.' );
 
-    $blcTb = "\Q$blcTb\E" unless ref $blcTb eq 'Regexp';
-    $blcTe = "\Q$blcTe\E" unless ref $blcTe eq 'Regexp';
-    ( $iBlcT ? ${ $tpl } =~ /([\t ]*$blcTb.*?[\t ]*$blcTe)/s : ${ $tpl } =~ /[\t ]*$blcTb(.*?)[\t ]*$blcTe/s ) ? $1 : '';
+    $blcTb = qr/\Q$blcTb\E/ unless ref $blcTb eq 'Regexp';
+    $blcTe = qr/\Q$blcTb\E/ unless ref $blcTe eq 'Regexp';
+
+    ${ $tpl } =~ /
+        (^\n*)                       # Match optional leading empty lines. Only one is kept and only if bloc tag are kept
+            ((?:^[\t ]+|)?$blcTb\n?) # Match optional leading whitespaces, bloc begin tag and optional trailing newline
+            (.*?)                    # Match bloc content
+            (\n)?                    # Match optional bloc content trailing new line 
+            ((?:^[\t ]+)?$blcTe\n?)  # Match optional leading whitespaces, bloc ending tag and optional trailing newline
+        /msx ? $iBlcT ? ( $1 ? "\n" : '' ) . $2 . $3 . $4 . $5 : $3 . ( $dBlcCnl ? '' : $4 ) : '';
 }
 
-=item getBloc( $tpl, $blcTb, $blcTe [, $iBlcT = false ] )
+=item getBloc( $tpl, $blcTb, $blcTe [, $iBlcT = FALSE ] )
 
  Get the first template bloc matching the given begin and ending tags within the given template
 
@@ -145,10 +153,10 @@ sub processBlocByRef( $$$;$$$$ )
 
     # FIXME Should we act globally (multi-blocs)
     if ( !( ${ $tpl } =~ s%
-            (^\n*)                     # Match leading empty lines. Only one is kept and only if bloc tag are kept
-            (^[\t ]+|)?($blcTbReg\n?)  # Match leading whitespaces, bloc begin tag and trailing newline
-            (.*?)                      # Match current bloc content
-            ((?:^[\t ]+)?$blcTeReg\n?) # Match leading whitespaces, bloc ending tag and trailing newline
+        (^\n*)                         # Match optional leading empty lines. Only one is kept and only if bloc tag are kept
+            (^[\t ]+|)?($blcTbReg\n?)  # Match optional leading whitespaces, bloc begin tag and optional trailing newline
+            (.*?)                      # Match bloc content
+            ((?:^[\t ]+)?$blcTeReg\n?) # Match optional leading whitespaces, bloc ending tag and optional  trailing newline
         %@{ [ ref $blcC eq 'HASH' ? processVars( $4, $blcC ) : $blcC ] }@{ [ $1 && $pBlcT ? "\n" : '' ] }@{ [ $pBlcT ? $2 . $3 : '' ] }@{ [ $pBlcC ? $4 : '' ] }@{ [ $pBlcT ? $5 : '' ] }%msx )
         && $blcA
     ) {
