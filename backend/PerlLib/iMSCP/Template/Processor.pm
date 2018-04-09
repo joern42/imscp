@@ -96,7 +96,7 @@ sub getBlocByRef( $$$;$$ )
     ref $tpl eq 'SCALAR' or croak( 'Invalid $tpl parameter. Scalar reference expected.' );
 
     $blcTb = qr/\Q$blcTb\E/ unless ref $blcTb eq 'Regexp';
-    $blcTe = qr/\Q$blcTb\E/ unless ref $blcTe eq 'Regexp';
+    $blcTe = qr/\Q$blcTe\E/ unless ref $blcTe eq 'Regexp';
 
     ${ $tpl } =~ /
         (^\n*)                       # Match optional leading empty lines. Only one is kept and only if bloc tag are kept
