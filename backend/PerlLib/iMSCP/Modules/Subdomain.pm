@@ -140,7 +140,7 @@ sub _loadEntityData
         PARENT_DOMAIN_NAME      => $row->{'user_home'},
         DOMAIN_NAME             => $row->{'subdomain_name'} . '.' . $row->{'user_home'},
         DOMAIN_TYPE             => 'sub',
-        DOMAIN_IP               => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
+        DOMAIN_IPS              => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $webDir,
         MOUNT_POINT             => $row->{'subdomain_mount'},

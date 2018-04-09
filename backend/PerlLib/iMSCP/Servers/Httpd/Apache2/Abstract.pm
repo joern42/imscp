@@ -904,7 +904,7 @@ sub _disableDomain
     } );
 
     my $net = iMSCP::Net->getInstance();
-    my @domainIPs = ( $moduleData->{'DOMAIN_IP'}, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
+    my @domainIPs = ( @{$moduleData->{'DOMAIN_IPS'}}, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
 
     $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
 
@@ -977,7 +977,7 @@ sub _addCfg
     $self->{'eventManager'}->trigger( 'beforeApacheAddCfg', $moduleData );
 
     my $net = iMSCP::Net->getInstance();
-    my @domainIPs = ( $moduleData->{'DOMAIN_IP'}, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
+    my @domainIPs = ( @{$moduleData->{'DOMAIN_IPS'}}, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
 
     $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
 

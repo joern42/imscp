@@ -144,7 +144,7 @@ sub _loadEntityData
         PARENT_DOMAIN_NAME      => $row->{'alias_name'},
         DOMAIN_NAME             => $row->{'subdomain_alias_name'} . '.' . $row->{'alias_name'},
         DOMAIN_TYPE             => 'alssub',
-        DOMAIN_IP               => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
+        DOMAIN_IPS              => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $webDir,
         MOUNT_POINT             => $row->{'subdomain_alias_mount'},

@@ -136,7 +136,7 @@ sub _loadEntityData
         PARENT_DOMAIN_NAME      => $row->{'domain_name'},
         DOMAIN_NAME             => $row->{'domain_name'},
         DOMAIN_TYPE             => 'dmn',
-        DOMAIN_IP               => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
+        DOMAIN_IPS              => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $homeDir,
         MOUNT_POINT             => '/',
