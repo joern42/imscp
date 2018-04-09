@@ -36,7 +36,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     /**
      * @var int Last database update revision
      */
-    protected $lastUpdate = 278;
+    protected $lastUpdate = 281;
 
     /**
      * Prohibit upgrade from i-MSCP versions older than 1.1.x
@@ -1740,7 +1740,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         }
 
         return [
-            $this->changeColumn('admin', 'admin_status', "`admin_status` text collate utf8_unicode_ci NOT NULL"),
+            $this->changeColumn('admin', 'admin_status', '`admin_status` text collate utf8_unicode_ci NOT NULL'),
             $this->changeColumn('domain', 'domain_status', '`domain_status` text collate utf8_unicode_ci NOT NULL'),
             $this->changeColumn('domain_aliasses', 'alias_status', '`alias_status` text collate utf8_unicode_ci NOT NULL'),
             $this->changeColumn('ftp_users', 'status', "`status` text collate utf8_unicode_ci NOT NULL"),
@@ -1753,6 +1753,66 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             $this->changeColumn('ssl_certs', 'status', '`status` text collate utf8_unicode_ci NOT NULL'),
             $this->changeColumn('subdomain', 'subdomain_status', '`subdomain_status` text collate utf8_unicode_ci NOT NULL'),
             $this->changeColumn('subdomain_alias', 'subdomain_alias_status', '`subdomain_alias_status` text collate utf8_unicode_ci NOT NULL')
+        ];
+    }
+
+    /**
+     * Add subdomain.subdomain_ip_id column - Make it possible to assign specific IP addresses to subdomains
+     * Add subdomain_alias.subdomain_alias_ip_id column - Make it possible to assign specific IP addresses to subdomains of domain aliases
+     *
+     * @return array SQL statements to be executed
+     */
+    protected function r279()
+    {
+        $sqlQueries = [];
+
+        $sqlQuery = $this->addColumn('subdomain', 'subdomain_ip_id', 'TEXT NOT NULL AFTER subdomain_name');
+        if ($sqlQuery !== NULL) {
+            $sqlQueries[] = $sqlQuery;
+            # Fills the new column with data from domain.domain_ip_id column
+            $sqlQueries[] = 'UPDATE subdomain t1 JOIN domain t2 USING(domain_id) SET t1.subdomain_ip_id = t2.domain_ip_id';
+        }
+
+        $sqlQuery = $this->addColumn('subdomain_alias', 'subdomain_alias_ip_id', 'TEXT NOT NULL AFTER subdomain_alias_name');
+        if ($sqlQuery !== NULL) {
+            $sqlQueries[] = $sqlQuery;
+            # Fills the new column with data from domain_aliasses.alias_ip_id column
+            $sqlQueries[] = 'UPDATE subdomain_alias t1 JOIN domain_aliasses t2 USING(alias_id) SET t1.subdomain_alias_ip_id = t2.alias_ip_id';
+        }
+
+        return $sqlQueries;
+    }
+
+    /**
+     * Add domain.domain_ip_assigned column - Make it possible to assigne more than one IP address to one customer
+     *
+     * @return array SQL statements to be executed
+     */
+    protected function r280()
+    {
+        $sqlQueries = [];
+
+        $sqlQuery = $this->addColumn('domain', 'domain_ip_assigned', 'TEXT NOT NULL NULL AFTER domain_subd_limit');
+        if ($sqlQuery !== NULL) {
+            $sqlQueries[] = $sqlQuery;
+            # Fills the new column with data from domain.domain_ip_id column
+            $sqlQueries[] = 'UPDATE domain SET domain_ip_assigned = domain_ip_id';
+        }
+
+        return $sqlQueries;
+    }
+
+    /**
+     * Update domain.domain_ip_id column - Make it possible to set more than one IP address to one domain
+     * Update aliasses.alias_ip_id column - Make it possible to set more than one IP address to one domain alias
+     *
+     * @return array SQL statements to be executed
+     */
+    protected function r281()
+    {
+        return [
+            $this->changeColumn('domain', 'domain_ip_id', '`domain_ip_id` text NOT NULL'),
+            $this->changeColumn('domain_aliasses', 'alias_ip_id', '`alias_ip_id` text NOT NULL')
         ];
     }
 }
