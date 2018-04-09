@@ -6,7 +6,7 @@ $ORIGIN {SUBDOMAIN_NAME}.
 www     IN    CNAME    @
 ftp     IN    {IP_TYPE}    {DOMAIN_IP}
 ; sub OPTIONAL entries ENDING.
-: sub SUBDOMAIN entries ENDING.
+; sub SUBDOMAIN entries ENDING.
 ; sub MAIL entry BEGIN.
 @       IN    MX    10 mail
 @       IN    TXT   "v=spf1 include:{DOMAIN_NAME} -all"

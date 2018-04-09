@@ -97,7 +97,7 @@ sub _loadEntityData
             JOIN domain_aliasses AS t2 USING(alias_id)
             JOIN domain AS t3 USING (domain_id)
             LEFT JOIN(
-                SELECT ? AS alias_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
+                SELECT ? AS subdomain_alias_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
                 FROM server_ips
                 WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT subdomain_alias_ip_id FROM subdomain_alias WHERE subdomain_alias_id = ?), ',', '|'), ')\$')
             ) AS t4 ON t1.subdomain_alias_id = t4.subdomain_alias_id

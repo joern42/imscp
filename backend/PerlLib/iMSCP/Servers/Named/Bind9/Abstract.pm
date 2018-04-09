@@ -539,13 +539,13 @@ sub addSubdomain
     processBlocByRef( \$subEntry, '; sub OPTIONAL entries BEGIN.', '; sub OPTIONAL entries ENDING.', '', FALSE, $moduleData->{'OPTIONAL_ENTRIES'} );
 
     # Prepare subdomain entries
-    my ( $i, $ipCount ) = ( 0, scalar @routableIps );
+    my ( $i, $ipCount ) = ( 1, scalar @routableIps );
     for my $ipAddr ( @routableIps ) {
-        $i++;
         processBlocByRef( \$subEntry, '; sub SUBDOMAIN_entries BEGIN.', '; sub SUBDOMAIN entries ENDING.', {
             IP_TYPE   => $net->getAddrVersion( $ipAddr ) eq 'ipv4' ? 'A' : 'AAAA',
             DOMAIN_IP => $ipAddr
-        }, $i < $ipCount, $i < $ipCount );
+        }, $ipCount > $i, $ipCount > $i );
+        $i++;
     }
 
     # Process remaining template variable
@@ -932,13 +932,13 @@ sub _addDmnDb
     } );
 
     # Prepare domain entries
-    my ( $i, $ipCount ) = ( 0, scalar @routableIps );
+    my ( $i, $ipCount ) = ( 1, scalar @routableIps );
     for my $ipAddr ( @routableIps ) {
-        $i++;
         processBlocByRef( \$tplDbFileC, '; dmn DOMAIN entries BEGIN.', '; dmn DOMAIN entries ENDING.', {
             IP_TYPE   => $net->getAddrVersion( $ipAddr ) eq 'ipv4' ? 'A' : 'AAAA',
             DOMAIN_IP => $ipAddr
-        }, $i < $ipCount, $i < $ipCount );
+        }, $ipCount > $i, $ipCount > $i );
+        $i++;
     }
 
     # Process remaining template variable
