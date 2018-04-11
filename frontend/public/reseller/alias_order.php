@@ -42,7 +42,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'reject' && isset($_GET['id'])
     $stmt = exec_query(
         '
             SELECT alias_id
-            FROM domain_aliasses
+            FROM domain_aliases
             JOIN domain USING(domain_id)
             JOIN admin ON(admin_id = domain_admin_id)
             WHERE alias_id = ?
@@ -60,7 +60,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'reject' && isset($_GET['id'])
     try {
         $db->beginTransaction();
         exec_query("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'als'", [$id]);
-        exec_query("DELETE FROM domain_aliasses WHERE alias_id = ? AND alias_status = 'ordered'", [$id]);
+        exec_query("DELETE FROM domain_aliases WHERE alias_id = ? AND alias_status = 'ordered'", [$id]);
         $db->commit();
         write_log(sprintf('An alias order has been rejected by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
         set_page_message('Alias order successfully rejected.', 'success');
@@ -81,7 +81,7 @@ $id = intval($_GET['id']);
 $stmt = exec_query(
     "
         SELECT alias_name, domain_id, email
-        FROM domain_aliasses
+        FROM domain_aliases
         JOIN domain USING(domain_id)
         JOIN admin ON(admin_id = domain_admin_id)
         WHERE alias_id = ?
@@ -107,7 +107,7 @@ try {
         'domainAliasName' => $row['alias_name']
     ]);
 
-    exec_query("UPDATE domain_aliasses SET alias_status = 'toadd' WHERE alias_id = ?", [$id]);
+    exec_query("UPDATE domain_aliases SET alias_status = 'toadd' WHERE alias_id = ?", [$id]);
 
     $cfg = Registry::get('config');
 

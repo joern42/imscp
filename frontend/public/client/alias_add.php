@@ -98,14 +98,14 @@ function getDomainsList()
             AND t1.subdomain_url_forward = 'no'
             UNION ALL
             SELECT alias_name AS name, alias_mount AS mount_point
-            FROM domain_aliasses
+            FROM domain_aliases
             WHERE domain_id = ?
             AND alias_status = 'ok'
             AND url_forward = 'no'
             UNION ALL
             SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) AS name, t1.subdomain_alias_mount AS mount_point
             FROM subdomain_alias AS t1
-            JOIN domain_aliasses AS t2 USING(alias_id)
+            JOIN domain_aliases AS t2 USING(alias_id)
             WHERE t2.domain_id = ?
             AND t1.subdomain_alias_status = 'ok'
             AND t1.subdomain_alias_url_forward = 'no'
@@ -307,7 +307,7 @@ function addDomainAlias()
 
         exec_query(
             '
-                INSERT INTO domain_aliasses (
+                INSERT INTO domain_aliases (
                     domain_id, alias_name, alias_mount, alias_document_root, alias_status, alias_ips, url_forward, type_forward, host_forward
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?, ?

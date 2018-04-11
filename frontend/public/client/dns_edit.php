@@ -541,7 +541,7 @@ function client_saveDnsRecord($dnsRecordId)
             $domainId = 0;
         } else {
             $stmt = exec_query(
-                'SELECT alias_id, alias_name FROM domain_aliasses WHERE alias_id = ? AND domain_id = ?',
+                'SELECT alias_id, alias_name FROM domain_aliases WHERE alias_id = ? AND domain_id = ?',
                 [intval($_POST['zone_id']), $mainDmnId]
             );
 
@@ -560,7 +560,7 @@ function client_saveDnsRecord($dnsRecordId)
                     IFNULL(t3.alias_status, t2.domain_status) AS domain_status
                 FROM domain_dns AS t1
                 LEFT JOIN domain AS t2 USING(domain_id)
-                LEFT JOIN domain_aliasses AS t3 USING (alias_id)
+                LEFT JOIN domain_aliases AS t3 USING (alias_id)
                 WHERE domain_dns_id = ?
                 AND t1.domain_id = ?
             ',
@@ -899,7 +899,7 @@ function generatePage($tpl, $dnsRecordId)
             "
                 SELECT '0' AS domain_id, domain_name FROM domain WHERE domain_id = ?
                 UNION
-                SELECT alias_id AS domain_id, alias_name AS domain_name FROM domain_aliasses
+                SELECT alias_id AS domain_id, alias_name AS domain_name FROM domain_aliases
                 WHERE domain_id = ? AND alias_status <> ?
             ",
             [$mainDomainId, $mainDomainId, 'ordered']

@@ -44,7 +44,7 @@ function generateDomainTypeList($mainDmnId, $tpl)
                 count(t4.subdomain_alias_id) AS alssub_count
             FROM domain AS t1
             LEFT JOIN subdomain AS t2 ON(t2.domain_id = t1.domain_id)
-            LEFT JOIN domain_aliasses AS t3 ON(t3.domain_id = t1.domain_id)
+            LEFT JOIN domain_aliases AS t3 ON(t3.domain_id = t1.domain_id)
             LEFT JOIN subdomain_alias AS t4 ON(t4.alias_id = t3.alias_id)
             WHERE t1.domain_id = ?
         ',
@@ -98,12 +98,12 @@ function getDomainList($mainDmnName, $mainDmnId, $dmnType = 'dmn')
             ";
             break;
         case 'als':
-            $query = 'SELECT alias_name AS name FROM domain_aliasses WHERE domain_id = ? AND alias_status = ?';
+            $query = 'SELECT alias_name AS name FROM domain_aliases WHERE domain_id = ? AND alias_status = ?';
             break;
         case 'alssub':
             $query = "
                 SELECT CONCAT(t2.subdomain_alias_name, '.', t1.alias_name) AS name
-                FROM domain_aliasses AS t1
+                FROM domain_aliases AS t1
                 JOIN subdomain_alias AS t2 ON(t2.alias_id = t1.alias_id)
                 WHERE t1.domain_id = ?
                 AND t2.subdomain_alias_status = ?

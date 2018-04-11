@@ -36,7 +36,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     /**
      * @var int Last database update revision
      */
-    protected $lastUpdate = 283;
+    protected $lastUpdate = 284;
 
     /**
      * Prohibit upgrade from i-MSCP versions older than 1.1.x
@@ -68,22 +68,12 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         return [
             // sql_database table update
             $this->changeColumn('sql_database', 'domain_id', 'domain_id INT(10) UNSIGNED NOT NULL'),
-            $this->changeColumn(
-                'sql_database', 'sqld_name', 'sqld_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL'
-            ),
+            $this->changeColumn('sql_database', 'sqld_name', 'sqld_name VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL'),
             // sql_user table update
             $this->changeColumn('sql_user', 'sqld_id', 'sqld_id INT(10) UNSIGNED NOT NULL'),
-            $this->changeColumn(
-                'sql_user', 'sqlu_name', 'sqlu_name VARCHAR(16) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL'
-            ),
-            $this->changeColumn(
-                'sql_user', 'sqlu_pass', 'sqlu_pass VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL'
-            ),
-            $this->addColumn(
-                'sql_user',
-                'sqlu_host',
-                'VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL AFTER sqlu_name'
-            ),
+            $this->changeColumn('sql_user', 'sqlu_name', 'sqlu_name VARCHAR(16) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL'),
+            $this->changeColumn('sql_user', 'sqlu_pass', 'sqlu_pass VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL'),
+            $this->addColumn('sql_user', 'sqlu_host', 'VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL AFTER sqlu_name'),
             $this->addIndex('sql_user', 'sqlu_name', 'INDEX', 'sqlu_name'),
             $this->addIndex('sql_user', 'sqlu_host', 'INDEX', 'sqlu_host')
         ];
@@ -109,25 +99,9 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         if ($stmt->rowCount()) {
             while ($row = $stmt->fetch()) {
                 $sqlUser = quoteValue($row['sqlu_name']);
-
-                $sqlQueries[] = "
-                    UPDATE IGNORE mysql.user
-                    SET Host = $sqlUserHost
-                    WHERE User = $sqlUser
-                    AND Host NOT IN ($sqlUserHost, '%')
-                ";
-
-                $sqlQueries[] = "
-                    UPDATE IGNORE mysql.db
-                    SET Host = $sqlUserHost
-                    WHERE User = $sqlUser
-                    AND Host NOT IN ($sqlUserHost, '%')
-                ";
-
-                $sqlQueries[] = "
-                    UPDATE sql_user SET sqlu_host = $sqlUserHost
-                    WHERE sqlu_name = $sqlUser AND sqlu_host NOT IN ($sqlUserHost, '%')
-                ";
+                $sqlQueries[] = "UPDATE IGNORE mysql.user SET Host = $sqlUserHost WHERE User = $sqlUser AND Host NOT IN ($sqlUserHost, '%')";
+                $sqlQueries[] = "UPDATE IGNORE mysql.db SET Host = $sqlUserHost WHERE User = $sqlUser AND Host NOT IN ($sqlUserHost, '%')";
+                $sqlQueries[] = "UPDATE sql_user SET sqlu_host = $sqlUserHost WHERE sqlu_name = $sqlUser AND sqlu_host NOT IN ($sqlUserHost, '%')";
             }
 
             $sqlQueries[] = 'FLUSH PRIVILEGES';
@@ -202,12 +176,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r181()
     {
         return $this->changeColumn(
-            'ssl_certs',
-            'type',
-            "
-                domain_type ENUM('dmn','als','sub','alssub')
-                CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'dmn'
-            "
+            'ssl_certs', 'type', "domain_type ENUM('dmn','als','sub','alssub') CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'dmn'"
         );
     }
 
@@ -218,9 +187,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r182()
     {
-        return $this->changeColumn(
-            'ssl_certs', 'key', 'private_key TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL'
-        );
+        return $this->changeColumn('ssl_certs', 'key', 'private_key TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL');
     }
 
     /**
@@ -230,9 +197,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r183()
     {
-        return $this->changeColumn(
-            'ssl_certs', 'cert', 'certificate TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL'
-        );
+        return $this->changeColumn('ssl_certs', 'cert', 'certificate TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL');
     }
 
     /**
@@ -242,9 +207,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r184()
     {
-        return $this->changeColumn(
-            'ssl_certs', 'ca_cert', 'ca_bundle TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT NULL'
-        );
+        return $this->changeColumn('ssl_certs', 'ca_cert', 'ca_bundle TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT NULL');
     }
 
     /**
@@ -288,8 +251,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             $certificate = quoteValue(str_replace("\r\n", "\n", trim($row['certificate'])) . PHP_EOL);
             $caBundle = quoteValue(str_replace("\r\n", "\n", trim($row['ca_bundle'])));
             $sqlQueries[] = "
-                UPDATE ssl_certs SET private_key = $privateKey, certificate = $certificate, ca_bundle = $caBundle
-                WHERE cert_id = $certificateId
+                UPDATE ssl_certs SET private_key = $privateKey, certificate = $certificate, ca_bundle = $caBundle WHERE cert_id = $certificateId
             ";
         }
 
@@ -317,9 +279,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r191()
     {
-        return $this->addColumn(
-            'mail_users', 'po_active', "VARCHAR(3) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'yes' AFTER status"
-        );
+        return $this->addColumn('mail_users', 'po_active', "VARCHAR(3) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'yes' AFTER status");
     }
 
     /**
@@ -329,10 +289,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r192()
     {
-        return "
-            UPDATE mail_users SET mail_pass = SUBSTRING(mail_pass, 4), po_active = 'no'
-            WHERE mail_pass <> '_no_' AND status = 'disabled'
-        ";
+        return "UPDATE mail_users SET mail_pass = SUBSTRING(mail_pass, 4), po_active = 'no' WHERE mail_pass <> '_no_' AND status = 'disabled'";
     }
 
     /**
@@ -415,11 +372,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r199()
     {
-        return $this->addColumn(
-            'domain_dns',
-            'domain_dns_status',
-            "VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'ok'"
-        );
+        return $this->addColumn('domain_dns', 'domain_dns_status', "VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'ok'");
     }
 
     /**
@@ -430,9 +383,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r200()
     {
         $sql = $this->addColumn(
-            'plugin',
-            'plugin_config_prev',
-            "VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL AFTER plugin_config"
+            'plugin', 'plugin_config_prev', "VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL AFTER plugin_config"
         );
 
         if ($sql !== NULL) {
@@ -451,9 +402,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         return [
             $this->changeColumn(
-                'plugin',
-                'plugin_config_prev',
-                'plugin_config_prev TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT NULL'
+                'plugin', 'plugin_config_prev', 'plugin_config_prev TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT NULL'
             ),
             'UPDATE plugin SET plugin_config_prev = plugin_config'
         ];
@@ -467,11 +416,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r203()
     {
         return [
-            $this->changeColumn(
-                'domain',
-                'allowbackup',
-                "allowbackup varchar(12) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'dmn|sql|mail'"
-            ),
+            $this->changeColumn('domain', 'allowbackup', "allowbackup varchar(12) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'dmn|sql|mail'"),
             "UPDATE domain SET allowbackup = REPLACE(allowbackup, 'full', 'dmn|sql|mail')",
             "UPDATE domain SET allowbackup = REPLACE(allowbackup, 'no', '')"
         ];
@@ -549,9 +494,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         return [
             $this->addColumn('php_ini', 'admin_id', 'INT(10) NOT NULL AFTER `id`'),
             $this->addColumn(
-                'php_ini',
-                'domain_type',
-                "VARCHAR(15) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'dmn' AFTER `domain_id`"
+                'php_ini', 'domain_type', "VARCHAR(15) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'dmn' AFTER `domain_id`"
             ),
             $this->addIndex('php_ini', 'admin_id', 'KEY'),
             $this->addIndex('php_ini', 'domain_id', 'KEY'),
@@ -574,15 +517,11 @@ class UpdateDatabase extends UpdateDatabaseAbstract
 
         // Add permission column for resellers
         $sqlQueries[] = $this->addColumn(
-            'reseller_props',
-            'php_ini_al_mail_function',
-            "VARCHAR(15) NOT NULL DEFAULT 'yes' AFTER `php_ini_al_disable_functions`"
+            'reseller_props', 'php_ini_al_mail_function', "VARCHAR(15) NOT NULL DEFAULT 'yes' AFTER `php_ini_al_disable_functions`"
         );
         # Add permission column for clients
         $sqlQueries[] = $this->addColumn(
-            'domain',
-            'phpini_perm_mail_function',
-            "VARCHAR(20) NOT NULL DEFAULT 'yes' AFTER `phpini_perm_disable_functions`"
+            'domain', 'phpini_perm_mail_function', "VARCHAR(20) NOT NULL DEFAULT 'yes' AFTER `phpini_perm_disable_functions`"
         );
 
         // Add PHP mail permission property in hosting plans if any
@@ -593,9 +532,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
 
             if (sizeof($props) < 26) {
                 array_splice($props, 18, 0, 'yes'); // Insert new property at position 18
-                $sqlQueries[] = '
-                    UPDATE hosting_plans
-                    SET props = ' . quoteValue(implode(';', $props)) . ' WHERE id = ' . $id;
+                $sqlQueries[] = 'UPDATE hosting_plansSET props = ' . quoteValue(implode(';', $props)) . ' WHERE id = ' . $id;
             }
         }
 
@@ -623,10 +560,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         return $this->changeColumn(
             'php_ini',
             'error_reporting',
-            "
-                error_reporting VARCHAR(255)
-                CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'E_ALL & ~E_DEPRECATED & ~E_STRICT'
-            "
+            "error_reporting VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT 'E_ALL & ~E_DEPRECATED & ~E_STRICT'"
         );
     }
 
@@ -638,9 +572,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r216()
     {
-        return "
-            DELETE FROM hosting_plans WHERE reseller_id NOT IN(SELECT admin_id FROM admin WHERE admin_type = 'reseller')
-        ";
+        return "DELETE FROM hosting_plans WHERE reseller_id NOT IN(SELECT admin_id FROM admin WHERE admin_type = 'reseller')";
     }
 
     /**
@@ -663,9 +595,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         return [
             $this->changeColumn(
-                'domain',
-                'external_mail_dns_ids',
-                "external_mail_dns_ids VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT ''"
+                'domain', 'external_mail_dns_ids', "external_mail_dns_ids VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL DEFAULT ''"
             ),
             $this->changeColumn(
                 'domain_aliasses',
@@ -713,17 +643,9 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r221()
     {
         return [
-            $this->changeColumn(
-                'domain_dns', 'domain_dns', "`domain_dns` TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL"
-            ),
-            $this->changeColumn(
-                'domain_dns', 'domain_text', "`domain_text` TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL"
-            ),
-            $this->addIndex(
-                'domain_dns',
-                ['domain_id', 'alias_id', 'domain_dns(255)', 'domain_class', 'domain_type', 'domain_text(255)'],
-                'UNIQUE'
-            )
+            $this->changeColumn('domain_dns', 'domain_dns', "`domain_dns` TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL"),
+            $this->changeColumn('domain_dns', 'domain_text', "`domain_text` TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL"),
+            $this->addIndex('domain_dns', ['domain_id', 'alias_id', 'domain_dns(255)', 'domain_class', 'domain_type', 'domain_text(255)'], 'UNIQUE')
         ];
     }
 
@@ -736,9 +658,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         $stmt = execute_query('SELECT userid FROM ftp_users');
         while ($row = $stmt->fetch()) {
-            exec_query('UPDATE ftp_users SET userid = ? WHERE userid = ?', [
-                encode_idna($row['userid']), $row['userid']
-            ]);
+            exec_query('UPDATE ftp_users SET userid = ? WHERE userid = ?', [encode_idna($row['userid']), $row['userid']]);
         }
 
         $stmt = execute_query('SELECT groupname, members FROM ftp_group');
@@ -759,11 +679,8 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r223()
     {
-        if (isset($this->dbConfig['LOG_LEVEL'])
-            && preg_match('/\D/', $this->dbConfig['LOG_LEVEL'])
-        ) {
-            $this->dbConfig['LOG_LEVEL'] = defined($this->dbConfig['LOG_LEVEL'])
-                ? constant($this->dbConfig['LOG_LEVEL']) : E_USER_ERROR;
+        if (isset($this->dbConfig['LOG_LEVEL']) && preg_match('/\D/', $this->dbConfig['LOG_LEVEL'])) {
+            $this->dbConfig['LOG_LEVEL'] = defined($this->dbConfig['LOG_LEVEL']) ? constant($this->dbConfig['LOG_LEVEL']) : E_USER_ERROR;
         }
 
         return NULL;
@@ -776,11 +693,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r224()
     {
-        return $this->addColumn(
-            'ssl_certs',
-            'allow_hsts',
-            "VARCHAR(10) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'off' AFTER ca_bundle"
-        );
+        return $this->addColumn('ssl_certs', 'allow_hsts', "VARCHAR(10) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'off' AFTER ca_bundle");
     }
 
     /**
@@ -792,22 +705,14 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         $sqlQueries = [];
 
-        $sql = $this->addColumn(
-            'domain_aliasses',
-            'type_forward',
-            "VARCHAR(5) COLLATE utf8_unicode_ci DEFAULT NULL AFTER url_forward"
-        );
+        $sql = $this->addColumn('domain_aliasses', 'type_forward', "VARCHAR(5) COLLATE utf8_unicode_ci DEFAULT NULL AFTER url_forward");
 
         if ($sql !== NULL) {
             $sqlQueries[] = $sql;
             $sqlQueries[] = "UPDATE domain_aliasses SET type_forward = '302' WHERE url_forward <> 'no'";
         }
 
-        $sql = $this->addColumn(
-            'subdomain',
-            'subdomain_type_forward',
-            "VARCHAR(5) COLLATE utf8_unicode_ci DEFAULT NULL AFTER subdomain_url_forward"
-        );
+        $sql = $this->addColumn('subdomain', 'subdomain_type_forward', "VARCHAR(5) COLLATE utf8_unicode_ci DEFAULT NULL AFTER subdomain_url_forward");
 
         if ($sql !== NULL) {
             $sqlQueries[] = $sql;
@@ -815,18 +720,12 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         }
 
         $sql = $this->addColumn(
-            'subdomain_alias',
-            'subdomain_alias_type_forward',
-            "VARCHAR(5) COLLATE utf8_unicode_ci DEFAULT NULL AFTER subdomain_alias_url_forward"
+            'subdomain_alias', 'subdomain_alias_type_forward', "VARCHAR(5) COLLATE utf8_unicode_ci DEFAULT NULL AFTER subdomain_alias_url_forward"
         );
 
         if ($sql !== NULL) {
             $sqlQueries[] = $sql;
-            $sqlQueries[] = "
-                UPDATE subdomain_alias
-                SET subdomain_alias_type_forward = '302'
-                WHERE subdomain_alias_url_forward <> 'no'
-            ";
+            $sqlQueries[] = "UPDATE subdomain_alias SET subdomain_alias_type_forward = '302' WHERE subdomain_alias_url_forward <> 'no'";
         }
 
         return $sqlQueries;
@@ -845,38 +744,26 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             $uri = UriRedirect::fromString($row['url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
-            exec_query('UPDATE domain_aliasses SET url_forward = ? WHERE alias_id = ?', [
-                $uri->getUri(), $row['alias_id']
-            ]);
+            exec_query('UPDATE domain_aliasses SET url_forward = ? WHERE alias_id = ?', [$uri->getUri(), $row['alias_id']]);
         }
 
-        $stmt = execute_query(
-            "SELECT subdomain_id, subdomain_url_forward FROM subdomain WHERE subdomain_url_forward <> 'no'"
-        );
+        $stmt = execute_query("SELECT subdomain_id, subdomain_url_forward FROM subdomain WHERE subdomain_url_forward <> 'no'");
 
         while ($row = $stmt->fetch()) {
             $uri = UriRedirect::fromString($row['subdomain_url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
-            exec_query('UPDATE subdomain SET subdomain_url_forward = ? WHERE subdomain_id = ?', [
-                $uri->getUri(), $row['subdomain_id']
-            ]);
+            exec_query('UPDATE subdomain SET subdomain_url_forward = ? WHERE subdomain_id = ?', [$uri->getUri(), $row['subdomain_id']]);
         }
 
-        $stmt = execute_query(
-            "
-                SELECT subdomain_alias_id, subdomain_alias_url_forward
-                FROM subdomain_alias
-                WHERE subdomain_alias_url_forward <> 'no'
-            "
-        );
+        $stmt = execute_query("SELECT subdomain_alias_id, subdomain_alias_url_forward FROM subdomain_alias WHERE subdomain_alias_url_forward <> 'no'");
         while ($row = $stmt->fetch()) {
             $uri = UriRedirect::fromString($row['subdomain_alias_url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
             exec_query('UPDATE subdomain_alias SET subdomain_alias_url_forward = ? WHERE subdomain_alias_id = ?', [
-                $uri->getUri(), $row['subdomain_alias_id']
-            ]);
+                    $uri->getUri(), $row['subdomain_alias_id']]
+            );
         }
     }
 
@@ -888,16 +775,8 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r227()
     {
         return [
-            $this->addColumn(
-                'ssl_certs',
-                'hsts_max_age',
-                "int(11) NOT NULL DEFAULT '31536000' AFTER allow_hsts"
-            ),
-            $this->addColumn(
-                'ssl_certs',
-                'hsts_include_subdomains',
-                "VARCHAR(10) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'off' AFTER hsts_max_age"
-            )
+            $this->addColumn('ssl_certs', 'hsts_max_age', "int(11) NOT NULL DEFAULT '31536000' AFTER allow_hsts"),
+            $this->addColumn('ssl_certs', 'hsts_include_subdomains', "VARCHAR(10) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'off' AFTER hsts_max_age")
         ];
     }
 
@@ -945,11 +824,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r231()
     {
-        return $this->addColumn(
-            'server_ips',
-            'ip_config_mode',
-            "VARCHAR(15) COLLATE utf8_unicode_ci DEFAULT 'auto' AFTER ip_card"
-        );
+        return $this->addColumn('server_ips', 'ip_config_mode', "VARCHAR(15) COLLATE utf8_unicode_ci DEFAULT 'auto' AFTER ip_card");
     }
 
     /**
@@ -1054,16 +929,8 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             $this->addColumn('domain', 'url_forward', "VARCHAR(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'no'"),
             $this->addColumn('domain', 'type_forward', "VARCHAR(5) COLLATE utf8_unicode_ci DEFAULT NULL"),
             $this->addColumn('domain', 'host_forward', "VARCHAR(3) COLLATE utf8_unicode_ci DEFAULT 'Off'"),
-            $this->addColumn(
-                'domain_aliasses',
-                'host_forward',
-                "VARCHAR(3) COLLATE utf8_unicode_ci DEFAULT 'Off' AFTER type_forward"
-            ),
-            $this->addColumn(
-                'subdomain',
-                'subdomain_host_forward',
-                "VARCHAR(3) COLLATE utf8_unicode_ci DEFAULT 'Off' AFTER subdomain_type_forward"
-            ),
+            $this->addColumn('domain_aliasses', 'host_forward', "VARCHAR(3) COLLATE utf8_unicode_ci DEFAULT 'Off' AFTER type_forward"),
+            $this->addColumn('subdomain', 'subdomain_host_forward', "VARCHAR(3) COLLATE utf8_unicode_ci DEFAULT 'Off' AFTER subdomain_type_forward"),
             $this->addColumn(
                 'subdomain_alias',
                 'subdomain_alias_host_forward',
@@ -1081,10 +948,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         return [
             "UPDATE domain_aliasses SET url_forward = 'no', type_forward = NULL WHERE url_forward LIKE 'ftp://%'",
-            "
-                UPDATE subdomain SET subdomain_url_forward = 'no', subdomain_type_forward = NULL
-                WHERE subdomain_url_forward LIKE 'ftp://%'
-            ",
+            "UPDATE subdomain SET subdomain_url_forward = 'no', subdomain_type_forward = NULL WHERE subdomain_url_forward LIKE 'ftp://%'",
             "
                 UPDATE subdomain_alias SET subdomain_alias_url_forward = 'no', subdomain_alias_type_forward = NULL
                 WHERE subdomain_alias_url_forward LIKE 'ftp://%'
@@ -1152,9 +1016,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         $stmt = execute_query('SELECT ip_id, ip_number, ip_netmask FROM server_ips');
 
         while ($row = $stmt->fetch()) {
-            if ($this->config['BASE_SERVER_IP'] === $row['ip_number']
-                || $row['ip_netmask'] !== NULL
-            ) {
+            if ($this->config['BASE_SERVER_IP'] === $row['ip_number'] || $row['ip_netmask'] !== NULL) {
                 continue;
             }
 
@@ -1178,10 +1040,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r244()
     {
         return [
-            "
-                ALTER TABLE plugin CHANGE plugin_locked plugin_lockers
-                TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL;
-            ",
+            "ALTER TABLE plugin CHANGE plugin_locked plugin_lockers TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT NULL",
             "UPDATE plugin SET plugin_lockers = '{}'"
         ];
     }
@@ -1198,20 +1057,12 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r245()
     {
         return [
+            $this->addColumn('domain', 'document_root', "varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs' AFTER mail_quota"),
             $this->addColumn(
-                'domain',
-                'document_root',
-                "varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs' AFTER mail_quota"
+                'subdomain', 'subdomain_document_root', "varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs' AFTER subdomain_mount"
             ),
             $this->addColumn(
-                'subdomain',
-                'subdomain_document_root',
-                "varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs' AFTER subdomain_mount"
-            ),
-            $this->addColumn(
-                'domain_aliasses',
-                'alias_document_root',
-                "varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs' AFTER alias_mount"
+                'domain_aliasses', 'alias_document_root', "varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs' AFTER alias_mount"
             ),
             $this->addColumn(
                 'subdomain_alias',
@@ -1248,9 +1099,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r248()
     {
-        return $this->changeColumn(
-            'mail_users', 'mail_pass', "mail_pass varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '_no_'"
-        );
+        return $this->changeColumn('mail_users', 'mail_pass', "mail_pass varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '_no_'");
     }
 
     /**
@@ -1260,14 +1109,10 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r249()
     {
-        $stmt = exec_query('SELECT mail_id, mail_pass FROM mail_users WHERE mail_pass <> ? AND mail_pass NOT LIKE ?', [
-            '_no_', '$6$%'
-        ]);
+        $stmt = exec_query('SELECT mail_id, mail_pass FROM mail_users WHERE mail_pass <> ? AND mail_pass NOT LIKE ?', ['_no_', '$6$%']);
 
         while ($row = $stmt->fetch()) {
-            exec_query('UPDATE mail_users SET mail_pass = ? WHERE mail_id = ?', [
-                Crypt::sha512($row['mail_pass']), $row['mail_id']
-            ]);
+            exec_query('UPDATE mail_users SET mail_pass = ? WHERE mail_id = ?', [Crypt::sha512($row['mail_pass']), $row['mail_id']]);
         }
     }
 
@@ -1278,11 +1123,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r250()
     {
-        return $this->changeColumn(
-            'server_ips',
-            'ip_number',
-            'ip_number VARCHAR(45) CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT NULL'
-        );
+        return $this->changeColumn('server_ips', 'ip_number', 'ip_number VARCHAR(45) CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT NULL');
     }
 
     /**
@@ -1292,11 +1133,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r251()
     {
-        return "
-            DELETE FROM mail_users
-            WHERE mail_acc RLIKE '^abuse|hostmaster|postmaster|webmaster\\$'
-            AND mail_forward IS NULL
-        ";
+        return "DELETE FROM mail_users WHERE mail_acc RLIKE '^abuse|hostmaster|postmaster|webmaster\\$' AND mail_forward IS NULL";
     }
 
     /**
@@ -1316,11 +1153,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r253()
     {
-        return $this->changeColumn(
-            'domain_dns',
-            'domain_dns_status',
-            "domain_dns_status TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL"
-        );
+        return $this->changeColumn('domain_dns', 'domain_dns_status', "domain_dns_status TEXT CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL");
     }
 
     /**
@@ -1338,12 +1171,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r254()
     {
         $stmt = exec_query(
-            "
-                SELECT mail_id, mail_type
-                FROM mail_users
-                WHERE mail_type LIKE '%_mail%'
-                AND SUBSTRING(mail_addr, LOCATE('@', mail_addr)+1) = ?
-            ",
+            "SELECT mail_id, mail_type FROM mail_users WHERE mail_type LIKE '%_mail%' AND SUBSTRING(mail_addr, LOCATE('@', mail_addr)+1) = ?",
             [Registry::get('config')['SERVER_HOSTNAME']]
         );
 
@@ -1402,15 +1230,9 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         return [
             $this->changeColumn('user_gui_props', 'lang', "lang varchar(15) collate utf8_unicode_ci DEFAULT 'browser'"),
             "UPDATE user_gui_props SET lang = 'browser' WHERE lang = 'auto'",
-            $this->changeColumn(
-                'user_gui_props', 'layout', "layout varchar(100) collate utf8_unicode_ci NOT NULL DEFAULT 'default'"
-            ),
-            $this->changeColumn(
-                'user_gui_props', 'layout_color', "layout_color varchar(15) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'black'"
-            ),
-            $this->changeColumn(
-                'user_gui_props', 'show_main_menu_labels', "show_main_menu_labels tinyint(1) NOT NULL DEFAULT '0'"
-            )
+            $this->changeColumn('user_gui_props', 'layout', "layout varchar(100) collate utf8_unicode_ci NOT NULL DEFAULT 'default'"),
+            $this->changeColumn('user_gui_props', 'layout_color', "layout_color varchar(15) COLLATE utf8_unicode_ci NOT NULL DEFAULT 'black'"),
+            $this->changeColumn('user_gui_props', 'show_main_menu_labels', "show_main_menu_labels tinyint(1) NOT NULL DEFAULT '0'")
         ];
     }
 
@@ -1423,9 +1245,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         return "
             DELETE FROM php_ini
-            WHERE domain_id NOT IN(
-                SELECT subdomain_alias_id FROM subdomain_alias WHERE subdomain_alias_status <> 'todelete'
-            )
+            WHERE domain_id NOT IN(SELECT subdomain_alias_id FROM subdomain_alias WHERE subdomain_alias_status <> 'todelete')
             AND domain_type = 'subals'
         ";
     }
@@ -1438,8 +1258,8 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r259()
     {
         return "
-            UPDATE ftp_group AS t1,
-            (SELECT gid, group_concat(userid SEPARATOR ',') AS members FROM ftp_users GROUP BY gid) AS t2
+            UPDATE ftp_group AS t1, (SELECT gid, group_concat(userid SEPARATOR ',') AS members
+            FROM ftp_users GROUP BY gid) AS t2
             SET t1.members = t2.members
             WHERE t1.gid = t2.gid
         ";
@@ -1458,7 +1278,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             execute_query($renameQuery);
         }
 
-        if (!$this->isKnownTable('mail_users')) {
+        if (!$this->isTable('mail_users')) {
             execute_query('CREATE TABLE mail_users LIKE old_mail_users');
         }
 
@@ -1486,7 +1306,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             execute_query($renameQuery);
         }
 
-        if (!$this->isKnownTable('server_traffic')) {
+        if (!$this->isTable('server_traffic')) {
             execute_query('CREATE TABLE server_traffic LIKE old_server_traffic');
         }
 
@@ -1515,7 +1335,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             execute_query($renameQuery);
         }
 
-        if (!$this->isKnownTable('domain_traffic')) {
+        if (!$this->isTable('domain_traffic')) {
             execute_query('CREATE TABLE domain_traffic LIKE old_domain_traffic');
         }
 
@@ -1543,7 +1363,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             execute_query($renameQuery);
         }
 
-        if (!$this->isKnownTable('httpd_vlogger')) {
+        if (!$this->isTable('httpd_vlogger')) {
             execute_query('CREATE TABLE httpd_vlogger LIKE old_httpd_vlogger');
         }
 
@@ -1585,7 +1405,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             execute_query($renameQuery);
         }
 
-        if (!$this->isKnownTable('php_ini')) {
+        if (!$this->isTable('php_ini')) {
             execute_query('CREATE TABLE php_ini LIKE old_php_ini');
         }
 
@@ -1857,5 +1677,15 @@ class UpdateDatabase extends UpdateDatabaseAbstract
             $this->changeColumn('subdomain', 'subdomain_ip_id', '`subdomain_ips` text NOT NULL'),
             $this->changeColumn('subdomain_alias', 'subdomain_alias_ip_id', '`subdomain_alias_ips` text NOT NULL')
         ];
+    }
+
+    /**
+     * Rename domain_aliasses table to domain_aliases
+     *
+     * @return null|string SQL statement to be executed
+     */
+    protected function r284()
+    {
+        return $this->renameTable('domain_aliasses', 'domain_aliases');
     }
 }

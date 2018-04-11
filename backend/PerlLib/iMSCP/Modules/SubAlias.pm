@@ -94,7 +94,7 @@ sub _loadEntityData
                 t5.private_key, t5.certificate, t5.ca_bundle, t5.allow_hsts, t5.hsts_max_age,
                 t5.hsts_include_subdomains
             FROM subdomain_alias AS t1
-            JOIN domain_aliasses AS t2 USING(alias_id)
+            JOIN domain_aliases AS t2 USING(alias_id)
             JOIN domain AS t3 USING (domain_id)
             LEFT JOIN(
                 SELECT ? AS subdomain_alias_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
@@ -264,7 +264,7 @@ sub _sharedMountPoint
     my ( $nbSharedMountPoints ) = $self->{'_dbh'}->selectrow_array(
         "
             SELECT COUNT(mount_point) AS nb_mount_points FROM (
-                SELECT alias_mount AS mount_point FROM domain_aliasses
+                SELECT alias_mount AS mount_point FROM domain_aliases
                 WHERE domain_id = ? AND alias_status NOT IN ('todelete', 'ordered') AND alias_mount RLIKE ?
                 UNION ALL
                 SELECT subdomain_mount AS mount_point FROM subdomain
@@ -272,7 +272,7 @@ sub _sharedMountPoint
                 UNION ALL
                 SELECT subdomain_alias_mount AS mount_point FROM subdomain_alias
                 WHERE subdomain_alias_id <> ? AND subdomain_alias_status != 'todelete'
-                AND alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                AND alias_id IN (SELECT alias_id FROM domain_aliases WHERE domain_id = ?)
                 AND subdomain_alias_mount RLIKE ?
             ) AS tmp
         ",

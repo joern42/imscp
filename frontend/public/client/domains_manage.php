@@ -133,7 +133,7 @@ function generateDomainAliasesList($tpl)
     $stmt = exec_query(
         "
             SELECT t1.alias_id, t1.alias_name, t1.alias_status, t1.alias_mount, t1.alias_document_root, t1.url_forward, t2.status AS ssl_status
-            FROM domain_aliasses AS t1
+            FROM domain_aliases AS t1
             LEFT JOIN ssl_certs AS t2 ON(t1.alias_id = t2.domain_id AND t2.domain_type = 'als')
             WHERE t1.domain_id = ?
             ORDER BY t1.alias_mount, t1.alias_name
@@ -260,7 +260,7 @@ function generateSubdomainsList($tpl)
             SELECT t1.subdomain_alias_id, t1.subdomain_alias_name, 'als', t1.subdomain_alias_mount, t1.subdomain_alias_document_root,
                 t1.subdomain_alias_status, t1.subdomain_alias_url_forward, t2.alias_name, t3.status
             FROM subdomain_alias AS t1
-            JOIN domain_aliasses AS t2 USING(alias_id)
+            JOIN domain_aliases AS t2 USING(alias_id)
             LEFT JOIN ssl_certs AS t3 ON(t1.subdomain_alias_id = t3.domain_id AND t3.domain_type = 'alssub')
             WHERE t2.domain_id = ?
         ",
@@ -401,7 +401,7 @@ function generateCustomDnsRecordsList($tpl)
         "
             SELECT t1.*, IFNULL(t3.alias_name, t2.domain_name) zone_name
             FROM domain_dns AS t1 LEFT JOIN domain AS t2 USING (domain_id)
-            LEFT JOIN domain_aliasses AS t3 USING (alias_id)
+            LEFT JOIN domain_aliases AS t3 USING (alias_id)
             WHERE t1.domain_id = ? $filterCond ORDER BY t1.domain_id, t1.alias_id, t1.domain_dns, t1.domain_type
         ",
         [get_user_domain_id($_SESSION['user_id'])]

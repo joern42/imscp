@@ -844,7 +844,7 @@ class PHPini
                     // Update domain aliases, including their subdomains, except those that are disabled, being disabled or deleted
                     exec_query(
                         "
-                            UPDATE domain_aliasses AS t1
+                            UPDATE domain_aliases AS t1
                             LEFT JOIN subdomain_alias AS t2 ON(t1.alias_id = t2.alias_id AND t2.subdomain_alias_status NOT IN('disabled', 'todelete'))
                             SET t1.alias_status = 'tochange', t2.subdomain_alias_status = 'tochange'
                             WHERE t1.domain_id = ?
@@ -877,7 +877,7 @@ class PHPini
                             // Update domain aliases, including their subdomains, except those that are disabled, being disabled or deleted
                             exec_query(
                                 "
-                                    UPDATE domain_aliasses AS t1
+                                    UPDATE domain_aliases AS t1
                                     LEFT JOIN subdomain_alias AS t2 ON(
                                         t1.alias_id = t2.alias_id AND t2.subdomain_alias_status NOT IN('disabled', 'todisable', 'todelete')
                                     )
@@ -928,7 +928,7 @@ class PHPini
             case 'als';
                 // Update domain alias except if it is disabled, being disabled or deleted
                 $query = "
-                    UPDATE domain_aliasses AS t1
+                    UPDATE domain_aliases AS t1
                     JOIN domain AS t2 USING(domain_id)
                     SET t1.alias_status = 'tochange'
                     WHERE t1.alias_id = ?
@@ -940,7 +940,7 @@ class PHPini
                 // Update subdomains of domain alias except if it is disabled, being disabled or deleted
                 $query = "
                     UPDATE subdomain_alias AS t1
-                    JOIN domain_aliasses AS t2 USING(alias_id)
+                    JOIN domain_aliases AS t2 USING(alias_id)
                     SET t1.subdomain_alias_status = 'tochange'
                     WHERE t1.subdomain_alias_id = ?
                     AND t2.domain_id = ?

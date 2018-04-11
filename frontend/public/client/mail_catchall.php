@@ -148,7 +148,7 @@ function generatePage($tpl)
     // Domain alias catch-all accounts
 
     $stmt = exec_query(
-        "SELECT alias_id, alias_name FROM domain_aliasses WHERE domain_id = ? AND alias_status = 'ok'",
+        "SELECT alias_id, alias_name FROM domain_aliases WHERE domain_id = ? AND alias_status = 'ok'",
         [$dmnProps['domain_id']]
     );
 
@@ -177,7 +177,7 @@ function generatePage($tpl)
         "
             SELECT t1.subdomain_alias_id, CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) AS subdomain_name
             FROM subdomain_alias AS t1
-            JOIN domain_aliasses AS t2 USING(alias_id)
+            JOIN domain_aliases AS t2 USING(alias_id)
             JOIN domain as t3 USING(domain_id)
             WHERE t2.domain_id = ?
             AND t1.subdomain_alias_status = 'ok'

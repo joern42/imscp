@@ -44,7 +44,7 @@ function _client_getDomainName($domainId, $domainType)
                 break;
             case 'als':
                 $query = '
-                    SELECT alias_name AS domain_name FROM domain_aliasses
+                    SELECT alias_name AS domain_name FROM domain_aliases
                     JOIN domain USING(domain_id)
                     WHERE alias_id = ?
                     AND domain_admin_id = ?
@@ -63,7 +63,7 @@ function _client_getDomainName($domainId, $domainType)
                 $query = "
                     SELECT CONCAT(subdomain_alias_name, '.', alias_name) AS domain_name
                     FROM subdomain_alias
-                    JOIN domain_aliasses USING(alias_id)
+                    JOIN domain_aliases USING(alias_id)
                     JOIN domain USING(domain_id)
                     WHERE subdomain_alias_id = ?
                     AND domain_admin_id = ?
@@ -97,7 +97,7 @@ function _client_updateDomainStatus($domainId, $domainType)
             $query = "UPDATE domain SET domain_status = 'tochange' WHERE domain_id = ?";
             break;
         case 'als':
-            $query = "UPDATE domain_aliasses SET alias_status = 'tochange' WHERE alias_id = ?";
+            $query = "UPDATE domain_aliases SET alias_status = 'tochange' WHERE alias_id = ?";
             break;
         case 'sub':
             $query = "UPDATE subdomain SET subdomain_status = 'tochange' WHERE subdomain_id = ?";

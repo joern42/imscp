@@ -168,7 +168,7 @@ function get_user_name($userId)
  *
  * A domain is considered as existing if:
  *
- * - It is found either in the domain table or in the domain_aliasses table
+ * - It is found either in the domain table or in the domain_aliases table
  * - It is a subzone of another domain which doesn't belong to the given reseller
  * - It already exist as subdomain, whatever the subdomain type (sub,alssub)
  *
@@ -188,8 +188,8 @@ function imscp_domain_exists($domainName, $resellerId)
         return true;
     }
 
-    // $domainName already exists in the domain_aliasses table?
-    $stmt = exec_query('SELECT COUNT(alias_id) FROM domain_aliasses WHERE alias_name = ?', [$domainName]);
+    // $domainName already exists in the domain_aliases table?
+    $stmt = exec_query('SELECT COUNT(alias_id) FROM domain_aliases WHERE alias_name = ?', [$domainName]);
     if ($stmt->fetchColumn() > 0) {
         return true;
     }
@@ -198,7 +198,7 @@ function imscp_domain_exists($domainName, $resellerId)
     $queryDomain = 'SELECT COUNT(domain_id) FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE domain_name = ? AND created_by <> ?';
     $queryAliases = '
         SELECT COUNT(alias_id)
-        FROM domain_aliasses
+        FROM domain_aliases
         JOIN domain USING(domain_id)
         JOIN admin ON(admin_id = domain_admin_id)
         WHERE alias_name = ?
@@ -234,7 +234,7 @@ function imscp_domain_exists($domainName, $resellerId)
         "
             SELECT COUNT(subdomain_alias_id)
             FROM subdomain_alias
-            JOIN domain_aliasses USING(alias_id)
+            JOIN domain_aliases USING(alias_id)
             WHERE CONCAT(subdomain_alias_name, '.', alias_name) = ?
         ",
         [$domainName]
@@ -458,8 +458,8 @@ function change_domain_status($customerId, $action)
         exec_query('UPDATE htaccess_users SET status = ? WHERE dmn_id = ?', [$newStatus, $domainId]);
         exec_query("UPDATE domain SET domain_status = ? WHERE domain_id = ?", [$newStatus, $domainId]);
         exec_query("UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?", [$newStatus, $domainId]);
-        exec_query("UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?", [$newStatus, $domainId]);
-        exec_query('UPDATE subdomain_alias JOIN domain_aliasses USING(alias_id) SET subdomain_alias_status = ? WHERE domain_id = ?', [
+        exec_query("UPDATE domain_aliases SET alias_status = ? WHERE domain_id = ?", [$newStatus, $domainId]);
+        exec_query('UPDATE subdomain_alias JOIN domain_aliases USING(alias_id) SET subdomain_alias_status = ? WHERE domain_id = ?', [
             $newStatus, $domainId
         ]);
         exec_query('UPDATE domain_dns SET domain_dns_status = ? WHERE domain_id = ?', [$newStatus, $domainId]);
@@ -670,7 +670,7 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
         exec_query(
             "
                 UPDATE subdomain_alias AS t1
-                JOIN domain_aliasses AS t2 ON(t2.domain_id = ?)
+                JOIN domain_aliases AS t2 ON(t2.domain_id = ?)
                 SET t1.subdomain_alias_status = 'todelete'
                 WHERE t1.alias_id = t2.alias_id
             ",
@@ -678,7 +678,7 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
         );
 
         // Schedule domain aliases deletion
-        exec_query("UPDATE domain_aliasses SET alias_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
+        exec_query("UPDATE domain_aliases SET alias_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
 
         // Schedule subdomains deletion
         exec_query("UPDATE subdomain SET subdomain_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
@@ -697,7 +697,7 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
             "
                 UPDATE ssl_certs
                 SET status = 'todelete'
-                WHERE domain_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                WHERE domain_id IN (SELECT alias_id FROM domain_aliases WHERE domain_id = ?)
                 AND domain_type = 'als'
 
             ",
@@ -719,7 +719,7 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
                 WHERE domain_id IN (
                     SELECT subdomain_alias_id
                     FROM subdomain_alias
-                    WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                    WHERE alias_id IN (SELECT alias_id FROM domain_aliases WHERE domain_id = ?)
                 )
                 AND domain_type = 'alssub'
             ",
@@ -818,7 +818,7 @@ function deleteDomainAlias($customerId, $mainDomainId, $aliasId, $aliasName, $al
         exec_query(
             "
                 UPDATE ftp_users AS t1
-                LEFT JOIN domain_aliasses AS t2 ON(alias_id = ?)
+                LEFT JOIN domain_aliases AS t2 ON(alias_id = ?)
                 LEFT JOIN subdomain_alias AS t3 USING(alias_id)
                 SET status = 'todelete'
                 WHERE (
@@ -867,7 +867,7 @@ function deleteDomainAlias($customerId, $mainDomainId, $aliasId, $aliasName, $al
         exec_query("UPDATE subdomain_alias SET subdomain_alias_status = 'todelete' WHERE alias_id = ?", [$aliasId]);
 
         // Schedule domain alias deletion
-        exec_query("UPDATE domain_aliasses SET alias_status = 'todelete' WHERE alias_id = ?", [$aliasId]);
+        exec_query("UPDATE domain_aliases SET alias_status = 'todelete' WHERE alias_id = ?", [$aliasId]);
 
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterDeleteDomainAlias, [
             'domainAliasId'   => $aliasId,

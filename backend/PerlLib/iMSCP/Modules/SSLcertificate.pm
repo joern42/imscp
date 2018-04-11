@@ -94,7 +94,7 @@ sub _loadEntityData
         $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT domain_name FROM domain WHERE domain_id = ?', undef, $self->{'_data'}->{'domain_id'} );
     } elsif ( $self->{'_data'}->{'domain_type'} eq 'als' ) {
         $row = $self->{'_dbh'}->selectrow_hashref(
-            'SELECT alias_name AS domain_name FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'_data'}->{'domain_id'}
+            'SELECT alias_name AS domain_name FROM domain_aliases WHERE alias_id = ?', undef, $self->{'_data'}->{'domain_id'}
         );
     } elsif ( $self->{'_data'}->{'domain_type'} eq 'sub' ) {
         $row = $self->{'_dbh'}->selectrow_hashref(
@@ -106,7 +106,7 @@ sub _loadEntityData
             "
                 SELECT CONCAT(subdomain_alias_name, '.', alias_name) AS domain_name
                 FROM subdomain_alias
-                JOIN domain_aliasses USING(alias_id)
+                JOIN domain_aliases USING(alias_id)
                 WHERE subdomain_alias_id = ?
             ",
             undef, $self->{'_data'}->{'domain_id'}

@@ -92,12 +92,12 @@ sub _loadEntityData
                 t3.ip_addresses,
                 t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
                 t4.hsts_include_subdomains
-            FROM domain_aliasses AS t1
+            FROM domain_aliases AS t1
             JOIN domain AS t2 ON (t2.domain_id = t1.domain_id)
             LEFT JOIN(
                 SELECT ? AS alias_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
                 FROM server_ips
-                WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT alias_ips FROM domain_aliasses WHERE alias_id = ?), ',', '|'), ')\$')
+                WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT alias_ips FROM domain_aliases WHERE alias_id = ?), ',', '|'), ')\$')
             ) AS t3 ON t1.alias_id = t3.alias_id
             LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.alias_id AND t4.domain_type = 'als' AND t4.status = 'ok')
             WHERE t1.alias_id = ?
@@ -186,7 +186,7 @@ sub _add
 {
     my ( $self ) = @_;
     eval { $self->SUPER::_add(); };
-    $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
+    $self->{'_dbh'}->do( 'UPDATE domain_aliases SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
 }
 
 =item _delete()
@@ -201,11 +201,11 @@ sub _delete
 
     eval { $self->SUPER::_delete(); };
     if ( $@ ) {
-        $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@, $self->{'_data'}->{'DOMAIN_ID'} );
+        $self->{'_dbh'}->do( 'UPDATE domain_aliases SET alias_status = ? WHERE alias_id = ?', undef, $@, $self->{'_data'}->{'DOMAIN_ID'} );
         return;
     }
 
-    $self->{'_dbh'}->do( 'DELETE FROM domain_aliasses WHERE alias_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
+    $self->{'_dbh'}->do( 'DELETE FROM domain_aliases WHERE alias_id = ?', undef, $self->{'_data'}->{'DOMAIN_ID'} );
 }
 
 =item _disable()
@@ -219,7 +219,7 @@ sub _disable
     my ( $self ) = @_;
 
     eval { $self->SUPER::_disable(); };
-    $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'DOMAIN_ID'} );
+    $self->{'_dbh'}->do( 'UPDATE domain_aliases SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'disabled', $self->{'_data'}->{'DOMAIN_ID'} );
 }
 
 =item _restore()
@@ -233,7 +233,7 @@ sub _restore
     my ( $self ) = @_;
 
     eval { $self->SUPER::_restore(); };
-    $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
+    $self->{'_dbh'}->do( 'UPDATE domain_aliases SET alias_status = ? WHERE alias_id = ?', undef, $@ || 'ok', $self->{'_data'}->{'DOMAIN_ID'} );
 }
 
 =item _sharedMountPoint( )
@@ -252,7 +252,7 @@ sub _sharedMountPoint
     my ( $nbSharedMountPoints ) = $self->{'_dbh'}->selectrow_array(
         "
             SELECT COUNT(mount_point) AS nb_mount_points FROM (
-                SELECT alias_mount AS mount_point FROM domain_aliasses
+                SELECT alias_mount AS mount_point FROM domain_aliases
                 WHERE alias_id <> ?
                 AND domain_id = ?
                 AND alias_status NOT IN ('todelete', 'ordered')
@@ -267,7 +267,7 @@ sub _sharedMountPoint
                 SELECT subdomain_alias_mount AS mount_point
                 FROM subdomain_alias
                 WHERE subdomain_alias_status <> 'todelete'
-                AND alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                AND alias_id IN (SELECT alias_id FROM domain_aliases WHERE domain_id = ?)
                 AND subdomain_alias_mount RLIKE ?
             ) AS tmp
         ",

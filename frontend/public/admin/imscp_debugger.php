@@ -113,7 +113,7 @@ function debugger_getAlsErrors($tpl)
     $stmt = execute_query(
         "
             SELECT alias_name, alias_status, alias_id
-            FROM domain_aliasses
+            FROM domain_aliases
             WHERE alias_status NOT IN (
                 'ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete', 'ordered'
             )
@@ -187,7 +187,7 @@ function debugger_getAlssubErrors($tpl)
         "
             SELECT subdomain_alias_name, subdomain_alias_status, subdomain_alias_id, alias_name
             FROM subdomain_alias
-            LEFT JOIN domain_aliasses ON (subdomain_alias_id = domain_aliasses.alias_id)
+            LEFT JOIN domain_aliases ON (subdomain_alias_id = domain_aliases.alias_id)
             WHERE subdomain_alias_status NOT IN (
                 'ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete'
             )
@@ -383,7 +383,7 @@ function debugger_getMailsErrors($tpl)
                     SELECT CONCAT('@', t1.subdomain_alias_name, '.', IF(t2.alias_name IS NULL,'" . tr('missing alias')
                     . "',t2.alias_name) ) AS domain_name
                     FROM subdomain_alias AS t1
-                    LEFT JOIN domain_aliasses AS t2 ON (t1.alias_id = t2.alias_id)
+                    LEFT JOIN domain_aliases AS t2 ON (t1.alias_id = t2.alias_id)
                     WHERE subdomain_alias_id = ?
                 ";
                 break;
@@ -398,7 +398,7 @@ function debugger_getMailsErrors($tpl)
             case MT_ALIAS_MAIL:
             case MT_ALIAS_FORWARD:
             case MT_ALIAS_MAIL . ',' . MT_ALIAS_FORWARD:
-                $query = "SELECT CONCAT('@', alias_name) AS domain_name FROM domain_aliasses WHERE alias_id = ?";
+                $query = "SELECT CONCAT('@', alias_name) AS domain_name FROM domain_aliases WHERE alias_id = ?";
                 break;
             default:
                 throw new iMSCP_Exception('FIXME: ' . __FILE__ . ':' . __LINE__ . $mailType);
@@ -571,7 +571,7 @@ $plugingManager = Registry::get('iMSCP_Application')->getPluginManager();
 
 $rqstCount = debugger_countRequests('admin_status', 'admin');
 $rqstCount += debugger_countRequests('domain_status', 'domain');
-$rqstCount += debugger_countRequests('alias_status', 'domain_aliasses');
+$rqstCount += debugger_countRequests('alias_status', 'domain_aliases');
 $rqstCount += debugger_countRequests('subdomain_status', 'subdomain');
 $rqstCount += debugger_countRequests('subdomain_alias_status', 'subdomain_alias');
 $rqstCount += debugger_countRequests('domain_dns_status', 'domain_dns');
@@ -610,7 +610,7 @@ if (isset($_GET['action'])) {
                 $query = "UPDATE domain SET domain_status = 'tochange' WHERE domain_id = ?";
                 break;
             case 'alias':
-                $query = "UPDATE domain_aliasses SET alias_status = 'tochange' WHERE alias_id = ?";
+                $query = "UPDATE domain_aliases SET alias_status = 'tochange' WHERE alias_id = ?";
                 break;
             case 'subdomain':
                 $query = "UPDATE subdomain SET subdomain_status = 'tochange' WHERE subdomain_id = ?";

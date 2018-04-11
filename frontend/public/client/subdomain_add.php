@@ -60,14 +60,14 @@ function getDomainsList()
             AND t1.subdomain_status = 'ok'
             UNION ALL
             SELECT alias_name, alias_id, 'als', alias_mount, url_forward
-            FROM domain_aliasses
+            FROM domain_aliases
             WHERE domain_id = ?
             AND alias_status = 'ok'
             UNION ALL
             SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name), t1.subdomain_alias_id, 'alssub', t1.subdomain_alias_mount,
                 t1.subdomain_alias_url_forward AS url_forward
             FROM subdomain_alias AS t1
-            JOIN domain_aliasses AS t2 USING(alias_id)
+            JOIN domain_aliases AS t2 USING(alias_id)
             WHERE t2.domain_id = ?
             AND t1.subdomain_alias_status = 'ok'
         ",
@@ -202,7 +202,7 @@ function addSubdomain()
         '
             SELECT domain_id FROM domain WHERE domain_name = ?
             UNION ALL
-            SELECT alias_id FROM domain_aliasses WHERE alias_name = ?
+            SELECT alias_id FROM domain_aliases WHERE alias_name = ?
         ',
         [$subdomainName, $subdomainName]
     );

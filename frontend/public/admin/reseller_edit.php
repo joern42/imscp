@@ -61,9 +61,9 @@ function getFormData($resellerId, $forUpdate = false)
         $data['nbFtpAccounts'], $data['nbSqlDatabases'], $data['nbSqlUsers'], $data['totalTraffic'],
         $data['totalDiskspace']) = getResellerStats($resellerId);
 
-    // Ip data begin
+    // IP addresses
 
-    // Fetch server ip list
+    // Retrieve list of all server IP addresses
     $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips ORDER BY ip_number');
     if (!$stmt->rowCount()) {
         set_page_message(tr('Unable to get the IP address list. Please fix this problem.'), 'error');
@@ -71,7 +71,7 @@ function getFormData($resellerId, $forUpdate = false)
     }
     $data['server_ips'] = $stmt->fetchAll();
 
-    // Convert reseller ip list to array
+
     $data['reseller_ips'] = explode(',', $data['reseller_ips']);
 
     // Retrieve all IP addresses assigned to clients of the reseller being edited
@@ -418,12 +418,11 @@ function updateResellerUser(Form $form)
         }
 
         $resellerIps = array_unique(array_merge($resellerIps, $data['used_ips']));
-        sort($resellerIps);
-
         if (empty($resellerIps)) {
             set_page_message(tr('You must assign at least one IP to this reseller.'), 'error');
             $error = true;
         }
+        sort($resellerIps, SORT_NATURAL);
 
         // Check for max domains limit
         if (imscp_limit_check($data['max_dmn_cnt'], NULL)) {

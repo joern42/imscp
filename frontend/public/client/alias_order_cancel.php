@@ -30,7 +30,7 @@ check_login('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
 customerHasFeature('domain_aliases') && isset($_GET['id']) or showBadRequestErrorPage();
 
-$stmt = exec_query('DELETE FROM domain_aliasses WHERE alias_id = ? AND domain_id = ? AND alias_status = ?', [
+$stmt = exec_query('DELETE FROM domain_aliases WHERE alias_id = ? AND domain_id = ? AND alias_status = ?', [
     intval($_GET['id']), get_user_domain_id($_SESSION['user_id']), 'ordered'
 ]);
 

@@ -57,7 +57,7 @@ function updateExternalMailFeature($action, $domainId, $domainType)
         } elseif ($domainType == 'als') {
             $stmt = exec_query(
                 "
-                    UPDATE domain_aliasses AS t1
+                    UPDATE domain_aliases AS t1
                     JOIN domain AS t2 USING(domain_id)
                     SET t1.alias_status = 'tochange', t1.external_mail = ?
                     WHERE t1.alias_id = ?
@@ -70,7 +70,7 @@ function updateExternalMailFeature($action, $domainId, $domainType)
             exec_query(
                 "
                     UPDATE subdomain_alias AS t1
-                    JOIN domain_aliasses AS t2 ON(t2.domain_id = ?)
+                    JOIN domain_aliases AS t2 ON(t2.domain_id = ?)
                     SET subdomain_alias_status = 'tochange'
                     WHERE t1.alias_id = t2.alias_id
                 ",
@@ -162,7 +162,7 @@ function generateItemList($tpl, $domainId, $domainName)
 
     $tpl->parse('ITEM', '.item');
     $stmt = exec_query(
-        'SELECT alias_id, alias_name, alias_status, external_mail FROM domain_aliasses WHERE domain_id = ?', [$domainId]
+        'SELECT alias_id, alias_name, alias_status, external_mail FROM domain_aliases WHERE domain_id = ?', [$domainId]
     );
 
     if (!$stmt->rowCount()) {

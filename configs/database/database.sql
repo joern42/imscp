@@ -82,7 +82,7 @@ INSERT IGNORE INTO `config` (`name`, `value`) VALUES
   ('PORT_POP3-SSL', '995;tcp;POP3-SSL;0;0.0.0.0'),
   ('PORT_IMAP', '143;tcp;IMAP;1;0.0.0.0'),
   ('PORT_IMAP-SSL', '993;tcp;IMAP-SSL;0;0.0.0.0'),
-  ('DATABASE_REVISION', '283');
+  ('DATABASE_REVISION', '284');
 
 -- --------------------------------------------------------
 
@@ -155,10 +155,10 @@ CREATE TABLE IF NOT EXISTS `domain` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `domain_aliasses`
+-- Table structure for table `domain_aliases`
 --
 
-CREATE TABLE IF NOT EXISTS `domain_aliasses` (
+CREATE TABLE IF NOT EXISTS `domain_aliases` (
   `alias_id` int(10) unsigned NOT NULL auto_increment,
   `domain_id` int(10) unsigned DEFAULT NULL,
   `alias_name` varchar(200) collate utf8_unicode_ci DEFAULT NULL,

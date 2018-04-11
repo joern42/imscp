@@ -287,7 +287,7 @@ sub setupDbTasks
         admin           => [ 'admin_status', "AND admin_type = 'user'" ],
         domain          => 'domain_status',
         subdomain       => 'subdomain_status',
-        domain_aliasses => 'alias_status',
+        domain_aliases  => 'alias_status',
         subdomain_alias => 'subdomain_alias_status',
         domain_dns      => 'domain_dns_status',
         ftp_users       => 'status',

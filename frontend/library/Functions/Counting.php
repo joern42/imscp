@@ -82,7 +82,7 @@ function get_subdomains_count()
  */
 function get_domain_aliases_count()
 {
-    return get_objects_count('domain_aliasses', 'alias_id', "WHERE alias_status NOT IN('ordered', 'todelete')");
+    return get_objects_count('domain_aliases', 'alias_id', "WHERE alias_status NOT IN('ordered', 'todelete')");
 }
 
 /**
@@ -254,7 +254,7 @@ function get_reseller_subdomains_count($resellerId)
                 ) + (
                     SELECT COUNT(subdomain_alias_id)
                     FROM subdomain_alias
-                    JOIN domain_aliasses USING(alias_id)
+                    JOIN domain_aliases USING(alias_id)
                     JOIN domain USING(domain_id)
                     JOIN admin ON(admin_id = domain_admin_id)
                     WHERE created_by = ?
@@ -285,7 +285,7 @@ function get_reseller_domain_aliases_count($resellerId)
         $stmt = $db->prepare(
             "
                 SELECT COUNT(alias_id)
-                FROM domain_aliasses
+                FROM domain_aliases
                 JOIN domain USING(domain_id)
                 JOIN admin ON(admin_id = domain_admin_id)
                 WHERE created_by = ?
@@ -461,7 +461,7 @@ function get_customer_subdomains_count($domainId)
                 ) + (
                     SELECT COUNT(subdomain_alias_id)
                     FROM subdomain_alias
-                    JOIN domain_aliasses USING(alias_id)
+                    JOIN domain_aliases USING(alias_id)
                     WHERE domain_id = ?
                     AND subdomain_alias_status <> 'todelete'
                 )
@@ -487,7 +487,7 @@ function get_customer_domain_aliases_count($domainId)
     if (NULL === $stmt) {
         /** @var iMSCP_Database $db */
         $db = Registry::get('iMSCP_Application')->getDatabase();
-        $stmt = $db->prepare("SELECT COUNT(alias_id) FROM domain_aliasses WHERE domain_id = ? AND alias_status NOT IN('ordered', 'todelete')");
+        $stmt = $db->prepare("SELECT COUNT(alias_id) FROM domain_aliases WHERE domain_id = ? AND alias_status NOT IN('ordered', 'todelete')");
     }
 
     $stmt->execute([$domainId]);

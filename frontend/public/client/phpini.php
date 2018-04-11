@@ -42,7 +42,7 @@ function isDomainStatusOk($domainId, $domainType)
             $query = 'SELECT domain_status AS status FROM domain WHERE domain_id = ?';
             break;
         case 'als':
-            $query = 'SELECT alias_status AS status FROM domain_aliasses WHERE alias_id = ?';
+            $query = 'SELECT alias_status AS status FROM domain_aliases WHERE alias_id = ?';
             break;
         case 'sub':
             $query = 'SELECT subdomain_status AS status FROM subdomain WHERE subdomain_id = ?';
@@ -92,7 +92,7 @@ function getDomainData($configLevel)
         $query .= "
             UNION ALL
             SELECT t1.alias_name, t1.alias_status, alias_id, 'als'
-            FROM domain_aliasses AS t1
+            FROM domain_aliases AS t1
             JOIN domain AS t2 USING(domain_id)
             WHERE t2.domain_admin_id = ?
             AND t1.url_forward = 'no'
@@ -113,7 +113,7 @@ function getDomainData($configLevel)
             UNION ALL
             SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name), t1.subdomain_alias_status, subdomain_alias_id, 'subals'
             FROM subdomain_alias AS t1
-            JOIN domain_aliasses t2 USING(alias_id)
+            JOIN domain_aliases t2 USING(alias_id)
             JOIN domain AS t3 USING(domain_id)
             WHERE domain_admin_id = ?
             AND subdomain_alias_status <> 'todelete'

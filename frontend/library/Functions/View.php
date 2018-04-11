@@ -592,7 +592,7 @@ function gen_user_domain_aliases_list(TemplateEngine $tpl, $domainId)
         return;
     }
 
-    $stmt = exec_query('SELECT alias_name FROM domain_aliasses WHERE domain_id = ? ORDER BY alias_name ASC', [$domainId]);
+    $stmt = exec_query('SELECT alias_name FROM domain_aliases WHERE domain_id = ? ORDER BY alias_name ASC', [$domainId]);
 
     if (!$stmt->rowCount()) {
         return;

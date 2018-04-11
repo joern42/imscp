@@ -211,7 +211,7 @@ if (!empty($_POST)) {
             $stmt = exec_query(
                 "
                   SELECT alias_mount AS mpoint, alias_document_root AS document_root
-                  FROM domain_aliasses
+                  FROM domain_aliases
                   WHERE alias_id = ?
                   AND domain_id = ?
                   AND alias_status = 'ok'
@@ -226,7 +226,7 @@ if (!empty($_POST)) {
                 "
                   SELECT subdomain_alias_mount AS mpoint, subdomain_alias_document_root AS document_root
                   FROM subdomain_alias
-                  JOIN domain_aliasses USING(alias_id)
+                  JOIN domain_aliases USING(alias_id)
                   WHERE subdomain_alias_id = ?
                   AND subdomain_alias_url_forward = 'no'
                   AND domain_id = ?

@@ -99,7 +99,7 @@ iMSCP::EventManager->getInstance()->register( 'beforeBindAddDomainDb', sub
             # command during the dump (expected behavior).
             processVarsByRef( \$glueRecordB, {
                 NS_NAME    => $name,
-                NS_IP_TYPE => ( $ipAddrType eq 'ipv4' ) ? 'A' : 'AAAA',
+                NS_IP_TYPE => $ipAddrType eq 'ipv4' ? 'A' : 'AAAA',
                 NS_IP      => $ipAddr
             } ) unless $ZONE_NAME ne $moduleData->{'DOMAIN_NAME'};
         }

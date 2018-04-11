@@ -69,7 +69,7 @@ function syncDomainIps($mainDomainId, array $newCustomerIps)
     }
 
     // als ip addresses
-    $stmt = exec_query('SELECT alias_id, alias_ips FROM domain_aliasses WHERE domain_id = ?', [$mainDomainId]);
+    $stmt = exec_query('SELECT alias_id, alias_ips FROM domain_aliases WHERE domain_id = ?', [$mainDomainId]);
     while ($row = $stmt->fetch()) {
         $domainIps = explode(',', $row['alias_ips']);
         $commonIps = array_intersect($domainIps, $newCustomerIps);
@@ -78,7 +78,7 @@ function syncDomainIps($mainDomainId, array $newCustomerIps)
             if (empty($commonIps))
                 $commonIps[] = $newCustomerIps[0];
 
-            exec_query("UPDATE domain_aliasses SET alias_ips = ?, alias_status = 'tochange' WHERE alias_id = ?", [
+            exec_query("UPDATE domain_aliases SET alias_ips = ?, alias_status = 'tochange' WHERE alias_id = ?", [
                 implode(',', $commonIps), $row['alias_id']
             ]);
         }
@@ -89,7 +89,7 @@ function syncDomainIps($mainDomainId, array $newCustomerIps)
         '
             SELECT t1.subdomain_alias_id, t1.subdomain_alias_ips
             FROM subdomain_alias AS t1
-            JOIN domain_aliasses AS t2 USING(alias_id)
+            JOIN domain_aliases AS t2 USING(alias_id)
             WHERE t2.domain_id = ?
         ',
         [$mainDomainId]
@@ -206,7 +206,7 @@ function &getData($domainId, $forUpdate = false)
     list($subCount, $alsCount, $mailCount, $ftpCount, $sqlDbCount, $sqlUsersCount) = get_customer_objects_counts($domainProps['admin_id']);
 
     $data['nbSubdomains'] = $subCount;
-    $data['nbAliasses'] = $alsCount;
+    $data['nbAliases'] = $alsCount;
     $data['nbMailAccounts'] = $mailCount;
     $data['nbFtpAccounts'] = $ftpCount;
     $data['nbSqlDatabases'] = $sqlDbCount;
@@ -343,12 +343,12 @@ function generateLimitsForm(TemplateEngine $tpl, &$data)
         $tpl->assign('DOMAIN_ALIASES_LIMIT_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_ALIASSES_LIMIT'                      => tohtml(tr('Domain aliases limit')) . '<br><i>(-1 ' . tohtml(tr('disabled')) . ', 0 ∞)</i>',
-            'DOMAIN_ALIASSES_LIMIT'                  => tohtml($data['domain_alias_limit']),
-            'TR_CUSTOMER_DOMAIN_ALIASSES_COMSUPTION' => $data['fallback_domain_alias_limit'] != -1
-                ? tohtml($data['nbAliasses']) . ' / ' . ($data['fallback_domain_alias_limit'] != 0
+            'TR_ALIASES_LIMIT'                       => tohtml(tr('Domain aliases limit')) . '<br><i>(-1 ' . tohtml(tr('disabled')) . ', 0 ∞)</i>',
+            'DOMAIN_ALIASES_LIMIT'                   => tohtml($data['domain_alias_limit']),
+            'TR_CUSTOMER_DOMAIN_ALIASES_COMSUPTION'  => $data['fallback_domain_alias_limit'] != -1
+                ? tohtml($data['nbAliases']) . ' / ' . ($data['fallback_domain_alias_limit'] != 0
                     ? tohtml($data['fallback_domain_alias_limit']) : '∞') : tohtml(tr('Disabled')),
-            'TR_RESELLER_DOMAIN_ALIASSES_COMSUPTION' => tohtml($domainAliasesCount) . ' / '
+            'TR_RESELLER_DOMAIN_ALIASES_COMSUPTION'  => tohtml($domainAliasesCount) . ' / '
                 . ($data['max_als_cnt'] != 0 ? tohtml($data['max_als_cnt']) : '∞')
         ]);
     }
@@ -707,8 +707,8 @@ function reseller_checkAndUpdateData($domainId)
             if (!imscp_limit_check($data['domain_alias_limit'])) {
                 set_page_message(tr('Wrong syntax for the %s limit.', tr('domain aliases')), 'error');
                 $errFieldsStack[] = 'domain_alias_limit';
-            } elseif (!isValidServiceLimit($data['domain_alias_limit'], $data['nbAliasses'], $data['fallback_domain_alias_limit'],
-                $data['current_als_cnt'], $data['max_als_cnt'], $data['nbAliasses'] > 1 ? tr('domain aliases') : tr('domain alias'))
+            } elseif (!isValidServiceLimit($data['domain_alias_limit'], $data['nbAliases'], $data['fallback_domain_alias_limit'],
+                $data['current_als_cnt'], $data['max_als_cnt'], $data['nbAliases'] > 1 ? tr('domain aliases') : tr('domain alias'))
             ) {
                 $errFieldsStack[] = 'domain_alias_limit';
             }
@@ -993,7 +993,7 @@ function reseller_checkAndUpdateData($domainId)
                 // Update domain aliases, including their subdomains, except those that are disabled, being disabled or deleted
                 exec_query(
                     "
-                        UPDATE domain_aliasses AS t1
+                        UPDATE domain_aliases AS t1
                         LEFT JOIN subdomain_alias AS t2 ON(t1.alias_id = t2.alias_id AND t2.subdomain_alias_status NOT IN('disabled', 'todelete'))
                         SET t1.alias_status = 'tochange', t2.subdomain_alias_status = 'tochange'
                         WHERE t1.domain_id = ?
@@ -1111,7 +1111,7 @@ $tpl->define([
     'page_message'                            => 'layout',
     'ip_entry'                                => 'page',
     'subdomain_limit_block'                   => 'page',
-    'domain_aliasses_limit_block'             => 'page',
+    'domain_aliases_limit_block'              => 'page',
     'mail_accounts_limit_block'               => 'page',
     'ftp_accounts_limit_block'                => 'page',
     'sql_db_and_users_limit_block'            => 'page',

@@ -124,7 +124,7 @@ sub processDbTasks
         'iMSCP::Modules::Alias',
         "
            SELECT alias_id AS id, alias_name AS name
-           FROM domain_aliasses
+           FROM domain_aliases
            JOIN domain USING(domain_id)
            WHERE alias_status IN ('toadd', 'tochange', 'torestore', 'toenable', 'todisable')
            AND domain_status IN('ok', 'disabled')
@@ -138,7 +138,7 @@ sub processDbTasks
         "
             SELECT subdomain_alias_id AS id, CONCAT(subdomain_alias_name, '.', alias_name) AS name
             FROM subdomain_alias
-            JOIN domain_aliasses USING(alias_id)
+            JOIN domain_aliases USING(alias_id)
             WHERE subdomain_alias_status IN ('toadd', 'tochange', 'torestore', 'toenable', 'todisable')
             AND alias_status IN('ok', 'disabled')
             ORDER BY subdomain_alias_id ASC
@@ -165,7 +165,7 @@ sub processDbTasks
         "
             SELECT CONCAT(t1.domain_id, ';', t1.alias_id) AS id, t2.alias_name AS name
             FROM domain_dns AS t1
-            JOIN domain_aliasses AS t2 ON(t2.alias_id = t1.alias_id)
+            JOIN domain_aliases AS t2 ON(t2.alias_id = t1.alias_id)
             WHERE t1.domain_dns_status IN ('toadd', 'tochange', 'toenable', 'todisable', 'todelete')
             AND t1.alias_id <> 0
             AND t2.alias_status IN('ok', 'disabled')
@@ -243,7 +243,7 @@ sub processDbTasks
         "
             SELECT subdomain_alias_id AS id, concat(subdomain_alias_name, '.', alias_name) AS name
             FROM subdomain_alias
-            JOIN domain_aliasses USING(alias_id)
+            JOIN domain_aliases USING(alias_id)
             WHERE subdomain_alias_status = 'todelete'
             ORDER BY subdomain_alias_id ASC
         "
@@ -254,7 +254,7 @@ sub processDbTasks
         'iMSCP::Modules::Alias',
         "
             SELECT alias_id AS id, alias_name AS name
-            FROM domain_aliasses
+            FROM domain_aliases
             LEFT JOIN (SELECT DISTINCT alias_id FROM subdomain_alias) AS subdomain_alias  USING(alias_id)
             WHERE alias_status = 'todelete'
             AND subdomain_alias.alias_id IS NULL

@@ -38,7 +38,7 @@ $id = intval($_GET['id']);
 $stmt = exec_query(
     '
         SELECT t1.domain_id, t1.alias_name, t1.alias_mount
-        FROM domain_aliasses AS t1
+        FROM domain_aliases AS t1
         JOIN domain AS t2 USING(domain_id)
         WHERE t1.alias_id = ?
         AND t2.domain_admin_id = ?

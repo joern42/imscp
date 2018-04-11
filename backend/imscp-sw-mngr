@@ -103,7 +103,7 @@ sub sw_mngr_engine
 
     if ( ( $sw_aliasdomain_id+$sw_subdomain_id+$sw_aliassubdomain_id ) > 0 ) {
         if ( $sw_aliasdomain_id ) {
-            $querydomainname = "SELECT `alias_name` FROM `domain_aliasses` WHERE `alias_id` = $sw_aliasdomain_id";
+            $querydomainname = "SELECT `alias_name` FROM `domain_aliases` WHERE `alias_id` = $sw_aliasdomain_id";
         } elsif ( $sw_subdomain_id ) {
             $querydomainname = "
                 SELECT `subdomain`.`subdomain_name`, `domain`.`domain_name`
@@ -113,9 +113,9 @@ sub sw_mngr_engine
             ";
         } elsif ( $sw_aliassubdomain_id ) {
             $querydomainname = "
-                SELECT `subdomain_alias`.`subdomain_alias_name`, `domain_aliasses`.`alias_name`
+                SELECT `subdomain_alias`.`subdomain_alias_name`, `domain_aliases`.`alias_name`
                 FROM `subdomain_alias`
-                JOIN `domain_aliasses` ON(`subdomain_alias`.`alias_id` = `domain_aliasses`.`alias_id`)
+                JOIN `domain_aliases` ON(`subdomain_alias`.`alias_id` = `domain_aliases`.`alias_id`)
                 WHERE `subdomain_alias`.`subdomain_alias_id` = $sw_aliassubdomain_id
             ";
         }

@@ -99,7 +99,7 @@ function reseller_getDatatable()
     $rResult = execute_query(
         "
             SELECT SQL_CALC_FOUND_ROWS t1.alias_id, " . implode(', ', $columnAliases) . "
-            FROM domain_aliasses AS t1
+            FROM domain_aliases AS t1
             JOIN domain AS t2 USING(domain_id)
             JOIN admin AS t3 ON(t3.admin_id = t2.domain_admin_id)
             $where $order $limit
@@ -115,7 +115,7 @@ function reseller_getDatatable()
     $stmt = exec_query(
         "
             SELECT COUNT(t1.alias_id)
-            FROM domain_aliasses AS t1
+            FROM domain_aliases AS t1
             JOIN domain AS t2 USING(domain_id)
             JOIN admin AS t3 ON(t3.admin_id = t2.domain_admin_id)
             WHERE t3.created_by = ?

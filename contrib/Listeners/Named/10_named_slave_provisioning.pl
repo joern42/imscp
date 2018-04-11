@@ -154,7 +154,7 @@ if ($rowCount > 0) {
 
     echo "// END DOMAINS LIST\n\n";
 }
-$stmt = execute_query('SELECT alias_id, alias_name FROM domain_aliasses');
+$stmt = execute_query('SELECT alias_id, alias_name FROM domain_aliases');
 $rowCount = $stmt->rowCount();
 if ($rowCount > 0) {
     echo "// $rowCount HOSTED ALIASES LISTED ON $config->SERVER_HOSTNAME [$masterDnsServerIp]\n";

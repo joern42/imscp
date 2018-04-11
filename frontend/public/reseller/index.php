@@ -58,7 +58,7 @@ function generateOrdersAliasesMessage()
     $countAliasOrders = exec_query(
         "
             SELECT COUNT(alias_id)
-            FROM domain_aliasses
+            FROM domain_aliases
             JOIN domain USING(domain_id)
             JOIN admin ON(admin_id = domain_admin_id)
             WHERE alias_status = 'ordered'

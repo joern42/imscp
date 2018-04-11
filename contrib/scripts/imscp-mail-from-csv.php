@@ -60,7 +60,7 @@ function cli_getMailData($domainName)
         return $data[$domainName];
     }
 
-    $stmt = exec_query('SELECT domain_id FROM domain_aliasses WHERE alias_name = ?', [$domainName]);
+    $stmt = exec_query('SELECT domain_id FROM domain_aliases WHERE alias_name = ?', [$domainName]);
     if ($stmt->rowCount()) {
         $data[$domainName] = [$stmt->fetchColumn(), 0, MT_ALIAS_MAIL];
         return $data[$domainName];
@@ -70,7 +70,7 @@ function cli_getMailData($domainName)
         "
             SELECT domain_id, subdomain_alias_id
             FROM subdomain_alias
-            JOIN domain_aliasses USING(alias_id)
+            JOIN domain_aliases USING(alias_id)
             JOIN domain USING(domain_id)
             WHERE CONCAT(subdomain_alias_name, '.', alias_name) = ?
         ",

@@ -255,7 +255,7 @@ sub _sharedMountPoint
     my ( $nbSharedMountPoints ) = $self->{'_dbh'}->selectrow_array(
         "
             SELECT COUNT(mount_point) AS nb_mount_points FROM (
-                SELECT alias_mount AS mount_point FROM domain_aliasses
+                SELECT alias_mount AS mount_point FROM domain_aliases
                 WHERE domain_id = ? AND alias_status NOT IN ('todelete', 'ordered') AND alias_mount RLIKE ?
                 UNION ALL
                 SELECT subdomain_mount AS mount_point FROM subdomain
@@ -263,7 +263,7 @@ sub _sharedMountPoint
                 UNION ALL
                 SELECT subdomain_alias_mount AS mount_point FROM subdomain_alias
                 WHERE subdomain_alias_status <> 'todelete'
-                AND alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                AND alias_id IN (SELECT alias_id FROM domain_aliases WHERE domain_id = ?)
                 AND subdomain_alias_mount RLIKE ?
             ) AS tmp
         ",

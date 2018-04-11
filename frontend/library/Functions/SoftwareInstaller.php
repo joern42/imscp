@@ -1325,7 +1325,7 @@ function gen_user_domain_list($tpl, $customerId)
     }
 
     // als
-    $stmt = exec_query("SELECT alias_id, alias_name FROM domain_aliasses WHERE domain_id = ? AND alias_status = 'ok' AND url_forward = 'no'", [
+    $stmt = exec_query("SELECT alias_id, alias_name FROM domain_aliases WHERE domain_id = ? AND alias_status = 'ok' AND url_forward = 'no'", [
         $domainId
     ]);
     if ($stmt->rowCount()) {
@@ -1371,7 +1371,7 @@ function gen_user_domain_list($tpl, $customerId)
         "
             SELECT subdomain_alias_id, CONCAT(subdomain_alias_name, '.', alias_name) AS subdomain_alias_name
             FROM subdomain_alias
-            JOIN domain_aliasses USING (alias_id)
+            JOIN domain_aliases USING (alias_id)
             WHERE subdomain_alias_url_forward = 'no'
             AND subdomain_alias_status = 'ok'
             AND domain_id = ?

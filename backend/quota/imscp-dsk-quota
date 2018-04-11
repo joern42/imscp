@@ -83,7 +83,7 @@ sub quotaFiles
                 $dbh->selectall_hashref(
                     "
                         SELECT alias_name AS domain_name
-                        FROM domain_aliasses
+                        FROM domain_aliases
                         WHERE domain_id = ?
                         AND alias_status <> 'todelete'
                         UNION ALL
@@ -95,7 +95,7 @@ sub quotaFiles
                         UNION ALL
                         SELECT CONCAT(subdomain_alias_name, '.',  alias_name) AS domain_name
                         FROM subdomain_alias
-                        JOIN domain_aliasses USING(alias_id)
+                        JOIN domain_aliases USING(alias_id)
                         WHERE domain_id = ?
                         AND subdomain_alias_status <> 'todelete'
                     ",

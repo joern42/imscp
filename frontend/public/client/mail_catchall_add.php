@@ -55,7 +55,7 @@ function getCatchallDomain($catchallDomainId, $catchalType)
         case MT_ALIAS_CATCHALL:
             $stmt = exec_query(
                 "
-                    SELECT alias_name FROM domain_aliasses
+                    SELECT alias_name FROM domain_aliases
                     JOIN domain USING(domain_id)
                     WHERE alias_id = ?
                     AND domain_admin_id = ?
@@ -67,7 +67,7 @@ function getCatchallDomain($catchallDomainId, $catchalType)
             $stmt = exec_query(
                 "
                     SELECT CONCAT(subdomain_alias_name, '.', alias_name) FROM subdomain_alias
-                    JOIN domain_aliasses USING(alias_id)
+                    JOIN domain_aliases USING(alias_id)
                     JOIN domain USING(domain_id)
                     WHERE subdomain_alias_id = ?
                     AND domain_admin_id = ?

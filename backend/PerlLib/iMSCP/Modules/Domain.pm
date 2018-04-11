@@ -246,12 +246,12 @@ sub _restore
         eval {
             $self->{'_dbh'}->begin_work();
             $self->{'_dbh'}->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'_data'}->{'DOMAIN_ID'} );
-            $self->{'_dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'_data'}->{'DOMAIN_ID'} );
+            $self->{'_dbh'}->do( 'UPDATE domain_aliases SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'_data'}->{'DOMAIN_ID'} );
             $self->{'_dbh'}->do(
                 "
                     UPDATE subdomain_alias
                     SET subdomain_alias_status = 'torestore'
-                    WHERE alias_id IN (SELECT alias_id FROM domain_aliasses WHERE domain_id = ?)
+                    WHERE alias_id IN (SELECT alias_id FROM domain_aliases WHERE domain_id = ?)
                 ",
                 undef, $self->{'_data'}->{'DOMAIN_ID'}
             );

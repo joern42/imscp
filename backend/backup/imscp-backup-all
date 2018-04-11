@@ -195,11 +195,11 @@ sub backupMaildirs
             WHERE domain_id = ?
             AND subdomain_status <> 'todelete'
             UNION ALL
-            SELECT alias_name FROM domain_aliasses WHERE domain_id = ? AND alias_status <> 'todelete'
+            SELECT alias_name FROM domain_aliases WHERE domain_id = ? AND alias_status <> 'todelete'
             UNION ALL
             SELECT CONCAT(subdomain_alias_name, '.', alias_name)
             FROM subdomain_alias
-            JOIN domain_aliasses USING(alias_id)
+            JOIN domain_aliases USING(alias_id)
             WHERE domain_id = ?
             AND subdomain_alias_status <> 'todelete'
         ",

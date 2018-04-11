@@ -278,9 +278,9 @@ UNION ALL
 SELECT CONCAT(t1.subdomain_name, '.', t2.domain_name) FROM subdomain AS t1 JOIN domain AS t2 USING(domain_id)
 WHERE t1.subdomain_status <> 'disabled' AND t2.external_mail = 'off'
 UNION ALL
-SELECT alias_name FROM domain_aliasses WHERE alias_status <> 'disabled' AND external_mail = 'off'
+SELECT alias_name FROM domain_aliases WHERE alias_status <> 'disabled' AND external_mail = 'off'
 UNION ALL
-SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) FROM subdomain_alias AS t1 JOIN domain_aliasses AS t2 USING(alias_id)
+SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) FROM subdomain_alias AS t1 JOIN domain_aliases AS t2 USING(alias_id)
 WHERE t1.subdomain_alias_status <> 'disabled' AND t2.external_mail = 'off'
 EOF
     # Create the SQL view for the virtual_mailbox_maps map
@@ -294,7 +294,7 @@ EOF
 CREATE OR REPLACE VIEW postfix_relay_domains AS
 SELECT domain_name FROM domain WHERE domain_status <> 'disabled' AND external_mail = 'on'
 UNION ALL
-SELECT alias_name FROM domain_aliasses WHERE alias_status <> 'disabled' AND external_mail = 'on'
+SELECT alias_name FROM domain_aliases WHERE alias_status <> 'disabled' AND external_mail = 'on'
 EOF
     # Create the SQL view for the transport_maps map (for vacation entries only)
     $self->{'mta'}->{'dbh'}->do( <<'EOF' );

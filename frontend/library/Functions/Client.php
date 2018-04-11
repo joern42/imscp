@@ -156,12 +156,12 @@ function customerHasDomain($domainName, $customerId)
         return true;
     }
 
-    // Check in domain_aliasses table
+    // Check in domain_aliases table
     $stmt = exec_query(
         "
             SELECT 1
             FROM domain AS t1
-            JOIN domain_aliasses AS t2 ON(t2.domain_id = t1.domain_id)
+            JOIN domain_aliases AS t2 ON(t2.domain_id = t1.domain_id)
             WHERE t1.domain_admin_id = ?
             AND t2.alias_name = ?
         ",
@@ -193,7 +193,7 @@ function customerHasDomain($domainName, $customerId)
         "
             SELECT 1
             FROM domain AS t1
-            JOIN domain_aliasses AS t2 ON(t2.domain_id = t1.domain_id)
+            JOIN domain_aliases AS t2 ON(t2.domain_id = t1.domain_id)
             JOIN subdomain_alias AS t3 ON(t3.alias_id = t2.alias_id)
             WHERE t1.domain_admin_id = ? AND CONCAT(t3.subdomain_alias_name, '.', t2.alias_name) = ?
         ",
@@ -222,10 +222,10 @@ function getMountpoints($domainId)
             '
                 SELECT subdomain_mount AS mount_point FROM subdomain WHERE domain_id = ?
                 UNION ALL
-                SELECT alias_mount AS mount_point FROM domain_aliasses WHERE domain_id = ?
+                SELECT alias_mount AS mount_point FROM domain_aliases WHERE domain_id = ?
                 UNION ALL
                 SELECT subdomain_alias_mount AS mount_point FROM subdomain_alias
-                JOIN domain_aliasses USING(alias_id) WHERE domain_id = ?
+                JOIN domain_aliases USING(alias_id) WHERE domain_id = ?
             ',
             [$domainId, $domainId, $domainId]
         );
@@ -267,7 +267,7 @@ function getDomainMountpoint($domainId, $domainType, $ownerId)
         case 'als':
             $query = '
               SELECT alias_mount AS mount_point, alias_document_root AS document_root
-              FROM domain_aliasses
+              FROM domain_aliases
               JOIN domain USING(domain_id)
               WHERE alias_id = ?
               AND domain_admin_id = ?
@@ -277,7 +277,7 @@ function getDomainMountpoint($domainId, $domainType, $ownerId)
             $query = '
               SELECT subdomain_alias_mount AS mount_point, subdomain_alias_document_root AS document_root
               FROM subdomain_alias
-              JOIN domain_aliasses USING(alias_id)
+              JOIN domain_aliases USING(alias_id)
               JOIN domain USING(domain_id)
               WHERE subdomain_alias_id = ?
               AND domain_admin_id = ?
@@ -494,7 +494,7 @@ function deleteSubdomainAlias($id)
             SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) AS subdomain_alias_name,
                 t1.subdomain_alias_mount
             FROM subdomain_alias AS t1
-            JOIN domain_aliasses AS t2 USING(alias_id)
+            JOIN domain_aliases AS t2 USING(alias_id)
             WHERE t2.domain_id = ?
             AND t1.subdomain_alias_id = ?
         ",

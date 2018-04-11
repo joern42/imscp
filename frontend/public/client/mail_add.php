@@ -52,13 +52,13 @@ function getDomainsList()
               WHERE t1.domain_id = :domain_id AND t1.subdomain_status = :status_ok
               UNION ALL
               SELECT alias_name AS name, alias_id AS id, 'als' AS type
-              FROM domain_aliasses
+              FROM domain_aliases
               WHERE domain_id = :domain_id AND alias_status = :status_ok
               UNION ALL
               SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) AS name, t1.subdomain_alias_id AS id,
                 'alssub' AS type
               FROM subdomain_alias AS t1
-              JOIN domain_aliasses AS t2 USING(alias_id)
+              JOIN domain_aliases AS t2 USING(alias_id)
               WHERE t2.domain_id = :domain_id AND subdomain_alias_status = :status_ok
           ",
             [

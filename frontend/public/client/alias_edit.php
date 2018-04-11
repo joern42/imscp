@@ -44,7 +44,7 @@ function _client_getAliasData($domainAliasId)
     $stmt = exec_query(
         '
             SELECT alias_name, alias_mount, alias_document_root, url_forward, type_forward, host_forward
-            FROM domain_aliasses
+            FROM domain_aliases
             WHERE alias_id = ?
             AND domain_id = ?
             AND alias_status = ?
@@ -253,7 +253,7 @@ function client_editDomainAlias()
 
     exec_query(
         '
-          UPDATE domain_aliasses
+          UPDATE domain_aliases
           SET alias_document_root = ?, url_forward = ?, type_forward = ?, host_forward = ?, alias_status = ?
           WHERE alias_id = ?
         ',
