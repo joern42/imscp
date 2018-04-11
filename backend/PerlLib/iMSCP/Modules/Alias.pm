@@ -97,7 +97,7 @@ sub _loadEntityData
             LEFT JOIN(
                 SELECT ? AS alias_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
                 FROM server_ips
-                WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT alias_ip_id FROM domain_aliasses WHERE alias_id = ?), ',', '|'), ')\$')
+                WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT alias_ips FROM domain_aliasses WHERE alias_id = ?), ',', '|'), ')\$')
             ) AS t3 ON t1.alias_id = t3.alias_id
             LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.alias_id AND t4.domain_type = 'als' AND t4.status = 'ok')
             WHERE t1.alias_id = ?

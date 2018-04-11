@@ -308,14 +308,14 @@ function addDomainAlias()
         exec_query(
             '
                 INSERT INTO domain_aliasses (
-                    domain_id, alias_name, alias_mount, alias_document_root, alias_status, alias_ip_id, url_forward, type_forward, host_forward
+                    domain_id, alias_name, alias_mount, alias_document_root, alias_status, alias_ips, url_forward, type_forward, host_forward
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
             ',
             [
                 $mainDmnProps['domain_id'], $domainAliasNameAscii, $mountPoint, $documentRoot, $isSuUser ? 'toadd' : 'ordered',
-                $mainDmnProps['domain_ip_id'], $forwardUrl, $forwardType, $forwardHost
+                $mainDmnProps['domain_ips'], $forwardUrl, $forwardType, $forwardHost
             ]
         );
 

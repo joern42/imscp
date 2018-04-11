@@ -13,15 +13,15 @@
     </tfoot>
     <tbody>
     <tr>
-        <td><span class="bold">{TR_DOMAIN_NAME}</span></td>
+        <td><span class="bold">{TR_CUSTOMER_NAME}</span></td>
         <td><span class="bold">{TR_RESELLER_NAME}</span></td>
     </tr>
-    <!-- BDP: domain_row -->
+    <!-- BDP: customer_row -->
     <tr>
-        <td>{DOMAIN_NAME}</td>
+        <td>{CUSTOMER_NAME}</td>
         <td>{RESELLER_NAME}</td>
     </tr>
-    <!-- EDP: domain_row -->
+    <!-- EDP: customer_row -->
     </tbody>
 </table>
 <!-- EDP: ip_row -->

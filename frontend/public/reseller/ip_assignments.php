@@ -18,8 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
+use iMSCP_Registry as Registry;
 
 /***********************************************************************************************************************
  * Functions
@@ -34,49 +34,39 @@ use iMSCP\TemplateEngine;
 function generatePage($tpl)
 {
     $stmt = exec_query('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$_SESSION['user_id']]);
-    $resellerIps = explode(';', substr($stmt->fetchColumn(), 0, -1));
-    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips WHERE ip_id IN (' . implode(',', $resellerIps) . ')');
+    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips WHERE ip_id IN (' . $stmt->fetchColumn() . ')');
 
     while ($ip = $stmt->fetch()) {
         $stmt2 = exec_query(
-            '
-                SELECT domain_name
-                FROM domain
-                JOIN admin ON(admin_id = domain_admin_id)
-                WHERE domain_ip_id = ?
-                AND created_by = ?
-                UNION ALL
-                SELECT alias_name AS domain_name
-                FROM domain_aliasses
-                JOIN domain USING(domain_id)
-                JOIN admin ON(admin_id = domain_admin_id)
-                WHERE alias_ip_id = ?
-                AND created_by = ?
-            ',
-            [$ip['ip_id'], $_SESSION['user_id'], $ip['ip_id'], $_SESSION['user_id']]
+            "
+                SELECT t2.admin_name AS customer_name
+                FROM domain AS t1
+                JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
+                WHERE t2.created_by = ?
+                AND ? REGEXP CONCAT('^(', (SELECT REPLACE((t1.domain_client_ips), ',', '|')), ')$')
+            ",
+            [$_SESSION['user_id'], $ip['ip_id']]
         );
 
-        $domainsCount = $stmt2->rowCount();
+        $customersCount = $stmt2->rowCount();
 
-        $tpl->assign(
-            [
-                'IP'           => tohtml(($ip['ip_number'] == '0.0.0.0') ? tr('Any') : $ip['ip_number']),
-                'RECORD_COUNT' => tr('Total Domains') . ': ' . ($domainsCount)
-            ]
-        );
+        $tpl->assign([
+            'IP'           => tohtml(($ip['ip_number'] == '0.0.0.0') ? tr('Any') : $ip['ip_number']),
+            'RECORD_COUNT' => tohtml(tr('Total customers') . ': ' . ($customersCount))
+        ]);
 
-        if ($domainsCount) {
+        if ($customersCount > 0) {
             while ($data = $stmt2->fetch()) {
-                $tpl->assign('DOMAIN_NAME', tohtml(idn_to_utf8($data['domain_name'])));
-                $tpl->parse('DOMAIN_ROW', '.domain_row');
+                $tpl->assign('CUSTOMER_NAME', tohtml(decode_idna($data['customer_name'])));
+                $tpl->parse('CUSTOMER_ROW', '.customer_row');
             }
         } else {
-            $tpl->assign('DOMAIN_NAME', tr('No used yet'));
-            $tpl->parse('DOMAIN_ROW', 'domain_row');
+            $tpl->assign('CUSTOMER_NAME', tr('No used yet'));
+            $tpl->parse('CUSTOMER_ROW', 'customer_row');
         }
 
         $tpl->parse('IP_ROW', '.ip_row');
-        $tpl->assign('DOMAIN_ROW', '');
+        $tpl->assign('CUSTOMER_ROW', '');
     }
 }
 
@@ -96,16 +86,16 @@ if (!resellerHasCustomers()) {
 $tpl = new TemplateEngine();
 $tpl->define([
     'layout'       => 'shared/layouts/ui.tpl',
-    'page'         => 'reseller/ip_usage.tpl',
+    'page'         => 'reseller/ip_assignments.tpl',
     'page_message' => 'layout',
     'ip_row'       => 'page',
-    'domain_row'   => 'ip_row'
+    'customer_row' => 'ip_row'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'                   => tohtml(tr('Reseller / Statistics / IP Usage')),
+    'TR_PAGE_TITLE'                   => tohtml(tr('Reseller / Statistics / IP Assignments')),
     'TR_DOMAIN_STATISTICS'            => tohtml(tr('Domain statistics')),
     'TR_IP_RESELLER_USAGE_STATISTICS' => tohtml(tr('Reseller/IP usage statistics')),
-    'TR_DOMAIN_NAME'                  => tohtml(tr('Domain Name'))
+    'TR_CUSTOMER_NAME'                => tohtml(tr('Cutomer Name'))
 ]);
 
 generateNavigation($tpl);

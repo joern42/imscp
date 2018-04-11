@@ -42,7 +42,7 @@ $ipId = intval($_GET['ip_id']);
 
 $stmt = execute_query('SELECT reseller_ips FROM reseller_props');
 while ($row = $stmt->fetch()) {
-    if (in_array($ipId, explode(';', $row['reseller_ips'], -1))) {
+    if (in_array($ipId, explode(',', $row['reseller_ips']))) {
         set_page_message(tr('You cannot delete an IP that is assigned to a reseller.'), 'error');
         redirectTo('ip_manage.php');
     }

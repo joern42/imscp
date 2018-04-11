@@ -25,8 +25,8 @@
  * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
+use iMSCP_Registry as Registry;
 
 /***********************************************************************************************************************
  * Functions
@@ -66,23 +66,24 @@ function admin_generatePage($tpl, $domainId)
     $domainData = $stmt->fetch();
 
     // Domain IP address info
-    $stmt = exec_query("SELECT ip_number FROM server_ips WHERE ip_id = ?", [$domainData['domain_ip_id']]);
-    if (!$stmt->rowCount()) {
-        $domainIpAddr = tr('Not found.');
-    } else {
-        $row = $stmt->fetch();
-        $domainIpAddr = $row['ip_number'];
+    $domainIpAddresses = exec_query(
+        "
+            SELECT GROUP_CONCAT(ip_number)
+            FROM server_ips
+            WHERE ip_id REGEXP CONCAT('^(', (SELECT REPLACE((SELECT domain_client_ips FROM domain WHERE domain_id = ?), ',', '|')), ')\$')
+        ",
+        [$domainId]
+    )->fetchColumn();
+
+    if (!$domainIpAddresses) {
+        $domainIpAddresses = tr('Not found.');
     }
 
     // Domain status
-    if ($domainData['domain_status'] == 'ok' || $domainData['domain_status'] == 'disabled' ||
-        $domainData['domain_status'] == 'todelete' || $domainData['domain_status'] == 'toadd' ||
-        $domainData['domain_status'] == 'torestore' || $domainData['domain_status'] == 'tochange' ||
-        $domainData['domain_status'] == 'toenable' || $domainData['domain_status'] == 'todisable'
-    ) {
+    if (in_array($domainData['domain_status'], ['ok', 'disabled', 'todelete', 'toadd', 'torestore', 'tochange', 'toenable', 'todisable'])) {
         $domainStatus = '<span style="color:green">' . tohtml(translate_dmn_status($domainData['domain_status'])) . '</span>';
     } else {
-        $domainStatus = '<b><font size="3" color="red">' . $domainData['domain_status'] . "</font></b>";
+        $domainStatus = '<span style="color:red;font-weight:bold;">' . tohtml($domainData['domain_status']) . '</span>';
     }
 
     // Get total monthly traffic usage in bytes
@@ -105,7 +106,7 @@ function admin_generatePage($tpl, $domainId)
     $tpl->assign([
         'DOMAIN_ID'                  => $domainId,
         'VL_DOMAIN_NAME'             => tohtml(decode_idna($domainData['domain_name'])),
-        'VL_DOMAIN_IP'               => tohtml(($domainIpAddr == '0.0.0.0') ? tr('Any') : $domainIpAddr),
+        'VL_CLIENT_IP_ADDRESSES'     => tohtml($domainIpAddresses == '0.0.0.0' ? tr('Any') : implode(', ', explode(',', $domainIpAddresses))),
         'VL_STATUS'                  => $domainStatus,
         'VL_PHP_SUPP'                => translate_limit_value($domainData['domain_php']),
         'VL_PHP_EDITOR_SUPP'         => translate_limit_value($domainData['phpini_perm_system']),
@@ -133,7 +134,7 @@ function admin_generatePage($tpl, $domainId)
         'VL_SUBDOM_ACCOUNTS_USED'    => get_customer_subdomains_count($domainId),
         'VL_SUBDOM_ACCOUNTS_LIMIT'   => translate_limit_value($domainData['domain_subd_limit']),
         'VL_DOMALIAS_ACCOUNTS_USED'  => get_customer_domain_aliases_count($domainId),
-        'VL_DOMALIAS_ACCOUNTS_LIMIT' => translate_limit_value($domainData['domain_alias_limit']),
+        'VL_DOMALIAS_ACCOUNTS_LIMIT' => translate_limit_value($domainData['domain_alias_limit'])
     ]);
 }
 
@@ -152,37 +153,37 @@ if (!isset($_GET['domain_id'])) {
 
 $tpl = new TemplateEngine();
 $tpl->define([
-    'layout'        => 'shared/layouts/ui.tpl',
-    'page'          => 'admin/domain_details.tpl',
+    'layout'       => 'shared/layouts/ui.tpl',
+    'page'         => 'admin/domain_details.tpl',
     'page_message' => 'layout'
 ]);
 $tpl->assign([
-        'TR_PAGE_TITLE'        => tr('Admin / Users / Overview / Domain Details'),
-        'TR_DOMAIN_DETAILS'    => tr('Domain details'),
-        'TR_DOMAIN_NAME'       => tr('Domain name'),
-        'TR_DOMAIN_IP'         => tr('Domain IP'),
-        'TR_STATUS'            => tr('Status'),
-        'TR_PHP_SUPP'          => tr('PHP'),
-        'TR_PHP_EDITOR_SUPP'   => tr('PHP Editor'),
-        'TR_CGI_SUPP'          => tr('CGI'),
-        'TR_DNS_SUPP'          => tr('Custom DNS records'),
-        'TR_EXT_MAIL_SUPP'     => tr('Ext. mail server'),
-        'TR_BACKUP_SUPP'       => tr('Backup'),
-        'TR_TRAFFIC'           => tr('Traffic'),
-        'TR_DISK'              => tr('Disk'),
-        'TR_FEATURE'           => tr('Feature'),
-        'TR_USED'              => tr('Used'),
-        'TR_LIMIT'             => tr('Limit'),
-        'TR_SUBDOM_ACCOUNTS'   => tr('Subdomains'),
-        'TR_DOMALIAS_ACCOUNTS' => tr('Domain aliases'),
-        'TR_MAIL_ACCOUNTS'     => tr('Mail accounts'),
-        'TR_MAIL_QUOTA'        => tr('Mail quota'),
-        'TR_FTP_ACCOUNTS'      => tr('FTP accounts'),
-        'TR_SQL_DB_ACCOUNTS'   => tr('SQL databases'),
-        'TR_SQL_USER_ACCOUNTS' => tr('SQL users'),
-        'TR_UPDATE_DATA'       => tr('Submit changes'),
-        'TR_SOFTWARE_SUPP'     => tr('Software installer'),
-        'TR_BACK'              => tr('Back')]
+        'TR_PAGE_TITLE'          => tr('Admin / Users / Overview / Domain Details'),
+        'TR_DOMAIN_DETAILS'      => tr('Domain details'),
+        'TR_DOMAIN_NAME'         => tr('Domain name'),
+        'TR_CLIENT_IP_ADDRESSES' => tr('IP addresses'),
+        'TR_STATUS'              => tr('Status'),
+        'TR_PHP_SUPP'            => tr('PHP'),
+        'TR_PHP_EDITOR_SUPP'     => tr('PHP Editor'),
+        'TR_CGI_SUPP'            => tr('CGI'),
+        'TR_DNS_SUPP'            => tr('Custom DNS records'),
+        'TR_EXT_MAIL_SUPP'       => tr('Ext. mail server'),
+        'TR_BACKUP_SUPP'         => tr('Backup'),
+        'TR_TRAFFIC'             => tr('Traffic'),
+        'TR_DISK'                => tr('Disk'),
+        'TR_FEATURE'             => tr('Feature'),
+        'TR_USED'                => tr('Used'),
+        'TR_LIMIT'               => tr('Limit'),
+        'TR_SUBDOM_ACCOUNTS'     => tr('Subdomains'),
+        'TR_DOMALIAS_ACCOUNTS'   => tr('Domain aliases'),
+        'TR_MAIL_ACCOUNTS'       => tr('Mail accounts'),
+        'TR_MAIL_QUOTA'          => tr('Mail quota'),
+        'TR_FTP_ACCOUNTS'        => tr('FTP accounts'),
+        'TR_SQL_DB_ACCOUNTS'     => tr('SQL databases'),
+        'TR_SQL_USER_ACCOUNTS'   => tr('SQL users'),
+        'TR_UPDATE_DATA'         => tr('Submit changes'),
+        'TR_SOFTWARE_SUPP'       => tr('Software installer'),
+        'TR_BACK'                => tr('Back')]
 );
 
 generateNavigation($tpl);

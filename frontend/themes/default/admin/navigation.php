@@ -194,9 +194,9 @@ return [
                     ]
                 ]
             ],
-            'ip_usage'             => [
-                'label'              => tr('IP usage'),
-                'uri'                => '/admin/ip_usage.php',
+            'ip_assignments'             => [
+                'label'              => tr('IP assignments'),
+                'uri'                => '/admin/ip_assignment.php',
                 'title_class'        => 'ip',
                 'privilege_callback' => [
                     'name' => 'systemHasCustomers'

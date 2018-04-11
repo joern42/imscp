@@ -29,6 +29,87 @@ use iMSCP_Registry as Registry;
  */
 
 /**
+ * Synchronize all domain, subdomain IP addresses with new customer IP addresses list
+ *
+ * - Removes IP addresses assigned to domains when those are no longer available for their owner
+ * - If all IP addresses assigned to a domain are no longer available for its owner, they are
+ *   replaced with the first IP found in the customer new IP addresses list.
+ * - On any change, also schedule domain change (status field only)
+ *
+ * @param int $mainDomainId Customer main domain unique identifier
+ * @param array $newCustomerIps Customer new IP addresses list
+ * @return void
+ */
+function syncDomainIps($mainDomainId, array $newCustomerIps)
+{
+    // dmn IPS
+    $domainIps = explode(',', exec_query('SELECT domain_ips FROM domain WHERE domain_id = ?', [$mainDomainId])->fetchColumn());
+    $commonIps = array_intersect($domainIps, $newCustomerIps);
+    if (count($commonIps) < count($domainIps)) {
+        if (empty($commonIps))
+            $commonIps[] = $newCustomerIps[0];
+
+        exec_query("UPDATE domain SET domain_ips = ?, domain_status = 'tochange' WHERE domain_id = ?", [implode(',', $commonIps), $mainDomainId]);
+    }
+
+    // sub ip addresses
+    $stmt = exec_query('SELECT subdomain_id, subdomain_ips FROM subdomain WHERE domain_id = ?', [$mainDomainId]);
+    while ($row = $stmt->fetch()) {
+        $domainIps = explode(',', $row['subdomain_ips']);
+        $commonIps = array_intersect($domainIps, $newCustomerIps);
+
+        if (count($commonIps) < count($domainIps)) {
+            if (empty($commonIps))
+                $commonIps[] = $newCustomerIps[0];
+
+            exec_query("UPDATE subdomain SET subdomain_ips = ?, subdomain_status = 'tochange' WHERE subdomain_id = ?", [
+                implode(',', $commonIps), $row['subdomain_id']
+            ]);
+        }
+    }
+
+    // als ip addresses
+    $stmt = exec_query('SELECT alias_id, alias_ips FROM domain_aliasses WHERE domain_id = ?', [$mainDomainId]);
+    while ($row = $stmt->fetch()) {
+        $domainIps = explode(',', $row['alias_ips']);
+        $commonIps = array_intersect($domainIps, $newCustomerIps);
+
+        if (count($commonIps) < count($domainIps)) {
+            if (empty($commonIps))
+                $commonIps[] = $newCustomerIps[0];
+
+            exec_query("UPDATE domain_aliasses SET alias_ips = ?, alias_status = 'tochange' WHERE alias_id = ?", [
+                implode(',', $commonIps), $row['alias_id']
+            ]);
+        }
+    }
+
+    // alssub ip addresses
+    $stmt = exec_query(
+        '
+            SELECT t1.subdomain_alias_id, t1.subdomain_alias_ips
+            FROM subdomain_alias AS t1
+            JOIN domain_aliasses AS t2 USING(alias_id)
+            WHERE t2.domain_id = ?
+        ',
+        [$mainDomainId]
+    );
+    while ($row = $stmt->fetch()) {
+        $domainIps = explode(',', $row['subdomain_alias_ips']);
+        $commonIps = array_intersect($domainIps, $newCustomerIps);
+
+        if (count($commonIps) < count($domainIps)) {
+            if (empty($commonIps))
+                $commonIps[] = $newCustomerIps[0];
+
+            exec_query("UPDATE subdomain_alias SET subdomain_alias_ips = ?, subdomain_alias_status = 'tochange' WHERE subdomain_alias_id = ?", [
+                implode(',', $commonIps), $row['subdomain_alias_id']
+            ]);
+        }
+    }
+}
+
+/**
  * Return properties for the given domain
  *
  * @param int $domainId Domain id
@@ -38,7 +119,7 @@ function reseller_getDomainProps($domainId)
 {
     $stmt = exec_query(
         "
-            SELECT t1.domain_id, t1.domain_name, t1.domain_expires, t1.domain_status, t1.domain_ip_id, t1.domain_subd_limit, t1.domain_alias_limit,
+            SELECT t1.domain_id, t1.domain_name, t1.domain_expires, t1.domain_status, t1.domain_subd_limit, t1.domain_client_ips, t1.domain_alias_limit,
                 t1.domain_mailacc_limit, t1.domain_ftpacc_limit, t1.domain_sqld_limit, t1.domain_sqlu_limit, t1.domain_disk_limit, domain_disk_usage,
                 t1.domain_traffic_limit, t1.domain_php, t1.domain_cgi, t1.domain_dns, t1.domain_software_allowed, t1.allowbackup,
                 t1.domain_external_mail,t1.web_folder_protection, t1.mail_quota, t2.admin_id
@@ -120,7 +201,7 @@ function &getData($domainId, $forUpdate = false)
 
     $domainProps = reseller_getDomainProps($domainId);
     $resellerProps = reseller_getResellerProps($_SESSION['user_id']);
-    $resellerProps['reseller_ips'] = explode(';', rtrim($resellerProps['reseller_ips'], ';'));
+    $resellerProps['reseller_ips'] = explode(',', $resellerProps['reseller_ips']);
 
     list($subCount, $alsCount, $mailCount, $ftpCount, $sqlDbCount, $sqlUsersCount) = get_customer_objects_counts($domainProps['admin_id']);
 
@@ -134,7 +215,7 @@ function &getData($domainId, $forUpdate = false)
 
     // Fallback values
     $data['fallback_domain_expires'] = $data['domain_expires'];
-    $data['fallback_domain_ip_id'] = $data['domain_ip_id'];
+    $data['fallback_domain_client_ips'] = $data['domain_client_ips'] = explode(',', $data['domain_client_ips']);
     $data['fallback_domain_subd_limit'] = $data['domain_subd_limit'];
     $data['fallback_domain_alias_limit'] = $data['domain_alias_limit'];
     $data['fallback_domain_mailacc_limit'] = $data['domain_mailacc_limit'];
@@ -178,7 +259,8 @@ function &getData($domainId, $forUpdate = false)
             }
         }
 
-        $data['domain_ip_id'] = isset($_POST['domain_ip_id']) ? clean_input($_POST['domain_ip_id']) : $data['domain_ip_id'];
+        $data['domain_client_ips'] = isset($_POST['domain_client_ips']) && is_array($_POST['domain_client_ips'])
+            ? $_POST['domain_client_ips'] : $data['domain_client_ips'];
         $data['domain_expires'] = isset($_POST['domain_expires']) ? clean_input($_POST['domain_expires']) : $data['domain_expires'];
         $data['domain_never_expires'] = isset($_POST['domain_never_expires']) ? clean_input($_POST['domain_never_expires']) : 'off';
         $data['domain_php'] = isset($_POST['domain_php']) ? clean_input($_POST['domain_php']) : $data['domain_php'];
@@ -603,9 +685,9 @@ function reseller_checkAndUpdateData($domainId)
             $data['domain_expires'] = 0;
         }
 
-        // Check for domain IP id
-        if (!in_array($data['domain_ip_id'], $data['reseller_ips'])) {
-            $data['domain_ip_id'] = $data['fallback_domain_ip_id'];
+        // Check for customer IP addresses
+        if(array_diff($data['domain_client_ips'], $data['reseller_ips'])) {
+            $data['domain_client_ips'] = $data['fallback_domain_client_ips'];
         }
 
         // Check for the subdomains limit
@@ -827,32 +909,31 @@ function reseller_checkAndUpdateData($domainId)
                 $changeNeeded = true;
             }
 
-            // Update limits and permissions
+            // Update IP addresses, limits and permissions
 
             exec_query(
                 '
                     UPDATE domain
                     SET domain_expires = ?, domain_last_modified = ?, domain_mailacc_limit = ?, domain_ftpacc_limit = ?, domain_traffic_limit = ?,
                         domain_sqld_limit = ?, domain_sqlu_limit = ?, domain_status = ?, domain_alias_limit = ?, domain_subd_limit = ?,
-                        domain_ip_id = ?, domain_disk_limit = ?, domain_php = ?, domain_cgi = ?, allowbackup = ?, domain_dns = ?,
+                        domain_client_ips = ?, domain_disk_limit = ?, domain_php = ?, domain_cgi = ?, allowbackup = ?, domain_dns = ?,
                         domain_software_allowed = ?,  domain_external_mail = ?, web_folder_protection = ?, mail_quota = ?
                     WHERE domain_id = ?
                 ',
                 [
                     $data['domain_expires'], time(), $data['domain_mailacc_limit'], $data['domain_ftpacc_limit'], $data['domain_traffic_limit'],
                     $data['domain_sqld_limit'], $data['domain_sqlu_limit'], $changeNeeded ? 'tochange' : 'ok', $data['domain_alias_limit'],
-                    $data['domain_subd_limit'], $data['domain_ip_id'], $data['domain_disk_limit'], $data['domain_php'], $data['domain_cgi'],
-                    implode('|', $data['allowbackup']), $data['domain_dns'], $data['domain_software_allowed'], $data['domain_external_mail'],
-                    $data['web_folder_protection'], $data['mail_quota'] * 1048576, $domainId
+                    $data['domain_subd_limit'], implode(',', $data['domain_client_ips']), $data['domain_disk_limit'], $data['domain_php'],
+                    $data['domain_cgi'],  implode('|', $data['allowbackup']), $data['domain_dns'], $data['domain_software_allowed'],
+                    $data['domain_external_mail'], $data['web_folder_protection'], $data['mail_quota'] * 1048576, $domainId
                 ]
             );
 
             $phpini->saveClientPermissions($data['admin_id']);
             $phpini->updateClientIniOptions($data['admin_id'], $phpConfigLevel != $phpini->getClientPermission('phpiniConfigLevel'));
 
-            if ($data['domain_ip_id'] != $data['fallback_domain_ip_id']) {
-                // Update IP address for domain aliases
-                exec_query("UPDATE domain_aliasses SET alias_ip_id = ? WHERE domain_id = ?", [$data['domain_ip_id'], $domainId]);
+            if (array_diff($data['domain_client_ips'], $data['fallback_domain_client_ips'])) {
+                syncDomainIps($domainId, $data['domain_client_ips']);
                 $changeNeeded = true;
             }
 
@@ -1066,12 +1147,18 @@ $tpl->assign([
     'DOMAIN_NEW_EXPIRE_DATE_DISABLED' => $data['domain_never_expires'] == 'on' ? ' disabled' : '',
     'TR_DOMAIN_NEVER_EXPIRES'         => tohtml(tr('Never')),
     'DOMAIN_NEVER_EXPIRES_CHECKED'    => $data['domain_never_expires'] == 'on' ? ' checked' : '',
-    'TR_DOMAIN_IP'                    => tohtml(tr('Domain IP')),
+    'TR_IP_ADDRESSES'                 => tohtml(tr('IP addresses')),
     'TR_UPDATE'                       => tohtml(tr('Update'), 'htmlAttr'),
     'TR_CANCEL'                       => tohtml(tr('Cancel'))
 ]);
 
-reseller_generate_ip_list($tpl, $_SESSION['user_id'], $data['domain_ip_id']);
+Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Event $e) {
+    $translations = $e->getParam('translations');
+    $translations['core']['available'] = tr('Available');
+    $translations['core']['assigned'] = tr('Assigned');
+});
+
+reseller_generate_ip_list($tpl, $_SESSION['user_id'], $data['domain_client_ips']);
 generateNavigation($tpl);
 generatePage($tpl, $data);
 generatePageMessage($tpl);

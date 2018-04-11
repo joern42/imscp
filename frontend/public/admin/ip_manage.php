@@ -94,7 +94,7 @@ function generateIpsList($tpl)
     $assignedIps = [];
     $stmt = execute_query('SELECT reseller_ips FROM reseller_props');
     while ($row = $stmt->fetch()) {
-        $resellerIps = explode(';', $row['reseller_ips'], -1);
+        $resellerIps = explode(',', $row['reseller_ips']);
         foreach ($resellerIps as $ipId) {
             if (!in_array($ipId, $assignedIps)) {
                 $assignedIps[] = $ipId;

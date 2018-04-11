@@ -1,6 +1,11 @@
 
 <script>
-    $(function() {
+    $(function () {
+        $('#domain_client_ips').multiSelect({
+            selectableHeader: '<div class="ms-header">'+imscp_i18n.core.available+'</div>',
+            selectionHeader: '<div class="ms-header">'+imscp_i18n.core.assigned+'</div>'
+        });
+
         $.each(imscp_i18n.core.error_field_stack, function (i, k) {
             $("#" + k).css("border-color", "#ca1d11");
         });
@@ -69,9 +74,9 @@
             </td>
         </tr>
         <tr>
-            <td><label for="domain_ip_id">{TR_DOMAIN_IP}</label></td>
+            <td><label for="domain_client_ips">{TR_IP_ADDRESSES}</label></td>
             <td>
-                <select id="domain_ip_id" name="domain_ip_id">
+                <select id="domain_client_ips" name="domain_client_ips[]" multiple>
                     <!-- BDP: ip_entry -->
                     <option value="{IP_VALUE}"{IP_SELECTED}>{IP_NUM}</option>
                     <!-- EDP: ip_entry -->

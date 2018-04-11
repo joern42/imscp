@@ -183,7 +183,7 @@ sub build
         iMSCP::Getopt->skippackages( FALSE );
     }
 
-    print STDOUT output( 'Build steps in progress... Please wait.', 'info' ) if iMSCP::Getopt->noprompt;
+    print STDOUT output( 'Build steps in progress...', 'info' ) if iMSCP::Getopt->noprompt;
 
     my $dialog = iMSCP::Dialog->getInstance();
 
@@ -275,7 +275,7 @@ EOF
 
 sub install
 {
-    print STDOUT output( 'Installation in progress... Please wait.', 'info' ) if iMSCP::Getopt->noprompt;
+    print STDOUT output( 'Installation in progress...', 'info' ) if iMSCP::Getopt->noprompt;
 
     {
         package main;

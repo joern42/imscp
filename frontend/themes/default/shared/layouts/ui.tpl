@@ -7,6 +7,7 @@
     <link rel="shortcut icon" href="{THEME_ASSETS_PATH}/images/favicon.ico">
     <link rel="stylesheet" href="{THEME_ASSETS_PATH}/css/jquery-ui-{THEME_COLOR}.css?v={THEME_ASSETS_VERSION}">
     <link rel="stylesheet" href="{THEME_ASSETS_PATH}/css/ui.css?v={THEME_ASSETS_VERSION}">
+    <link rel="stylesheet" href="{THEME_ASSETS_PATH}/css/multi-select.css?v={THEME_ASSETS_VERSION}">
     <link rel="stylesheet" href="{THEME_ASSETS_PATH}/css/{THEME_COLOR}.css?v={THEME_ASSETS_VERSION}">
     <script>
         imscp_i18n = {JS_TRANSLATIONS};
@@ -16,6 +17,7 @@
     <script src="{THEME_ASSETS_PATH}/js/jquery/plugins/dataTables.js?v={THEME_ASSETS_VERSION}"></script>
     <script src="{THEME_ASSETS_PATH}/js/jquery/plugins/dataTables_naturalSorting.js?v={THEME_ASSETS_VERSION}"></script>
     <script src="{THEME_ASSETS_PATH}/js/jquery/plugins/pGenerator.js?v={THEME_ASSETS_VERSION}"></script>
+    <script src="{THEME_ASSETS_PATH}/js/jquery/plugins/jquery.multi-select.js?v={THEME_ASSETS_VERSION}"></script>
     <script src="{THEME_ASSETS_PATH}/js/imscp.min.js?v={THEME_ASSETS_VERSION}"></script>
 </head>
 <body>

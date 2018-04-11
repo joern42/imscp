@@ -18,8 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
+use iMSCP_Registry as Registry;
 
 /***********************************************************************************************************************
  * Functions
@@ -37,45 +37,38 @@ function listIPDomains($tpl)
 
     while ($ip = $stmt->fetch()) {
         $stmt2 = exec_query(
-            '
-                SELECT t1.domain_name, t3.admin_name
+            "
+                SELECT t2.admin_name AS customer_name, t3.admin_name AS reseller_name
                 FROM domain AS t1
                 JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
-                JOIN admin as t3 ON(t3.admin_id = t2.created_by)
-                WHERE t1.domain_ip_id = :ip_id
-                UNION ALL
-                SELECT t1.alias_name AS domain_name, t4.admin_name
-                FROM domain_aliasses AS t1
-                JOIN domain AS t2 USING(domain_id)
-                JOIN admin AS t3 ON(admin_id = domain_admin_id)
-                JOIN admin AS t4 ON(t4.admin_id = t3.created_by)
-                WHERE alias_ip_id = :ip_id
-            ',
-            ['ip_id' => $ip['ip_id']]
+                JOIN admin AS t3 ON (t3.admin_id = t2.created_by)
+                WHERE ? REGEXP CONCAT('^(', (SELECT REPLACE((t1.domain_client_ips), ',', '|')), ')$')
+            ",
+            [$ip['ip_id']]
         );
 
-        $domainsCount = $stmt2->rowCount();
+        $customersCount = $stmt2->rowCount();
 
         $tpl->assign([
             'IP'           => tohtml(($ip['ip_number'] == '0.0.0.0') ? tr('Any') : $ip['ip_number']),
-            'RECORD_COUNT' => tr('Total Domains') . ': ' . ($domainsCount)
+            'RECORD_COUNT' => tohtml(tr('Total customers') . ': ' . $customersCount)
         ]);
 
-        if ($domainsCount) {
+        if ($customersCount > 0) {
             while ($data = $stmt2->fetch()) {
                 $tpl->assign([
-                    'DOMAIN_NAME'   => tohtml(idn_to_utf8($data['domain_name'])),
-                    'RESELLER_NAME' => tohtml($data['admin_name'])
+                    'CUSTOMER_NAME' => tohtml(decode_idna($data['customer_name'])),
+                    'RESELLER_NAME' => tohtml($data['reseller_name'])
                 ]);
-                $tpl->parse('DOMAIN_ROW', '.domain_row');
+                $tpl->parse('CUSTOMER_ROW', '.customer_row');
             }
         } else {
-            $tpl->assign('DOMAIN_NAME', tr('No used yet'));
-            $tpl->parse('DOMAIN_ROW', 'domain_row');
+            $tpl->assign('CUSTOMER_NAME', tr('No used yet'));
+            $tpl->parse('CUSTOMER_row', 'customer_row');
         }
 
         $tpl->parse('IP_ROW', '.ip_row');
-        $tpl->assign('DOMAIN_ROW', '');
+        $tpl->assign('CUSTOMER_ROW', '');
     }
 }
 
@@ -95,16 +88,16 @@ if (!systemHasCustomers()) {
 $tpl = new TemplateEngine();
 $tpl->define([
     'layout'       => 'shared/layouts/ui.tpl',
-    'page'         => 'admin/ip_usage.tpl',
+    'page'         => 'admin/ip_assignments.tpl',
     'page_message' => 'layout',
     'ip_row'       => 'page',
-    'domain_row'   => 'ip_row'
+    'customer_row' => 'ip_row'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'                => tr('Admin / Statistics / IP Usage'),
+    'TR_PAGE_TITLE'                => tr('Admin / Statistics / IP Assignments'),
     'TR_SERVER_STATISTICS'         => tr('Server statistics'),
     'TR_IP_ADMIN_USAGE_STATISTICS' => tr('Admin/IP usage statistics'),
-    'TR_DOMAIN_NAME'               => tr('Domain Name'),
+    'TR_CUSTOMER_NAME'             => tr('Customer Name'),
     'TR_RESELLER_NAME'             => tr('Reseller Name')
 ]);
 

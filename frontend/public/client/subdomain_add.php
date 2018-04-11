@@ -310,6 +310,7 @@ function addSubdomain()
 
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeAddSubdomain, [
             'subdomainName'  => $subdomainName,
+            'subdomainIps'   => $mainDmnProps['domain_ips'],
             'subdomainType'  => $domainType,
             'parentDomainId' => $domainId,
             'mountPoint'     => $mountPoint,
@@ -323,25 +324,27 @@ function addSubdomain()
         if ($domainType == 'als') {
             $query = "
                 INSERT INTO subdomain_alias (
-                    alias_id, subdomain_alias_name, subdomain_alias_mount, subdomain_alias_document_root,
+                    alias_id, subdomain_alias_name, subdomain_alias_ips, subdomain_alias_mount, subdomain_alias_document_root,
                     subdomain_alias_url_forward, subdomain_alias_type_forward, subdomain_alias_host_forward,
                     subdomain_alias_status
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, 'toadd'
+                    ?, ?, ?, ?, ?, ?, ?, ?, 'toadd'
                 )
             ";
         } else {
             $query = "
                 INSERT INTO subdomain (
-                    domain_id, subdomain_name, subdomain_mount, subdomain_document_root, subdomain_url_forward,
+                    domain_id, subdomain_name, subdomain_ips, subdomain_mount, subdomain_document_root, subdomain_url_forward,
                     subdomain_type_forward, subdomain_host_forward, subdomain_status
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, 'toadd'
+                    ?, ?, ?, ?, ?, ?, ?, ?, 'toadd'
                 )
             ";
         }
 
-        exec_query($query, [$domainId, $subLabelAscii, $mountPoint, $documentRoot, $forwardUrl, $forwardType, $forwardHost]);
+        exec_query($query, [
+            $domainId, $subLabelAscii, $mainDmnProps['domain_ips'], $mountPoint, $documentRoot, $forwardUrl, $forwardType, $forwardHost
+        ]);
 
         $subdomainId = $db->lastInsertId();
 
@@ -373,6 +376,7 @@ function addSubdomain()
 
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterAddSubdomain, [
             'subdomainName'  => $subdomainName,
+            'subdomainIps'   => $mainDmnProps['domain_ips'],
             'subdomainType'  => $domainType,
             'parentDomainId' => $domainId,
             'mountPoint'     => $mountPoint,

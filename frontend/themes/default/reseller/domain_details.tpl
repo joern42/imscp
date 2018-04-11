@@ -7,8 +7,8 @@
     </thead>
     <tbody>
     <tr>
-        <td>{TR_DOMAIN_NAME}</td>
-        <td>{VL_DOMAIN_NAME}</td>
+        <td>{TR_CLIENT_IP_ADDRESSES}</td>
+        <td>{VL_CLIENT_IP_ADDRESSES}</td>
     </tr>
     <tr>
         <td>{TR_DOMAIN_IP}</td>

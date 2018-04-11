@@ -58,6 +58,7 @@ customerHasFeature('backup') or showBadRequestErrorPage();
 
 if (!empty($_POST)) {
     scheduleBackupRestoration($_SESSION['user_id']);
+    redirectTo('backup.php');
 }
 
 $tpl = new TemplateEngine();

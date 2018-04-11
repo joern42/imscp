@@ -117,18 +117,13 @@ sub _loadEntityData
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         ( $aliasId eq '0'
-            ? 'SELECT t1.domain_name, t2.ip_number FROM domain AS t1 JOIN server_ips AS t2 ON(t2.ip_id = t1.domain_ip_id) WHERE t1.domain_id = ?'
-            : '
-                SELECT t1.alias_name AS domain_name, t2.ip_number
-                FROM domain_aliasses AS t1
-                JOIN server_ips AS t2 ON(t2.ip_id = t1.alias_ip_id)
-                WHERE t1.alias_id = ?
-              '
+            ? 'SELECT domain_name as zone FROM domain WHERE domain_id = ?'
+            : 'SELECT alias_name AS zine FROM domain_aliasses WHERE alias_id = ?'
         ),
         undef, ( $aliasId eq '0' ? $domainId : $aliasId )
     );
     %{ $row } or die( sprintf( 'Data not found for custom DNS records group (%d;%d)', $domainId, $aliasId ));
-    @{ $self->{'_data'} }{qw/ DOMAIN_NAME DOMAIN_IP /} = ( $row->{'domain_name'}, $row->{'ip_number'} );
+    $self->{'_data'}->{'ZONE'} = $row->{'zone'};
     undef $row;
 
     my $rows = $self->{'_dbh'}->selectall_arrayref(
@@ -180,7 +175,7 @@ sub _loadEntityData
         push @dnsRecords, [ ( @{ $row } )[0 .. 3] ];
     }
 
-    @{ $self->{'_data'} }{qw/ BASE_SERVER_PUBLIC_IP DNS_RECORDS /} = ( $::imscpConfig{'BASE_SERVER_PUBLIC_IP'}, [ @dnsRecords ] );
+    $self->{'_data'}->{'DNS_RECORDS'} = [ @dnsRecords ];
 }
 
 =back

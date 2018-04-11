@@ -45,6 +45,8 @@ use parent 'iMSCP::Servers::Named';
 =head1 DESCRIPTION
 
  i-MSCP Bind9 Server abstract implementation.
+ 
+ TODO: Use https://metacpan.org/pod/DNS::ZoneParse to handle zone files
 
 =head1 PUBLIC METHODS
 
@@ -694,14 +696,14 @@ sub addCustomDNS
 
     return unless $self->{'config'}->{'NAMED_MODE'} eq 'master';
 
-    my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'DOMAIN_NAME'}.db";
+    my $wrkDbFile = "$self->{'wrkDir'}/$moduleData->{'ZONE'}.db";
     -f $wrkDbFile or die( sprintf( 'File %s not found. Please rerun the imscp-reconfigure script.', $wrkDbFile ));
 
     $wrkDbFile = iMSCP::File->new( filename => $wrkDbFile );
     my $wrkDbFileCref = $wrkDbFile->getAsRef();
 
-    unless ( $self->{'serials'}->{$moduleData->{'DOMAIN_NAME'}} ) {
-        $self->_updateSOAserialNumber( $moduleData->{'DOMAIN_NAME'}, $wrkDbFileCref, $wrkDbFileCref );
+    unless ( $self->{'serials'}->{$moduleData->{'ZONE'}} ) {
+        $self->_updateSOAserialNumber( $moduleData->{'ZONE'}, $wrkDbFileCref, $wrkDbFileCref );
     }
 
     $self->{'eventManager'}->trigger( 'beforeBindAddCustomDNS', $wrkDbFileCref, $moduleData );
@@ -736,7 +738,7 @@ EOF
 
     $self->{'eventManager'}->trigger( 'afterBindAddCustomDNS', \$newWrkDbFileC, $moduleData );
     $wrkDbFile->set( $newWrkDbFileC )->save();
-    $self->_compileZone( $moduleData->{'DOMAIN_NAME'}, $wrkDbFile->{'filename'} );
+    $self->_compileZone( $moduleData->{'ZONE'}, $wrkDbFile->{'filename'} );
     $self->{'reload'} ||= TRUE;
 }
 

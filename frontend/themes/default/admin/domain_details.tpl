@@ -11,8 +11,8 @@
         <td>{VL_DOMAIN_NAME}</td>
     </tr>
     <tr>
-        <td>{TR_DOMAIN_IP}</td>
-        <td>{VL_DOMAIN_IP}</td>
+        <td>{TR_CLIENT_IP_ADDRESSES}</td>
+        <td>{VL_CLIENT_IP_ADDRESSES}</td>
     </tr>
     <tr>
         <td>{TR_STATUS}</td>

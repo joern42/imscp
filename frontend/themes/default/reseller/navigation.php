@@ -176,9 +176,9 @@ return [
                     ]
                 ]
             ],
-            'ip_usage'        => [
+            'ip_assignments'        => [
                 'label'       => tr('IP assignments'),
-                'uri'         => '/reseller/ip_usage.php',
+                'uri'         => '/reseller/ip_assignments.php',
                 'title_class' => 'stats'
             ]
         ]

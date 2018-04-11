@@ -4,6 +4,11 @@
             $("#" + k).css("border-color", "#ca1d11");
         });
 
+        $('#reseller_ips').multiSelect({
+            selectableHeader: '<div class="ms-header">'+imscp_i18n.core.available+'</div>',
+            selectionHeader: '<div class="ms-header">'+imscp_i18n.core.assigned+'</div>'
+        });
+        
         $("#datatable").dataTable({
             language: imscp_i18n.core.dataTable,
             stateSave: true,
@@ -33,24 +38,24 @@
         </tr>
         </tbody>
     </table>
-    <!-- BDP: ips_block -->
     <table class="firstColFixed datatable">
         <thead>
         <tr>
-            <th>{TR_IP_ADDRESS}</th>
-            <th>{TR_ASSIGN}</th>
+            <th><label for="reseller_ips">{TR_IP_ADDRESSES}</label></th>
         </tr>
         </thead>
         <tbody>
-        <!-- BDP: ip_block -->
         <tr>
-            <td><label for="ip_{IP_ID}">{IP_NUMBER}</label></td>
-            <td><input type="checkbox" id="ip_{IP_ID}" name="reseller_ips[]" value="{IP_ID}"{IP_ASSIGNED}></td>
+            <td>
+                <select id="reseller_ips" name="reseller_ips[]" multiple>
+                    <!-- BDP: ip_entry -->
+                    <option value="{IP_VALUE}"{IP_SELECTED}>{IP_NUM}</option>
+                    <!-- EDP: ip_entry -->
+                </select>
+            </td>
         </tr>
-        <!-- EDP: ip_block -->
         </tbody>
     </table>
-    <!-- EDP: ips_block -->
     <table class="firstColFixed">
         <thead>
         <tr>

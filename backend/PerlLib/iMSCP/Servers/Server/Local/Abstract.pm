@@ -163,8 +163,7 @@ sub primaryIpDialog
 
     my @ipList = ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes'
         ? grep (isValidIpAddr( $_, qr/(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)/ ), iMSCP::Net->getInstance()->getAddresses())
-        : grep (isValidIpAddr( $_, qr/(?:PRIVATE|PUBLIC)/ ), iMSCP::Net->getInstance()->getAddresses())
-        ,
+        : grep (isValidIpAddr( $_, qr/(?:PRIVATE|PUBLIC)/ ), iMSCP::Net->getInstance()->getAddresses()),
         'None'
     );
     @ipList = sort @ipList;
@@ -240,7 +239,9 @@ EOF
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'local_server', 'primary_ip', 'all', 'forced' ] ) ) {
         if ( ( my $rs = $dialog->yesno( <<"EOF", TRUE, TRUE ) ) == 0 ) {
 
-Do you want to replace the IP address of all clients with the new primary IP address?
+Do you want to replace all IP addresses currently set with the new primary IP address?
+
+Be aware that this will reset IP addresses of all resellers and customers.
 EOF
             return $rs unless $rs < 30;
 
@@ -634,23 +635,37 @@ sub _setupPrimaryIP
     $self->{'dbh'}->selectrow_hashref( 'SELECT 1 FROM server_ips WHERE ip_number = ?', undef, $primaryIP )
         ? $self->{'dbh'}->do( 'UPDATE server_ips SET ip_card = ? WHERE ip_number = ?', undef, $netCard, $primaryIP )
         : $self->{'dbh'}->do(
-        'INSERT INTO server_ips (ip_number, ip_card, ip_config_mode, ip_status) VALUES(?, ?, ?, ?)', undef, $primaryIP, $netCard, 'manual', 'ok'
-    );
+            'INSERT INTO server_ips (ip_number, ip_card, ip_config_mode, ip_status) VALUES(?, ?, ?, ?)', undef, $primaryIP, $netCard, 'manual', 'ok' 
+        );
 
     if ( ::setupGetQuestion( 'REPLACE_CLIENTS_IP_WITH_BASE_SERVER_IP' ) ) {
         my $resellers = $self->{'dbh'}->selectall_arrayref( 'SELECT reseller_id, reseller_ips FROM reseller_props', { Slice => {} } );
+
         if ( @{ $resellers } ) {
             my $primaryIpID = $self->{'dbh'}->selectrow_array( 'SELECT ip_id FROM server_ips WHERE ip_number = ?', undef, $primaryIP );
+            
+            # FIXME: Instead of replacing all IP addresses by the new primary IP addresses by closing
+            # eyes, it could be best to only replace those that are orphaned:
+            #  1. Find IP addresses that are no longer available in the server_ips table.
+            #  2. Replace IP addresses found by the new primary IP addresses, with uniqueness in mind
+            eval {
+                $self->{'dbh'}->begin_work();
+                for my $reseller ( @{ $resellers } ) {
+                    my @ipIDS = split( ',', $reseller->{'reseller_ips'} );
+                    next if grep ($_ eq $primaryIpID, @ipIDS );
+                    push @ipIDS, $primaryIpID;
+                    $self->{'dbh'}->do( 'UPDATE reseller_props SET reseller_ips = ? WHERE reseller_id = ?', undef, join( ',', @ipIDS ));
+                }
 
-            for my $reseller ( @{ $resellers } ) {
-                my @ipIDS = split( ';', $reseller->{'reseller_ips'} );
-                next if grep ($_ eq $primaryIpID, @ipIDS );
-                push @ipIDS, $primaryIpID;
-                $self->{'dbh'}->do( 'UPDATE reseller_props SET reseller_ips = ? WHERE reseller_id = ?', undef, join( ';', @ipIDS ) . ';' );
+                $self->{'dbh'}->do( 'UPDATE domain SET domain_client_ips = ?, domain_ips = ?', undef, $primaryIpID, $primaryIpID );
+                $self->{'dbh'}->do( 'UPDATE subdomain SET subdomain_ips = ?', undef, $primaryIpID );
+                $self->{'dbh'}->do( 'UPDATE domain_aliases SET alias_ips = ?', undef, $primaryIpID );
+                $self->{'dbh'}->do( 'UPDATE subdomain_alias SET subdomain_alias_ips = ?', undef, $primaryIpID );
+            };
+            if($@) {
+                $self->{'dbh'}->rollback();
+                die;
             }
-
-            $self->{'dbh'}->do( 'UPDATE domain SET domain_ip_id = ?', undef, $primaryIpID );
-            $self->{'dbh'}->do( 'UPDATE domain_aliasses SET alias_ip_id = ?', undef, $primaryIpID );
         }
     }
 

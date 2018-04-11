@@ -19,10 +19,10 @@
  */
 
 use iMSCP\Crypt as Crypt;
+use iMSCP\PHPini;
 use iMSCP\TemplateEngine;
 use iMSCP_Events as Events;
 use iMSCP_Exception as iMSCPException;
-use iMSCP\PHPini;
 use iMSCP_Registry as Registry;
 use Zend_Form as Form;
 
@@ -81,9 +81,24 @@ function getPreviousStepData()
  */
 function addCustomer(Form $form)
 {
-    global $hpId, $dmnName, $dmnExpire, $dmnUrlForward, $dmnTypeForward, $dmnHostForward, $domainIp, $adminName;
+    global $hpId, $dmnName, $dmnExpire, $dmnUrlForward, $dmnTypeForward, $dmnHostForward, $clientIps, $adminName;
 
-    if (!isset($_POST['domain_ip'])) {
+    $formIsValid = TRUE;
+
+    if (isset($_POST['domain_client_ips']) && is_array($_POST['domain_client_ips'])) {
+        $stmt = exec_query('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$_SESSION['user_id']]);
+        if (!$stmt->rowCount()) {
+            throw new iMSCPException(sprintf('Could not find IPs for reseller with ID %s', $_SESSION['user_id']));
+        }
+
+        $clientIps = array_intersect($_POST['domain_client_ips'], explode(',', $stmt->fetchColumn()));
+        if (count($clientIps) < count($_POST['domain_client_ips'])) {
+            showBadRequestErrorPage();
+        }
+    } elseif (!isset($_POST['domain_client_ips'])) {
+        set_page_message(tohtml(tr('You must select at least one IP address.')), 'error');
+        $formIsValid = FALSE;
+    } else {
         showBadRequestErrorPage();
     }
 
@@ -94,18 +109,11 @@ function addCustomer(Form $form)
             }
         }
 
+        $formIsValid = FALSE;
+    }
+
+    if (!$formIsValid) {
         return;
-    }
-
-    $domainIp = intval($_POST['domain_ip']);
-    $stmt = exec_query('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$_SESSION['user_id']]);
-    if (!$stmt->rowCount()) {
-        throw new iMSCPException(sprintf('Could not find IPs for reseller with ID %s', $_SESSION['user_id']));
-    }
-
-    $resellerIps = explode(';', rtrim($stmt->fetchColumn(), ';'));
-    if (!in_array($domainIp, $resellerIps)) {
-        showBadRequestErrorPage();
     }
 
     $cfg = Registry::get('config');
@@ -172,18 +180,19 @@ function addCustomer(Form $form)
             '
                 INSERT INTO domain (
                     domain_name, domain_admin_id, domain_created, domain_expires, domain_mailacc_limit, domain_ftpacc_limit, domain_traffic_limit,
-                    domain_sqld_limit, domain_sqlu_limit, domain_status, domain_alias_limit, domain_subd_limit, domain_ip_id, domain_disk_limit,
-                    domain_disk_usage, domain_php, domain_cgi, allowbackup, domain_dns, domain_software_allowed, phpini_perm_system,
+                    domain_sqld_limit, domain_sqlu_limit, domain_status, domain_alias_limit, domain_subd_limit, domain_client_ips, domain_ips,
+                    domain_disk_limit, domain_disk_usage, domain_php, domain_cgi, allowbackup, domain_dns, domain_software_allowed, phpini_perm_system,
                     phpini_perm_config_level, phpini_perm_allow_url_fopen, phpini_perm_display_errors, phpini_perm_disable_functions,
                     phpini_perm_mail_function, domain_external_mail, web_folder_protection, mail_quota, url_forward,type_forward, host_forward
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
             ',
             [
-                $dmnName, $adminId, time(), $dmnExpire, $mail, $ftp, $traff, $sql_db, $sql_user, 'toadd', $als, $sub, $domainIp, $disk, 0, $php,
-                $cgi, $backup, $dns, $aps, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen, $phpiniDisplayErrors, $phpiniDisableFunctions,
-                $phpMailFunction, $extMailServer, $webFolderProtection, $mailQuota, $dmnUrlForward, $dmnTypeForward, $dmnHostForward
+                $dmnName, $adminId, time(), $dmnExpire, $mail, $ftp, $traff, $sql_db, $sql_user, 'toadd', $als, $sub, implode(',', $clientIps),
+                $clientIps[0], $disk, 0, $php, $cgi, $backup, $dns, $aps, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen,
+                $phpiniDisplayErrors, $phpiniDisableFunctions, $phpMailFunction, $extMailServer, $webFolderProtection, $mailQuota, $dmnUrlForward,
+                $dmnTypeForward, $dmnHostForward
             ]
         );
 
@@ -246,12 +255,12 @@ function addCustomer(Form $form)
  */
 function generatePage(TemplateEngine $tpl, Form $form)
 {
-    global $hpId, $dmnName, $domainIp;
+    global $hpId, $dmnName, $clientIps;
 
     $form->setDefault('admin_name', $dmnName);
     $tpl->form = $form;
 
-    reseller_generate_ip_list($tpl, $_SESSION['user_id'], $domainIp);
+    reseller_generate_ip_list($tpl, $_SESSION['user_id'], $clientIps ?: []);
     $_SESSION['local_data'] = "$dmnName;$hpId";
 }
 

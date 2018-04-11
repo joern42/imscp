@@ -90,16 +90,7 @@ function getFormData()
         $data[$key] = $value;
     }
 
-    if (isset($_POST['reseller_ips']) && is_array($_POST['reseller_ips'])) {
-        foreach ($_POST['reseller_ips'] as $key => $value) {
-            $_POST['reseller_ips'][$key] = clean_input($value);
-        }
-
-        $data['reseller_ips'] = $_POST['reseller_ips'];
-    } else { // We are safe here
-        $data['reseller_ips'] = [];
-    }
-
+    $data['reseller_ips'] = isset($_POST['reseller_ips']) && is_array($_POST['reseller_ips']) ? $_POST['reseller_ips'] : [];
     return $data;
 }
 
@@ -112,25 +103,21 @@ function getFormData()
 function generateIpListForm(TemplateEngine $tpl)
 {
     $data = getFormData();
-    $tpl->assign([
-        'TR_IP_ADDRESS' => tohtml(tr('IP address')),
-        'TR_IP_LABEL'   => tohtml(tr('Label')),
-        'TR_ASSIGN'     => tohtml(tr('Assign'))
-    ]);
+    $tpl->assign('TR_IP_ADDRESSES', tohtml(tr('IP addresses')));
 
     Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Description $e) {
         $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+        $e->getParam('translations')->core['available'] = tr('Available');
+        $e->getParam('translations')->core['assigned'] = tr('Assigned');
     });
-
-    $checkFirst = sizeof($data['server_ips']) == 1;
 
     foreach ($data['server_ips'] as $ipData) {
         $tpl->assign([
-            'IP_ID'       => tohtml($ipData['ip_id']),
-            'IP_NUMBER'   => tohtml(($ipData['ip_number'] == '0.0.0.0') ? tr('Any') : $ipData['ip_number']),
-            'IP_ASSIGNED' => ($checkFirst || in_array($ipData['ip_id'], $data['reseller_ips'])) ? ' checked' : ''
+            'IP_VALUE'    => tohtml($ipData['ip_id']),
+            'IP_NUM'      => tohtml($ipData['ip_number'] == '0.0.0.0' ? tr('Any') : $ipData['ip_number']),
+            'IP_SELECTED' => in_array($ipData['ip_id'], $data['reseller_ips']) ? ' selected' : ''
         ]);
-        $tpl->parse('IP_BLOCK', '.ip_block');
+        $tpl->parse('IP_ENTRY', '.ip_entry');
     }
 }
 
@@ -292,18 +279,13 @@ function addResellerUser(Form $form)
         $data = getFormData();
 
         // Check for ip addresses - We are safe here
-        $resellerIps = [];
-        foreach ($data['server_ips'] as $serverIpData) {
-            if (in_array($serverIpData['ip_id'], $data['reseller_ips'])) {
-                $resellerIps[] = $serverIpData['ip_id'];
-            }
-        }
-        sort($resellerIps);
 
+        $resellerIps = array_intersect($data['reseller_ips'], array_column($data['server_ips'], 'ip_id'));
         if (empty($resellerIps)) {
             set_page_message(tr('You must assign at least one IP to this reseller.'), 'error');
             $error = true;
         }
+        sort($resellerIps);
 
         // Check for max domains limit
         if (!imscp_limit_check($data['max_dmn_cnt'], NULL)) {
@@ -428,7 +410,7 @@ function addResellerUser(Form $form)
                     )
                 ',
                 [
-                    $resellerId, implode(';', $resellerIps) . ';', $data['max_dmn_cnt'], '0', $data['max_sub_cnt'], '0', $data['max_als_cnt'], '0',
+                    $resellerId, implode(',', $resellerIps), $data['max_dmn_cnt'], '0', $data['max_sub_cnt'], '0', $data['max_als_cnt'], '0',
                     $data['max_mail_cnt'], '0', $data['max_ftp_cnt'], '0', $data['max_sql_db_cnt'], '0', $data['max_sql_user_cnt'], '0',
                     $data['max_traff_amnt'], '0', $data['max_disk_amnt'], '0', $data['support_system'], $data['software_allowed'],
                     $data['softwaredepot_allowed'], $data['websoftwaredepot_allowed'],
@@ -515,8 +497,7 @@ $tpl->define([
     'layout'                             => 'shared/layouts/ui.tpl',
     'page'                               => 'admin/reseller_add.phtml',
     'page_message'                       => 'layout',
-    'ips_block'                          => 'page',
-    'ip_block'                           => 'ips_block',
+    'ip_entry'                           => 'page',
     'php_editor_disable_functions_block' => 'page',
     'php_editor_mail_function_block'     => 'page'
 ]);

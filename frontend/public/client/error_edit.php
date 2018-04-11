@@ -99,7 +99,7 @@ if (!empty($_POST) && editErrorPage($eid)) {
 $tpl = new TemplateEngine();
 $tpl->define([
     'layout'       => 'shared/layouts/ui.tpl',
-    'page'         => 'client/error_edit.tpl',
+    'page'         => 'client/error_edit.phtml',
     'page_message' => 'layout'
 ]);
 $tpl->assign([

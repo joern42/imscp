@@ -82,7 +82,7 @@ INSERT IGNORE INTO `config` (`name`, `value`) VALUES
   ('PORT_POP3-SSL', '995;tcp;POP3-SSL;0;0.0.0.0'),
   ('PORT_IMAP', '143;tcp;IMAP;1;0.0.0.0'),
   ('PORT_IMAP-SSL', '993;tcp;IMAP-SSL;0;0.0.0.0'),
-  ('DATABASE_REVISION', '281');
+  ('DATABASE_REVISION', '283');
 
 -- --------------------------------------------------------
 
@@ -121,8 +121,8 @@ CREATE TABLE IF NOT EXISTS `domain` (
   `domain_status` text collate utf8_unicode_ci NOT NULL,
   `domain_alias_limit` int(11) DEFAULT NULL,
   `domain_subd_limit` int(11) DEFAULT NULL,
-  `domain_ip_assigned text NOT NULL,
-  `domain_ip_id` text NOT NULL,
+  `domain_client_ips text NOT NULL,
+  `domain_ips` text NOT NULL,
   `domain_disk_limit` bigint(20) unsigned DEFAULT NULL,
   `domain_disk_usage` bigint(20) unsigned DEFAULT NULL,
   `domain_disk_file` bigint(20) unsigned DEFAULT NULL,
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS `domain_aliasses` (
   `alias_status` text collate utf8_unicode_ci NOT NULL,
   `alias_mount` varchar(200) collate utf8_unicode_ci DEFAULT NULL,
   `alias_document_root` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs',
-  `alias_ip_id` TEXT NOT NULL,
+  `alias_ips` TEXT NOT NULL,
   `url_forward` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT 'no',
   `type_forward` varchar(5) collate utf8_unicode_ci DEFAULT NULL,
   `host_forward` varchar(3) collate utf8_unicode_ci NOT NULL DEFAULT 'Off',
@@ -625,7 +625,7 @@ CREATE TABLE IF NOT EXISTS `subdomain` (
   `subdomain_id` int(10) unsigned NOT NULL auto_increment,
   `domain_id` int(10) unsigned DEFAULT NULL,
   `subdomain_name` varchar(200) collate utf8_unicode_ci DEFAULT NULL,
-  `subdomain_ip_id` TEXT NOT NULL,
+  `subdomain_ips` TEXT NOT NULL,
   `subdomain_mount` varchar(200) collate utf8_unicode_ci DEFAULT NULL,
   `subdomain_document_root` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs',
   `subdomain_url_forward` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT 'no',
@@ -646,7 +646,7 @@ CREATE TABLE IF NOT EXISTS `subdomain_alias` (
   `subdomain_alias_id` int(10) unsigned NOT NULL auto_increment,
   `alias_id` int(10) unsigned DEFAULT NULL,
   `subdomain_alias_name` varchar(200) collate utf8_unicode_ci DEFAULT NULL,
-  `subdomain_alias_ip_id` TEXT NOT NULL,
+  `subdomain_alias_ips` TEXT NOT NULL,
   `subdomain_alias_mount` varchar(200) collate utf8_unicode_ci DEFAULT NULL,
   `subdomain_alias_document_root` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT '/htdocs',
   `subdomain_alias_url_forward` varchar(255) collate utf8_unicode_ci NOT NULL DEFAULT 'no',

@@ -60,7 +60,7 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
         $stmt = exec_query(
             '
                 SELECT domain_subd_limit, domain_alias_limit, domain_mailacc_limit, domain_ftpacc_limit, domain_sqld_limit, domain_sqlu_limit,
-                    domain_traffic_limit, domain_disk_limit, domain_ip_id, domain_software_allowed
+                    domain_traffic_limit, domain_disk_limit, domain_client_ips, domain_software_allowed
                 FROM domain
                 WHERE domain_admin_id = ?
             ',
@@ -118,10 +118,12 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
             }
         }
 
-        // The customer IP address must be in the target reseller IP addresses list
-        $toResellerProps['reseller_ips'] = implode(
-            ';', array_unique(explode(';', $toResellerProps['reseller_ips'] . $customerProps['domain_ip_id'] . ';'))
+        // The customer IP addresses must be in the target reseller IP addresses list
+        $toResellerProps['reseller_ips'] = array_merge(
+            $toResellerProps['reseller_ips'], array_diff(explode(',', $customerProps['domain_client_ips']), explode($toResellerProps['reseller_ips']))
         );
+        sort($toResellerProps['reseller_ips'], SORT_NATURAL);
+        $toResellerProps['reseller_ips'] = implode(',', $toResellerProps['reseller_ips']);
 
         // Move the customer to the target reseller
         exec_query('UPDATE admin SET created_by = ? WHERE admin_id = ?', [$toResellerId, $customerId]);

@@ -64,25 +64,21 @@ function getFormData($resellerId, $forUpdate = false)
     // Ip data begin
 
     // Fetch server ip list
-    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips  ORDER BY ip_number');
-
+    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips ORDER BY ip_number');
     if (!$stmt->rowCount()) {
         set_page_message(tr('Unable to get the IP address list. Please fix this problem.'), 'error');
         redirectTo('users.php');
     }
-
     $data['server_ips'] = $stmt->fetchAll();
 
     // Convert reseller ip list to array
-    $data['reseller_ips'] = explode(';', trim($data['reseller_ips'], ';'));
+    $data['reseller_ips'] = explode(',', $data['reseller_ips']);
 
-    // Fetch all ip id used by reseller's customers
-    $stmt = exec_query('SELECT DISTINCT domain_ip_id FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [$resellerId]);
-
-    if ($stmt->rowCount()) {
-        $data['used_ips'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    } else {
-        $data['used_ips'] = [];
+    // Retrieve all IP addresses assigned to clients of the reseller being edited
+    $stmt = exec_query('SELECT domain_client_ips FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [$resellerId]);
+    $data['used_ips'] = [];
+    while($row = $stmt->fetch()) {
+        $data['used_ips'] =  array_merge(array_diff(explode(',', $row['domain_client_ips']), $data['used_ips']));
     }
 
     $fallbackData = [];
@@ -625,7 +621,7 @@ function updateResellerUser(Form $form)
                 [
                     $data['max_dmn_cnt'], $data['max_sub_cnt'], $data['max_als_cnt'], $data['max_mail_cnt'], $data['max_ftp_cnt'],
                     $data['max_sql_db_cnt'], $data['max_sql_user_cnt'], $data['max_traff_amnt'], $data['max_disk_amnt'],
-                    implode(';', $resellerIps) . ';', $data['software_allowed'], $data['softwaredepot_allowed'], $data['websoftwaredepot_allowed'],
+                    implode(',', $resellerIps), $data['software_allowed'], $data['softwaredepot_allowed'], $data['websoftwaredepot_allowed'],
                     $data['support_system'], $resellerId
                 ]
             );

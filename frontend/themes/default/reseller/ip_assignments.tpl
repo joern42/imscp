@@ -12,11 +12,11 @@
     </tr>
     </tfoot>
     <tbody>
-    <!-- BDP: domain_row -->
+    <!-- BDP: customer_row -->
     <tr>
-        <td>{DOMAIN_NAME}</td>
+        <td>{CUSTOMER_NAME}</td>
     </tr>
-    <!-- EDP: domain_row -->
+    <!-- EDP: customer_row -->
     </tbody>
 </table>
 <!-- EDP: ip_row -->

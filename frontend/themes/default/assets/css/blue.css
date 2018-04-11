@@ -229,3 +229,44 @@ textarea:disabled:focus,
 .footer {
     color: #ffffff;
 }
+
+/** multiselect plugin css override -- FIXME: To be reviewed */
+
+.ms-header {
+    border: 1px solid #1e288a;
+    background: #151e72 url(../images/blue/jquery-ui/ui-bg_glass_40_151e72_1x400.png) 50% 50% repeat-x;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+}
+
+.ms-container .ms-list{
+    border-color: #dfdfdf;
+    background: #ffffff url(../images/jquery-ui-common/ui-bg_flat_0_ffffff_40x100.png) 50% 50% repeat-x;
+    color: #222222;
+}
+
+.ms-container .ms-list.ms-focus {
+    border: 1px solid #1e288a;
+    -webkit-box-shadow: 0 0 1px #1e288a;
+    -moz-box-shadow: 0 0 1px #1e288a;
+    box-shadow: 0 0 1px #1e288a;
+    outline: 0;
+    outline: thin dotted \9;
+}
+
+.ms-container .ms-selectable li.ms-elem-selectable,
+.ms-container .ms-selection li.ms-elem-selection {
+    border-bottom: 1px solid #dfdfdf;
+    padding: 2px 10px;
+    color: #555;
+    font-size: 14px;
+}
+
+.ms-container .ms-selectable li.ms-hover,
+.ms-container .ms-selection li.ms-hover {
+    cursor: pointer;
+    color: #fff;
+    text-decoration: none;
+    background-color: #5cbada;
+}

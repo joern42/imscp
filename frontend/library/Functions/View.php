@@ -160,7 +160,7 @@ function generateNavigation(TemplateEngine $tpl)
 
                 foreach ($webmails as $webmail) {
                     $page = [
-                        'label'  => tohtml(tr('%s Webmail', $webmail)),
+                        'label'  => tohtml($webmail),
                         'uri'    => '/' . ($webmail == 'Roundcube' ? 'webmail' : strtolower($webmail)) . '/',
                         'target' => '_blank',
                     ];
@@ -179,7 +179,7 @@ function generateNavigation(TemplateEngine $tpl)
 
                 foreach ($filemanagers as $filemanager) {
                     $page = [
-                        'label'  => tohtml(tr('%s Filemanager', $filemanager)),
+                        'label'  => tohtml($filemanager),
                         'uri'    => '/' . ($filemanager == 'MonstaFTP' ? 'ftp' : strtolower($filemanager)) . '/',
                         'target' => '_blank',
                     ];
@@ -773,15 +773,15 @@ function get_admin_manage_users(TemplateEngine $tpl)
  *
  * @param TemplateEngine $tpl
  * @param int $resellerId Reseller unique identifier
- * @param int $domainIp Identifier of the selected domain IP
+ * @param array $domainIps Identifier of the selected domain IP addresses
  * @return void
  */
-function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, $domainIp)
+function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $domainIps)
 {
     $stmt = exec_query('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$resellerId]);
-    $resellerIps = explode(';', rtrim($stmt->fetchColumn(), ';'));
+    $resellerIps = explode(',', $stmt->fetchColumn());
 
-    $stmt = execute_query('SELECT * FROM server_ips');
+    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips');
     while ($row = $stmt->fetch()) {
         if (!in_array($row['ip_id'], $resellerIps)) {
             continue;
@@ -789,8 +789,8 @@ function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, $domainIp)
 
         $tpl->assign([
             'IP_NUM'      => tohtml($row['ip_number'] == '0.0.0.0' ? tr('Any') : $row['ip_number'], 'htmlAttr'),
-            'IP_VALUE'    => $row['ip_id'],
-            'IP_SELECTED' => $domainIp === $row['ip_id'] ? ' selected' : ''
+            'IP_VALUE'    => tohtml($row['ip_id']),
+            'IP_SELECTED' =>  in_array($row['ip_id'], $domainIps) ? ' selected' : ''
         ]);
         $tpl->parse('IP_ENTRY', '.ip_entry');
     }

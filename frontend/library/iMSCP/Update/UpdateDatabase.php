@@ -36,7 +36,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     /**
      * @var int Last database update revision
      */
-    protected $lastUpdate = 281;
+    protected $lastUpdate = 283;
 
     /**
      * Prohibit upgrade from i-MSCP versions older than 1.1.x
@@ -1784,7 +1784,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     }
 
     /**
-     * Add domain.domain_ip_assigned column - Make it possible to assigne more than one IP address to one customer
+     * Add domain.domain_ips column - Make it possible to assigne more than one IP address to one customer
      *
      * @return array SQL statements to be executed
      */
@@ -1792,11 +1792,11 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         $sqlQueries = [];
 
-        $sqlQuery = $this->addColumn('domain', 'domain_ip_assigned', 'TEXT NOT NULL NULL AFTER domain_subd_limit');
+        $sqlQuery = $this->addColumn('domain', 'domain_ips', 'TEXT NOT NULL AFTER domain_subd_limit');
         if ($sqlQuery !== NULL) {
             $sqlQueries[] = $sqlQuery;
             # Fills the new column with data from domain.domain_ip_id column
-            $sqlQueries[] = 'UPDATE domain SET domain_ip_assigned = domain_ip_id';
+            $sqlQueries[] = 'UPDATE domain SET domain_ips = domain_ip_id';
         }
 
         return $sqlQueries;
@@ -1813,6 +1813,49 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         return [
             $this->changeColumn('domain', 'domain_ip_id', '`domain_ip_id` text NOT NULL'),
             $this->changeColumn('domain_aliasses', 'alias_ip_id', '`alias_ip_id` text NOT NULL')
+        ];
+    }
+
+    /**
+     * Update reseller_props.reseller_ips field ('<ip_id>;<ip_id>;' to '<ip_id>,<ip_id>')
+     *
+     * @return array SQL statements to be executed
+     * @throws \iMSCP_Exception_Database
+     */
+    protected function r282()
+    {
+        $sqlQueries = [];
+
+        $stmt = execute_query('SELECT reseller_id, reseller_ips FROM reseller_props');
+        while ($row = $stmt->fetch()) {
+            if (strpos($row['reseller_ips'], ';') === FALSE) continue;
+
+            $row['reseller_ips'] = implode(',', explode(';', trim($row['reseller_ips'], ';')));
+            $sqlQueries[] = 'UPDATE reseller_props SET reseller_ips = ' . quoteValue($row['reseller_ips']) . ' WHERE reseller_id = '
+                . $row['reseller_id'];
+        }
+
+        return $sqlQueries;
+    }
+
+    /**
+     * Rename columns:
+     *  - domain.domain_ips                     to domain_client_ips
+     *  - domain.domain_ip_id                   to domain_ips
+     *  - subdomain.subdomain_ip_id             to subdomain.subdomain_ips
+     *  - domain_aliasses.alias_ip_id           to domain_aliasses.alias_ips
+     *  - subdomain_alias.subdomain_alias_ip_id to subdomain_alias.subdomain_alias_ips
+     *
+     * @return array SQL statements to be executed
+     */
+    protected function r283()
+    {
+        return [
+            $this->changeColumn('domain', 'domain_ips', '`domain_client_ips` text NOT NULL'),
+            $this->changeColumn('domain', 'domain_ip_id', '`domain_ips` text NOT NULL'),
+            $this->changeColumn('domain_aliasses', 'alias_ip_id', '`alias_ips` text NOT NULL'),
+            $this->changeColumn('subdomain', 'subdomain_ip_id', '`subdomain_ips` text NOT NULL'),
+            $this->changeColumn('subdomain_alias', 'subdomain_alias_ip_id', '`subdomain_alias_ips` text NOT NULL')
         ];
     }
 }

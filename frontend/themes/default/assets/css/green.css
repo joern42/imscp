@@ -204,7 +204,7 @@ textarea:disabled:focus,
 /** Tooltips */
 .ui-tooltip {
     background: #1f5c16;
-    border-color: #1f5c16;
+    border-color: #0e6e0e;
 }
 .ui-tooltip.ui-tooltip-notice {
     background: #1f5c16 url(../images/tooltips/info.png) no-repeat 5px 50%;
@@ -229,4 +229,45 @@ textarea:disabled:focus,
 
 .footer {
     color: #ffffff;
+}
+
+/** multiselect plugin css override -- FIXME: To be reviewed */
+
+.ms-header {
+    border: 1px solid #0e6e0e;
+    background: #055a0d url(../images/green/jquery-ui/ui-bg_glass_40_055a0d_1x400.png) 50% 50% repeat-x;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: center;
+}
+
+.ms-container .ms-list{
+    border-color: #dfdfdf;
+    background: #ffffff url(../images/jquery-ui-common/ui-bg_flat_0_ffffff_40x100.png) 50% 50% repeat-x;
+    color: #222222;
+}
+
+.ms-container .ms-list.ms-focus {
+    border: 1px solid #0e6e0e;
+    -webkit-box-shadow: 0 0 1px #0e6e0e;
+    -moz-box-shadow: 0 0 1px #0e6e0e;
+    box-shadow: 0 0 1px #0e6e0e;
+    outline: 0;
+    outline: thin dotted \9;
+}
+
+.ms-container .ms-selectable li.ms-elem-selectable,
+.ms-container .ms-selection li.ms-elem-selection {
+    border-bottom: 1px solid #dfdfdf;
+    padding: 2px 10px;
+    color: #555;
+    font-size: 14px;
+}
+
+.ms-container .ms-selectable li.ms-hover,
+.ms-container .ms-selection li.ms-hover {
+    cursor: pointer;
+    color: #fff;
+    text-decoration: none;
+    background-color: #5cbada;
 }
