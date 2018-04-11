@@ -117,8 +117,8 @@ sub _loadEntityData
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         ( $aliasId eq '0'
-            ? 'SELECT domain_name as zone FROM domain WHERE domain_id = ?'
-            : 'SELECT alias_name AS zine FROM domain_aliasses WHERE alias_id = ?'
+            ? 'SELECT domain_name AS zone FROM domain WHERE domain_id = ?'
+            : 'SELECT alias_name AS zone FROM domain_aliasses WHERE alias_id = ?'
         ),
         undef, ( $aliasId eq '0' ? $domainId : $aliasId )
     );
