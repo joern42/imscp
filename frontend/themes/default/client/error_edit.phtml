@@ -1,0 +1,36 @@
+
+<link rel="stylesheet" href="{THEME_ASSETS_PATH}/css/codemirror.css?v={THEME_ASSETS_VERSION}">
+<link rel="stylesheet" href="{THEME_ASSETS_PATH}/js/codemirror/theme/dracula.css">
+<link rel="stylesheet" href="{THEME_ASSETS_PATH}/js/codemirror/addon/hint/show-hint.css">
+<script src="{THEME_ASSETS_PATH}/js/codemirror/codemirror.js?v={THEME_ASSETS_VERSION}"></script>
+<script src="{THEME_ASSETS_PATH}/js/codemirror/addon/hint/show-hint.js"></script>
+<script src="{THEME_ASSETS_PATH}/js/codemirror/addon/hint/xml-hint.js"></script>
+<script src="{THEME_ASSETS_PATH}/js/codemirror/addon/hint/html-hint.js"></script>
+<script src="{THEME_ASSETS_PATH}/js/codemirror/mode/xml/xml.js"></script>
+<script src="{THEME_ASSETS_PATH}/js/codemirror/mode/javascript/javascript.js"></script>
+<script src="{THEME_ASSETS_PATH}/js/codemirror/mode/css/css.js"></script>
+<script src="{THEME_ASSETS_PATH}/js/codemirror/mode/htmlmixed/htmlmixed.js"></script>
+<script>
+    $(function () {
+        CodeMirror.fromTextArea(document.getElementById("error"), {
+            theme: "dracula",
+            mode: "text/html",
+            extraKeys: {"Ctrl-Space" : "autocomplete"},
+            selectionPointer: true,
+            lineWrapping: true,
+            lineNumbers: true,
+            showCursorWhenSelecting: true,
+            fixedGutter: true,
+            cursorScrollMargin: 10
+        }).setSize(null, 450);
+    });
+</script>
+<div class="static_info"><?= tr('Press %s for HTML autocompletion.', '<strong>ctrl-space</strong>') ;?></div>
+<form name="error_edit" method="post" action="error_edit.php">
+    <label><textarea name="error" id="error">{ERROR}</textarea></label>
+    <div class="buttons">
+        <input type="hidden" name="eid" value="{EID}">
+        <input name="Submit" type="submit" value="{TR_SAVE}">
+        <a class="link_as_button" href="error_pages.php">{TR_CANCEL}</a>
+    </div>
+</form>
