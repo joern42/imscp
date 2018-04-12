@@ -772,8 +772,8 @@ function get_admin_manage_users(TemplateEngine $tpl)
  * Generate IP addresses list for the given reseller
  *
  * @param TemplateEngine $tpl
- * @param int $resellerId Client unique identifier
- * @param array $selectedIps Selected IP addresses
+ * @param int $resellerId Reseller unique identifier
+ * @param array $selectedIps Selected IP addresses (identifiers)
  */
 function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $selectedIps)
 {
@@ -805,7 +805,7 @@ function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $sele
  *
  * @param TemplateEngine $tpl
  * @param int $clientId Client unique identifier
- * @param array $selectedIps Selected IP addresses
+ * @param array $selectedIps Selected IP addresses (identifiers)
  */
 function client_generate_ip_list($tpl, $clientId, array $selectedIps)
 {
