@@ -10,10 +10,10 @@ BACKEND
     Added: New library for templates processing: iMSCP::Template::Processor (in replacement of the iMSCP::TemplateParser library)
     Added: Support for .timer unit files (Systemd init provider)
     Added: Version check (minimum version) for non-core Perl modules (iMSCP::Requirements)
-    Enhancement: Make it possible to define placeholders in placeholders (iMSCP::TemplateParser)
+    Enhancement: Make it possible to define placeholders in placeholders (iMSCP::Template::Processor)
     Enhancement: Make it possible to delay execution of the 'start', 'restart' and 'reload' actions (iMSCP::Service)
     Enhancement: Make it possible to discard files/directories when clearing a directory (iMSCP::Dir::clear)
-    Enhancement: Make it possible to empty unknown pseudo-variables in templates (iMSCP::TemplateParser)
+    Enhancement: Make it possible to empty unknown pseudo-variables in templates (iMSCP::Template::Processor)
     Enhancement: Make it possible to install Composer anywhere (iMSCP::Composer)
     Enhancement: Make it possible to override default composer.json (iMSCP::Composer)
     Enhancement: Make it possible to reconfigure many items at once by passing comma separated list of items (iMSCP::Getopt)
@@ -86,6 +86,9 @@ FRONTEND
     Added: New 'mailType' and 'forwardList' parameters for both 'onBeforeAddMail' and 'onAfterAddMail' events
     Added: Support for PSR-4 autoloading through PHP dependency manager (composer) autoloader
     Changed iMSCP\Application::getAutoloader() now return the Composer Composer\Autoload\ClassLoader instance
+    Enhancement: Error pages editor with code highlighting and autocompletion
+    Enhancemnet: Make it possible to assign multiple IP addresses to customer
+    Enhancement: Make it possible to assign IP addresses on a per domain and subdomain basis
     Enhancement: Make use of application cache for caching of plugins metadata (lifetime: indefinitely till change)
     Enhancement: Make use of application cache for caching of resolved templates (TemplateEngine)
     Enhancement: PHP configuration level is now configurable through PHP editor (On a per reseller and customer basis)

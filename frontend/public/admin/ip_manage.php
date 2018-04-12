@@ -114,7 +114,6 @@ function generateIpsList($tpl)
     $net = Net::getInstance();
     $baseServerIp = $net->compress($cfg['BASE_SERVER_IP']);
 
-
     while ($row = $stmt->fetch()) {
         $isIpV6Addr = $net->getVersion($row['ip_number']) == 6;
         if ($isIpV6Addr && !$isIPv6Allowed) {

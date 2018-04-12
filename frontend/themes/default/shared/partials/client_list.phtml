@@ -1,4 +1,4 @@
-<h3 class="user_blue"><span><?= tohtml(tr('Customers')); ?></span></h3>
+<h3 class="user_blue"><span><?= tohtml(tr('Customer accounts')); ?></span></h3>
 <!-- BDP: client_search_form -->
 <script>
 <? if($_SESSION['user_type'] == 'reseller'): ?>
@@ -84,7 +84,7 @@
 </form>
 <!-- EDP: client_search_form -->
 <!-- BDP: client_message -->
-<div class="static_info"><?= tohtml(tr('No account found.')); ?></div>
+<div class="static_info"><?= tohtml(tr('No customer account found.')); ?></div>
 <!-- EDP: client_message -->
 <!-- BDP: client_list -->
 <table class="datatable" id="users_table">
@@ -115,14 +115,14 @@
         <td>{CLIENT_CREATED_BY}</td>
 <? endif; ?>
         <td>
-            <a class="icon i_identity" href="domain_details.php?domain_id={CLIENT_DOMAIN_ID}" title="<?= tohtml(tr('Details'), 'htmlAttr'); ?>"><?= tohtml(tr('Details')); ?></a>
-            <a class="icon i_details" href="change_user_interface.php?to_id={CLIENT_ID}" title="<?= tohtml(tr('Switch to user interface'), 'htmlAttr'); ?>"><?= tohtml(tr('Switch')); ?></a>
-            <a class="icon i_user" href="user_edit.php?edit_id={CLIENT_ID}" title="<?= tohtml(tr('Edit'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit')); ?></a>
+            <a class="icon i_identity" href="account_details.php?client_id={CLIENT_ID}" title="<?= tohtml(tr('Customer account details'), 'htmlAttr'); ?>"><?= tohtml(tr('Details')); ?></a>
+            <a class="icon i_details" href="change_user_interface.php?to_id={CLIENT_ID}" title="<?= tohtml(tr('Switch to customer interface'), 'htmlAttr'); ?>"><?= tohtml(tr('Switch')); ?></a>
+            <a class="icon i_user" href="user_edit.php?edit_id={CLIENT_ID}" title="<?= tohtml(tr('Edit this user account'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit')); ?></a>
             <!-- BDP: client_restricted_links -->
 <? if($_SESSION['user_type'] == 'reseller'): ?>
-            <a class="icon i_domain_icon" href="domain_edit.php?edit_id={CLIENT_DOMAIN_ID}" title="<?= tohtml(tr('Edit domain'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit domain')); ?></a>
+            <a class="icon i_domain_icon" href="account_edit.php?edit_id={CLIENT_DOMAIN_ID}" title="<?= tohtml(tr('Edit this customer account'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit')); ?></a>
 <? endif; ?>
-            <a class="icon i_delete" href="user_delete.php?user_id={CLIENT_ID}" onclick="return action_delete(this)" title="<?= tohtml(tr('Delete'), 'htmlAttr'); ?>"><?= tohtml(tr('Delete')); ?></a>
+            <a class="icon i_delete" href="user_delete.php?user_id={CLIENT_ID}" onclick="return action_delete(this)" title="<?= tohtml(tr('Delete this customer account'), 'htmlAttr'); ?>"><?= tohtml(tr('Delete')); ?></a>
             <!-- EDP: client_restricted_links -->
         </td>
     </tr>

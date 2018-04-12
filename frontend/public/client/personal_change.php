@@ -21,13 +21,10 @@
 use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 check_login('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
+define('SHARED_SCRIPT_NEEDED', true);
 require_once '../shared/personal_change.php';
 $tpl->assign('TR_PAGE_TITLE', tohtml(tr('Client / Profile / Personal Data')));
 $tpl->parse('LAYOUT_CONTENT', 'page');

@@ -22,12 +22,12 @@ use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
 
 require_once 'imscp-lib.php';
-check_login('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
+check_login('admin');
+Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
-require_once '../shared/personal_change.php';
-$tpl->assign('TR_PAGE_TITLE', tohtml(tr('Reseller / Profile / Personal Data')));
+require_once '../shared/account_details.php';
+$tpl->assign('TR_PAGE_TITLE', tohtml(tr('Admin / Users / Overview / Account Details')));
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

@@ -19,13 +19,9 @@
  */
 
 use iMSCP\Crypt as Crypt;
-use iMSCP_Events as Events;
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Update password
@@ -53,14 +49,9 @@ function updatePassword()
             'admin_pass' => $form->getValue('admin_pass')
         ]
     ]);
-    exec_query(
-        "
-            UPDATE admin
-            SET admin_pass = ?, admin_status = IF(admin_type = 'user', 'tochangepwd', admin_status)
-            WHERE admin_id = ?
-        ",
-        [Crypt::apr1MD5($form->getValue('admin_pass')), $_SESSION['user_id']]
-    );
+    exec_query("UPDATE admin SET admin_pass = ?, admin_status = IF(admin_type = 'user', 'tochangepwd', admin_status) WHERE admin_id = ?", [
+        Crypt::apr1MD5($form->getValue('admin_pass')), $_SESSION['user_id']
+    ]);
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditUser, [
         'userId'   => $_SESSION['user_id'],
         'userData' => [
@@ -78,13 +69,11 @@ function updatePassword()
     redirectTo('password_update.php');
 }
 
-/***********************************************************************************************************************
- * Main
- */
+require_once 'imscp-lib.php';
 
-if (!empty($_POST)) {
-    updatePassword();
-}
+defined('SHARED_SCRIPT_NEEDED') or showNotFoundErrorPage();
+
+empty($_POST) or updatePassword();
 
 $tpl = new TemplateEngine();
 $tpl->define([

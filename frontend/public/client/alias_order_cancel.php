@@ -1,7 +1,7 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2010-2018 by i-MSCP Team
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,8 +30,8 @@ check_login('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
 customerHasFeature('domain_aliases') && isset($_GET['id']) or showBadRequestErrorPage();
 
-$stmt = exec_query('DELETE FROM domain_aliases WHERE alias_id = ? AND domain_id = ? AND alias_status = ?', [
-    intval($_GET['id']), get_user_domain_id($_SESSION['user_id']), 'ordered'
+$stmt = exec_query("DELETE FROM domain_aliases WHERE alias_id = ? AND domain_id = ? AND alias_status = 'ordered'", [
+    intval($_GET['id']), get_user_domain_id($_SESSION['user_id'])
 ]);
 
 if ($stmt->rowCount()) {

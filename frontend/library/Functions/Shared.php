@@ -318,30 +318,51 @@ function get_user_domain_id($customeId, $forceReload = false)
  * @param bool $showError Whether or not show true error string
  * @return string Translated status
  */
-function translate_dmn_status($status, $showError = false)
+function translate_dmn_status($status, $showError = false, $colored = false)
 {
+    $statusOk = TRUE;
+
     switch ($status) {
         case 'ok':
-            return tr('Ok');
+            $status =  tohtml(tr('Ok'));
+            break;
         case 'toadd':
-            return tr('Addition in progress...');
+            $status =  tohtml(tr('Addition in progress...'));
+            break;
         case 'tochange':
         case 'torestore':
         case 'tochangepwd':
-            return tr('Modification in progress...');
+            $status =  tohtml(tr('Modification in progress...'));
+            break;
         case 'todelete':
-            return tr('Deletion in progress...');
+            $status =  tohtml(tr('Deletion in progress...'));
+            break;
         case 'disabled':
-            return tr('Deactivated');
+            $status =  tohtml(tr('Deactivated'));
+            break;
         case 'toenable':
-            return tr('Activation in progress...');
+            $status =  tohtml(tr('Activation in progress...'));
+            break;
         case 'todisable':
-            return tr('Deactivation in progress...');
+            $status =  tohtml(tr('Deactivation in progress...'));
+            break;
         case 'ordered':
-            return tr('Awaiting for approval');
+            $status =  tohtml(tr('Awaiting for approval'));
+            break;
         default:
-            return $showError ? $status : tr('Unexpected error');
+            $statusOk = FALSE;
+            $status =  $showError ? $status : tr('Unexpected error');
     }
+    
+    if($colored) {
+        if($statusOk) {
+            $status = '<span style="color:green;font-weight: bold">' . $status . '</span>';
+        } else {
+            $status = '<span style="color:red;font-weight: bold">' . $status . '</span>';
+        }
+    }
+    
+    return $status;
 }
 
 /**
@@ -2364,10 +2385,10 @@ function mebibytesHuman($mebibyte, $unit = NULL, $decimals = 2, $power = 1024)
  * @param string $to OPTIONAL Unit to calclulate to ('B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')
  * @return String
  */
-function translate_limit_value($value, $autosize = false, $to = NULL)
+function translate_limit_value($value, $autosize = false, $to = null)
 {
-    $trEnabled = '<span style="color:green">' . tr('Enabled') . '</span>';
-    $trDisabled = '<span style="color:red">' . tr('Disabled') . '</span>';
+    $trEnabled = '<span style="color:green;font-weight: bold">' . tohtml(tr('Yes')) . '</span>';
+    $trDisabled = '<span style="color:red;font-weight: bold">' . tohtml(tr('No')) . '</span>';
 
     switch ($value) {
         case '-1':
@@ -2379,15 +2400,16 @@ function translate_limit_value($value, $autosize = false, $to = NULL)
             return $trEnabled;
         case '_no_':
         case 'no':
+        case '': # Backup feature case
             return $trDisabled;
         case 'full':
-            return '<span style="color:green">' . tr('Domain and SQL databases') . '</span>';
+            return '<span style="color:green">' . tohtml(tr('Domain and SQL databases')) . '</span>';
         case 'dmn':
-            return '<span style="color:green">' . tr('Web files only') . '</span>';
+            return '<span style="color:green">' . tohtml(tr('Web files only')) . '</span>';
         case 'sql':
-            return '<span style="color:green">' . tr('SQL databases only') . '</span>';
+            return '<span style="color:green">' . tohtml(tr('SQL databases only')) . '</span>';
         default:
-            return !$autosize ? $value : mebibytesHuman($value, $to);
+            return tohtml($autosize ? mebibytesHuman($value, $to) : $value);
     }
 }
 

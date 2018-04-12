@@ -26,7 +26,7 @@ return [
         'uri'   => '/admin/index.php',
         'class' => 'general',
         'pages' => [
-            'overview'      => [
+            'overview'          => [
                 'label'       => tr('Overview'),
                 'uri'         => '/admin/index.php',
                 'title_class' => 'general'
@@ -36,7 +36,7 @@ return [
                 'uri'         => '/admin/service_statuses.php',
                 'title_class' => 'serverstatus'
             ],
-            'admin_log'     => [
+            'admin_log'         => [
                 'label'       => tr('Admin log'),
                 'uri'         => '/admin/admin_log.php',
                 'title_class' => 'adminlog'
@@ -53,23 +53,23 @@ return [
                 'uri'         => '/admin/users.php',
                 'title_class' => 'users',
                 'pages'       => [
-                    'user_edit'     => [
+                    'account_details' => [
+                        'label'       => tr('{VL_ACCOUNT_NAME} account details'),
+                        'uri'         => '/admin/account_details.php',
+                        'title_class' => 'general',
+                        'visible'     => false
+                    ],
+                    'user_edit'       => [
                         'dynamic_title' => '{TR_DYNAMIC_TITLE}',
                         'uri'           => '/admin/user_edit.php',
                         'title_class'   => '{DYNAMIC_TITLE_CLASS}',
-                        'visible'       => '0'
+                        'visible'       => false
                     ],
-                    'reseller_edit' => [
+                    'reseller_edit'   => [
                         'label'       => tr('Edit reseller'),
                         'uri'         => '/admin/reseller_edit.php',
                         'title_class' => 'user_green',
-                        'visible'     => '0'
-                    ],
-                    'domain_detail' => [
-                        'label'       => tr('Domain details'),
-                        'uri'         => '/admin/domain_details.php',
-                        'title_class' => 'general',
-                        'visible'     => '0'
+                        'visible'     => false
                     ]
                 ]
             ],
@@ -181,20 +181,20 @@ return [
                     'reseller_user_statistics' => [
                         'label'       => tr('User statistics'),
                         'uri'         => '/admin/reseller_user_statistics.php',
-                        'visible'     => '0',
+                        'visible'     => false,
                         'title_class' => 'stats',
                         'pages'       => [
                             'reseller_user_statistics_detail' => [
                                 'label'       => tr('{USERNAME} user statistics'),
                                 'uri'         => '/admin/reseller_user_statistics_details.php',
-                                'visible'     => '0',
+                                'visible'     => false,
                                 'title_class' => 'stats'
                             ]
                         ]
                     ]
                 ]
             ],
-            'ip_assignments'             => [
+            'ip_assignments'       => [
                 'label'              => tr('IP assignments'),
                 'uri'                => '/admin/ip_assignment.php',
                 'title_class'        => 'ip',
@@ -226,7 +226,7 @@ return [
                 'label'       => tr('View ticket'),
                 'uri'         => '/admin/ticket_view.php',
                 'title_class' => 'support',
-                'visible'     => '0'
+                'visible'     => false
             ]
         ]
     ],
@@ -284,7 +284,7 @@ return [
                     'softwares_permissions' => [
                         'label'       => tr('Software permissions'),
                         'uri'         => '/admin/software_rights.php',
-                        'visible'     => '0',
+                        'visible'     => false,
                         'title_class' => 'apps_installer'
                     ]
                 ]

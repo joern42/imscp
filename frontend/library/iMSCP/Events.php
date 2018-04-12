@@ -865,6 +865,7 @@ class iMSCP_Events
      *  - customerId    : Customer unique identifier
      *  - customerEmail : Customer email address
      *  - domainName    : Domain name
+     *  - domainIps     : Domain IP addresses unique identifiers
      *  - mountPoint    : Domain mount point
      *  - documentRoot  : Domain document root
      *  - forwardUrl    : Domain forward URL, 'no' if no forward URL has been set
@@ -884,6 +885,7 @@ class iMSCP_Events
      *  - customerEmail : Customer email address
      *  - domainId      : Domain unique identifier
      *  - domainName    : Domain name
+     *  - domainIps     : Domain IP addresses unique identifiers
      *  - mountPoint    : Domain mount point
      *  - documentRoot  : Domain document root
      *  - forwardUrl    : Domain forward URL, 'no' if no forward URL has been set
@@ -900,6 +902,7 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - domainId     : Domain unique identifier
      *  - domainName   : Domain name
+     *  - domainIps    : Domain IP addresses unique identifiers
      *  - mountPoint   : Domainmount point
      *  - documentRoot : Domain document root
      *  - forwardUrl   : Domain forward URL, 'no' if no forward URL has been set
@@ -916,7 +919,8 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - domainId     : Domain unique identifier
      *  - domainName   : Domain name
-     *  - mountPoint   : Domainmount point
+     *  - domainIps    : Domain IP addresses unique identifiers
+     *  - mountPoint   : Domain mount point
      *  - documentRoot : Domain document root
      *  - forwardUrl   : Domain forward URL, 'no' if no forward URL has been set
      *  - forwardType  : Domain forward URL type
@@ -931,6 +935,7 @@ class iMSCP_Events
      *
      * iMSCP_Events_Event object parameters:
      *  - subdomainName  : Subdomain name
+     *  - subdomainIps   : Subdomain IP addresses unique identifiers
      *  - subdomainType  : Subdomain type, either 'als' or 'dmn' depending on parent domain type
      *  - parentDomainId : Parent domain unique identifier
      *  - mountPoint     : Subdomain mount point
@@ -950,6 +955,7 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - subdomainId    : Subdomain unique identifier
      *  - subdomainName  : Subdomain name
+     *  - subdomainIps   : Subdomain IP addresses unique identifiers
      *  - subdomainType  : Subdomain type, either 'als' or 'dmn' depending on parent domain type
      *  - parentDomainId : Parent domain unique identifier
      *  - mountPoint     : Subdomain mount point
@@ -969,6 +975,7 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - subdomainId   : Subdomain unique identifier
      *  - subdomainName : Subdomain name
+     *  - subdomainIps  : Subdomain IP addresses unique identifiers
      *  - subdomainType : Subdomain type, either 'als' or 'dmn' depending on parent domain type
      *  - mountPoint    : Subdomain mount point
      *  - documentRoot  : Subdomain document root
@@ -986,6 +993,7 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - subdomainId   : Subdomain unique identifier
      *  - subdomainName : Subdomain name
+     *  - subdomainIps  : Subdomain IP addresses
      *  - subdomainType : Subdomain type, either 'als' or 'dmn' depending on parent domain type
      *  - mountPoint    : Subdomain mount point
      *  - documentRoot  : Subdomain document root
@@ -1004,7 +1012,6 @@ class iMSCP_Events
      *  - subdomainId   : Subdomain unique identifier
      *  - subdomainName : Subdomain name
      *  - subdomainType : Subdomain type, either 'sub' or 'alssub' depending on parent domain type
-     *  - type (BC)     : Same as subdomainType field; provided for backward compatibility
      *
      * @const string
      */
@@ -1017,7 +1024,6 @@ class iMSCP_Events
      *  - subdomainId   : Subdomain unique identifier
      *  - subdomainName : Subdomain name
      *  - subdomainType : Subdomain type, either 'sub' or 'alssub' depending on parent domain type
-     *  - type (BC)     : Same as subdomainType field; provided for backward compatibility
      *
      * @const string
      */
@@ -1029,7 +1035,7 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - domainId        : Customer main domain unique identifier
      *  - domainAliasName : Domain alias name
-     *  - domainAliasIps  : Domain IP addresses unique identifiers
+     *  - domainAliasIps  : Domain alias  IP addresses unique identifiers
      *  - mountPoint      : Domain alias mount point
      *  - documentRoot    : Domain alias document root
      *  - forwardUrl      : Domain alias forward URL, 'no' if no forward URL has been set
@@ -1047,7 +1053,7 @@ class iMSCP_Events
      *  - domainId        : Customer main domain unique identifier
      *  - domainAliasId   : Domain alias unique identifier
      *  - domainAliasName : Domain alias name
-     *  - domainAliasIps  : Domain IP addresses unique identifiers
+     *  - domainAliasIps  : Domain alias IP addresses unique identifiers
      *  - mountPoint      : Domain alias mount point
      *  - documentRoot    : Domain alias document root
      *  - forwardUrl      : Domain alias forward URL, 'no' if no forward URL has been set

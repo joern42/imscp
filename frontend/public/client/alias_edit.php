@@ -1,7 +1,7 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2010-2018 by i-MSCP Team
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -74,7 +74,7 @@ function client_editDomainAlias()
 
     $domainAliasId = intval($_GET['id']);
     $domainAliasData = _client_getAliasData($domainAliasId);
-    $domainAliasData !== false or showBadRequestErrorPage();
+    $domainAliasData !== FALSE or showBadRequestErrorPage();
 
     // Check for domain alias IP addresses
     $domainAliasIps = [];

@@ -45,32 +45,32 @@ return [
         'uri'   => '/reseller/users.php',
         'class' => 'manage_users',
         'pages' => [
-            'overview'          => [
+            'overview'            => [
                 'label'       => tr('Overview'),
                 'uri'         => '/reseller/users.php',
                 'title_class' => 'users',
                 'pages'       => [
-                    'domain_detail' => [
-                        'label'       => tr('Domain details'),
-                        'uri'         => '/reseller/domain_details.php',
-                        'visible'     => '0',
-                        'title_class' => 'domains'
+                    'account_details' => [
+                        'label'       => tr('{VL_ACCOUNT_NAME} account details'),
+                        'uri'         => '/reseller/account_details.php',
+                        'title_class' => 'domains',
+                        'visible'     => false,
                     ],
-                    'domain_edit'   => [
-                        'label'       => tr('Edit domain'),
-                        'uri'         => '/reseller/domain_edit.php',
-                        'visible'     => '0',
-                        'title_class' => 'domains'
+                    'account_edit'    => [
+                        'label'       => tr('Edit {ACCOUNT_NAME} account'),
+                        'uri'         => '/reseller/account_edit.php',
+                        'title_class' => 'domains',
+                        'visible'     => false
                     ],
-                    'customer_edit' => [
+                    'customer_edit'   => [
                         'label'       => tr('Edit customer'),
                         'uri'         => '/reseller/user_edit.php',
-                        'visible'     => '0',
-                        'title_class' => 'user_blue'
+                        'title_class' => 'user_blue',
+                        'visible'     => false
                     ]
                 ]
             ],
-            'add_customer'      => [
+            'add_customer'        => [
                 'label'       => tr('Add customer'),
                 'uri'         => '/reseller/user_add1.php',
                 'title_class' => 'user',
@@ -78,24 +78,24 @@ return [
                     'add_customer_p2' => [
                         'label'       => tr('Add customer - Next step'),
                         'uri'         => '/reseller/user_add2.php',
-                        'visible'     => '0',
+                        'visible'     => false,
                         'title_class' => 'user'
                     ],
                     'add_customer_p3' => [
                         'label'       => tr('Add customer - Next step'),
                         'uri'         => '/reseller/user_add3.php',
-                        'visible'     => '0',
+                        'visible'     => false,
                         'title_class' => 'user'
                     ],
                     'add_customer_p4' => [
                         'label'       => tr('Add customer - Next step'),
                         'uri'         => '/reseller/user_add4.php',
-                        'visible'     => '0',
+                        'visible'     => false,
                         'title_class' => 'user'
                     ]
                 ]
             ],
-            'domain_alias_orders'   => [
+            'domain_alias_orders' => [
                 'label'              => tr('Domain alias orders'),
                 'uri'                => '/reseller/alias_orders.php',
                 'title_class'        => 'domains',
@@ -109,17 +109,17 @@ return [
                     ]
                 ]
             ],
-            'welcome_mail'      => [
+            'welcome_mail'        => [
                 'label'       => tr('Welcome email'),
                 'uri'         => '/reseller/settings_welcome_mail.php',
                 'title_class' => 'email'
             ],
-            'lostpassword_mail' => [
+            'lostpassword_mail'   => [
                 'label'       => tr('Lost password email'),
                 'uri'         => '/reseller/settings_lostpassword.php',
                 'title_class' => 'email'
             ],
-            'circular'          => [
+            'circular'            => [
                 'label'              => tr('Circular'),
                 'uri'                => '/reseller/circular.php',
                 'title_class'        => 'email',
@@ -143,7 +143,7 @@ return [
                         'label'       => tr('Edit hosting plan'),
                         'uri'         => '/reseller/hosting_plan_edit.php',
                         'title_class' => 'hosting_plans',
-                        'visible'     => '0'
+                        'visible'     => false
                     ]
                 ]
             ],
@@ -171,12 +171,12 @@ return [
                     'user_statistics_details' => [
                         'label'       => tr('{USERNAME} user statistics'),
                         'uri'         => '/reseller/user_statistics_details.php',
-                        'visible'     => '0',
-                        'title_class' => 'stats'
+                        'title_class' => 'stats',
+                        'visible'     => false
                     ]
                 ]
             ],
-            'ip_assignments'        => [
+            'ip_assignments'  => [
                 'label'       => tr('IP assignments'),
                 'uri'         => '/reseller/ip_assignments.php',
                 'title_class' => 'stats'
@@ -217,7 +217,7 @@ return [
                 'label'       => tr('View ticket'),
                 'uri'         => '/reseller/ticket_view.php',
                 'title_class' => 'support',
-                'visible'     => '0'
+                'visible'     => false
             ]
         ]
     ],

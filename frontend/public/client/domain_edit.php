@@ -242,6 +242,7 @@ function client_editDomain()
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeEditDomain, [
         'domainId'     => $domainId,
         'domainName'   => $domainData['domain_name'],
+        'domainIps'    => $domainIps,
         'mountPoint'   => '/',
         'documentRoot' => $documentRoot,
         'forwardUrl'   => $forwardUrl,
@@ -261,6 +262,7 @@ function client_editDomain()
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterEditDomain, [
         'domainId'     => $domainId,
         'domainName'   => $domainData['domain_name'],
+        'domainIps'    => $domainIps,
         'mountPoint'   => '/',
         'documentRoot' => $documentRoot,
         'forwardUrl'   => $forwardUrl,

@@ -24,10 +24,6 @@ use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
 use Zend_Form as Form;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
  * Update personal data
  *
@@ -55,8 +51,8 @@ function updatePersonalData(Form $form)
     exec_query(
         "
             UPDATE admin
-            SET fname = ?, lname = ?, firm = ?, zip = ?, city = ?, state = ?, country = ?, email = ?, phone = ?,
-                fax = ?, street1 = ?, street2 = ?, gender = ?
+            SET fname = ?, lname = ?, firm = ?, zip = ?, city = ?, state = ?, country = ?, email = ?, phone = ?, fax = ?, street1 = ?, street2 = ?,
+                gender = ?
             WHERE admin_id = ?
         ",
         [
@@ -97,30 +93,25 @@ function generatePage(TemplateEngine $tpl, Form $form)
 
     $stmt = exec_query(
         "
-            SELECT admin_name, admin_type, fname, lname, IFNULL(gender, 'U') as gender, firm, zip, city, state, country,
-                street1, street2, email, phone, fax
+            SELECT admin_name, admin_type, fname, lname, IFNULL(gender, 'U') as gender, firm, zip, city, state, country, street1, street2, email,
+            phone, fax
             FROM admin
             WHERE admin_id = ?
         ",
         [$_SESSION['user_id']]
     );
 
-    if (!($data = $stmt->fetch())) {
-        showBadRequestErrorPage();
-    }
-
+    $data = $stmt->fetch() or showBadRequestErrorPage();
     $form->setDefaults($data);
 }
 
-/***********************************************************************************************************************
- * Main
- */
+require_once 'imscp-lib.php';
+
+defined('SHARED_SCRIPT_NEEDED') or showNotFoundErrorPage();
 
 $form = getUserPersonalDataForm();
 
-if (!empty($_POST)) {
-    updatePersonalData($form);
-}
+empty($_POST) or updatePersonalData($form);
 
 $tpl = new TemplateEngine();
 $tpl->define([

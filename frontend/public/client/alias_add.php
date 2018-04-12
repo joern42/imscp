@@ -55,7 +55,7 @@ function send_alias_order_email($aliasName)
     ]);
 
     if (!$ret) {
-        write_log(sprintf("Couldn't send alias order email to %s", $row['admin_name']), E_USER_ERROR);
+        write_log(sprintf("Couldn't send domain alias order email to %s", $row['admin_name']), E_USER_ERROR);
         return false;
     }
 
@@ -123,7 +123,7 @@ function getDomainsList()
 }
 
 /**
- * Add new domain alias
+ * Add domain alias
  *
  * @return bool TRUE on success, FALSE on failure
  */
@@ -333,7 +333,7 @@ function addDomainAlias()
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
         write_log(sprintf('System was unable to create the %s domain alias: %s', $domainAliasName, $e->getMessage()), E_USER_ERROR);
-        set_page_message(tr('Could not create domain alias. An unexpected error occurred.: ' . $e->getMessage()), 'error');
+        set_page_message(tr('Could not create domain alias. An unexpected error occurred.'), 'error');
         return false;
     }
 

@@ -18,13 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
 use iMSCP\TemplateEngine;
+use iMSCP\VirtualFileSystem as VirtualFileSystem;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Is the given directory hidden inside the mountpoints?
@@ -54,7 +50,7 @@ function isUnselectable($directory)
 {
     global $vftpUnselectableDirs, $mountPoints;
 
-    if ($vftpUnselectableDirs === '')
+    if ($vftpUnselectableDirs == '')
         return false;
     if (preg_match("%^(?:$mountPoints)(?:$vftpUnselectableDirs)$%", $directory))
         return true;
@@ -77,7 +73,7 @@ function generateDirectoryList($tpl)
     $list = $vfs->ls($path);
 
     if (!$list) {
-        set_page_message(tr('Could not retrieve directories.'), 'error');
+        set_page_message(tohtml(tr('Could not retrieve directories.')), 'error');
         $tpl->assign('FTP_CHOOSER', '');
         return;
     }
@@ -138,10 +134,6 @@ function generateDirectoryList($tpl)
     }
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
 check_login('all');
@@ -158,13 +150,13 @@ $tpl->define([
 ]);
 $tpl->assign([
     'TOOLTIP_CHOOSE' => tohtml(tr('Choose'), 'htmlAttr'),
-    'CHOOSE'         => tr('Choose'),
+    'CHOOSE'         => tohtml(tr('Choose')),
     'layout'         => ''
 ]);
 
 if (!isset($_SESSION['ftp_chooser_user']) || !isset($_SESSION['ftp_chooser_domain_id'])) {
     $tpl->assign('FTP_CHOOSER', '');
-    set_page_message(tr('Could not retrieve directories.'), 'error');
+    set_page_message(tohtml(tr('Could not retrieve directories.')), 'error');
 } else {
     $vftpDomainId = $_SESSION['ftp_chooser_domain_id'];
     $vftpUser = $_SESSION['ftp_chooser_user'];

@@ -32,7 +32,10 @@
             language: imscp_i18n.core.dataTable,
             stateSave: true,
             pagingType: "simple",
-            columnDefs: [{ sortable: false, searchable: false, targets: [3, 4] }]
+            columnDefs: [
+                { type: "natural", targets: [0] },
+                { sortable: false, searchable: false, targets: [3, 4] }
+             ]
         }).on("change", ".radio", function () {
             var $this = $(this);
             doRequest($this.parent().find("input").serialize()).fail(function () {

@@ -103,7 +103,7 @@ function getFormData()
 function generateIpListForm(TemplateEngine $tpl)
 {
     $data = getFormData();
-    $tpl->assign('TR_IP_ADDRESSES', tohtml(tr('IP addresses')));
+    $tpl->assign('TR_IPS', tohtml(tr('IP addresses')));
 
     Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Description $e) {
         $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);

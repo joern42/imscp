@@ -35,47 +35,46 @@ use iMSCP_Registry as Registry;
  *   for the client.
  * - If all IP addresses assigned to a domain or subdomain are no longer available, they are
  *   replaced with the first IP found in the new IP addresses list.
- * - On any change, schedule change of the domain or subdomain (status field only), excepted
- *   for ordered domain aliases
  *
- * @param int $mainDomainId Customer main domain unique identifier
+ * @param int $domainId Customer main domain unique identifier
  * @param array $clientIps Client new IP addresses list
  * @return void
  */
-function syncIpAddresses($mainDomainId, array $clientIps)
+function syncIpAddresses($domainId, array $clientIps)
 {
     // dmn IP addresses
-    $domainIps = explode(',', exec_query('SELECT domain_ips FROM domain WHERE domain_id = ?', [$mainDomainId])->fetchColumn());
+    $domainIps = explode(',', exec_query('SELECT domain_ips FROM domain WHERE domain_id = ?', [$domainId])->fetchColumn());
     $commonIps = array_intersect($domainIps, $clientIps);
     if (count($commonIps) < count($domainIps)) {
-        if (empty($commonIps)) $commonIps[] = $clientIps[0];
-        exec_query("UPDATE domain SET domain_ips = ?, domain_status = 'tochange' WHERE domain_id = ?", [implode(',', $commonIps), $mainDomainId]);
+        if (empty($commonIps)) {
+            $commonIps[] = $clientIps[0];
+        }
+        exec_query('UPDATE domain SET domain_ips = ? WHERE domain_id = ?', [implode(',', $commonIps), $domainId]);
     }
 
     // sub IP addresses
-    $stmt = exec_query('SELECT subdomain_id, subdomain_ips FROM subdomain WHERE domain_id = ?', [$mainDomainId]);
+    $stmt = exec_query('SELECT subdomain_id, subdomain_ips FROM subdomain WHERE domain_id = ?', [$domainId]);
     while ($row = $stmt->fetch()) {
         $domainIps = explode(',', $row['subdomain_ips']);
         $commonIps = array_intersect($domainIps, $clientIps);
         if (count($commonIps) < count($domainIps)) {
-            if (empty($commonIps)) $commonIps[] = $clientIps[0];
-            exec_query("UPDATE subdomain SET subdomain_ips = ?, subdomain_status = 'tochange' WHERE subdomain_id = ?", [
-                implode(',', $commonIps), $row['subdomain_id']
-            ]);
+            if (empty($commonIps)) {
+                $commonIps[] = $clientIps[0];
+            }
+            exec_query('UPDATE subdomain SET subdomain_ips = ? WHERE subdomain_id = ?', [implode(',', $commonIps), $row['subdomain_id']]);
         }
     }
 
     // als IP addresses
-    $stmt = exec_query('SELECT alias_id, alias_ips FROM domain_aliases WHERE domain_id = ?', [$mainDomainId]);
+    $stmt = exec_query('SELECT alias_id, alias_ips FROM domain_aliases WHERE domain_id = ?', [$domainId]);
     while ($row = $stmt->fetch()) {
         $domainIps = explode(',', $row['alias_ips']);
         $commonIps = array_intersect($domainIps, $clientIps);
         if (count($commonIps) < count($domainIps)) {
-            if (empty($commonIps)) $commonIps[] = $clientIps[0];
-            exec_query(
-                "UPDATE domain_aliases SET alias_ips = ?, alias_status = IF(alias_status <> 'ordered', 'tochange', alias_status) WHERE alias_id = ?",
-                [implode(',', $commonIps), $row['alias_id']
-                ]);
+            if (empty($commonIps)) {
+                $commonIps[] = $clientIps[0];
+            }
+            exec_query('UPDATE domain_aliases SET alias_ips = ? WHERE alias_id = ?', [implode(',', $commonIps), $row['alias_id']]);
         }
     }
 
@@ -87,14 +86,16 @@ function syncIpAddresses($mainDomainId, array $clientIps)
             JOIN domain_aliases AS t2 USING(alias_id)
             WHERE t2.domain_id = ?
         ',
-        [$mainDomainId]
+        [$domainId]
     );
     while ($row = $stmt->fetch()) {
         $domainIps = explode(',', $row['subdomain_alias_ips']);
         $commonIps = array_intersect($domainIps, $clientIps);
         if (count($commonIps) < count($domainIps)) {
-            if (empty($commonIps)) $commonIps[] = $clientIps[0];
-            exec_query("UPDATE subdomain_alias SET subdomain_alias_ips = ?, subdomain_alias_status = 'tochange' WHERE subdomain_alias_id = ?", [
+            if (empty($commonIps)) {
+                $commonIps[] = $clientIps[0];
+            }
+            exec_query('UPDATE subdomain_alias SET subdomain_alias_ips = ? WHERE subdomain_alias_id = ?', [
                 implode(',', $commonIps), $row['subdomain_alias_id']
             ]);
         }
@@ -111,10 +112,7 @@ function reseller_getDomainProps($domainId)
 {
     $stmt = exec_query(
         "
-            SELECT t1.domain_id, t1.domain_name, t1.domain_expires, t1.domain_status, t1.domain_subd_limit, t1.domain_client_ips, t1.domain_alias_limit,
-                t1.domain_mailacc_limit, t1.domain_ftpacc_limit, t1.domain_sqld_limit, t1.domain_sqlu_limit, t1.domain_disk_limit, domain_disk_usage,
-                t1.domain_traffic_limit, t1.domain_php, t1.domain_cgi, t1.domain_dns, t1.domain_software_allowed, t1.allowbackup,
-                t1.domain_external_mail,t1.web_folder_protection, t1.mail_quota, t2.admin_id
+            SELECT t1.*, t2.admin_id
             FROM domain AS t1
             JOIN admin AS t2 ON(t1.domain_admin_id = t2.admin_id)
             WHERE t1.domain_id = ?
@@ -127,9 +125,7 @@ function reseller_getDomainProps($domainId)
     $stmt->rowCount() or showBadRequestErrorPage();
     $data = $stmt->fetch();
     $data['mail_quota'] = $data['mail_quota'] / 1048576;
-
-    $trafficData = getClientMonthlyTrafficStats($domainId);
-    $data['domainTraffic'] = $trafficData[4];
+    $data['domainTraffic'] = getClientMonthlyTrafficStats($domainId)[4];
     return $data;
 }
 
@@ -224,8 +220,8 @@ function &getData($domainId, $forUpdate = false)
     $data['fallback_domain_external_mail'] = $data['domain_external_mail'];
     $data['fallback_web_folder_protection'] = $data['web_folder_protection'];
     $data['fallback_mail_quota'] = $data['mail_quota'];
-    $data['domain_expires_ok'] = true;
-    $data['domain_never_expires'] = ($data['domain_expires'] == 0) ? 'on' : 'off';
+    #$data['domain_expires_ok'] = true;
+    #$data['domain_never_expires'] = ($data['domain_expires'] == 0) ? 'on' : 'off';
 
     $phpini = PhpIni::getInstance();
     $phpini->loadResellerPermissions($_SESSION['user_id']); // Load reseller PHP permissions
@@ -251,13 +247,19 @@ function &getData($domainId, $forUpdate = false)
             }
         }
 
-        $data['domain_client_ips'] = isset($_POST['domain_client_ips']) && is_array($_POST['domain_client_ips'])
-            ? $_POST['domain_client_ips'] : $data['domain_client_ips'];
-        $data['domain_expires'] = isset($_POST['domain_expires']) ? clean_input($_POST['domain_expires']) : $data['domain_expires'];
-        $data['domain_never_expires'] = isset($_POST['domain_never_expires']) ? clean_input($_POST['domain_never_expires']) : 'off';
-        $data['domain_php'] = isset($_POST['domain_php']) ? clean_input($_POST['domain_php']) : $data['domain_php'];
-        $data['domain_cgi'] = isset($_POST['domain_cgi']) ? clean_input($_POST['domain_cgi']) : $data['domain_cgi'];
-        $data['domain_dns'] = isset($_POST['domain_dns']) ? clean_input($_POST['domain_dns']) : $data['domain_dns'];
+        if (isset($_POST['domain_client_ips']) && is_array($_POST['domain_client_ips'])) {
+            $data['domain_client_ips'] = $_POST['domain_client_ips'];
+        }
+
+        foreach (
+            [
+                'domain_expires', 'domain_never_expires', 'domain_php', 'domain_cgi', 'domain_dns', 'domain_external_mail', 'web_folder_protection'
+            ] as $field
+        ) {
+            if (isset($_POST[$field])) {
+                $data['domain_client_ips'] = clean_input($_POST[$field]);
+            }
+        }
 
         if ($data['software_allowed'] == 'yes') {
             $data['domain_software_allowed'] = isset($_POST['domain_software_allowed'])
@@ -272,11 +274,6 @@ function &getData($domainId, $forUpdate = false)
         } else {
             $data['allowbackup'] = [];
         }
-
-        $data['domain_external_mail'] = isset($_POST['domain_external_mail'])
-            ? clean_input($_POST['domain_external_mail']) : $data['domain_external_mail'];
-        $data['web_folder_protection'] = isset($_POST['web_folder_protection'])
-            ? clean_input($_POST['web_folder_protection']) : $data['web_folder_protection'];
     }
 
     return $data;
@@ -291,8 +288,8 @@ function &getData($domainId, $forUpdate = false)
  */
 function generatePage(TemplateEngine $tpl, &$data)
 {
+    generatePermissionsForm($tpl, $data);
     generateLimitsForm($tpl, $data);
-    generateFeaturesForm($tpl, $data);
 }
 
 /**
@@ -310,8 +307,8 @@ function generateLimitsForm(TemplateEngine $tpl, &$data)
         ) = getResellerStats($_SESSION['user_id']);
 
     $tpl->assign([
-        'TR_DOMAIN_LIMITS'        => tohtml(tr('Domains limit')),
-        'TR_LIMIT_VALUE'          => tohtml(tr('Limit value')),
+        'TR_LIMITS'               => tohtml(tr('Limits')),
+        'TR_VALUE'                => tohtml(tr('Value')),
         'TR_CUSTOMER_CONSUMPTION' => tohtml(tr('Customer consumption')),
         'TR_RESELLER_CONSUMPTION' => tohtml(isset($_SESSION['logged_from']) ? tr('Reseller consumption') : tr('Your consumption'))
     ]);
@@ -423,22 +420,22 @@ function generateLimitsForm(TemplateEngine $tpl, &$data)
 } // end _reseller_generateLimitsForm()
 
 /**
- * Generates features form
+ * Generates permissions form
  *
- * Note: For now most block for the features are always show. That will change when
+ * Note: For now most block for the permissions are always show. That will change when
  * admin will be able to disable them for a specific reseller.
  *
  * @param TemplateEngine $tpl
  * @param array $data Domain data
  * @return void
  */
-function generateFeaturesForm(TemplateEngine $tpl, &$data)
+function generatePermissionsForm(TemplateEngine $tpl, &$data)
 {
     $tpl->assign([
-        'TR_FEATURES' => tr('Features'),
-        'TR_PHP'      => tr('PHP'),
-        'PHP_YES'     => $data['domain_php'] == 'yes' ? ' checked' : '',
-        'PHP_NO'      => $data['domain_php'] != 'yes' ? ' checked' : ''
+        'TR_FEATURES_PERMISSIONS' => tohtml(tr('Features / Permissions')),
+        'TR_PHP'         => tohtml(tr('PHP')),
+        'PHP_YES'        => $data['domain_php'] == 'yes' ? ' checked' : '',
+        'PHP_NO'         => $data['domain_php'] != 'yes' ? ' checked' : ''
     ]);
 
     $phpini = PhpIni::getInstance();
@@ -447,16 +444,16 @@ function generateFeaturesForm(TemplateEngine $tpl, &$data)
         $tpl->assign('PHP_EDITOR_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_SETTINGS'            => tohtml(tr('PHP Settings')),
-            'TR_PHP_EDITOR'          => tohtml(tr('PHP Editor')),
-            'TR_PHP_EDITOR_SETTINGS' => tohtml(tr('PHP Settings')),
-            'TR_PERMISSIONS'         => tohtml(tr('PHP Permissions')),
-            'TR_DIRECTIVES_VALUES'   => tohtml(tr('PHP directives values')),
-            'TR_FIELDS_OK'           => tohtml(tr('All fields are valid.')),
-            'TR_MIB'                 => tohtml(tr('MiB')),
-            'TR_SEC'                 => tohtml(tr('Sec.')),
-            'PHP_EDITOR_YES'         => $phpini->clientHasPermission('phpiniSystem') ? ' checked' : '',
-            'PHP_EDITOR_NO'          => $phpini->clientHasPermission('phpiniSystem') ? '' : ' checked'
+            'TR_PHP_SETTINGS'          => tohtml(tr('PHP Settings')),
+            'TR_PHP_EDITOR'            => tohtml(tr('PHP Editor')),
+            'TR_PHP_EDITOR_SETTINGS'   => tohtml(tr('PHP Settings')),
+            'TR_PHP_PERMISSIONS'       => tohtml(tr('PHP Permissions')),
+            'TR_PHP_DIRECTIVES_VALUES' => tohtml(tr('PHP directives values')),
+            'TR_PHP_FIELDS_OK'         => tohtml(tr('All fields are valid.')),
+            'TR_MIB'                   => tohtml(tr('MiB')),
+            'TR_SEC'                   => tohtml(tr('Sec.')),
+            'PHP_EDITOR_YES'           => $phpini->clientHasPermission('phpiniSystem') ? ' checked' : '',
+            'PHP_EDITOR_NO'            => $phpini->clientHasPermission('phpiniSystem') ? '' : ' checked'
         ]);
 
         $permissionsBlock = false;
@@ -661,23 +658,23 @@ function reseller_checkAndUpdateData($domainId)
         $data =& getData($domainId, true);
 
         // Check for expires date
-        if ($data['domain_never_expires'] == 'off') {
-            if (!preg_match('%^\d{2}/\d{2}/\d{4}$%', $data['domain_expires']) || ($timestamp = strtotime($data['domain_expires'])) === false) {
-                $data['domain_expires_ok'] = false;
-                set_page_message(tr('Wrong syntax for new expire date.'), 'error');
-                $errFieldsStack[] = 'domain_expires';
-            } elseif ($timestamp != 0 && $timestamp <= time()) {
-                $data['domain_expires'] = $timestamp;
-                set_page_message(tr('You cannot set expire date in past.'), 'error');
-                $errFieldsStack[] = 'domain_expires';
-            } else {
-                $data['domain_expires'] = $timestamp;
-            }
-        } else {
-            $data['domain_expires'] = 0;
-        }
+        #if ($data['domain_never_expires'] == 'off') {
+        #    if (!preg_match('%^\d{2}/\d{2}/\d{4}$%', $data['domain_expires']) || ($timestamp = strtotime($data['domain_expires'])) === false) {
+        #        #$data['domain_expires_ok'] = false;
+        #        set_page_message(tr('Wrong syntax for new expire date.'), 'error');
+        #        $errFieldsStack[] = 'domain_expires';
+        #    } elseif ($timestamp != 0 && $timestamp <= time()) {
+        #        $data['domain_expires'] = $timestamp;
+        #        set_page_message(tr('You cannot set expire date in past.'), 'error');
+        #        $errFieldsStack[] = 'domain_expires';
+        #    } else {
+        #        $data['domain_expires'] = $timestamp;
+        #    }
+        #} else {
+        #    $data['domain_expires'] = 0;
+        #}
 
-        // Check for customer IP addresses
+        // Check for client IP addresses
         if (array_diff($data['domain_client_ips'], $data['reseller_ips'])) {
             $data['domain_client_ips'] = $data['fallback_domain_client_ips'];
         }
@@ -891,7 +888,16 @@ function reseller_checkAndUpdateData($domainId)
         if (empty($errFieldsStack)) { // Update process begin here
             $db->beginTransaction();
 
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditDomain, ['domainId' => $domainId]);
+            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditDomain, [
+                'domainId'     => $domainId,
+                'domainName'   => $data['domain_name'],
+                'domainIps'    => $data['domain_ips'],
+                'mountPoint'   => '/',
+                'documentRoot' => $data['document_root'],
+                'forwardUrl'   => $data['url_forward'],
+                'forwardType'  => $data['type_forward'],
+                'forwardHost'  => $data['host_forward']
+            ]);
 
             $changeNeeded = false;
 
@@ -901,23 +907,23 @@ function reseller_checkAndUpdateData($domainId)
                 $changeNeeded = true;
             }
 
-            // Update IP addresses, limits and permissions
+            // Update client IP addresses, limits and permissions
 
             exec_query(
                 '
                     UPDATE domain
                     SET domain_expires = ?, domain_last_modified = ?, domain_mailacc_limit = ?, domain_ftpacc_limit = ?, domain_traffic_limit = ?,
-                        domain_sqld_limit = ?, domain_sqlu_limit = ?, domain_status = ?, domain_alias_limit = ?, domain_subd_limit = ?,
-                        domain_client_ips = ?, domain_disk_limit = ?, domain_php = ?, domain_cgi = ?, allowbackup = ?, domain_dns = ?,
-                        domain_software_allowed = ?,  domain_external_mail = ?, web_folder_protection = ?, mail_quota = ?
+                        domain_sqld_limit = ?, domain_sqlu_limit = ?, domain_alias_limit = ?, domain_subd_limit = ?, domain_client_ips = ?,
+                        domain_disk_limit = ?, domain_php = ?, domain_cgi = ?, allowbackup = ?, domain_dns = ?, domain_software_allowed = ?,
+                         domain_external_mail = ?, web_folder_protection = ?, mail_quota = ?
                     WHERE domain_id = ?
                 ',
                 [
                     $data['domain_expires'], time(), $data['domain_mailacc_limit'], $data['domain_ftpacc_limit'], $data['domain_traffic_limit'],
-                    $data['domain_sqld_limit'], $data['domain_sqlu_limit'], $changeNeeded ? 'tochange' : 'ok', $data['domain_alias_limit'],
-                    $data['domain_subd_limit'], implode(',', $data['domain_client_ips']), $data['domain_disk_limit'], $data['domain_php'],
-                    $data['domain_cgi'], implode('|', $data['allowbackup']), $data['domain_dns'], $data['domain_software_allowed'],
-                    $data['domain_external_mail'], $data['web_folder_protection'], $data['mail_quota'] * 1048576, $domainId
+                    $data['domain_sqld_limit'], $data['domain_sqlu_limit'], $data['domain_alias_limit'], $data['domain_subd_limit'],
+                    implode(',', $data['domain_client_ips']), $data['domain_disk_limit'], $data['domain_php'], $data['domain_cgi'],
+                    implode('|', $data['allowbackup']), $data['domain_dns'], $data['domain_software_allowed'], $data['domain_external_mail'],
+                    $data['web_folder_protection'], $data['mail_quota'] * 1048576, $domainId
                 ]
             );
 
@@ -951,15 +957,24 @@ function reseller_checkAndUpdateData($domainId)
 
             update_reseller_c_props($data['reseller_id']);
 
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditDomain, ['domainId' => $domainId]);
+            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditDomain, [
+                'domainId'     => $domainId,
+                'domainName'   => $data['domain_name'],
+                'domainIps'    => $data['domain_ips'],
+                'mountPoint'   => '/',
+                'documentRoot' => $data['document_root'],
+                'forwardUrl'   => $data['url_forward'],
+                'forwardType'  => $data['type_forward'],
+                'forwardHost'  => $data['host_forward']
+            ]);
 
             // Schedule change of customer's domains, including subdomains if one of the following condition is met:
+            // - Client IP addresses were changed
             // - Custom DNS records feature has been disabled
-            // - Domain IP has been changed
-            // - Mail feature has been enabled/disabled
-            // - PHP feature has been enabled/disabled
-            // - CGI feature has been enabled/disabled
-            // - Web folder protection feature has been enabled/disabled
+            // - Mail feature has been enabled or disabled
+            // - PHP feature has been enabled or disabled
+            // - CGI feature has been enabled or disabled
+            // - Web folder protection has been enabled or disabled
             if ($changeNeeded
                 || ($data['domain_mailacc_limit'] == '-1' && $data['fallback_domain_mailacc_limit'] != '-1'
                     || $data['domain_mailacc_limit'] != '-1' && $data['fallback_domain_mailacc_limit'] == '-1'
@@ -971,25 +986,48 @@ function reseller_checkAndUpdateData($domainId)
                 // FIXME: There could be a race condition if there is already a task in progress for some domains or subdomains
                 // FIXME: This issue should be addressed by making use of a job queue instead of realying on the entity status
 
-                // Update main domain, including its subdomains, except those that are disabled, being disabled or deleted
+                // Update dmn
                 exec_query(
                     "
-                        UPDATE domain AS t1
-                        LEFT JOIN subdomain AS t2 ON(t1.domain_id = t2.domain_id AND t2.subdomain_status NOT IN('disabled', 'todisable', 'todelete'))
-                        SET t1.domain_status = 'tochange', t2.subdomain_status = 'tochange'
-                        WHERE t1.domain_id = ?
-                        AND t1.domain_status  NOT IN('disabled', 'todisable', 'todelete')
+                        UPDATE domain
+                        SET domain_status = 'tochange'
+                        WHERE domain_id = ?
+                        AND domain_status NOT IN('disabled', 'todisable', 'todelete')
                     ",
                     [$domainId]
                 );
-                // Update domain aliases, including their subdomains, except those that are disabled, being disabled or deleted
+                // Update sub, except those that disabled, being disabled or deleted
+                exec_query(
+                    "
+                        UPDATE subdomain AS t1
+                        JOIN domain AS t2 USING(domain_id)
+                        SET t1.subdomain_status = 'tochange'
+                        WHERE t2.domain_id = ?
+                        AND t1.subdomain_status = NOT IN('disabled', 'todisable', 'todelete')
+                    ",
+                    [$domainId]
+                );
+                // Update als, except those that ordered, disabled, being disabled or deleted
                 exec_query(
                     "
                         UPDATE domain_aliases AS t1
-                        LEFT JOIN subdomain_alias AS t2 ON(t1.alias_id = t2.alias_id AND t2.subdomain_alias_status NOT IN('disabled', 'todelete'))
-                        SET t1.alias_status = 'tochange', t2.subdomain_alias_status = 'tochange'
-                        WHERE t1.domain_id = ?
-                        AND t1.alias_status NOT IN('disabled', 'todisable', 'todelete')
+                        JOIN domain AS t2 USING(domain_id)
+                        SET t1.alias_status = 'tochange'
+                        WHERE t2.domain_id = ?
+                        AND t1.alias_status = NOT IN('ordered', 'disabled', 'todisable', 'todelete')
+                    ",
+                    [$domainId]
+                );
+
+                // Update alssub, except those that are disabled, being disabled or deleted
+                exec_query(
+                    "
+                        UPDATE subdomain_alias AS t1
+                        JOIN domain_alias AS t2 USING(alias_id)
+                        JOIN domain AS t3 USING(domain_id)
+                        SET t1.subdomain_alias_status = 'tochange'
+                        WHERE t3.domain_id = ?
+                        AND t1.subdomain_alias_status NOT IN('disabled', 'todisable', 'todelete')
                     ",
                     [$domainId]
                 );
@@ -1099,7 +1137,7 @@ $data =& getData($domainId);
 $tpl = new TemplateEngine();
 $tpl->define([
     'layout'                                  => 'shared/layouts/ui.tpl',
-    'page'                                    => 'reseller/domain_edit.tpl',
+    'page'                                    => 'reseller/account_edit.tpl',
     'page_message'                            => 'layout',
     'ip_entry'                                => 'page',
     'subdomain_limit_block'                   => 'page',
@@ -1124,21 +1162,25 @@ $tpl->define([
     'backup_block'                            => 'page'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'                   => tohtml(tr('Reseller / Customers / Overview / Edit Domain')),
+    'TR_PAGE_TITLE'                   => tohtml(tr('Reseller / Customers / Overview / Edit Account')),
     'EDIT_ID'                         => tohtml($domainId, 'htmlAttr'),
-    'TR_DOMAIN_OVERVIEW'              => tohtml(tr('Domain overview')),
-    'TR_DOMAIN_NAME'                  => tohtml(tr('Domain name')),
-    'DOMAIN_NAME'                     => tohtml(decode_idna($data['domain_name'])),
-    'TR_DOMAIN_EXPIRE_DATE'           => tohtml(tr('Domain expiration date')),
-    'DOMAIN_EXPIRE_DATE'              => tohtml($data['fallback_domain_expires'] != 0
-        ? date($cfg['DATE_FORMAT'], $data['fallback_domain_expires']) : tr('N/A')),
-    'TR_DOMAIN_NEW_EXPIRE_DATE'       => tohtml(tr('Domain new expiration date')),
-    'DOMAIN_NEW_EXPIRE_DATE'          => tohtml(($data['domain_expires'] != 0)
-        ? ($data['domain_expires_ok'] ? date('m/d/Y', $data['domain_expires']) : $data['domain_expires']) : '', 'htmlAttr'
+    'TR_ACCOUNT'                      => tohtml(tr('Account')),
+    'TR_ACCOUNT_NAME'                 => tohtml(tr('Name')),
+    'TR_PRIMARY_DOMAIN_NAME'          => tohtml(tr('Primary domain name')),
+    'ACCOUNT_NAME'                    => tohtml(decode_idna($data['domain_name'])),
+    'PRIMARY_DOMAIN_NAME'             => '{ACCOUNT_NAME}',
+    
+    'TR_EXPIRATION_DATE'              => tohtml(tr('Expiration date')),
+    'DOMAIN_NEW_EXPIRE_DATE'          => tohtml(
+        isset($_POST['domain_expires']) 
+            ? $_POST['domain_expires']
+            : $data['domain_expires'] != 0 ? date('m/d/Y', $data['domain_expires']) : '',
+        'htmlAttr'
     ),
-    'DOMAIN_NEW_EXPIRE_DATE_DISABLED' => $data['domain_never_expires'] == 'on' ? ' disabled' : '',
+    'DOMAIN_NEW_EXPIRE_DATE_DISABLED' => $data['domain_expires'] == 0 ? ' disabled' : '',
     'TR_DOMAIN_NEVER_EXPIRES'         => tohtml(tr('Never')),
-    'DOMAIN_NEVER_EXPIRES_CHECKED'    => $data['domain_never_expires'] == 'on' ? ' checked' : '',
+    'DOMAIN_NEVER_EXPIRES_CHECKED'    => $data['domain_expires'] == 0 ? ' checked' : '',
+
     'TR_IPS'                          => tohtml(tr('IP addresses')),
     'TR_UPDATE'                       => tohtml(tr('Update'), 'htmlAttr'),
     'TR_CANCEL'                       => tohtml(tr('Cancel'))

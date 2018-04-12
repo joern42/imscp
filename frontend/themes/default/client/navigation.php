@@ -47,13 +47,13 @@ return [
                         'label'       => tr('Edit domain'),
                         'uri'         => '/client/domain_edit.php',
                         'title_class' => 'domains',
-                        'visible'     => '0'
+                        'visible'     => false
                     ],
                     'domain_alias_edit'      => [
                         'label'       => tr('Edit domain alias'),
                         'uri'         => '/client/alias_edit.php',
                         'title_class' => 'domains',
-                        'visible'     => '0'
+                        'visible'     => false
                     ],
                     'subdomain_edit'         => [
                         'label'       => tr('Edit subdomain'),
@@ -65,13 +65,13 @@ return [
                         'label'       => tr('Edit DNS resource record'),
                         'uri'         => '/client/dns_edit.php',
                         'title_class' => 'domains',
-                        'visible'     => '0'
+                        'visible'     => false
                     ],
                     'cert_view'              => [
                         'dynamic_title' => '{TR_DYNAMIC_TITLE}',
                         'uri'           => '/client/cert_view.php',
                         'title_class'   => 'domains',
-                        'visible'       => '0'
+                        'visible'       => false
                     ]
                 ]
             ],
@@ -130,7 +130,7 @@ return [
                     'ftp_account_edit' => [
                         'label'       => tr('Edit FTP account'),
                         'uri'         => '/client/ftp_edit.php',
-                        'visible'     => '0',
+                        'visible'     => false,
                         'title_class' => 'ftp'
                     ]
                 ]
@@ -141,9 +141,9 @@ return [
                 'title_class' => 'ftp'
             ],
             'file_manager'    => [
-                'label'  => tr('FileManager'),
-                'uri'    => '/ftp/',
-                'target' => '_blank',
+                'label'              => tr('FileManager'),
+                'uri'                => '/ftp/',
+                'target'             => '_blank',
                 'privilege_callback' => [
                     'name' => function () {
                         return Registry::get('config')['FILEMANAGERS'] != 'no';
@@ -169,14 +169,14 @@ return [
                     'add_sql_user'             => [
                         'label'       => tr('Add SQL user'),
                         'uri'         => '/client/sql_user_add.php',
-                        'visible'     => '0',
-                        'title_class' => 'user'
+                        'title_class' => 'user',
+                        'visible'     => false
                     ],
                     'update_sql_user_password' => [
                         'label'       => tr('Update SQL user password'),
                         'uri'         => '/client/sql_change_password.php',
-                        'visible'     => '0',
-                        'title_class' => 'password'
+                        'title_class' => 'password',
+                        'visible'     => false
                     ]
                 ]
             ],
@@ -187,7 +187,7 @@ return [
                 'privilege_callback' => [
                     'name' => function () {
                         if (customerSqlDbLimitIsReached()) {
-                            if(Registry::get('navigation')->findOneBy('uri', '/client/sql_manage.php')->isActive()) {
+                            if (Registry::get('navigation')->findOneBy('uri', '/client/sql_manage.php')->isActive()) {
                                 set_page_message(
                                     tr("SQL databases limit is reached. You cannot add new SQL databases."),
                                     'static_info'
@@ -224,20 +224,20 @@ return [
                     'mail_account_edit'    => [
                         'label'       => tr('Edit mail account'),
                         'uri'         => '/client/mail_edit.php',
-                        'visible'     => '0',
-                        'title_class' => 'email'
+                        'title_class' => 'email',
+                        'visible'     => false
                     ],
                     'enable_autoresponder' => [
                         'label'       => tr('Activate autoresponder'),
                         'uri'         => '/client/mail_autoresponder_enable.php',
-                        'visible'     => '0',
-                        'title_class' => 'email'
+                        'title_class' => 'email',
+                        'visible'     => false
                     ],
                     'edit_autoresponder'   => [
                         'label'       => tr('Edit autoresponder'),
                         'uri'         => '/client/mail_autoresponder_edit.php',
-                        'visible'     => '0',
-                        'title_class' => 'email'
+                        'title_class' => 'email',
+                        'visible'     => false
                     ]
                 ]
             ],
@@ -262,8 +262,8 @@ return [
                     'add_catchall' => [
                         'label'       => tr('Add catch-all account'),
                         'uri'         => '/client/mail_catchall_add.php',
-                        'visible'     => '0',
-                        'title_class' => 'email'
+                        'title_class' => 'email',
+                        'visible'     => false
                     ]
                 ]
             ],
@@ -322,37 +322,37 @@ return [
                         'dynamic_title' => '{TR_DYNAMIC_TITLE}',
                         'uri'           => '/client/protected_areas_add.php',
                         'title_class'   => 'htaccess',
-                        'visible'       => '0'
+                        'visible'       => false
                     ],
                     'manage_htaccess_users_and_groups' => [
                         'label'       => tr('Manage htaccess users and groups'),
                         'uri'         => '/client/protected_user_manage.php',
                         'title_class' => 'users',
-                        'visible'     => '0',
+                        'visible'     => false,
                         'pages'       => [
                             'assign_htaccess_group' => [
                                 'label'       => tr('Assign group'),
                                 'uri'         => '/client/protected_user_assign.php',
                                 'title_class' => 'users',
-                                'visible'     => '0'
+                                'visible'     => false
                             ],
                             'edit_htaccess_user'    => [
                                 'label'       => tr('Edit htaccess user'),
                                 'uri'         => '/client/protected_user_edit.php',
                                 'title_class' => 'users',
-                                'visible'     => '0'
+                                'visible'     => false
                             ],
                             'add_htaccess_user'     => [
                                 'label'       => tr('Add Htaccess user'),
                                 'uri'         => '/client/protected_user_add.php',
                                 'title_class' => 'users',
-                                'visible'     => '0'
+                                'visible'     => false
                             ],
                             'add_htaccess_group'    => [
                                 'label'       => tr('Add Htaccess group'),
                                 'uri'         => '/client/protected_group_add.php',
                                 'title_class' => 'users',
-                                'visible'     => '0'
+                                'visible'     => false
                             ]
                         ]
                     ]
@@ -370,8 +370,8 @@ return [
                     'custom_error_page_edit' => [
                         'label'       => tr('Edit custom error page'),
                         'uri'         => '/client/error_edit.php',
-                        'visible'     => '0',
-                        'title_class' => 'errors'
+                        'title_class' => 'errors',
+                        'visible'     => false
                     ],
                 ],
             ],
@@ -388,13 +388,13 @@ return [
                         'label'       => tr('Software details'),
                         'uri'         => '/client/software_view.php',
                         'title_class' => 'apps_installer',
-                        'visible'     => '0'
+                        'visible'     => false
                     ],
                     'software_install' => [
                         'label'       => tr('Software installation'),
                         'uri'         => '/client/software_install.php',
-                        'visible'     => '0',
-                        'title_class' => 'apps_installer'
+                        'title_class' => 'apps_installer',
+                        'visible'     => false
                     ]
                 ]
             ],
@@ -465,7 +465,7 @@ return [
                 'label'       => tr('View ticket'),
                 'uri'         => '/client/ticket_view.php',
                 'title_class' => 'support',
-                'visible'     => '0'
+                'visible'     => false
             ]
         ]
     ],

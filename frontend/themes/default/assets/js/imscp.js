@@ -110,8 +110,8 @@
                         if (password != '') {
                             $('<div>', { html: $("<strong>", { text: password }) }).dialog({
                                 modal: true,
-                                hide: "blind",
-                                show: "blind",
+                                hide: false,
+                                show: false,
                                 title: imscp_i18n.core.your_new_password,
                                 buttons: [
                                     {
@@ -253,8 +253,8 @@
         if (!$phpEditorDialog.length) return; // Avoid attaching event handler when not necessary
 
         $phpEditorDialog.dialog({
-            hide: "blind",
-            show: "slide",
+            hide: false,
+            show: false,
             focus: false,
             autoOpen: false,
             width: 700,
@@ -388,8 +388,8 @@
             } else { // No dialog. We create one
                 $.get("/shared/ftp_choose_dir.php", function(data) {
                     $dialog = $('<div id="ftp_choose_dir_dialog">').html(data).dialog({
-                        hide: "blind",
-                        show: "slide",
+                        hide: false,
+                        show: false,
                         focus: false,
                         width: 650,
                         height: 500,

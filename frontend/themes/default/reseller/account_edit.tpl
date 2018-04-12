@@ -49,24 +49,26 @@
         });
     });
 </script>
-<form method="post" action="domain_edit.php?edit_id={EDIT_ID}">
+<form method="post" action="account_edit.php?edit_id={EDIT_ID}">
     <table class="firstColFixed">
         <thead>
         <tr>
-            <th colspan="2">{TR_DOMAIN_OVERVIEW}</th>
+            <th colspan="2">{TR_ACCOUNT}</th>
         </tr>
         </thead>
         <tbody>
         <tr>
-            <td>{TR_DOMAIN_NAME}</td>
-            <td>{DOMAIN_NAME}</td>
+            <td>{TR_ACCOUNT_NAME}</td>
+            <td>{ACCOUNT_NAME}</td>
         </tr>
+        <!--
         <tr>
-            <td>{TR_DOMAIN_EXPIRE_DATE}</td>
-            <td>{DOMAIN_EXPIRE_DATE}</td>
+            <td>{TR_PRIMARY_DOMAIN_NAME}</td>
+            <td>{PRIMARY_DOMAIN_NAME}</td>
         </tr>
+        -->
         <tr>
-            <td><label for="domain_expires">{TR_DOMAIN_NEW_EXPIRE_DATE}</label></td>
+            <td>{TR_EXPIRATION_DATE}</td>
             <td>
                 <input type="text" id="domain_expires" name="domain_expires" value="{DOMAIN_NEW_EXPIRE_DATE}"{DOMAIN_NEW_EXPIRE_DATE_DISABLED}>
                 <input type="checkbox" name="domain_never_expires" id="domain_never_expires"{DOMAIN_NEVER_EXPIRES_CHECKED}>
@@ -74,7 +76,7 @@
             </td>
         </tr>
         <tr>
-            <td><label for="domain_client_ips">{TR_IP_ADDRESSES}</label></td>
+            <td><label for="domain_client_ips">{TR_IPS}</label></td>
             <td>
                 <select id="domain_client_ips" name="domain_client_ips[]" multiple>
                     <!-- BDP: ip_entry -->
@@ -85,86 +87,11 @@
         </tr>
         </tbody>
     </table>
+
     <table class="firstColFixed">
         <thead>
         <tr>
-            <th>{TR_DOMAIN_LIMITS}</th>
-            <th>{TR_LIMIT_VALUE}</th>
-            <th>{TR_CUSTOMER_CONSUMPTION}</th>
-            <th>{TR_RESELLER_CONSUMPTION}</th>
-        </tr>
-        </thead>
-        <tbody>
-        <!-- BDP: subdomain_limit_block -->
-        <tr>
-            <td><label for="domain_subd_limit">{TR_SUBDOMAINS_LIMIT}</label></td>
-            <td><input type="number" name="domain_subd_limit" id="domain_subd_limit" min="-1" value="{SUBDOMAIN_LIMIT}"></td>
-            <td>{TR_CUSTOMER_SUBDOMAINS_COMSUPTION}</td>
-            <td>{TR_RESELLER_SUBDOMAINS_COMSUPTION}</td>
-        </tr>
-        <!-- EDP: subdomain_limit_block -->
-        <!-- BDP: domain_aliases_limit_block -->
-        <tr>
-            <td><label for="domain_alias_limit">{TR_ALIASES_LIMIT}</label></td>
-            <td><input type="number" name="domain_alias_limit" id="domain_alias_limit" min="-1" value="{DOMAIN_ALIASES_LIMIT}"></td>
-            <td>{TR_CUSTOMER_DOMAIN_ALIASES_COMSUPTION}</td>
-            <td>{TR_RESELLER_DOMAIN_ALIASES_COMSUPTION}</td>
-        </tr>
-        <!-- EDP: domain_aliases_limit_block -->
-        <!-- BDP: mail_accounts_limit_block -->
-        <tr>
-            <td><label for="domain_mailacc_limit">{TR_MAIL_ACCOUNTS_LIMIT}</label></td>
-            <td><input type="number" name="domain_mailacc_limit" id="domain_mailacc_limit" min="-1" value="{MAIL_ACCOUNTS_LIMIT}"></td>
-            <td>{TR_CUSTOMER_MAIL_ACCOUNTS_COMSUPTION}</td>
-            <td>{TR_RESELLER_MAIL_ACCOUNTS_COMSUPTION}</td>
-        </tr>
-        <tr>
-            <td><label for="mail_quota">{TR_MAIL_QUOTA}</label></td>
-            <td><input type="number" name="mail_quota" id="mail_quota" min="0" max="17592186044416" value="{MAIL_QUOTA}"></td>
-            <td>{TR_CUSTOMER_MAIL_QUOTA_COMSUPTION}</td>
-            <td>{TR_NO_AVAILABLE}</td>
-        </tr>
-        <!-- EDP: mail_accounts_limit_block -->
-        <!-- BDP: ftp_accounts_limit_block -->
-        <tr>
-            <td><label for="domain_ftpacc_limit">{TR_FTP_ACCOUNTS_LIMIT}</label></td>
-            <td><input type="number" name="domain_ftpacc_limit" id="domain_ftpacc_limit" min="-1" value="{FTP_ACCOUNTS_LIMIT}"></td>
-            <td>{TR_CUSTOMER_FTP_ACCOUNTS_COMSUPTION}</td>
-            <td>{TR_RESELLER_FTP_ACCOUNTS_COMSUPTION}</td>
-        </tr>
-        <!-- EDP: ftp_accounts_limit_block -->
-        <!-- BDP: sql_db_and_users_limit_block -->
-        <tr>
-            <td><label for="domain_sqld_limit">{TR_SQL_DATABASES_LIMIT}</label></td>
-            <td><input type="number" name="domain_sqld_limit" id="domain_sqld_limit" min="-1" value="{SQL_DATABASES_LIMIT}"></td>
-            <td>{TR_CUSTOMER_SQL_DATABASES_COMSUPTION}</td>
-            <td>{TR_RESELLER_SQL_DATABASES_COMSUPTION}</td>
-        </tr>
-        <tr>
-            <td><label for="domain_sqlu_limit">{TR_SQL_USERS_LIMIT}</label></td>
-            <td><input type="number" name="domain_sqlu_limit" id="domain_sqlu_limit" min="-1" value="{SQL_USERS_LIMIT}"></td>
-            <td>{TR_CUSTOMER_SQL_USERS_COMSUPTION}</td>
-            <td>{TR_RESELLER_SQL_USERS_COMSUPTION}</td>
-        </tr>
-        <!-- EDP: sql_db_and_users_limit_block -->
-        <tr>
-            <td><label for="domain_traffic_limit">{TR_TRAFFIC_LIMIT}</label></td>
-            <td><input type="number" name="domain_traffic_limit" id="domain_traffic_limit" min="0" max="17592186044416" value="{TRAFFIC_LIMIT}"></td>
-            <td>{TR_CUSTOMER_TRAFFIC_COMSUPTION}</td>
-            <td>{TR_RESELLER_TRAFFIC_COMSUPTION}</td>
-        </tr>
-        <tr>
-            <td><label for="domain_disk_limit">{TR_DISK_LIMIT}</label></td>
-            <td><input type="number" name="domain_disk_limit" id="domain_disk_limit" min="0" max="17592186044416" value="{DISK_LIMIT}"></td>
-            <td>{TR_CUSTOMER_DISKPACE_COMSUPTION}</td>
-            <td>{TR_RESELLER_DISKPACE_COMSUPTION}</td>
-        </tr>
-        </tbody>
-    </table>
-    <table class="firstColFixed">
-        <thead>
-        <tr>
-            <th colspan="2">{TR_FEATURES}</th>
+            <th colspan="2">{TR_FEATURES_PERMISSIONS}</th>
         </tr>
         </thead>
         <tbody>
@@ -190,16 +117,16 @@
                     <input type="radio" name="php_ini_system" id="php_ini_system_no" value="no"{PHP_EDITOR_NO}>
                     <label for="php_ini_system_no">{TR_NO}</label>
                 </div>
-                <button type="button" id="php_editor_dialog_open">{TR_SETTINGS}</button>
+                <button type="button" id="php_editor_dialog_open">{TR_PHP_SETTINGS}</button>
                 <div id="php_editor_dialog" title="{TR_PHP_EDITOR_SETTINGS}">
                     <div class="php_editor_error static_success">
-                        <span id="php_editor_msg_default">{TR_FIELDS_OK}</span>
+                        <span id="php_editor_msg_default">{TR_PHP_FIELDS_OK}</span>
                     </div>
                     <!-- BDP: php_editor_permissions_block -->
                     <table>
                         <thead>
                         <tr>
-                            <th colspan="2">{TR_PERMISSIONS}</th>
+                            <th colspan="2">{TR_PHP_PERMISSIONS}</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -284,7 +211,7 @@
                     <table>
                         <thead>
                         <tr>
-                            <th colspan="2">{TR_DIRECTIVES_VALUES}</th>
+                            <th colspan="2">{TR_PHP_DIRECTIVES_VALUES}</th>
                         </tr>
                         </thead>
                         <tbody id="php_ini_values">
@@ -396,6 +323,83 @@
                     <label for="web_folder_protection_no">{TR_NO}</label>
                 </div>
             </td>
+        </tr>
+        </tbody>
+    </table>
+    
+    <table class="firstColFixed">
+        <thead>
+        <tr>
+            <th>{TR_LIMITS}</th>
+            <th>{TR_VALUE}</th>
+            <th>{TR_CUSTOMER_CONSUMPTION}</th>
+            <th>{TR_RESELLER_CONSUMPTION}</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- BDP: subdomain_limit_block -->
+        <tr>
+            <td><label for="domain_subd_limit">{TR_SUBDOMAINS_LIMIT}</label></td>
+            <td><input type="number" name="domain_subd_limit" id="domain_subd_limit" min="-1" value="{SUBDOMAIN_LIMIT}"></td>
+            <td>{TR_CUSTOMER_SUBDOMAINS_COMSUPTION}</td>
+            <td>{TR_RESELLER_SUBDOMAINS_COMSUPTION}</td>
+        </tr>
+        <!-- EDP: subdomain_limit_block -->
+        <!-- BDP: domain_aliases_limit_block -->
+        <tr>
+            <td><label for="domain_alias_limit">{TR_ALIASES_LIMIT}</label></td>
+            <td><input type="number" name="domain_alias_limit" id="domain_alias_limit" min="-1" value="{DOMAIN_ALIASES_LIMIT}"></td>
+            <td>{TR_CUSTOMER_DOMAIN_ALIASES_COMSUPTION}</td>
+            <td>{TR_RESELLER_DOMAIN_ALIASES_COMSUPTION}</td>
+        </tr>
+        <!-- EDP: domain_aliases_limit_block -->
+        <!-- BDP: mail_accounts_limit_block -->
+        <tr>
+            <td><label for="domain_mailacc_limit">{TR_MAIL_ACCOUNTS_LIMIT}</label></td>
+            <td><input type="number" name="domain_mailacc_limit" id="domain_mailacc_limit" min="-1" value="{MAIL_ACCOUNTS_LIMIT}"></td>
+            <td>{TR_CUSTOMER_MAIL_ACCOUNTS_COMSUPTION}</td>
+            <td>{TR_RESELLER_MAIL_ACCOUNTS_COMSUPTION}</td>
+        </tr>
+        <tr>
+            <td><label for="mail_quota">{TR_MAIL_QUOTA}</label></td>
+            <td><input type="number" name="mail_quota" id="mail_quota" min="0" max="17592186044416" value="{MAIL_QUOTA}"></td>
+            <td>{TR_CUSTOMER_MAIL_QUOTA_COMSUPTION}</td>
+            <td>{TR_NO_AVAILABLE}</td>
+        </tr>
+        <!-- EDP: mail_accounts_limit_block -->
+        <!-- BDP: ftp_accounts_limit_block -->
+        <tr>
+            <td><label for="domain_ftpacc_limit">{TR_FTP_ACCOUNTS_LIMIT}</label></td>
+            <td><input type="number" name="domain_ftpacc_limit" id="domain_ftpacc_limit" min="-1" value="{FTP_ACCOUNTS_LIMIT}"></td>
+            <td>{TR_CUSTOMER_FTP_ACCOUNTS_COMSUPTION}</td>
+            <td>{TR_RESELLER_FTP_ACCOUNTS_COMSUPTION}</td>
+        </tr>
+        <!-- EDP: ftp_accounts_limit_block -->
+        <!-- BDP: sql_db_and_users_limit_block -->
+        <tr>
+            <td><label for="domain_sqld_limit">{TR_SQL_DATABASES_LIMIT}</label></td>
+            <td><input type="number" name="domain_sqld_limit" id="domain_sqld_limit" min="-1" value="{SQL_DATABASES_LIMIT}"></td>
+            <td>{TR_CUSTOMER_SQL_DATABASES_COMSUPTION}</td>
+            <td>{TR_RESELLER_SQL_DATABASES_COMSUPTION}</td>
+        </tr>
+        <tr>
+            <td><label for="domain_sqlu_limit">{TR_SQL_USERS_LIMIT}</label></td>
+            <td><input type="number" name="domain_sqlu_limit" id="domain_sqlu_limit" min="-1" value="{SQL_USERS_LIMIT}"></td>
+            <td>{TR_CUSTOMER_SQL_USERS_COMSUPTION}</td>
+            <td>{TR_RESELLER_SQL_USERS_COMSUPTION}</td>
+        </tr>
+        <!-- EDP: sql_db_and_users_limit_block -->
+        <tr>
+            <td><label for="domain_traffic_limit">{TR_TRAFFIC_LIMIT}</label></td>
+            <td><input type="number" name="domain_traffic_limit" id="domain_traffic_limit" min="0" max="17592186044416" value="{TRAFFIC_LIMIT}"></td>
+            <td>{TR_CUSTOMER_TRAFFIC_COMSUPTION}</td>
+            <td>{TR_RESELLER_TRAFFIC_COMSUPTION}</td>
+        </tr>
+        <tr>
+            <td><label for="domain_disk_limit">{TR_DISK_LIMIT}</label></td>
+            <td><input type="number" name="domain_disk_limit" id="domain_disk_limit" min="0" max="17592186044416" value="{DISK_LIMIT}"></td>
+            <td>{TR_CUSTOMER_DISKPACE_COMSUPTION}</td>
+            <td>{TR_RESELLER_DISKPACE_COMSUPTION}</td>
         </tr>
         </tbody>
     </table>

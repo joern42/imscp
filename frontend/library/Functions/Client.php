@@ -396,8 +396,7 @@ function deleteSubdomain($id)
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeDeleteSubdomain, [
             'subdomainId'   => $id,
             'subdomainName' => $row['subdomain_name'],
-            'subdomainType' => 'sub',
-            'type'          => 'sub' # BC -- will be removed in a later version
+            'subdomainType' => 'sub'
         ]);
 
         // Delete FTP groups and FTP accounting/limit data
@@ -456,8 +455,7 @@ function deleteSubdomain($id)
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterDeleteSubdomain, [
             'subdomainId'   => $id,
             'subdomainName' => $row['subdomain_name'],
-            'subdomainType' => 'sub',
-            'type'          => 'sub' # BC -- will be removed in a later version
+            'subdomainType' => 'sub'
         ]);
 
         $db->commit();
@@ -512,8 +510,7 @@ function deleteSubdomainAlias($id)
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeDeleteSubdomain, [
             'subdomainId'   => $id,
             'subdomainName' => $row['subdomain_alias_name'],
-            'subdomainType' => 'alssub',
-            'type'          => 'alssub', # BC -- will be removed in a later version
+            'subdomainType' => 'alssub'
         ]);
 
         // Delete FTP groups and FTP accounting/limit data
@@ -570,8 +567,7 @@ function deleteSubdomainAlias($id)
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterDeleteSubdomain, [
             'subdomainId'   => $id,
             'subdomainName' => $row['subdomain_alias_name'],
-            'subdomainType' => 'alssub',
-            'type'          => 'alssub', # BC -- will be removed in a later version
+            'subdomainType' => 'alssub'
         ]);
 
         $db->commit();

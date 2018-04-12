@@ -169,6 +169,7 @@ function addCustomer(Form $form)
             'customerId'    => $adminId,
             'customerEmail' => $form->getValue('email'),
             'domainName'    => $dmnName,
+            'domainIps'     => [$clientIps[0]],
             'mountPoint'    => '/',
             'documentRoot'  => '/htdocs',
             'forwardUrl'    => $dmnUrlForward,
@@ -190,9 +191,9 @@ function addCustomer(Form $form)
             ',
             [
                 $dmnName, $adminId, time(), $dmnExpire, $mail, $ftp, $traff, $sql_db, $sql_user, 'toadd', $als, $sub, implode(',', $clientIps),
-                $clientIps[0], $disk, 0, $php, $cgi, $backup, $dns, $aps, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen,
-                $phpiniDisplayErrors, $phpiniDisableFunctions, $phpMailFunction, $extMailServer, $webFolderProtection, $mailQuota, $dmnUrlForward,
-                $dmnTypeForward, $dmnHostForward
+                $clientIps[0], $disk, 0, $php, $cgi, $backup, $dns, $aps, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen, $phpiniDisplayErrors,
+                $phpiniDisableFunctions, $phpMailFunction, $extMailServer, $webFolderProtection, $mailQuota, $dmnUrlForward, $dmnTypeForward,
+                $dmnHostForward
             ]
         );
 
@@ -227,6 +228,7 @@ function addCustomer(Form $form)
             'customerEmail' => $form->getValue('email'),
             'domainId'      => $dmnId,
             'domainName'    => $dmnName,
+            'domainIps'     => [$clientIps[0]],
             'mountPoint'    => '/',
             'documentRoot'  => '/htdocs',
             'forwardUrl'    => $dmnUrlForward,
@@ -261,6 +263,7 @@ function generatePage(TemplateEngine $tpl, Form $form)
     $tpl->form = $form;
 
     reseller_generate_ip_list($tpl, $_SESSION['user_id'], $clientIps ?: []);
+
     $_SESSION['local_data'] = "$dmnName;$hpId";
 }
 
