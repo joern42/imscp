@@ -1,6 +1,11 @@
 
 <script>
     $(function () {
+        $('#alias_ips').multiSelect({
+            selectableHeader: '<div class="ms-header">'+imscp_i18n.core.available+'</div>',
+            selectionHeader: '<div class="ms-header">'+imscp_i18n.core.assigned+'</div>'
+        });
+
         <!-- BDP: shared_mount_point_option_js -->
         $("input[name='shared_mount_point']").on('change', function () {
             if ($("#shared_mount_point_no").is(':checked')) {
@@ -43,6 +48,16 @@
             <td>
                 <span class="bold">www.</span>
                 <input type="text" name="domain_alias_name" id="domain_alias_name" value="{DOMAIN_ALIAS_NAME}">
+            </td>
+        </tr>
+        <tr>
+            <td><label for="alias_ips">{TR_DOMAIN_ALIAS_IPS}</label></td>
+            <td>
+                <select id="alias_ips" name="alias_ips[]" multiple>
+                    <!-- BDP: ip_entry -->
+                    <option value="{IP_VALUE}"{IP_SELECTED}>{IP_NUM}</option>
+                    <!-- EDP: ip_entry -->
+                </select>
             </td>
         </tr>
         <!-- BDP: shared_mount_point_option -->

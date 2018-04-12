@@ -269,8 +269,7 @@ class iMSCP_Events
      *
      * iMSCP_Events_Event objectparameters:
      *  - userId   : User unique identifier
-     *  - userData : User login and personal data. Depending on context, some
-     *               data can be unavailable
+     *  - userData : User login and personal data. Depending on context, some data can be unavailable
      *
      * @const string
      */
@@ -281,8 +280,7 @@ class iMSCP_Events
      *
      * iMSCP_Events_Event object parameters:
      *  - userId   : User unique identifier
-     *  - userData : User login and personal data Depending on context, some
-     *               data can be unavailable
+     *  - userData : User login and personal data Depending on context, some data can be unavailable
      *
      * @const string
      */
@@ -435,8 +433,7 @@ class iMSCP_Events
      * - SqlUsername     : SQL username
      * - SqlUserHost     : SQL user host
      * - SqlUserPassword : SQL user password for new SQL user or empty string
-     * - SqlDatabaseId   : Unique identifier of SQL database to which the SQL
-     *                     user is attached
+     * - SqlDatabaseId   : Unique identifier of SQL database to which the SQL user is attached
      *
      * @const string
      */
@@ -450,8 +447,7 @@ class iMSCP_Events
      * - SqlUsername     : SQL username
      * - SqlUserHost     : SQL user host
      * - SqlUserPassword : SQL user password for new SQL user or empty string
-     * - SqlDatabaseId   : Unique identifier of SQL database to which the SQL
-     *                     user is attached
+     * - SqlDatabaseId   : Unique identifier of SQL database to which the SQL user is attached
      *
      * @const string
      */
@@ -922,8 +918,7 @@ class iMSCP_Events
      *  - domainName   : Domain name
      *  - mountPoint   : Domainmount point
      *  - documentRoot : Domain document root
-     *  - forwardUrl   : Domain forward URL, 'no' if no forward URL has been
-     *                   set
+     *  - forwardUrl   : Domain forward URL, 'no' if no forward URL has been set
      *  - forwardType  : Domain forward URL type
      *  - forwardHost  : Domain forward URL preserve host option
      *
@@ -936,8 +931,7 @@ class iMSCP_Events
      *
      * iMSCP_Events_Event object parameters:
      *  - subdomainName  : Subdomain name
-     *  - subdomainType  : Subdomain type, either 'als' or 'dmn' depending on
-     *                     parent domain type
+     *  - subdomainType  : Subdomain type, either 'als' or 'dmn' depending on parent domain type
      *  - parentDomainId : Parent domain unique identifier
      *  - mountPoint     : Subdomain mount point
      *  - documentRoot   : Subdomain document root
@@ -956,13 +950,11 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - subdomainId    : Subdomain unique identifier
      *  - subdomainName  : Subdomain name
-     *  - subdomainType  : Subdomain type, either 'als' or 'dmn' depending on
-     *                     parent domain type
+     *  - subdomainType  : Subdomain type, either 'als' or 'dmn' depending on parent domain type
      *  - parentDomainId : Parent domain unique identifier
      *  - mountPoint     : Subdomain mount point
      *  - documentRoot   : Subdomain document root
-     *  - forwardUrl     : Subdomain forward URL, 'no' if no forward URL has
-     *                     been set
+     *  - forwardUrl     : Subdomain forward URL, 'no' if no forward URL has been set
      *  - forwardType    : Subdomain forward URL type
      *  - forwardHost    : Subdomain forward URL preserve host option
      *  - customerId     : Subdomain owner unique identifier
@@ -977,12 +969,10 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - subdomainId   : Subdomain unique identifier
      *  - subdomainName : Subdomain name
-     *  - subdomainType : Subdomain type, either 'als' or 'dmn' depending on
-     *                    parent domain type
+     *  - subdomainType : Subdomain type, either 'als' or 'dmn' depending on parent domain type
      *  - mountPoint    : Subdomain mount point
      *  - documentRoot  : Subdomain document root
-     *  - forwardUrl    : Subdomain forward URL, 'no' if no forward URL has
-     *                    been set
+     *  - forwardUrl    : Subdomain forward URL, 'no' if no forward URL has been set
      *  - forwardType   : Subdomain forward URL type
      *  - forwardHost   : Subdomain forward URL preserve host option
      *
@@ -996,12 +986,10 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - subdomainId   : Subdomain unique identifier
      *  - subdomainName : Subdomain name
-     *  - subdomainType : Subdomain type, either 'als' or 'dmn' depending on
-     *                    parent domain type
+     *  - subdomainType : Subdomain type, either 'als' or 'dmn' depending on parent domain type
      *  - mountPoint    : Subdomain mount point
      *  - documentRoot  : Subdomain document root
-     *  - forwardUrl    : Subdomain forward URL, 'no' if no forward URL has
-     *                    been set
+     *  - forwardUrl    : Subdomain forward URL, 'no' if no forward URL has been set
      *  - forwardType   : Subdomain forward URL type
      *  - forwardHost   : Subdomain forward URL preserve host option
      *
@@ -1015,10 +1003,8 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - subdomainId   : Subdomain unique identifier
      *  - subdomainName : Subdomain name
-     *  - subdomainType : Subdomain type, either 'sub' or 'alssub' depending on
-     *                    parent domain type
-     *  - type (BC)     : Same as subdomainType field; provided for backward
-     *                    compatibility
+     *  - subdomainType : Subdomain type, either 'sub' or 'alssub' depending on parent domain type
+     *  - type (BC)     : Same as subdomainType field; provided for backward compatibility
      *
      * @const string
      */
@@ -1030,10 +1016,8 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - subdomainId   : Subdomain unique identifier
      *  - subdomainName : Subdomain name
-     *  - subdomainType : Subdomain type, either 'sub' or 'alssub' depending on
-     *                    parent domain type
-     *  - type (BC)     : Same as subdomainType field; provided for backward
-     *                    compatibility
+     *  - subdomainType : Subdomain type, either 'sub' or 'alssub' depending on parent domain type
+     *  - type (BC)     : Same as subdomainType field; provided for backward compatibility
      *
      * @const string
      */
@@ -1043,14 +1027,14 @@ class iMSCP_Events
      * Event triggered before domain alias addition
      *
      * iMSCP_Events_Event object parameters:
-     *  - domainId: Customer main domain unique identifier
-     *  - domainAliasName: Domain alias name
-     *  - mountPoint: Domain alias mount point
-     *  - documentRoot: Domain alias document root
-     *  - forwardUrl: Domain alias forward URL, 'no' if no forward URL has been
-     *                set
-     *  - forwardType: Domain alias forward URL type
-     *  - forwardHost: Domain alias forward URL preserve host option
+     *  - domainId        : Customer main domain unique identifier
+     *  - domainAliasName : Domain alias name
+     *  - domainAliasIps  : Domain IP addresses unique identifiers
+     *  - mountPoint      : Domain alias mount point
+     *  - documentRoot    : Domain alias document root
+     *  - forwardUrl      : Domain alias forward URL, 'no' if no forward URL has been set
+     *  - forwardType     : Domain alias forward URL type
+     *  - forwardHost     : Domain alias forward URL preserve host option
      *
      * @const string
      */
@@ -1060,15 +1044,15 @@ class iMSCP_Events
      * Event triggered after domain alias addition
      *
      * iMSCP_Events_Event object parameters:
-     *  - domainId: Customer main domain unique identifier
-     *  - domainAliasId: Domain alias unique identifier
-     *  - domainAliasName: Domain alias name
-     *  - mountPoint: Domain alias mount point
-     *  - documentRoot: Domain alias document root
-     *  - forwardUrl: Domain alias forward URL, 'no' if no forward URL has been
-     *                set
-     *  - forwardType: Domain alias forward URL type
-     *  - forwardHost: Domain alias forward URL preserve host optio
+     *  - domainId        : Customer main domain unique identifier
+     *  - domainAliasId   : Domain alias unique identifier
+     *  - domainAliasName : Domain alias name
+     *  - domainAliasIps  : Domain IP addresses unique identifiers
+     *  - mountPoint      : Domain alias mount point
+     *  - documentRoot    : Domain alias document root
+     *  - forwardUrl      : Domain alias forward URL, 'no' if no forward URL has been set
+     *  - forwardType     : Domain alias forward URL type
+     *  - forwardHost     : Domain alias forward URL preserve host optio
      *
      * @const string
      */
@@ -1078,14 +1062,14 @@ class iMSCP_Events
      * Event triggered before domain alias edition
      *
      * iMSCP_Events_Event object parameters:
-     *  - domainAliasId  : Domain alias unique identifier
-     *  - domainAliasName: Domain alias name
-     *  - mountPoint     : Domain alias mount point
-     *  - documentRoot   : Domain alias document root
-     *  - forwardUrl     : Domain alias forward URL, 'no' if not forward URL
-     *                     has been set
-     *  - forwardType    : Domain alias forward URL type
-     *  - forwardHost    : Domain alias forward URL preserve host option
+     *  - domainAliasId   : Domain alias unique identifier
+     *  - domainAliasName : Domain alias name
+     *  - domainAliasIps  : Domain IP addresses unique identifiers
+     *  - mountPoint      : Domain alias mount point
+     *  - documentRoot    : Domain alias document root
+     *  - forwardUrl      : Domain alias forward URL, 'no' if not forward URL has been set
+     *  - forwardType     : Domain alias forward URL type
+     *  - forwardHost     : Domain alias forward URL preserve host option
      *
      * @const string
      */
@@ -1097,10 +1081,10 @@ class iMSCP_Events
      * iMSCP_Events_Event objectparameters:
      *  - domainAliasId   : Domain alias unique identifier
      *  - domainAliasName : Domain alias name
+     *  - domainAliasIps  : Domain IP addresses unique identifiers
      *  - mountPoint      : Domain alias mount point
      *  - documentRoot    : Domain alias document root
-     *  - forwardUrl      : Domain alias forward URL, 'no' if no forward URL
-     *                      has been set
+     *  - forwardUrl      : Domain alias forward URL, 'no' if no forward URL has been set
      *  - forwardType     : Domain alias forward URL type
      *  - forwardHost     : Domain alias forward URL preserve host option
      *
@@ -1161,7 +1145,7 @@ class iMSCP_Events
      * Event triggered before mail account edition
      *
      * iMSCP_Events_Event object parameter:
-     *  - mailId : mailId: Mail account unique identifier
+     *  - mailId : Mail account unique identifier
      *
      * @const string
      */
@@ -1171,7 +1155,7 @@ class iMSCP_Events
      * Event triggered after mail account edition
      *
      * iMSCP_Events_Event object parameter:
-     *  - mailId : mailId: Mail account unique identifier
+     *  - mailId : Mail account unique identifier
      *
      * @const string
      */
@@ -1181,7 +1165,7 @@ class iMSCP_Events
      * Event triggered before mail account deletion
      *
      * iMSCP_Events_Event object parameter:
-     *  - mailId : mailId: Mail account unique identifier
+     *  - mailId : Mail account unique identifier
      *
      * @const string
      */
@@ -1330,10 +1314,8 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - sender_name  : Sender name
      *  - sender_email : Sender email
-     *  - rcpt_to      : Recipient type, either 'all_users',
-     *                  'administrators_resellers', 'administrators_customers',
-     *                  'resellers_customers', 'administrators', 'resellers' or
-     *                  'customers'
+     *  - rcpt_to      : Recipient type, either 'all_users', 'administrators_resellers', 'administrators_customers', 'resellers_customers',
+     *                   'administrators', 'resellers' or 'customers'
      *  - subject      : subject
      *  - body         : body
      *
@@ -1347,10 +1329,8 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - sender_name  : Sender name
      *  - sender_email : Sender email
-     *  - rcpt_to      : Recipient type, either 'all_users',
-     *                  'administrators_resellers', 'administrators_customers',
-     *                  'resellers_customers', 'administrators', 'resellers' or
-     *                  'customers'
+     *  - rcpt_to      : Recipient type, either 'all_users', 'administrators_resellers', 'administrators_customers', 'resellers_customers',
+     *                   'administrators', 'resellers' or 'customers'
      *  - subject      : subject
      *  - body         : body
      *
@@ -1362,8 +1342,7 @@ class iMSCP_Events
      * Event triggered by the i18n_getJsTranslations() function
      *
      * iMSCP_Events_Event object parameters:
-     *  - translations : An ArrayObject that allows third-party components to add
-     *                   their own JS translations
+     *  - translations : An ArrayObject that allows third-party components to add their own JS translations
      *
      * @see i18n_getJsTranslations() for more details
      * @const string

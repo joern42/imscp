@@ -769,17 +769,19 @@ function get_admin_manage_users(TemplateEngine $tpl)
 // Reseller
 
 /**
- * Returns reseller Ip list
+ * Generate IP addresses list for the given reseller
  *
  * @param TemplateEngine $tpl
- * @param int $resellerId Reseller unique identifier
- * @param array $domainIps Identifier of the selected domain IP addresses
- * @return void
+ * @param int $resellerId Client unique identifier
+ * @param array $selectedIps Selected IP addresses
  */
-function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $domainIps)
+function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $selectedIps)
 {
     $stmt = exec_query('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$resellerId]);
     $resellerIps = explode(',', $stmt->fetchColumn());
+
+    # Discard any IP address that is not assigned to the reseller (IP addresses list from $selectedIps can comes from $_POST)
+    $selectedIps = array_intersect($selectedIps, $resellerIps);
 
     $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips');
     while ($row = $stmt->fetch()) {
@@ -790,11 +792,45 @@ function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $doma
         $tpl->assign([
             'IP_NUM'      => tohtml($row['ip_number'] == '0.0.0.0' ? tr('Any') : $row['ip_number'], 'htmlAttr'),
             'IP_VALUE'    => tohtml($row['ip_id']),
-            'IP_SELECTED' =>  in_array($row['ip_id'], $domainIps) ? ' selected' : ''
+            'IP_SELECTED' => in_array($row['ip_id'], $selectedIps, true) ? ' selected' : ''
         ]);
         $tpl->parse('IP_ENTRY', '.ip_entry');
     }
 }
+
+// Client
+
+/**
+ * Generate IP addresses list for the given client
+ *
+ * @param TemplateEngine $tpl
+ * @param int $clientId Client unique identifier
+ * @param array $selectedIps Selected IP addresses
+ */
+function client_generate_ip_list($tpl, $clientId, array $selectedIps)
+{
+    $stmt = exec_query('SELECT domain_client_ips FROM domain WHERE domain_admin_id = ?', [$clientId]);
+    $clientIps = explode(',', $stmt->fetchColumn());
+
+    # Discard any IP address that is not assigned to the client (IP addresses list from $selectedIps can comes from $_POST)
+    $selectedIps = array_intersect($selectedIps, $clientIps);
+
+    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips ORDER BY LENGTH(ip_number), ip_number');
+    while ($row = $stmt->fetch()) {
+        if (!in_array($row['ip_id'], $clientIps)) {
+            continue;
+        }
+
+        $tpl->assign([
+            'IP_NUM'      => tohtml($row['ip_number'] == '0.0.0.0' ? tr('Any') : $row['ip_number'], 'htmlAttr'),
+            'IP_VALUE'    => tohtml($row['ip_id']),
+            'IP_SELECTED' => in_array($row['ip_id'], $selectedIps, true) ? ' selected' : ''
+        ]);
+        $tpl->parse('IP_ENTRY', '.ip_entry');
+    }
+}
+
+// Common
 
 /**
  * Returns translation for jQuery DataTables plugin.
