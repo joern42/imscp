@@ -97,7 +97,7 @@ return [
             ],
             'domain_alias_orders'   => [
                 'label'              => tr('Domain alias orders'),
-                'uri'                => '/reseller/alias.php',
+                'uri'                => '/reseller/alias_orders.php',
                 'title_class'        => 'domains',
                 'privilege_callback' => [
                     [
