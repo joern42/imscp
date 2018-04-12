@@ -783,7 +783,7 @@ function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $sele
     # Discard any IP address that is not assigned to the reseller (IP addresses list from $selectedIps can comes from $_POST)
     $selectedIps = array_intersect($selectedIps, $resellerIps);
 
-    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips');
+    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips ORDER BY LENGTH(ip_number), ip_number');
     while ($row = $stmt->fetch()) {
         if (!in_array($row['ip_id'], $resellerIps)) {
             continue;

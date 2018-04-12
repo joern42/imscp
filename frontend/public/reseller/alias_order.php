@@ -80,13 +80,13 @@ if (!isset($_GET['action']) || $_GET['action'] !== 'validate' || !isset($_GET['i
 $id = intval($_GET['id']);
 $stmt = exec_query(
     "
-        SELECT alias_name, domain_id, email
-        FROM domain_aliases
-        JOIN domain USING(domain_id)
-        JOIN admin ON(admin_id = domain_admin_id)
-        WHERE alias_id = ?
-        AND alias_status = 'ordered'
-        AND created_by = ?
+        SELECT t1.*, t2.domain_client_ips, t3.email
+        FROM domain_aliases AS t1
+        JOIN domain AS t2 USING(domain_id)
+        JOIN admin AS t3 ON(t3.admin_id = t2.domain_admin_id)
+        WHERE t1.alias_id = ?
+        AND t1.alias_status = 'ordered'
+        AND t3.created_by = ?
     ",
     [$id, $_SESSION['user_id']]
 );
@@ -102,21 +102,42 @@ $db = Registry::get('iMSCP_Application')->getDatabase();
 try {
     $db->beginTransaction();
 
+    // Since domain alias has been ordered, the IP set while ordering could have
+    // been unassigned or even removed. In such case, we set the domain alias with
+    // the first IP address found in client IP addresses list.
+    //
+    // In fact, this should never occurs as IP addresses assigned to client's domains
+    // or subdomains are synchronized with his new IP addresses list when the reseller
+    // update his account properties. However, we still do that check here for safety
+    // reasons.
+    $clientIps = explode(',', $row['domain_client_ips']);
+    $row['alias_ips'] = array_intersect(explode(',', $row['alias_ips'], $clientIps));
+    if (empty($row['alias_ips'])) {
+        $row['alias_ips'] = $clientIps[0];
+    }
+    unset($clientIps);
+
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeAddDomainAlias, [
         'domainId'        => $row['domain_id'],
-        'domainAliasName' => $row['alias_name']
+        'domainAliasName' => $row['alias_name'],
+        'domainAliasIps'  => $row['alias_ips'],
+        'mountPoint'      => $row['alias_mount'],
+        'documentRoot'    => $row['alias_document_root'],
+        'forwardUrl'      => $row['url_forward'],
+        'forwardType'     => $row['type_forward'],
+        'forwardHost'     => $row['host_forward']
     ]);
-
     exec_query("UPDATE domain_aliases SET alias_status = 'toadd' WHERE alias_id = ?", [$id]);
-
-    $cfg = Registry::get('config');
-
     createDefaultMailAccounts($row['domain_id'], $row['email'], $row['alias_name'], MT_ALIAS_FORWARD, $id);
-
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterAddDomainAlias, [
         'domainId'        => $row['domain_id'],
         'domainAliasName' => $row['alias_name'],
-        'domainAliasId'   => $id
+        'domainAliasIps'  => $row['alias_ips'],
+        'mountPoint'      => $row['alias_mount'],
+        'documentRoot'    => $row['alias_document_root'],
+        'forwardUrl'      => $row['url_forward'],
+        'forwardType'     => $row['type_forward'],
+        'forwardHost'     => $row['host_forward']
     ]);
 
     $db->commit();

@@ -87,7 +87,8 @@ function client_editDomainAlias()
         $clientIps = explode(',', get_domain_default_props($_SESSION['user_id'])['domain_client_ips']);
         $domainAliasIps = array_intersect($_POST['alias_ips'], $clientIps);
         if (count($domainAliasIps) < $_POST['alias_ips']) {
-            showBadRequestErrorPage(); // Situation where unknown IP address identifier has been submitten
+            // Situation where unknown IP address identifier has been submitten
+            showBadRequestErrorPage();
         }
     }
 
