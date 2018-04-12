@@ -86,7 +86,7 @@ function client_editDomainAlias()
     } else {
         $clientIps = explode(',', get_domain_default_props($_SESSION['user_id'])['domain_client_ips']);
         $domainAliasIps = array_intersect($_POST['alias_ips'], $clientIps);
-        if (count($domainAliasIps) < $_POST['alias_ips']) {
+        if (count($domainAliasIps) < count($_POST['alias_ips'])) {
             // Situation where unknown IP address identifier has been submitten
             showBadRequestErrorPage();
         }
@@ -164,10 +164,10 @@ function client_editDomainAlias()
     exec_query(
         '
           UPDATE domain_aliases
-          SET alias_document_root = ?, url_forward = ?, type_forward = ?, host_forward = ?, alias_status = ?
+          SET alias_document_root = ?, alias_ips = ?, url_forward = ?, type_forward = ?, host_forward = ?, alias_status = ?
           WHERE alias_id = ?
         ',
-        [$documentRoot, $forwardUrl, $forwardType, $forwardHost, 'tochange', $domainAliasId]
+        [$documentRoot, implode(',', $domainAliasIps), $forwardUrl, $forwardType, $forwardHost, 'tochange', $domainAliasId]
     );
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterEditDomainAlias, [
         'domainAliasId'  => $domainAliasId,

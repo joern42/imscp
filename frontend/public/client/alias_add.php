@@ -166,7 +166,7 @@ function addDomainAlias()
     } else {
         $clientIps = explode(',', $mainDmnProps['domain_client_ips']);
         $domainAliasIps = array_intersect($_POST['alias_ips'], $clientIps);
-        if (count($domainAliasIps) < $_POST['alias_ips']) {
+        if (count($domainAliasIps) < count($_POST['alias_ips'])) {
             // Situation where unknown IP address identifier has been submitten
             showBadRequestErrorPage();
         }
@@ -272,15 +272,14 @@ function addDomainAlias()
         exec_query(
             '
                 INSERT INTO domain_aliases (
-                    domain_id, alias_name, alias_ips, alias_mount, alias_document_root, alias_status, alias_ips, url_forward, type_forward,
-                    host_forward
+                    domain_id, alias_name, alias_status, alias_mount, alias_document_root, alias_ips, url_forward, type_forward, host_forward
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
             ',
             [
-                $mainDmnProps['domain_id'], $domainAliasNameAscii, implode(',', $domainAliasIps), $mountPoint, $documentRoot,
-                $isSuUser ? 'toadd' : 'ordered', $mainDmnProps['domain_ips'], $forwardUrl, $forwardType, $forwardHost
+                $mainDmnProps['domain_id'], $domainAliasNameAscii, $isSuUser ? 'toadd' : 'ordered', $mountPoint, $documentRoot,
+                implode(',', $domainAliasIps), $forwardUrl, $forwardType, $forwardHost
             ]
         );
 
@@ -334,7 +333,7 @@ function addDomainAlias()
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
         write_log(sprintf('System was unable to create the %s domain alias: %s', $domainAliasName, $e->getMessage()), E_USER_ERROR);
-        set_page_message(tr('Could not create domain alias. An unexpected error occurred.'), 'error');
+        set_page_message(tr('Could not create domain alias. An unexpected error occurred.: ' . $e->getMessage()), 'error');
         return false;
     }
 
