@@ -127,7 +127,7 @@ try {
         'forwardType'     => $row['type_forward'],
         'forwardHost'     => $row['host_forward']
     ]);
-    exec_query("UPDATE domain_aliases SET alias_status = 'toadd' WHERE alias_id = ?", [$id]);
+    exec_query("UPDATE domain_aliases SET alias_ips = ?, alias_status = 'toadd' WHERE alias_id = ?", [implode(',', $row['alias_ips']), $id]);
     createDefaultMailAccounts($row['domain_id'], $row['email'], $row['alias_name'], MT_ALIAS_FORWARD, $id);
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterAddDomainAlias, [
         'domainId'        => $row['domain_id'],
