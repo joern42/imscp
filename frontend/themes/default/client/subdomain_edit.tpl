@@ -1,6 +1,11 @@
 
 <script>
     $(function () {
+        $('#subdomain_ips').multiSelect({
+            selectableHeader: '<div class="ms-header">'+imscp_i18n.core.available+'</div>',
+            selectionHeader: '<div class="ms-header">'+imscp_i18n.core.assigned+'</div>'
+        });
+
         $("input[name='url_forwarding']").on('change', function () {
             if ($("#url_forwarding_no").is(':checked')) {
                 $("#tr_url_forwarding_data, #tr_type_forwarding_data").hide();
@@ -33,6 +38,16 @@
             <td>
                 <span class="bold">www.</span>
                 <input type="text" name="subdomain_name" id="subdomain_name" value="{SUBDOMAIN_NAME}" readonly="readonly">
+            </td>
+        </tr>
+        <tr>
+            <td><label for="subdomain_ips">{TR_SUBDOMAIN_IPS}</label></td>
+            <td>
+                <select id="subdomain_ips" name="subdomain_ips[]" multiple>
+                    <!-- BDP: ip_entry -->
+                    <option value="{IP_VALUE}"{IP_SELECTED}>{IP_NUM}</option>
+                    <!-- EDP: ip_entry -->
+                </select>
             </td>
         </tr>
         <!-- BDP: document_root_bloc -->

@@ -1,7 +1,7 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2010-2018 by i-MSCP Team
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,11 +20,9 @@
 
 use iMSCP\PHPini;
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
+use iMSCP_Events_Event as Event;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Get domains list
@@ -40,20 +38,17 @@ function getDomainsList()
     }
 
     $mainDmnProps = get_domain_default_props($_SESSION['user_id']);
-    $domainsList = [
-        [
-            'name'        => $mainDmnProps['domain_name'],
-            'id'          => $mainDmnProps['domain_id'],
-            'type'        => 'dmn',
-            'mount_point' => '/',
-            'url_forward' => $mainDmnProps['url_forward']
-        ]
-    ];
-
+    $domainsList = [[
+        'name'        => $mainDmnProps['domain_name'],
+        'id'          => $mainDmnProps['domain_id'],
+        'type'        => 'dmn',
+        'mount_point' => '/',
+        'url_forward' => $mainDmnProps['url_forward']
+    ]];
     $stmt = exec_query(
         "
-            SELECT CONCAT(t1.subdomain_name, '.', t2.domain_name) AS name, t1.subdomain_id AS id,
-                'sub' AS type, t1.subdomain_mount AS mount_point, t1.subdomain_url_forward AS url_forward
+            SELECT CONCAT(t1.subdomain_name, '.', t2.domain_name) AS name, t1.subdomain_id AS id, 'sub' AS type, t1.subdomain_mount AS mount_point,
+                t1.subdomain_url_forward AS url_forward
             FROM subdomain AS t1
             JOIN domain AS t2 USING(domain_id)
             WHERE t1.domain_id = ?
@@ -82,6 +77,265 @@ function getDomainsList()
     }
 
     return $domainsList;
+}
+
+/**
+ * Add subdomain
+ *
+ * @return bool TRUE on success, FALSE on failure
+ */
+function addSubdomain()
+{
+    global $mainDmnProps;
+
+    // Basic check
+    if (empty($_POST['subdomain_name'])) {
+        set_page_message(tr('You must enter a subdomain name.'), 'error');
+        return false;
+    }
+
+    if (empty($_POST['domain_name'])) {
+        showBadRequestErrorPage();
+    }
+
+    // Check for parent domain
+    $domainName = mb_strtolower(clean_input($_POST['domain_name']));
+    $domainType = $domainId = NULL;
+    $domainList = getDomainsList();
+
+    foreach ($domainList as $domain) {
+        if (($domain['type'] == 'dmn' || $domain['type'] == 'als') && $domain['name'] == $domainName) {
+            $domainType = $domain['type'];
+            $domainId = $domain['id'];
+        }
+    }
+
+    if (NULL === $domainType) {
+        showBadRequestErrorPage();
+    }
+
+    $subLabel = mb_strtolower(clean_input($_POST['subdomain_name']));
+    if ($subLabel == 'www' || strpos($subLabel, 'www.') === 0) {
+        set_page_message(tr('%s is not allowed as subdomain label.', "<strong>www</strong>"), 'error');
+        return false;
+    }
+
+    $subdomainName = $subLabel . '.' . $domainName;
+    // Check for subdomain syntax
+    if (!isValidDomainName($subdomainName)) {
+        set_page_message(tr('Subdomain name is not valid.'), 'error');
+        return false;
+    }
+
+    // Ensure that this subdomain doesn't already exists as domain or domain alias
+    $stmt = exec_query(
+        '
+            SELECT domain_id FROM domain WHERE domain_name = ?
+            UNION ALL
+            SELECT alias_id FROM domain_aliases WHERE alias_name = ?
+        ',
+        [$subdomainName, $subdomainName]
+    );
+    if ($stmt->rowCount()) {
+        set_page_message(tr('Subdomain %s is unavailable.', "<strong>$subdomainName</strong>"), 'error');
+        return false;
+    }
+
+    // Check for domain alias IP addresses
+    $subdomainIps = [];
+    if (empty($_POST['subdomain_ips'])) {
+        set_page_message(tohtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
+        return false;
+    } elseif (!is_array($_POST['subdomain_ips'])) {
+        showBadRequestErrorPage();
+    } else {
+        $clientIps = explode(',', $mainDmnProps['domain_client_ips']);
+        $subdomainIps = array_intersect($_POST['subdomain_ips'], $clientIps);
+        if (count($subdomainIps) < count($_POST['subdomain_ips'])) {
+            // Situation where unknown IP address identifier has been submitten
+            showBadRequestErrorPage();
+        }
+    }
+
+    $subLabelAscii = encode_idna($subLabel);
+    $subdomainNameAscii = encode_idna($subdomainName);
+
+    // Check for subdomain existence
+    foreach ($domainList as $domain) {
+        if ($domain['name'] == $subdomainNameAscii) {
+            set_page_message(tr('Subdomain %s already exist.', "<strong>$subdomainName</strong>"), 'error');
+            return false;
+        }
+    }
+
+    // Set default mount point
+    if ($domainType == 'dmn') {
+        $mountPoint = in_array($subLabelAscii, ['backups', 'cgi-bin', 'errors', 'htdocs', 'logs', 'phptmp'], true)
+            ? "/sub_$subLabelAscii" : "/$subLabelAscii";
+    } else {
+        $mountPoint = in_array($subLabelAscii, ['cgi-bin', 'htdocs'], true) ?
+            "/$domainName/sub_$subLabelAscii" : "/$domainName/$subLabelAscii";
+    }
+
+    // Check for shared mount point option
+    if (isset($_POST['shared_mount_point']) && $_POST['shared_mount_point'] == 'yes') { // We are safe here
+        isset($_POST['shared_mount_point_domain']) or showBadRequestErrorPage();
+
+        $sharedMountPointDomain = clean_input($_POST['shared_mount_point_domain']);
+
+        // Get shared mount point
+        foreach ($domainList as $domain) {
+            if ($domain['name'] == $sharedMountPointDomain) {
+                $mountPoint = $domain['mount_point'];
+            }
+        }
+    }
+
+    // Default values
+    $documentRoot = '/htdocs';
+    $forwardUrl = 'no';
+    $forwardType = NULL;
+    $forwardHost = 'Off';
+
+    // Check for URL forwarding option
+    if (isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' && isset($_POST['forward_type'])
+        && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)
+    ) {
+        isset($_POST['forward_url_scheme']) && isset($_POST['forward_url']) or showBadRequestErrorPage();
+
+        $forwardUrl = clean_input($_POST['forward_url_scheme']) . clean_input($_POST['forward_url']);
+        $forwardType = clean_input($_POST['forward_type']);
+
+        if ($forwardType == 'proxy' && isset($_POST['forward_host'])) {
+            $forwardHost = 'On';
+        }
+
+        try {
+            try {
+                $uri = iMSCP_Uri_Redirect::fromString($forwardUrl);
+            } catch (Zend_Uri_Exception $e) {
+                throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
+            }
+
+            $uri->setHost(encode_idna(mb_strtolower($uri->getHost()))); // Normalize URI host
+            $uri->setPath(rtrim(utils_normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
+
+            if ($uri->getHost() == $subdomainNameAscii && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))) {
+                throw new iMSCP_Exception(
+                    tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>") . ' '
+                    . tr('Subdomain %s cannot be forwarded on itself.', "<strong>$subdomainName</strong>")
+                );
+            }
+
+            if ($forwardType == 'proxy') {
+                $port = $uri->getPort();
+                if ($port && $port < 1025) {
+                    throw new iMSCP_Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
+                }
+            }
+
+            $forwardUrl = $uri->getUri();
+        } catch (Exception $e) {
+            set_page_message($e->getMessage(), 'error');
+            return false;
+        }
+    }
+
+    /** @var iMSCP_Database $db */
+    $db = Registry::get('iMSCP_Application')->getDatabase();
+
+    try {
+        $db->beginTransaction();
+
+        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeAddSubdomain, [
+            'subdomainName'  => $subdomainName,
+            'subdomainIps'   => $subdomainIps,
+            'subdomainType'  => $domainType,
+            'parentDomainId' => $domainId,
+            'mountPoint'     => $mountPoint,
+            'documentRoot'   => $documentRoot,
+            'forwardUrl'     => $forwardUrl,
+            'forwardType'    => $forwardType,
+            'forwardHost'    => $forwardHost,
+            'customerId'     => $_SESSION['user_id']
+        ]);
+
+        if ($domainType == 'als') {
+            $query = "
+                INSERT INTO subdomain_alias (
+                    alias_id, subdomain_alias_name, subdomain_alias_ips, subdomain_alias_mount, subdomain_alias_document_root,
+                    subdomain_alias_url_forward, subdomain_alias_type_forward, subdomain_alias_host_forward, subdomain_alias_status
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, 'toadd'
+                )
+            ";
+        } else {
+            $query = "
+                INSERT INTO subdomain (
+                    domain_id, subdomain_name, subdomain_ips, subdomain_mount, subdomain_document_root, subdomain_url_forward, subdomain_type_forward,
+                    subdomain_host_forward, subdomain_status
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, 'toadd'
+                )
+            ";
+        }
+
+        exec_query($query, [
+            $domainId, $subLabelAscii, implode(',', $subdomainIps), $mountPoint, $documentRoot, $forwardUrl, $forwardType, $forwardHost
+        ]);
+
+        $subdomainId = $db->lastInsertId();
+
+        // Create the phpini entry for that subdomain
+        $phpini = PHPini::getInstance();
+        $phpini->loadResellerPermissions($_SESSION['user_created_by']);
+        $phpini->loadClientPermissions($_SESSION['user_id']);
+
+        if ($phpini->getClientPermission('phpiniConfigLevel') != 'per_site') {
+            // Set INI options, based on parent domain
+            if ($domainType == 'dmn') {
+                $phpini->loadIniOptions($_SESSION['user_id'], $mainDmnProps['domain_id'], 'dmn');
+            } else {
+                $phpini->loadIniOptions($_SESSION['user_id'], $domainId, 'als');
+            }
+        } else {
+            // Set default INI options
+            $phpini->loadIniOptions();
+        }
+
+        $phpini->saveIniOptions($_SESSION['user_id'], $subdomainId, $domainType == 'dmn' ? 'sub' : 'subals');
+
+        createDefaultMailAccounts(
+            $mainDmnProps['domain_id'],
+            iMSCP_Authentication::getInstance()->getIdentity()->email,
+            $subdomainNameAscii,
+            $domainType == 'dmn' ? MT_SUBDOM_FORWARD : MT_ALSSUB_FORWARD, $subdomainId
+        );
+
+        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterAddSubdomain, [
+            'subdomainName'  => $subdomainName,
+            'subdomainIps'   => $subdomainIps,
+            'subdomainType'  => $domainType,
+            'parentDomainId' => $domainId,
+            'mountPoint'     => $mountPoint,
+            'documentRoot'   => $documentRoot,
+            'forwardUrl'     => $forwardUrl,
+            'forwardType'    => $forwardType,
+            'forwardHost'    => $forwardHost,
+            'customerId'     => $_SESSION['user_id'],
+            'subdomainId'    => $subdomainId
+        ]);
+
+        $db->commit();
+        send_request();
+        write_log(sprintf('A new subdomain (%s) has been created by %s', $subdomainName, $_SESSION['user_logged']), E_USER_NOTICE);
+        return true;
+    } catch (iMSCP_Exception $e) {
+        $db->rollBack();
+        write_log(sprintf('System was unable to create the %s subdomain: %s', $subdomainName, $e->getMessage()), E_USER_ERROR);
+        set_page_message('Could not create subdomain. An unexpected error occurred.', 'error');
+        return false;
+    }
 }
 
 /**
@@ -145,264 +399,11 @@ function generatePage($tpl)
             'SHARED_MOUNT_POINT_NO'  => isset($_POST['shared_mount_point']) && $_POST['shared_mount_point'] == 'yes' ? '' : ' checked'
         ]);
     }
-}
 
-/**
- * Add new subdomain
- *
- * @return bool TRUE on success, FALSE on failure
- */
-function addSubdomain()
-{
-    global $mainDmnProps;
-
-    // Basic check
-    if (empty($_POST['subdomain_name'])) {
-        set_page_message(tr('You must enter a subdomain name.'), 'error');
-        return false;
-    }
-
-    if (empty($_POST['domain_name'])) {
-        showBadRequestErrorPage();
-    }
-
-    // Check for parent domain
-    $domainName = mb_strtolower(clean_input($_POST['domain_name']));
-    $domainType = $domainId = NULL;
-    $domainList = getDomainsList();
-
-    foreach ($domainList as $domain) {
-        if (($domain['type'] == 'dmn' || $domain['type'] == 'als') && $domain['name'] == $domainName) {
-            $domainType = $domain['type'];
-            $domainId = $domain['id'];
-        }
-    }
-
-    if (NULL === $domainType) {
-        showBadRequestErrorPage();
-    }
-
-    $subLabel = mb_strtolower(clean_input($_POST['subdomain_name']));
-
-    if ($subLabel == 'www' || strpos($subLabel, 'www.') === 0) {
-        set_page_message(tr('%s is not allowed as subdomain label.', "<strong>www</strong>"), 'error');
-        return false;
-    }
-
-    $subdomainName = $subLabel . '.' . $domainName;
-
-    // Check for subdomain syntax
-    if (!isValidDomainName($subdomainName)) {
-        set_page_message(tr('Subdomain name is not valid.'), 'error');
-        return false;
-    }
-
-    // Ensure that this subdomain doesn't already exists as domain or domain alias
-    $stmt = exec_query(
-        '
-            SELECT domain_id FROM domain WHERE domain_name = ?
-            UNION ALL
-            SELECT alias_id FROM domain_aliases WHERE alias_name = ?
-        ',
-        [$subdomainName, $subdomainName]
+    client_generate_ip_list(
+        $tpl, $_SESSION['user_id'], isset($_POST['subdomain_ips']) && is_array($_POST['subdomain_ips']) ? $_POST['subdomain_ips'] : []
     );
-    if ($stmt->rowCount()) {
-        set_page_message(tr('Subdomain %s is unavailable.', "<strong>$subdomainName</strong>"), 'error');
-        return false;
-    }
-
-    $subLabelAscii = encode_idna($subLabel);
-    $subdomainNameAscii = encode_idna($subdomainName);
-
-    // Check for subdomain existence
-    foreach ($domainList as $domain) {
-        if ($domain['name'] == $subdomainNameAscii) {
-            set_page_message(tr('Subdomain %s already exist.', "<strong>$subdomainName</strong>"), 'error');
-            return false;
-        }
-    }
-
-    // Set default mount point
-    if ($domainType == 'dmn') {
-        $mountPoint = in_array(
-            $subLabelAscii, ['backups', 'cgi-bin', 'errors', 'htdocs', 'logs', 'phptmp'], true
-        ) ? "/sub_$subLabelAscii" : "/$subLabelAscii";
-    } else {
-        $mountPoint = in_array($subLabelAscii, ['cgi-bin', 'htdocs'], true)
-            ? "/$domainName/sub_$subLabelAscii" : "/$domainName/$subLabelAscii";
-    }
-
-    // Check for shared mount point option
-    if (isset($_POST['shared_mount_point']) && $_POST['shared_mount_point'] == 'yes') { // We are safe here
-        if (!isset($_POST['shared_mount_point_domain'])) {
-            showBadRequestErrorPage();
-        }
-
-        $sharedMountPointDomain = clean_input($_POST['shared_mount_point_domain']);
-
-        // Get shared mount point
-        foreach ($domainList as $domain) {
-            if ($domain['name'] == $sharedMountPointDomain) {
-                $mountPoint = $domain['mount_point'];
-            }
-        }
-    }
-
-    // Default values
-    $documentRoot = '/htdocs';
-    $forwardUrl = 'no';
-    $forwardType = NULL;
-    $forwardHost = 'Off';
-
-    // Check for URL forwarding option
-    if (isset($_POST['url_forwarding'])
-        && $_POST['url_forwarding'] == 'yes'
-        && isset($_POST['forward_type'])
-        && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)
-    ) {
-        if (!isset($_POST['forward_url_scheme']) || !isset($_POST['forward_url'])) {
-            showBadRequestErrorPage();
-        }
-
-        $forwardUrl = clean_input($_POST['forward_url_scheme']) . clean_input($_POST['forward_url']);
-        $forwardType = clean_input($_POST['forward_type']);
-
-        if ($forwardType == 'proxy' && isset($_POST['forward_host'])) {
-            $forwardHost = 'On';
-        }
-
-        try {
-            try {
-                $uri = iMSCP_Uri_Redirect::fromString($forwardUrl);
-            } catch (Zend_Uri_Exception $e) {
-                throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
-            }
-
-            $uri->setHost(encode_idna(mb_strtolower($uri->getHost()))); // Normalize URI host
-            $uri->setPath(rtrim(utils_normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
-
-            if ($uri->getHost() == $subdomainNameAscii && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))) {
-                throw new iMSCP_Exception(
-                    tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>") . ' ' .
-                    tr('Subdomain %s cannot be forwarded on itself.', "<strong>$subdomainName</strong>")
-                );
-            }
-
-            if ($forwardType == 'proxy') {
-                $port = $uri->getPort();
-                if ($port && $port < 1025) {
-                    throw new iMSCP_Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
-                }
-            }
-
-            $forwardUrl = $uri->getUri();
-        } catch (Exception $e) {
-            set_page_message($e->getMessage(), 'error');
-            return false;
-        }
-    }
-
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
-
-    try {
-        $db->beginTransaction();
-
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeAddSubdomain, [
-            'subdomainName'  => $subdomainName,
-            'subdomainIps'   => $mainDmnProps['domain_ips'],
-            'subdomainType'  => $domainType,
-            'parentDomainId' => $domainId,
-            'mountPoint'     => $mountPoint,
-            'documentRoot'   => $documentRoot,
-            'forwardUrl'     => $forwardUrl,
-            'forwardType'    => $forwardType,
-            'forwardHost'    => $forwardHost,
-            'customerId'     => $_SESSION['user_id']
-        ]);
-
-        if ($domainType == 'als') {
-            $query = "
-                INSERT INTO subdomain_alias (
-                    alias_id, subdomain_alias_name, subdomain_alias_ips, subdomain_alias_mount, subdomain_alias_document_root,
-                    subdomain_alias_url_forward, subdomain_alias_type_forward, subdomain_alias_host_forward,
-                    subdomain_alias_status
-                ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, 'toadd'
-                )
-            ";
-        } else {
-            $query = "
-                INSERT INTO subdomain (
-                    domain_id, subdomain_name, subdomain_ips, subdomain_mount, subdomain_document_root, subdomain_url_forward,
-                    subdomain_type_forward, subdomain_host_forward, subdomain_status
-                ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, 'toadd'
-                )
-            ";
-        }
-
-        exec_query($query, [
-            $domainId, $subLabelAscii, $mainDmnProps['domain_ips'], $mountPoint, $documentRoot, $forwardUrl, $forwardType, $forwardHost
-        ]);
-
-        $subdomainId = $db->lastInsertId();
-
-        // Create the phpini entry for that subdomain
-        $phpini = PHPini::getInstance();
-        $phpini->loadResellerPermissions($_SESSION['user_created_by']);
-        $phpini->loadClientPermissions($_SESSION['user_id']);
-
-        if ($phpini->getClientPermission('phpiniConfigLevel') != 'per_site') {
-            // Set INI options, based on parent domain
-            if ($domainType == 'dmn') {
-                $phpini->loadIniOptions($_SESSION['user_id'], $mainDmnProps['domain_id'], 'dmn');
-            } else {
-                $phpini->loadIniOptions($_SESSION['user_id'], $domainId, 'als');
-            }
-        } else {
-            // Set default INI options
-            $phpini->loadIniOptions();
-        }
-
-        $phpini->saveIniOptions($_SESSION['user_id'], $subdomainId, $domainType == 'dmn' ? 'sub' : 'subals');
-
-        createDefaultMailAccounts(
-            $mainDmnProps['domain_id'],
-            iMSCP_Authentication::getInstance()->getIdentity()->email,
-            $subdomainNameAscii,
-            $domainType == 'dmn' ? MT_SUBDOM_FORWARD : MT_ALSSUB_FORWARD, $subdomainId
-        );
-
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterAddSubdomain, [
-            'subdomainName'  => $subdomainName,
-            'subdomainIps'   => $mainDmnProps['domain_ips'],
-            'subdomainType'  => $domainType,
-            'parentDomainId' => $domainId,
-            'mountPoint'     => $mountPoint,
-            'documentRoot'   => $documentRoot,
-            'forwardUrl'     => $forwardUrl,
-            'forwardType'    => $forwardType,
-            'forwardHost'    => $forwardHost,
-            'customerId'     => $_SESSION['user_id'],
-            'subdomainId'    => $subdomainId
-        ]);
-
-        $db->commit();
-        send_request();
-        write_log(sprintf('A new subdomain (%s) has been created by %s', $subdomainName, $_SESSION['user_logged']), E_USER_NOTICE);
-        return true;
-    } catch (iMSCP_Exception $e) {
-        $db->rollBack();
-        write_log(sprintf('System was unable to create the %s subdomain: %s', $subdomainName, $e->getMessage()), E_USER_ERROR);
-        set_page_message('Could not create subdomain. An unexpected error occurred.', 'error');
-        return false;
-    }
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require_once 'imscp-lib.php';
 
@@ -429,6 +430,7 @@ $tpl->define([
     'page'                         => 'client/subdomain_add.tpl',
     'page_message'                 => 'layout',
     'parent_domain'                => 'page',
+    'ip_entry'                     => 'page',
     'shared_mount_point_option_js' => 'page',
     'shared_mount_point_option'    => 'page',
     'shared_mount_point_domain'    => 'shared_mount_point_option'
@@ -436,26 +438,33 @@ $tpl->define([
 $tpl->assign([
     'TR_PAGE_TITLE'                 => tohtml(tr('Client / Domains / Add Subdomain')),
     'TR_SUBDOMAIN'                  => tohtml(tr('Subdomain')),
-    'TR_SUBDOMAIN_NAME'             => tohtml(tr('Subdomain name')),
+    'TR_SUBDOMAIN_NAME'             => tohtml(tr('Name')),
+    'TR_SUBDOMAIN_IPS'              => tohtml(tr('IP addresses')),
     'TR_SHARED_MOUNT_POINT'         => tohtml(tr('Shared mount point')),
-    'TR_SHARED_MOUNT_POINT_TOOLTIP' => tohtml(tr('Allows to share the mount point of another domain.')),
+    'TR_SHARED_MOUNT_POINT_TOOLTIP' => tohtml(tr('Allows to share the mount point of another domain.'), 'htmlAttr'),
     'TR_URL_FORWARDING'             => tohtml(tr('URL forwarding')),
-    'TR_URL_FORWARDING_TOOLTIP'     => tohtml(tr('Allows to forward any request made to this domain to a specific URL.')),
+    'TR_URL_FORWARDING_TOOLTIP'     => tohtml(tr('Allows to forward any request made to this domain to a specific URL.'), 'htmlAttr'),
     'TR_FORWARD_TO_URL'             => tohtml(tr('Forward to URL')),
     'TR_YES'                        => tohtml(tr('Yes')),
     'TR_NO'                         => tohtml(tr('No')),
-    'TR_HTTP'                       => 'http://',
-    'TR_HTTPS'                      => 'https://',
+    'TR_HTTP'                       => tohtml('http://'),
+    'TR_HTTPS'                      => tohtml('https://'),
     'TR_FORWARD_TYPE'               => tohtml(tr('Forward type')),
-    'TR_301'                        => '301',
-    'TR_302'                        => '302',
-    'TR_303'                        => '303',
-    'TR_307'                        => '307',
-    'TR_PROXY'                      => 'PROXY',
+    'TR_301'                        => tohtml('301'),
+    'TR_302'                        => tohtml('302'),
+    'TR_303'                        => tohtml('303'),
+    'TR_307'                        => tohtml('307'),
+    'TR_PROXY'                      => tohtml(tr('Proxy')),
     'TR_PROXY_PRESERVE_HOST'        => tohtml(tr('Preserve Host')),
     'TR_ADD'                        => tohtml(tr('Add'), 'htmlAttr'),
     'TR_CANCEL'                     => tohtml(tr('Cancel'))
 ]);
+
+Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+    $translations = $e->getParam('translations');
+    $translations['core']['available'] = tr('Available');
+    $translations['core']['assigned'] = tr('Assigned');
+});
 
 generateNavigation($tpl);
 generatePage($tpl);
