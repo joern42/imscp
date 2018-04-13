@@ -99,12 +99,12 @@ sub getBlocByRef( $$$;$$ )
     $blcTe = qr/\Q$blcTe\E/ unless ref $blcTe eq 'Regexp';
 
     ${ $tpl } =~ /
-        (^\n*)                       # Match optional leading empty lines. Only one is kept and only if bloc tag are kept
-            ((?:^[\t ]+|)?$blcTb\n?) # Match optional leading whitespaces, bloc begin tag and optional trailing newline
-            (.*?)                    # Match bloc content
-            (\n)?                    # Match optional bloc content trailing new line 
-            ((?:^[\t ]+)?$blcTe\n?)  # Match optional leading whitespaces, bloc ending tag and optional trailing newline
-        /msx ? $iBlcT ? ( $1 ? "\n" : '' ) . $2 . $3 . $4 . $5 : $3 . ( $dBlcCnl ? '' : $4 ) : '';
+        (^\n*)                   # Match optional leading empty lines. Only one is kept and only if bloc tag are kept
+        ((?:^[\t ]+|)?$blcTb\n?) # Match optional leading whitespaces, bloc begin tag and optional trailing newline
+        (.*?)                    # Match bloc content
+        (\n|)?                   # Match optional bloc content trailing new line 
+        ((?:^[\t ]+)?$blcTe\n?)  # Match optional leading whitespaces, bloc ending tag and optional trailing newline
+    /msx ? $iBlcT ? ( $1 ? "\n" : '' ) . $2 . $3 . $4 . $5 : $3 . ( $dBlcCnl ? '' : $4 ) : '';
 }
 
 =item getBloc( $tpl, $blcTb, $blcTe [, $iBlcT = FALSE ] )
@@ -153,7 +153,7 @@ sub processBlocByRef( $$$;$$$$ )
 
     # FIXME Should we act globally (multi-blocs)
     if ( !( ${ $tpl } =~ s%
-        (^\n*)                         # Match optional leading empty lines. Only one is kept and only if bloc tag are kept
+            (^\n*)                     # Match optional leading empty lines. Only one is kept and only if bloc tag are kept
             (^[\t ]+|)?($blcTbReg\n?)  # Match optional leading whitespaces, bloc begin tag and optional trailing newline
             (.*?)                      # Match bloc content
             ((?:^[\t ]+)?$blcTeReg\n?) # Match optional leading whitespaces, bloc ending tag and optional  trailing newline
