@@ -84,19 +84,14 @@ sub _loadEntityData
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         "
-            SELECT t2.id, t2.ugroup, t2.status, t2.users, t3.domain_name, t3.domain_admin_id, t3.web_folder_protection
-            FROM (SELECT * from htaccess_groups, (SELECT IFNULL(
-                (
-                    SELECT group_concat(uname SEPARATOR ' ')
-                    FROM htaccess_users
-                    WHERE id regexp (CONCAT('^(', (SELECT REPLACE((SELECT members FROM htaccess_groups WHERE id = ?), ',', '|')), ')\$'))
-                    GROUP BY dmn_id
-                ), '') AS users) AS t1
-            ) AS t2
-            JOIN domain AS t3 ON (t2.dmn_id = t3.domain_id)
-            WHERE id = ?
+            SELECT t1.id, t1.ugroup AS htgroup, t1.status, t2.domain_name, t2.domain_admin_id, GROUP_CONCAT(t3.uname SEPARATOR ' ') AS htusers
+            FROM htaccess_groups AS t1
+            JOIN domain AS t2 ON (t2.domain_id = t1.dmn_id)
+            LEFT JOIN htaccess_users AS t3 ON(FIND_IN_SET(t3.id, t1.members) AND t3.status = 'ok')
+            WHERE t1.id = ?
+            GROUP BY t1.id
         ",
-        undef, $entityId, $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'Data not found for htgroup (ID %d)', $entityId ));
 
@@ -105,13 +100,11 @@ sub _loadEntityData
     $self->{'_data'} = {
         ID                    => $row->{'id'},
         STATUS                => $row->{'status'},
-        DOMAIN_ADMIN_ID       => $row->{'domain_admin_id'},
         USER                  => $usergroup,
         GROUP                 => $usergroup,
-        WEB_DIR               => File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" ),
-        HTGROUP_NAME          => $row->{'ugroup'},
-        HTGROUP_USERS         => $row->{'users'},
-        HTGROUP_DMN           => $row->{'domain_name'},
+        HOME_PATH             => File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" ),
+        HTGROUP_NAME          => $row->{'htgroup'},
+        HTGROUP_USERS         => $row->{'htusers'},
         WEB_FOLDER_PROTECTION => $row->{'web_folder_protection'}
     };
 }

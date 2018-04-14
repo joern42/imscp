@@ -446,9 +446,9 @@ sub addHtpasswd
     my ( $self, $moduleData ) = @_;
 
     eval {
-        clearImmutable( $moduleData->{'WEB_DIR'} );
+        clearImmutable( $moduleData->{'HOME_PATH'} );
 
-        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}" );
+        my $file = iMSCP::File->new( filename => "$moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}" );
         my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheAddHtpasswd', $fileContentRef, $moduleData );
@@ -461,7 +461,7 @@ sub addHtpasswd
 
     my $error = $@; # Retain error if any
     # Set immutable bit if needed (even on error)
-    setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
+    setImmutable( $moduleData->{'HOME_PATH'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     !length $error or die $error; # Propagate error if any
 }
 
@@ -476,9 +476,9 @@ sub deleteHtpasswd
     my ( $self, $moduleData ) = @_;
 
     eval {
-        clearImmutable( $moduleData->{'WEB_DIR'} );
+        clearImmutable( $moduleData->{'HOME_PATH'} );
 
-        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}" );
+        my $file = iMSCP::File->new( filename => "$moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}" );
         my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtpasswd', $fileContentRef, $moduleData );
@@ -490,7 +490,7 @@ sub deleteHtpasswd
 
     my $error = $@; # Retain error if any
     # Set immutable bit if needed (even on error)
-    setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
+    setImmutable( $moduleData->{'HOME_PATH'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     !length $error or die $error; # Propagate error if any
 }
 
@@ -505,9 +505,9 @@ sub addHtgroup
     my ( $self, $moduleData ) = @_;
 
     eval {
-        clearImmutable( $moduleData->{'WEB_DIR'} );
+        clearImmutable( $moduleData->{'HOME_PATH'} );
 
-        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}" );
+        my $file = iMSCP::File->new( filename => "$moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}" );
         my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheAddHtgroup', $fileContentRef, $moduleData );
@@ -520,7 +520,7 @@ sub addHtgroup
 
     my $error = $@; # Retain error if any
     # Set immutable bit if needed (even on error)
-    setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
+    setImmutable( $moduleData->{'HOME_PATH'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     !length $error or die $error; # Propagate error if any
 }
 
@@ -535,9 +535,9 @@ sub deleteHtgroup
     my ( $self, $moduleData ) = @_;
 
     eval {
-        clearImmutable( $moduleData->{'WEB_DIR'} );
+        clearImmutable( $moduleData->{'HOME_PATH'} );
 
-        my $file = iMSCP::File->new( filename => "$moduleData->{'WEB_DIR'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}" );
+        my $file = iMSCP::File->new( filename => "$moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}" );
         my $fileContentRef = $file->getAsRef( !-f $file->{'filename'} );
 
         $self->{'eventManager'}->trigger( 'beforeApacheDeleteHtgroup', $fileContentRef, $moduleData );
@@ -549,7 +549,7 @@ sub deleteHtgroup
 
     my $error = $@; # Retain error if any
     # Set immutable bit if needed (even on error)
-    setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
+    setImmutable( $moduleData->{'HOME_PATH'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
     !length $error or die $error; # Propagate error if any
 }
 
@@ -575,35 +575,38 @@ sub addHtaccess
 
         $self->{'eventManager'}->trigger( 'beforeApacheAddHtaccess', $fileContentRef, $moduleData );
 
-        my $bTag = "### START i-MSCP PROTECTION ###\n";
-        my $eTag = "### END i-MSCP PROTECTION ###\n";
-        my $tagContent = <<"EOF";
+        my $bc = <<"EOF";
 AuthType $moduleData->{'AUTH_TYPE'}
 AuthName "$moduleData->{'AUTH_NAME'}"
 AuthBasicProvider file
 AuthUserFile $moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_USERS_FILENAME'}
 EOF
-
-        unless ( length $moduleData->{'HTUSERS'} ) {
-            $tagContent .= <<"EOF";
+        if ( length $moduleData->{'HTUSERS'} ) {
+            $bc .= <<"EOF";
+Require user $moduleData->{'HTUSERS'}
+EOF
+        } elsif ( length $moduleData->{'HTGROUPS'} ) {
+            $bc .= <<"EOF";
 AuthGroupFile $moduleData->{'HOME_PATH'}/$self->{'config'}->{'HTTPD_HTACCESS_GROUPS_FILENAME'}
 Require group $moduleData->{'HTGROUPS'}
 EOF
-        } else {
-            $tagContent .= <<"EOF";
-Require user $moduleData->{'HTUSERS'}
-EOF
         }
 
-        processBlocByRef( $fileContentRef, $bTag, $eTag );
-        ${ $fileContentRef } = $bTag . $tagContent . $eTag . ${ $fileContentRef };
+        chomp( $bc );
+
+        # Add or replace entries
+        processBlocByRef( $fileContentRef, '### START i-MSCP PROTECTION ###', '### END i-MSCP PROTECTION ###', <<"EOF", FALSE, FALSE, TRUE );
+### START i-MSCP PROTECTION ###
+$bc
+### END i-MSCP PROTECTION ###
+EOF
         $self->{'eventManager'}->trigger( 'afterApacheAddHtaccess', $fileContentRef, $moduleData );
         $file->save( 0027 )->owner( $moduleData->{'USER'}, $moduleData->{'GROUP'} )->mode( 0640 );
     };
 
     my $error = $@; # Retain error if any
     # Set immutable bit if needed (even on error)
-    setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
+    setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
     !length $error or die $error; # Propagate error if any
 }
 
@@ -648,7 +651,7 @@ sub deleteHtaccess
 
     my $error = $@; # Retain error if any
     # Set immutable bit if needed (even on error)
-    setImmutable( $moduleData->{'WEB_DIR'} ) if $moduleData->{'WEB_FOLDER_PROTECTION'} eq 'yes';
+    setImmutable( $moduleData->{'AUTH_PATH'} ) if $isImmutable;
     !length $error or die $error; # Propagate error if any
 }
 
@@ -904,7 +907,7 @@ sub _disableDomain
     } );
 
     my $net = iMSCP::Net->getInstance();
-    my @domainIPs = ( @{$moduleData->{'DOMAIN_IPS'}}, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
+    my @domainIPs = ( @{ $moduleData->{'DOMAIN_IPS'} }, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
 
     $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
 
@@ -977,7 +980,7 @@ sub _addCfg
     $self->{'eventManager'}->trigger( 'beforeApacheAddCfg', $moduleData );
 
     my $net = iMSCP::Net->getInstance();
-    my @domainIPs = ( @{$moduleData->{'DOMAIN_IPS'}}, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
+    my @domainIPs = ( @{ $moduleData->{'DOMAIN_IPS'} }, ( $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $moduleData->{'BASE_SERVER_IP'} : () ) );
 
     $self->{'eventManager'}->trigger( 'onApacheAddVhostIps', $moduleData, \@domainIPs );
 

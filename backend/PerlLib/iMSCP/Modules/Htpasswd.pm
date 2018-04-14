@@ -86,7 +86,7 @@ sub _loadEntityData
         '
             SELECT t1.id, t1.uname, t1.upass, t1.status, t2.domain_name, t2.domain_admin_id, t2.web_folder_protection
             FROM htaccess_users AS t1
-            JOIN domain AS t2 ON (t1.dmn_id = t2.domain_id)
+            JOIN domain AS t2 ON (t2.domain_id = t1.dmn_id)
             WHERE t1.id = ?
         ',
         undef, $entityId
@@ -96,14 +96,13 @@ sub _loadEntityData
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
 
     $self->{'_data'} = {
+        ID                    => $row->{'id'},
         STATUS                => $row->{'status'},
-        DOMAIN_ADMIN_ID       => $row->{'domain_admin_id'},
         USER                  => $usergroup,
         GROUP                 => $usergroup,
-        WEB_DIR               => File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" ),
+        HOME_PATH             => File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" ),
         HTUSER_NAME           => $row->{'uname'},
         HTUSER_PASS           => $row->{'upass'},
-        HTUSER_DMN            => $row->{'domain_name'},
         WEB_FOLDER_PROTECTION => $row->{'web_folder_protection'}
     };
 }

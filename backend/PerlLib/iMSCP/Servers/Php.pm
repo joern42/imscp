@@ -473,9 +473,7 @@ sub _init
         defined $self->{$prop } or die( sprintf( 'The %s package must define the %s property', ref $self, $prop ));
     }
 
-    @{ $self }{qw/ reload restart _templates cfgDir httpd /} = (
-        {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php", iMSCP::Servers::Httpd->factory()
-    );
+    @{ $self }{qw/ reload restart _templates cfgDir httpd /} = ( {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php", iMSCP::Servers::Httpd->factory() );
 
     $self->{'eventManager'}
         ->register( "before@{ [ $self->{'httpd'}->getServerName() ] }BuildConfFile", $self )

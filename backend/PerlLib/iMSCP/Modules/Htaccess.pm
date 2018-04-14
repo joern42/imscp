@@ -85,46 +85,32 @@ sub _loadEntityData
 
     my $row = $self->{'_dbh'}->selectrow_hashref(
         "
-            SELECT t3.id, t3.auth_type, t3.auth_name, t3.path, t3.status, t3.users, t3.groups,
-                t4.domain_name, t4.domain_admin_id
-            FROM (SELECT * FROM htaccess, (SELECT IFNULL(
-                (
-                    SELECT group_concat(uname SEPARATOR ' ')
-                    FROM htaccess_users
-                    WHERE id regexp (CONCAT('^(', (SELECT REPLACE((SELECT user_id FROM htaccess WHERE id = ?), ',', '|')), ')\$'))
-                    GROUP BY dmn_id
-                ), '') AS users) AS t1, (SELECT IFNULL(
-                    (
-                        SELECT group_concat(ugroup SEPARATOR ' ')
-                        FROM htaccess_groups
-                        WHERE id regexp (
-                            CONCAT('^(', (SELECT REPLACE((SELECT group_id FROM htaccess WHERE id = ?), ',', '|')), ')\$')
-                        )
-                        GROUP BY dmn_id
-                    ), '') AS groups) AS t2
-                ) AS t3
-            JOIN domain AS t4 ON (t3.dmn_id = t4.domain_id)
-            WHERE t3.id = ?
+            SELECT t1.id, t1.auth_type, t1.auth_name, t1.path, t1.status, t2.domain_name, t2.domain_admin_id,
+                GROUP_CONCAT(t3.uname SEPARATOR ' ') AS htusers, GROUP_CONCAT(t4.ugroup SEPARATOR ' ') AS htgroups
+            FROM htaccess AS t1
+            JOIN domain AS t2 ON(t2.domain_id = t1.dmn_id)
+            LEFT JOIN htaccess_users AS t3 ON(FIND_IN_SET(t3.id, t1.user_id) AND t3.status = 'ok')
+            LEFT JOIN htaccess_groups AS t4 ON(FIND_IN_SET(t4.id, t1.group_id) AND t4.status = 'ok')
+            WHERE t1.id = ?
+            GROUP BY t1.id
         ",
-        undef, $entityId, $entityId, $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'Data not found for htaccess (ID %d)', $entityId ));
 
     my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$row->{'domain_admin_id'} );
 
     $self->{'_data'} = {
-        ID              => $row->{'id'},
-        STATUS          => $row->{'status'},
-        DOMAIN_ADMIN_ID => $row->{'domain_admin_id'},
-        USER            => $usergroup,
-        GROUP           => $usergroup,
-        AUTH_TYPE       => $row->{'auth_type'},
-        AUTH_NAME       => encode_utf8( $row->{'auth_name'} ),
-        AUTH_PATH       => File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}/$row->{'path'}" ),
-        HOME_PATH       => File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" ),
-        DOMAIN_NAME     => $row->{'domain_name'},
-        HTUSERS         => $row->{'users'},
-        HTGROUPS        => $row->{'groups'}
+        ID        => $row->{'id'},
+        STATUS    => $row->{'status'},
+        USER      => $usergroup,
+        GROUP     => $usergroup,
+        AUTH_TYPE => $row->{'auth_type'},
+        AUTH_NAME => encode_utf8( $row->{'auth_name'} ),
+        AUTH_PATH => File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}/$row->{'path'}" ),
+        HOME_PATH => File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$row->{'domain_name'}" ),
+        HTUSERS   => $row->{'htusers'},
+        HTGROUPS  => $row->{'htgroups'}
     };
 }
 

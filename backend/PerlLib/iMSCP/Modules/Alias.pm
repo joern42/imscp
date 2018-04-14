@@ -87,22 +87,17 @@ sub _loadEntityData
     my $row = $self->{'_dbh'}->selectrow_hashref(
         "
             SELECT t1.*,
-                t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php,
-                t2.domain_cgi, t2.web_folder_protection, t2.phpini_perm_config_level AS php_config_level,
-                t3.ip_addresses,
-                t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
-                t4.hsts_include_subdomains
+                t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php, t2.domain_cgi, t2.web_folder_protection,
+                t2.phpini_perm_config_level AS php_config_level, IFNULL(GROUP_CONCAT(t3.ip_number), '0.0.0.0') AS domain_ips, t4.private_key,
+                t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age, t4.hsts_include_subdomains
             FROM domain_aliases AS t1
             JOIN domain AS t2 ON (t2.domain_id = t1.domain_id)
-            LEFT JOIN(
-                SELECT ? AS alias_id, IFNULL(GROUP_CONCAT(ip_number), '0.0.0.0') AS ip_addresses
-                FROM server_ips
-                WHERE ip_id REGEXP CONCAT('^(', REPLACE((SELECT alias_ips FROM domain_aliases WHERE alias_id = ?), ',', '|'), ')\$')
-            ) AS t3 ON t1.alias_id = t3.alias_id
+            LEFT JOIN server_ips AS t3 ON(FIND_IN_SET(t3.ip_id, t1.alias_ips) AND t3.ip_status = 'ok')
             LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.alias_id AND t4.domain_type = 'als' AND t4.status = 'ok')
             WHERE t1.alias_id = ?
+            GROUP BY t1.alias_id
         ",
-        undef, $entityId, $entityId, $entityId
+        undef, $entityId
     );
     $row or die( sprintf( 'Data not found for domain alias (ID %d)', $entityId ));
 
@@ -141,7 +136,7 @@ sub _loadEntityData
         PARENT_DOMAIN_NAME      => $row->{'alias_name'},
         DOMAIN_NAME             => $row->{'alias_name'},
         DOMAIN_TYPE             => 'als',
-        DOMAIN_IPS              => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'ip_addresses'} ],
+        DOMAIN_IPS              => [ $::imscpConfig{'BASE_SERVER_IP'} eq '0.0.0.0' ? ( '0.0.0.0' ) : split ',', $row->{'domain_ips'} ],
         HOME_DIR                => $homeDir,
         WEB_DIR                 => $webDir,
         MOUNT_POINT             => $row->{'alias_mount'},
