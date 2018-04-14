@@ -1,3 +1,15 @@
+
+<script>
+    $(function () {
+        $("#lostpassword,#passwd_strong,#bruteforce").change(function () {
+            if ($(this).val() == '1') {
+                $(this).parents().nextAll(".display").show();
+            } else {
+                $(this).parents().nextAll(".display").hide();
+            }
+        }).trigger('change');
+    });
+</script>
 <table class="firstColFixed">
     <thead>
     <tr>
@@ -8,6 +20,10 @@
     <tr>
         <td>{TR_ACCOUNT_NAME}</td>
         <td>{VL_ACCOUNT_NAME}</td>
+    </tr>
+    <tr>
+        <td>{TR_ACCOUNT_EXPIRY_DATE}</td>
+        <td>{VL_ACCOUNT_EXPIRY_DATE}</td>
     </tr>
     <tr>
         <td>{TR_PRIMARY_DOMAIN_NAME}</td>
@@ -58,6 +74,10 @@
         <td>{TR_BACKUP_SUPP}</td>
         <td>{VL_BACKUP_SUPP}</td>
     </tr>
+    <tr>
+        <td>{TR_WEB_FOLDER_PROTECTION}</td>
+        <td>{VL_WEB_FOLDER_PROTECTION}</td>
+    </tr>
     </tbody>
 </table>
 <table class="firstColFixed">
@@ -69,7 +89,7 @@
     <tbody>
     <tr>
         <td>{TR_SUBDOM_ACCOUNTS}</td>
-        <td>{VL_SUBDOM_ACCOUNTS_USED} {VL_SUBDOM_ACCOUNTS_LIMIT} </td>
+        <td>{VL_SUBDOM_ACCOUNTS_USED} / {VL_SUBDOM_ACCOUNTS_LIMIT} </td>
     </tr>
     <tr>
         <td>{TR_DOMALIAS_ACCOUNTS}</td>
@@ -97,33 +117,39 @@
     </tr>
     </tbody>
 </table>
-<table>
+
+<h2 class="traffic"><span>{TR_TRAFFIC_USAGE}</span></h2>
+<div class="graph">
+    <span style="width:{VL_TRAFFIC_PERCENT}%">&nbsp;</span>
+    <strong>{VL_TRAFFIC_PERCENT}%</strong>
+</div>
+<p>{VL_TRAFFIC_USED} / {VL_TRAFFIC_LIMIT}</p>
+
+<h2 class="diskusage"><span>{TR_DISK_USAGE}</span></h2>
+<div class="graph">
+    <span style="width:{VL_DISK_PERCENT}%">&nbsp;</span>
+    <strong>{VL_DISK_PERCENT}%</strong>
+</div>
+<p>{VL_DISK_USED} / {VL_DISK_LIMIT}</p>
+
+<table class="firstColFixed">
     <thead>
     <tr>
-        <th>{TR_TRAFFIC_USAGE}</th>
+        <th colspan="2">{TR_DISK_USAGE_DETAILS}</th>
     </tr>
     </thead>
     <tbody>
     <tr>
-        <td>
-            <div class="graph"><span style="width:{VL_TRAFFIC_PERCENT}%">&nbsp;</span></div>
-            {VL_TRAFFIC_USED} / {VL_TRAFFIC_LIMIT}
-        </td>
+        <td>{TR_DISK_WEB_USAGE}</td>
+        <td>{VL_WEB_DATA}</td>
     </tr>
-    </tbody>
-</table>
-<table>
-    <thead>
     <tr>
-        <th>{TR_DISK_USAGE}</th>
+        <td>{TR_DISK_SQL_USAGE}</td>
+        <td>{VL_SQL_DATA}</td>
     </tr>
-    </thead>
-    <tbody>
     <tr>
-        <td>
-            <div class="graph"><span style="width:{VL_DISK_PERCENT}%">&nbsp;</span></div>
-            {VL_DISK_USED} / {VL_DISK_LIMIT}
-        </td>
+        <td>{TR_DISK_MAIL_USAGE}</td>
+        <td>{VL_MAIL_DATA}</td>
     </tr>
     </tbody>
 </table>

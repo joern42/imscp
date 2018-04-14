@@ -91,18 +91,14 @@ function generatePage($tpl)
  */
 function generateIpsList($tpl)
 {
-    $assignedIps = [];
-    $stmt = execute_query('SELECT reseller_ips FROM reseller_props');
-    while ($row = $stmt->fetch()) {
-        $resellerIps = explode(',', $row['reseller_ips']);
-        foreach ($resellerIps as $ipId) {
-            if (!in_array($ipId, $assignedIps)) {
-                $assignedIps[] = $ipId;
-            }
-        }
-    }
-
-    $stmt = execute_query('SELECT * FROM server_ips');
+    $stmt = execute_query(
+        '
+            SELECT t1.*, COUNT(t2.reseller_id) AS num_assignments
+            FROM server_ips AS t1
+            LEFT JOIN reseller_props AS t2 ON(FIND_IN_SET(t1.ip_id, t2.reseller_ips))
+            GROUP BY t1.ip_id
+        '
+    );
     if (!$stmt->rowCount()) {
         $tpl->assign('IP_ADDRESSES_BLOCK', '');
         set_page_message(tohtml(tr('No IP address found.')), 'info');
@@ -125,8 +121,10 @@ function generateIpsList($tpl)
         if ($baseServerIp == $ipAddr) {
             $actionName = $row['ip_status'] == 'ok' ? tohtml(tr('Protected')) : tohtml(translate_dmn_status($row['ip_status']));
             $actionIpId = NULL;
-        } elseif (in_array($row['ip_id'], $assignedIps)) {
-            $actionName = ($row['ip_status'] == 'ok') ? tohtml(tr('Assigned to at least one reseller')) : tohtml(translate_dmn_status($row['ip_status']));
+        } elseif ($row['num_assignments'] > 0) {
+            $actionName = ($row['ip_status'] == 'ok')
+                ? tohtml(ntr('Assigned to one reseller', 'Assigned to %s one reseller', $row['num_assignments']))
+                : tohtml(translate_dmn_status($row['ip_status']));
             $actionIpId = NULL;
         } elseif ($row['ip_status'] == 'ok') {
             $actionName = tohtml(tr('Delete'));
@@ -137,10 +135,10 @@ function generateIpsList($tpl)
         }
 
         $tpl->assign([
-            'IP'           => tohtml($ipAddr == '0.0.0.0' ? tohtml(tr('Any')) : tohtml($ipAddr)),
+            'IP'           => tohtml($ipAddr == '0.0.0.0' ? tr('Any') : $ipAddr),
             'IP_NETMASK'   => $net->getIpPrefixLength($net->compress($row['ip_number'])) ?: $row['ip_netmask'] ?: tohtml(tr('N/A')),
             'IP_EDITABLE'  => $row['ip_status'] == 'ok' && $baseServerIp != $ipAddr && $row['ip_config_mode'] != 'manual' ? true : false,
-            'NETWORK_CARD' => is_null($row['ip_card']) ? '' : (($row['ip_card'] !== 'any') ? tohtml($row['ip_card']) : tohtml(tr('Any')))
+            'NETWORK_CARD' => tohtml(is_null($row['ip_card']) ? '' : ($row['ip_card'] !== 'any' ? $row['ip_card'] : tr('Any')))
         ]);
 
         if ($row['ip_status'] == 'ok' && $row['ip_card'] != 'any' && $row['ip_number'] != '0.0.0.0') {
@@ -404,13 +402,12 @@ $tpl->assign([
     'TR_IP_NETMASK'           => tohtml(tr('IP netmask')),
     'TR_ACTION'               => tohtml(tr('Action')),
     'TR_NETWORK_CARD'         => tohtml(tr('Network interface (NIC)')),
-    'TR_RECONFIGURE'          => tohtml(tr('Force reconfiguration')),
-    'TR_RECONFIGURE_TOOLTIP'  => tohtml(tr('Schedule reconfiguration of all server IP addresses.', 'htmlAttr')),
+    'TR_RECONFIGURE'          => tohtml(tr('Reconfigure')),
+    'TR_RECONFIGURE_TOOLTIP'  => tohtml(tr('Schedule reconfiguration of all IP addresses.', 'htmlAttr')),
     'TR_ADD'                  => tohtml(tr('Add')),
     'TR_CANCEL'               => tohtml(tr('Cancel')),
     'TR_CONFIGURED_IPS'       => tohtml(tr('IP addresses under control of i-MSCP')),
     'TR_ADD_NEW_IP'           => tohtml(tr('Add new IP address')),
-    'TR_TIP'                  => tohtml(tr('This interface allow to add or remove IP addresses.')),
     'TR_CONFIG_MODE'          => tohtml(tr('Configuration mode')),
     'TR_CONFIG_MODE_TOOLTIPS' => tohtml(tr("When set to 'Auto', the IP address is automatically configured.") . '<br>', 'htmlAttr')
         . tohtml(tr("When set to 'Manual', the configuration is left to the administrator.") . '<br><br>', 'htmlAttr')
@@ -425,8 +422,8 @@ Registry::get('iMSCP_Application')->getEventsManager()->registerListener('onGetJ
     $translation['core']['datatable'] = getDataTablesPluginTranslations(false);
     $translation['core']['err_fields_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
     $translation['core']['confirm_deletion_msg'] = tr("Are you sure you want to delete the %%s IP address?");
-    $translation['core']['confirm_reconfigure_msg'] = tr("Are you sure you want to schedule reconfiguration of all server IP addresses?");
-    $translation['core']['edit_tooltip'] = tr("Click to edit");
+    $translation['core']['confirm_reconfigure_msg'] = tr("Are you sure you want to schedule reconfiguration of all IP addresses?");
+    $translation['core']['edit_tooltip'] = tr('Click to edit');
 });
 
 generateNavigation($tpl);

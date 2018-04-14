@@ -111,8 +111,6 @@
         });
     });
 </script>
-<p class="hint" style="font-variant: small-caps;font-size: small;">{TR_TIP}</p>
-<br>
 <!-- BDP: ip_addresses_block -->
 <table class="datatable">
     <thead>
@@ -152,7 +150,7 @@
     </tbody>
     <tbody>
     <tr>
-        <td colspan="5">
+        <td colspan="5" style="background-color:#b0def5">
             <div class="buttons">
                 <a class="link_as_button" id="reconfigure_action" href="?reconfigure" title="{TR_RECONFIGURE_TOOLTIP}">{TR_RECONFIGURE}</a>
             </div>

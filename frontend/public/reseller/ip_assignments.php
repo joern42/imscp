@@ -21,81 +21,88 @@
 use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
- * Generate List of Domains assigned to IPs
+ * Generate page
  *
- * @param  TemplateEngine $tpl Template engine
+ * @param TemplateEngine $tpl
  * @return void
  */
 function generatePage($tpl)
 {
-    $stmt = exec_query('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$_SESSION['user_id']]);
-    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips WHERE ip_id IN (' . $stmt->fetchColumn() . ')');
+    #echo '<pre>';
+    #print_r($_SESSION);
 
-    while ($ip = $stmt->fetch()) {
-        $stmt2 = exec_query(
-            "
-                SELECT t2.admin_name AS customer_name
-                FROM domain AS t1
-                JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
-                WHERE t2.created_by = ?
-                AND ? REGEXP CONCAT('^(', (SELECT REPLACE((t1.domain_client_ips), ',', '|')), ')$')
-            ",
-            [$_SESSION['user_id'], $ip['ip_id']]
-        );
+    $ips = exec_query(
+        "
+            SELECT t2.ip_id, t2.ip_number
+            FROM reseller_props AS t1
+            JOIN server_ips AS t2 ON(FIND_IN_SET(t2.ip_id, t1.reseller_ips))
+            WHERE t1.reseller_id = ?
+            ORDER BY LENGTH(t2.ip_number), t2.ip_number
+        ",
+        [$_SESSION['user_id']]
+    )->fetchAll();
 
-        $customersCount = $stmt2->rowCount();
+    $sip = isset($_POST['ip_address']) && in_array($_POST['ip_address'], array_column($ips, 'ip_id')) ? $_POST['ip_address'] : $ips[0]['ip_id'];
 
+    foreach ($ips as $ip) {
         $tpl->assign([
-            'IP'           => tohtml(($ip['ip_number'] == '0.0.0.0') ? tr('Any') : $ip['ip_number']),
-            'RECORD_COUNT' => tohtml(tr('Total customers') . ': ' . ($customersCount))
+            'IP_VALUE'    => tohtml($ip['ip_id']),
+            'IP_NUM'      => tohtml($ip['ip_number'] == '0.0.0.0' ? tr('Any') : $ip['ip_number']),
+            'IP_SELECTED' => $ip['ip_id'] == $sip ? ' selected' : ''
         ]);
-
-        if ($customersCount > 0) {
-            while ($data = $stmt2->fetch()) {
-                $tpl->assign('CUSTOMER_NAME', tohtml(decode_idna($data['customer_name'])));
-                $tpl->parse('CUSTOMER_ROW', '.customer_row');
-            }
-        } else {
-            $tpl->assign('CUSTOMER_NAME', tr('No used yet'));
-            $tpl->parse('CUSTOMER_ROW', 'customer_row');
-        }
-
-        $tpl->parse('IP_ROW', '.ip_row');
-        $tpl->assign('CUSTOMER_ROW', '');
+        $tpl->parse('IP_ENTRY', '.ip_entry');
     }
-}
 
-/***********************************************************************************************************************
- * Main
- */
+    $stmt = exec_query(
+        "
+            SELECT GROUP_CONCAT(t2.admin_name ORDER BY t2.admin_name) AS customer_names
+            FROM domain AS t1
+            JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
+            WHERE FIND_IN_SET(?, t1.domain_client_ips) 
+            GROUP BY t1.domain_admin_id
+        ",
+        [$sip]
+    );
+
+    if ($stmt->rowCount()) {
+        while ($row = $stmt->fetch()) {
+            $tpl->assign([
+                'TR_CUSTOMER_NAMES'  => tohtml(tr('Customer Names')),
+                'NO_ASSIGNMENTS_MSG' => '',
+                'CUSTOMER_NAMES'     => tohtml(implode('<br>', array_map('decode_idna', explode(',', $row['customer_names'])))),
+            ]);
+            $tpl->parse('ASSIGNMENT_ROW', '.assignment_row');
+        }
+        return;
+    }
+
+    $tpl->assign([
+        'TR_IP_NOT_ASSIGNED_YET' => tohtml(tr('This IP address has not been assigned to any customer yet.')),
+        'ASSIGNMENT_ROWS'        => ''
+    ]);
+
+}
 
 require 'imscp-lib.php';
 
 check_login('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-
-if (!resellerHasCustomers()) {
-    showBadRequestErrorPage();
-}
+resellerHasCustomers() or showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
-    'layout'       => 'shared/layouts/ui.tpl',
-    'page'         => 'reseller/ip_assignments.tpl',
-    'page_message' => 'layout',
-    'ip_row'       => 'page',
-    'customer_row' => 'ip_row'
+    'layout'             => 'shared/layouts/ui.tpl',
+    'page'               => 'reseller/ip_assignments.tpl',
+    'page_message'       => 'layout',
+    'ip_entry'           => 'page',
+    'no_assignments_msg' => 'page',
+    'assignment_rows'    => 'page',
+    'assignment_row'     => 'assignment_rows',
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'                   => tohtml(tr('Reseller / Statistics / IP Assignments')),
-    'TR_DOMAIN_STATISTICS'            => tohtml(tr('Domain statistics')),
-    'TR_IP_RESELLER_USAGE_STATISTICS' => tohtml(tr('Reseller/IP usage statistics')),
-    'TR_CUSTOMER_NAME'                => tohtml(tr('Cutomer Name'))
+    'TR_PAGE_TITLE'     => tohtml(tr('Reseller / Statistics / IP Assignments')),
+    'TR_DROPDOWN_LABEL' => tohtml(tr('Select an IP address to see its assignments'))
 ]);
 
 generateNavigation($tpl);
@@ -103,7 +110,9 @@ generatePage($tpl);
 generatePageMessage($tpl);
 
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, [
+    'templateEngine' => $tpl
+]);
 $tpl->prnt();
 
 unsetMessages();

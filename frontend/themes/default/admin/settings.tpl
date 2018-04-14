@@ -12,7 +12,7 @@
         $(".accordion").accordion({
             heightStyle: "content",
             collapsible: true,
-            animated: 'slide',
+            animate: false,
             active: typeof(Storage) !== "undefined" ? parseInt(sessionStorage.getItem("/admin/settings.php")) || 0 : 0,
             activate: function () {
                 if ((typeof(Storage) !== "undefined")) {

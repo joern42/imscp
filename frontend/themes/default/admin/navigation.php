@@ -56,7 +56,7 @@ return [
                     'account_details' => [
                         'label'       => tr('{VL_ACCOUNT_NAME} account details'),
                         'uri'         => '/admin/account_details.php',
-                        'title_class' => 'general',
+                        'title_class' => 'user_blue',
                         'visible'     => false
                     ],
                     'user_edit'       => [
@@ -83,7 +83,7 @@ return [
                 'uri'         => '/admin/reseller_add.php',
                 'title_class' => 'user_green'
             ],
-            'resellers_assignment' => [
+            'resellers_assignments' => [
                 'label'              => tr('Reseller assignments'),
                 'uri'                => '/admin/manage_reseller_owners.php',
                 'title_class'        => 'users2',
@@ -96,7 +96,7 @@ return [
                     ]
                 ]
             ],
-            'customers_assignment' => [
+            'customers_assignments' => [
                 'label'              => tr('Customer assignments'),
                 'uri'                => '/admin/manage_reseller_users.php',
                 'title_class'        => 'users2',
@@ -196,7 +196,7 @@ return [
             ],
             'ip_assignments'       => [
                 'label'              => tr('IP assignments'),
-                'uri'                => '/admin/ip_assignment.php',
+                'uri'                => '/admin/ip_assignments.php',
                 'title_class'        => 'ip',
                 'privilege_callback' => [
                     'name' => 'systemHasCustomers'

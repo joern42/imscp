@@ -1,22 +1,28 @@
 
-<!-- BDP: ip_row -->
-<table>
+<form method="post">
+    <label for="ip_address">{TR_DROPDOWN_LABEL}</label>
+    <select id="ip_address" name="ip_address" onchange="this.form.submit()">
+        <!-- BDP: ip_entry -->
+        <option value="{IP_VALUE}"{IP_SELECTED}>{IP_NUM}</option>
+        <!-- EDP: ip_entry -->
+    </select>
+</form>
+<!-- BDP: no_assignments_msg -->
+<div class="static_info">{TR_IP_NOT_ASSIGNED_YET}</div>
+<!-- EDP: no_assignments_msg -->
+<!-- BDP: assignment_rows -->
+<table class="firstColFixed">
     <thead>
     <tr>
-        <th colspan="2">{IP}</th>
+        <th>{TR_CUSTOMER_NAMES}</th>
     </tr>
     </thead>
-    <tfoot>
-    <tr>
-        <td colspan="2">{RECORD_COUNT}</td>
-    </tr>
-    </tfoot>
     <tbody>
-    <!-- BDP: customer_row -->
+    <!-- BDP: assignment_row -->
     <tr>
-        <td>{CUSTOMER_NAME}</td>
+        <td>{CUSTOMER_NAMES}</td>
     </tr>
-    <!-- EDP: customer_row -->
+    <!-- EDP: assignment_row -->
     </tbody>
 </table>
-<!-- EDP: ip_row -->
+<!-- EDP: assignment_rows -->
