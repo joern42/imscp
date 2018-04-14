@@ -156,10 +156,11 @@ sub processBlocByRef( $$$;$$$$ )
             (^\n*)                     # Match optional leading empty lines. Only one is kept and only if bloc tag are kept
             (^[\t ]+|)?($blcTbReg\n?)  # Match optional leading whitespaces, bloc begin tag and optional trailing newline
             (.*?)                      # Match bloc content
-            ((?:^[\t ]+)?$blcTeReg\n?) # Match optional leading whitespaces, bloc ending tag and optional  trailing newline
+            ((?:^[\t ]+)?$blcTeReg\n?) # Match optional leading whitespaces, bloc ending tag and optional trailing newline
         %@{ [ ref $blcC eq 'HASH' ? processVars( $4, $blcC ) : $blcC ] }@{ [ $1 && $pBlcT ? "\n" : '' ] }@{ [ $pBlcT ? $2 . $3 : '' ] }@{ [ $pBlcC ? $4 : '' ] }@{ [ $pBlcT ? $5 : '' ] }%msx )
         && $blcA
     ) {
+        chomp($blcTb, $blcC, $blcTe);
         ${ $tpl } .= "$blcC\n";
         ${ $tpl } .= "$blcTb\n$blcTe\n" if $pBlcT;
     }
