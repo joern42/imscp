@@ -66,7 +66,7 @@ class iMSCP_Database extends PDO
             PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true, // FIXME should be FALSE but we must first review all SQL queries
             PDO::ATTR_STATEMENT_CLASS          => ['iMSCP\Database\ResultSet', [$this->em]]
         ];
-        
+
         parent::__construct("$type:host=$host;dbname=$name;charset=utf8", $user, $pass, $driverOptions);
     }
 
