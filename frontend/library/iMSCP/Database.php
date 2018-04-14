@@ -62,11 +62,11 @@ class iMSCP_Database extends PDO
             // Useless as long PDO::ATTR_EMULATE_PREPARES is TRUE
             // As long as ATTR_EMULATE_PREPARES is TRUE, numeric type will be returned as string
             // PDO::ATTR_STRINGIFY_FETCHES     => true,
-            PDO::MYSQL_ATTR_INIT_COMMAND       => "SET SESSION sql_mode = 'NO_AUTO_CREATE_USER', SESSION group_concat_max_len = 65535",
+            PDO::MYSQL_ATTR_INIT_COMMAND       => "SET @@session.sql_mode = 'NO_AUTO_CREATE_USER', @@session.group_concat_max_len = 4294967295",
             PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true, // FIXME should be FALSE but we must first review all SQL queries
             PDO::ATTR_STATEMENT_CLASS          => ['iMSCP\Database\ResultSet', [$this->em]]
         ];
-
+        
         parent::__construct("$type:host=$host;dbname=$name;charset=utf8", $user, $pass, $driverOptions);
     }
 

@@ -250,7 +250,7 @@ sub _init
             AutoInactiveDestroy  => TRUE,
             Callbacks            => {
                 connected => sub {
-                    $_[0]->do( "SET SESSION sql_mode = 'NO_AUTO_CREATE_USER', SESSION group_concat_max_len = 65535" );
+                    $_[0]->do( "SET \@\@session.sql_mode = 'NO_AUTO_CREATE_USER', \@\@session.group_concat_max_len = 4294967295" );
                     return;
                 }
             },
