@@ -100,9 +100,9 @@ function client_editSubdomain()
     $subdomainData = _client_getSubdomainData($subdomainId, $subdomainType);
     $subdomainData !== FALSE or showBadRequestErrorPage();
 
-    // Check for domain alias IP addresses
+    // Check for subdomain IP addresses
     $subdomainIps = [];
-    if (empty($_POST['subdomain_ips'])) {
+    if (!isset($_POST['subdomain_ips'])) {
         set_page_message(tohtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
         return false;
     } elseif (!is_array($_POST['subdomain_ips'])) {
@@ -242,7 +242,7 @@ function client_generatePage($tpl)
     $forwardHost = 'Off';
 
     if (empty($_POST)) {
-        client_generate_ip_list($tpl, $_SESSION['user_id'], $subdomainData['subdomain_ips']);
+        generateClientIpsList($tpl, $_SESSION['user_id'], $subdomainData['subdomain_ips']);
 
         $documentRoot = strpos($subdomainData['document_root'], '/htdocs') !== FALSE ? substr($subdomainData['document_root'], 7) : '';
 
@@ -261,7 +261,7 @@ function client_generatePage($tpl)
             $forwardType = '302';
         }
     } else {
-        client_generate_ip_list(
+        generateClientIpsList(
             $tpl, $_SESSION['user_id'], isset($_POST['subdomain_ips']) && is_array($_POST['subdomain_ips']) ? $_POST['subdomain_ips'] : []
         );
 

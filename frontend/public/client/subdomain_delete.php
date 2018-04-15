@@ -21,20 +21,10 @@
 use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
 check_login('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-
-if (!customerHasFeature('subdomains')
-    || !isset($_GET['id'])
-) {
-    showBadRequestErrorPage();
-}
-
+customerHasFeature('subdomains') && isset($_GET['id']) or showBadRequestErrorPage();
 deleteSubdomain(intval($_GET['id']));
 redirectTo('domains_manage.php');

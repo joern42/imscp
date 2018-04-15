@@ -131,7 +131,6 @@ function generateNavigation(TemplateEngine $tpl)
 {
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeGenerateNavigation, ['templateEngine' => $tpl]);
 
-    $cfg = Registry::get('config');
     $tpl->define([
         'main_menu_block'       => 'layout',
         'main_menu_link_block'  => 'main_menu_block',
@@ -190,6 +189,8 @@ function generateNavigation(TemplateEngine $tpl)
         }
     }
 
+    $cfg = Registry::get('iMSCP_Application')->getConfig();
+
     // Remove support system page if feature is globally disabled
     if (!$cfg['IMSCP_SUPPORT_SYSTEM']) {
         $navigation->removePage($navigation->findOneBy('class', 'support'));
@@ -226,9 +227,7 @@ function generateNavigation(TemplateEngine $tpl)
         if (NULL !== $callbacks = $page->get('privilege_callback')) {
             $callbacks = isset($callbacks['name']) ? [$callbacks] : $callbacks;
             foreach ($callbacks as $callback) {
-                if (!call_user_func_array(
-                    $callback['name'], isset($callback['param']) ? (array)$callback['param'] : []
-                )) {
+                if (!call_user_func_array($callback['name'], isset($callback['param']) ? (array)$callback['param'] : [])) {
                     continue 2;
                 }
             }
@@ -240,8 +239,7 @@ function generateNavigation(TemplateEngine $tpl)
 
         $tpl->assign([
             'HREF'                    => $page->getHref(),
-            'CLASS'                   => $page->getClass()
-                . ($_SESSION['show_main_menu_labels'] ? ' show_labels' : ''),
+            'CLASS'                   => $page->getClass() . ($_SESSION['show_main_menu_labels'] ? ' show_labels' : ''),
             'IS_ACTIVE_CLASS'         => $page->isActive(true) ? 'active' : 'dummy',
             'TARGET'                  => $page->getTarget() ? tohtml($page->getTarget()) : '_self',
             'MAIN_MENU_LABEL_TOOLTIP' => tohtml($page->getLabel(), 'htmlAttr'),
@@ -277,9 +275,7 @@ function generateNavigation(TemplateEngine $tpl)
             if (NULL !== $callbacks = $subpage->get('privilege_callback')) {
                 $callbacks = isset($callbacks['name']) ? [$callbacks] : $callbacks;
                 foreach ($callbacks AS $callback) {
-                    if (!call_user_func_array(
-                        $callback['name'], isset($callback['param']) ? (array)$callback['param'] : []
-                    )) {
+                    if (!call_user_func_array($callback['name'], isset($callback['param']) ? (array)$callback['param'] : [])) {
                         continue 2;
                     }
                 }
@@ -319,7 +315,7 @@ function generateNavigation(TemplateEngine $tpl)
     $tpl->assign([
         'TR_MENU_LOGOUT' => tohtml(tr('Logout')),
         'VERSION'        => !empty($cfg['Version']) ? $cfg['Version'] : tohtml(tr('Unknown')),
-        'BUILDDATE'      => !empty($cfg['BuildDate']) ? $cfg['BuildDate'] : tohtml(tr('Unavailable')),
+        'BUILDDATE'      => !empty($cfg['BuildDate']) ? $cfg['BuildDate'] : tohtml(tr('Unreleased')),
         'CODENAME'       => !empty($cfg['CodeName']) ? $cfg['CodeName'] : tohtml(tr('Unknown'))
     ]);
 
@@ -491,7 +487,7 @@ function get_search_user_queries($sLimit, $eLimit, $searchField = NULL, $searchV
             $where
         ",
         "
-            SELECT t1.domain_id, t1.domain_name, t1.domain_created, t1.domain_status, t1.domain_disk_limit,
+            SELECT t1.domain_id, t1.domain_name, t1.domain_created, t1.domain_expires, t1.domain_status, t1.domain_disk_limit,
                 t1.domain_disk_usage, t2.admin_id, t2.admin_status, t3.admin_name AS reseller_name
             FROM domain AS t1
             JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
@@ -730,7 +726,10 @@ function gen_user_list(TemplateEngine $tpl)
             'CLIENT_DOMAIN_ID'         => $row['domain_id'],
             'CLIENT_ID'                => $row['admin_id'],
             'CLIENT_CREATED_ON'        => tohtml($row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])),
-            'CLIENT_CREATED_BY'        => tohtml($row['reseller_name'])
+            'CLIENT_CREATED_BY'        => tohtml($row['reseller_name']),
+            'CLIENT_EXPIRY_DATE'       => tohtml(
+                $row['domain_expires'] != 0 ? date(Registry::get('config')['DATE_FORMAT'], $row['domain_expires']) : tr('∞')
+            )
         ]);
 
         if ($statusOk) {
@@ -773,26 +772,26 @@ function get_admin_manage_users(TemplateEngine $tpl)
  *
  * @param TemplateEngine $tpl
  * @param int $resellerId Reseller unique identifier
- * @param array $selectedIps Selected IP addresses (identifiers)
+ * @param array $sips Selected IP addresses (identifiers)
  */
-function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $selectedIps)
+function generateResellerIpsList(TemplateEngine $tpl, $resellerId, array $sips)
 {
-    $stmt = exec_query('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$resellerId]);
-    $resellerIps = explode(',', $stmt->fetchColumn());
+    $ips = exec_query(
+        "
+            SELECT t2.ip_id, t2.ip_number
+            FROM reseller_props AS t1
+            JOIN server_ips AS t2 ON(FIND_IN_SET(t2.ip_id, t1.reseller_ips) AND t2.ip_status = 'ok')
+            WHERE t1.reseller_id = ?
+            ORDER BY LENGTH(t2.ip_number), t2.ip_number
+        ",
+        [$resellerId]
+    )->fetchAll();
 
-    # Discard any IP address that is not assigned to the reseller (IP addresses list from $selectedIps can comes from $_POST)
-    $selectedIps = array_intersect($selectedIps, $resellerIps);
-
-    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips ORDER BY LENGTH(ip_number), ip_number');
-    while ($row = $stmt->fetch()) {
-        if (!in_array($row['ip_id'], $resellerIps)) {
-            continue;
-        }
-
+    foreach ($ips as $ip) {
         $tpl->assign([
-            'IP_NUM'      => tohtml($row['ip_number'] == '0.0.0.0' ? tr('Any') : $row['ip_number'], 'htmlAttr'),
-            'IP_VALUE'    => tohtml($row['ip_id']),
-            'IP_SELECTED' => in_array($row['ip_id'], $selectedIps, true) ? ' selected' : ''
+            'IP_NUM'      => tohtml($ip['ip_number'] == '0.0.0.0' ? tr('Any') : $ip['ip_number'], 'htmlAttr'),
+            'IP_VALUE'    => tohtml($ip['ip_id']),
+            'IP_SELECTED' => in_array($ip['ip_id'], $sips) ? ' selected' : ''
         ]);
         $tpl->parse('IP_ENTRY', '.ip_entry');
     }
@@ -805,26 +804,25 @@ function reseller_generate_ip_list(TemplateEngine $tpl, $resellerId, array $sele
  *
  * @param TemplateEngine $tpl
  * @param int $clientId Client unique identifier
- * @param array $selectedIps Selected IP addresses (identifiers)
+ * @param array $sips Selected IP addresses (identifiers)
  */
-function client_generate_ip_list($tpl, $clientId, array $selectedIps)
+function generateClientIpsList($tpl, $clientId, array $sips)
 {
-    $stmt = exec_query('SELECT domain_client_ips FROM domain WHERE domain_admin_id = ?', [$clientId]);
-    $clientIps = explode(',', $stmt->fetchColumn());
+    $ips = exec_query(
+        "   SELECT t2.ip_id, t2.ip_number
+            FROM domain AS t1
+            JOIN server_ips AS t2 ON(FIND_IN_SET(t2.ip_id, t1.domain_client_ips))
+            WHERE t1.reseller_id = ?
+            ORDER BY LENGTH(t2.ip_number), t2.ip_number
+        ",
+        [$clientId]
+    )->fetchAll();
 
-    # Discard any IP address that is not assigned to the client (IP addresses list from $selectedIps can comes from $_POST)
-    $selectedIps = array_intersect($selectedIps, $clientIps);
-
-    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips ORDER BY LENGTH(ip_number), ip_number');
-    while ($row = $stmt->fetch()) {
-        if (!in_array($row['ip_id'], $clientIps)) {
-            continue;
-        }
-
+    foreach ($ips as $ip) {
         $tpl->assign([
-            'IP_NUM'      => tohtml($row['ip_number'] == '0.0.0.0' ? tr('Any') : $row['ip_number'], 'htmlAttr'),
-            'IP_VALUE'    => tohtml($row['ip_id']),
-            'IP_SELECTED' => in_array($row['ip_id'], $selectedIps, true) ? ' selected' : ''
+            'IP_NUM'      => tohtml($ip['ip_number'] == '0.0.0.0' ? tr('Any') : $ip['ip_number'], 'htmlAttr'),
+            'IP_VALUE'    => tohtml($ip['ip_id']),
+            'IP_SELECTED' => in_array($ip['ip_id'], $sips) ? ' selected' : ''
         ]);
         $tpl->parse('IP_ENTRY', '.ip_entry');
     }

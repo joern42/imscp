@@ -133,9 +133,9 @@ function delete_autoreplies_log_entries()
     execute_query("DELETE FROM autoreplies_log WHERE `from` NOT IN (SELECT mail_addr FROM mail_users WHERE status <> 'todelete')");
 }
 
-/***********************************************************************************************************************
- * Account functions
- */
+//
+// Account functions
+//
 
 /**
  * Returns user name matching identifier
@@ -157,9 +157,9 @@ function get_user_name($userId)
     return $stmt->fetchColumn();
 }
 
-/***********************************************************************************************************************
- * Domain related functions
- */
+//
+// Domain related functions
+//
 
 /**
  * Checks if the given domain name already exist
@@ -324,44 +324,44 @@ function translate_dmn_status($status, $showError = false, $colored = false)
 
     switch ($status) {
         case 'ok':
-            $status =  tohtml(tr('Ok'));
+            $status = tohtml(tr('Ok'));
             break;
         case 'toadd':
-            $status =  tohtml(tr('Addition in progress...'));
+            $status = tohtml(tr('Addition in progress...'));
             break;
         case 'tochange':
         case 'torestore':
         case 'tochangepwd':
-            $status =  tohtml(tr('Modification in progress...'));
+            $status = tohtml(tr('Modification in progress...'));
             break;
         case 'todelete':
-            $status =  tohtml(tr('Deletion in progress...'));
+            $status = tohtml(tr('Deletion in progress...'));
             break;
         case 'disabled':
-            $status =  tohtml(tr('Deactivated'));
+            $status = tohtml(tr('Deactivated'));
             break;
         case 'toenable':
-            $status =  tohtml(tr('Activation in progress...'));
+            $status = tohtml(tr('Activation in progress...'));
             break;
         case 'todisable':
-            $status =  tohtml(tr('Deactivation in progress...'));
+            $status = tohtml(tr('Deactivation in progress...'));
             break;
         case 'ordered':
-            $status =  tohtml(tr('Awaiting for approval'));
+            $status = tohtml(tr('Awaiting for approval'));
             break;
         default:
             $statusOk = FALSE;
-            $status =  $showError ? $status : tr('Unexpected error');
+            $status = $showError ? $status : tr('Unexpected error');
     }
-    
-    if($colored) {
-        if($statusOk) {
+
+    if ($colored) {
+        if ($statusOk) {
             $status = '<span style="color:green;font-weight: bold">' . $status . '</span>';
         } else {
             $status = '<span style="color:red;font-weight: bold">' . $status . '</span>';
         }
     }
-    
+
     return $status;
 }
 
@@ -394,15 +394,9 @@ function update_reseller_c_props($resellerId)
                 WHERE created_by = ?
                 AND domain_status <> 'todelete'
             ) AS t2
-            SET t1.current_dmn_cnt = t2.dmn_count,
-              t1.current_sub_cnt = t2.sub_limit,
-              t1.current_als_cnt = t2.als_limit,
-              t1.current_mail_cnt = t2.mail_limit,
-              t1.current_ftp_cnt = t2.ftp_limit,
-              t1.current_sql_db_cnt = t2.sqld_limit,
-              t1.current_sql_user_cnt = t2.sqlu_limit,
-              t1.current_disk_amnt = t2.disk_limit,
-              t1.current_traff_amnt = t2.traffic_limit
+            SET t1.current_dmn_cnt = t2.dmn_count, t1.current_sub_cnt = t2.sub_limit, t1.current_als_cnt = t2.als_limit,
+                t1.current_mail_cnt = t2.mail_limit, t1.current_ftp_cnt = t2.ftp_limit, t1.current_sql_db_cnt = t2.sqld_limit,
+                t1.current_sql_user_cnt = t2.sqlu_limit, t1.current_disk_amnt = t2.disk_limit, t1.current_traff_amnt = t2.traffic_limit
             WHERE t1.reseller_id = ?
         ",
         [$resellerId, $resellerId]
@@ -453,22 +447,24 @@ function change_domain_status($customerId, $action)
 
         if ($action == 'deactivate') {
             if (Registry::get('config')['HARD_MAIL_SUSPENSION']) { # SMTP/IMAP/POP disabled
-                exec_query('UPDATE mail_users SET status = ?, po_active = ? WHERE domain_id = ?', ['todisable', 'no', $domainId]);
+                exec_query("UPDATE mail_users SET status = 'todisable', po_active = 'no' WHERE domain_id = ?", [$domainId]);
             } else { # IMAP/POP disabled
-                exec_query('UPDATE mail_users SET po_active = ? WHERE domain_id = ?', ['no', $domainId]);
+                exec_query("UPDATE mail_users SET po_active = 'no' WHERE domain_id = ?", [$domainId]);
             }
         } else {
             exec_query(
                 "
                     UPDATE mail_users
-                    SET status = ?, po_active = IF(mail_type LIKE '%_mail%', 'yes', po_active)
-                    WHERE domain_id = ? AND status = ?
+                    SET status = 'toenable', po_active = IF(mail_type LIKE '%_mail%', 'yes', po_active)
+                    WHERE domain_id = ?
+                    AND status = 'disabled'
                 ",
-                ['toenable', $domainId, 'disabled']
+                [$domainId]
             );
-            exec_query("UPDATE mail_users SET po_active = IF(mail_type LIKE '%_mail%', 'yes', po_active) WHERE domain_id = ? AND status <> ?", [
-                $domainId, 'disabled'
-            ]);
+            exec_query(
+                "UPDATE mail_users SET po_active = IF(mail_type LIKE '%_mail%', 'yes', po_active) WHERE domain_id = ? AND status <> 'disabled'",
+                [$domainId]
+            );
         }
 
         # TODO implements customer deactivation
@@ -738,9 +734,7 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
                 UPDATE ssl_certs
                 SET status = 'todelete'
                 WHERE domain_id IN (
-                    SELECT subdomain_alias_id
-                    FROM subdomain_alias
-                    WHERE alias_id IN (SELECT alias_id FROM domain_aliases WHERE domain_id = ?)
+                    SELECT subdomain_alias_id FROM subdomain_alias WHERE alias_id IN (SELECT alias_id FROM domain_aliases WHERE domain_id = ?)
                 )
                 AND domain_type = 'alssub'
             ",
@@ -842,11 +836,7 @@ function deleteDomainAlias($customerId, $mainDomainId, $aliasId, $aliasName, $al
                 LEFT JOIN domain_aliases AS t2 ON(alias_id = ?)
                 LEFT JOIN subdomain_alias AS t3 USING(alias_id)
                 SET status = 'todelete'
-                WHERE (
-                    userid LIKE CONCAT('%@', t3.subdomain_alias_name, '.', t2.alias_name)
-                    OR
-                    userid LIKE CONCAT('%@', t2.alias_name)
-                )
+                WHERE (userid LIKE CONCAT('%@', t3.subdomain_alias_name, '.', t2.alias_name) OR userid LIKE CONCAT('%@', t2.alias_name))
             ",
             [$aliasId]
         );
@@ -856,12 +846,8 @@ function deleteDomainAlias($customerId, $mainDomainId, $aliasId, $aliasName, $al
             "
                 UPDATE mail_users
                 SET status = 'todelete'
-                WHERE (
-                    sub_id = ? AND mail_type LIKE '%alias_%'
-                ) OR (
-                    sub_id IN (SELECT subdomain_alias_id FROM subdomain_alias WHERE alias_id = ?)
-                    AND mail_type LIKE '%alssub_%'
-                )
+                WHERE (sub_id = ? AND mail_type LIKE '%alias_%')
+                OR (sub_id IN (SELECT subdomain_alias_id FROM subdomain_alias WHERE alias_id = ?) AND mail_type LIKE '%alssub_%')
             ",
             [$aliasId, $aliasId]
         );
@@ -907,9 +893,9 @@ function deleteDomainAlias($customerId, $mainDomainId, $aliasId, $aliasName, $al
     }
 }
 
-/***********************************************************************************************************************
- * Reseller related functions
- */
+//
+// Reseller related functions
+//
 
 /**
  * Returns properties for the given reseller
@@ -957,25 +943,24 @@ function update_reseller_props($resellerId, $props)
 
     $stmt = exec_query(
         '
-            UPDATE reseller_props SET current_dmn_cnt = ?, max_dmn_cnt = ?, current_sub_cnt = ?, max_sub_cnt = ?,
-                current_als_cnt = ?, max_als_cnt = ?, current_mail_cnt = ?, max_mail_cnt = ?, current_ftp_cnt = ?,
-                max_ftp_cnt = ?, current_sql_db_cnt = ?, max_sql_db_cnt = ?, current_sql_user_cnt = ?,
-                max_sql_user_cnt = ?, current_traff_amnt = ?, max_traff_amnt = ?, current_disk_amnt = ?,
+            UPDATE reseller_props SET current_dmn_cnt = ?, max_dmn_cnt = ?, current_sub_cnt = ?, max_sub_cnt = ?, current_als_cnt = ?,
+                max_als_cnt = ?, current_mail_cnt = ?, max_mail_cnt = ?, current_ftp_cnt = ?, max_ftp_cnt = ?, current_sql_db_cnt = ?,
+                max_sql_db_cnt = ?, current_sql_user_cnt = ?, max_sql_user_cnt = ?, current_traff_amnt = ?, max_traff_amnt = ?, current_disk_amnt = ?,
                 max_disk_amnt = ?
             WHERE reseller_id = ?
         ',
         [
-            $dmnCur, $dmnMax, $subCur, $subMax, $alsCur, $alsMax, $mailCur, $mailMax, $ftpCur, $ftpMax, $sqlDbCur,
-            $sqlDbMax, $sqlUserCur, $sqlUserMax, $traffCur, $traffMax, $diskCur, $diskMax, $resellerId
+            $dmnCur, $dmnMax, $subCur, $subMax, $alsCur, $alsMax, $mailCur, $mailMax, $ftpCur, $ftpMax, $sqlDbCur, $sqlDbMax, $sqlUserCur,
+            $sqlUserMax, $traffCur, $traffMax, $diskCur, $diskMax, $resellerId
         ]
     );
 
     return $stmt;
 }
 
-/***********************************************************************************************************************
- * Mail functions
- */
+//
+// Mail functions
+//
 
 /**
  * Synchronizes mailboxes quota that belong to the given domain using the given quota limit
@@ -1048,9 +1033,9 @@ function sync_mailboxes_quota($domainId, $newQuota)
     }
 }
 
-/***********************************************************************************************************************
- * Utils functions
- */
+//
+// Utils functions
+//
 
 /**
  * Redirect to the given location
@@ -1163,9 +1148,7 @@ function utils_uploadFile($inputFieldName, $destPath)
                 set_page_message(tr('A PHP extension stopped the file upload.'), 'error');
                 break;
             default:
-                set_page_message(
-                    tr('An unknown error occurred during file upload: %s', $_FILES[$inputFieldName]['error']), 'error'
-                );
+                set_page_message(tr('An unknown error occurred during file upload: %s', $_FILES[$inputFieldName]['error']), 'error');
         }
 
         return false;
@@ -1271,7 +1254,7 @@ function utils_normalizePath($path, $posixCompliant = false)
         $path = str_repeat('/', $initialSlashes) . $path;
     }
 
-    return (isset($path)) ? $path : '.';
+    return isset($path) ? $path : '.';
 }
 
 /**
@@ -1381,9 +1364,9 @@ function utils_arrayDiffRecursive(array $array1, array $array2)
     return $diff;
 }
 
-/***********************************************************************************************************************
- * Checks functions
- */
+//
+// Checks functions
+//
 
 /**
  * Checks if all of the characters in the provided string are numerical
@@ -1451,7 +1434,7 @@ function isSerialized($data)
 function isJson($string)
 {
     json_decode($string);
-    return (json_last_error() == JSON_ERROR_NONE);
+    return json_last_error() == JSON_ERROR_NONE;
 }
 
 /**
@@ -1539,12 +1522,12 @@ function getRequestPort()
         return $_SERVER['HTTP_X_FORWARDED_PORT'];
     }
 
-    if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https') {
         return 443;
     }
 
     if ($host = $_SERVER['HTTP_HOST']) {
-        if ($host[0] === '[') {
+        if ($host[0] == '[') {
             $pos = strpos($host, ':', strrpos($host, ']'));
         } else {
             $pos = strrpos($host, ':');
@@ -1554,7 +1537,7 @@ function getRequestPort()
             return (int)substr($host, $pos + 1);
         }
 
-        return 'https' === getRequestScheme() ? 443 : 80;
+        return 'https' == getRequestScheme() ? 443 : 80;
     }
 
     return $_SERVER['SERVER_PORT'];
@@ -1596,9 +1579,9 @@ function getRequestBaseUrl()
     return $scheme . '://' . getRequestHost() . ':' . $port;
 }
 
-/***********************************************************************************************************************
- * Logging related functions
- */
+//
+// Logging related functions
+//
 
 /**
  * Writes a log message in database and notify administrator by email
@@ -1707,9 +1690,9 @@ function send_add_user_auto_msg($adminId, $uname, $upass, $uemail, $ufname, $uln
     return true;
 }
 
-/***********************************************************************************************************************
- * Softwares installer functions
- */
+//
+// Softwares installer functions
+//
 
 /**
  * Get all software installer options
@@ -1819,13 +1802,12 @@ function get_webdepot_software_list($tpl, $userId)
                 'TR_PACKAGE_VERSION'      => tohtml($row['package_version']),
                 'TR_PACKAGE_LANGUAGE'     => tohtml($row['package_language']),
                 'TR_PACKAGE_TYPE'         => tohtml($row['package_type']),
-                'TR_PACKAGE_VENDOR_HP'    => $row['package_vendor_hp'] === ''
+                'TR_PACKAGE_VENDOR_HP'    => $row['package_vendor_hp'] == ''
                     ? tr('N/A') : '<a href="' . $row['package_vendor_hp'] . '" target="_blank">' . tr('Vendor hompage') . '</a>'
             ]);
 
             list($isInstalled, $installedOn) = check_package_is_installed(
-                $row['package_install_type'], $row['package_title'], $row['package_version'], $row['package_language'],
-                $userId
+                $row['package_install_type'], $row['package_title'], $row['package_version'], $row['package_language'], $userId
             );
 
             if ($isInstalled) {
@@ -1893,8 +1875,8 @@ function update_webdepot_software_list($repositoryIndexFile, $webRepositoryLastU
                     '
                         INSERT INTO
                             web_software_depot (
-                                package_install_type, package_title, package_version, package_language, package_type,
-                                package_description, package_vendor_hp, package_download_link, package_signature_link
+                                package_install_type, package_title, package_version, package_language, package_type, package_description,
+                                package_vendor_hp, package_download_link, package_signature_link
                             ) VALUES (
                                 ?, ?, ?, ?, ?, ?, ?, ?, ?
                             )
@@ -1934,9 +1916,9 @@ function generate_software_upload_token()
     return $_SESSION['software_upload_token'] = md5(uniqid(microtime(), true));
 }
 
-/***********************************************************************************************************************
- * iMSCP daemon related functions
- */
+//
+// iMSCP daemon related functions
+//
 
 /**
  * Read an answer from i-MSCP daemon
@@ -2034,9 +2016,9 @@ function send_request()
     return $ret;
 }
 
-/***********************************************************************************************************************
- * Database related functions
- */
+//
+// Database related functions
+//
 
 /**
  * Convenience function to prepare and execute a SQL statement
@@ -2108,9 +2090,9 @@ function quoteValue($value, $parameterType = PDO::PARAM_STR)
     return Registry::get('iMSCP_Application')->getDatabase()->quote($value, $parameterType);
 }
 
-/***********************************************************************************************************************
- * Unclassified functions
- */
+//
+// Unclassified functions
+//
 
 /**
  * Unset global variables
@@ -2119,11 +2101,7 @@ function quoteValue($value, $parameterType = PDO::PARAM_STR)
  */
 function unsetMessages()
 {
-    $glToUnset = [
-        'user_updated', 'dmn_tpl', 'chtpl', 'step_one', 'step_two_data', 'ch_hpprops', 'user_add3_added', 'user_has_domain', 'local_data',
-        'reseller_added', 'user_added', 'aladd', 'edit_ID', 'aldel', 'hpid', 'user_deleted', 'hdomain', 'aledit', 'acreated_by', 'dhavesub', 'ddel',
-        'dhavealias', 'dhavealias', 'dadel', 'local_data'
-    ];
+    $glToUnset = ['dmn_name', 'dmn_tpl', 'chtpl', 'step_one', 'step_two_data', 'ch_hpprops', 'local_data'];
 
     foreach ($glToUnset as $toUnset) {
         if (array_key_exists($toUnset, $GLOBALS)) {
@@ -2132,118 +2110,14 @@ function unsetMessages()
     }
 
     $sessToUnset = [
-        'reseller_added', 'dmn_name', 'dmn_tpl', 'chtpl', 'step_one', 'step_two_data', 'ch_hpprops', 'user_add3_added', 'user_has_domain',
-        'user_added', 'aladd', 'edit_ID', 'aldel', 'hpid', 'user_deleted', 'hdomain', 'aledit', 'acreated_by', 'dhavesub', 'ddel', 'dhavealias',
-        'dadel', 'local_data', 'dmn_expire', 'dmn_url_forward', 'dmn_type_forward', 'dmn_host_forward'
+        'dmn_name', 'dmn_tpl', 'chtpl', 'step_one', 'step_two_data', 'ch_hpprops', 'local_data', 'dmn_expire', 'dmn_url_forward', 'dmn_type_forward',
+        'dmn_host_forward'
     ];
 
     foreach ($sessToUnset as $toUnset) {
         if (array_key_exists($toUnset, $_SESSION)) {
             unset($_SESSION[$toUnset]);
         }
-    }
-}
-
-if (!function_exists('http_build_url')) {
-    define('HTTP_URL_REPLACE', 1); // Replace every part of the first URL when there's one of the second URL
-    define('HTTP_URL_JOIN_PATH', 2); // Join relative paths
-    define('HTTP_URL_JOIN_QUERY', 4); // Join query strings
-    define('HTTP_URL_STRIP_USER', 8); // Strip any user authentication information
-    define('HTTP_URL_STRIP_PASS', 16); // Strip any password authentication information
-    define('HTTP_URL_STRIP_AUTH', 32); // Strip any authentication information
-    define('HTTP_URL_STRIP_PORT', 64); // Strip explicit port numbers
-    define('HTTP_URL_STRIP_PATH', 128); // Strip complete path
-    define('HTTP_URL_STRIP_QUERY', 256); // Strip query string
-    define('HTTP_URL_STRIP_FRAGMENT', 512); // Strip any fragments (#identifier)
-    define('HTTP_URL_STRIP_ALL', 1024); // Strip anything but scheme and host
-
-    /**
-     * Build an URL.
-     *
-     * The parts of the second URL will be merged into the first according to the flags argument.
-     *
-     * @param mixed $url (Part(s) of) an URL in form of a string or associative array like parse_url() returns
-     * @param mixed $parts Same as the first argument
-     * @param int $flags A bitmask of binary or'ed HTTP_URL constants (Optional)HTTP_URL_REPLACE is the default
-     * @param bool|array $newUrl If set, it will be filled with the parts of the composed url like parse_url() would return
-     * @return string URL
-     */
-    function http_build_url($url, $parts = [], $flags = HTTP_URL_REPLACE, &$newUrl = false)
-    {
-        $keys = ['user', 'pass', 'port', 'path', 'query', 'fragment'];
-
-        // HTTP_URL_STRIP_ALL becomes all the HTTP_URL_STRIP_Xs
-        if ($flags & HTTP_URL_STRIP_ALL) {
-            $flags |= HTTP_URL_STRIP_USER;
-            $flags |= HTTP_URL_STRIP_PASS;
-            $flags |= HTTP_URL_STRIP_PORT;
-            $flags |= HTTP_URL_STRIP_PATH;
-            $flags |= HTTP_URL_STRIP_QUERY;
-            $flags |= HTTP_URL_STRIP_FRAGMENT;
-        } // HTTP_URL_STRIP_AUTH becomes HTTP_URL_STRIP_USER and HTTP_URL_STRIP_PASS
-        else if ($flags & HTTP_URL_STRIP_AUTH) {
-            $flags |= HTTP_URL_STRIP_USER;
-            $flags |= HTTP_URL_STRIP_PASS;
-        }
-
-        // Parse the original URL
-        $parseUrl = parse_url($url);
-
-        // Scheme and Host are always replaced
-        if (isset($parts['scheme'])) {
-            $parseUrl['scheme'] = $parts['scheme'];
-        }
-
-        if (isset($parts['host'])) {
-            $parseUrl['host'] = $parts['host'];
-        }
-
-        // (If applicable) Replace the original URL with it's new parts
-        if ($flags & HTTP_URL_REPLACE) {
-            foreach ($keys as $key) {
-                if (isset($parts[$key])) {
-                    $parseUrl[$key] = $parts[$key];
-                }
-            }
-        } else {
-            // Join the original URL path with the new path
-            if (isset($parts['path']) && ($flags & HTTP_URL_JOIN_PATH)) {
-                if (isset($parseUrl['path'])) {
-                    $parseUrl['path'] = rtrim(str_replace(basename($parseUrl['path']), '', $parseUrl['path']), '/') .
-                        '/' . ltrim($parts['path'], '/');
-                } else {
-                    $parseUrl['path'] = $parts['path'];
-                }
-            }
-
-            // Join the original query string with the new query string
-            if (isset($parts['query']) && ($flags & HTTP_URL_JOIN_QUERY)) {
-                if (isset($parseUrl['query'])) {
-                    $parseUrl['query'] .= '&' . $parts['query'];
-                } else {
-                    $parseUrl['query'] = $parts['query'];
-                }
-            }
-        }
-
-        // Strips all the applicable sections of the URL
-        // Note: Scheme and Host are never stripped
-        foreach ($keys as $key) {
-            if ($flags & (int)constant('HTTP_URL_STRIP_' . strtoupper($key))) {
-                unset($parseUrl[$key]);
-            }
-        }
-
-        $newUrl = $parseUrl;
-
-        return
-            (isset($parseUrl['scheme']) ? $parseUrl['scheme'] . '://' : '')
-            . (isset($parseUrl['user']) ? $parseUrl['user'] . (isset($parseUrl['pass']) ? ':' . $parseUrl['pass'] : '') . '@' : '')
-            . (isset($parseUrl['host']) ? $parseUrl['host'] : '')
-            . (isset($parseUrl['port']) ? ':' . $parseUrl['port'] : '')
-            . (isset($parseUrl['path']) ? $parseUrl['path'] : '')
-            . (isset($parseUrl['query']) ? '?' . $parseUrl['query'] : '')
-            . (isset($parseUrl['fragment']) ? '#' . $parseUrl['fragment'] : '');
     }
 }
 
@@ -2377,37 +2251,37 @@ function mebibytesHuman($mebibyte, $unit = NULL, $decimals = 2, $power = 1024)
 }
 
 /**
- * Translates '-1', 'no', 'yes', '0' or mebibyte value string into human
- * readable string
+ * Humanize database value
  *
  * @param int $value variable to be translated
  * @param bool $autosize calculate value in different unit (default false)
  * @param string $to OPTIONAL Unit to calclulate to ('B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')
  * @return String
  */
-function translate_limit_value($value, $autosize = false, $to = null)
+function humanizeDbValue($value, $autosize = false, $to = NULL)
 {
-    $trEnabled = '<span style="color:green;font-weight: bold">' . tohtml(tr('Yes')) . '</span>';
-    $trDisabled = '<span style="color:red;font-weight: bold">' . tohtml(tr('No')) . '</span>';
-
-    switch ($value) {
+    switch (strtolower($value)) {
         case '-1':
             return '-';
         case  '0':
             return '∞';
         case '_yes_':
         case 'yes':
-            return $trEnabled;
+            return '<span style="color:green;font-weight:bold;">' . tohtml(tr('Enabled')) . '</span>';
         case '_no_':
         case 'no':
-        case '': # Backup feature case
-            return $trDisabled;
-        case 'full':
-            return '<span style="color:green">' . tohtml(tr('Domain and SQL databases')) . '</span>';
+        case '':
+            return '<span style="color:#a3a3a3;font-weight:bold;">' . tohtml(tr('Disabled')) . '</span>';
+        case('dmn|sql|mail'):
+            return '<span style="color:green;font-weight:bold;">' . tohtml(tr('Web data, SQL data and mail data')) . '</span>';
+        case 'sql|mail':
+            return '<span style="color:green;font-weight:bold;">' . tohtml(tr('Mail data and SQL data only')) . '</span>';
         case 'dmn':
-            return '<span style="color:green">' . tohtml(tr('Web files only')) . '</span>';
+            return '<span style="color:green;font-weight:bold;">' . tohtml(tr('Web data only')) . '</span>';
         case 'sql':
-            return '<span style="color:green">' . tohtml(tr('SQL databases only')) . '</span>';
+            return '<span style="color:green;font-weight:bold;">' . tohtml(tr('SQL data only')) . '</span>';
+        case 'mail':
+            return '<span style="color:green;font-weight:bold;">' . tohtml(tr('Mail data only')) . '</span>';
         default:
             return tohtml($autosize ? mebibytesHuman($value, $to) : $value);
     }

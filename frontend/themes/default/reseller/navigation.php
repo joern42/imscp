@@ -53,7 +53,7 @@ return [
                     'account_details' => [
                         'label'       => tr('{VL_ACCOUNT_NAME} account details'),
                         'uri'         => '/reseller/account_details.php',
-                        'title_class' => 'domains',
+                        'title_class' => 'user_blue',
                         'visible'     => false,
                     ],
                     'account_edit'    => [

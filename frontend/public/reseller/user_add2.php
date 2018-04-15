@@ -23,10 +23,6 @@ use iMSCP\TemplateEngine;
 use iMSCP_Config_Handler_File as ConfigFile;
 use iMSCP_Registry as Registry;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
  * Get first step data
  *
@@ -353,13 +349,13 @@ function checkInputData()
     $extMail = isset($_POST['external_mail']) ? clean_input($_POST['external_mail']) : $extMail;
     $webFolderProtection = isset($_POST['web_folder_protection']) ? clean_input($_POST['web_folder_protection']) : $webFolderProtection;
 
-    $php = $php === '_yes_' ? '_yes_' : '_no_';
-    $cgi = $cgi === '_yes_' ? '_yes_' : '_no_';
-    $dns = resellerHasFeature('custom_dns_records') && $dns === '_yes_' ? '_yes_' : '_no_';
+    $php = $php == '_yes_' ? '_yes_' : '_no_';
+    $cgi = $cgi == '_yes_' ? '_yes_' : '_no_';
+    $dns = resellerHasFeature('custom_dns_records') && $dns == '_yes_' ? '_yes_' : '_no_';
     $backup = resellerHasFeature('backup') ? array_intersect($backup, ['_dmn_', '_sql_', '_mail_']) : [];
-    $aps = resellerHasFeature('aps') && $aps === '_yes_' ? '_yes_' : '_no_';
-    $extMail = $extMail === '_yes_' ? '_yes_' : '_no_';
-    $webFolderProtection = $webFolderProtection === '_yes_' ? '_yes_' : '_no_';
+    $aps = resellerHasFeature('aps') && $aps == '_yes_' ? '_yes_' : '_no_';
+    $extMail = $extMail == '_yes_' ? '_yes_' : '_no_';
+    $webFolderProtection = $webFolderProtection == '_yes_' ? '_yes_' : '_no_';
 
     if ($aps == '_yes_') { // Ensure that PHP is enabled when software installer is enabled
         $php = '_yes_';

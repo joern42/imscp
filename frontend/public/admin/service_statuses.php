@@ -18,14 +18,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Events as Events;
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
 use iMSCP_Services as Services;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Generate page
@@ -35,16 +31,16 @@ use iMSCP_Services as Services;
  */
 function generatePage(TemplateEngine $tpl)
 {
+    $imscpDaemonType = json_decode(Registry::get('iMSCP_Application')->getConfig()['iMSCP_INFO'])->daemon_type;
     $services = new Services();
 
     foreach ($services as $service) {
         $isRunning = $services->isRunning(isset($_GET['refresh']));
 
         if ($isRunning && $service[0] == 23) {
-            set_page_message(
-                tr('The Telnet-Server is currently running on your server. This legacy service is not secure.'),
-                'static_warning'
-            );
+            set_page_message(tr('The Telnet-Server is currently running on your server. This legacy service is not secure.'), 'static_warning');
+        } elseif ($service[0] == 9876 && $imscpDaemonType != 'imscp') {
+            continue;
         }
 
         if (!$service[3]) {
@@ -53,24 +49,20 @@ function generatePage(TemplateEngine $tpl)
 
         $tpl->assign([
             'SERVICE'        => tohtml($service[2]),
-            'IP'             => ($service[4] === '0.0.0.0') ? tr('Any') : tohtml($service[4]),
+            'IP'             => $service[4] == '0.0.0.0' ? tohtml(tr('Any')) : tohtml($service[4]),
             'PORT'           => tohtml($service[0]),
-            'STATUS'         => $isRunning ? tr('UP') : tr('DOWN'),
-            'CLASS'          => $isRunning ? 'up' : 'down',
+            'STATUS'         => $isRunning ? tohtml(tr('UP')) : tohtml(tr('DOWN')),
+            'CLASS'          => $isRunning ? 'up' : ($service[0] != 23 ? 'down' : 'up'),
             'STATUS_TOOLTIP' => tohtml($isRunning ? tr('Service is running') : tr('Service is not running'), 'htmlAttr')
         ]);
         $tpl->parse('SERVICE_STATUS', '.service_status');
     }
 
     if (isset($_GET['refresh'])) {
-        set_page_message('Service statuses were refreshed.', 'success');
+        set_page_message(tohtml(tr('Service statuses were refreshed.')), 'success');
         redirectTo('service_statuses.php');
     }
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require 'imscp-lib.php';
 

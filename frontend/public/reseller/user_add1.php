@@ -1,36 +1,25 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * The Original Code is "VHCS - Virtual Hosting Control System".
- *
- * The Initial Developer of the Original Code is moleSoftware GmbH.
- * Portions created by Initial Developer are Copyright (C) 2001-2006
- * by moleSoftware GmbH. All Rights Reserved.
- *
- * Portions created by the ispCP Team are Copyright (C) 2006-2010 by
- * isp Control Panel. All Rights Reserved.
- *
- * Portions created by the i-MSCP Team are Copyright (C) 2010-2018 by
- * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Check input data
@@ -39,7 +28,7 @@ use iMSCP_Registry as Registry;
  */
 function reseller_checkData()
 {
-    if (!isset($_POST['dmn_name']) || $_POST['dmn_name'] === '') {
+    if (!isset($_POST['dmn_name']) || $_POST['dmn_name'] == '') {
         set_page_message(tr('Domain name cannot be empty.'), 'error');
         return;
     }
@@ -69,14 +58,10 @@ function reseller_checkData()
     $forwardHost = 'Off';
 
     // Check for URL forwarding option
-    if (isset($_POST['url_forwarding'])
-        && $_POST['url_forwarding'] == 'yes'
-        && isset($_POST['forward_type'])
+    if (isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' && isset($_POST['forward_type'])
         && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)
     ) {
-        if (!isset($_POST['forward_url_scheme']) || !isset($_POST['forward_url'])) {
-            showBadRequestErrorPage();
-        }
+        isset($_POST['forward_url_scheme']) && isset($_POST['forward_url']) or showBadRequestErrorPage();
 
         $forwardUrl = clean_input($_POST['forward_url_scheme']) . clean_input($_POST['forward_url']);
         $forwardType = clean_input($_POST['forward_type']);
@@ -117,13 +102,13 @@ function reseller_checkData()
         }
     }
 
-    if ((!isset($_POST['datepicker']) || $_POST['datepicker'] === '') && !isset($_POST['never_expire'])) {
+    if ((!isset($_POST['datepicker']) || $_POST['datepicker'] == '') && !isset($_POST['never_expire'])) {
         set_page_message(tr('Domain expiration date must be filled.'), 'error');
         return;
     }
 
     $dmnExpire = (isset($_POST['datepicker'])) ? @strtotime(clean_input($_POST['datepicker'])) : 0;
-    if ($dmnExpire === false) {
+    if ($dmnExpire == false) {
         set_page_message('Invalid expiration date.', 'error');
         return;
     }
@@ -209,10 +194,6 @@ function reseller_generatePage($tpl)
     }
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require 'imscp-lib.php';
 
 check_login('reseller');
@@ -241,18 +222,18 @@ $tpl->assign([
     'TR_CHOOSE_HOSTING_PLAN'    => tohtml(tr('Choose hosting plan')),
     'TR_PERSONALIZE_TEMPLATE'   => tohtml(tr('Personalise template')),
     'TR_URL_FORWARDING'         => tohtml(tr('URL forwarding')),
-    'TR_URL_FORWARDING_TOOLTIP' => tohtml(tr('Allows to forward any request made to this domain to a specific URL.')),
+    'TR_URL_FORWARDING_TOOLTIP' => tohtml(tr('Allows to forward any request made to this domain to a specific URL.'), 'htmlAttr'),
     'TR_FORWARD_TO_URL'         => tohtml(tr('Forward to URL')),
     'TR_YES'                    => tohtml(tr('Yes'), 'htmlAttr'),
     'TR_NO'                     => tohtml(tr('No'), 'htmlAttr'),
     'TR_HTTP'                   => tohtml('http://'),
     'TR_HTTPS'                  => tohtml('https://'),
     'TR_FORWARD_TYPE'           => tohtml(tr('Forward type')),
-    'TR_301'                    => '301',
-    'TR_302'                    => '302',
-    'TR_303'                    => '303',
-    'TR_307'                    => '307',
-    'TR_PROXY'                  => 'PROXY',
+    'TR_301'                    => tohtml('301'),
+    'TR_302'                    => tohtml('302'),
+    'TR_303'                    => tohtml('303'),
+    'TR_307'                    => tohtml('307'),
+    'TR_PROXY'                  => tohtml(tr('Proxy')),
     'TR_PROXY_PRESERVE_HOST'    => tohtml(tr('Preserve Host')),
     'TR_NEXT_STEP'              => tohtml(tr('Next step'))
 ]);

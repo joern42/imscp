@@ -65,7 +65,7 @@ $tpl->define([
 ]);
 
 $tpl->assign([
-    'productLongName'  => tr('internet Multi Server Control Panel'),
+    'productLongName'  => tohtml(tr('internet Multi Server Control Panel')),
     'productLink'      => 'https://www.i-mscp.net',
     'productCopyright' => tr('© 2010-2018 i-MSCP Team<br>All Rights Reserved')
 ]);
@@ -75,13 +75,13 @@ $cfg = Registry::get('config');
 if ($cfg['MAINTENANCEMODE'] && !isset($_GET['admin'])) {
     $tpl->define('page', 'message.tpl');
     $tpl->assign([
-        'TR_PAGE_TITLE'           => tr('i-MSCP - Multi Server Control Panel / Maintenance'),
+        'TR_PAGE_TITLE'           => tohtml(tr('i-MSCP - Multi Server Control Panel / Maintenance')),
         'HEADER_BLOCK'            => '',
-        'BOX_MESSAGE_TITLE'       => tr('System under maintenance'),
-        'BOX_MESSAGE'             => (isset($cfg['MAINTENANCEMODE_MESSAGE']))
+        'BOX_MESSAGE_TITLE'       => tohtml(tr('System under maintenance')),
+        'BOX_MESSAGE'             => isset($cfg['MAINTENANCEMODE_MESSAGE'])
             ? preg_replace('/\s\s+/', '', nl2br(tohtml($cfg['MAINTENANCEMODE_MESSAGE'])))
             : tr("We are sorry, but the system is currently under maintenance.\nPlease try again later."),
-        'TR_BACK'                 => tr('Administrator login'),
+        'TR_BACK'                 => tohtml(tr('Administrator login')),
         'BACK_BUTTON_DESTINATION' => '/index.php?admin=1'
     ]);
 } else {

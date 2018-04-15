@@ -141,9 +141,9 @@ function addSubdomain()
         return false;
     }
 
-    // Check for domain alias IP addresses
+    // Check for subdomain IP addresses
     $subdomainIps = [];
-    if (empty($_POST['subdomain_ips'])) {
+    if (!isset($_POST['subdomain_ips'])) {
         set_page_message(tohtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
         return false;
     } elseif (!is_array($_POST['subdomain_ips'])) {
@@ -399,7 +399,7 @@ function generatePage($tpl)
         ]);
     }
 
-    client_generate_ip_list(
+    generateClientIpsList(
         $tpl, $_SESSION['user_id'], isset($_POST['subdomain_ips']) && is_array($_POST['subdomain_ips']) ? $_POST['subdomain_ips'] : []
     );
 }

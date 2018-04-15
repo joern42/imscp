@@ -11,13 +11,6 @@
         });
 
         $("#domain_expires").datepicker();
-        $("#domain_never_expires").on('change', function () {
-            if ($(this).is(":checked")) {
-                $("#domain_expires").val("").css("border-color", "#dfdfdf").prop("disabled", true);
-            } else {
-                $("#domain_expires").prop("disabled", false);
-            }
-        });
 
         $("#domain_disk_limit").on('keyup mouseup paste copy cut', function () {
             var storageQuotaLimit = parseInt($(this).val());
@@ -49,7 +42,7 @@
         });
     });
 </script>
-<form method="post" action="account_edit.php?edit_id={EDIT_ID}">
+<form method="post" action="account_edit.php?client_id={CLIENT_ID}">
     <table class="firstColFixed">
         <thead>
         <tr>
@@ -61,19 +54,9 @@
             <td>{TR_ACCOUNT_NAME}</td>
             <td>{ACCOUNT_NAME}</td>
         </tr>
-        <!--
         <tr>
-            <td>{TR_PRIMARY_DOMAIN_NAME}</td>
-            <td>{PRIMARY_DOMAIN_NAME}</td>
-        </tr>
-        -->
-        <tr>
-            <td>{TR_EXPIRATION_DATE}</td>
-            <td>
-                <input type="text" id="domain_expires" name="domain_expires" value="{DOMAIN_NEW_EXPIRE_DATE}"{DOMAIN_NEW_EXPIRE_DATE_DISABLED}>
-                <input type="checkbox" name="domain_never_expires" id="domain_never_expires"{DOMAIN_NEVER_EXPIRES_CHECKED}>
-                <label for="domain_never_expires">{TR_DOMAIN_NEVER_EXPIRES}</label>
-            </td>
+            <td><label for="domain_expires">{TR_EXPIRY_DATE} <span class="i_help icon" title="{TR_TOOLTIP_ACCOUNT_EXPIRY_DATE}"></span></label></td>
+            <td><input type="text" id="domain_expires" name="domain_expires" value="{ACCOUNT_EXPIRY_DATE}"></td>
         </tr>
         <tr>
             <td><label for="domain_client_ips">{TR_IPS}</label></td>

@@ -59,12 +59,12 @@ function _generateUserStatistics(TemplateEngine $tpl, $adminId)
         'FTP'                   => tohtml(bytesHuman($ftpTraffic)),
         'SMTP'                  => tohtml(bytesHuman($smtpTraffic)),
         'POP3'                  => tohtml(bytesHuman($pop3Traffic)),
-        'SUB_MSG'               => tohtml(sprintf('%s / %s', $subCount, translate_limit_value($subLimit))),
-        'ALS_MSG'               => tohtml(sprintf('%s / %s', $alsCount, translate_limit_value($alsLimit))),
-        'MAIL_MSG'              => tohtml(sprintf('%s / %s', $mailCount, translate_limit_value($mailLimit))),
-        'FTP_MSG'               => tohtml(sprintf('%s / %s', $ftpCount, translate_limit_value($ftpLimit))),
-        'SQL_DB_MSG'            => tohtml(sprintf('%s / %s', $sqlDbCount, translate_limit_value($sqlDbLimit))),
-        'SQL_USER_MSG'          => tohtml(sprintf('%s / %s', $sqlUsersCount, translate_limit_value($sqlUsersLlimit)))
+        'SUB_MSG'               => tohtml(sprintf('%s / %s', $subCount, humanizeDbValue($subLimit))),
+        'ALS_MSG'               => tohtml(sprintf('%s / %s', $alsCount, humanizeDbValue($alsLimit))),
+        'MAIL_MSG'              => tohtml(sprintf('%s / %s', $mailCount, humanizeDbValue($mailLimit))),
+        'FTP_MSG'               => tohtml(sprintf('%s / %s', $ftpCount, humanizeDbValue($ftpLimit))),
+        'SQL_DB_MSG'            => tohtml(sprintf('%s / %s', $sqlDbCount, humanizeDbValue($sqlDbLimit))),
+        'SQL_USER_MSG'          => tohtml(sprintf('%s / %s', $sqlUsersCount, humanizeDbValue($sqlUsersLlimit)))
     ]);
 }
 

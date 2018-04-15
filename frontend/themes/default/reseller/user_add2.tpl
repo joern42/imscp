@@ -59,48 +59,48 @@
         <!-- BDP: subdomain_feature -->
         <tr>
             <td><label for="nreseller_max_subdomain_cnt">{TR_MAX_SUBDOMAIN}</label></td>
-            <td><input type="number" name="nreseller_max_subdomain_cnt" id="nreseller_max_subdomain_cnt" min="-1" value="{MAX_SUBDMN_CNT}"></td>
+            <td><input type="number" name="nreseller_max_subdomain_cnt" id="nreseller_max_subdomain_cnt" min="-1" value="{MAX_SUBDMN_CNT}" required></td>
         </tr>
         <!-- EDP: subdomain_feature -->
         <!-- BDP: alias_feature -->
         <tr>
             <td><label for="nreseller_max_alias_cnt">{TR_MAX_DOMAIN_ALIAS}</label></td>
-            <td><input type="number" name="nreseller_max_alias_cnt" id="nreseller_max_alias_cnt" min="-1" value="{MAX_DMN_ALIAS_CNT}"></td>
+            <td><input type="number" name="nreseller_max_alias_cnt" id="nreseller_max_alias_cnt" min="-1" value="{MAX_DMN_ALIAS_CNT}" required></td>
         </tr>
         <!-- EDP: alias_feature -->
         <!-- BDP: mail_feature -->
         <tr>
             <td><label for="nreseller_max_mail_cnt">{TR_MAX_MAIL_COUNT}</label></td>
-            <td><input type="number" name="nreseller_max_mail_cnt" id="nreseller_max_mail_cnt" min="-1" value="{MAX_MAIL_CNT}"></td>
+            <td><input type="number" name="nreseller_max_mail_cnt" id="nreseller_max_mail_cnt" min="-1" value="{MAX_MAIL_CNT}" required></td>
         </tr>
         <tr>
             <td><label for="nreseller_mail_quota">{TR_MAIL_QUOTA}</label></td>
-            <td><input type="number" name="nreseller_mail_quota" id="nreseller_mail_quota" min="0" max="17592186044416" value="{MAIL_QUOTA}"></td>
+            <td><input type="number" name="nreseller_mail_quota" id="nreseller_mail_quota" min="0" max="17592186044416" value="{MAIL_QUOTA}" required></td>
         </tr>
         <!-- EDP: mail_feature -->
         <!-- BDP: ftp_feature -->
         <tr>
             <td><label for="nreseller_max_ftp_cnt">{TR_MAX_FTP}</label></td>
-            <td><input type="number" name="nreseller_max_ftp_cnt" id="nreseller_max_ftp_cnt" min="-1" value="{MAX_FTP_CNT}"></td>
+            <td><input type="number" name="nreseller_max_ftp_cnt" id="nreseller_max_ftp_cnt" min="-1" value="{MAX_FTP_CNT}" required></td>
         </tr>
         <!-- EDP: ftp_feature -->
         <!-- BDP: sql_feature -->
         <tr>
             <td><label for="nreseller_max_sql_db_cnt">{TR_MAX_SQL_DB}</label></td>
-            <td><input type="number" name="nreseller_max_sql_db_cnt" id="nreseller_max_sql_db_cnt" min="-1" value="{MAX_SQL_CNT}"></td>
+            <td><input type="number" name="nreseller_max_sql_db_cnt" id="nreseller_max_sql_db_cnt" min="-1" value="{MAX_SQL_CNT}" required></td>
         </tr>
         <tr>
             <td><label for="nreseller_max_sql_user_cnt">{TR_MAX_SQL_USERS}</label></td>
-            <td><input type="number" name="nreseller_max_sql_user_cnt" id="nreseller_max_sql_user_cnt" min="-1" value="{VL_MAX_SQL_USERS}"></td>
+            <td><input type="number" name="nreseller_max_sql_user_cnt" id="nreseller_max_sql_user_cnt" min="-1" value="{VL_MAX_SQL_USERS}" required></td>
         </tr>
         <!-- EDP: sql_feature -->
         <tr>
             <td><label for="nreseller_max_traffic">{TR_MAX_TRAFFIC}</label></td>
-            <td><input type="number" name="nreseller_max_traffic" id="nreseller_max_traffic" min="0" max="17592186044416" value="{VL_MAX_TRAFFIC}"></td>
+            <td><input type="number" name="nreseller_max_traffic" id="nreseller_max_traffic" min="0" max="17592186044416" value="{VL_MAX_TRAFFIC}" required></td>
         </tr>
         <tr>
             <td><label for="nreseller_max_disk">{TR_MAX_DISK_USAGE}</label></td>
-            <td><input type="number" name="nreseller_max_disk" id="nreseller_max_disk" min="0" max="17592186044416" value="{VL_MAX_DISK_USAGE}"></td>
+            <td><input type="number" name="nreseller_max_disk" id="nreseller_max_disk" min="0" max="17592186044416" value="{VL_MAX_DISK_USAGE}" required></td>
         </tr>
         </tbody>
     </table>

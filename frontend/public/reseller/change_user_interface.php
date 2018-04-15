@@ -1,7 +1,7 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2010-2018 by i-MSCP Team
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,11 +26,7 @@ check_login('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
 
 // Switch back to admin
-if (isset($_SESSION['logged_from'])
-    && isset($_SESSION['logged_from_id'])
-    && isset($_GET['action'])
-    && $_GET['action'] == 'go_back'
-) {
+if (isset($_SESSION['logged_from']) && isset($_SESSION['logged_from_id']) && isset($_GET['action']) && $_GET['action'] == 'go_back') {
     change_user_interface($_SESSION['user_id'], $_SESSION['logged_from_id']);
 }
 
@@ -44,13 +40,8 @@ if (isset($_SESSION['user_id']) && isset($_GET['to_id'])) {
     } else {
         // reseller to customer
         $fromUserId = $_SESSION['user_id'];
-        $stmt = exec_query('SELECT COUNT(admin_id) FROM admin WHERE admin_id = ? AND created_by = ?', [
-            $toUserId, $fromUserId
-        ]);
-
-        if ($stmt->fetchColumn() < 1) {
+        exec_query('SELECT COUNT(admin_id) FROM admin WHERE admin_id = ? AND created_by = ?', [$toUserId, $fromUserId])->fetchColumn() > 0 or
             showBadRequestErrorPage();
-        }
     }
 
     change_user_interface($fromUserId, $toUserId);

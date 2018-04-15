@@ -29,7 +29,7 @@ use iMSCP_Registry as Registry;
  */
 function generatePage($tpl)
 {
-    $stmt = execute_query("SELECT ip_id, ip_number FROM server_ips ORDER BY LENGTH(ip_number), ip_number");
+    $stmt = execute_query('SELECT ip_id, ip_number FROM server_ips ORDER BY LENGTH(ip_number), ip_number');
     $ips = $stmt->fetchAll();
     $sip = isset($_POST['ip_address']) && in_array($_POST['ip_address'], array_column($ips, 'ip_id')) ? $_POST['ip_address'] : $ips[0]['ip_id'];
 

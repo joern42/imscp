@@ -421,8 +421,9 @@ function updateResellerUser(Form $form)
         if (empty($resellerIps)) {
             set_page_message(tr('You must assign at least one IP to this reseller.'), 'error');
             $error = true;
+        } else {
+            sort($resellerIps, SORT_NUMERIC);
         }
-        sort($resellerIps, SORT_NATURAL);
 
         // Check for max domains limit
         if (imscp_limit_check($data['max_dmn_cnt'], NULL)) {

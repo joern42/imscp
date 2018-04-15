@@ -19,14 +19,10 @@
  */
 
 use iMSCP\Crypt as Crypt;
-use iMSCP_Events as Events;
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
 use Zend_Form as Form;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Update user data
@@ -38,13 +34,8 @@ use Zend_Form as Form;
  */
 function updateUserData(Form $form, $userId)
 {
-    $data = exec_query(
-        'SELECT admin_name FROM admin WHERE admin_id = ? AND created_by = ?', [$userId, $_SESSION['user_id']]
-    )->fetch();
-
-    if (!$data) {
-        showBadRequestErrorPage();
-    }
+    $data = exec_query('SELECT admin_name FROM admin WHERE admin_id = ? AND created_by = ?', [$userId, $_SESSION['user_id']])->fetch();
+    $data or showBadRequestErrorPage();
 
     if (!$form->isValid($_POST)) {
         foreach ($form->getMessages() as $msgsStack) {
@@ -68,28 +59,22 @@ function updateUserData(Form $form, $userId)
             'userId'   => $userId,
             'userData' => $form->getValues()
         ]);
-
         exec_query(
             "
                 UPDATE admin
-                SET admin_pass = IFNULL(?, admin_pass), fname = ?, lname = ?, firm = ?, zip = ?, city = ?, state = ?,
-                    country = ?, email = ?, phone = ?, fax = ?, street1 = ?, street2 = ?, gender = ?,
-                    admin_status = IF(?, 'tochangepwd', admin_status)
+                SET admin_pass = IFNULL(?, admin_pass), fname = ?, lname = ?, firm = ?, zip = ?, city = ?, state = ?, country = ?, email = ?,
+                phone = ?, fax = ?, street1 = ?, street2 = ?, gender = ?, admin_status = IF(?, 'tochangepwd', admin_status)
                 WHERE admin_id = ?
             ",
             [
-                $passwordUpdated ? Crypt::apr1MD5($form->getValue('admin_pass')) : NULL, $form->getValue('fname'),
-                $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'),
-                $form->getValue('state'), $form->getValue('country'), encode_idna($form->getValue('email')),
-                $form->getValue('phone'), $form->getValue('fax'), $form->getValue('street1'), $form->getValue('street2'),
-                $form->getValue('gender'), $passwordUpdated ? 1 : 0, $userId
+                $passwordUpdated ? Crypt::apr1MD5($form->getValue('admin_pass')) : NULL, $form->getValue('fname'), $form->getValue('lname'),
+                $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
+                encode_idna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'), $form->getValue('street1'),
+                $form->getValue('street2'), $form->getValue('gender'), $passwordUpdated ? 1 : 0, $userId
             ]
         );
-
-
         // Force user to login again (needed due to possible password or email change)
         exec_query('DELETE FROM login WHERE user_name = ?', [$data['admin_name']]);
-
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditUser, [
             'userId'   => $userId,
             'userData' => $form->getValues()
@@ -101,7 +86,6 @@ function updateUserData(Form $form, $userId)
     }
 
     $ret = false;
-
     if ($passwordUpdated) {
         $ret = send_add_user_auto_msg(
             $userId, $data['admin_name'], $form->getValue('admin_pass'), $form->getValue('email'),
@@ -110,10 +94,7 @@ function updateUserData(Form $form, $userId)
     }
 
     send_request();
-    write_log(
-        sprintf('The %s user has been updated by %s', $data['admin_name'], $_SESSION['user_logged']),
-        E_USER_NOTICE
-    );
+    write_log(sprintf('The %s user has been updated by %s', $data['admin_name'], $_SESSION['user_logged']), E_USER_NOTICE);
     set_page_message('User has been updated.', 'success');
 
     if ($ret) {
@@ -144,8 +125,7 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
 
     $stmt = exec_query(
         "
-            SELECT admin_name, fname, lname, IFNULL(gender, 'U') as gender, firm, zip, city, state, country, street1,
-                street2, email, phone, fax
+            SELECT admin_name, fname, lname, IFNULL(gender, 'U') as gender, firm, zip, city, state, country, street1, street2, email, phone, fax
             FROM admin
             WHERE admin_id = ?
             AND created_by = ?
@@ -153,27 +133,20 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
         [$userId, $_SESSION['user_id']]
     );
 
-    if (!($data = $stmt->fetch())) {
-        showBadRequestErrorPage();
-    }
-
+    $data = $stmt->fetch() or showBadRequestErrorPage();
     $form->setDefaults($data);
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require 'imscp-lib.php';
 
 check_login('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
 
-if (!isset($_GET['edit_id'])) {
+if (!isset($_GET['client_id'])) {
     showBadRequestErrorPage();
 }
 
-$userId = intval($_GET['edit_id']);
+$userId = intval($_GET['client_id']);
 
 if ($userId == $_SESSION['user_id']) {
     redirectTo('personal_change.php');

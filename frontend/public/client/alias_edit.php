@@ -24,10 +24,6 @@ use iMSCP_Events as Events;
 use iMSCP_Events_Event as Event;
 use iMSCP_Registry as Registry;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
  * Get domain alias data
  *
@@ -78,7 +74,7 @@ function client_editDomainAlias()
 
     // Check for domain alias IP addresses
     $domainAliasIps = [];
-    if (empty($_POST['alias_ips'])) {
+    if (!isset($_POST['alias_ips'])) {
         set_page_message(tohtml(tr('You must assign at least one IP address to that domain alias.')), 'error');
         return false;
     } elseif (!is_array($_POST['alias_ips'])) {
@@ -200,7 +196,7 @@ function client_generatePage($tpl)
     $forwardHost = 'Off';
 
     if (empty($_POST)) {
-        client_generate_ip_list($tpl, $_SESSION['user_id'], $domainAliasData['alias_ips']);
+        generateClientIpsList($tpl, $_SESSION['user_id'], $domainAliasData['alias_ips']);
 
         $documentRoot = strpos($domainAliasData['alias_document_root'], '/htdocs') !== FALSE
             ? substr($domainAliasData['alias_document_root'], 7) : '';
@@ -220,7 +216,7 @@ function client_generatePage($tpl)
             $forwardType = '302';
         }
     } else {
-        client_generate_ip_list($tpl, $_SESSION['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []);
+        generateClientIpsList($tpl, $_SESSION['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []);
 
         $documentRoot = isset($_POST['document_root']) ? $_POST['document_root'] : '';
         $urlForwarding = isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' ? true : false;
@@ -269,11 +265,6 @@ function client_generatePage($tpl)
     $_SESSION['ftp_chooser_hidden_dirs'] = [];
     $_SESSION['ftp_chooser_unselectable_dirs'] = [];
 }
-
-/***********************************************************************************************************************
- * Main
- */
-
 
 require_once 'imscp-lib.php';
 

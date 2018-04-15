@@ -27,10 +27,6 @@ use iMSCP_Exception as iMSCPException;
 use iMSCP_Registry as Registry;
 use Zend_Form as Form;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
  * Retrieve form data
  *
@@ -284,8 +280,9 @@ function addResellerUser(Form $form)
         if (empty($resellerIps)) {
             set_page_message(tr('You must assign at least one IP to this reseller.'), 'error');
             $error = true;
+        } else {
+            sort($resellerIps, SORT_NUMERIC);
         }
-        sort($resellerIps, SORT_NATURAL);
 
         // Check for max domains limit
         if (!imscp_limit_check($data['max_dmn_cnt'], NULL)) {
@@ -472,10 +469,6 @@ function generatePage(TemplateEngine $tpl, Form $form)
     generateLimitsForm($tpl);
     generateFeaturesForm($tpl);
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require 'imscp-lib.php';
 

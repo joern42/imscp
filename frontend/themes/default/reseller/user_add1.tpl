@@ -53,7 +53,7 @@
                 <label for="dmn_name">{TR_DOMAIN_NAME}</label>
                 <span style="display: inline-block;float: right" class="bold">www.</span>
             </td>
-            <td><input type="text" name="dmn_name" id="dmn_name" value="{DOMAIN_NAME_VALUE}"></td>
+            <td><input type="text" name="dmn_name" id="dmn_name" value="{DOMAIN_NAME_VALUE}" required></td>
         </tr>
         <tr>
             <td>{TR_URL_FORWARDING} <span class="icon i_help" title="{TR_URL_FORWARDING_TOOLTIP}"></span></td>

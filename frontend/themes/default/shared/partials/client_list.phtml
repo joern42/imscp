@@ -96,6 +96,7 @@
 <? if($_SESSION['user_type'] == 'admin'): ?>
         <th><?= tohtml(tr('Created by')); ?></th>
 <? endif; ?>
+        <th><?= tohtml(tr('Expiry date')); ?></th>
         <th><?= tohtml(tr('Actions')); ?></th>
     </tr>
     </thead>
@@ -114,15 +115,16 @@
 <? if($_SESSION['user_type'] == 'admin'): ?>
         <td>{CLIENT_CREATED_BY}</td>
 <? endif; ?>
+        <td>{CLIENT_EXPIRY_DATE}</td>
         <td>
             <a class="icon i_identity" href="account_details.php?client_id={CLIENT_ID}" title="<?= tohtml(tr('Customer account details'), 'htmlAttr'); ?>"><?= tohtml(tr('Details')); ?></a>
             <a class="icon i_details" href="change_user_interface.php?to_id={CLIENT_ID}" title="<?= tohtml(tr('Switch to customer interface'), 'htmlAttr'); ?>"><?= tohtml(tr('Switch')); ?></a>
-            <a class="icon i_user" href="user_edit.php?edit_id={CLIENT_ID}" title="<?= tohtml(tr('Edit this user account'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit')); ?></a>
+            <a class="icon i_user" href="user_edit.php?client_id={CLIENT_ID}" title="<?= tohtml(tr('Edit this user account'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit')); ?></a>
             <!-- BDP: client_restricted_links -->
 <? if($_SESSION['user_type'] == 'reseller'): ?>
-            <a class="icon i_domain_icon" href="account_edit.php?edit_id={CLIENT_DOMAIN_ID}" title="<?= tohtml(tr('Edit this customer account'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit')); ?></a>
+            <a class="icon i_domain_icon" href="account_edit.php?client_id={CLIENT_ID}" title="<?= tohtml(tr('Edit this customer account'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit')); ?></a>
 <? endif; ?>
-            <a class="icon i_delete" href="user_delete.php?user_id={CLIENT_ID}" onclick="return action_delete(this)" title="<?= tohtml(tr('Delete this customer account'), 'htmlAttr'); ?>"><?= tohtml(tr('Delete')); ?></a>
+            <a class="icon i_delete" href="user_delete.php?client_id={CLIENT_ID}" onclick="return action_delete(this)" title="<?= tohtml(tr('Delete this customer account'), 'htmlAttr'); ?>"><?= tohtml(tr('Delete')); ?></a>
             <!-- EDP: client_restricted_links -->
         </td>
     </tr>

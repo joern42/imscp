@@ -23,10 +23,6 @@ use iMSCP_Events as Events;
 use iMSCP_Events_Event as Event;
 use iMSCP_Registry as Registry;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
  * Reject a domain alias order
  *
@@ -271,11 +267,6 @@ function reseller_generatePageData()
 
     return $output;
 }
-
-/***********************************************************************************************************************
- * Main
- */
-
 require 'imscp-lib.php';
 
 check_login('reseller');

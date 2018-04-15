@@ -122,7 +122,7 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
         $toResellerProps['reseller_ips'] = array_merge(
             $toResellerProps['reseller_ips'], array_diff(explode(',', $customerProps['domain_client_ips']), explode($toResellerProps['reseller_ips']))
         );
-        sort($toResellerProps['reseller_ips'], SORT_NATURAL);
+        sort($toResellerProps['reseller_ips'], SORT_NUMERIC);
         $toResellerProps['reseller_ips'] = implode(',', $toResellerProps['reseller_ips']);
 
         // Move the customer to the target reseller

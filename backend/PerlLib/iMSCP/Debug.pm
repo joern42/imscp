@@ -43,6 +43,7 @@ BEGIN {
     };
     $SIG{'__WARN__'} = sub {
         warning( shift =~ s/\n$//r );
+        exit 1 if exists $ENV{'iMSCP_DEVELOP'};
     };
 }
 

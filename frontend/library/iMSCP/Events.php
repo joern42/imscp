@@ -858,6 +858,64 @@ class iMSCP_Events
     const onAfterUnlockPlugin = 'onAfterUnlockPlugin';
 
     /**
+     * Event triggered before customer account properties edition
+     *
+     * iMSCP_Events_Event object parameters:
+     *  - customerId          : Customer unique identifier
+     *  - expirationDate      : Account expiration date
+     *  - ips                 : IP addresses identifiers
+     *  - php                 : PHP feature
+     *  - phpEditor           : PHP editor feature
+     *  - cgi                 : CGI feature
+     *  - dns                 : Customer DNS feature
+     *  - aps                 : Software installer feature
+     *  - extMailServer       : External mail server feature
+     *  - backup              : backup feature
+     *  - webFolderProtection : WebFolderProtection
+     *  - subdomainsLimit     : Subdomains limit
+     *  - DomainAliasesLimit  : Domain aliases limit
+     *  - mailAccountsLimit   : Mail accounts limit
+     *  - mailQuota           : Mail quota limit
+     *  - ftpAccountsLimit    : Ftp accounts limit
+     *  - sqlDatabasesLimit   : SQL databases limit
+     *  - sqlUsersLimit       : SQL users limit
+     *  - monthlyTrafficLimit : Monthly traffic limit
+     *  - diskspaceLimit      : Diskspace limit
+     * 
+     * @const string
+     */
+    const onBeforeEditCustomerAccountProps = 'onBeforeEditCustomerAccountProps';
+
+    /**
+     * Event triggered after customer account properties edition
+     *
+     * iMSCP_Events_Event object parameters:
+     *  - customerId          : Customer unique identifier
+     *  - expirationDate      : Account expiration date
+     *  - ips                 : IP addresses identifiers
+     *  - php                 : PHP feature
+     *  - phpEditor           : PHP editor feature
+     *  - cgi                 : CGI feature
+     *  - dns                 : Customer DNS feature
+     *  - aps                 : Software installer feature
+     *  - extMailServer       : External mail server feature
+     *  - backup              : backup feature
+     *  - webFolderProtection : WebFolderProtection
+     *  - subdomainsLimit     : Subdomains limit
+     *  - DomainAliasesLimit  : Domain aliases limit
+     *  - mailAccountsLimit   : Mail accounts limit
+     *  - mailQuota           : Mail quota limit
+     *  - ftpAccountsLimit    : Ftp accounts limit
+     *  - sqlDatabasesLimit   : SQL databases limit
+     *  - sqlUsersLimit       : SQL users limit
+     *  - monthlyTrafficLimit : Monthly traffic limit
+     *  - diskspaceLimit      : Diskspace limit
+     *
+     * @const string
+     */
+    const onAfterEditCustomerAccountProps = 'onAfterEditCustomerAccountProps';
+    
+    /**
      * Event triggered before domain (customer account) addition
      *
      * iMSCP_Events_Event object parameters:
@@ -1035,7 +1093,7 @@ class iMSCP_Events
      * iMSCP_Events_Event object parameters:
      *  - domainId        : Customer main domain unique identifier
      *  - domainAliasName : Domain alias name
-     *  - domainAliasIps  : Domain alias  IP addresses unique identifiers
+     *  - domainAliasIps  : Domain alias IP addresses unique identifiers
      *  - mountPoint      : Domain alias mount point
      *  - documentRoot    : Domain alias document root
      *  - forwardUrl      : Domain alias forward URL, 'no' if no forward URL has been set
@@ -1411,7 +1469,11 @@ class iMSCP_Events
      * Event triggered on IP address deletion
      *
      * iMSCP_Events_Event object parameter:
-     *  - ip_id : IP address unique identifier
+     *  - ip_id          : IP address unique identifier
+     *  - ip_number      : IP address
+     *  - ip_netmask     : IP netmask
+     *  - ip_card        : Network interface to which IP address is attached
+     *  - ip_config_mode : Ip address configuration mode (auto|manual)
      *
      * @const string
      */

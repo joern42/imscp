@@ -25,10 +25,6 @@ use iMSCP_Events as Events;
 use iMSCP_Events_Event as Event;
 use iMSCP_Registry as Registry;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
  * Send alias order email
  *
@@ -158,7 +154,7 @@ function addDomainAlias()
 
     // Check for domain alias IP addresses
     $domainAliasIps = [];
-    if (empty($_POST['alias_ips'])) {
+    if (!isset($_POST['alias_ips'])) {
         set_page_message(tohtml(tr('You must assign at least one IP address to that domain alias.')), 'error');
         $ret = false;
     } elseif (!is_array($_POST['alias_ips'])) {
@@ -389,12 +385,8 @@ function generatePage(TemplateEngine $tpl)
         $tpl->assign('SHARED_MOUNT_POINT_OPTION', '');
     }
 
-    client_generate_ip_list($tpl, $_SESSION['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []);
+    generateClientIpsList($tpl, $_SESSION['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []);
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require_once 'imscp-lib.php';
 

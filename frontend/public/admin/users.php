@@ -18,12 +18,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
-
-/***********************************************************************************************************************
- * Main
- */
+use iMSCP_Registry as Registry;
 
 require 'imscp-lib.php';
 
@@ -68,26 +64,6 @@ if (isset($_POST['details']) && !empty($_POST['details'])) {
     $_SESSION['details'] = $_POST['details'];
 } elseif (!isset($_SESSION['details'])) {
     $_SESSION['details'] = 'hide';
-}
-
-if (isset($_SESSION['user_added'])) {
-    unset($_SESSION['user_added']);
-    set_page_message(tr('Customer successfully scheduled for addition.'), 'success');
-} elseif (isset($_SESSION['reseller_added'])) {
-    unset($_SESSION['reseller_added']);
-    set_page_message(tr('Reseller successfully added.'), 'success');
-} elseif (isset($_SESSION['user_updated'])) {
-    unset($_SESSION['user_updated']);
-    set_page_message(tr('Customer account successfully updated.'), 'success');
-} elseif (isset($_SESSION['user_deleted'])) {
-    unset($_SESSION['user_deleted']);
-    set_page_message(tr('Customer successfully scheduled for deletion.'), 'success');
-} elseif (isset($_SESSION['email_updated'])) {
-    unset($_SESSION['email_updated']);
-    set_page_message(tr('Email successfully updated.'), 'success');
-} elseif (isset($_SESSION['hdomain'])) {
-    unset($_SESSION['hdomain']);
-    set_page_message(tr('The reseller you want to remove has one or more customers accounts. Please remove them first.'), 'error');
 }
 
 generateNavigation($tpl);

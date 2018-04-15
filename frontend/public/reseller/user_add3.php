@@ -26,10 +26,6 @@ use iMSCP_Exception as iMSCPException;
 use iMSCP_Registry as Registry;
 use Zend_Form as Form;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
  * Get data from previous step
  *
@@ -262,14 +258,10 @@ function generatePage(TemplateEngine $tpl, Form $form)
     $form->setDefault('admin_name', $dmnName);
     $tpl->form = $form;
 
-    reseller_generate_ip_list($tpl, $_SESSION['user_id'], $clientIps ?: []);
+    generateResellerIpsList($tpl, $_SESSION['user_id'], $clientIps ?: []);
 
     $_SESSION['local_data'] = "$dmnName;$hpId";
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require 'imscp-lib.php';
 

@@ -345,7 +345,7 @@ function generatePage($tpl)
     if ($mailAccountsCount || $defaultMailAccountsCount) {
         $tpl->assign([
             'MAIL_TOTAL_MAIL_ACCOUNTS' => tohtml($mailAccountsCount),
-            'MAIL_ACCOUNTS_LIMIT'      => tohtml(translate_limit_value($dmnMailAccLimit))
+            'MAIL_ACCOUNTS_LIMIT'      => tohtml(humanizeDbValue($dmnMailAccLimit))
         ]);
         return;
     }
