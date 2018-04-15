@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\TemplateEngine;
@@ -29,15 +29,15 @@ use iMSCP_Registry as Registry;
 function reseller_checkData()
 {
     if (!isset($_POST['dmn_name']) || $_POST['dmn_name'] == '') {
-        set_page_message(tr('Domain name cannot be empty.'), 'error');
+        setPageMessage(tr('Domain name cannot be empty.'), 'error');
         return;
     }
 
-    $dmnName = mb_strtolower(clean_input($_POST['dmn_name']));
+    $dmnName = mb_strtolower(cleanInput($_POST['dmn_name']));
 
     global $dmnNameValidationErrMsg;
-    if (!isValidDomainName($dmnName)) {
-        set_page_message($dmnNameValidationErrMsg, 'error');
+    if (!validateDomainName($dmnName)) {
+        setPageMessage($dmnNameValidationErrMsg, 'error');
         return;
     }
 
@@ -46,10 +46,10 @@ function reseller_checkData()
         $dmnName = substr($dmnName, 4);
     }
 
-    $asciiDmnName = encode_idna($dmnName);
+    $asciiDmnName = encodeIdna($dmnName);
 
-    if (imscp_domain_exists($asciiDmnName, $_SESSION['user_id'])) {
-        set_page_message(tr('Domain %s is unavailable.', "<strong>$dmnName</strong>"), 'error');
+    if (isKnownDomain($asciiDmnName, $_SESSION['user_id'])) {
+        setPageMessage(tr('Domain %s is unavailable.', "<strong>$dmnName</strong>"), 'error');
         return;
     }
 
@@ -63,8 +63,8 @@ function reseller_checkData()
     ) {
         isset($_POST['forward_url_scheme']) && isset($_POST['forward_url']) or showBadRequestErrorPage();
 
-        $forwardUrl = clean_input($_POST['forward_url_scheme']) . clean_input($_POST['forward_url']);
-        $forwardType = clean_input($_POST['forward_type']);
+        $forwardUrl = cleanInput($_POST['forward_url_scheme']) . cleanInput($_POST['forward_url']);
+        $forwardType = cleanInput($_POST['forward_type']);
 
         if ($forwardType == 'proxy' && isset($_POST['forward_host'])) {
             $forwardHost = 'On';
@@ -77,8 +77,8 @@ function reseller_checkData()
                 throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
             }
 
-            $uri->setHost(encode_idna(mb_strtolower($uri->getHost()))); // Normalize URI host
-            $uri->setPath(rtrim(utils_normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
+            $uri->setHost(encodeIdna(mb_strtolower($uri->getHost()))); // Normalize URI host
+            $uri->setPath(rtrim(normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
 
             if ($uri->getHost() == $asciiDmnName && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))) {
                 throw new iMSCP_Exception(
@@ -97,23 +97,23 @@ function reseller_checkData()
 
             $forwardUrl = $uri->getUri();
         } catch (Exception $e) {
-            set_page_message($e->getMessage(), 'error');
+            setPageMessage($e->getMessage(), 'error');
             return;
         }
     }
 
     if ((!isset($_POST['datepicker']) || $_POST['datepicker'] == '') && !isset($_POST['never_expire'])) {
-        set_page_message(tr('Domain expiration date must be filled.'), 'error');
+        setPageMessage(tr('Domain expiration date must be filled.'), 'error');
         return;
     }
 
-    $dmnExpire = (isset($_POST['datepicker'])) ? @strtotime(clean_input($_POST['datepicker'])) : 0;
+    $dmnExpire = (isset($_POST['datepicker'])) ? @strtotime(cleanInput($_POST['datepicker'])) : 0;
     if ($dmnExpire == false) {
-        set_page_message('Invalid expiration date.', 'error');
+        setPageMessage('Invalid expiration date.', 'error');
         return;
     }
 
-    $hpId = isset($_POST['dmn_tpl']) ? clean_input($_POST['dmn_tpl']) : 0;
+    $hpId = isset($_POST['dmn_tpl']) ? cleanInput($_POST['dmn_tpl']) : 0;
     $customizeHp = $hpId > 0 && isset($_POST['chtpl']) ? $_POST['chtpl'] : '_no_';
 
     if ($hpId == 0 || $customizeHp == '_yes_') {
@@ -128,8 +128,8 @@ function reseller_checkData()
         redirectTo('user_add2.php');
     }
 
-    if (!reseller_limits_check($_SESSION['user_id'], $hpId)) {
-        set_page_message(tr('Hosting plan limits exceed reseller limits.'), 'error');
+    if (!validateHostingPlanLimits($hpId, $_SESSION['user_id'])) {
+        setPageMessage(tr('Hosting plan limits exceed reseller limits.'), 'error');
         return;
     }
 
@@ -157,26 +157,26 @@ function reseller_generatePage($tpl)
     $forwardHost = ($forwardType == 'proxy' && isset($_POST['forward_host'])) ? 'On' : 'Off';
 
     $tpl->assign([
-        'DOMAIN_NAME_VALUE'    => isset($_POST['dmn_name']) ? tohtml($_POST['dmn_name']) : '',
+        'DOMAIN_NAME_VALUE'    => isset($_POST['dmn_name']) ? toHtml($_POST['dmn_name']) : '',
         'FORWARD_URL_YES'      => isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' ? ' checked' : '',
         'FORWARD_URL_NO'       => isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' ? '' : ' checked',
         'HTTP_YES'             => isset($_POST['forward_url_scheme']) && $_POST['forward_url_scheme'] == 'http://' ? ' selected' : '',
         'HTTPS_YES'            => isset($_POST['forward_url_scheme']) && $_POST['forward_url_scheme'] == 'https://' ? ' selected' : '',
-        'FORWARD_URL'          => isset($_POST['forward_url']) ? tohtml($_POST['forward_url']) : '',
+        'FORWARD_URL'          => isset($_POST['forward_url']) ? toHtml($_POST['forward_url']) : '',
         'FORWARD_TYPE_301'     => $forwardType == '301' ? ' checked' : '',
         'FORWARD_TYPE_302'     => $forwardType == '302' ? ' checked' : '',
         'FORWARD_TYPE_303'     => $forwardType == '303' ? ' checked' : '',
         'FORWARD_TYPE_307'     => $forwardType == '307' ? ' checked' : '',
         'FORWARD_TYPE_PROXY'   => $forwardType == 'proxy' ? ' checked' : '',
         'FORWARD_HOST'         => $forwardHost == 'On' ? ' checked' : '',
-        'DATEPICKER_VALUE'     => isset($_POST['datepicker']) ? tohtml($_POST['datepicker']) : '',
+        'DATEPICKER_VALUE'     => isset($_POST['datepicker']) ? toHtml($_POST['datepicker']) : '',
         'DATEPICKER_DISABLED'  => isset($_POST['datepicker']) ? '' : ' disabled',
         'NEVER_EXPIRE_CHECKED' => isset($_POST['datepicker']) ? '' : ' checked',
         'CHTPL1_VAL'           => isset($_POST['chtpl']) && $_POST['chtpl'] == '_yes_' ? ' checked' : '',
         'CHTPL2_VAL'           => isset($_POST['chtpl']) && $_POST['chtpl'] == '_yes_' ? '' : ' checked'
     ]);
 
-    $stmt = exec_query("SELECT id, name FROM hosting_plans WHERE reseller_id = ? AND status = 1 ORDER BY name", [$_SESSION['user_id']]);
+    $stmt = execQuery("SELECT id, name FROM hosting_plans WHERE reseller_id = ? AND status = 1 ORDER BY name", [$_SESSION['user_id']]);
 
     if (!$stmt->rowCount()) {
         $tpl->assign('HOSTING_PLAN_ENTRIES_BLOCK', '');
@@ -186,8 +186,8 @@ function reseller_generatePage($tpl)
     while ($row = $stmt->fetch()) {
         $hpId = isset($_POST['dmn_tpl']) ? $_POST['dmn_tpl'] : '';
         $tpl->assign([
-            'HP_NAME'     => tohtml($row['name']),
-            'HP_ID'       => tohtml($row['id']),
+            'HP_NAME'     => toHtml($row['name']),
+            'HP_ID'       => toHtml($row['id']),
             'HP_SELECTED' => $row['id'] == $hpId ? ' selected' : ''
         ]);
         $tpl->parse('HOSTING_PLAN_ENTRY_BLOCK', '.hosting_plan_entry_block');
@@ -196,12 +196,10 @@ function reseller_generatePage($tpl)
 
 require 'imscp-lib.php';
 
-check_login('reseller');
+checkLogin('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
 
-if (!empty($_POST)) {
-    reseller_checkData();
-}
+empty($_POST) or reseller_checkData();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -213,35 +211,33 @@ $tpl->define([
     'customize_hosting_plan_block' => 'hosting_plan_entries_block'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'             => tohtml(tr('Reseller / Customers / Add Customer')),
-    'TR_ADD_USER'               => tohtml(tr('Add user')),
-    'TR_CORE_DATA'              => tohtml(tr('Domain data')),
-    'TR_DOMAIN_NAME'            => tohtml(tr('Domain name')),
-    'TR_DOMAIN_EXPIRE'          => tohtml(tr('Domain expiration date')),
-    'TR_EXPIRE_CHECKBOX'        => tohtml(tr('Never')),
-    'TR_CHOOSE_HOSTING_PLAN'    => tohtml(tr('Choose hosting plan')),
-    'TR_PERSONALIZE_TEMPLATE'   => tohtml(tr('Personalise template')),
-    'TR_URL_FORWARDING'         => tohtml(tr('URL forwarding')),
-    'TR_URL_FORWARDING_TOOLTIP' => tohtml(tr('Allows to forward any request made to this domain to a specific URL.'), 'htmlAttr'),
-    'TR_FORWARD_TO_URL'         => tohtml(tr('Forward to URL')),
-    'TR_YES'                    => tohtml(tr('Yes'), 'htmlAttr'),
-    'TR_NO'                     => tohtml(tr('No'), 'htmlAttr'),
-    'TR_HTTP'                   => tohtml('http://'),
-    'TR_HTTPS'                  => tohtml('https://'),
-    'TR_FORWARD_TYPE'           => tohtml(tr('Forward type')),
-    'TR_301'                    => tohtml('301'),
-    'TR_302'                    => tohtml('302'),
-    'TR_303'                    => tohtml('303'),
-    'TR_307'                    => tohtml('307'),
-    'TR_PROXY'                  => tohtml(tr('Proxy')),
-    'TR_PROXY_PRESERVE_HOST'    => tohtml(tr('Preserve Host')),
-    'TR_NEXT_STEP'              => tohtml(tr('Next step'))
+    'TR_PAGE_TITLE'             => toHtml(tr('Reseller / Customers / Add Customer')),
+    'TR_ADD_USER'               => toHtml(tr('Add user')),
+    'TR_CORE_DATA'              => toHtml(tr('Domain data')),
+    'TR_DOMAIN_NAME'            => toHtml(tr('Domain name')),
+    'TR_DOMAIN_EXPIRE'          => toHtml(tr('Domain expiration date')),
+    'TR_EXPIRE_CHECKBOX'        => toHtml(tr('Never')),
+    'TR_CHOOSE_HOSTING_PLAN'    => toHtml(tr('Choose hosting plan')),
+    'TR_PERSONALIZE_TEMPLATE'   => toHtml(tr('Personalise template')),
+    'TR_URL_FORWARDING'         => toHtml(tr('URL forwarding')),
+    'TR_URL_FORWARDING_TOOLTIP' => toHtml(tr('Allows to forward any request made to this domain to a specific URL.'), 'htmlAttr'),
+    'TR_FORWARD_TO_URL'         => toHtml(tr('Forward to URL')),
+    'TR_YES'                    => toHtml(tr('Yes'), 'htmlAttr'),
+    'TR_NO'                     => toHtml(tr('No'), 'htmlAttr'),
+    'TR_HTTP'                   => toHtml('http://'),
+    'TR_HTTPS'                  => toHtml('https://'),
+    'TR_FORWARD_TYPE'           => toHtml(tr('Forward type')),
+    'TR_301'                    => toHtml('301'),
+    'TR_302'                    => toHtml('302'),
+    'TR_303'                    => toHtml('303'),
+    'TR_307'                    => toHtml('307'),
+    'TR_PROXY'                  => toHtml(tr('Proxy')),
+    'TR_PROXY_PRESERVE_HOST'    => toHtml(tr('Preserve Host')),
+    'TR_NEXT_STEP'              => toHtml(tr('Next step'))
 ]);
-
 generateNavigation($tpl);
 reseller_generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();

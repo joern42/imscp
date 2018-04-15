@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\Crypt as Crypt;
@@ -60,7 +60,7 @@ function getPreviousStepData()
     list($dmnName, $hpId) = explode(';', $stepTwo);
     $adminName = $dmnName;
 
-    if (!isValidDomainName($dmnName) || $hpId == '') {
+    if (!validateDomainName($dmnName) || $hpId == '') {
         return false;
     }
 
@@ -82,7 +82,7 @@ function addCustomer(Form $form)
     $formIsValid = TRUE;
 
     if (isset($_POST['domain_client_ips']) && is_array($_POST['domain_client_ips'])) {
-        $stmt = exec_query('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$_SESSION['user_id']]);
+        $stmt = execQuery('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$_SESSION['user_id']]);
         if (!$stmt->rowCount()) {
             throw new iMSCPException(sprintf('Could not find IPs for reseller with ID %s', $_SESSION['user_id']));
         }
@@ -92,7 +92,7 @@ function addCustomer(Form $form)
             showBadRequestErrorPage();
         }
     } elseif (!isset($_POST['domain_client_ips'])) {
-        set_page_message(tohtml(tr('You must select at least one IP address.')), 'error');
+        setPageMessage(toHtml(tr('You must select at least one IP address.')), 'error');
         $formIsValid = FALSE;
     } else {
         showBadRequestErrorPage();
@@ -101,7 +101,7 @@ function addCustomer(Form $form)
     if (!$form->isValid($_POST)) {
         foreach ($form->getMessages() as $msgsStack) {
             foreach ($msgsStack as $msg) {
-                set_page_message(tohtml($msg), 'error');
+                setPageMessage(toHtml($msg), 'error');
             }
         }
 
@@ -118,7 +118,7 @@ function addCustomer(Form $form)
         $props = $_SESSION['ch_hpprops'];
         unset($_SESSION['ch_hpprops']);
     } else {
-        $stmt = exec_query('SELECT props FROM hosting_plans WHERE reseller_id = ? AND id = ?', [$_SESSION['user_id'], $hpId]);
+        $stmt = execQuery('SELECT props FROM hosting_plans WHERE reseller_id = ? AND id = ?', [$_SESSION['user_id'], $hpId]);
         $props = $stmt->fetchColumn();
     }
 
@@ -141,7 +141,7 @@ function addCustomer(Form $form)
     try {
         $db->beginTransaction();
 
-        exec_query(
+        execQuery(
             "
                 INSERT INTO admin (
                     admin_name, admin_pass, admin_type, domain_created, created_by, fname, lname, firm, zip, city, state, country, email, phone, fax,
@@ -153,7 +153,7 @@ function addCustomer(Form $form)
             [
                 $adminName, Crypt::apr1MD5($form->getValue('admin_pass')), 'user', $_SESSION['user_id'], $form->getValue('fname'),
                 $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'),
-                $form->getValue('country'), encode_idna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
+                $form->getValue('country'), encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
                 $form->getValue('street1'), $form->getValue('street2'), $form->getValue('gender')
             ]
         );
@@ -172,8 +172,7 @@ function addCustomer(Form $form)
             'forwardType'   => $dmnTypeForward,
             'forwardHost'   => $dmnHostForward
         ]);
-
-        exec_query(
+        execQuery(
             '
                 INSERT INTO domain (
                     domain_name, domain_admin_id, domain_created, domain_expires, domain_mailacc_limit, domain_ftpacc_limit, domain_traffic_limit,
@@ -199,7 +198,6 @@ function addCustomer(Form $form)
         $phpini->loadResellerPermissions($_SESSION['user_id']); // Load reseller PHP permissions
         $phpini->loadClientPermissions(); // Load client default PHP permissions
         $phpini->loadIniOptions(); // Load domain default PHP configuration options
-
         $phpini->setIniOption('phpiniMemoryLimit', $phpiniMemoryLimit); // Must be set before phpiniPostMaxSize
         $phpini->setIniOption('phpiniPostMaxSize', $phpiniPostMaxSize); // Must be set before phpiniUploadMaxFileSize
         $phpini->setIniOption('phpiniUploadMaxFileSize', $phpiniUploadMaxFileSize);
@@ -208,16 +206,14 @@ function addCustomer(Form $form)
         $phpini->saveIniOptions($adminId, $dmnId, 'dmn');
 
         createDefaultMailAccounts($dmnId, $form->getValue('email'), $dmnName);
-
-        send_add_user_auto_msg(
+        sendWelcomeMail(
             $_SESSION['user_id'], $adminName, $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
             $form->getValue('lname'), tr('Customer')
         );
-        exec_query('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (?, ?, ?)', [
+        execQuery('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (?, ?, ?)', [
             $adminId, $cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']
         ]);
-        update_reseller_c_props($_SESSION['user_id']);
-
+        recalculateResellerAssignments($_SESSION['user_id']);
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddDomain, [
             'createdBy'     => $_SESSION['user_id'],
             'customerId'    => $adminId,
@@ -231,11 +227,10 @@ function addCustomer(Form $form)
             'forwardType'   => $dmnTypeForward,
             'forwardHost'   => $dmnHostForward
         ]);
-
         $db->commit();
-        send_request();
-        write_log(sprintf('A new customer (%s) has been created by: %s:', $adminName, $_SESSION['user_logged']), E_USER_NOTICE);
-        set_page_message(tr('Customer account successfully scheduled for creation.'), 'success');
+        sendDaemonRequest();
+        writeLog(sprintf('A new customer (%s) has been created by: %s:', $adminName, $_SESSION['user_logged']), E_USER_NOTICE);
+        setPageMessage(tr('Customer account successfully scheduled for creation.'), 'success');
         unsetMessages();
         redirectTo('users.php');
     } catch (Exception $e) {
@@ -257,19 +252,17 @@ function generatePage(TemplateEngine $tpl, Form $form)
 
     $form->setDefault('admin_name', $dmnName);
     $tpl->form = $form;
-
     generateResellerIpsList($tpl, $_SESSION['user_id'], $clientIps ?: []);
-
     $_SESSION['local_data'] = "$dmnName;$hpId";
 }
 
 require 'imscp-lib.php';
 
-check_login('reseller');
+checkLogin('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
 
 if (!getPreviousStepData()) {
-    set_page_message(tr('Data were altered. Please try again.'), 'error');
+    setPageMessage(tr('Data were altered. Please try again.'), 'error');
     unsetMessages();
     redirectTo('user_add1.php');
 }
@@ -290,12 +283,10 @@ $tpl->define([
     'page_message' => 'layout',
     'ip_entry'     => 'page'
 ]);
-$tpl->assign('TR_PAGE_TITLE', tohtml(tr('Reseller / Customers / Add Customer - Next Step')));
-
+$tpl->assign('TR_PAGE_TITLE', toHtml(tr('Reseller / Customers / Add Customer - Next Step')));
 generateNavigation($tpl);
 generatePage($tpl, $form);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();

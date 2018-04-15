@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\TemplateEngine;
@@ -34,7 +34,7 @@ use Zend_Navigation as Navigation;
 function get_user_gui_props($userId)
 {
     $cfg = Registry::get('config');
-    $stmt = exec_query('SELECT lang, layout FROM user_gui_props WHERE user_id = ?', [$userId]);
+    $stmt = execQuery('SELECT lang, layout FROM user_gui_props WHERE user_id = ?', [$userId]);
 
     if (!$stmt->rowCount()) {
         return [$cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']];
@@ -64,7 +64,7 @@ function get_user_gui_props($userId)
  * @param string $level Message level (static_)?(info|warning|error|success)
  * @return void
  */
-function set_page_message($message, $level = 'info')
+function setPageMessage($message, $level = 'info')
 {
     $level = strtolower($level);
 
@@ -140,13 +140,13 @@ function format_message($messages)
  * @param  string $menuLink Menu link
  * @return mixed
  */
-function get_menu_vars($menuLink)
+function getMenuVariables($menuLink)
 {
     if (strpos($menuLink, '}') === false || strpos($menuLink, '}') === false) {
         return $menuLink;
     }
 
-    $row = exec_query(
+    $row = execQuery(
         'SELECT fname, lname, firm, zip, city, state, country, email, phone, fax, street1, street2 FROM admin WHERE admin_id = ?',
         [$_SESSION['user_id']]
     )->fetch();
@@ -157,33 +157,33 @@ function get_menu_vars($menuLink)
     $search [] = '{uid}';
     $replace[] = $_SESSION['user_id'];
     $search [] = '{uname}';
-    $replace[] = tohtml($_SESSION['user_logged']);
+    $replace[] = toHtml($_SESSION['user_logged']);
     $search [] = '{fname}';
-    $replace[] = tohtml($row['fname']);
+    $replace[] = toHtml($row['fname']);
     $search [] = '{lname}';
-    $replace[] = tohtml($row['lname']);
+    $replace[] = toHtml($row['lname']);
     $search [] = '{company}';
-    $replace[] = tohtml($row['firm']);
+    $replace[] = toHtml($row['firm']);
     $search [] = '{zip}';
-    $replace[] = tohtml($row['zip']);
+    $replace[] = toHtml($row['zip']);
     $search [] = '{city}';
-    $replace[] = tohtml($row['city']);
+    $replace[] = toHtml($row['city']);
     $search [] = '{state}';
-    $replace[] = tohtml($row['state']);
+    $replace[] = toHtml($row['state']);
     $search [] = '{country}';
-    $replace[] = tohtml($row['country']);
+    $replace[] = toHtml($row['country']);
     $search [] = '{email}';
-    $replace[] = tohtml($row['email']);
+    $replace[] = toHtml($row['email']);
     $search [] = '{phone}';
-    $replace[] = tohtml($row['phone']);
+    $replace[] = toHtml($row['phone']);
     $search [] = '{fax}';
-    $replace[] = tohtml($row['fax']);
+    $replace[] = toHtml($row['fax']);
     $search [] = '{street1}';
-    $replace[] = tohtml($row['street1']);
+    $replace[] = toHtml($row['street1']);
     $search [] = '{street2}';
-    $replace[] = tohtml($row['street2']);
+    $replace[] = toHtml($row['street2']);
 
-    $row = exec_query(
+    $row = execQuery(
         'SELECT domain_name, domain_admin_id FROM domain WHERE domain_admin_id = ?', [$_SESSION['user_id']]
     )->fetch();
 
@@ -194,11 +194,11 @@ function get_menu_vars($menuLink)
 }
 
 /**
- * Returns available color set for current layout
+ * Returns colors set for current layout
  *
  * @return array
  */
-function layout_getAvailableColorSet()
+function getLayoutColorsSet()
 {
     static $colorSet = NULL;
 
@@ -230,7 +230,7 @@ function layout_getAvailableColorSet()
  * @param int $userId user unique identifier
  * @return string User layout color
  */
-function layout_getUserLayoutColor($userId)
+function getLayoutColor($userId)
 {
     static $layoutColor = NULL;
 
@@ -243,8 +243,8 @@ function layout_getUserLayoutColor($userId)
         return $layoutColor;
     }
 
-    $allowedColors = layout_getAvailableColorSet();
-    $layoutColor = exec_query('SELECT layout_color FROM user_gui_props WHERE user_id = ?', [$userId])->fetchColumn();
+    $allowedColors = getLayoutColorsSet();
+    $layoutColor = execQuery('SELECT layout_color FROM user_gui_props WHERE user_id = ?', [$userId])->fetchColumn();
 
     if (!$layoutColor || !in_array($layoutColor, $allowedColors)) {
         $layoutColor = array_shift($allowedColors);
@@ -260,7 +260,7 @@ function layout_getUserLayoutColor($userId)
  * @return void
  * @todo Use cookies to store user UI properties (Remember me implementation?)
  */
-function layout_init(iMSCP_Events_Event $event)
+function initLayout(iMSCP_Events_Event $event)
 {
     $cfg = Registry::get('config');
 
@@ -274,10 +274,10 @@ function layout_init(iMSCP_Events_Event $event)
         $color = $_SESSION['user_theme_color'];
     } elseif (isset($_SESSION['user_id'])) {
         $userId = isset($_SESSION['logged_from_id']) ? $_SESSION['logged_from_id'] : $_SESSION['user_id'];
-        $color = layout_getUserLayoutColor($userId);
+        $color = getLayoutColor($userId);
         $_SESSION['user_theme_color'] = $color;
     } else {
-        $colors = layout_getAvailableColorSet();
+        $colors = getLayoutColorsSet();
         $color = array_shift($colors);
     }
 
@@ -288,8 +288,8 @@ function layout_init(iMSCP_Events_Event $event)
         'THEME_ASSETS_PATH'    => '/themes/' . $cfg['USER_INITIAL_THEME'] . '/assets',
         'THEME_ASSETS_VERSION' => $themesAssetsVersion,
         'THEME_COLOR'          => $color,
-        'ISP_LOGO'             => isset($_SESSION['user_id']) ? layout_getUserLogo() : '',
-        'JS_TRANSLATIONS'      => i18n_getJsTranslations()
+        'ISP_LOGO'             => isset($_SESSION['user_id']) ? getUserLogo() : '',
+        'JS_TRANSLATIONS'      => getJsTranslations()
     ]);
     $tpl->parse('LAYOUT', $event->getParam('layout') ?: 'layout');
 }
@@ -301,18 +301,18 @@ function layout_init(iMSCP_Events_Event $event)
  * @param string $color Layout color
  * @return bool TRUE on success false otherwise
  */
-function layout_setUserLayoutColor($userId, $color)
+function setLayoutColor($userId, $color)
 {
-    if (!in_array($color, layout_getAvailableColorSet())) {
+    if (!in_array($color, getLayoutColorsSet())) {
         return false;
     }
 
-    exec_query('UPDATE user_gui_props SET layout_color = ? WHERE user_id = ?', [$color, $userId]);
+    execQuery('UPDATE user_gui_props SET layout_color = ? WHERE user_id = ?', [$color, $userId]);
 
     // Dealing with sessions across multiple browsers for same user identifier - Begin
 
     $sessionId = session_id();
-    $stmt = exec_query('SELECT session_id FROM login WHERE user_name = ? AND session_id <> ?', [encode_idna($_SESSION['user_logged']), $sessionId]);
+    $stmt = execQuery('SELECT session_id FROM login WHERE user_name = ? AND session_id <> ?', [encodeIdna($_SESSION['user_logged']), $sessionId]);
 
     if (!$stmt->rowCount()) {
         return true;
@@ -349,7 +349,7 @@ function layout_setUserLayoutColor($userId, $color)
  * @return string User logo path.
  * @todo cache issues
  */
-function layout_getUserLogo($searchForCreator = true, $returnDefault = true)
+function getUserLogo($searchForCreator = true, $returnDefault = true)
 {
     $cfg = Registry::get('config');
 
@@ -363,11 +363,11 @@ function layout_getUserLogo($searchForCreator = true, $returnDefault = true)
         $userId = $_SESSION['user_id'];
     }
 
-    $stmt = exec_query('SELECT logo FROM user_gui_props WHERE user_id= ?', [$userId]);
+    $stmt = execQuery('SELECT logo FROM user_gui_props WHERE user_id= ?', [$userId]);
 
     // No logo is found for the user, let see for it creator
     if (!$stmt->rowCount() && $searchForCreator && $userId != 1) {
-        $stmt = exec_query('SELECT b.logo FROM admin a LEFT JOIN user_gui_props b ON (b.user_id = a.created_by) WHERE a.admin_id= ?', [$userId]);
+        $stmt = execQuery('SELECT b.logo FROM admin a LEFT JOIN user_gui_props b ON (b.user_id = a.created_by) WHERE a.admin_id= ?', [$userId]);
     }
 
     $logo = $stmt->fetchColumn();
@@ -390,13 +390,13 @@ function layout_getUserLogo($searchForCreator = true, $returnDefault = true)
 }
 
 /**
- * Updates user logo
+ * Set user logo
  *
  * Note: Only administrators and resellers can have their own logo.
  *
  * @return bool TRUE on success, FALSE otherwise
  */
-function layout_updateUserLogo()
+function setUserLogo()
 {
     $cfg = Registry::get('config');
 
@@ -407,8 +407,8 @@ function layout_updateUserLogo()
         $tmpFilePath = $_FILES['logoFile']['tmp_name'];
 
         // Checking file mime type
-        if (!($fileMimeType = checkMimeType($tmpFilePath, ['image/gif', 'image/jpeg', 'image/pjpeg', 'image/png']))) {
-            set_page_message(tr('You can only upload images.'), 'error');
+        if (!($fileMimeType = validateMimeType($tmpFilePath, ['image/gif', 'image/jpeg', 'image/pjpeg', 'image/png']))) {
+            setPageMessage(tr('You can only upload images.'), 'error');
             return false;
         }
 
@@ -424,7 +424,7 @@ function layout_updateUserLogo()
 
         // Checking image size
         if ($imageWidth > 500 || $imageHeight > 90) {
-            set_page_message(tr('Images have to be smaller than 500 x 90 pixels.'), 'error');
+            setPageMessage(tr('Images have to be smaller than 500 x 90 pixels.'), 'error');
             return false;
         }
 
@@ -435,7 +435,7 @@ function layout_updateUserLogo()
         return $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . $filename;
     };
 
-    if (($logoPath = utils_uploadFile('logoFile', [$beforeMove, $cfg])) === false) {
+    if (($logoPath = uploadFile('logoFile', [$beforeMove, $cfg])) === false) {
         return false;
     }
 
@@ -446,13 +446,13 @@ function layout_updateUserLogo()
     }
 
     // We must catch old logo before update
-    $oldLogoFile = layout_getUserLogo(false, false);
+    $oldLogoFile = getUserLogo(false, false);
 
-    exec_query('UPDATE user_gui_props SET logo = ? WHERE user_id = ?', [basename($logoPath), $userId]);
+    execQuery('UPDATE user_gui_props SET logo = ? WHERE user_id = ?', [basename($logoPath), $userId]);
 
     // Deleting old logo (we are safe here) - We don't return FALSE on failure.
     // The administrator will be warned through logs.
-    layout_deleteUserLogo($oldLogoFile, true);
+    deleteUserLogo($oldLogoFile, true);
     return true;
 }
 
@@ -464,22 +464,22 @@ function layout_updateUserLogo()
  *                       deleted
  * @return bool TRUE on success, FALSE otherwise
  */
-function layout_deleteUserLogo($logoFilePath = NULL, $onlyFile = false)
+function deleteUserLogo($logoFilePath = NULL, $onlyFile = false)
 {
     $cfg = Registry::get('config');
 
     if (NULL === $logoFilePath) {
         if ($_SESSION['user_type'] == 'admin') {
-            $logoFilePath = layout_getUserLogo(true);
+            $logoFilePath = getUserLogo(true);
         } else {
-            $logoFilePath = layout_getUserLogo(false);
+            $logoFilePath = getUserLogo(false);
         }
     }
 
     $userId = ($_SESSION['user_type'] == 'admin') ? 1 : $_SESSION['user_id'];
 
     if (!$onlyFile) {
-        exec_query('UPDATE user_gui_props SET logo = ? WHERE user_id = ?', [NULL, $userId]);
+        execQuery('UPDATE user_gui_props SET logo = ? WHERE user_id = ?', [NULL, $userId]);
     }
 
     if (strpos($logoFilePath, $cfg['ISP_LOGO_PATH']) === false) {
@@ -489,7 +489,7 @@ function layout_deleteUserLogo($logoFilePath = NULL, $onlyFile = false)
     $logoFilePath = $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . basename($logoFilePath);
 
     if (file_exists($logoFilePath) && !@unlink($logoFilePath)) {
-        write_log(sprintf("Couldn't remove the %s file.", $logoFilePath), E_USER_WARNING);
+        writeLog(sprintf("Couldn't remove the %s file.", $logoFilePath), E_USER_WARNING);
         return false;
     }
 
@@ -502,7 +502,7 @@ function layout_deleteUserLogo($logoFilePath = NULL, $onlyFile = false)
  * @param string $logoPath Logo path to match against
  * @return bool TRUE if $logoPath is a user's logo, FALSE otherwise
  */
-function layout_isUserLogo($logoPath)
+function isUserLogo($logoPath)
 {
     if ($logoPath == '/themes/' . $_SESSION['user_theme'] . '/assets/images/imscp_logo.png'
         || $logoPath == Registry::get('config')['ISP_LOGO_PATH'] . '/' . 'isp_logo.gif'
@@ -518,7 +518,7 @@ function layout_isUserLogo($logoPath)
  *
  * @return void
  */
-function layout_LoadNavigation()
+function loadNavigation()
 {
     if (!isset($_SESSION['user_type'])) {
         return;
@@ -538,9 +538,7 @@ function layout_LoadNavigation()
     Registry::set('navigation', new Navigation(include(Registry::get('config')['ROOT_TEMPLATE_PATH'] . "/$userLevel/navigation.php")));
 
     // Set main menu labels visibility for the current environment
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(
-        Events::onBeforeGenerateNavigation, 'layout_setMainMenuLabelsVisibilityEvt'
-    );
+    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onBeforeGenerateNavigation, 'layout_setMainMenuLabelsVisibilityEvt');
 }
 
 /**
@@ -549,9 +547,9 @@ function layout_LoadNavigation()
  * @param int $userId User unique identifier
  * @return bool
  */
-function layout_isMainMenuLabelsVisible($userId)
+function isMainMenuLabelsVisible($userId)
 {
-    return (bool)exec_query('SELECT show_main_menu_labels FROM user_gui_props WHERE user_id = ?', [$userId])->fetchColumn();
+    return (bool)execQuery('SELECT show_main_menu_labels FROM user_gui_props WHERE user_id = ?', [$userId])->fetchColumn();
 }
 
 /**
@@ -561,10 +559,10 @@ function layout_isMainMenuLabelsVisible($userId)
  * @param int $visibility (0|1)
  * @return void
  */
-function layout_setMainMenuLabelsVisibility($userId, $visibility)
+function setMainMenuLabelsVisibility($userId, $visibility)
 {
     $visibility = ($visibility) ? 1 : 0;
-    exec_query('UPDATE user_gui_props SET show_main_menu_labels = ? WHERE user_id = ?', [$visibility, $userId]);
+    execQuery('UPDATE user_gui_props SET show_main_menu_labels = ? WHERE user_id = ?', [$visibility, $userId]);
 
     if (!isset($_SESSION['logged_from_id'])) {
         $_SESSION['show_main_menu_labels'] = $visibility;
@@ -576,10 +574,10 @@ function layout_setMainMenuLabelsVisibility($userId, $visibility)
  *
  * @return void
  */
-function layout_setMainMenuLabelsVisibilityEvt()
+function setMainMenuLabelsVisibilityEvt()
 {
     if (!isset($_SESSION['show_main_menu_labels']) && isset($_SESSION['user_type'])) {
         $userId = isset($_SESSION['logged_from_id']) ? $_SESSION['logged_from_id'] : $_SESSION['user_id'];
-        $_SESSION['show_main_menu_labels'] = layout_isMainMenuLabelsVisible($userId);
+        $_SESSION['show_main_menu_labels'] = isMainMenuLabelsVisible($userId);
     }
 }

@@ -3,29 +3,25 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+use iMSCP\TemplateEngine;
 use iMSCP_Config_Handler_File as ConfigFile;
 use iMSCP_Events as Events;
-use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Get count of default mail accounts
@@ -48,7 +44,7 @@ function countDefaultMailAccounts($mainDmnId)
         return $count;
     }
 
-    return $count = exec_query(
+    return $count = execQuery(
         "
             SELECT COUNT(mail_id)
             FROM mail_users
@@ -59,10 +55,7 @@ function countDefaultMailAccounts($mainDmnId)
                     AND mail_type IN('" . MT_NORMAL_FORWARD . "', '" . MT_ALIAS_FORWARD . "')
                 )
                 OR
-                (
-                    mail_acc = 'webmaster'
-                    AND mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "')
-                )
+                (mail_acc = 'webmaster' AND mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "'))
             )
             AND domain_id = ?
         ",
@@ -106,9 +99,7 @@ function generateDynamicTplParts($tpl, $mailAcc, $mailType, $mailStatus, $mailAu
 
     if (Registry::get('config')['PROTECT_DEFAULT_EMAIL_ADDRESSES']
         && (
-            (in_array($mailType, [MT_NORMAL_FORWARD, MT_ALIAS_FORWARD])
-                && in_array($mailAcc, ['abuse', 'hostmaster', 'postmaster', 'webmaster'])
-            )
+            (in_array($mailType, [MT_NORMAL_FORWARD, MT_ALIAS_FORWARD]) && in_array($mailAcc, ['abuse', 'hostmaster', 'postmaster', 'webmaster']))
             || ($mailAcc == 'webmaster' && in_array($mailType, [MT_SUBDOM_FORWARD, MT_ALSSUB_FORWARD]))
         )
     ) {
@@ -173,11 +164,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
                         mail_type IN('" . MT_NORMAL_FORWARD . "', '" . MT_ALIAS_FORWARD . "')
                     )
                     OR
-                    (
-                        mail_acc = 'webmaster'
-                        AND
-                        mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "')
-                    )
+                    (mail_acc = 'webmaster' AND mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "'))
                 )
             ";
         } else {
@@ -188,7 +175,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
         $tpl->assign('MAIL_SHOW_DEFAULT_MAIL_ACCOUNTS_LINK', '');
     }
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
           SELECT mail_id, mail_acc, mail_forward, mail_type, status, mail_auto_respond, quota, mail_addr
           FROM mail_users
@@ -211,7 +198,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
         return 0;
     }
 
-    $postfixConfig = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/postfix/postfix.data'));
+    $postfixConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/postfix/postfix.data'));
     $syncQuotaInfo = isset($_GET['sync_quota_info']);
     $hasMailboxes = $overQuota = false;
 
@@ -224,11 +211,11 @@ function generateMailAccountsList($tpl, $mainDmnId)
 
             if ($isCatchall || strpos($type, 'forward') !== false) {
                 $forwardList = implode(
-                    ', ', array_map('decode_idna', explode(',', $isCatchall ? $row['mail_acc'] : $row['mail_forward']))
+                    ', ', array_map('decodeIdna', explode(',', $isCatchall ? $row['mail_acc'] : $row['mail_forward']))
                 );
                 $tpl->assign([
-                    'MAIL_ACCOUNT_LONG_FORWARD_LIST'  => tohtml(wordwrap($forwardList, 75)),
-                    'MAIL_ACCOUNT_SHORT_FORWARD_LIST' => tohtml(
+                    'MAIL_ACCOUNT_LONG_FORWARD_LIST'  => toHtml(wordwrap($forwardList, 75)),
+                    'MAIL_ACCOUNT_SHORT_FORWARD_LIST' => toHtml(
                         strlen($forwardList) > 50 ? substr($forwardList, 0, 50) . '...' : $forwardList, 'htmlAttr'
                     )
                 ]);
@@ -244,8 +231,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
 
             $maildirsize = ($row['quota'])
                 ? parseMaildirsize(
-                    utils_normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize"),
-                    $syncQuotaInfo
+                    normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize"), $syncQuotaInfo
                 ) : false;
 
             if ($maildirsize === false) {
@@ -268,11 +254,11 @@ function generateMailAccountsList($tpl, $mainDmnId)
         }
 
         $tpl->assign([
-            'MAIL_ACCOUNT_ID'         => tohtml($row['mail_id']),
-            'MAIL_ACCOUNT_ADDR'       => tohtml(substr(decode_idna('-' . $row['mail_addr']), 1)),
-            'MAIL_ACCOUNT_TYPE'       => tohtml(user_trans_mail_type($row['mail_acc'], $row['mail_type'])),
-            'MAIL_ACCOUNT_QUOTA_INFO' => tohtml($mailQuotaInfo),
-            'MAIL_ACCOUNT_STATUS'     => translate_dmn_status($row['status'])
+            'MAIL_ACCOUNT_ID'         => toHtml($row['mail_id']),
+            'MAIL_ACCOUNT_ADDR'       => toHtml(substr(decodeIdna('-' . $row['mail_addr']), 1)),
+            'MAIL_ACCOUNT_TYPE'       => toHtml(humanizeMailType($row['mail_acc'], $row['mail_type'])),
+            'MAIL_ACCOUNT_QUOTA_INFO' => toHtml($mailQuotaInfo),
+            'MAIL_ACCOUNT_STATUS'     => humanizeDomainStatus($row['status'])
         ]);
 
         if ($quotaPercent >= 95) {
@@ -288,7 +274,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
     }
 
     if ($syncQuotaInfo) {
-        set_page_message(tr('Mailboxes quota info were synced.'), 'success');
+        setPageMessage(tr('Mailboxes quota info were synced.'), 'success');
         redirectTo('mail_accounts.php');
     }
 
@@ -300,7 +286,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
     }
 
     if ($overQuota) {
-        set_page_message(tr('At least one of your mailboxes is over quota.'), 'static_warning');
+        setPageMessage(tr('At least one of your mailboxes is over quota.'), 'static_warning');
     }
 
     return $rowCount;
@@ -316,7 +302,7 @@ function generatePage($tpl)
 {
     if (!customerHasFeature('mail')) {
         $tpl->assign('MAIL_FEATURE', '');
-        set_page_message(tr('Mail feature is disabled.'), 'static_info');
+        setPageMessage(tr('Mail feature is disabled.'), 'static_info');
         return;
     }
 
@@ -328,7 +314,7 @@ function generatePage($tpl)
         }
     }
 
-    $dmnProps = get_domain_default_props($_SESSION['user_id']);
+    $dmnProps = getCustomerProperties($_SESSION['user_id']);
     $mainDmnId = $dmnProps['domain_id'];
     $dmnMailAccLimit = $dmnProps['domain_mailacc_limit'];
     $mailAccountsCount = generateMailAccountsList($tpl, $mainDmnId);
@@ -344,28 +330,21 @@ function generatePage($tpl)
 
     if ($mailAccountsCount || $defaultMailAccountsCount) {
         $tpl->assign([
-            'MAIL_TOTAL_MAIL_ACCOUNTS' => tohtml($mailAccountsCount),
-            'MAIL_ACCOUNTS_LIMIT'      => tohtml(humanizeDbValue($dmnMailAccLimit))
+            'MAIL_TOTAL_MAIL_ACCOUNTS' => toHtml($mailAccountsCount),
+            'MAIL_ACCOUNTS_LIMIT'      => toHtml(humanizeDbValue($dmnMailAccLimit))
         ]);
         return;
     }
 
     $tpl->assign('MAIL_ACCOUNTS', '');
-    set_page_message(tr('Mail accounts list is empty.'), 'static_info');
+    setPageMessage(tr('Mail accounts list is empty.'), 'static_info');
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-
-if (!customerHasMailOrExtMailFeatures()) {
-    showBadRequestErrorPage();
-}
+customerHasMailOrExtMailFeatures() or showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -391,14 +370,11 @@ $tpl->define([
     'mail_sync_quota_info_link'                    => 'mail_accounts',
     'mail_delete_selected_items_button'            => 'mail_accounts'
 ]);
-$tpl->assign('TR_PAGE_TITLE', tohtml(tr('Client / Mail / Overview')));
-
+$tpl->assign('TR_PAGE_TITLE', toHtml(tr('Client / Mail / Overview')));
 generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

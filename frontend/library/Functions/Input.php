@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP_Exception as iMSCPException;
@@ -28,12 +28,55 @@ global $ESCAPER;
 $ESCAPER = new Escaper('UTF-8');
 
 /**
+ * Clean input
+ *
+ * @param string $input input data (eg. post-var) to be cleaned
+ * @return string space trimmed input string
+ */
+function cleanInput($input)
+{
+    return trim($input, "\x20");
+}
+
+/**
+ * Filter digits from the given string
+ *
+ * In case filtering lead to an empty string and if there is no $default value
+ * defined, a bad request error (400) is raised.
+ *
+ * @param string $input String to filter
+ * @param string $default Default value if $input is empty after filtering
+ * @return string containing only digits
+ *
+ */
+function filterDigits($input, $default = NULL)
+{
+    static $filter = NULL;
+
+    if (NULL === $filter) {
+        $filter = new FilterDigits();
+    }
+
+    $input = $filter->filter(cleanInput($input));
+
+    if ($input === '') {
+        if (NULL === $default) {
+            showBadRequestErrorPage();
+        }
+
+        $input = $default;
+    }
+
+    return $input;
+}
+
+/**
  * clean_html replaces up defined inputs
  *
  * @param string $text text string to be cleaned
  * @return string cleared text string
  */
-function clean_html($text)
+function cleanHtml($text)
 {
     return strip_tags(preg_replace(
         [
@@ -58,46 +101,24 @@ function clean_html($text)
 }
 
 /**
- * Clean input
+ * Replaces special encoded strings back to their original signs
  *
- * @param string $input input data (eg. post-var) to be cleaned
- * @return string space trimmed input string
+ * @param string $string String to replace chars
+ * @return String with replaced chars
  */
-function clean_input($input)
+function replaceHtml($string)
 {
-    return trim($input, "\x20");
-}
+    $pattern = [
+        '#&lt;[ ]*b[ ]*&gt;#i', '#&lt;[ ]*/[ ]*b[ ]*&gt;#i',
+        '#&lt;[ ]*strong[ ]*&gt;#i', '#&lt;[ ]*/[ ]*strong[ ]*&gt;#i',
+        '#&lt;[ ]*em[ ]*&gt;#i', '#&lt;[ ]*/[ ]*em[ ]*&gt;#i',
+        '#&lt;[ ]*i[ ]*&gt;#i', '#&lt;[ ]*/[ ]*i[ ]*&gt;#i',
+        '#&lt;[ ]*small[ ]*&gt;#i', '#&lt;[ ]*/[ ]*small[ ]*&gt;#i',
+        '#&lt;[ ]*br[ ]*(/|)[ ]*&gt;#i'
+    ];
+    $replacement = ['<b>', '</b>', '<strong>', '</strong>', '<em>', '</em>', '<i>', '</i>', '<small>', '</small>', '<br>'];
 
-/**
- * Filter digits from the given string
- *
- * In case filtering lead to an empty string and if there is no $default value
- * defined, a bad request error (400) is raised.
- *
- * @param string $input String to filter
- * @param string $default Default value if $input is empty after filtering
- * @return string containing only digits
- *
- */
-function filter_digits($input, $default = NULL)
-{
-    static $filter = NULL;
-
-    if (NULL === $filter) {
-        $filter = new FilterDigits();
-    }
-
-    $input = $filter->filter(clean_input($input));
-
-    if ($input === '') {
-        if (NULL === $default) {
-            showBadRequestErrorPage();
-        }
-
-        $input = $default;
-    }
-
-    return $input;
+    return preg_replace($pattern, $replacement, $string);
 }
 
 /**
@@ -108,7 +129,7 @@ function filter_digits($input, $default = NULL)
  * @param string $escapeType Escape type (html|htmlAttr)
  * @return string HTML entitied text
  */
-function tohtml($string, $escapeType = 'html')
+function toHtml($string, $escapeType = 'html')
 {
     global $ESCAPER;
 
@@ -131,7 +152,7 @@ function tohtml($string, $escapeType = 'html')
  * @param string $string String to be converted
  * @return string
  */
-function tojs($string)
+function toJs($string)
 {
     global $ESCAPER;
     return $ESCAPER->escapeJs($string);
@@ -143,7 +164,7 @@ function tojs($string)
  * @param string $string String to be converted
  * @return string
  */
-function tourl($string)
+function toUrl($string)
 {
     global $ESCAPER;
     return $ESCAPER->escapeUrl($string);
@@ -172,7 +193,7 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
 
     if ($passwordLength < $cfg['PASSWD_CHARS'] || $passwordLength > 30) {
         if (!$noErrorMsg) {
-            set_page_message(tr('The password must be between %d and %d characters.', $cfg['PASSWD_CHARS'], 30), 'error');
+            setPageMessage(tr('The password must be between %d and %d characters.', $cfg['PASSWD_CHARS'], 30), 'error');
         }
 
         $ret = false;
@@ -180,7 +201,7 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
 
     if (!empty($unallowedChars) && preg_match($unallowedChars, $password)) {
         if (!$noErrorMsg) {
-            set_page_message(tr('Password contains unallowed characters.'), 'error');
+            setPageMessage(tr('Password contains unallowed characters.'), 'error');
         }
 
         $ret = false;
@@ -188,7 +209,7 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
 
     if ($cfg['PASSWD_STRONG'] && !(preg_match('/[0-9]/', $password) && preg_match('/[a-zA-Z]/', $password))) {
         if (!$noErrorMsg) {
-            set_page_message(tr('Password must contain letters and digits.'), 'error');
+            setPageMessage(tr('Password must contain letters and digits.'), 'error');
         }
 
         $ret = false;
@@ -198,7 +219,7 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
 }
 
 /**
- * Validates a username
+ * Validate the given username
  *
  * This function validates syntax of usernames. The characters allowed are all
  * alphanumeric in upper or lower case, the hyphen , the low dash and  the dot,
@@ -211,20 +232,20 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
  * @param int $max_char number min. chars
  * @return boolean True if the username is valid, FALSE otherwise
  */
-function validates_username($username, $min_char = 2, $max_char = 30)
+function validateUsername($username, $min_char = 2, $max_char = 30)
 {
     $pattern = '@^[[:alnum:]](?:(?<![-_])(?:-*|[_.])?(?![-_])[[:alnum:]]*)*?(?<![-_.])$@';
     return (bool)(preg_match($pattern, $username) && strlen($username) >= $min_char && strlen($username) <= $max_char);
 }
 
 /**
- * Check syntax of the given email
+ * Validate the given email address
  *
  * @param string $email Email addresse to check
  * @param bool $localPartOnly If true, check only the local part
  * @return bool
  */
-function chk_email($email, $localPartOnly = false)
+function ValidateEmail($email, $localPartOnly = false)
 {
     $options = [];
 
@@ -241,7 +262,7 @@ function chk_email($email, $localPartOnly = false)
  * @param string $domainName Domain name
  * @return bool TRUE if the given domain name is valid, FALSE otherwise
  */
-function isValidDomainName($domainName)
+function validateDomainName($domainName)
 {
     global $dmnNameValidationErrMsg;
 
@@ -250,7 +271,7 @@ function isValidDomainName($domainName)
         return false;
     }
 
-    if (($asciiDomainName = encode_idna($domainName)) === false) {
+    if (($asciiDomainName = encodeIdna($domainName)) === false) {
         $dmnNameValidationErrMsg = tr('Invalid domain name.');
         return false;
     }
@@ -309,7 +330,7 @@ function isValidDomainName($domainName)
  *                    values
  * @return bool false incorrect syntax (ranges) true correct syntax (ranges)
  */
-function imscp_limit_check($data, $extra = -1)
+function validateLimit($data, $extra = -1)
 {
     if ($extra !== NULL && !is_bool($extra)) {
         if (is_array($extra)) {
@@ -338,7 +359,7 @@ function imscp_limit_check($data, $extra = -1)
  * @param  array|string $mimeTypes Accepted mimetype(s)
  * @return bool TRUE if the file match the givem mimetype(s), FALSE otherwise
  */
-function checkMimeType($pathFile, array $mimeTypes)
+function validateMimeType($pathFile, array $mimeTypes)
 {
     $mimeTypes['headerCheck'] = true;
     $validator = new FileMimeTypeValidator($mimeTypes);
@@ -374,7 +395,7 @@ function getUserLoginDataForm($usernameRequired = true, $passwordRequired = true
                 ['StringLength', true, ['min' => 2, 'max' => 30, 'messages' => tr('The username must be between %d and %d characters.', 2, 30)]],
                 ['Callback', true, [
                     function ($username) {
-                        return exec_query(
+                        return execQuery(
                                 'SELECT COUNT(admin_id) FROM admin WHERE admin_name = ?', [$username]
                             )->fetchColumn() == 0;
                     },

@@ -3,23 +3,25 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
+use iMSCP_Events_Event as Event;
+use iMSCP_Registry as Registry;
 
 /**
  * Generate page
@@ -29,25 +31,25 @@ use iMSCP\TemplateEngine;
  */
 function generatePage($tpl)
 {
-    $stmt = exec_query('SELECT * FROM htaccess WHERE dmn_id = ?', [get_user_domain_id($_SESSION['user_id'])]);
+    $stmt = execQuery('SELECT * FROM htaccess WHERE dmn_id = ?', [getCustomerMainDomainId($_SESSION['user_id'])]);
 
     if (!$stmt->rowCount()) {
         $tpl->assign('PROTECTED_AREAS', '');
-        set_page_message(tr('You do not have protected areas.'), 'static_info');
+        setPageMessage(tr('You do not have protected areas.'), 'static_info');
         return;
     }
 
     while ($row = $stmt->fetch()) {
         $tpl->assign([
-            'AREA_NAME' => tohtml($row['auth_name']),
-            'AREA_PATH' => tohtml($row['path']),
-            'STATUS'    => translate_dmn_status($row['status'])
+            'AREA_NAME' => toHtml($row['auth_name']),
+            'AREA_PATH' => toHtml($row['path']),
+            'STATUS'    => humanizeDomainStatus($row['status'])
         ]);
 
         if (!in_array($row['status'], ['toadd', 'tochange', 'todelete'])) {
             $tpl->assign([
-                'ID'             => tohtml($row['id'], 'htmlAttr'),
-                'DATA_AREA_NAME' => tohtml($row['auth_name'], 'htmlAttr'),
+                'ID'             => toHtml($row['id'], 'htmlAttr'),
+                'DATA_AREA_NAME' => toHtml($row['auth_name'], 'htmlAttr'),
             ]);
             $tpl->parse('ACTION_LINKS', 'action_links');
         } else {
@@ -58,13 +60,9 @@ function generatePage($tpl)
     }
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
 customerHasFeature('protected_areas') or showBadRequestErrorPage();
 
@@ -89,19 +87,15 @@ $tpl->assign([
     'TR_MANAGE_USERS_AND_GROUPS' => tr('Manage users and groups')
 ]);
 
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener('onGetJsTranslations', function ($e) {
-    /* @var $e iMSCP_Events_Event */
+Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['dataTable'] = getDataTablesPluginTranslations();
     $translations['core']['deletion_confirm_msg'] = tr('Are you sure you want to delete the `%%s` protected area?');
 });
-
 generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

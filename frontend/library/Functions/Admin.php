@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP_Registry as Registry;
@@ -23,35 +23,35 @@ use iMSCP_Registry as Registry;
 /**
  * Whether or not the system has a least the given number of registered resellers
  *
- * @param int $minNbResellers Minimum number of resellers
+ * @param int $minResellers Minimum number of resellers
  * @return bool TRUE if the system has a least the given number of registered resellers, FALSE otherwise
  */
-function systemHasResellers($minNbResellers = 1)
+function systemHasResellers($minResellers = 1)
 {
-    static $resellersCount = NULL;
+    static $count = NULL;
 
-    if (NULL === $resellersCount) {
-        $resellersCount = execute_query("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'reseller'")->fetchColumn();
+    if (NULL === $count) {
+        $count = executeQuery("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'reseller'")->fetchColumn();
     }
 
-    return $resellersCount >= $minNbResellers;
+    return $count >= $minResellers;
 }
 
 /**
  * Whether or not the system has a least the given number of registered customers
  *
- * @param int $minNbCustomers Minimum number of customers
+ * @param int $minCustomers Minimum number of customers
  * @return bool TRUE if system has a least the given number of registered customers, FALSE otherwise
  */
-function systemHasCustomers($minNbCustomers = 1)
+function systemHasCustomers($minCustomers = 1)
 {
-    static $customersCount = NULL;
+    static $count = NULL;
 
-    if (NULL === $customersCount) {
-        $customersCount = execute_query("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND admin_status <> 'todelete'")->fetchColumn();
+    if (NULL === $count) {
+        $count = executeQuery("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND admin_status <> 'todelete'")->fetchColumn();
     }
 
-    return $customersCount >= $minNbCustomers;
+    return $count >= $minCustomers;
 }
 
 /**
@@ -84,8 +84,7 @@ function systemHasManyAdmins()
     static $hasManyAdmins = NULL;
 
     if (NULL === $hasManyAdmins) {
-        $stmt = execute_query("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'admin'");
-        $hasManyAdmins = $stmt->fetchColumn() > 1;
+        $hasManyAdmins = executeQuery("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'admin'")->fetchColumn() > 1;
     }
 
     return $hasManyAdmins;

@@ -44,14 +44,14 @@ function cli_getMailData($domainName)
         return $data[$domainName];
     }
 
-    $stmt = exec_query('SELECT domain_id FROM domain WHERE domain_name = ?', [$domainName]);
+    $stmt = execQuery('SELECT domain_id FROM domain WHERE domain_name = ?', [$domainName]);
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
         $data[$domainName] = [$row['domain_id'], 0, MT_NORMAL_MAIL];
         return $data[$domainName];
     }
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         "SELECT domain_id, subdomain_id FROM subdomain JOIN domain USING(domain_id) WHERE CONCAT(subdomain_name, '.', domain_name) = ?", [$domainName]
     );
     if ($stmt->rowCount()) {
@@ -60,13 +60,13 @@ function cli_getMailData($domainName)
         return $data[$domainName];
     }
 
-    $stmt = exec_query('SELECT domain_id FROM domain_aliases WHERE alias_name = ?', [$domainName]);
+    $stmt = execQuery('SELECT domain_id FROM domain_aliases WHERE alias_name = ?', [$domainName]);
     if ($stmt->rowCount()) {
         $data[$domainName] = [$stmt->fetchColumn(), 0, MT_ALIAS_MAIL];
         return $data[$domainName];
     }
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT domain_id, subdomain_alias_id
             FROM subdomain_alias
@@ -129,11 +129,11 @@ $stmt->bindParam(6, $mailAddrACE, PDO::PARAM_STR);
 // Create i-MSCP mail accounts using entries from CSV file
 while (($csvEntry = fgetcsv($handle, 1024, $csvDelimiter)) !== false) {
     $mailAddr = trim($csvEntry[0]);
-    $mailAddrACE = encode_idna($mailAddr);
+    $mailAddrACE = encodeIdna($mailAddr);
     $mailPassword = trim($csvEntry[1]);
 
     try {
-        if (!chk_email($mailAddrACE)) {
+        if (!ValidateEmail($mailAddrACE)) {
             throw new iMSCP_Exception(sprintf('%s is not a valid email address.', $mailAddr));
         }
 
@@ -160,7 +160,7 @@ while (($csvEntry = fgetcsv($handle, 1024, $csvDelimiter)) !== false) {
     }
 }
 
-if (!send_request()) {
+if (!sendDaemonRequest()) {
     fwrite(STDERR, "ERROR: Couldn't send request to i-MSCP daemon.\n");
     exit(1);
 }

@@ -24,6 +24,6 @@ Unless otherwise stated all code is licensed under LGPL 2.1 and has the
 following copyright:
 
 ```
-    Copyright © 2010-2018, Laurent Declercq (i-MSCP)
+    Copyright © 2010-2018, Laurent Declercq (i-MSCP) <l.declercq@nuxwin.com>
     All rights reserved
 ```

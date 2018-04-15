@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP_Registry as Registry;
@@ -47,9 +47,7 @@ function getClientMonthlyTrafficStats($domainId)
         $db = Registry::get('iMSCP_Application')->getDatabase();
         $stmt = $db->prepare(
             '
-                SELECT IFNULL(SUM(dtraff_web), 0) AS dtraff_web,
-                    IFNULL(SUM(dtraff_ftp), 0) AS dtraff_ftp,
-                    IFNULL(SUM(dtraff_mail), 0) AS dtraff_smtp,
+                SELECT IFNULL(SUM(dtraff_web), 0) AS dtraff_web, IFNULL(SUM(dtraff_ftp), 0) AS dtraff_ftp, IFNULL(SUM(dtraff_mail), 0) AS dtraff_smtp,
                     IFNULL(SUM(dtraff_pop), 0) AS dtraff_pop
                 FROM domain_traffic
                 WHERE domain_id = ? 
@@ -65,10 +63,7 @@ function getClientMonthlyTrafficStats($domainId)
     }
 
     return [
-        $row['dtraff_web'],
-        $row['dtraff_ftp'],
-        $row['dtraff_smtp'],
-        $row['dtraff_pop'],
+        $row['dtraff_web'], $row['dtraff_ftp'], $row['dtraff_smtp'], $row['dtraff_pop'],
         $row['dtraff_web'] + $row['dtraff_ftp'] + $row['dtraff_smtp'] + $row['dtraff_pop']
     ];
 }
@@ -90,10 +85,7 @@ function getClientTrafficAndDiskStats($clientId)
     }
 
     $stmt->execute([$clientId]);
-
-    if (($row = $stmt->fetch()) === false) {
-        showBadRequestErrorPage();
-    }
+    $row = $stmt->fetch() !== false or showBadRequestErrorPage();
 
     list($webTraffic, $ftpTraffic, $smtpTraffic, $popTraffic, $totalTraffic) = getClientMonthlyTrafficStats($row['domain_id']);
 
@@ -101,14 +93,14 @@ function getClientTrafficAndDiskStats($clientId)
 }
 
 /**
- * Get counts of consumed and max items for the given customer
+ * Get count of consumed and max items for the given customer
  *
  * Note: For disk and traffic, only limit are returned.
  *
  * @param  int $clientId Client unique identifier
  * @return array
  */
-function getClientItemCountsAndLimits($clientId)
+function getClientItemsCountAndLimits($clientId)
 {
     $stmt = NULL;
 
@@ -117,10 +109,10 @@ function getClientItemCountsAndLimits($clientId)
         $db = Registry::get('iMSCP_Application')->getDatabase();
         $stmt = $db->prepare(
             '
-               SELECT domain_id, domain_subd_limit, domain_alias_limit, domain_mailacc_limit, domain_ftpacc_limit, domain_sqld_limit,
-                domain_sqlu_limit, domain_traffic_limit, domain_disk_limit
-               FROM domain
-               WHERE domain_admin_id = ?
+                SELECT domain_id, domain_subd_limit, domain_alias_limit, domain_mailacc_limit, domain_ftpacc_limit, domain_sqld_limit,
+                    domain_sqlu_limit, domain_traffic_limit, domain_disk_limit
+                FROM domain
+                WHERE domain_admin_id = ?
             '
         );
     }
@@ -132,18 +124,12 @@ function getClientItemCountsAndLimits($clientId)
     }
 
     return [
-        ($row['domain_subd_limit'] == -1) ? 0 : get_customer_subdomains_count($row['domain_id']),
-        $row['domain_subd_limit'],
-        ($row['domain_alias_limit'] == -1) ? 0 : get_customer_domain_aliases_count($row['domain_id']),
-        $row['domain_alias_limit'],
-        ($row['domain_mailacc_limit'] == -1) ? 0 : get_customer_mail_accounts_count($row['domain_id']),
-        $row['domain_mailacc_limit'],
-        ($row['domain_ftpacc_limit'] == -1) ? 0 : get_customer_ftp_users_count($clientId),
-        $row['domain_ftpacc_limit'],
-        ($row['domain_sqld_limit'] == -1) ? 0 : get_customer_sql_databases_count($row['domain_id']),
-        $row['domain_sqld_limit'],
-        ($row['domain_sqlu_limit'] == -1) ? 0 : get_customer_sql_users_count($row['domain_id']),
-        $row['domain_sqlu_limit'],
+        $row['domain_subd_limit'] == -1 ? 0 : getCustomerSubdomainsCount($row['domain_id']), $row['domain_subd_limit'],
+        $row['domain_alias_limit'] == -1 ? 0 : getCustomerDomainAliasesCount($row['domain_id']), $row['domain_alias_limit'],
+        $row['domain_mailacc_limit'] == -1 ? 0 : getCustomerMailAccountsCount($row['domain_id']), $row['domain_mailacc_limit'],
+        $row['domain_ftpacc_limit'] == -1 ? 0 : getCustomerFtpUsersCount($clientId), $row['domain_ftpacc_limit'],
+        $row['domain_sqld_limit'] == -1 ? 0 : getCustomerSqlDatabasesCount($row['domain_id']), $row['domain_sqld_limit'],
+        $row['domain_sqlu_limit'] == -1 ? 0 : getCustomerSqlUsersCount($row['domain_id']), $row['domain_sqlu_limit'],
         $row['domain_traffic_limit'] * 1048576,
         $row['domain_disk_limit'] * 1048576
     ];
@@ -182,14 +168,8 @@ function getResellerStats($resellerId)
     }
 
     return [
-        get_reseller_domains_count($resellerId),
-        get_reseller_subdomains_count($resellerId),
-        get_reseller_domain_aliases_count($resellerId),
-        get_reseller_mail_accounts_count($resellerId),
-        get_reseller_ftp_users_count($resellerId),
-        get_reseller_sql_databases_count($resellerId),
-        get_reseller_sql_users_count($resellerId),
-        $rtraffConsumed,
-        $rdiskConsumed
+        getResellerDomainsCount($resellerId), getResellerSubdomainsCount($resellerId), getResellerDomainAliasesCount($resellerId),
+        getResellerMailAccountsCount($resellerId), getResellerFtpUsersCount($resellerId), getResellerSqlDatabasesCount($resellerId),
+        getResellerSqlUsersCount($resellerId), $rtraffConsumed, $rdiskConsumed
     ];
 }

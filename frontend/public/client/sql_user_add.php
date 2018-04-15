@@ -3,31 +3,27 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+use iMSCP\TemplateEngine;
 use iMSCP_Config_Handler_File as ConfigFile;
 use iMSCP_Events as Events;
-use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
 use iMSCP_Validate as Validator;
 use Zend_Validate_Hostname as ValidateHostname;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Check SQL permissions
@@ -41,24 +37,20 @@ function checkSqlUserPermissions(TemplateEngine $tpl, $sqldId)
     global $canAddNewSQLUser;
 
     $canAddNewSQLUser = true;
-    $domainProps = get_domain_default_props($_SESSION['user_id']);
+    $domainProps = getCustomerProperties($_SESSION['user_id']);
 
     if ($domainProps['domain_sqlu_limit'] != 0
-        && get_customer_sql_users_count($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']
+        && getCustomerSqlUsersCount($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']
     ) {
-        set_page_message(tr("SQL users limit is reached. You cannot add new SQL users."), 'static_info');
+        setPageMessage(tr("SQL users limit is reached. You cannot add new SQL users."), 'static_info');
         $canAddNewSQLUser = false;
         $tpl->assign('CREATE_SQLUSER', '');
     }
 
-    $stmt = exec_query(
-        'SELECT COUNT(sqld_id) FROM sql_database JOIN domain USING(domain_id) WHERE sqld_id = ? AND domain_id = ?',
-        [$sqldId, $domainProps['domain_id']]
-    );
-
-    if ($stmt->fetchColumn() < 1) {
-        showBadRequestErrorPage();
-    }
+    $stmt = execQuery('SELECT COUNT(sqld_id) FROM sql_database JOIN domain USING(domain_id) WHERE sqld_id = ? AND domain_id = ?', [
+        $sqldId, $domainProps['domain_id']
+    ]);
+    $stmt->fetchColumn() or showBadRequestErrorPage();
 }
 
 /**
@@ -74,26 +66,24 @@ function generateSqlUserList(TemplateEngine $tpl, $sqldId)
 
     // Select all SQL users that are owned by the customer except those that are
     // already assigned to $sqldId
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT MAX(t1.sqlu_id) AS sqlu_id, t1.sqlu_name, t1.sqlu_host
             FROM sql_user AS t1
             JOIN sql_database AS t2 USING(sqld_id)
             WHERE t2.sqld_id <> ?
             AND t2.domain_id = ?
-            AND CONCAT(t1.sqlu_name, t1.sqlu_host) NOT IN(
-                SELECT CONCAT(sqlu_name, sqlu_host) FROM sql_user WHERE sqld_id = ?
-            )
+            AND CONCAT(t1.sqlu_name, t1.sqlu_host) NOT IN(SELECT CONCAT(sqlu_name, sqlu_host) FROM sql_user WHERE sqld_id = ?)
             GROUP BY t1.sqlu_name, t1.sqlu_host
         ",
-        [$sqldId, get_user_domain_id($_SESSION['user_id']), $sqldId]
+        [$sqldId, getCustomerMainDomainId($_SESSION['user_id']), $sqldId]
     );
 
     if ($stmt->rowCount()) {
         while ($row = $stmt->fetch()) {
             $tpl->assign([
                 'SQLUSER_ID'  => $row['sqlu_id'],
-                'SQLUSER_IDN' => tohtml($row['sqlu_name'] . '@' . decode_idna($row['sqlu_host'])),
+                'SQLUSER_IDN' => toHtml($row['sqlu_name'] . '@' . decodeIdna($row['sqlu_host'])),
             ]);
             $tpl->parse('SQLUSER_LIST', '.sqluser_list');
         }
@@ -101,9 +91,7 @@ function generateSqlUserList(TemplateEngine $tpl, $sqldId)
         return;
     }
 
-    if (!$canAddNewSQLUser) {
-        showBadRequestErrorPage();
-    }
+    $canAddNewSQLUser or showBadRequestErrorPage();
 
     $tpl->assign('SHOW_SQLUSER_LIST', '');
 }
@@ -117,9 +105,7 @@ function generateSqlUserList(TemplateEngine $tpl, $sqldId)
  */
 function isSqlUser($sqlUser, $sqlUserHost)
 {
-    return exec_query(
-            'SELECT COUNT(User) FROM mysql.user WHERE User = ? AND Host = ?', [$sqlUser, $sqlUserHost]
-        )->fetchColumn() > 0;
+    return execQuery('SELECT COUNT(User) FROM mysql.user WHERE User = ? AND Host = ?', [$sqlUser, $sqlUserHost])->fetchColumn() > 0;
 }
 
 /**
@@ -131,59 +117,48 @@ function isSqlUser($sqlUser, $sqlUserHost)
  */
 function addSqlUser($sqldId)
 {
-    if (!isset($_POST['uaction'])) {
-        showBadRequestErrorPage();
-    }
+    isset($_POST['uaction']) or showBadRequestErrorPage();
 
-    $dmnId = get_user_domain_id($_SESSION['user_id']);
+    $dmnId = getCustomerMainDomainId($_SESSION['user_id']);
 
     if (!isset($_POST['reuse_sqluser'])) {
         $needUserCreate = true;
 
-        if (!isset($_POST['user_name'])
-            || !isset($_POST['user_host'])
-            || !isset($_POST['pass'])
-            || !isset($_POST['pass_rep'])
-        ) {
+        if (!isset($_POST['user_name']) || !isset($_POST['user_host']) || !isset($_POST['pass']) || !isset($_POST['pass_rep'])) {
             showBadRequestErrorPage();
         }
 
-        $user = clean_input($_POST['user_name']);
-        $host = clean_input($_POST['user_host']);
-        $password = clean_input($_POST['pass']);
-        $passwordConf = clean_input($_POST['pass_rep']);
+        $user = cleanInput($_POST['user_name']);
+        $host = cleanInput($_POST['user_host']);
+        $password = cleanInput($_POST['pass']);
+        $passwordConf = cleanInput($_POST['pass_rep']);
 
-        if ($user === '') {
-            set_page_message(tr('Please enter an username.'), 'error');
+        if ($user == '') {
+            setPageMessage(tr('Please enter an username.'), 'error');
             return;
         }
 
-        if ($host === '') {
-            set_page_message(tr('Please enter an SQL user host.'), 'error');
+        if ($host == '') {
+            setPageMessage(tr('Please enter an SQL user host.'), 'error');
             return;
         }
 
-        $host = encode_idna(clean_input($_POST['user_host']));
+        $host = encodeIdna(cleanInput($_POST['user_host']));
 
-        if ($host !== '%'
-            && $host !== 'localhost'
-            && !Validator::getInstance()->hostname(
-                $host, ['allow' => ValidateHostname::ALLOW_DNS | ValidateHostname::ALLOW_IP]
-            )
+        if ($host != '%' && $host !== 'localhost'
+            && !Validator::getInstance()->hostname($host, ['allow' => ValidateHostname::ALLOW_DNS | ValidateHostname::ALLOW_IP])
         ) {
-            set_page_message(
-                tr('Invalid SQL user host: %s', Validator::getInstance()->getLastValidationMessages()), 'error'
-            );
+            setPageMessage(tr('Invalid SQL user host: %s', Validator::getInstance()->getLastValidationMessages()), 'error');
             return;
         }
 
-        if ($password === '') {
-            set_page_message(tr('Please enter a password.'), 'error');
+        if ($password == '') {
+            setPageMessage(tr('Please enter a password.'), 'error');
             return;
         }
 
         if ($password !== $passwordConf) {
-            set_page_message(tr('Passwords do not match.'), 'error');
+            setPageMessage(tr('Passwords do not match.'), 'error');
             return;
         }
 
@@ -191,38 +166,26 @@ function addSqlUser($sqldId)
             return;
         }
 
-        if (isset($_POST['use_dmn_id'])
-            && $_POST['use_dmn_id'] == 'on'
-            && isset($_POST['id_pos'])
-            && $_POST['id_pos'] == 'start'
-        ) {
-            $user = $dmnId . '_' . clean_input($_POST['user_name']);
-        } elseif (isset($_POST['use_dmn_id'])
-            && $_POST['use_dmn_id'] == 'on'
-            && isset($_POST['id_pos'])
-            && $_POST['id_pos'] == 'end'
-        ) {
-            $user = clean_input($_POST['user_name']) . '_' . $dmnId;
+        if (isset($_POST['use_dmn_id']) && $_POST['use_dmn_id'] == 'on' && isset($_POST['id_pos']) && $_POST['id_pos'] == 'start') {
+            $user = $dmnId . '_' . cleanInput($_POST['user_name']);
+        } elseif (isset($_POST['use_dmn_id']) && $_POST['use_dmn_id'] == 'on' && isset($_POST['id_pos']) && $_POST['id_pos'] == 'end') {
+            $user = cleanInput($_POST['user_name']) . '_' . $dmnId;
         } else {
-            $user = clean_input($_POST['user_name']);
+            $user = cleanInput($_POST['user_name']);
         }
 
         if (strlen($user) > 16) {
-            set_page_message(tr('SQL username is too long.'), 'error');
+            setPageMessage(tr('SQL username is too long.'), 'error');
             return;
         }
 
-        if (isSqlUser($user, $host)
-            || in_array($user, ['debian-sys-maint', 'mysql.user', 'root'])
-        ) {
-            set_page_message(
-                tr("The %s SQL user is not available or not permitted.", $user . '@' . decode_idna($host)), 'error'
-            );
+        if (isSqlUser($user, $host) || in_array($user, ['debian-sys-maint', 'mysql.user', 'root'])) {
+            setPageMessage(tr("The %s SQL user is not available or not permitted.", $user . '@' . decodeIdna($host)), 'error');
             return;
         }
     } elseif (isset($_POST['sqluser_id'])) { // Using existing SQL user as specified in input data
         $needUserCreate = false;
-        $stmt = exec_query(
+        $stmt = execQuery(
             '
                 SELECT t1.sqlu_name, t1.sqlu_host
                 FROM sql_user AS t1
@@ -234,10 +197,7 @@ function addSqlUser($sqldId)
             [intval($_POST['sqluser_id']), $sqldId, $dmnId]
         );
 
-        if (!$stmt->rowCount()) {
-            showBadRequestErrorPage();
-        }
-
+        $stmt->rowCount() or showBadRequestErrorPage();
         $row = $stmt->fetch();
         $user = $row['sqlu_name'];
         $host = $row['sqlu_host'];
@@ -247,12 +207,8 @@ function addSqlUser($sqldId)
     }
 
     # Retrieve database to which SQL user should be assigned
-    $stmt = exec_query('SELECT sqld_name FROM sql_database WHERE sqld_id = ? AND domain_id = ?', [$sqldId, $dmnId]);
-
-    if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
-    }
-
+    $stmt = execQuery('SELECT sqld_name FROM sql_database WHERE sqld_id = ? AND domain_id = ?', [$sqldId, $dmnId]);
+    $stmt->rowCount() or showBadRequestErrorPage();
     $row = $stmt->fetch();
     $mysqlConfig = new ConfigFile(Registry::get('config')['CONF_DIR'] . '/mysql/mysql.data');
 
@@ -268,9 +224,9 @@ function addSqlUser($sqldId)
 
     if ($needUserCreate && isset($password)) {
         if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
-            exec_query('CREATE USER ?@? IDENTIFIED BY ?', [$user, $host, $password]);
+            execQuery('CREATE USER ?@? IDENTIFIED BY ?', [$user, $host, $password]);
         } else {
-            exec_query('CREATE USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', [$user, $host, $password]);
+            execQuery('CREATE USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', [$user, $host, $password]);
         }
     }
 
@@ -283,8 +239,8 @@ function addSqlUser($sqldId)
     // In practice, without escaping, an user added for db `a_c` would also have access to a db `abc`.
     $row['sqld_name'] = preg_replace('/([%_])/', '\\\\$1', $row['sqld_name']);
 
-    exec_query(sprintf('GRANT ALL PRIVILEGES ON %s.* TO ?@?', quoteIdentifier($row['sqld_name'])), [$user, $host]);
-    exec_query('INSERT INTO sql_user (sqld_id, sqlu_name, sqlu_host) VALUES (?, ?, ?)', [$sqldId, $user, $host]);
+    execQuery(sprintf('GRANT ALL PRIVILEGES ON %s.* TO ?@?', quoteIdentifier($row['sqld_name'])), [$user, $host]);
+    execQuery('INSERT INTO sql_user (sqld_id, sqlu_name, sqlu_host) VALUES (?, ?, ?)', [$sqldId, $user, $host]);
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddSqlUser, [
         'SqlUserId'       => Registry::get('iMSCP_Application')->getDatabase()->lastInsertId(),
         'SqlUsername'     => $user,
@@ -292,8 +248,8 @@ function addSqlUser($sqldId)
         'SqlUserPassword' => isset($password) ? $password : '',
         'SqlDatabaseId'   => $sqldId
     ]);
-    write_log(sprintf('A SQL user has been added by %s', $_SESSION['user_logged']), E_USER_NOTICE);
-    set_page_message(tr('SQL user successfully added.'), 'success');
+    writeLog(sprintf('A SQL user has been added by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    setPageMessage(tr('SQL user successfully added.'), 'success');
     redirectTo('sql_manage.php');
 }
 
@@ -334,12 +290,10 @@ function generatePage(TemplateEngine $tpl, $sqldId)
         $tpl->parse('MYSQL_PREFIX_ALL', 'mysql_prefix_all');
     }
 
-    if (isset($_POST['uaction'])
-        && $_POST['uaction'] == 'add_user'
-    ) {
+    if (isset($_POST['uaction']) && $_POST['uaction'] == 'add_user') {
         $tpl->assign([
-            'USER_NAME'             => isset($_POST['user_name']) ? tohtml($_POST['user_name'], true) : '',
-            'USER_HOST'             => isset($_POST['user_host']) ? tohtml($_POST['user_host'], true) : '',
+            'USER_NAME'             => isset($_POST['user_name']) ? toHtml($_POST['user_name'], true) : '',
+            'USER_HOST'             => isset($_POST['user_host']) ? toHtml($_POST['user_host'], true) : '',
             'USE_DMN_ID'            => isset($_POST['use_dmn_id']) && $_POST['use_dmn_id'] === 'on' ? ' checked' : '',
             'START_ID_POS_SELECTED' => isset($_POST['id_pos']) && $_POST['id_pos'] !== 'end' ? ' selected' : '',
             'END_ID_POS_SELECTED'   => isset($_POST['id_pos']) && $_POST['id_pos'] === 'end' ? ' selected' : ''
@@ -347,8 +301,8 @@ function generatePage(TemplateEngine $tpl, $sqldId)
     } else {
         $tpl->assign([
             'USER_NAME'             => '',
-            'USER_HOST'             => tohtml(
-                $cfg['DATABASE_USER_HOST'] == '127.0.0.1' ? 'localhost' : decode_idna($cfg['DATABASE_USER_HOST'])
+            'USER_HOST'             => toHtml(
+                $cfg['DATABASE_USER_HOST'] == '127.0.0.1' ? 'localhost' : decodeIdna($cfg['DATABASE_USER_HOST'])
             ),
             'USE_DMN_ID'            => '',
             'START_ID_POS_SELECTED' => ' selected',
@@ -359,21 +313,15 @@ function generatePage(TemplateEngine $tpl, $sqldId)
     $tpl->assign('SQLD_ID', $sqldId);
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
 customerHasFeature('sql') && isset($_REQUEST['sqld_id']) or showBadRequestErrorPage();
 
 $sqldId = intval($_REQUEST['sqld_id']);
 
-if (!empty($_POST)) {
-    addSqlUser($sqldId);
-}
+empty($_POST) or addSqlUser($sqldId);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -390,29 +338,27 @@ $tpl->define([
     'mysql_prefix_behind'  => 'create_sqluser'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'               => tohtml(tr('Client / Databases / Overview / Add SQL User')),
-    'TR_USER_NAME'                => tohtml(tr('SQL user name')),
-    'TR_USER_HOST'                => tohtml(tr('SQL user host')),
-    'TR_USER_HOST_TIP'            => tohtml(tr("This is the host from which this SQL user must be allowed to connect to the SQL server. Enter the %s wildcard character to allow this SQL user to connect from any host.", '%'), 'htmlAttr'),
-    'TR_USE_DMN_ID'               => tohtml(tr('SQL user prefix/suffix')),
-    'TR_START_ID_POS'             => tohtml(tr('In front')),
-    'TR_END_ID_POS'               => tohtml(tr('Behind')),
-    'TR_ADD'                      => tohtml(tr('Add'), 'htmlAttr'),
-    'TR_CANCEL'                   => tohtml(tr('Cancel')),
-    'TR_ADD_EXIST'                => tohtml(tr('Assign'), 'htmlAttr'),
-    'TR_PASS'                     => tohtml(tr('Password')),
-    'TR_PASS_REP'                 => tohtml(tr('Repeat password')),
-    'TR_SQL_USER_NAME'            => tohtml(tr('SQL users')),
-    'TR_ASSIGN_EXISTING_SQL_USER' => tohtml(tr('Assign existing SQL user')),
-    'TR_NEW_SQL_USER_DATA'        => tohtml(tr('New SQL user data'))
+    'TR_PAGE_TITLE'               => toHtml(tr('Client / Databases / Overview / Add SQL User')),
+    'TR_USER_NAME'                => toHtml(tr('SQL user name')),
+    'TR_USER_HOST'                => toHtml(tr('SQL user host')),
+    'TR_USER_HOST_TIP'            => toHtml(tr("This is the host from which this SQL user must be allowed to connect to the SQL server. Enter the %s wildcard character to allow this SQL user to connect from any host.", '%'), 'htmlAttr'),
+    'TR_USE_DMN_ID'               => toHtml(tr('SQL user prefix/suffix')),
+    'TR_START_ID_POS'             => toHtml(tr('In front')),
+    'TR_END_ID_POS'               => toHtml(tr('Behind')),
+    'TR_ADD'                      => toHtml(tr('Add'), 'htmlAttr'),
+    'TR_CANCEL'                   => toHtml(tr('Cancel')),
+    'TR_ADD_EXIST'                => toHtml(tr('Assign'), 'htmlAttr'),
+    'TR_PASS'                     => toHtml(tr('Password')),
+    'TR_PASS_REP'                 => toHtml(tr('Repeat password')),
+    'TR_SQL_USER_NAME'            => toHtml(tr('SQL users')),
+    'TR_ASSIGN_EXISTING_SQL_USER' => toHtml(tr('Assign existing SQL user')),
+    'TR_NEW_SQL_USER_DATA'        => toHtml(tr('New SQL user data'))
 ]);
 
 generateNavigation($tpl);
 generatePage($tpl, $sqldId);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

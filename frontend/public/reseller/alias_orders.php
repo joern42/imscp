@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\TemplateEngine;
@@ -35,7 +35,7 @@ function reseller_rejectOrder()
     isset($_GET['id']) or showBadRequestErrorPage();
     $domainAliasId = intval($_GET['id']);
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT t1.alias_id
             FROM domain_aliases AS t1
@@ -54,15 +54,15 @@ function reseller_rejectOrder()
 
     try {
         $db->beginTransaction();
-        exec_query("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'als'", [$domainAliasId]);
-        exec_query('DELETE FROM domain_aliases WHERE alias_id = ?', [$domainAliasId]);
+        execQuery("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'als'", [$domainAliasId]);
+        execQuery('DELETE FROM domain_aliases WHERE alias_id = ?', [$domainAliasId]);
         $db->commit();
-        write_log(sprintf('A domain alias order has been rejected by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
-        set_page_message(tohtml(tr('Domain alias order successfully rejected.')), 'success');
+        writeLog(sprintf('A domain alias order has been rejected by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
+        setPageMessage(toHtml(tr('Domain alias order successfully rejected.')), 'success');
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
-        write_log(sprintf('System was unable to reject a domain alias order: %s', $e->getMessage()), E_USER_ERROR);
-        set_page_message(tohtml(tr("Couldn't reject the domain alias order. An unexpected error occurred.")), 'error');
+        writeLog(sprintf('System was unable to reject a domain alias order: %s', $e->getMessage()), E_USER_ERROR);
+        setPageMessage(toHtml(tr("Couldn't reject the domain alias order. An unexpected error occurred.")), 'error');
     }
 }
 
@@ -78,16 +78,16 @@ function reseller_approveOrder()
     isset($_GET['id']) or showBadRequestErrorPage();
     $domainAliasId = intval($_GET['id']);
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
-        SELECT t1.*, t2.domain_client_ips, t3.email
-        FROM domain_aliases AS t1
-        JOIN domain AS t2 USING(domain_id)
-        JOIN admin AS t3 ON(t3.admin_id = t2.domain_admin_id)
-        WHERE t1.alias_id = ?
-        AND t1.alias_status = 'ordered'
-        AND t3.created_by = ?
-    ",
+            SELECT t1.*, t2.domain_client_ips, t3.email
+            FROM domain_aliases AS t1
+            JOIN domain AS t2 USING(domain_id)
+            JOIN admin AS t3 ON(t3.admin_id = t2.domain_admin_id)
+            WHERE t1.alias_id = ?
+            AND t1.alias_status = 'ordered'
+            AND t3.created_by = ?
+        ",
         [$domainAliasId, $_SESSION['user_id']]
     );
     $stmt->rowCount() or showBadRequestErrorPage();
@@ -123,7 +123,7 @@ function reseller_approveOrder()
             'forwardType'     => $row['type_forward'],
             'forwardHost'     => $row['host_forward']
         ]);
-        exec_query("UPDATE domain_aliases SET alias_ips = ?, alias_status = 'toadd' WHERE alias_id = ?", [
+        execQuery("UPDATE domain_aliases SET alias_ips = ?, alias_status = 'toadd' WHERE alias_id = ?", [
             implode(',', $row['alias_ips']), $domainAliasId
         ]);
         createDefaultMailAccounts($row['domain_id'], $row['email'], $row['alias_name'], MT_ALIAS_FORWARD, $domainAliasId);
@@ -137,15 +137,14 @@ function reseller_approveOrder()
             'forwardType'     => $row['type_forward'],
             'forwardHost'     => $row['host_forward']
         ]);
-
         $db->commit();
-        send_request();
-        write_log(sprintf('A domain alias order has been approved by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
-        set_page_message(tohtml(tr('Order successfully approved.')), 'success');
+        sendDaemonRequest();
+        writeLog(sprintf('A domain alias order has been approved by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
+        setPageMessage(toHtml(tr('Order successfully approved.')), 'success');
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
-        write_log(sprintf('System was unable to approve a domain alias order: %s', $e->getMessage()), E_USER_ERROR);
-        set_page_message(tohtml(tr("Couldn't approve the domain alias order. An unexpected error occurred.")), 'error');
+        writeLog(sprintf('System was unable to approve a domain alias order: %s', $e->getMessage()), E_USER_ERROR);
+        setPageMessage(toHtml(tr("Couldn't approve the domain alias order. An unexpected error occurred.")), 'error');
     }
 }
 
@@ -170,7 +169,6 @@ function reseller_generatePageData()
     $order = '';
     if (isset($_GET['iSortCol_0'])) {
         $order = 'ORDER BY ';
-
         if (isset($_GET['iSortingCols'])) {
             $iSortingCols = intval($_GET['iSortingCols']);
             for ($i = 0; $i < $iSortingCols; $i++) {
@@ -194,7 +192,7 @@ function reseller_generatePageData()
     if (isset($_GET['sSearch']) && $_GET['sSearch'] != '') {
         $where .= ' AND (';
         for ($i = 0; $i < $nbColumns; $i++) {
-            $where .= "{$columnAliases[$i]} LIKE " . quoteValue('%'.$_GET['sSearch']. '%') . ' OR ';
+            $where .= "{$columnAliases[$i]} LIKE " . quoteValue('%' . $_GET['sSearch'] . '%') . ' OR ';
         }
         $where = substr_replace($where, '', -3);
         $where .= ')';
@@ -208,7 +206,7 @@ function reseller_generatePageData()
     }
 
     /* Get data to display */
-    $rResult = execute_query(
+    $rResult = executeQuery(
         "
             SELECT SQL_CALC_FOUND_ROWS t1.alias_id, " . implode(', ', $columnAliases) . "
             FROM domain_aliases AS t1
@@ -219,9 +217,9 @@ function reseller_generatePageData()
     );
 
     /* Total records after filtering (without limit) */
-    $iTotalDisplayRecords = execute_query('SELECT FOUND_ROWS()')->fetchColumn();
+    $iTotalDisplayRecords = executeQuery('SELECT FOUND_ROWS()')->fetchColumn();
     /* Total record before any filtering */
-    $iTotalRecords = exec_query(
+    $iTotalRecords = execQuery(
         "
             SELECT COUNT(t1.alias_id)
             FROM domain_aliases AS t1
@@ -246,30 +244,31 @@ function reseller_generatePageData()
 
     while ($data = $rResult->fetch()) {
         $row = [];
-        $aliasName = decode_idna($data['alias_name']);
+        $aliasName = decodeIdna($data['alias_name']);
 
         for ($i = 0; $i < $nbColumns; $i++) {
             if ($columns[$i] == 'alias_name') {
-                $row[$columns[$i]] = '<span class="icon i_disabled">' . decode_idna($data[$columns[$i]]) . '</span>';
+                $row[$columns[$i]] = '<span class="icon i_disabled">' . decodeIdna($data[$columns[$i]]) . '</span>';
             } elseif ($columns[$i] == 't3.admin_name') {
-                $row[$columns[$i]] = tohtml(decode_idna($data[$columns[$i]]));
+                $row[$columns[$i]] = toHtml(decodeIdna($data[$columns[$i]]));
             } else {
-                $row[$columns[$i]] = tohtml($data[$columns[$i]]);
+                $row[$columns[$i]] = toHtml($data[$columns[$i]]);
             }
         }
 
         $actions = "<a href=\"alias_orders.php?action=approve&id={$data['alias_id']}\" class=\"icon i_open\">$trActivate</a>";
         $actions .= "\n<a href=\"alias_orders.php?action=reject&id={$data['alias_id']}\" "
-            . "onclick=\"return reject_alias_order(this, '" . tojs($aliasName) . "')\" class=\"icon i_close\">$trReject</a>";
+            . "onclick=\"return reject_alias_order(this, '" . toJs($aliasName) . "')\" class=\"icon i_close\">$trReject</a>";
         $row['actions'] = $actions;
         $output['aaData'][] = $row;
     }
 
     return $output;
 }
+
 require 'imscp-lib.php';
 
-check_login('reseller');
+checkLogin('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
 resellerHasFeature('domain_aliases') && resellerHasCustomers() or showBadRequestErrorPage();
 
@@ -285,8 +284,7 @@ if (isset($_GET['action'])) {
     redirectTo('alias_orders.php');
 }
 
-if (!is_xhr()) {
-    /** @var $tpl TemplateEngine */
+if (!isXhr()) {
     $tpl = new TemplateEngine();
     $tpl->define([
         'layout'       => 'shared/layouts/ui.tpl',
@@ -294,16 +292,15 @@ if (!is_xhr()) {
         'page_message' => 'layout'
     ]);
     $tpl->assign([
-        'TR_PAGE_TITLE'  => tohtml(tr('Reseller / Customers / Ordered Domain Aliases')),
-        'TR_ALIAS_NAME'  => tohtml(tr('Domain alias name')),
-        'TR_MOUNT_POINT' => tohtml(tr('Mount point')),
-        'TR_FORWARD_URL' => tohtml(tr('Forward URL')),
-        'TR_STATUS'      => tohtml(tr('Status')),
-        'TR_CUSTOMER'    => tohtml(tr('Customer')),
-        'TR_ACTIONS'     => tohtml(tr('Actions')),
-        'TR_PROCESSING'  => tohtml(tr('Processing...'))
+        'TR_PAGE_TITLE'  => toHtml(tr('Reseller / Customers / Ordered Domain Aliases')),
+        'TR_ALIAS_NAME'  => toHtml(tr('Domain alias name')),
+        'TR_MOUNT_POINT' => toHtml(tr('Mount point')),
+        'TR_FORWARD_URL' => toHtml(tr('Forward URL')),
+        'TR_STATUS'      => toHtml(tr('Status')),
+        'TR_CUSTOMER'    => toHtml(tr('Customer')),
+        'TR_ACTIONS'     => toHtml(tr('Actions')),
+        'TR_PROCESSING'  => toHtml(tr('Processing...'))
     ]);
-
     Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
         $translation = $e->getParam('translations');
         $translation['core']['dataTable'] = getDataTablesPluginTranslations(false);
@@ -311,11 +308,9 @@ if (!is_xhr()) {
     });
     generateNavigation($tpl);
     generatePageMessage($tpl);
-
     $tpl->parse('LAYOUT_CONTENT', 'page');
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
     $tpl->prnt();
-
     unsetMessages();
 } else {
     header('Cache-Control: no-cache, must-revalidate');

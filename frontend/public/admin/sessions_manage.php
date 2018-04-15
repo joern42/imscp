@@ -1,36 +1,25 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * The Original Code is "VHCS - Virtual Hosting Control System".
- *
- * The Initial Developer of the Original Code is moleSoftware GmbH.
- * Portions created by Initial Developer are Copyright (C) 2001-2006
- * by moleSoftware GmbH. All Rights Reserved.
- *
- * Portions created by the ispCP Team are Copyright (C) 2006-2010 by
- * isp Control Panel. All Rights Reserved.
- *
- * Portions created by the i-MSCP Team are Copyright (C) 2010-2018 by
- * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
-
-/***********************************************************************************************************************
- * Script functions
- */
+use iMSCP_Registry as Registry;
 
 /**
  * Kill user session
@@ -40,8 +29,8 @@ use iMSCP\TemplateEngine;
 function kill_session()
 {
     if (isset($_GET['kill']) && $_GET['kill'] !== '' && isset($_GET['username'])) {
-        $username = clean_input($_GET['username']);
-        $sessionId = clean_input($_GET['kill']);
+        $username = cleanInput($_GET['username']);
+        $sessionId = cleanInput($_GET['kill']);
         // Getting current session id
         $currentSessionId = session_id();
 
@@ -64,10 +53,10 @@ function kill_session()
 
         session_id($currentSessionId);
         session_start();
-        set_page_message($message, 'success');
-        write_log(sprintf('The session of the %s user has been disconnected/destroyed by %s', $username, $_SESSION['user_logged']), E_USER_NOTICE);
+        setPageMessage($message, 'success');
+        writeLog(sprintf('The session of the %s user has been disconnected/destroyed by %s', $username, $_SESSION['user_logged']), E_USER_NOTICE);
     } elseif (isset($_GET['own'])) {
-        set_page_message(tr("You are not allowed to act on your own session."), 'warning');
+        setPageMessage(tr("You are not allowed to act on your own session."), 'warning');
     }
 }
 
@@ -80,10 +69,10 @@ function kill_session()
 function client_generatePage($tpl)
 {
     $currentUserSessionId = session_id();
-    $stmt = execute_query('SELECT session_id, user_name, lastaccess FROM login');
+    $stmt = executeQuery('SELECT session_id, user_name, lastaccess FROM login');
 
     while ($row = $stmt->fetch()) {
-        $username = tohtml($row['user_name']);
+        $username = toHtml($row['user_name']);
         $sessionId = $row['session_id'];
 
         if ($username === NULL) {
@@ -94,9 +83,7 @@ function client_generatePage($tpl)
         } else {
             $tpl->assign([
                 'ADMIN_USERNAME' => $username
-                    . (($username == $_SESSION['user_logged'] && $currentUserSessionId !== $sessionId)
-                        ? ' (' . tr('from other browser') . ')' : ''
-                    ),
+                    . (($username == $_SESSION['user_logged'] && $currentUserSessionId !== $sessionId) ? ' (' . tr('from other browser') . ')' : ''),
                 'LOGIN_TIME'     => date('G:i:s', $row['lastaccess'])
             ]);
         }
@@ -108,9 +95,8 @@ function client_generatePage($tpl)
             ]);
         } else {
             $tpl->assign([
-                'DISCONNECT_LINK'
-                            => "sessions_manage.php?logout_only&kill={$row['session_id']}&username={$username}",
-                'KILL_LINK' => "sessions_manage.php?kill={$row['session_id']}&username={$username}"
+                'DISCONNECT_LINK' => "sessions_manage.php?logout_only&kill={$row['session_id']}&username={$username}",
+                'KILL_LINK'       => "sessions_manage.php?kill={$row['session_id']}&username={$username}"
             ]);
         }
 
@@ -118,13 +104,9 @@ function client_generatePage($tpl)
     }
 }
 
-/***********************************************************************************************************************
- * Main script
- */
-
 require 'imscp-lib.php';
 
-check_login('admin');
+checkLogin('admin');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
@@ -143,14 +125,11 @@ $tpl->assign([
     'TR_DISCONNECT' => tr('Disconnect'),
     'TR_KILL'       => tr('Kill session')
 ]);
-
 generateNavigation($tpl);
 kill_session();
 client_generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

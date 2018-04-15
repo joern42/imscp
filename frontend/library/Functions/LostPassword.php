@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\Crypt as Crypt;
@@ -23,13 +23,13 @@ use iMSCP_Exception as iMSCPException;
 use iMSCP_Registry as Registry;
 
 /**
- * Create captcha image
+ * Generate captcha
  *
  * @throws iMSCP_Exception
  * @param  string $strSessionVar
  * @return void
  */
-function createImage($strSessionVar)
+function generateCaptcha($strSessionVar)
 {
     $cfg = Registry::get('config');
     $rgBgColor = $cfg['LOSTPASSWORD_CAPTCHA_BGCOLOR'];
@@ -85,10 +85,7 @@ function createImage($strSessionVar)
  */
 function removeOldKeys($ttl)
 {
-    exec_query(
-        'UPDATE admin SET uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey_time < ?',
-        date('Y-m-d H:i:s', time() - $ttl * 60)
-    );
+    execQuery('UPDATE admin SET uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey_time < ?', date('Y-m-d H:i:s', time() - $ttl * 60));
 }
 
 /**
@@ -100,9 +97,7 @@ function removeOldKeys($ttl)
  */
 function setUniqKey($adminName, $uniqueKey)
 {
-    exec_query('UPDATE admin SET uniqkey = ?, uniqkey_time = ? WHERE admin_name = ?', [
-        $uniqueKey, date('Y-m-d H:i:s', time()), $adminName
-    ]);
+    execQuery('UPDATE admin SET uniqkey = ?, uniqkey_time = ? WHERE admin_name = ?', [$uniqueKey, date('Y-m-d H:i:s', time()), $adminName]);
 }
 
 /**
@@ -118,14 +113,14 @@ function setPassword($userType, $uniqueKey, $userPassword)
     $passwordHash = Crypt::apr1MD5($userPassword);
 
     if ($userType == 'user') {
-        exec_query('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL, admin_status = ? WHERE uniqkey = ?', [
+        execQuery('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL, admin_status = ? WHERE uniqkey = ?', [
             $passwordHash, 'tochangepwd', $uniqueKey
         ]);
-        send_request();
+        sendDaemonRequest();
         return;
     }
 
-    exec_query('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey = ?', [$passwordHash, $uniqueKey]);
+    execQuery('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey = ?', [$passwordHash, $uniqueKey]);
 }
 
 /**
@@ -136,7 +131,7 @@ function setPassword($userType, $uniqueKey, $userPassword)
  */
 function uniqueKeyExists($uniqueKey)
 {
-    return exec_query('SELECT 1 FROM admin WHERE uniqkey = ?', [$uniqueKey])->fetchColumn() !== false;
+    return execQuery('SELECT 1 FROM admin WHERE uniqkey = ?', [$uniqueKey])->fetchColumn() !== false;
 }
 
 /**
@@ -161,10 +156,10 @@ function uniqkeygen()
  */
 function sendPasswordRequestValidation($adminName)
 {
-    $stmt = exec_query('SELECT admin_id, created_by, fname, lname, email FROM admin WHERE admin_name = ?', [$adminName]);
+    $stmt = execQuery('SELECT admin_id, created_by, fname, lname, email FROM admin WHERE admin_name = ?', [$adminName]);
 
     if (!$stmt->rowCount()) {
-        set_page_message(tr('Wrong username.'), 'error');
+        setPageMessage(tr('Wrong username.'), 'error');
         return false;
     }
 
@@ -175,13 +170,13 @@ function sendPasswordRequestValidation($adminName)
         $createdBy = $row['admin_id']; // Force usage of default template for any admin request
     }
 
-    $data = get_lostpassword_activation_email($createdBy);
+    $data = getLostpasswordActivationEmail($createdBy);
 
     # Create uniq key for password request validation
     $uniqueKey = uniqkeygen();
     setUniqKey($adminName, $uniqueKey);
 
-    $ret = send_mail([
+    $ret = sendMail([
         'mail_id'      => 'lostpw-msg-1',
         'fname'        => $row['fname'],
         'lname'        => $row['lname'],
@@ -195,8 +190,8 @@ function sendPasswordRequestValidation($adminName)
     ]);
 
     if (!$ret) {
-        write_log(sprintf("Couldn't send new password request validation to %s", $adminName), E_USER_ERROR);
-        set_page_message(tr('An unexpected error occurred. Please contact your administrator.'));
+        writeLog(sprintf("Couldn't send new password request validation to %s", $adminName), E_USER_ERROR);
+        setPageMessage(tr('An unexpected error occurred. Please contact your administrator.'));
         return false;
     }
 
@@ -211,20 +206,18 @@ function sendPasswordRequestValidation($adminName)
  */
 function sendPassword($uniqueKey)
 {
-    $stmt = exec_query(
-        'SELECT admin_id, admin_name, admin_type, created_by, fname, lname, email, uniqkey, admin_status FROM admin WHERE uniqkey = ?',
-        [$uniqueKey]
+    $stmt = execQuery(
+        'SELECT admin_id, admin_name, admin_type, created_by, fname, lname, email, uniqkey, admin_status FROM admin WHERE uniqkey = ?', [$uniqueKey]
     );
 
     if (!$stmt->rowCount()) {
-        set_page_message(tr('Your request for password renewal is either invalid or has expired.'), 'error');
+        setPageMessage(tr('Your request for password renewal is either invalid or has expired.'), 'error');
         return false;
     }
 
     $row = $stmt->fetch();
-
     if ($row['admin_status'] != 'ok') {
-        set_page_message(tr('Your request for password renewal cannot be honored. Please retry in few minutes.'), 'error');
+        setPageMessage(tr('Your request for password renewal cannot be honored. Please retry in few minutes.'), 'error');
         return false;
     }
 
@@ -233,15 +226,15 @@ function sendPassword($uniqueKey)
         isset($cfg['PASSWD_CHARS']) ? $cfg['PASSWD_CHARS'] : 6, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
     );
     setPassword($row['admin_type'], $uniqueKey, $userPassword);
-    write_log(sprintf('Lostpassword: A New password has been set for the %s user', $row['admin_name']), E_USER_NOTICE);
+    writeLog(sprintf('Lostpassword: A New password has been set for the %s user', $row['admin_name']), E_USER_NOTICE);
 
     $createdBy = $row['created_by'];
     if ($createdBy == 0) {
         $createdBy = $row['admin_id'];
     }
 
-    $data = get_lostpassword_password_email($createdBy);
-    $ret = send_mail([
+    $data = getLostpasswordEmail($createdBy);
+    $ret = sendMail([
         'mail_id'      => 'lostpw-msg-2',
         'fname'        => $row['fname'],
         'lname'        => $row['lname'],
@@ -255,8 +248,8 @@ function sendPassword($uniqueKey)
     ]);
 
     if (!$ret) {
-        write_log(sprintf("Couldn't send new passsword to %s", $row['admin_name']), E_USER_ERROR);
-        set_page_message(tr('An unexpected error occurred. Please contact your administrator.'));
+        writeLog(sprintf("Couldn't send new passsword to %s", $row['admin_name']), E_USER_ERROR);
+        setPageMessage(tr('An unexpected error occurred. Please contact your administrator.'));
         return false;
     }
 

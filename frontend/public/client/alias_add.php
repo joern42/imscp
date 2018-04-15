@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\PHPini;
@@ -33,10 +33,10 @@ use iMSCP_Registry as Registry;
  */
 function send_alias_order_email($aliasName)
 {
-    $stmt = exec_query('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
+    $stmt = execQuery('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
     $row = $stmt->fetch();
-    $data = get_alias_order_email($row['created_by']);
-    $ret = send_mail([
+    $data = getDomainAliasOrderEmail($row['created_by']);
+    $ret = sendMail([
         'mail_id'      => 'alias-order-msg',
         'fname'        => $row['fname'],
         'lname'        => $row['lname'],
@@ -45,13 +45,13 @@ function send_alias_order_email($aliasName)
         'subject'      => $data['subject'],
         'message'      => $data['message'],
         'placeholders' => [
-            '{CUSTOMER}' => decode_idna($row['admin_name']),
+            '{CUSTOMER}' => decodeIdna($row['admin_name']),
             '{ALIAS}'    => $aliasName
         ]
     ]);
 
     if (!$ret) {
-        write_log(sprintf("Couldn't send domain alias order email to %s", $row['admin_name']), E_USER_ERROR);
+        writeLog(sprintf("Couldn't send domain alias order email to %s", $row['admin_name']), E_USER_ERROR);
         return false;
     }
 
@@ -72,7 +72,7 @@ function getDomainsList()
     }
 
     $domainsList = [];
-    $mainDmnProps = get_domain_default_props($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
 
     if ($mainDmnProps['url_forward'] == 'no') {
         $domainsList = [[
@@ -83,7 +83,7 @@ function getDomainsList()
         ]];
     }
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT CONCAT(t1.subdomain_name, '.', t2.domain_name) AS name, t1.subdomain_mount AS mount_point
             FROM subdomain AS t1
@@ -111,7 +111,7 @@ function getDomainsList()
     if ($stmt->rowCount()) {
         $domainsList = array_merge($domainsList, $stmt->fetchAll());
         usort($domainsList, function ($a, $b) {
-            return strnatcmp(decode_idna($a['name']), decode_idna($b['name']));
+            return strnatcmp(decodeIdna($a['name']), decodeIdna($b['name']));
         });
     }
 
@@ -128,11 +128,11 @@ function addDomainAlias()
     global $mainDmnProps;
 
     $ret = true;
-    $domainAliasName = isset($_POST['domain_alias_name']) ? mb_strtolower(clean_input($_POST['domain_alias_name'])) : '';
+    $domainAliasName = isset($_POST['domain_alias_name']) ? mb_strtolower(cleanInput($_POST['domain_alias_name'])) : '';
 
     // Check for domain alias name
     if ($domainAliasName == '') {
-        set_page_message(tr('You must enter a domain alias name.'), 'error');
+        setPageMessage(tr('You must enter a domain alias name.'), 'error');
         $ret = false;
     } else {
         // www is considered as an alias of the domain alias
@@ -142,12 +142,12 @@ function addDomainAlias()
 
         // Check for domain alias name syntax
         global $dmnNameValidationErrMsg;
-        if (!isValidDomainName($domainAliasName)) {
-            set_page_message(tohtml($dmnNameValidationErrMsg), 'error');
+        if (!validateDomainName($domainAliasName)) {
+            setPageMessage(toHtml($dmnNameValidationErrMsg), 'error');
             $ret = false;
-        } elseif (imscp_domain_exists($domainAliasName, $_SESSION['user_created_by'])) {
+        } elseif (isKnownDomain($domainAliasName, $_SESSION['user_created_by'])) {
             // Check for domain alias existence
-            set_page_message(tr('Domain %s is unavailable.', "<strong>$domainAliasName</strong>"), 'error');
+            setPageMessage(tr('Domain %s is unavailable.', "<strong>$domainAliasName</strong>"), 'error');
             $ret = false;
         }
     }
@@ -155,7 +155,7 @@ function addDomainAlias()
     // Check for domain alias IP addresses
     $domainAliasIps = [];
     if (!isset($_POST['alias_ips'])) {
-        set_page_message(tohtml(tr('You must assign at least one IP address to that domain alias.')), 'error');
+        setPageMessage(toHtml(tr('You must assign at least one IP address to that domain alias.')), 'error');
         $ret = false;
     } elseif (!is_array($_POST['alias_ips'])) {
         showBadRequestErrorPage();
@@ -172,7 +172,7 @@ function addDomainAlias()
         return false;
     }
 
-    $domainAliasNameAscii = encode_idna($domainAliasName);
+    $domainAliasNameAscii = encodeIdna($domainAliasName);
 
     // Set default mount point
     $mountPoint = "/$domainAliasNameAscii";
@@ -183,7 +183,7 @@ function addDomainAlias()
             showBadRequestErrorPage();
         }
 
-        $sharedMountPointDomain = clean_input($_POST['shared_mount_point_domain']);
+        $sharedMountPointDomain = cleanInput($_POST['shared_mount_point_domain']);
         $domainList = getDomainsList();
         !empty($domainList) or showBadRequestErrorPage();
 
@@ -207,8 +207,8 @@ function addDomainAlias()
     ) {
         isset($_POST['forward_url_scheme']) && !isset($_POST['forward_url']) or showBadRequestErrorPage();
 
-        $forwardUrl = clean_input($_POST['forward_url_scheme']) . clean_input($_POST['forward_url']);
-        $forwardType = clean_input($_POST['forward_type']);
+        $forwardUrl = cleanInput($_POST['forward_url_scheme']) . cleanInput($_POST['forward_url']);
+        $forwardType = cleanInput($_POST['forward_type']);
         if ($forwardType == 'proxy' && isset($_POST['forward_host'])) {
             $forwardHost = 'On';
         }
@@ -220,8 +220,8 @@ function addDomainAlias()
                 throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
             }
 
-            $uri->setHost(encode_idna(mb_strtolower($uri->getHost()))); // Normalize URI host
-            $uri->setPath(rtrim(utils_normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
+            $uri->setHost(encodeIdna(mb_strtolower($uri->getHost()))); // Normalize URI host
+            $uri->setPath(rtrim(normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
 
             if ($uri->getHost() == $domainAliasNameAscii
                 && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))
@@ -241,7 +241,7 @@ function addDomainAlias()
 
             $forwardUrl = $uri->getUri();
         } catch (Exception $e) {
-            set_page_message($e->getMessage(), 'error');
+            setPageMessage($e->getMessage(), 'error');
             return false;
         }
     }
@@ -265,7 +265,7 @@ function addDomainAlias()
             'forwardType'     => $forwardType,
             'forwardHost'     => $forwardHost
         ]);
-        exec_query(
+        execQuery(
             '
                 INSERT INTO domain_aliases (
                     domain_id, alias_name, alias_status, alias_mount, alias_document_root, alias_ips, url_forward, type_forward, host_forward
@@ -318,18 +318,18 @@ function addDomainAlias()
         $db->commit();
 
         if ($isSuUser) {
-            send_request();
-            write_log(sprintf('A new domain alias (%s) has been created by %s', $domainAliasName, $_SESSION['user_logged']), E_USER_NOTICE);
-            set_page_message(tr('Domain alias successfully created.'), 'success');
+            sendDaemonRequest();
+            writeLog(sprintf('A new domain alias (%s) has been created by %s', $domainAliasName, $_SESSION['user_logged']), E_USER_NOTICE);
+            setPageMessage(tr('Domain alias successfully created.'), 'success');
         } else {
             send_alias_order_email($domainAliasName);
-            write_log(sprintf('A new domain alias (%s) has been ordered by %s', $domainAliasName, $_SESSION['user_logged']), E_USER_NOTICE);
-            set_page_message(tr('Domain alias successfully ordered.'), 'success');
+            writeLog(sprintf('A new domain alias (%s) has been ordered by %s', $domainAliasName, $_SESSION['user_logged']), E_USER_NOTICE);
+            setPageMessage(tr('Domain alias successfully ordered.'), 'success');
         }
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
-        write_log(sprintf('System was unable to create the %s domain alias: %s', $domainAliasName, $e->getMessage()), E_USER_ERROR);
-        set_page_message(tr('Could not create domain alias. An unexpected error occurred.'), 'error');
+        writeLog(sprintf('System was unable to create the %s domain alias: %s', $domainAliasName, $e->getMessage()), E_USER_ERROR);
+        setPageMessage(tr('Could not create domain alias. An unexpected error occurred.'), 'error');
         return false;
     }
 
@@ -349,12 +349,12 @@ function generatePage(TemplateEngine $tpl)
     $forwardHost = $forwardType == 'proxy' && isset($_POST['forward_host']) ? 'On' : 'Off';
 
     $tpl->assign([
-        'DOMAIN_ALIAS_NAME'  => isset($_POST['domain_alias_name']) ? tohtml($_POST['domain_alias_name']) : '',
+        'DOMAIN_ALIAS_NAME'  => isset($_POST['domain_alias_name']) ? toHtml($_POST['domain_alias_name']) : '',
         'FORWARD_URL_YES'    => isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' ? ' checked' : '',
         'FORWARD_URL_NO'     => isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' ? '' : ' checked',
         'HTTP_YES'           => isset($_POST['forward_url_scheme']) && $_POST['forward_url_scheme'] == 'http://' ? ' selected' : '',
         'HTTPS_YES'          => isset($_POST['forward_url_scheme']) && $_POST['forward_url_scheme'] == 'https://' ? ' selected' : '',
-        'FORWARD_URL'        => isset($_POST['forward_url']) ? tohtml($_POST['forward_url'], 'htmlAttr') : '',
+        'FORWARD_URL'        => isset($_POST['forward_url']) ? toHtml($_POST['forward_url'], 'htmlAttr') : '',
         'FORWARD_TYPE_301'   => $forwardType == '301' ? ' checked' : '',
         'FORWARD_TYPE_302'   => $forwardType == '302' ? ' checked' : '',
         'FORWARD_TYPE_303'   => $forwardType == '303' ? ' checked' : '',
@@ -373,8 +373,8 @@ function generatePage(TemplateEngine $tpl)
 
         foreach ($domainList as $domain) {
             $tpl->assign([
-                'DOMAIN_NAME'                        => tohtml($domain['name']),
-                'DOMAIN_NAME_UNICODE'                => tohtml(decode_idna($domain['name'])),
+                'DOMAIN_NAME'                        => toHtml($domain['name']),
+                'DOMAIN_NAME_UNICODE'                => toHtml(decodeIdna($domain['name'])),
                 'SHARED_MOUNT_POINT_DOMAIN_SELECTED' => isset($_POST['shared_mount_point_domain'])
                 && $_POST['shared_mount_point_domain'] == $domain['name'] ? ' selected' : ''
             ]);
@@ -390,15 +390,15 @@ function generatePage(TemplateEngine $tpl)
 
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
 customerHasFeature('domain_aliases') or showBadRequestErrorPage();
 
-$mainDmnProps = get_domain_default_props($_SESSION['user_id']);
-$domainAliasesCount = get_customer_domain_aliases_count($mainDmnProps['domain_id']);
+$mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+$domainAliasesCount = getCustomerDomainAliasesCount($mainDmnProps['domain_id']);
 
 if ($mainDmnProps['domain_alias_limit'] != 0 && $domainAliasesCount >= $mainDmnProps['domain_alias_limit']) {
-    set_page_message(tr('You have reached the maximum number of domain aliases allowed by your subscription.'), 'warning');
+    setPageMessage(tr('You have reached the maximum number of domain aliases allowed by your subscription.'), 'warning');
     redirectTo('domains_manage.php');
 }
 
@@ -417,42 +417,38 @@ $tpl->define([
     'shared_mount_point_domain'    => 'shared_mount_point_option'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'                 => tohtml(tr('Client / Domains / Add Domain Alias')),
-    'TR_DOMAIN_ALIAS'               => tohtml(tr('Domain alias')),
-    'TR_DOMAIN_ALIAS_NAME'          => tohtml(tr('Name')),
-    'TR_DOMAIN_ALIAS_IPS'           => tohtml(tr('IP addresses')),
-    'TR_SHARED_MOUNT_POINT'         => tohtml(tr('Shared mount point')),
-    'TR_SHARED_MOUNT_POINT_TOOLTIP' => tohtml(tr('Allows to share the mount point of another domain.'), 'htmlAttr'),
-    'TR_URL_FORWARDING'             => tohtml(tr('URL forwarding')),
-    'TR_URL_FORWARDING_TOOLTIP'     => tohtml(tr('Allows to forward any request made to this domain to a specific URL.'), 'htmlAttr'),
-    'TR_FORWARD_TO_URL'             => tohtml(tr('Forward to URL')),
-    'TR_YES'                        => tohtml(tr('Yes')),
-    'TR_NO'                         => tohtml(tr('No')),
-    'TR_HTTP'                       => tohtml('http://'),
-    'TR_HTTPS'                      => tohtml('https://'),
-    'TR_FORWARD_TYPE'               => tohtml(tr('Forward type')),
-    'TR_301'                        => tohtml('301'),
-    'TR_302'                        => tohtml('302'),
-    'TR_303'                        => tohtml('303'),
-    'TR_307'                        => tohtml('307'),
-    'TR_PROXY'                      => tohtml(tr('Proxy')),
-    'TR_PROXY_PRESERVE_HOST'        => tohtml(tr('Preserve Host')),
-    'TR_ADD'                        => tohtml(tr('Add'), 'htmlAttr'),
-    'TR_CANCEL'                     => tohtml(tr('Cancel'))
+    'TR_PAGE_TITLE'                 => toHtml(tr('Client / Domains / Add Domain Alias')),
+    'TR_DOMAIN_ALIAS'               => toHtml(tr('Domain alias')),
+    'TR_DOMAIN_ALIAS_NAME'          => toHtml(tr('Name')),
+    'TR_DOMAIN_ALIAS_IPS'           => toHtml(tr('IP addresses')),
+    'TR_SHARED_MOUNT_POINT'         => toHtml(tr('Shared mount point')),
+    'TR_SHARED_MOUNT_POINT_TOOLTIP' => toHtml(tr('Allows to share the mount point of another domain.'), 'htmlAttr'),
+    'TR_URL_FORWARDING'             => toHtml(tr('URL forwarding')),
+    'TR_URL_FORWARDING_TOOLTIP'     => toHtml(tr('Allows to forward any request made to this domain to a specific URL.'), 'htmlAttr'),
+    'TR_FORWARD_TO_URL'             => toHtml(tr('Forward to URL')),
+    'TR_YES'                        => toHtml(tr('Yes')),
+    'TR_NO'                         => toHtml(tr('No')),
+    'TR_HTTP'                       => toHtml('http://'),
+    'TR_HTTPS'                      => toHtml('https://'),
+    'TR_FORWARD_TYPE'               => toHtml(tr('Forward type')),
+    'TR_301'                        => toHtml('301'),
+    'TR_302'                        => toHtml('302'),
+    'TR_303'                        => toHtml('303'),
+    'TR_307'                        => toHtml('307'),
+    'TR_PROXY'                      => toHtml(tr('Proxy')),
+    'TR_PROXY_PRESERVE_HOST'        => toHtml(tr('Preserve Host')),
+    'TR_ADD'                        => toHtml(tr('Add'), 'htmlAttr'),
+    'TR_CANCEL'                     => toHtml(tr('Cancel'))
 ]);
-
 Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['available'] = tr('Available');
     $translations['core']['assigned'] = tr('Assigned');
 });
-
 generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

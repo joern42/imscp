@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\TemplateEngine;
@@ -40,7 +40,7 @@ function _client_getSubdomainData($subdomainId, $subdomainType)
         return $subdomainData;
     }
 
-    $mainDmnProps = get_domain_default_props($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
     $domainId = $mainDmnProps['domain_id'];
     $domainName = $mainDmnProps['domain_name'];
 
@@ -68,7 +68,7 @@ function _client_getSubdomainData($subdomainId, $subdomainType)
         ';
     }
 
-    $stmt = exec_query($query, [$subdomainId, $domainId, 'ok']);
+    $stmt = execQuery($query, [$subdomainId, $domainId, 'ok']);
     if (!$stmt->rowCount()) {
         return false;
     }
@@ -77,10 +77,10 @@ function _client_getSubdomainData($subdomainId, $subdomainType)
 
     if ($subdomainType == 'dmn') {
         $subdomainData['subdomain_name'] .= '.' . $domainName;
-        $subdomainData['subdomain_name_utf8'] = decode_idna($subdomainData['subdomain_name']);
+        $subdomainData['subdomain_name_utf8'] = decodeIdna($subdomainData['subdomain_name']);
     } else {
         $subdomainData['subdomain_name'] .= '.' . $subdomainData['alias_name'];
-        $subdomainData['subdomain_name_utf8'] = decode_idna($subdomainData['subdomain_name']);
+        $subdomainData['subdomain_name_utf8'] = decodeIdna($subdomainData['subdomain_name']);
     }
 
     return $subdomainData;
@@ -95,20 +95,20 @@ function client_editSubdomain()
 {
     isset($_GET['id']) && isset($_GET['type']) && in_array($_GET['type'], ['dmn', 'als']) or showBadRequestErrorPage();
 
-    $subdomainId = clean_input($_GET['id']);
-    $subdomainType = clean_input($_GET['type']);
+    $subdomainId = cleanInput($_GET['id']);
+    $subdomainType = cleanInput($_GET['type']);
     $subdomainData = _client_getSubdomainData($subdomainId, $subdomainType);
     $subdomainData !== FALSE or showBadRequestErrorPage();
 
     // Check for subdomain IP addresses
     $subdomainIps = [];
     if (!isset($_POST['subdomain_ips'])) {
-        set_page_message(tohtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
+        setPageMessage(toHtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
         return false;
     } elseif (!is_array($_POST['subdomain_ips'])) {
         showBadRequestErrorPage();
     } else {
-        $clientIps = explode(',', get_domain_default_props($_SESSION['user_id'])['domain_client_ips']);
+        $clientIps = explode(',', getCustomerProperties($_SESSION['user_id'])['domain_client_ips']);
         $subdomainIps = array_intersect($_POST['subdomain_ips'], $clientIps);
         if (count($subdomainIps) < count($_POST['subdomain_ips'])) {
             // Situation where unknown IP address identifier has been submitten
@@ -128,8 +128,8 @@ function client_editSubdomain()
     ) {
         isset($_POST['forward_url_scheme']) && isset($_POST['forward_url']) or showBadRequestErrorPage();
 
-        $forwardUrl = clean_input($_POST['forward_url_scheme']) . clean_input($_POST['forward_url']);
-        $forwardType = clean_input($_POST['forward_type']);
+        $forwardUrl = cleanInput($_POST['forward_url_scheme']) . cleanInput($_POST['forward_url']);
+        $forwardType = cleanInput($_POST['forward_type']);
 
         if ($forwardType == 'proxy' && isset($_POST['forward_host'])) {
             $forwardHost = 'On';
@@ -142,8 +142,8 @@ function client_editSubdomain()
                 throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
             }
 
-            $uri->setHost(encode_idna(mb_strtolower($uri->getHost()))); // Normalize URI host
-            $uri->setPath(rtrim(utils_normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
+            $uri->setHost(encodeIdna(mb_strtolower($uri->getHost()))); // Normalize URI host
+            $uri->setPath(rtrim(normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
 
             if ($uri->getHost() == $subdomainData['subdomain_name'] && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))) {
                 throw new iMSCP_Exception(
@@ -161,20 +161,20 @@ function client_editSubdomain()
 
             $forwardUrl = $uri->getUri();
         } catch (Exception $e) {
-            set_page_message($e->getMessage(), 'error');
+            setPageMessage($e->getMessage(), 'error');
             return false;
         }
     } // Check for alternative DocumentRoot option
     elseif (isset($_POST['document_root'])) {
-        $documentRoot = utils_normalizePath('/' . clean_input($_POST['document_root']));
+        $documentRoot = normalizePath('/' . cleanInput($_POST['document_root']));
         if ($documentRoot !== '') {
             $vfs = new VirtualFileSystem($_SESSION['user_logged'], $subdomainData['subdomain_mount'] . '/htdocs');
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
-                set_page_message(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
+                setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
                 return false;
             }
         }
-        $documentRoot = utils_normalizePath('/htdocs' . $documentRoot);
+        $documentRoot = normalizePath('/htdocs' . $documentRoot);
     }
 
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeEditSubdomain, [
@@ -205,7 +205,7 @@ function client_editSubdomain()
         ";
     }
 
-    exec_query($query, [implode(',', $subdomainIps), $documentRoot, $forwardUrl, $forwardType, $forwardHost, $subdomainId]);
+    execQuery($query, [implode(',', $subdomainIps), $documentRoot, $forwardUrl, $forwardType, $forwardHost, $subdomainId]);
 
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterEditSubdomain, [
         'subdomainId'   => $subdomainId,
@@ -219,8 +219,8 @@ function client_editSubdomain()
         'forwardHost'   => $forwardHost
     ]);
 
-    send_request();
-    write_log(sprintf('%s updated properties of the %s subdomain', $_SESSION['user_logged'], $subdomainData['subdomain_name_utf8']), E_USER_NOTICE);
+    sendDaemonRequest();
+    writeLog(sprintf('%s updated properties of the %s subdomain', $_SESSION['user_logged'], $subdomainData['subdomain_name_utf8']), E_USER_NOTICE);
     return true;
 }
 
@@ -235,7 +235,7 @@ function client_generatePage($tpl)
     isset($_GET['id']) && isset($_GET['type']) && in_array($_GET['type'], ['dmn', 'als']) or showBadRequestErrorPage();
 
     $subdomainId = intval($_GET['id']);
-    $subdomainType = clean_input($_GET['type']);
+    $subdomainType = cleanInput($_GET['type']);
     $subdomainData = _client_getSubdomainData($subdomainId, $subdomainType);
     $subdomainData !== FALSE or showBadRequestErrorPage();
     $subdomainData['subdomain_ips'] = explode(',', $subdomainData['subdomain_ips']);
@@ -245,11 +245,10 @@ function client_generatePage($tpl)
         generateClientIpsList($tpl, $_SESSION['user_id'], $subdomainData['subdomain_ips']);
 
         $documentRoot = strpos($subdomainData['document_root'], '/htdocs') !== FALSE ? substr($subdomainData['document_root'], 7) : '';
-
         if ($subdomainData['url_forward'] != 'no') {
             $urlForwarding = true;
             $uri = iMSCP_Uri_Redirect::fromString($subdomainData['url_forward']);
-            $uri->setHost(decode_idna($uri->getHost()));
+            $uri->setHost(decodeIdna($uri->getHost()));
             $forwardUrlScheme = $uri->getScheme() . '://';
             $forwardUrl = substr($uri->getUri(), strlen($forwardUrlScheme));
             $forwardType = $subdomainData['type_forward'];
@@ -280,13 +279,13 @@ function client_generatePage($tpl)
     $tpl->assign([
         'SUBDOMAIN_ID'       => $subdomainId,
         'SUBDOMAIN_TYPE'     => $subdomainType,
-        'SUBDOMAIN_NAME'     => tohtml($subdomainData['subdomain_name_utf8']),
-        'DOCUMENT_ROOT'      => tohtml($documentRoot),
+        'SUBDOMAIN_NAME'     => toHtml($subdomainData['subdomain_name_utf8']),
+        'DOCUMENT_ROOT'      => toHtml($documentRoot),
         'FORWARD_URL_YES'    => $urlForwarding ? ' checked' : '',
         'FORWARD_URL_NO'     => $urlForwarding ? '' : ' checked',
         'HTTP_YES'           => $forwardUrlScheme == 'http://' ? ' selected' : '',
         'HTTPS_YES'          => $forwardUrlScheme == 'https://' ? ' selected' : '',
-        'FORWARD_URL'        => tohtml($forwardUrl),
+        'FORWARD_URL'        => toHtml($forwardUrl),
         'FORWARD_TYPE_301'   => $forwardType == '301' ? ' checked' : '',
         'FORWARD_TYPE_302'   => $forwardType == '302' ? ' checked' : '',
         'FORWARD_TYPE_303'   => $forwardType == '303' ? ' checked' : '',
@@ -306,21 +305,21 @@ function client_generatePage($tpl)
     }
 
     # Set parameters for the FTP chooser
-    $_SESSION['ftp_chooser_domain_id'] = get_user_domain_id($_SESSION['user_id']);
+    $_SESSION['ftp_chooser_domain_id'] = getCustomerMainDomainId($_SESSION['user_id']);
     $_SESSION['ftp_chooser_user'] = $_SESSION['user_logged'];
-    $_SESSION['ftp_chooser_root_dir'] = utils_normalizePath($subdomainData['subdomain_mount'] . '/htdocs');
+    $_SESSION['ftp_chooser_root_dir'] = normalizePath($subdomainData['subdomain_mount'] . '/htdocs');
     $_SESSION['ftp_chooser_hidden_dirs'] = [];
     $_SESSION['ftp_chooser_unselectable_dirs'] = [];
 }
 
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
 customerHasFeature('subdomains') or showBadRequestErrorPage();
 
 if (!empty($_POST) && client_editSubdomain()) {
-    set_page_message(tr('Subdomain successfully scheduled for update'), 'success');
+    setPageMessage(tr('Subdomain successfully scheduled for update'), 'success');
     redirectTo('domains_manage.php');
 }
 
@@ -333,31 +332,30 @@ $tpl->define([
     'document_root_bloc' => 'page'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'             => tohtml(tr('Client / Domains / Edit Subdomain')),
-    'TR_SUBDOMAIN'              => tohtml(tr('Subdomain')),
-    'TR_SUBDOMAIN_NAME'         => tohtml(tr('Name')),
-    'TR_SUBDOMAIN_IPS'          => tohtml(tr('IP addresses')),
-    'TR_DOCUMENT_ROOT'          => tohtml(tr('Document root')),
-    'TR_DOCUMENT_ROOT_TOOLTIP'  => tohtml(tr("You can set an alternative document root. This is mostly needed when using a PHP framework such as Symfony. Note that the new document root will live inside the default  `/htdocs' document root. Be aware that the directory for the new document root must pre-exist."), 'htmlAttr'),
-    'TR_CHOOSE_DIR'             => tohtml(tr('Choose dir')),
-    'TR_URL_FORWARDING'         => tohtml(tr('URL forwarding')),
-    'TR_FORWARD_TO_URL'         => tohtml(tr('Forward to URL')),
-    'TR_URL_FORWARDING_TOOLTIP' => tohtml(tr('Allows to forward any request made to this domain to a specific URL.'), 'htmlAttr'),
-    'TR_YES'                    => tohtml(tr('Yes')),
-    'TR_NO'                     => tohtml(tr('No')),
-    'TR_HTTP'                   => tohtml('http://'),
-    'TR_HTTPS'                  => tohtml('https://'),
-    'TR_FORWARD_TYPE'           => tohtml(tr('Forward type')),
-    'TR_301'                    => tohtml('301'),
-    'TR_302'                    => tohtml('302'),
-    'TR_303'                    => tohtml('303'),
-    'TR_307'                    => tohtml('307'),
-    'TR_PROXY'                  => tohtml(tr('Proxy')),
-    'TR_PROXY_PRESERVE_HOST'    => tohtml(tr('Preserve Host')),
-    'TR_UPDATE'                 => tohtml(tr('Update'), 'htmlAttr'),
-    'TR_CANCEL'                 => tohtml(tr('Cancel'))
+    'TR_PAGE_TITLE'             => toHtml(tr('Client / Domains / Edit Subdomain')),
+    'TR_SUBDOMAIN'              => toHtml(tr('Subdomain')),
+    'TR_SUBDOMAIN_NAME'         => toHtml(tr('Name')),
+    'TR_SUBDOMAIN_IPS'          => toHtml(tr('IP addresses')),
+    'TR_DOCUMENT_ROOT'          => toHtml(tr('Document root')),
+    'TR_DOCUMENT_ROOT_TOOLTIP'  => toHtml(tr("You can set an alternative document root. This is mostly needed when using a PHP framework such as Symfony. Note that the new document root will live inside the default  `/htdocs' document root. Be aware that the directory for the new document root must pre-exist."), 'htmlAttr'),
+    'TR_CHOOSE_DIR'             => toHtml(tr('Choose dir')),
+    'TR_URL_FORWARDING'         => toHtml(tr('URL forwarding')),
+    'TR_FORWARD_TO_URL'         => toHtml(tr('Forward to URL')),
+    'TR_URL_FORWARDING_TOOLTIP' => toHtml(tr('Allows to forward any request made to this domain to a specific URL.'), 'htmlAttr'),
+    'TR_YES'                    => toHtml(tr('Yes')),
+    'TR_NO'                     => toHtml(tr('No')),
+    'TR_HTTP'                   => toHtml('http://'),
+    'TR_HTTPS'                  => toHtml('https://'),
+    'TR_FORWARD_TYPE'           => toHtml(tr('Forward type')),
+    'TR_301'                    => toHtml('301'),
+    'TR_302'                    => toHtml('302'),
+    'TR_303'                    => toHtml('303'),
+    'TR_307'                    => toHtml('307'),
+    'TR_PROXY'                  => toHtml(tr('Proxy')),
+    'TR_PROXY_PRESERVE_HOST'    => toHtml(tr('Preserve Host')),
+    'TR_UPDATE'                 => toHtml(tr('Update'), 'htmlAttr'),
+    'TR_CANCEL'                 => toHtml(tr('Cancel'))
 ]);
-
 Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['close'] = tr('Close');
@@ -365,13 +363,10 @@ Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events:
     $translations['core']['available'] = tr('Available');
     $translations['core']['assigned'] = tr('Assigned');
 });
-
 generateNavigation($tpl);
 client_generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

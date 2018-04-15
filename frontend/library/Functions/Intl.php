@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\i18n\GettextParser;
@@ -89,33 +89,12 @@ function ntr($singular, $plural, $number)
 }
 
 /**
- * Replaces special encoded strings back to their original signs
- *
- * @param string $string String to replace chars
- * @return String with replaced chars
- */
-function replace_html($string)
-{
-    $pattern = [
-        '#&lt;[ ]*b[ ]*&gt;#i', '#&lt;[ ]*/[ ]*b[ ]*&gt;#i',
-        '#&lt;[ ]*strong[ ]*&gt;#i', '#&lt;[ ]*/[ ]*strong[ ]*&gt;#i',
-        '#&lt;[ ]*em[ ]*&gt;#i', '#&lt;[ ]*/[ ]*em[ ]*&gt;#i',
-        '#&lt;[ ]*i[ ]*&gt;#i', '#&lt;[ ]*/[ ]*i[ ]*&gt;#i',
-        '#&lt;[ ]*small[ ]*&gt;#i', '#&lt;[ ]*/[ ]*small[ ]*&gt;#i',
-        '#&lt;[ ]*br[ ]*(/|)[ ]*&gt;#i'
-    ];
-    $replacement = ['<b>', '</b>', '<strong>', '</strong>', '<em>', '</em>', '<i>', '</i>', '<small>', '</small>', '<br>'];
-
-    return preg_replace($pattern, $replacement, $string);
-}
-
-/**
  * Build languages index from machine object files
  *
  * @throws iMSCPException
  * @return void
  */
-function i18n_buildLanguageIndex()
+function buildLanguagesIndex()
 {
     $cfg = Registry::get('config');
 
@@ -165,7 +144,7 @@ function i18n_buildLanguageIndex()
         }
 
         if (PHP_SAPI != 'cli') {
-            set_page_message(tr('The %s translation file has been ignored: Translation table is empty.', $basename), 'warning');
+            setPageMessage(tr('The %s translation file has been ignored: Translation table is empty.', $basename), 'warning');
         }
     }
 
@@ -182,12 +161,12 @@ function i18n_buildLanguageIndex()
  * @param bool $localesOnly Flag indicating whether or not only list of locales must be returned
  * @return array Array that contains information about available languages
  */
-function i18n_getAvailableLanguages($localesOnly = false)
+function getAvailableLanguages($localesOnly = false)
 {
     $cfg = Registry::get('config');
 
     if (!isset($cfg['AVAILABLE_LANGUAGES']) || !isSerialized($cfg['AVAILABLE_LANGUAGES'])) {
-        i18n_buildLanguageIndex();
+        buildLanguagesIndex();
     }
 
     $languages = unserialize($cfg['AVAILABLE_LANGUAGES']);
@@ -218,7 +197,7 @@ function i18n_getAvailableLanguages($localesOnly = false)
  *
  * @return bool TRUE on success, FALSE otherwise
  */
-function i18n_importMachineObjectFile()
+function importMachineObjectFile()
 {
     // closure that is run before move_uploaded_file() function - See the Utils_UploadFile() function for further
     // information about implementation details
@@ -227,7 +206,7 @@ function i18n_importMachineObjectFile()
         $filePath = $_FILES['languageFile']['tmp_name'];
 
         if (!is_readable($filePath)) {
-            set_page_message(tr('File is not readable.'), 'error');
+            setPageMessage(tr('File is not readable.'), 'error');
             return false;
         }
 
@@ -238,27 +217,27 @@ function i18n_importMachineObjectFile()
             $creation = $parser->getPotCreationDate();
             $translationTable = $parser->getTranslationTable();
         } catch (iMSCPException $e) {
-            set_page_message(tr('Only gettext Machine Object files (MO files) are accepted.'), 'error');
+            setPageMessage(tr('Only gettext Machine Object files (MO files) are accepted.'), 'error');
             return false;
         }
 
         $language = isset($translationTable['_: Localised language']) ? $translationTable['_: Localised language'] : '';
 
         if (empty($encoding) || empty($locale) || empty($creation) || empty($lastTranslator) || empty($language)) {
-            set_page_message(tr("%s is not a valid i-MSCP language file.", tohtml($_FILES['languageFile']['name'])), 'error');
+            setPageMessage(tr("%s is not a valid i-MSCP language file.", toHtml($_FILES['languageFile']['name'])), 'error');
             return false;
         }
 
         if (!is_dir("$localesDirectory/$locale")) {
             if (!@mkdir("$localesDirectory/$locale", 0700)) {
-                set_page_message(tr("Unable to create '%s' directory for language file.", tohtml($locale)), 'error');
+                setPageMessage(tr("Unable to create '%s' directory for language file.", toHtml($locale)), 'error');
                 return false;
             }
         }
 
         if (!is_dir("$localesDirectory/$locale/LC_MESSAGES")) {
             if (!@mkdir("$localesDirectory/$locale/LC_MESSAGES", 0700)) {
-                set_page_message(tr("Unable to create 'LC_MESSAGES' directory for language file."), 'error');
+                setPageMessage(tr("Unable to create 'LC_MESSAGES' directory for language file."), 'error');
                 return false;
             }
         }
@@ -267,12 +246,12 @@ function i18n_importMachineObjectFile()
         return "$localesDirectory/$locale/LC_MESSAGES/$locale.mo";
     };
 
-    if (utils_uploadFile('languageFile', [$beforeMove]) === false) {
+    if (uploadFile('languageFile', [$beforeMove]) === false) {
         return false;
     }
 
     // Rebuild language index
-    i18n_buildLanguageIndex();
+    buildLanguagesIndex();
     return true;
 }
 
@@ -281,14 +260,14 @@ function i18n_importMachineObjectFile()
  *
  * @return bool TRUE if language name is valid, FALSE otherwise
  */
-function i18n_changeDefaultLanguage()
+function changeDefaultLanguage()
 {
     if (!isset($_POST['defaultLanguage'])) {
         return false;
     }
 
-    $defaultLanguage = clean_input($_POST['defaultLanguage']);
-    $availableLanguages = i18n_getAvailableLanguages();
+    $defaultLanguage = cleanInput($_POST['defaultLanguage']);
+    $availableLanguages = getAvailableLanguages();
 
     // Check for language availability
     $isValidLanguage = false;
@@ -308,7 +287,7 @@ function i18n_changeDefaultLanguage()
 
     // Ensures language change on next load for current user in case he has not yet his frontend properties explicitly
     // set (eg. for the first admin user when i-MSCP was just installed
-    $stmt = exec_query('SELECT lang FROM user_gui_props WHERE user_id = ?', [$_SESSION['user_id']]);
+    $stmt = execQuery('SELECT lang FROM user_gui_props WHERE user_id = ?', [$_SESSION['user_id']]);
     if ($stmt->fetchColumn() == NULL) {
         unset($_SESSION['user_def_lang']);
     }
@@ -330,7 +309,7 @@ function i18n_changeDefaultLanguage()
  * @throws iMSCPException
  * @return void
  */
-function l10n_addTranslations($dirPath, $type = 'Array', $tag = 'iMSCP_Translate', $scan = Translator::LOCALE_FILENAME)
+function addTranslations($dirPath, $type = 'Array', $tag = 'iMSCP_Translate', $scan = Translator::LOCALE_FILENAME)
 {
     /** @var Zend_Translate_Adapter $primaryTranslator */
     $primaryTranslator = Registry::get('Zend_Translate')->getAdapter();
@@ -360,7 +339,10 @@ function l10n_addTranslations($dirPath, $type = 'Array', $tag = 'iMSCP_Translate
  *
  * For instance:
  *
- * Registry::get('iMSCP_Application')->getEventsManager()->registerListener('onGetJsTranslations', function($e) {
+ * use iMSCP_Events as Events;
+ * use iMSCP_Events_Event as Event;
+ *
+ * Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function(Event $e) {
  *    $e->getParam('translations')->my_namespace = array(
  *        'first_translation_string_identifier' => tr('my first translation string'),
  *        'second_translation_string_identifier' => tr('my second translation string')
@@ -376,7 +358,7 @@ function l10n_addTranslations($dirPath, $type = 'Array', $tag = 'iMSCP_Translate
  * @return string JS object as string
  * TODO ASSETIC management
  */
-function i18n_getJsTranslations()
+function getJsTranslations()
 {
     $translations = new ArrayObject([
         // Core translation strings

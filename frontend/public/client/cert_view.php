@@ -3,28 +3,24 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\TemplateEngine;
 use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Get domain name
@@ -70,7 +66,7 @@ function _client_getDomainName($domainId, $domainType)
                 ";
         }
 
-        $stmt = exec_query($query, [$domainId, $_SESSION['user_id']]);
+        $stmt = execQuery($query, [$domainId, $_SESSION['user_id']]);
 
         if (!$stmt->rowCount()) {
             return false;
@@ -106,7 +102,7 @@ function _client_updateDomainStatus($domainId, $domainType)
             $query = "UPDATE subdomain_alias SET subdomain_alias_status = 'tochange' WHERE subdomain_alias_id = ?";
     }
 
-    exec_query($query, [$domainId]);
+    execQuery($query, [$domainId]);
 }
 
 /**
@@ -181,7 +177,7 @@ EOF
 
     $opensslConfFile = @tempnam(sys_get_temp_dir(), $_SESSION['user_id'] . '-openssl.cnf');
     if ($opensslConfFile === false) {
-        write_log("Couldn't create temporary openssl configuration file.", E_USER_ERROR);
+        writeLog("Couldn't create temporary openssl configuration file.", E_USER_ERROR);
         return false;
     }
 
@@ -190,7 +186,7 @@ EOF
     }, $opensslConfFile);
 
     if (!@file_put_contents($opensslConfFile, $tpl->getLastParseResult())) {
-        write_log(sprintf("Couldn't write in %s openssl temporary configuration file.", $opensslConfFile), E_USER_ERROR);
+        writeLog(sprintf("Couldn't write in %s openssl temporary configuration file.", $opensslConfFile), E_USER_ERROR);
         return false;
     }
 
@@ -205,9 +201,7 @@ EOF
  */
 function client_generateSelfSignedCert($domainName)
 {
-    $stmt = exec_query('SELECT firm, city, state, country, email FROM admin WHERE admin_id = ?', [
-        $_SESSION['user_id']
-    ]);
+    $stmt = execQuery('SELECT firm, city, state, country, email FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
 
     if (!$stmt->rowCount()) {
         return false;
@@ -232,23 +226,23 @@ function client_generateSelfSignedCert($domainName)
     $sslConfig = ['config' => $sslConfigFilePath];
     $csr = @openssl_csr_new($distinguishedName, $pkey, $sslConfig);
     if (!is_resource($csr)) {
-        write_log(sprintf("Couldn't generate SSL certificate signing request: %s", openssl_error_string()), E_USER_ERROR);
+        writeLog(sprintf("Couldn't generate SSL certificate signing request: %s", openssl_error_string()), E_USER_ERROR);
         return false;
     }
 
     if (@openssl_pkey_export($pkey, $pkeyStr, NULL, $sslConfig) !== true) {
-        write_log(sprintf("Coudln't export private key: %s", openssl_error_string()), E_USER_ERROR);
+        writeLog(sprintf("Coudln't export private key: %s", openssl_error_string()), E_USER_ERROR);
         return false;
     }
 
     $cert = @openssl_csr_sign($csr, NULL, $pkeyStr, 365, $sslConfig, (int)($_SESSION['user_id'] . time()));
     if (!is_resource($cert)) {
-        write_log(sprintf("Couldn't generate SSL certificate: %s", openssl_error_string()));
+        writeLog(sprintf("Couldn't generate SSL certificate: %s", openssl_error_string()));
         return false;
     }
 
     if (@openssl_x509_export($cert, $certStr) !== true) {
-        write_log(sprintf("Couldn't export SSL certificate: %s", openssl_error_string()), E_USER_ERROR);
+        writeLog(sprintf("Couldn't export SSL certificate: %s", openssl_error_string()), E_USER_ERROR);
         return false;
     }
 
@@ -259,14 +253,12 @@ function client_generateSelfSignedCert($domainName)
     $_POST['private_key'] = $pkeyStr;
     $_POST['certificate'] = $certStr;
     $_POST['ca_bundle'] = '';
-
     return true;
 }
 
 /**
  * Add or update an SSL certificate
  *
- * @throws iMSCP_Exception
  * @param int $domainId domain unique identifier
  * @param string $domainType Domain type (dmn|als|sub|alssub)
  * @return void
@@ -277,41 +269,36 @@ function client_addSslCert($domainId, $domainType)
     $domainName = _client_getDomainName($domainId, $domainType);
     $allowHSTS = (isset($_POST['allow_hsts']) && in_array($_POST['allow_hsts'], ['on', 'off'], true))
         ? $_POST['allow_hsts'] : 'off';
-    $hstsMaxAge = ($allowHSTS == 'on' && isset($_POST['hsts_max_age']) && is_number($_POST['hsts_max_age'])
+    $hstsMaxAge = ($allowHSTS == 'on' && isset($_POST['hsts_max_age']) && isNumber($_POST['hsts_max_age'])
         && $_POST['hsts_max_age'] >= 0) ? intval($_POST['hsts_max_age']) : '31536000';
     $hstsIncludeSubDomains = ($allowHSTS == 'on' && isset($_POST['hsts_include_subdomains'])
         && in_array($_POST['hsts_include_subdomains'], ['on', 'off'], true))
         ? $_POST['hsts_include_subdomains'] : 'off';
     $selfSigned = (isset($_POST['selfsigned']) && $_POST['selfsigned'] === 'on');
 
-    if ($domainName === false) {
-        showBadRequestErrorPage();
-    }
+    $domainName !== false or showBadRequestErrorPage();
 
     if ($selfSigned && !client_generateSelfSignedCert($domainName)) {
-        set_page_message(tr('Could not generate SSL certificate. An unexpected error occurred.'), 'error');
+        setPageMessage(tr('Could not generate SSL certificate. An unexpected error occurred.'), 'error');
         return;
     }
 
-    if (!isset($_POST['passphrase'])
-        || !isset($_POST['private_key'])
-        || !isset($_POST['certificate'])
-        || !isset($_POST['ca_bundle'])
+    if (!isset($_POST['passphrase']) || !isset($_POST['private_key']) || !isset($_POST['certificate']) || !isset($_POST['ca_bundle'])
         || !isset($_POST['cert_id'])
     ) {
         showBadRequestErrorPage();
     }
 
-    $passPhrase = clean_input($_POST['passphrase']);
-    $privateKey = clean_input($_POST['private_key']);
-    $certificate = clean_input($_POST['certificate']);
-    $caBundle = clean_input($_POST['ca_bundle']);
+    $passPhrase = cleanInput($_POST['passphrase']);
+    $privateKey = cleanInput($_POST['private_key']);
+    $certificate = cleanInput($_POST['certificate']);
+    $caBundle = cleanInput($_POST['ca_bundle']);
     $certId = intval($_POST['cert_id']);
 
     if (!$selfSigned) { // Validate SSL certificate (private key, SSL certificate and certificate chain)
         $privateKey = @openssl_pkey_get_private($privateKey, $passPhrase);
         if (!is_resource($privateKey)) {
-            set_page_message(tr('Invalid private key or passphrase.'), 'error');
+            setPageMessage(tr('Invalid private key or passphrase.'), 'error');
             return;
         }
 
@@ -319,19 +306,19 @@ function client_addSslCert($domainId, $domainType)
         $certificate = @openssl_x509_read($certificate);
 
         if (!is_resource($certificate)) {
-            set_page_message(tr('Invalid SSL certificate.'), 'error');
+            setPageMessage(tr('Invalid SSL certificate.'), 'error');
             return;
         }
 
         if (@openssl_x509_check_private_key($certificate, $privateKey) !== true) {
-            set_page_message(tr("The private key doesn't belong to the provided SSL certificate."), 'error');
+            setPageMessage(tr("The private key doesn't belong to the provided SSL certificate."), 'error');
             return;
         }
 
         $tmpfname = @tempnam(sys_get_temp_dir(), $_SESSION['user_id'] . 'ssl-ca');
         if ($tmpfname === false) {
-            write_log("Couldn't create temporary file for CA bundle.", E_USER_ERROR);
-            set_page_message(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+            writeLog("Couldn't create temporary file for CA bundle.", E_USER_ERROR);
+            setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
             return;
         }
 
@@ -341,25 +328,25 @@ function client_addSslCert($domainId, $domainType)
 
         if ($caBundle !== '') {
             if (@file_put_contents($tmpfname, $caBundle) === false) {
-                write_log("Couldn't write CA bundle in temporary file.", E_USER_ERROR);
-                set_page_message(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+                writeLog("Couldn't write CA bundle in temporary file.", E_USER_ERROR);
+                setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
                 return;
             }
 
             if (@openssl_x509_checkpurpose($certificate, X509_PURPOSE_SSL_SERVER, [$config['DISTRO_CA_BUNDLE']], $tmpfname) !== true) {
-                set_page_message(tr('At least one intermediate certificate is invalid or missing.'), 'error');
+                setPageMessage(tr('At least one intermediate certificate is invalid or missing.'), 'error');
                 return;
             }
         } else {
             if (@file_put_contents($tmpfname, $certificateStr) === false) {
-                write_log("Couldn't write SSL certificate in temporary file.", E_USER_ERROR);
-                set_page_message(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+                writeLog("Couldn't write SSL certificate in temporary file.", E_USER_ERROR);
+                setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
                 return;
             }
 
             // Note: Here we also add the certificate in the trusted chain to support self-signed certificates
             if (@openssl_x509_checkpurpose($certificate, X509_PURPOSE_SSL_SERVER, [$config['DISTRO_CA_BUNDLE'], $tmpfname]) !== true) {
-                set_page_message(tr('At least one intermediate certificate is invalid or missing.'), 'error');
+                setPageMessage(tr('At least one intermediate certificate is invalid or missing.'), 'error');
                 return;
             }
         }
@@ -368,15 +355,15 @@ function client_addSslCert($domainId, $domainType)
     // Preparing data for insertion in database
     if (!$selfSigned) {
         if (@openssl_pkey_export($privateKey, $privateKeyStr) === false) {
-            write_log("Couldn't export private key.", E_USER_ERROR);
-            set_page_message(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+            writeLog("Couldn't export private key.", E_USER_ERROR);
+            setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
             return;
         }
 
         @openssl_pkey_free($privateKey);
         if (@openssl_x509_export($certificate, $certificateStr) === false) {
-            write_log("Couldn't export SSL certificate.", E_USER_ERROR);
-            set_page_message(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+            writeLog("Couldn't export SSL certificate.", E_USER_ERROR);
+            setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
             return;
         }
 
@@ -395,33 +382,26 @@ function client_addSslCert($domainId, $domainType)
         $db->beginTransaction();
 
         if ($certId == 0) { // Add new certificate
-            exec_query(
+            execQuery(
                 "
                     INSERT INTO ssl_certs (
-                        domain_id, domain_type, private_key, certificate, ca_bundle, allow_hsts, hsts_max_age,
-                        hsts_include_subdomains, status
+                        domain_id, domain_type, private_key, certificate, ca_bundle, allow_hsts, hsts_max_age, hsts_include_subdomains, status
                     ) VALUES (
                         ?, ?, ?, ?, ?, ?, ?, ?, 'toadd'
                     )
                 ",
-                [
-                    $domainId, $domainType, $privateKeyStr, $certificateStr, $caBundleStr, $allowHSTS,
-                    $hstsMaxAge, $hstsIncludeSubDomains
-                ]
+                [$domainId, $domainType, $privateKeyStr, $certificateStr, $caBundleStr, $allowHSTS, $hstsMaxAge, $hstsIncludeSubDomains]
             );
         } else { // Update existing certificate
-            exec_query(
+            execQuery(
                 "
-                    UPDATE ssl_certs SET private_key = ?, certificate = ?, ca_bundle = ?, allow_hsts = ?,
-                        hsts_max_age = ?, hsts_include_subdomains = ?, status = 'tochange'
+                    UPDATE ssl_certs SET private_key = ?, certificate = ?, ca_bundle = ?, allow_hsts = ?, hsts_max_age = ?,
+                        hsts_include_subdomains = ?, status = 'tochange'
                     WHERE cert_id = ?
                     AND domain_id = ?
                     AND domain_type = ?
                 ",
-                [
-                    $privateKeyStr, $certificateStr, $caBundleStr, $allowHSTS, $hstsMaxAge, $hstsIncludeSubDomains,
-                    $certId, $domainId, $domainType
-                ]
+                [$privateKeyStr, $certificateStr, $caBundleStr, $allowHSTS, $hstsMaxAge, $hstsIncludeSubDomains, $certId, $domainId, $domainType]
             );
         }
 
@@ -429,21 +409,21 @@ function client_addSslCert($domainId, $domainType)
 
         $db->commit();
 
-        send_request();
+        sendDaemonRequest();
 
         if ($certId == 0) {
-            set_page_message(tr('SSL certificate successfully scheduled for addition.'), 'success');
-            write_log(sprintf('%s added a new SSL certificate for the %s domain', $_SESSION['user_logged'], decode_idna($domainName)), E_USER_NOTICE);
+            setPageMessage(tr('SSL certificate successfully scheduled for addition.'), 'success');
+            writeLog(sprintf('%s added a new SSL certificate for the %s domain', $_SESSION['user_logged'], decodeIdna($domainName)), E_USER_NOTICE);
         } else {
-            set_page_message(tr('SSL certificate successfully scheduled for update.'), 'success');
-            write_log(sprintf('%s updated an SSL certificate for the %s domain', $_SESSION['user_logged'], $domainName), E_USER_NOTICE);
+            setPageMessage(tr('SSL certificate successfully scheduled for update.'), 'success');
+            writeLog(sprintf('%s updated an SSL certificate for the %s domain', $_SESSION['user_logged'], $domainName), E_USER_NOTICE);
         }
 
         redirectTo("cert_view.php?id=$domainId&type=$domainType");
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
-        write_log("Couldn't add/update SSL certificate in database", E_USER_ERROR);
-        set_page_message(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
+        writeLog("Couldn't add/update SSL certificate in database", E_USER_ERROR);
+        setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     }
 }
 
@@ -457,15 +437,7 @@ function client_addSslCert($domainId, $domainType)
 function client_deleteSslCert($domainId, $domainType)
 {
     $domainName = _client_getDomainName($domainId, $domainType);
-
-    if ($domainName === false) {
-        showBadRequestErrorPage();
-    }
-
-    if (!isset($_POST['cert_id'])) {
-        showBadRequestErrorPage();
-    }
-
+    $domainName !== false && isset($_POST['cert_id']) or showBadRequestErrorPage();
     $certId = intval($_POST['cert_id']);
 
     /** @var iMSCP_Database $db */
@@ -474,22 +446,21 @@ function client_deleteSslCert($domainId, $domainType)
     try {
         $db->beginTransaction();
 
-        exec_query("UPDATE ssl_certs SET status = 'todelete' WHERE cert_id = ? AND domain_id = ? AND domain_type = ?", [
+        execQuery("UPDATE ssl_certs SET status = 'todelete' WHERE cert_id = ? AND domain_id = ? AND domain_type = ?", [
             $certId, $domainId, $domainType
         ]);
-
         _client_updateDomainStatus($domainId, $domainType);
 
         $db->commit();
 
-        send_request();
-        set_page_message(tr('SSL certificate successfully scheduled for deletion.'), 'success');
-        write_log(sprintf('%s deleted SSL certificate for the %s domain.', $_SESSION['user_logged'], decode_idna($domainName)), E_USER_NOTICE);
+        sendDaemonRequest();
+        setPageMessage(tr('SSL certificate successfully scheduled for deletion.'), 'success');
+        writeLog(sprintf('%s deleted SSL certificate for the %s domain.', $_SESSION['user_logged'], decodeIdna($domainName)), E_USER_NOTICE);
         redirectTo('domains_manage.php');
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
-        write_log(sprintf("Couldn't export SSL certificate: %s", $e->getMessage()), E_USER_ERROR);
-        set_page_message(tr('Could not delete SSL certificate. An unexpected error occurred.'), 'error');
+        writeLog(sprintf("Couldn't export SSL certificate: %s", $e->getMessage()), E_USER_ERROR);
+        setPageMessage(tr('Could not delete SSL certificate. An unexpected error occurred.'), 'error');
     }
 }
 
@@ -504,28 +475,23 @@ function client_deleteSslCert($domainId, $domainType)
 function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
 {
     $domainName = _client_getDomainName($domainId, $domainType);
-
-    if ($domainName === false) {
-        showBadRequestErrorPage();
-    }
-
-    $stmt = exec_query('SELECT * FROM ssl_certs WHERE domain_id = ? AND domain_type = ?', [$domainId, $domainType]);
+    $domainName !== false or showBadRequestErrorPage();
+    $stmt = execQuery('SELECT * FROM ssl_certs WHERE domain_id = ? AND domain_type = ?', [$domainId, $domainType]);
 
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
-        $dynTitle = (customerHasFeature('ssl') && $row['status'] == 'ok')
-            ? tr('Edit SSL certificate') : tr('Show SSL certificate');
+        $dynTitle = (customerHasFeature('ssl') && $row['status'] == 'ok') ? tr('Edit SSL certificate') : tr('Show SSL certificate');
         $certId = $row['cert_id'];
-        $privateKey = tohtml($row['private_key']);
-        $certificate = tohtml($row['certificate']);
-        $caBundle = tohtml($row['ca_bundle']);
+        $privateKey = toHtml($row['private_key']);
+        $certificate = toHtml($row['certificate']);
+        $caBundle = toHtml($row['ca_bundle']);
         $allowHSTS = ($row['allow_hsts'] == 'on');
         $hstsMaxAge = $row['hsts_max_age'];
         $hstsIncludeSubDomains = ($row['hsts_include_subdomains'] == 'on');
         $trAction = tr('Update');
         $status = $row['status'];
         $tpl->assign('STATUS', in_array($status, ['toadd', 'tochange', 'todelete', 'ok'])
-            ? translate_dmn_status($status) : '<span style="color: red;font-weight: bold">' . $status . "</span>"
+            ? humanizeDomainStatus($status) : '<span style="color: red;font-weight: bold">' . $status . "</span>"
         );
     } elseif (customerHasFeature('ssl')) {
         $dynTitle = tr('Add SSL certificate');
@@ -542,60 +508,52 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
             'SSL_CERTIFICATE_ACTION_DELETE' => ''
         ]);
     } else {
-        set_page_message('SSL feature is currently disabled.', 'static_warning');
+        setPageMessage('SSL feature is currently disabled.', 'static_warning');
         redirectTo('domains_manage.php');
         return;
     }
 
-    if (customerHasFeature('ssl') && isset($_POST['cert_id']) && isset($_POST['private_key'])
-        && isset($_POST['certificate']) && isset($_POST['ca_bundle'])
+    if (customerHasFeature('ssl') && isset($_POST['cert_id']) && isset($_POST['private_key']) && isset($_POST['certificate'])
+        && isset($_POST['ca_bundle'])
     ) {
         $certId = $_POST['cert_id'];
         $privateKey = $_POST['private_key'];
         $certificate = $_POST['certificate'];
         $caBundle = $_POST['ca_bundle'];
         $allowHSTS = (isset($_POST['allow_hsts']) && $_POST['allow_hsts'] === 'on');
-        $hstsMaxAge = ($allowHSTS && isset($_POST['hsts_max_age']) && is_number($_POST['hsts_max_age'])
+        $hstsMaxAge = ($allowHSTS && isset($_POST['hsts_max_age']) && isNumber($_POST['hsts_max_age'])
             && $_POST['hsts_max_age'] >= 0) ? intval($_POST['hsts_max_age']) : '31536000';
-        $hstsIncludeSubDomains = ($allowHSTS && isset($_POST['hsts_include_subdomains'])
-            && $_POST['hsts_include_subdomains'] === 'on');
+        $hstsIncludeSubDomains = ($allowHSTS && isset($_POST['hsts_include_subdomains']) && $_POST['hsts_include_subdomains'] === 'on');
     }
 
     $tpl->assign([
         'TR_DYNAMIC_TITLE'           => $dynTitle,
-        'DOMAIN_NAME'                => tohtml(decode_idna($domainName)),
+        'DOMAIN_NAME'                => toHtml(decodeIdna($domainName)),
         'HSTS_CHECKED_ON'            => $allowHSTS ? ' checked' : '',
         'HSTS_CHECKED_OFF'           => !$allowHSTS ? ' checked' : '',
-        'HSTS_MAX_AGE'               => tohtml($hstsMaxAge, 'htmlAttr'),
+        'HSTS_MAX_AGE'               => toHtml($hstsMaxAge, 'htmlAttr'),
         'HSTS_INCLUDE_SUBDOMAIN_ON'  => $hstsIncludeSubDomains ? ' checked' : '',
         'HSTS_INCLUDE_SUBDOMAIN_OFF' => !$hstsIncludeSubDomains ? ' checked' : '',
-        'KEY_CERT'                   => tohtml(trim($privateKey)),
-        'CERTIFICATE'                => tohtml(trim($certificate)),
-        'CA_BUNDLE'                  => tohtml(trim($caBundle)),
-        'CERT_ID'                    => tohtml($certId),
-        'TR_ACTION'                  => tohtml($trAction, 'htmlAttr'),
+        'KEY_CERT'                   => toHtml(trim($privateKey)),
+        'CERTIFICATE'                => toHtml(trim($certificate)),
+        'CA_BUNDLE'                  => toHtml(trim($caBundle)),
+        'CERT_ID'                    => toHtml($certId),
+        'TR_ACTION'                  => toHtml($trAction, 'htmlAttr'),
         'TR_YES'                     => tr('Yes'),
         'TR_NO'                      => tr('No')
     ]);
 
-    if (!customerHasFeature('ssl')
-        || (isset($status) && in_array($status, ['toadd', 'tochange', 'todelete']))
-    ) {
+    if (!customerHasFeature('ssl') || (isset($status) && in_array($status, ['toadd', 'tochange', 'todelete']))) {
         $tpl->assign('SSL_CERTIFICATE_ACTIONS', '');
-
         if (!customerHasFeature('ssl')) {
-            set_page_message(tr('SSL feature is not available. You can only view your certificate.'), 'static_warning');
+            setPageMessage(tr('SSL feature is not available. You can only view your certificate.'), 'static_warning');
         }
     }
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
 isset($_GET['id']) && isset($_GET['type']) && in_array($_GET['type'], ['dmn', 'als', 'sub', 'alssub']) or showBadRequestErrorPage();
 
@@ -608,14 +566,10 @@ $tpl->define([
     'ssl_certificate_actions' => 'page'
 ]);
 
-
-
 $domainId = intval($_GET['id']);
-$domainType = clean_input($_GET['type']);
+$domainType = cleanInput($_GET['type']);
 
-if (customerHasFeature('ssl')
-    && !empty($_POST)
-) {
+if (customerHasFeature('ssl') && !empty($_POST)) {
     if (isset($_POST['add_update'])) {
         client_addSslCert($domainId, $domainType);
     } elseif (isset($_POST['delete'])) {
@@ -626,32 +580,29 @@ if (customerHasFeature('ssl')
 }
 
 $tpl->assign([
-    'TR_PAGE_TITLE'                      => tohtml(tr('Client / Domains / SSL Certificate')),
-    'TR_CERTIFICATE_DATA'                => tohtml(tr('Certificate data')),
-    'TR_CERT_FOR'                        => tohtml(tr('Common name')),
-    'TR_STATUS'                          => tohtml(tr('Status')),
-    'TR_ALLOW_HSTS'                      => tohtml(tr('HSTS (HTTP Strict Transport Security)')),
-    'TR_HSTS_MAX_AGE'                    => tohtml(tr('HSTS max-age directive value')),
-    'TR_SEC'                             => tohtml(tr('Sec.')),
-    'TR_HSTS_INCLUDE_SUBDOMAINS'         => tohtml(tr('HSTS includeSubDomains directive')),
-    'TR_HSTS_INCLUDE_SUBDOMAINS_TOOLTIP' => tohtml(tr("You should enable this directive only if all subdomains of this domain are served through SSL. Note that even if you add this directive, this will not automatically activate the HSTS feature for the subdomains of this domain."), 'htmlAttr'),
-    'TR_GENERATE_SELFSIGNED_CERTIFICAT'  => tohtml(tr('Generate a self-signed certificate')),
-    'TR_PASSWORD'                        => tohtml(tr('Private key passphrase if any')),
-    'TR_PRIVATE_KEY'                     => tohtml(tr('Private key')),
-    'TR_CERTIFICATE'                     => tohtml(tr('Certificate')),
-    'TR_CA_BUNDLE'                       => tohtml(tr('Intermediate certificate(s)')),
-    'TR_DELETE'                          => tohtml(tr('Delete')),
-    'TR_CANCEL'                          => tohtml(tr('Cancel')),
-    'DOMAIN_ID'                          => tohtml($domainId),
-    'DOMAIN_TYPE'                        => tohtml($domainType)
+    'TR_PAGE_TITLE'                      => toHtml(tr('Client / Domains / SSL Certificate')),
+    'TR_CERTIFICATE_DATA'                => toHtml(tr('Certificate data')),
+    'TR_CERT_FOR'                        => toHtml(tr('Common name')),
+    'TR_STATUS'                          => toHtml(tr('Status')),
+    'TR_ALLOW_HSTS'                      => toHtml(tr('HSTS (HTTP Strict Transport Security)')),
+    'TR_HSTS_MAX_AGE'                    => toHtml(tr('HSTS max-age directive value')),
+    'TR_SEC'                             => toHtml(tr('Sec.')),
+    'TR_HSTS_INCLUDE_SUBDOMAINS'         => toHtml(tr('HSTS includeSubDomains directive')),
+    'TR_HSTS_INCLUDE_SUBDOMAINS_TOOLTIP' => toHtml(tr("You should enable this directive only if all subdomains of this domain are served through SSL. Note that even if you add this directive, this will not automatically activate the HSTS feature for the subdomains of this domain."), 'htmlAttr'),
+    'TR_GENERATE_SELFSIGNED_CERTIFICAT'  => toHtml(tr('Generate a self-signed certificate')),
+    'TR_PASSWORD'                        => toHtml(tr('Private key passphrase if any')),
+    'TR_PRIVATE_KEY'                     => toHtml(tr('Private key')),
+    'TR_CERTIFICATE'                     => toHtml(tr('Certificate')),
+    'TR_CA_BUNDLE'                       => toHtml(tr('Intermediate certificate(s)')),
+    'TR_DELETE'                          => toHtml(tr('Delete')),
+    'TR_CANCEL'                          => toHtml(tr('Cancel')),
+    'DOMAIN_ID'                          => toHtml($domainId),
+    'DOMAIN_TYPE'                        => toHtml($domainType)
 ]);
-
 generateNavigation($tpl);
 client_generatePage($tpl, $domainId, $domainType);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

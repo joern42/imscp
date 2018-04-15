@@ -1,21 +1,21 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2010-2018 by i-MSCP team
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\TemplateEngine;
@@ -38,7 +38,7 @@ use iMSCP_Registry as Registry;
 function update_existing_client_installations_res_upload(
     $softwareId, $resellerId, $softwareMasterId, $softwareDeleted = false)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         "SELECT domain_id FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE domain_software_allowed = 'yes' AND created_by = ?",
         [$resellerId]
     );
@@ -49,14 +49,14 @@ function update_existing_client_installations_res_upload(
 
     while ($row = $stmt->fetch()) {
         if ($softwareDeleted === false) {
-            exec_query(
+            execQuery(
                 'UPDATE web_software_inst SET software_id = ?, software_master_id = ?, software_depot = ? WHERE software_id = ? AND domain_id = ?',
                 [$softwareId, $softwareMasterId, 'yes', $softwareMasterId, $row['domain_id']]
             );
             continue;
         }
 
-        exec_query('UPDATE web_software_inst SET software_res_del = 1 WHERE software_id = ? AND domain_id = ?', [$softwareId, $row['domain_id']]);
+        execQuery('UPDATE web_software_inst SET software_res_del = 1 WHERE software_id = ? AND domain_id = ?', [$softwareId, $row['domain_id']]);
     }
 }
 
@@ -70,7 +70,7 @@ function update_existing_client_installations_res_upload(
  */
 function update_existing_client_installations_sw_depot($softwareId, $softwareMasterId, $resellerId)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         "SELECT domain_id FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE domain_software_allowed = 'yes' AND created_by = ?",
         [$resellerId]
     );
@@ -80,7 +80,7 @@ function update_existing_client_installations_sw_depot($softwareId, $softwareMas
     }
 
     while ($row = $stmt->fetch()) {
-        exec_query(
+        execQuery(
             '
               UPDATE web_software_inst
               SET software_id = ?, software_res_del = 0
@@ -103,9 +103,9 @@ function update_existing_client_installations_sw_depot($softwareId, $softwareMas
  */
 function send_activated_sw($resellerId, $softwarePackage, $softwareId)
 {
-    $stmt = exec_query('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [$resellerId]);
+    $stmt = execQuery('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [$resellerId]);
     $resellerData = $stmt->fetch();
-    $ret = send_mail([
+    $ret = sendMail([
         'mail_id'      => 'software-installer-activate-sw',
         'fname'        => $resellerData['fname'],
         'lname'        => $resellerData['lname'],
@@ -130,7 +130,7 @@ i-MSCP Mailer.'),
     ]);
 
     if (!$ret) {
-        write_log(sprintf("Couldn'tsend software activation notification to %s", $resellerData['admin_name']), E_USER_ERROR);
+        writeLog(sprintf("Couldn'tsend software activation notification to %s", $resellerData['admin_name']), E_USER_ERROR);
         return false;
     }
 
@@ -148,11 +148,11 @@ i-MSCP Mailer.'),
  */
 function send_deleted_sw($resellerId, $softwarePackage, $softwareId, $adminMessage)
 {
-    $stmt = exec_query('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [
+    $stmt = execQuery('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [
         $resellerId
     ]);
     $resellerData = $stmt->fetch();
-    $ret = send_mail([
+    $ret = sendMail([
         'mail_id'      => 'software-installer-delete-sw',
         'fname'        => $resellerData['fname'],
         'lname'        => $resellerData['lname'],
@@ -184,7 +184,7 @@ i-MSCP Mailer'),
     ]);
 
     if (!$ret) {
-        write_log(sprintf("Couldn't send software activation notification to %s", $resellerData['admin_name']), E_USER_ERROR);
+        writeLog(sprintf("Couldn't send software activation notification to %s", $resellerData['admin_name']), E_USER_ERROR);
         return false;
     }
 
@@ -199,7 +199,7 @@ i-MSCP Mailer'),
  */
 function get_avail_software($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
           SELECT a.software_id AS id, a.software_name AS name, a.software_version AS version,
             a.software_language AS language, a.software_type AS type, a.software_desc AS description,
@@ -253,7 +253,7 @@ function get_avail_software($tpl)
  */
 function get_avail_softwaredepot($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
           SELECT a.software_id AS id, a.software_name AS name, a.software_version AS version,
             a.software_language AS language, a.software_type AS type, a.software_desc AS description,
@@ -269,8 +269,8 @@ function get_avail_softwaredepot($tpl)
         while ($row = $stmt->fetch()) {
             if ($row['swstatus'] == 'ok' || $row['swstatus'] == 'ready') {
                 if ($row['swstatus'] == 'ready') {
-                    exec_query("UPDATE web_software SET software_status = 'ok' WHERE software_id = ?", [$row['id']]);
-                    set_page_message(tr('Package installed successfully!'), 'success');
+                    execQuery("UPDATE web_software SET software_status = 'ok' WHERE software_id = ?", [$row['id']]);
+                    setPageMessage(tr('Package installed successfully!'), 'success');
                 }
 
                 $delURL = 'software_delete.php?id=' . $row['id'];
@@ -332,7 +332,7 @@ function get_avail_softwaredepot($tpl)
                             'TR_SOFTWARE_RIGHTS'   => '',
                             'SOFTWARE_RIGHTS_LINK' => ''
                         ]);
-                        set_page_message(tr('Your package is corrupt. Please correct it!'), 'error');
+                        setPageMessage(tr('Your package is corrupt. Please correct it!'), 'error');
                     } elseif (preg_match('/double_depot_/i', $row['swstatus'])) {
                         $tpl->assign([
                             'TR_NAME'              => tr('Package already exists in the software depot!'),
@@ -351,7 +351,7 @@ function get_avail_softwaredepot($tpl)
                             'TR_SOFTWARE_RIGHTS'   => '',
                             'SOFTWARE_RIGHTS_LINK' => ''
                         ]);
-                        set_page_message(tr('This package already exists in the software depot!'), 'warning');
+                        setPageMessage(tr('This package already exists in the software depot!'), 'warning');
                     } elseif (preg_match('/double_res_/i', $row['swstatus'])) {
                         $tpl->assign([
                             'TR_NAME'              => tr('Package already exists in the reseller depot!'),
@@ -370,7 +370,7 @@ function get_avail_softwaredepot($tpl)
                             'TR_SOFTWARE_RIGHTS'   => '',
                             'SOFTWARE_RIGHTS_LINK' => ''
                         ]);
-                        $stmt2 = exec_query(
+                        $stmt2 = execQuery(
                             "
                               SELECT t1.admin_name
                               FROM admin AS t1
@@ -380,14 +380,14 @@ function get_avail_softwaredepot($tpl)
                             [substr(strrchr($row['swstatus'], '_'), 1)]
                         );
                         if ($stmt2->rowCount()) {
-                            set_page_message(tr('This package already exists in the depot of the reseller "%1$s"!', $stmt2->fetchColumn()), 'warning');
+                            setPageMessage(tr('This package already exists in the depot of the reseller "%1$s"!', $stmt2->fetchColumn()), 'warning');
                         }
                     }
 
                     $cfg = Registry::get('config');
-                    @unlink(utils_normalizePath($cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/sw_depot/' . $row['filename'] . '-'
+                    @unlink(normalizePath($cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/sw_depot/' . $row['filename'] . '-'
                         . $row['id'] . '.tar.gz'));
-                    exec_query('DELETE FROM web_software WHERE software_id = ?', [$row['id']]);
+                    execQuery('DELETE FROM web_software WHERE software_id = ?', [$row['id']]);
                 }
             }
 
@@ -413,7 +413,7 @@ function get_avail_softwaredepot($tpl)
  */
 function get_installed_res_software($tpl, $resellerId)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
           SELECT a.software_id AS id, a.software_name AS name, a.software_version AS version,
             a.software_language AS language, a.software_type AS type, a.software_desc AS description,
@@ -430,7 +430,7 @@ function get_installed_res_software($tpl, $resellerId)
 
     if ($stmt->rowCount()) {
         while ($row = $stmt->fetch()) {
-            $stmt2 = exec_query(
+            $stmt2 = execQuery(
                 "
                   SELECT domain.domain_id AS did, domain.domain_name AS domain, web_software_inst.domain_id AS wdid,
                     web_software_inst.software_id AS sid, web_software.software_id AS wsid
@@ -496,10 +496,10 @@ function get_installed_res_software($tpl, $resellerId)
         return $stmt->rowCount();
     }
 
-    $stmt = exec_query('SELECT admin_name FROM admin WHERE admin_id = ?', [$resellerId]);
+    $stmt = execQuery('SELECT admin_name FROM admin WHERE admin_id = ?', [$resellerId]);
 
     if (!$stmt->rowCount()) {
-        set_page_message(tr('Wrong reseller id.'), 'error');
+        setPageMessage(tr('Wrong reseller id.'), 'error');
         redirectTo('software_manage.php');
     }
 
@@ -523,7 +523,7 @@ function get_installed_res_software($tpl, $resellerId)
  */
 function get_reseller_software($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
           SELECT t1.admin_id AS reseller_id, t1.admin_name AS reseller
           FROM admin t1
@@ -536,30 +536,30 @@ function get_reseller_software($tpl)
 
     if ($stmt->rowCount()) {
         while ($row = $stmt->fetch()) {
-            $stmt2 = exec_query('SELECT software_id FROM web_software WHERE reseller_id = ?', [$row['reseller_id']]);
+            $stmt2 = execQuery('SELECT software_id FROM web_software WHERE reseller_id = ?', [$row['reseller_id']]);
 
             $softwareIds = [];
             while ($data = $stmt2->fetch()) {
                 $softwareIds[] = $data['software_id'];
             }
 
-            $countSwDepot = exec_query(
+            $countSwDepot = execQuery(
                 "SELECT count(software_id) FROM web_software WHERE software_active = 1 AND software_depot = 'yes' AND reseller_id = ?",
                 [$row['reseller_id']]
             )->fetchColumn();
 
-            $countWaiting = exec_query(
+            $countWaiting = execQuery(
                 "SELECT count(software_id) FROM web_software WHERE software_active = 0 AND reseller_id = ?", [$row['reseller_id']]
             )->fetchColumn();
 
-            $countActivated = exec_query(
+            $countActivated = execQuery(
                 "SELECT count(software_id) FROM web_software WHERE software_active = 1 AND reseller_id = ?", [$row['reseller_id']]
             )->fetchColumn();
 
             if (count($softwareIds) > 0) {
-                $swInUse = execute_query(
+                $swInUse = executeQuery(
                     "
-                      SELECT count(domain_id)
+                      SELECT COUNT(domain_id)
                       FROM web_software_inst
                       WHERE software_id IN (" . implode(',', $softwareIds) . ") AND software_status = 'ok'
                     "
@@ -598,7 +598,7 @@ function get_reseller_software($tpl)
  */
 function get_reseller_rights($tpl, $softwareId)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
           SELECT a.software_id, a.software_master_id, a.reseller_id, a.rights_add_by, b.admin_name AS reseller
           FROM web_software a, admin b
@@ -611,7 +611,7 @@ function get_reseller_rights($tpl, $softwareId)
 
     if ($stmt->rowCount()) {
         while ($row = $stmt->fetch()) {
-            $stmt2 = exec_query('SELECT admin_name FROM admin WHERE admin_id = ?', [$row['rights_add_by']]);
+            $stmt2 = execQuery('SELECT admin_name FROM admin WHERE admin_id = ?', [$row['rights_add_by']]);
             $tpl->assign([
                 'RESELLER'          => $row['reseller'],
                 'ADMINISTRATOR'     => ($stmt2->rowCount()) ? $stmt2->fetchColumn() : tr('Admin not available'),
@@ -643,7 +643,7 @@ function get_reseller_rights($tpl, $softwareId)
  */
 function get_reseller_list($tpl, $softwareId)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
           SELECT a.reseller_id, b.admin_name AS reseller
           FROM reseller_props a, admin b
@@ -657,7 +657,7 @@ function get_reseller_list($tpl, $softwareId)
         $resellerCount = 0;
 
         while ($row = $stmt->fetch()) {
-            $stmt2 = exec_query(
+            $stmt2 = execQuery(
                 'SELECT reseller_id FROM web_software WHERE reseller_id = ? AND software_master_id = ?', [$row['reseller_id'], $softwareId]
             );
 
@@ -710,11 +710,11 @@ function get_reseller_list($tpl, $softwareId)
  */
 function send_new_sw_upload($resellerId, $softwarePackage, $softwareId)
 {
-    $stmt = exec_query('SELECT created_by FROM admin WHERE admin_id = ?', [$resellerId]);
+    $stmt = execQuery('SELECT created_by FROM admin WHERE admin_id = ?', [$resellerId]);
     $resellerData = $stmt->fetch();
-    $stmt = exec_query('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [$resellerData['created_by']]);
+    $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [$resellerData['created_by']]);
     $adminData = $stmt->fetch();
-    $ret = send_mail([
+    $ret = sendMail([
         'mail_id'      => 'software-installer-upload-sw',
         'fname'        => $adminData['fname'],
         'lname'        => $adminData['lname'],
@@ -741,7 +741,7 @@ i-MSCP Mailer'),
     ]);
 
     if (!$ret) {
-        write_log(sprintf("Couldn't send software upload notification to %s", $adminData['admin_name']), E_USER_ERROR);
+        writeLog(sprintf("Couldn't send software upload notification to %s", $adminData['admin_name']), E_USER_ERROR);
         return false;
     }
 
@@ -756,7 +756,7 @@ i-MSCP Mailer'),
  */
 function ask_reseller_is_allowed_web_depot($userId)
 {
-    return exec_query(
+    return execQuery(
         'SELECT websoftwaredepot_allowed FROM reseller_props WHERE reseller_id = ?', [$userId]
     )->fetchColumn();
 }
@@ -771,10 +771,10 @@ function ask_reseller_is_allowed_web_depot($userId)
 function get_avail_software_reseller($tpl, $userId)
 {
     ini_set('display_errors', 1);
-    $softwareAllowed = exec_query('SELECT software_allowed FROM reseller_props WHERE reseller_id = ?', [$userId])->fetchColumn();
+    $softwareAllowed = execQuery('SELECT software_allowed FROM reseller_props WHERE reseller_id = ?', [$userId])->fetchColumn();
 
     if ($softwareAllowed == 'yes') {
-        $stmt = exec_query(
+        $stmt = execQuery(
             "
               SELECT software_id AS id, reseller_id AS resellerid, software_name AS name, software_version AS version,
                 software_language AS language, software_desc AS description, software_type AS type,
@@ -790,15 +790,15 @@ function get_avail_software_reseller($tpl, $userId)
             while ($row = $stmt->fetch()) {
                 if ($row['swstatus'] == 'ok' || $row['swstatus'] == 'ready') {
                     if ($row['swstatus'] == 'ready') {
-                        exec_query("UPDATE web_software SET software_status = 'ok' WHERE software_id = ?", [$row['id']]);
+                        execQuery("UPDATE web_software SET software_status = 'ok' WHERE software_id = ?", [$row['id']]);
                         send_new_sw_upload($userId, $row['filename'] . '.tar.gz', $row['id']);
-                        set_page_message(
+                        setPageMessage(
                             tr('Package installed successfully... Awaiting release from admin!'), 'success'
                         );
                     }
 
                     $url = "software_delete.php?id=" . $row['id'];
-                    $stmt2 = exec_query(
+                    $stmt2 = execQuery(
                         "
                           SELECT domain.domain_id AS did, domain.domain_name AS domain,
                             web_software_inst.domain_id AS wdid, web_software_inst.software_id AS sid,
@@ -826,13 +826,13 @@ function get_avail_software_reseller($tpl, $userId)
                     }
 
                     $tpl->assign([
-                        'SW_NAME'               => tohtml($row['name']),
+                        'SW_NAME'               => toHtml($row['name']),
                         'LINK_COLOR'            => '#000000',
-                        'SW_VERSION'            => tohtml($row['version']),
-                        'SW_LANGUAGE'           => tohtml($row['language']),
-                        'SW_DESCRIPTION'        => tohtml($row['description'], 'htmlAttr'),
-                        'SW_TYPE'               => tohtml($row['type']),
-                        'DELETE'                => tohtml($url, 'htmlAttr'),
+                        'SW_VERSION'            => toHtml($row['version']),
+                        'SW_LANGUAGE'           => toHtml($row['language']),
+                        'SW_DESCRIPTION'        => toHtml($row['description'], 'htmlAttr'),
+                        'SW_TYPE'               => toHtml($row['type']),
+                        'DELETE'                => toHtml($url, 'htmlAttr'),
                         'TR_DELETE'             => tr('Delete'),
                         'WAITING_SOFTWARE_LIST' => '',
                         'SOFTWARE_ICON'         => 'delete'
@@ -873,7 +873,7 @@ function get_avail_software_reseller($tpl, $userId)
                                 'SW_STATUS'      => tr('deleting'),
                                 'SOFTWARE_ICON'  => 'disabled'
                             ]);
-                            set_page_message(tr('The package is corrupt. Please correct it.'), 'error');
+                            setPageMessage(tr('The package is corrupt. Please correct it.'), 'error');
                         } elseif (preg_match('/double_depot_/i', $row['swstatus'])) {
                             $tpl->assign([
                                 'SW_NAME'        => tr('Package already exists in the software repository!'),
@@ -887,7 +887,7 @@ function get_avail_software_reseller($tpl, $userId)
                                 'SW_STATUS'      => tr('deleting'),
                                 'SOFTWARE_ICON'  => 'disabled'
                             ]);
-                            set_page_message(tr('This package already exists in the administrator software repository.'), 'error');
+                            setPageMessage(tr('This package already exists in the administrator software repository.'), 'error');
                         } elseif (preg_match('/double_res_/i', $row['swstatus'])) {
                             $tpl->assign([
                                 'SW_NAME'        => tr('Package already exists in your software repository!'),
@@ -901,14 +901,14 @@ function get_avail_software_reseller($tpl, $userId)
                                 'SW_STATUS'      => tr('deleting'),
                                 'SOFTWARE_ICON'  => 'disabled'
                             ]);
-                            set_page_message(tr('This package already exists in your software repository.'), 'error');
+                            setPageMessage(tr('This package already exists in your software repository.'), 'error');
                         }
 
                         $cfg = Registry::get('config');
-                        @unlink(utils_normalizePath(
-                            $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $row['resellerid'] . '/' . $row['filename'] . '-' . $row['id'] . '.tar.gz')
+                        @unlink(normalizePath(
+                                $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $row['resellerid'] . '/' . $row['filename'] . '-' . $row['id'] . '.tar.gz')
                         );
-                        exec_query('DELETE FROM web_software WHERE software_id = ?', [$row['id']]);
+                        execQuery('DELETE FROM web_software WHERE software_id = ?', [$row['id']]);
                     }
                 }
                 $tpl->parse('LIST_SOFTWARE', '.list_software');
@@ -948,7 +948,7 @@ function get_avail_software_reseller($tpl, $userId)
  */
 function gen_user_software_action($softwareId, $dmnId, $tpl)
 {
-    $stmt = exec_query('SELECT software_status FROM web_software_inst WHERE software_id = ? AND domain_id = ?', [$softwareId, $dmnId]);
+    $stmt = execQuery('SELECT software_status FROM web_software_inst WHERE software_id = ? AND domain_id = ?', [$softwareId, $dmnId]);
 
     if (!$stmt->rowCount()) {
         $software_status = 'not installed';
@@ -1019,7 +1019,7 @@ function gen_user_software_action($softwareId, $dmnId, $tpl)
  */
 function gen_software_list($tpl, $domainId, $resellerId)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         '
           SELECT software_id, software_status, software_res_del, software_name, software_version
           FROM web_software_inst
@@ -1082,9 +1082,9 @@ function gen_software_list($tpl, $domainId, $resellerId)
         $tpl->parse('DEL_SOFTWARE_SUPPORT', '.del_software_support');
     }
 
-    $domainProperties = get_domain_default_props($_SESSION['user_id']);
+    $domainProperties = getCustomerProperties($_SESSION['user_id']);
     $optCond = ($domainProperties['domain_sqld_limit'] == '-1') ? 'AND software_db <> 1' : '';
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
           SELECT software_id, software_name, software_version, software_language, software_type, software_db,
               software_desc
@@ -1152,7 +1152,7 @@ function gen_software_list($tpl, $domainId, $resellerId)
  */
 function check_software_avail($softwareId, $dmnCreatedId)
 {
-    return exec_query(
+    return execQuery(
             'SELECT COUNT(software_id) FROM web_software WHERE software_id = ? AND reseller_id = ?', [$softwareId, $dmnCreatedId]
         )->fetchColumn() > 0;
 }
@@ -1167,7 +1167,7 @@ function check_software_avail($softwareId, $dmnCreatedId)
  */
 function check_is_installed($tpl, $dmnId, $softwareId)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         'SELECT software_id, software_prefix, db, path FROM web_software_inst WHERE domain_id = ? AND software_id = ?', [$dmnId, $softwareId]
     );
 
@@ -1207,11 +1207,11 @@ function check_is_installed($tpl, $dmnId, $softwareId)
 function get_software_props($tpl, $dmnId, $softwareId, $dmnCreatedId)
 {
     if (!check_software_avail($softwareId, $dmnCreatedId)) {
-        set_page_message(tr('Software not found!'), 'error');
+        setPageMessage(tr('Software not found!'), 'error');
         redirectTo('software.php');
     }
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         '
           SELECT software_name, software_version, software_language, software_type, software_db, software_link, software_desc
           FROM web_software
@@ -1236,7 +1236,7 @@ function get_software_props($tpl, $dmnId, $softwareId, $dmnCreatedId)
         'SOFTWARE_LANGUAGE' => $row['software_language'],
         'SOFTWARE_TYPE'     => $row['software_type'],
         'SOFTWARE_LINK'     => $swLink,
-        'SOFTWARE_DESC'     => tohtml($row['software_desc'])
+        'SOFTWARE_DESC'     => toHtml($row['software_desc'])
     ]);
 
     check_is_installed($tpl, $dmnId, $softwareId);
@@ -1256,13 +1256,13 @@ function get_software_props($tpl, $dmnId, $softwareId, $dmnCreatedId)
 function get_software_props_install($tpl, $dmnId, $softwareId, $dmnCreatedId, $dmnSqldLimit)
 {
     if (!check_software_avail($softwareId, $dmnCreatedId)) {
-        set_page_message(tr('Software not found!'), 'error');
+        setPageMessage(tr('Software not found!'), 'error');
         redirectTo('software.php');
     }
 
     gen_user_domain_list($tpl, $_SESSION['user_id']);
 
-    $stmt = exec_query('SELECT software_name, software_type, software_db FROM web_software WHERE software_id = ? AND reseller_id = ?', [
+    $stmt = execQuery('SELECT software_name, software_type, software_db FROM web_software WHERE software_id = ? AND reseller_id = ?', [
         $softwareId, $dmnCreatedId
     ]);
     $row = $stmt->fetch();
@@ -1300,7 +1300,7 @@ function get_software_props_install($tpl, $dmnId, $softwareId, $dmnCreatedId, $d
 function gen_user_domain_list($tpl, $customerId)
 {
     $domainFound = false;
-    $domainId = get_user_domain_id($customerId);
+    $domainId = getCustomerMainDomainId($customerId);
 
     if (isset($_POST['selected_domain'])) {
         list ($postDomainId, $postDomainType) = explode(';', $_POST['selected_domain']);
@@ -1310,7 +1310,7 @@ function gen_user_domain_list($tpl, $customerId)
     }
 
     // dmn
-    $stmt = exec_query("SELECT domain_id, domain_name FROM domain WHERE domain_id = ? AND domain_status = 'ok' AND url_forward = 'no'", [
+    $stmt = execQuery("SELECT domain_id, domain_name FROM domain WHERE domain_id = ? AND domain_status = 'ok' AND url_forward = 'no'", [
         $domainId
     ]);
     if ($stmt->rowCount()) {
@@ -1318,14 +1318,14 @@ function gen_user_domain_list($tpl, $customerId)
         $row = $stmt->fetch();
         $tpl->assign([
             'SELECTED_DOMAIN'    => ($postDomainType == 'dmn' && $postDomainId == $row['domain_id']) ? ' selected' : '',
-            'DOMAIN_NAME_VALUES' => tohtml($row['domain_id'] . ';dmn', 'htmlAttr'),
-            'DOMAIN_NAME'        => tohtml(decode_idna($row['domain_name']))
+            'DOMAIN_NAME_VALUES' => toHtml($row['domain_id'] . ';dmn', 'htmlAttr'),
+            'DOMAIN_NAME'        => toHtml(decodeIdna($row['domain_name']))
         ]);
         $tpl->parse('SHOW_DOMAIN_LIST', '.show_domain_list');
     }
 
     // als
-    $stmt = exec_query("SELECT alias_id, alias_name FROM domain_aliases WHERE domain_id = ? AND alias_status = 'ok' AND url_forward = 'no'", [
+    $stmt = execQuery("SELECT alias_id, alias_name FROM domain_aliases WHERE domain_id = ? AND alias_status = 'ok' AND url_forward = 'no'", [
         $domainId
     ]);
     if ($stmt->rowCount()) {
@@ -1334,15 +1334,15 @@ function gen_user_domain_list($tpl, $customerId)
         while ($row = $stmt->fetch()) {
             $tpl->assign([
                 'SELECTED_DOMAIN'    => ($postDomainType == 'als' && $postDomainId == $row['alias_id']) ? ' selected' : '',
-                'DOMAIN_NAME_VALUES' => tohtml($row['alias_id'] . ';als', 'htmlAttr'),
-                'DOMAIN_NAME'        => tohtml(decode_idna($row['alias_name']))
+                'DOMAIN_NAME_VALUES' => toHtml($row['alias_id'] . ';als', 'htmlAttr'),
+                'DOMAIN_NAME'        => toHtml(decodeIdna($row['alias_name']))
             ]);
             $tpl->parse('SHOW_DOMAIN_LIST', '.show_domain_list');
         }
     }
 
     // sub
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT subdomain_id, CONCAT(subdomain_name, '.', domain_name) AS subdomain_name
             FROM subdomain
@@ -1359,15 +1359,15 @@ function gen_user_domain_list($tpl, $customerId)
         while ($row = $stmt->fetch()) {
             $tpl->assign([
                 'SELECTED_DOMAIN'    => ($postDomainType == 'sub' && $postDomainId == $row['subdomain_id']) ? ' selected' : '',
-                'DOMAIN_NAME_VALUES' => tohtml($row['subdomain_id'] . ';sub', 'htmlAttr'),
-                'DOMAIN_NAME'        => tohtml(decode_idna($row['subdomain_name']))
+                'DOMAIN_NAME_VALUES' => toHtml($row['subdomain_id'] . ';sub', 'htmlAttr'),
+                'DOMAIN_NAME'        => toHtml(decodeIdna($row['subdomain_name']))
             ]);
             $tpl->parse('SHOW_DOMAIN_LIST', '.show_domain_list');
         }
     }
 
     // alssub
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT subdomain_alias_id, CONCAT(subdomain_alias_name, '.', alias_name) AS subdomain_alias_name
             FROM subdomain_alias
@@ -1384,15 +1384,15 @@ function gen_user_domain_list($tpl, $customerId)
         while ($row = $stmt->fetch()) {
             $tpl->assign([
                 'SELECTED_DOMAIN'    => ($postDomainType == 'alssub' && $postDomainId == $row['subdomain_alias_id']) ? ' selected' : '',
-                'DOMAIN_NAME_VALUES' => tohtml($row['subdomain_alias_id'] . ';alssub', 'htmlAttr'),
-                'DOMAIN_NAME'        => tohtml(decode_idna($row['subdomain_alias_name']))
+                'DOMAIN_NAME_VALUES' => toHtml($row['subdomain_alias_id'] . ';alssub', 'htmlAttr'),
+                'DOMAIN_NAME'        => toHtml(decodeIdna($row['subdomain_alias_name']))
             ]);
             $tpl->parse('SHOW_DOMAIN_LIST', '.show_domain_list');
         }
     }
 
     if (!$domainFound) { # Case where all domain are forwarded
-        set_page_message(tr('No domain available for new software instance.'), 'warning');
+        setPageMessage(tr('No domain available for new software instance.'), 'warning');
         redirectTo('software.php');
     }
 }

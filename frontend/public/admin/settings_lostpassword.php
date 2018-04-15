@@ -1,44 +1,37 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * The Original Code is "VHCS - Virtual Hosting Control System".
- *
- * The Initial Developer of the Original Code is moleSoftware GmbH.
- * Portions created by Initial Developer are Copyright (C) 2001-2006
- * by moleSoftware GmbH. All Rights Reserved.
- *
- * Portions created by the ispCP Team are Copyright (C) 2006-2010 by
- * isp Control Panel. All Rights Reserved.
- *
- * Portions created by the i-MSCP Team are Copyright (C) 2010-2018 by
- * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
+use iMSCP_Registry as Registry;
 
 require 'imscp-lib.php';
 
-check_login('admin');
+checkLogin('admin');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     $errorMessage = '';
-    $activationEmailData['subject'] = isset($_POST['subject1']) ? clean_input($_POST['subject1']) : '';
-    $activationEmailData['message'] = isset($_POST['subject1']) ? clean_input($_POST['message1']) : '';
-    $passwordEmailData['subject'] = isset($_POST['subject1']) ? clean_input($_POST['subject2']) : '';
-    $passwordEmailData['message'] = isset($_POST['subject1']) ? clean_input($_POST['message2']) : '';
+    $activationEmailData['subject'] = isset($_POST['subject1']) ? cleanInput($_POST['subject1']) : '';
+    $activationEmailData['message'] = isset($_POST['subject1']) ? cleanInput($_POST['message1']) : '';
+    $passwordEmailData['subject'] = isset($_POST['subject1']) ? cleanInput($_POST['subject2']) : '';
+    $passwordEmailData['message'] = isset($_POST['subject1']) ? cleanInput($_POST['message2']) : '';
 
     if ($activationEmailData['subject'] == '' || $passwordEmailData['subject'] == '') {
         $errorMessage = tr('Please specify a message subject.');
@@ -49,16 +42,16 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     }
 
     if (!empty($errorMessage)) {
-        set_page_message($errorMessage, 'error');
+        setPageMessage($errorMessage, 'error');
     } else {
-        set_lostpassword_activation_email(0, $activationEmailData);
-        set_lostpassword_password_email(0, $passwordEmailData);
-        set_page_message(tr('Lost password email templates were updated.'), 'success');
+        setLostpasswordActivationEmail(0, $activationEmailData);
+        setLostpasswordEmail(0, $passwordEmailData);
+        setPageMessage(tr('Lost password email templates were updated.'), 'success');
         redirectTo('settings_lostpassword.php');
     }
 } else {
-    $activationEmailData = get_lostpassword_activation_email($_SESSION['user_id']);
-    $passwordEmailData = get_lostpassword_password_email($_SESSION['user_id']);
+    $activationEmailData = getLostpasswordActivationEmail($_SESSION['user_id']);
+    $passwordEmailData = getLostpasswordEmail($_SESSION['user_id']);
 }
 
 $tpl = new TemplateEngine();
@@ -72,12 +65,12 @@ $tpl->assign([
     'TR_LOSTPW_EMAIL'             => tr('Lost password email'),
     'TR_MESSAGE_TEMPLATE_INFO'    => tr('Message template info'),
     'TR_MESSAGE_TEMPLATE'         => tr('Message template'),
-    'SUBJECT_VALUE1'              => tohtml($activationEmailData['subject']),
-    'MESSAGE_VALUE1'              => tohtml($activationEmailData['message']),
-    'SUBJECT_VALUE2'              => tohtml($passwordEmailData['subject']),
-    'MESSAGE_VALUE2'              => tohtml($passwordEmailData['message']),
-    'SENDER_EMAIL_VALUE'          => tohtml($activationEmailData['sender_email']),
-    'SENDER_NAME_VALUE'           => tohtml($activationEmailData['sender_name']),
+    'SUBJECT_VALUE1'              => toHtml($activationEmailData['subject']),
+    'MESSAGE_VALUE1'              => toHtml($activationEmailData['message']),
+    'SUBJECT_VALUE2'              => toHtml($passwordEmailData['subject']),
+    'MESSAGE_VALUE2'              => toHtml($passwordEmailData['message']),
+    'SENDER_EMAIL_VALUE'          => toHtml($activationEmailData['sender_email']),
+    'SENDER_NAME_VALUE'           => toHtml($activationEmailData['sender_name']),
     'TR_ACTIVATION_EMAIL'         => tr('Activation email'),
     'TR_PASSWORD_EMAIL'           => tr('Password email'),
     'TR_USER_LOGIN_NAME'          => tr('User login (system) name'),
@@ -93,12 +86,9 @@ $tpl->assign([
     'TR_BASE_SERVER_VHOST'        => tr('URL to this admin panel'),
     'TR_BASE_SERVER_VHOST_PORT'   => tr('URL port')
 ]);
-
 generateNavigation($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

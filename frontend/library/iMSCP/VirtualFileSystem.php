@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 namespace iMSCP;
@@ -118,7 +118,7 @@ class VirtualFileSystem
      */
     protected function writeLog($message, $level = E_USER_ERROR)
     {
-        write_log(sprintf('VirtualFileSystem: %s', $message), $level);
+        writeLog(sprintf('VirtualFileSystem: %s', $message), $level);
     }
 
     /**
@@ -128,8 +128,8 @@ class VirtualFileSystem
      */
     protected function removeFtpUser()
     {
-        exec_query('DELETE FROM ftp_users WHERE userid = ?', [$this->user]);
-        exec_query('DELETE FROM ftp_group WHERE groupname = ?', ['imscp_frontend']);
+        execQuery('DELETE FROM ftp_users WHERE userid = ?', [$this->user]);
+        execQuery('DELETE FROM ftp_group WHERE groupname = ?', ['imscp_frontend']);
     }
 
     /**
@@ -145,7 +145,7 @@ class VirtualFileSystem
             return false;
         }
 
-        $list = $this->ls(dirname(utils_normalizePath($file)));
+        $list = $this->ls(dirname(normalizePath($file)));
 
         if (!$list) {
             return false;
@@ -181,7 +181,7 @@ class VirtualFileSystem
             return false;
         }
 
-        $dirname = utils_normalizePath($dirname);
+        $dirname = normalizePath($dirname);
 
         // Make sure that $dirname is relative to the root vfs
         if ($dirname[0] != '/') {
@@ -267,7 +267,7 @@ class VirtualFileSystem
     protected function createFtpUser()
     {
         try {
-            $stmt = exec_query('SELECT admin_sys_uid, admin_sys_gid FROM admin WHERE admin_name = ?', [$this->user]);
+            $stmt = execQuery('SELECT admin_sys_uid, admin_sys_gid FROM admin WHERE admin_name = ?', [$this->user]);
 
             if (!$stmt->rowCount()) {
                 return false;
@@ -276,15 +276,15 @@ class VirtualFileSystem
             $row = $stmt->fetch();
             $this->passwd = Crypt::randomStr(16);
 
-            exec_query('INSERT INTO ftp_users (userid, passwd, uid, gid, shell, homedir, status) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+            execQuery('INSERT INTO ftp_users (userid, passwd, uid, gid, shell, homedir, status) VALUES (?, ?, ?, ?, ?, ?, ?)', [
                 $this->user,
                 Crypt::sha512($this->passwd),
                 $row['admin_sys_uid'],
                 $row['admin_sys_gid'],
                 '/bin/sh',
-                utils_normalizePath(Registry::get('config')['USER_WEB_DIR'] . '/' . $this->user), 'ok'
+                normalizePath(Registry::get('config')['USER_WEB_DIR'] . '/' . $this->user), 'ok'
             ]);
-            exec_query('INSERT INTO ftp_group (groupname, gid, members) VALUES (?,?,?)', ['imscp_frontend', $row['admin_sys_gid'], $this->user]);
+            execQuery('INSERT INTO ftp_group (groupname, gid, members) VALUES (?,?,?)', ['imscp_frontend', $row['admin_sys_gid'], $this->user]);
         } catch (\Exception $e) {
             if ($e instanceof DatabaseException && $e->getCode() == 23000) {
                 $this->writeLog('Concurrent FTP connections are not allowed.', E_USER_WARNING);
@@ -311,7 +311,7 @@ class VirtualFileSystem
             return false;
         }
 
-        $file = utils_normalizePath($file);
+        $file = normalizePath($file);
 
         // Make sure that $file is relative to the root vfs
         if ($file[0] != '/') {
@@ -346,7 +346,7 @@ class VirtualFileSystem
             return false;
         }
 
-        $file = utils_normalizePath($file);
+        $file = normalizePath($file);
 
         // Make sure that $file is relative to the root vfs
         if ($file[0] != '/') {

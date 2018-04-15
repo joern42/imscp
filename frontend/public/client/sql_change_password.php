@@ -3,29 +3,25 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+use iMSCP\TemplateEngine;
 use iMSCP_Config_Handler_File as ConfigFile;
 use iMSCP_Events as Events;
-use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Update SQL user password
@@ -35,35 +31,27 @@ use iMSCP_Registry as Registry;
  */
 function updateSqlUserPassword($sqluId)
 {
-    $stmt = exec_query('SELECT sqlu_name, sqlu_host FROM sql_user WHERE sqlu_id = ?', [$sqluId]);
-
-    if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
-    }
-
+    $stmt = execQuery('SELECT sqlu_name, sqlu_host FROM sql_user WHERE sqlu_id = ?', [$sqluId]);
+    $stmt->rowCount() or showBadRequestErrorPage();
     $row = $stmt->fetch();
 
-    if (!isset($_POST['password'])
-        || !isset($_POST['password_confirmation'])
-    ) {
-        showBadRequestErrorPage();
-    }
+    isset($_POST['password']) && isset($_POST['password_confirmation']) or showBadRequestErrorPage();
 
-    $password = clean_input($_POST['password']);
-    $passwordConf = clean_input($_POST['password_confirmation']);
+    $password = cleanInput($_POST['password']);
+    $passwordConf = cleanInput($_POST['password_confirmation']);
 
-    if ($password === '') {
-        set_page_message(tr('The password cannot be empty.'), 'error');
+    if ($password == '') {
+        setPageMessage(tr('The password cannot be empty.'), 'error');
         return;
     }
 
-    if ($passwordConf === '') {
-        set_page_message(tr('Please confirm the password.'), 'error');
+    if ($passwordConf == '') {
+        setPageMessage(tr('Please confirm the password.'), 'error');
         return;
     }
 
     if ($password !== $passwordConf) {
-        set_page_message(tr('Passwords do not match.'), 'error');
+        setPageMessage(tr('Passwords do not match.'), 'error');
         return;
     }
 
@@ -85,18 +73,13 @@ function updateSqlUserPassword($sqluId)
 
     // Update SQL user password in the mysql system tables;
     if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
-        exec_query('SET PASSWORD FOR ?@? = PASSWORD(?)', [$row['sqlu_name'], $row['sqlu_host'], $password]);
+        execQuery('SET PASSWORD FOR ?@? = PASSWORD(?)', [$row['sqlu_name'], $row['sqlu_host'], $password]);
     } else {
-        exec_query('ALTER USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', [
-            $row['sqlu_name'], $row['sqlu_host'], $password
-        ]);
+        execQuery('ALTER USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', [$row['sqlu_name'], $row['sqlu_host'], $password]);
     }
 
-    set_page_message(tr('SQL user password successfully updated.'), 'success');
-    write_log(
-        sprintf('%s updated %s@%s SQL user password.', $_SESSION['user_logged'], $row['sqlu_name'], $row['sqlu_host']),
-        E_USER_NOTICE
-    );
+    setPageMessage(tr('SQL user password successfully updated.'), 'success');
+    writeLog(sprintf('%s updated %s@%s SQL user password.', $_SESSION['user_logged'], $row['sqlu_name'], $row['sqlu_host']), E_USER_NOTICE);
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditSqlUser, [
         'sqlUserId'       => $sqluId,
         'sqlUserPassword' => $password
@@ -113,16 +96,12 @@ function updateSqlUserPassword($sqluId)
  */
 function generatePage(TemplateEngine $tpl, $sqluId)
 {
-    $stmt = exec_query('SELECT sqlu_name, sqlu_host FROM sql_user WHERE sqlu_id = ?', [$sqluId]);
-
-    if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
-    }
-
+    $stmt = execQuery('SELECT sqlu_name, sqlu_host FROM sql_user WHERE sqlu_id = ?', [$sqluId]);
+    $stmt->rowCount() or showBadRequestErrorPage();
     $row = $stmt->fetch();
     $tpl->assign([
-        'USER_NAME' => tohtml($row['sqlu_name']),
-        'SQLU_ID'   => tohtml($sqluId, 'htmlAttr')
+        'USER_NAME' => toHtml($row['sqlu_name']),
+        'SQLU_ID'   => toHtml($sqluId, 'htmlAttr')
     ]);
 }
 
@@ -134,7 +113,7 @@ function generatePage(TemplateEngine $tpl, $sqluId)
  */
 function checkSqlUserPerms($sqlUserId)
 {
-    return exec_query(
+    return execQuery(
             '
             SELECT COUNT(t1.sqlu_id)
             FROM sql_user AS t1
@@ -147,25 +126,17 @@ function checkSqlUserPerms($sqlUserId)
         )->fetchColumn() > 0;
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
 customerHasFeature('sql') && isset($_REQUEST['sqlu_id']) or showBadRequestErrorPage();
 
 $sqluId = intval($_REQUEST['sqlu_id']);
 
-if (!checkSqlUserPerms($sqluId)) {
-    showBadRequestErrorPage();
-}
+checkSqlUserPerms($sqluId) or showBadRequestErrorPage();
 
-if (!empty($_POST)) {
-    updateSqlUserPassword($sqluId);
-}
+empty($_POST) or updateSqlUserPassword($sqluId);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -174,21 +145,18 @@ $tpl->define([
     'page_message' => 'layout'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'            => tohtml(tr('Client / Databases / Overview / Update SQL User Password')),
-    'TR_SQL_USER_PASSWORD'     => tohtml(tr('SQL user password')),
-    'TR_DB_USER'               => tohtml(tr('User')),
-    'TR_PASSWORD'              => tohtml(tr('Password')),
-    'TR_PASSWORD_CONFIRMATION' => tohtml(tr('Password confirmation')),
-    'TR_UPDATE'                => tohtml(tr('Update'), 'htmlAttr'),
-    'TR_CANCEL'                => tohtml(tr('Cancel'))
+    'TR_PAGE_TITLE'            => toHtml(tr('Client / Databases / Overview / Update SQL User Password')),
+    'TR_SQL_USER_PASSWORD'     => toHtml(tr('SQL user password')),
+    'TR_DB_USER'               => toHtml(tr('User')),
+    'TR_PASSWORD'              => toHtml(tr('Password')),
+    'TR_PASSWORD_CONFIRMATION' => toHtml(tr('Password confirmation')),
+    'TR_UPDATE'                => toHtml(tr('Update'), 'htmlAttr'),
+    'TR_CANCEL'                => toHtml(tr('Cancel'))
 ]);
-
 generateNavigation($tpl);
 generatePage($tpl, $sqluId);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

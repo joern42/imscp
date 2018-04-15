@@ -1,7 +1,7 @@
 <!-- BDP: mail_feature -->
 <script>
     function action_delete(link, subject) {
-        return jQuery.imscp.confirmOnclick(link, sprintf("<?= tojs(tr('Are you sure you want to delete this %%s account?')); ?>", subject));
+        return jQuery.imscp.confirmOnclick(link, sprintf("<?= toJs(tr('Are you sure you want to delete this %%s account?')); ?>", subject));
     }
 
     $(function () {
@@ -44,11 +44,11 @@
             input.blur();
 
             if($("input[type=checkbox]:checked", $oTable.fnGetNodes()).length < 1) {
-                alert("<?= tojs(tr('You must select at least one mail account to delete.')); ?>");
+                alert("<?= toJs(tr('You must select at least one mail account to delete.')); ?>");
                 return false;
             }
 
-            return jQuery.imscp.confirm("<?= tojs(tr('Are you sure you want to delete all selected mail accounts?')); ?>", function(ret) {
+            return jQuery.imscp.confirm("<?= toJs(tr('Are you sure you want to delete all selected mail accounts?')); ?>", function(ret) {
                 if(ret) {
                     $(input).closest("form").submit();
                 }
@@ -61,11 +61,11 @@
     <table class="datatable">
         <thead>
         <tr>
-            <th><?= tohtml(tr('Mail')); ?></th>
-            <th><?= tohtml(tr('Type')); ?></th>
-            <th><?= tohtml(tr('Quota info')); ?></th>
-            <th><?= tohtml(tr('Status')); ?></th>
-            <th><?= tohtml(tr('Actions')); ?></th>
+            <th><?= toHtml(tr('Mail')); ?></th>
+            <th><?= toHtml(tr('Type')); ?></th>
+            <th><?= toHtml(tr('Quota info')); ?></th>
+            <th><?= toHtml(tr('Status')); ?></th>
+            <th><?= toHtml(tr('Actions')); ?></th>
             <th style="width:21px">
                 <label><input type="checkbox"></label>
             </th>
@@ -73,7 +73,7 @@
         </thead>
         <tfoot>
         <tr>
-            <td colspan="5"><?= tohtml(tr('Total accounts: %s / %s', '{MAIL_TOTAL_MAIL_ACCOUNTS}', '{MAIL_ACCOUNTS_LIMIT}')); ?></td>
+            <td colspan="5"><?= toHtml(tr('Total accounts: %s / %s', '{MAIL_TOTAL_MAIL_ACCOUNTS}', '{MAIL_ACCOUNTS_LIMIT}')); ?></td>
             <td style="width:21px">
                 <label><input type="checkbox"></label>
             </td>
@@ -88,14 +88,14 @@
                 <!--/email_off-->
                 <!-- BDP: mail_account_autoresponder -->
                 <div>
-                    <?= tohtml(tr('Autoresponder')); ?>:
+                    <?= toHtml(tr('Autoresponder')); ?>:
                     <!-- BDP: mail_account_autoresponder_activation_link -->
-                    <a href="mail_autoresponder_enable.php?id={MAIL_ACCOUNT_ID}" class="icon i_reload" title="<?= tohtml(tr('Activate', 'htmlAttr')); ?>"><?= tohtml(tr('Activate')); ?></a>
+                    <a href="mail_autoresponder_enable.php?id={MAIL_ACCOUNT_ID}" class="icon i_reload" title="<?= toHtml(tr('Activate', 'htmlAttr')); ?>"><?= toHtml(tr('Activate')); ?></a>
                     <!-- EDP: mail_account_autoresponder_activation_link -->
                     <!-- BDP: mail_account_autoresponder_deactivation_link -->
-                    <a href="mail_autoresponder_disable.php?id={MAIL_ACCOUNT_ID}" class="icon i_reload" title="<?= tohtml(tr('Deactivate', 'htmlAttr')); ?>"><?= tohtml(tr('Deactivate')); ?></a>
+                    <a href="mail_autoresponder_disable.php?id={MAIL_ACCOUNT_ID}" class="icon i_reload" title="<?= toHtml(tr('Deactivate', 'htmlAttr')); ?>"><?= toHtml(tr('Deactivate')); ?></a>
                     <!-- EDP: mail_account_autoresponder_deactivation_link -->
-                    <a href="mail_autoresponder_edit.php?id={MAIL_ACCOUNT_ID}" class="icon i_edit" title="<?= tohtml(tr('Edit', 'htmlAttr')); ?>"><?= tohtml(tr('Edit')); ?></a>
+                    <a href="mail_autoresponder_edit.php?id={MAIL_ACCOUNT_ID}" class="icon i_edit" title="<?= toHtml(tr('Edit', 'htmlAttr')); ?>"><?= toHtml(tr('Edit')); ?></a>
                 </div>
                 <!-- EDP: mail_account_autoresponder -->
             </td>
@@ -119,16 +119,16 @@
             <td>
                 <!-- BDP: mail_account_action_links -->
                 <!-- BDP: mail_account_edit_link -->
-                <a href="mail_edit.php?id={MAIL_ACCOUNT_ID}" class="icon i_edit" title="<?= tohtml(tr('Edit'), 'htmlAttr'); ?>"><?= tohtml(tr('Edit')); ?></a>
+                <a href="mail_edit.php?id={MAIL_ACCOUNT_ID}" class="icon i_edit" title="<?= toHtml(tr('Edit'), 'htmlAttr'); ?>"><?= toHtml(tr('Edit')); ?></a>
                 <!-- EDP: mail_account_edit_link -->
                 <!-- BDP: mail_account_delete_link -->
-                <a href="mail_delete.php?id={MAIL_ACCOUNT_ID}" class="icon i_delete" onclick="return action_delete(this, '<?= tojs(tr('mail')); ?>')" title="<?= tohtml(tr('Delete'), 'htmlAttr'); ?>"><?= tohtml(tr('Delete')); ?></a>
+                <a href="mail_delete.php?id={MAIL_ACCOUNT_ID}" class="icon i_delete" onclick="return action_delete(this, '<?= toJs(tr('mail')); ?>')" title="<?= toHtml(tr('Delete'), 'htmlAttr'); ?>"><?= toHtml(tr('Delete')); ?></a>
                 <!-- EDP: mail_account_delete_link -->
                 <!-- BDP: mail_catchall_account_delete_link -->
-                <a href="mail_catchall_delete.php?id={MAIL_ACCOUNT_ID}" class="icon i_delete" onclick="return action_delete(this, '<?= tojs(tr('catch-all')); ?>')" title="<?= tohtml(tr('Delete'), 'htmlAttr'); ?>"><?= tohtml(tr('Delete')); ?></a>
+                <a href="mail_catchall_delete.php?id={MAIL_ACCOUNT_ID}" class="icon i_delete" onclick="return action_delete(this, '<?= toJs(tr('catch-all')); ?>')" title="<?= toHtml(tr('Delete'), 'htmlAttr'); ?>"><?= toHtml(tr('Delete')); ?></a>
                 <!-- EDP: mail_catchall_account_delete_link -->
                 <!-- BDP: mail_protected_mail_account -->
-                <span class="icon i_lock" title="<?= tohtml(tr('This mail account is protected against both edition and deletion.'), 'htmlAttr'); ?>"></span>
+                <span class="icon i_lock" title="<?= toHtml(tr('This mail account is protected against both edition and deletion.'), 'htmlAttr'); ?>"></span>
                 <!-- EDP: mail_protected_mail_account -->
                 <!-- EDP: mail_account_action_links -->
             </td>
@@ -143,13 +143,13 @@
             <td colspan="6">
                 <div class="buttons">
                     <!-- BDP: mail_show_default_mail_accounts_link -->
-                    <a href="/client/mail_accounts.php?show_default_mail_accounts=1" title="<?= tohtml(tr('Show default mail accounts'), 'htmlAttr');?>" class="link_as_button"><?= tohtml(tr('Show default mail accounts')) ;?></a>
+                    <a href="/client/mail_accounts.php?show_default_mail_accounts=1" title="<?= toHtml(tr('Show default mail accounts'), 'htmlAttr');?>" class="link_as_button"><?= toHtml(tr('Show default mail accounts')) ;?></a>
                     <!-- EDP: mail_show_default_mail_accounts_link -->
                     <!-- BDP: mail_hide_default_mail_accounts_link -->
-                    <a href="/client/mail_accounts.php?show_default_mail_accounts=0" title="<?= tohtml(tr('Hide default mail accounts'), 'htmlAttr');?>" class="link_as_button"><?= tohtml(tr('Hide default mail accounts')); ?></a>
+                    <a href="/client/mail_accounts.php?show_default_mail_accounts=0" title="<?= toHtml(tr('Hide default mail accounts'), 'htmlAttr');?>" class="link_as_button"><?= toHtml(tr('Hide default mail accounts')); ?></a>
                     <!-- EDP: mail_hide_default_mail_accounts_link -->
                     <!-- BDP: mail_sync_quota_info_link -->
-                    <a href="/client/mail_accounts.php?sync_quota_info=1" title="<?= tohtml(tr('Force synching of mailboxes quota info. Quota info are automatically synced every 5 minutes.'), 'htmlAttr');?>" class="link_as_button"><?= tohtml(tr('Sync quota info')); ?></a>
+                    <a href="/client/mail_accounts.php?sync_quota_info=1" title="<?= toHtml(tr('Force synching of mailboxes quota info. Quota info are automatically synced every 5 minutes.'), 'htmlAttr');?>" class="link_as_button"><?= toHtml(tr('Sync quota info')); ?></a>
                     <!-- EDP: mail_sync_quota_info_link -->
                     <!-- BDP: mail_delete_selected_items_button -->
                     <input type="submit" name="Submit" value="<?= tr('Delete selected mail accounts', 'htmlAttr');?>">

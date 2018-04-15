@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 namespace iMSCP\Update;
@@ -152,7 +152,7 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
         }
 
         if (PHP_SAPI != 'cli' && $this->daemonRequest) {
-            send_request();
+            sendDaemonRequest();
         }
 
         return true;
@@ -214,18 +214,19 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
     }
 
     /**
-     * Is the given table a database table
+     * Drop a table
      *
      * @param string $table Table name
-     * @return bool TRUE if the given table is a database table, FALSE otherwise
+     * @return string SQL statement to be executed, NULL if $table doesn't exist
      */
-    protected function isTable($table)
+    public function dropTable($table)
     {
-        if (empty($this->tables)) {
-            $this->tables = exec_query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
+        if ($this->isTable($table)) {
+            $this->tables = [];
+            return sprintf('DROP TABLE IF EXISTS %s', quoteIdentifier($table));
         }
 
-        return in_array($table, $this->tables);
+        return NULL;
     }
 
     /**
@@ -246,19 +247,18 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
     }
 
     /**
-     * Drop a table
+     * Is the given table a database table
      *
      * @param string $table Table name
-     * @return string SQL statement to be executed, NULL if $table doesn't exist
+     * @return bool TRUE if the given table is a database table, FALSE otherwise
      */
-    public function dropTable($table)
+    protected function isTable($table)
     {
-        if ($this->isTable($table)) {
-            $this->tables = [];
-            return sprintf('DROP TABLE IF EXISTS %s', quoteIdentifier($table));
+        if (empty($this->tables)) {
+            $this->tables = execQuery('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
         }
 
-        return NULL;
+        return in_array($table, $this->tables);
     }
 
     /**
@@ -272,7 +272,7 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
     protected function addColumn($table, $column, $columnDefinition)
     {
         $table = quoteIdentifier($table);
-        $stmt = exec_query("SHOW COLUMNS FROM $table LIKE ?", [$column]);
+        $stmt = execQuery("SHOW COLUMNS FROM $table LIKE ?", [$column]);
 
         if (!$stmt->rowCount()) {
             return sprintf('ALTER TABLE %s ADD %s %s', $table, quoteIdentifier($column), $columnDefinition);
@@ -292,7 +292,7 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
     protected function changeColumn($table, $column, $columnDefinition)
     {
         $table = quoteIdentifier($table);
-        $stmt = exec_query("SHOW COLUMNS FROM $table LIKE ?", [$column]);
+        $stmt = execQuery("SHOW COLUMNS FROM $table LIKE ?", [$column]);
 
         if ($stmt->rowCount()) {
             return sprintf('ALTER TABLE %s CHANGE %s %s', $table, quoteIdentifier($column), $columnDefinition);
@@ -311,7 +311,7 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
     protected function dropColumn($table, $column)
     {
         $table = quoteIdentifier($table);
-        $stmt = exec_query("SHOW COLUMNS FROM $table LIKE ?", [$column]);
+        $stmt = execQuery("SHOW COLUMNS FROM $table LIKE ?", [$column]);
 
         if ($stmt->rowCount()) {
             return sprintf('ALTER TABLE %s DROP %s', $table, quoteIdentifier($column));
@@ -353,7 +353,7 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
         unset($columnsTmp);
 
         $indexName = $indexType == 'PRIMARY KEY' ? 'PRIMARY' : ($indexName == '' ? key($columns) : $indexName);
-        $stmt = exec_query("SHOW INDEX FROM $table WHERE KEY_NAME = ?", [$indexName]);
+        $stmt = execQuery("SHOW INDEX FROM $table WHERE KEY_NAME = ?", [$indexName]);
 
         if (!$stmt->rowCount()) {
             $columnsStr = '';
@@ -379,7 +379,7 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
     protected function dropIndexByName($table, $indexName = 'PRIMARY')
     {
         $table = quoteIdentifier($table);
-        $stmt = exec_query("SHOW INDEX FROM $table WHERE KEY_NAME = ?", [$indexName]);
+        $stmt = execQuery("SHOW INDEX FROM $table WHERE KEY_NAME = ?", [$indexName]);
 
         if ($stmt->rowCount()) {
             return sprintf('ALTER TABLE %s DROP INDEX %s', $table, quoteIdentifier($indexName));
@@ -399,7 +399,7 @@ abstract class UpdateDatabaseAbstract extends UpdateAbstract
     {
         $sqlQueries = [];
         $table = quoteIdentifier($table);
-        $stmt = exec_query("SHOW INDEX FROM $table WHERE COLUMN_NAME = ?", [$column]);
+        $stmt = execQuery("SHOW INDEX FROM $table WHERE COLUMN_NAME = ?", [$column]);
 
         if ($stmt->rowCount()) {
             while ($row = $stmt->fetch()) {

@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP_Events as Events;
@@ -34,9 +34,9 @@ use iMSCP_Registry as Registry;
  *                - subject:      Subject
  *                - message:      Message
  */
-function get_email_tpl_data($userId, $tplName)
+function getEmailTplData($userId, $tplName)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT admin_name, fname, lname, email, IFNULL(subject, '') AS subject, IFNULL(message, '') AS message
             FROM admin
@@ -78,9 +78,9 @@ function get_email_tpl_data($userId, $tplName)
  *                     - message: Message
  * @return void
  */
-function set_email_tpl_data($userId, $tplName, $data)
+function setEmailTplData($userId, $tplName, $data)
 {
-    $stmt = exec_query('SELECT subject, message FROM email_tpls WHERE owner_id = ? AND name = ?', [$userId, $tplName]);
+    $stmt = execQuery('SELECT subject, message FROM email_tpls WHERE owner_id = ? AND name = ?', [$userId, $tplName]);
 
     if ($stmt->rowCount()) {
         $query = 'UPDATE email_tpls SET subject = ?, message = ? WHERE owner_id = ? AND name = ?';
@@ -88,13 +88,13 @@ function set_email_tpl_data($userId, $tplName, $data)
         $query = 'INSERT INTO email_tpls (subject, message, owner_id, name) VALUES (?, ?, ?, ?)';
     }
 
-    exec_query($query, [$data['subject'], $data['message'], $userId, $tplName]);
+    execQuery($query, [$data['subject'], $data['message'], $userId, $tplName]);
 }
 
 /**
  * Gets welcome email data for the given user
  *
- * @see get_email_tpl_data()
+ * @see getEmailTplData()
  * @param int $userId User unique identifier - Template owner
  * @return array An associative array containing mail data:
  *                - sender_name:  Sender name
@@ -102,9 +102,9 @@ function set_email_tpl_data($userId, $tplName, $data)
  *                - subject:      Subject
  *                - message:      Message
  */
-function get_welcome_email($userId)
+function getWelcomeEmail($userId)
 {
-    $data = get_email_tpl_data($userId, 'add-user-auto-msg');
+    $data = getEmailTplData($userId, 'add-user-auto-msg');
 
     if ($data['subject'] == '') {
         $data['subject'] = tr('Welcome {USERNAME} to i-MSCP');
@@ -136,22 +136,22 @@ i-MSCP Mailer');
 /**
  * Sets welcome email data for the given user using the given data
  *
- * @see set_email_tpl_data()
+ * @see setEmailTplData()
  * @param  int $userId Template owner unique identifier (0 for administrators)
  * @param array $data An associative array containing mail data:
  *                     - subject: Subject
  *                     - message: Message
  * @return void
  */
-function set_welcome_email($userId, $data)
+function setWelcomeEmail($userId, $data)
 {
-    set_email_tpl_data($userId, 'add-user-auto-msg', $data);
+    setEmailTplData($userId, 'add-user-auto-msg', $data);
 }
 
 /**
  * Gets lostpassword activation email data for the given user
  *
- * @see get_email_tpl_data()
+ * @see getEmailTplData()
  * @param int $userId User unique identifier - Template owner
  * @return array An associative array containing mail data:
  *                - sender_name:  Sender name
@@ -159,9 +159,9 @@ function set_welcome_email($userId, $data)
  *                - subject:      Subject
  *                - message:      Message
  */
-function get_lostpassword_activation_email($userId)
+function getLostpasswordActivationEmail($userId)
 {
-    $data = get_email_tpl_data($userId, 'lostpw-msg-1');
+    $data = getEmailTplData($userId, 'lostpw-msg-1');
 
     if ($data['subject'] == '') {
         $data['subject'] = tr('Please activate your new i-MSCP password');
@@ -189,22 +189,22 @@ i-MSCP Mailer');
  * Sets lostpassword activation email template data for the given user, using
  * given data
  *
- * @see set_email_tpl_data()
+ * @see setEmailTplData()
  * @param int $adminId User unique identifier
  * @param array $data An associative array containing mail data:
  *                     - subject: Subject
  *                     - message: Message
  * @return void
  */
-function set_lostpassword_activation_email($adminId, $data)
+function setLostpasswordActivationEmail($adminId, $data)
 {
-    set_email_tpl_data($adminId, 'lostpw-msg-1', $data);
+    setEmailTplData($adminId, 'lostpw-msg-1', $data);
 }
 
 /**
  * Get lostpassword password email for the given user
  *
- * @see get_email_tpl_data()
+ * @see getEmailTplData()
  * @param int $userId User uniqaue identifier - Template owner
  * @return array An associative array containing mail data:
  *                - sender_name:  Sender name
@@ -212,9 +212,9 @@ function set_lostpassword_activation_email($adminId, $data)
  *                - subject:      Subject
  *                - message:      Message
  */
-function get_lostpassword_password_email($userId)
+function getLostpasswordEmail($userId)
 {
-    $data = get_email_tpl_data($userId, 'lostpw-msg-2');
+    $data = getEmailTplData($userId, 'lostpw-msg-2');
 
     if ($data['subject'] == '') {
         $data['subject'] = tr('Your new i-MSCP login');
@@ -242,22 +242,22 @@ i-MSCP Mailer');
  * Sets lostpassword password email template data for the given user, using
  * given data
  *
- * @see set_email_tpl_data()
+ * @see setEmailTplData()
  * @param int $userId User unique identifier - Template owner
  * @param array $data An associative array containing mail data:
  *                     - subject: Subject
  *                     - message: Message
  * @return void
  */
-function set_lostpassword_password_email($userId, $data)
+function setLostpasswordEmail($userId, $data)
 {
-    set_email_tpl_data($userId, 'lostpw-msg-2', $data);
+    setEmailTplData($userId, 'lostpw-msg-2', $data);
 }
 
 /**
  * Get alias order email for the given reseller
  *
- * @see get_email_tpl_data()
+ * @see getEmailTplData()
  * @param int $resellerId Reseller User unique identifier
  * @return array An associative array containing mail data:
  *                - sender_name:  Sender name
@@ -265,9 +265,9 @@ function set_lostpassword_password_email($userId, $data)
  *                - subject:      Subject
  *                - message:      Message
  */
-function get_alias_order_email($resellerId)
+function getDomainAliasOrderEmail($resellerId)
 {
-    $data = get_email_tpl_data($resellerId, 'alias-order-msg');
+    $data = getEmailTplData($resellerId, 'alias-order-msg');
 
     if ($data['subject'] == '') {
         $data['subject'] = tr('New alias order for {CUSTOMER}');
@@ -301,7 +301,7 @@ i-MSCP Mailer');
  * @param string $charset OPTIONAL charset in that string will be encoded
  * @return string encoded string
  */
-function encode_mime_header($string, $charset = 'UTF-8')
+function encodeMimeHeader($string, $charset = 'UTF-8')
 {
     if (!$string || !$charset) {
         return $string;
@@ -350,7 +350,7 @@ function encode_mime_header($string, $charset = 'UTF-8')
  *                   take precedence on the default placeholders.
  * @return bool TRUE on success, FALSE on failure
  */
-function send_mail($data)
+function sendMail($data)
 {
     $data = new ArrayObject($data);
     /** @var iMSCP_Events_Listener_ResponseCollection $response */
@@ -370,7 +370,7 @@ function send_mail($data)
         throw new  iMSCPException("`placeholders' parameter must be an array of placeholders/replacements");
     }
 
-    $username = decode_idna($data['username']);
+    $username = decodeIdna($data['username']);
 
     if (isset($data['fname']) && $data['fname'] != '' && isset($data['lname']) && $data['lname'] != '') {
         $name = $data['fname'] . ' ' . $data['lname'];
@@ -415,22 +415,22 @@ function send_mail($data)
     $from = "noreply@$host";
 
     # Prepare recipient
-    $to = encode_mime_header($name) . ' <' . $data['email'] . '>';
+    $to = encodeMimeHeader($name) . ' <' . $data['email'] . '>';
 
     # Prepare subject
-    $subject = encode_mime_header(str_replace($search, $replace, $data['subject']));
+    $subject = encodeMimeHeader(str_replace($search, $replace, $data['subject']));
 
     # Prepare message
     $message = wordwrap(str_replace($search, $replace, $data['message']), 75, "\r\n");
 
     # Prepare headers
-    $headers[] = 'From: ' . encode_mime_header("i-MSCP ($host)") . " <$from>";
+    $headers[] = 'From: ' . encodeMimeHeader("i-MSCP ($host)") . " <$from>";
     if (isset($data['sender_email'])) {
         # Note: We cannot use the real sender email address in the FROM header because the email's domain could be
         # hosted on external server, meaning that if the domain implements SPF, the mail could be rejected. However we
         # pass the real sender email through the `Reply-To' header
         if (isset($data['sender_name'])) {
-            $headers[] = 'Reply-To: ' . encode_mime_header($data['sender_name']) . ' <' . $data['sender_email'] . '>';
+            $headers[] = 'Reply-To: ' . encodeMimeHeader($data['sender_name']) . ' <' . $data['sender_email'] . '>';
         } else {
             $headers[] = 'Reply-To: ' . $data['sender_email'];
         }

@@ -1,46 +1,37 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * The Original Code is "VHCS - Virtual Hosting Control System".
- *
- * The Initial Developer of the Original Code is moleSoftware GmbH.
- * Portions created by Initial Developer are Copyright (C) 2001-2006
- * by moleSoftware GmbH. All Rights Reserved.
- *
- * Portions created by the ispCP Team are Copyright (C) 2006-2010 by
- * isp Control Panel. All Rights Reserved.
- *
- * Portions created by the i-MSCP Team are Copyright (C) 2010-2018 by
- * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+use iMSCP\TemplateEngine;
 use iMSCP_Events as Events;
 use iMSCP_Exception as iMSCPException;
 use iMSCP_Plugin_Bruteforce as BruteForcePlugin;
-use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
 
 require_once 'imscp-lib.php';
 require_once LIBRARY_PATH . '/Functions/LostPassword.php';
 
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onLostPasswordScriptStart);
-do_session_timeout();
+doSessionTimeout();
 
 $cfg = Registry::get('config');
-if (!$cfg['LOSTPASSWORD']) {
-    showNotFoundErrorPage();
-}
+$cfg['LOSTPASSWORD'] or showNotFoundErrorPage();
 
 if (!function_exists('imagecreatetruecolor')) {
     throw new iMSCPException(tr('PHP GD extension not loaded.'));
@@ -49,9 +40,9 @@ if (!function_exists('imagecreatetruecolor')) {
 removeOldKeys($cfg['LOSTPASSWORD_TIMEOUT']);
 
 if (isset($_GET['key'])) {
-    $key = clean_input($_GET['key']);
+    $key = cleanInput($_GET['key']);
     if (sendPassword($key)) {
-        set_page_message(tr('Your password has been successfully scheduled for renewal. Check your mails.'), 'success');
+        setPageMessage(tr('Your password has been successfully scheduled for renewal. Check your mails.'), 'success');
     }
 
     redirectTo('index.php');
@@ -71,8 +62,8 @@ $tpl->assign([
     'productCopyright' => tr('© 2010-2018 i-MSCP Team<br>All Rights Reserved'),
     'TR_CAPCODE'       => tr('Security code'),
     'GET_NEW_IMAGE'    => tr('Get a new security code'),
-    'CAPTCHA_WIDTH'    => tohtml($cfg['LOSTPASSWORD_CAPTCHA_WIDTH'], 'htmlAttr'),
-    'CAPTCHA_HEIGHT'   => tohtml($cfg['LOSTPASSWORD_CAPTCHA_HEIGHT'], 'htmlAttr'),
+    'CAPTCHA_WIDTH'    => toHtml($cfg['LOSTPASSWORD_CAPTCHA_WIDTH'], 'htmlAttr'),
+    'CAPTCHA_HEIGHT'   => toHtml($cfg['LOSTPASSWORD_CAPTCHA_HEIGHT'], 'htmlAttr'),
     'TR_USERNAME'      => tr('Username'),
     'TR_SEND'          => tr('Send'),
     'TR_CANCEL'        => tr('Cancel'),
@@ -83,7 +74,7 @@ if (!empty($_POST)) {
     if ($cfg['BRUTEFORCE']) {
         $bruteForce = new BruteForcePlugin(Registry::get('iMSCP_Application')->getPluginManager(), 'captcha');
         if ($bruteForce->isWaiting() || $bruteForce->isBlocked()) {
-            set_page_message($bruteForce->getLastMessage(), 'error');
+            setPageMessage($bruteForce->getLastMessage(), 'error');
             redirectTo('index.php');
         }
 
@@ -93,24 +84,22 @@ if (!empty($_POST)) {
     if (!isset($_POST['capcode']) || !isset($_POST['uname'])) {
         showBadRequestErrorPage();
     } elseif (!isset($_SESSION['capcode'])) {
-        set_page_message(tr('Security code has expired'), 'error');
+        setPageMessage(tr('Security code has expired'), 'error');
     } elseif ($_POST['capcode'] == '' || $_POST['uname'] == '') {
-        set_page_message(tr('All fields are required.'), 'error');
+        setPageMessage(tr('All fields are required.'), 'error');
     } else {
-        $uname = clean_input($_POST['uname']);
-        $capcode = clean_input($_POST['capcode']);
-
+        $uname = cleanInput($_POST['uname']);
+        $capcode = cleanInput($_POST['capcode']);
         if (strtolower($_SESSION['capcode']) !== strtolower($capcode)) {
-            set_page_message(tr('Wrong security code'), 'error');
+            setPageMessage(tr('Wrong security code'), 'error');
         } else if (sendPasswordRequestValidation($uname)) {
-            set_page_message(tr('Your request for password renewal has been registered. You will receive a mail with instructions to complete the process.'), 'success');
+            setPageMessage(tr('Your request for password renewal has been registered. You will receive a mail with instructions to complete the process.'), 'success');
             redirectTo('index.php');
         }
     }
 }
 
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onLostPasswordScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();

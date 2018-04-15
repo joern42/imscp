@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 namespace iMSCP;
@@ -77,9 +77,20 @@ class TemplateEngine
      */
     public function __construct($tpldir = NULL, EventsManagerInterface $em = NULL, \Zend_Cache_Core $cache = NULL)
     {
-        $this->tplDir = utils_normalizePath($tpldir ?: Registry::get('config')['ROOT_TEMPLATE_PATH']);
+        $this->tplDir = normalizePath($tpldir ?: Registry::get('config')['ROOT_TEMPLATE_PATH']);
         $this->em = $em ?: Registry::get('iMSCP_Application')->getEventsManager();
         $this->cache = $cache ?: Registry::get('iMSCP_Application')->getCache();
+    }
+
+    /**
+     * @see define()
+     * @param string|array $tname
+     * @param string $tvalue
+     * @deprecated Make use of the define() method instead
+     */
+    public function define_dynamic($tname, $tvalue = NULL)
+    {
+        $this->define($tname, $tvalue);
     }
 
     /**
@@ -110,6 +121,17 @@ class TemplateEngine
     }
 
     /**
+     * @see define_inline()
+     * @param string|array $tname
+     * @param string $tvalue
+     * @deprecated Make use of the define_no_file method instead
+     */
+    public function define_no_file_dynamic($tname, $tvalue = NULL)
+    {
+        $this->define_inline($tname, $tvalue);
+    }
+
+    /**
      * Define inline template(s) or inline template block(s)
      *
      * @param string|array $tname Template name or template block name, or an
@@ -134,28 +156,6 @@ class TemplateEngine
             $this->tplName[$key] = '';
             $this->tplData[$key] = $value;
         }
-    }
-
-    /**
-     * @see define()
-     * @param string|array $tname
-     * @param string $tvalue
-     * @deprecated Make use of the define() method instead
-     */
-    public function define_dynamic($tname, $tvalue = NULL)
-    {
-        $this->define($tname, $tvalue);
-    }
-
-    /**
-     * @see define_inline()
-     * @param string|array $tname
-     * @param string $tvalue
-     * @deprecated Make use of the define_no_file method instead
-     */
-    public function define_no_file_dynamic($tname, $tvalue = NULL)
-    {
-        $this->define_inline($tname, $tvalue);
     }
 
     /**
@@ -269,69 +269,32 @@ class TemplateEngine
     }
 
     /**
-     * Returns last parse result
+     * Find the top most parent of the given template or template block
      *
-     * @return string
+     * @param string $tname Name of template or template block
+     * @return string|false
      */
-    public function getLastParseResult()
+    protected function findParentTemplate($tname)
     {
-        if (NULL === $this->lastParsedVarname)
-            throw new \LogicException('Nothing to return. Did you forgot to call parse()?');
+        $child = $tname;
 
-        if (!isset($this->tplRuntimeVariables[$this->lastParsedVarname]))
-            throw new \InvalidArgumentException(sprintf(
-                'Unknown `%s` runtime template variable. Did you forgot to call parse()?', $this->lastParsedVarname
-            ));
+        if (!isset($this->tplName[$tname]))
+            throw new \LogicException(sprintf("Couldn't find parent. Is the `%s` template/block defined?", $tname));
 
-        return $this->tplRuntimeVariables[$this->lastParsedVarname];
-    }
+        if ($this->tplName[$tname] == '')
+            $searchInto =& $this->tplData;
+        else
+            $searchInto =& $this->tplName;
 
-    /**
-     * Replaces last parse result with given content
-     *
-     * @param string $content New content
-     * @param string $varname OPTIONAL Name of variable holding last parse result
-     * @return TemplateEngine Provides fluent interface, returns self
-     */
-    public function replaceLastParseResult($content, $varname = NULL)
-    {
-        if (NULL === $varname) {
-            $varname = $this->lastParsedVarname;
-
-            if (NULL === $varname)
-                throw new \LogicException('Nothing to replace. Did you forgot to call parse()?');
+        while (isset($searchInto[$tname])) {
+            $child = $tname;
+            $tname = $searchInto[$tname];
         }
 
-        if (!isset($this->tplRuntimeVariables[$varname]))
-            throw new \InvalidArgumentException(sprintf(
-                'Unknown `%s` runtime template variable. Did you forgot to call parse()?', $varname
-            ));
+        if (!isset($searchInto[$tname]))
+            $tname = $child;
 
-        $this->tplRuntimeVariables[$varname] = $content;
-        return $this;
-    }
-
-    /**
-     * Print content of the given runtime template variable
-     *
-     * @param string $varname
-     * @return void
-     */
-    public function prnt($varname = NULL)
-    {
-        if (NULL === $varname) {
-            if (NULL === $this->lastParsedVarname)
-                throw new \LogicException('Nothing to print. Did you forgot to call parse()?');
-
-            $varname = $this->lastParsedVarname;
-        }
-
-        if (!isset($this->tplRuntimeVariables[$varname]))
-            throw new \InvalidArgumentException(sprintf(
-                'Unknown `%s` runtime template variable. Did you forgot to call parse()?', $varname
-            ));
-
-        echo $this->tplRuntimeVariables[$varname];
+        return $tname;
     }
 
     /**
@@ -419,35 +382,6 @@ class TemplateEngine
     }
 
     /**
-     * Find the top most parent of the given template or template block
-     *
-     * @param string $tname Name of template or template block
-     * @return string|false
-     */
-    protected function findParentTemplate($tname)
-    {
-        $child = $tname;
-
-        if (!isset($this->tplName[$tname]))
-            throw new \LogicException(sprintf("Couldn't find parent. Is the `%s` template/block defined?", $tname));
-
-        if ($this->tplName[$tname] == '')
-            $searchInto =& $this->tplData;
-        else
-            $searchInto =& $this->tplName;
-
-        while (isset($searchInto[$tname])) {
-            $child = $tname;
-            $tname = $searchInto[$tname];
-        }
-
-        if (!isset($searchInto[$tname]))
-            $tname = $child;
-
-        return $tname;
-    }
-
-    /**
      * Load the given template file, including its childs
      *
      * @param string $fpath Template file path
@@ -455,7 +389,7 @@ class TemplateEngine
      */
     protected function loadTemplateFile($fpath)
     {
-        $fpath = utils_normalizePath($this->tplDir . '/' . $fpath);
+        $fpath = normalizePath($this->tplDir . '/' . $fpath);
         $this->em->dispatch(Events::onBeforeLoadTemplateFile, [
             'context'      => $this,
             'templatePath' => $fpath
@@ -597,5 +531,71 @@ class TemplateEngine
             return ['}', $curlEndPos];
 
         return false;
+    }
+
+    /**
+     * Returns last parse result
+     *
+     * @return string
+     */
+    public function getLastParseResult()
+    {
+        if (NULL === $this->lastParsedVarname)
+            throw new \LogicException('Nothing to return. Did you forgot to call parse()?');
+
+        if (!isset($this->tplRuntimeVariables[$this->lastParsedVarname]))
+            throw new \InvalidArgumentException(sprintf(
+                'Unknown `%s` runtime template variable. Did you forgot to call parse()?', $this->lastParsedVarname
+            ));
+
+        return $this->tplRuntimeVariables[$this->lastParsedVarname];
+    }
+
+    /**
+     * Replaces last parse result with given content
+     *
+     * @param string $content New content
+     * @param string $varname OPTIONAL Name of variable holding last parse result
+     * @return TemplateEngine Provides fluent interface, returns self
+     */
+    public function replaceLastParseResult($content, $varname = NULL)
+    {
+        if (NULL === $varname) {
+            $varname = $this->lastParsedVarname;
+
+            if (NULL === $varname)
+                throw new \LogicException('Nothing to replace. Did you forgot to call parse()?');
+        }
+
+        if (!isset($this->tplRuntimeVariables[$varname]))
+            throw new \InvalidArgumentException(sprintf(
+                'Unknown `%s` runtime template variable. Did you forgot to call parse()?', $varname
+            ));
+
+        $this->tplRuntimeVariables[$varname] = $content;
+        return $this;
+    }
+
+    /**
+     * Print content of the given runtime template variable
+     *
+     * @param string $varname
+     * @return void
+     */
+    public function prnt($varname = NULL)
+    {
+        if (NULL === $varname) {
+            if (NULL === $this->lastParsedVarname)
+                throw new \LogicException('Nothing to print. Did you forgot to call parse()?');
+
+            $varname = $this->lastParsedVarname;
+        }
+
+        if (!isset($this->tplRuntimeVariables[$varname]))
+            throw new \InvalidArgumentException(sprintf(
+                'Unknown `%s` runtime template variable. Did you forgot to call parse()?', $varname
+            ));
+
+        echo $this->tplRuntimeVariables[$varname];
     }
 }

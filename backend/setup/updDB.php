@@ -31,7 +31,7 @@ try {
         throw new \RuntimeException($dbUpdater->getError());
     }
 
-    i18n_buildLanguageIndex();
+    buildLanguagesIndex();
 } catch (Throwable $e) {
     fwrite(STDERR, sprintf("[ERROR] %s \n\nStack trace:\n%s\n", $e->getMessage(), $e->getTraceAsString()));
     exit(1);

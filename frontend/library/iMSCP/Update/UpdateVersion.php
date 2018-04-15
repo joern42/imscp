@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 namespace iMSCP\Update;
@@ -81,7 +81,7 @@ class UpdateVersion extends UpdateAbstract
             return $this->updateInfo;
         }
 
-        $file = utils_normalizePath(CACHE_PATH . '/imscp_info.json');
+        $file = normalizePath(CACHE_PATH . '/imscp_info.json');
 
         if ($forceReload
             || !file_exists($file)
@@ -91,7 +91,7 @@ class UpdateVersion extends UpdateAbstract
 
             $context = stream_context_create([
                 'ssl'  => [
-                    'capath'            => utils_normalizePath(Registry::get('config')['DISTRO_CA_PATH']),
+                    'capath'            => normalizePath(Registry::get('config')['DISTRO_CA_PATH']),
                     'verify_peer'       => true,
                     'verify_peer_name'  => true,
                     'allow_self_signed' => false,

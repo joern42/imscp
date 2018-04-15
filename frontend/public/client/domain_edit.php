@@ -1,30 +1,28 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2010-2018 by i-MSCP Team
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
-
-/***********************************************************************************************************************
- * Functions
- */
+use iMSCP\VirtualFileSystem as VirtualFileSystem;
+use iMSCP_Events as Events;
+use iMSCP_Events_Event as Event;
+use iMSCP_Registry as Registry;
 
 /**
  * Get domain data
@@ -41,15 +39,15 @@ function _client_getDomainData($domainId)
         return $domainData;
     }
 
-    $stmt = exec_query(
-        '
+    $stmt = execQuery(
+        "
             SELECT domain_name, document_root, url_forward, type_forward, host_forward
             FROM domain
             WHERE domain_id = ?
             AND domain_admin_id = ?
-            AND domain_status = ?
-        ',
-        [$domainId, $_SESSION['user_id'], 'ok']
+            AND domain_status = 'ok'
+        ",
+        [$domainId, $_SESSION['user_id']]
     );
 
     if (!$stmt->rowCount()) {
@@ -57,7 +55,7 @@ function _client_getDomainData($domainId)
     }
 
     $domainData = $stmt->fetch();
-    $domainData['domain_name_utf8'] = decode_idna($domainData['domain_name']);
+    $domainData['domain_name_utf8'] = decodeIdna($domainData['domain_name']);
     return $domainData;
 }
 
@@ -69,27 +67,20 @@ function _client_getDomainData($domainId)
  */
 function client_generatePage($tpl)
 {
-    if (!isset($_GET['id'])) {
-        showBadRequestErrorPage();
-    }
+    isset($_GET['id']) or showBadRequestErrorPage();
 
     $domainId = intval($_GET['id']);
     $domainData = _client_getDomainData($domainId);
-    if ($domainData === false) {
-        showBadRequestErrorPage();
-    }
-
+    $domainData !== false or showBadRequestErrorPage();
     $forwardHost = 'Off';
 
     if (empty($_POST)) {
-        $documentRoot = strpos($domainData['document_root'], '/htdocs') !== FALSE
-            ? substr($domainData['document_root'], 7)
-            : '';
+        $documentRoot = strpos($domainData['document_root'], '/htdocs') !== FALSE ? substr($domainData['document_root'], 7) : '';
 
         if ($domainData['url_forward'] != 'no') {
             $urlForwarding = true;
             $uri = iMSCP_Uri_Redirect::fromString($domainData['url_forward']);
-            $uri->setHost(decode_idna($uri->getHost()));
+            $uri->setHost(decodeIdna($uri->getHost()));
             $forwardUrlScheme = $uri->getScheme() . '://';
             $forwardUrl = substr($uri->getUri(), strlen($forwardUrlScheme));
             $forwardType = $domainData['type_forward'];
@@ -101,11 +92,12 @@ function client_generatePage($tpl)
             $forwardType = '302';
         }
     } else {
-        $documentRoot = (isset($_POST['document_root'])) ? $_POST['document_root'] : '';
-        $urlForwarding = (isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes') ? true : false;
-        $forwardUrlScheme = (isset($_POST['forward_url_scheme'])) ? $_POST['forward_url_scheme'] : 'http://';
-        $forwardUrl = (isset($_POST['forward_url'])) ? $_POST['forward_url'] : '';
-        $forwardType = (isset($_POST['forward_type']) && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)) ? $_POST['forward_type'] : '302';
+        $documentRoot = isset($_POST['document_root']) ? $_POST['document_root'] : '';
+        $urlForwarding = isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' ? true : false;
+        $forwardUrlScheme = isset($_POST['forward_url_scheme']) ? $_POST['forward_url_scheme'] : 'http://';
+        $forwardUrl = isset($_POST['forward_url']) ? $_POST['forward_url'] : '';
+        $forwardType = isset($_POST['forward_type']) && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)
+            ? $_POST['forward_type'] : '302';
 
         if ($forwardType == 'proxy' && isset($_POST['forward_host'])) {
             $forwardHost = 'On';
@@ -114,26 +106,25 @@ function client_generatePage($tpl)
 
     $tpl->assign([
         'DOMAIN_ID'          => $domainId,
-        'DOMAIN_NAME'        => tohtml($domainData['domain_name_utf8']),
-        'DOCUMENT_ROOT'      => tohtml($documentRoot),
-        'FORWARD_URL_YES'    => ($urlForwarding) ? ' checked' : '',
-        'FORWARD_URL_NO'     => ($urlForwarding) ? '' : ' checked',
-        'HTTP_YES'           => ($forwardUrlScheme == 'http://') ? ' selected' : '',
-        'HTTPS_YES'          => ($forwardUrlScheme == 'https://') ? ' selected' : '',
-        'FORWARD_URL'        => tohtml($forwardUrl),
-        'FORWARD_TYPE_301'   => ($forwardType == '301') ? ' checked' : '',
-        'FORWARD_TYPE_302'   => ($forwardType == '302') ? ' checked' : '',
-        'FORWARD_TYPE_303'   => ($forwardType == '303') ? ' checked' : '',
-        'FORWARD_TYPE_307'   => ($forwardType == '307') ? ' checked' : '',
-        'FORWARD_TYPE_PROXY' => ($forwardType == 'proxy') ? ' checked' : '',
-        'FORWARD_HOST'       => ($forwardHost == 'On') ? ' checked' : ''
+        'DOMAIN_NAME'        => toHtml($domainData['domain_name_utf8']),
+        'DOCUMENT_ROOT'      => toHtml($documentRoot),
+        'FORWARD_URL_YES'    => $urlForwarding ? ' checked' : '',
+        'FORWARD_URL_NO'     => $urlForwarding ? '' : ' checked',
+        'HTTP_YES'           => $forwardUrlScheme == 'http://' ? ' selected' : '',
+        'HTTPS_YES'          => $forwardUrlScheme == 'https://' ? ' selected' : '',
+        'FORWARD_URL'        => toHtml($forwardUrl),
+        'FORWARD_TYPE_301'   => $forwardType == '301' ? ' checked' : '',
+        'FORWARD_TYPE_302'   => $forwardType == '302' ? ' checked' : '',
+        'FORWARD_TYPE_303'   => $forwardType == '303' ? ' checked' : '',
+        'FORWARD_TYPE_307'   => $forwardType == '307' ? ' checked' : '',
+        'FORWARD_TYPE_PROXY' => $forwardType == 'proxy' ? ' checked' : '',
+        'FORWARD_HOST'       => $forwardHost == 'On' ? ' checked' : ''
     ]);
 
     // Cover the case where URL forwarding feature is activated and that the
     // default /htdocs directory doesn't exist yet
     if ($domainData['url_forward'] != 'no') {
         $vfs = new VirtualFileSystem($_SESSION['user_logged']);
-
         if (!$vfs->exists('/htdocs')) {
             $tpl->assign('DOCUMENT_ROOT_BLOC', '');
             return;
@@ -182,8 +173,8 @@ function client_editDomain()
             showBadRequestErrorPage();
         }
 
-        $forwardUrl = clean_input($_POST['forward_url_scheme']) . clean_input($_POST['forward_url']);
-        $forwardType = clean_input($_POST['forward_type']);
+        $forwardUrl = cleanInput($_POST['forward_url_scheme']) . cleanInput($_POST['forward_url']);
+        $forwardType = cleanInput($_POST['forward_type']);
 
         if ($forwardType == 'proxy' && isset($_POST['forward_host'])) {
             $forwardHost = 'On';
@@ -196,8 +187,8 @@ function client_editDomain()
                 throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
             }
 
-            $uri->setHost(encode_idna(mb_strtolower($uri->getHost()))); // Normalize URI host
-            $uri->setPath(rtrim(utils_normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
+            $uri->setHost(encodeIdna(mb_strtolower($uri->getHost()))); // Normalize URI host
+            $uri->setPath(rtrim(normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
 
             if ($uri->getHost() == $domainData['domain_name']
                 && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))
@@ -220,23 +211,23 @@ function client_editDomain()
 
             $forwardUrl = $uri->getUri();
         } catch (Exception $e) {
-            set_page_message($e->getMessage(), 'error');
+            setPageMessage($e->getMessage(), 'error');
             return false;
         }
     } // Check for alternative DocumentRoot option
     elseif (isset($_POST['document_root'])) {
-        $documentRoot = utils_normalizePath('/' . clean_input($_POST['document_root']));
+        $documentRoot = normalizePath('/' . cleanInput($_POST['document_root']));
 
         if ($documentRoot !== '') {
             $vfs = new VirtualFileSystem($_SESSION['user_logged'], '/htdocs');
 
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
-                set_page_message(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
+                setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
                 return false;
             }
         }
 
-        $documentRoot = utils_normalizePath('/htdocs' . $documentRoot);
+        $documentRoot = normalizePath('/htdocs' . $documentRoot);
     }
 
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeEditDomain, [
@@ -249,16 +240,10 @@ function client_editDomain()
         'forwardType'  => $forwardType,
         'forwardHost'  => $forwardHost
     ]);
-
-    exec_query(
-        '
-          UPDATE domain
-          SET document_root = ?, url_forward = ?, type_forward = ?, host_forward = ?, domain_status = ?
-          WHERE domain_id = ?
-        ',
-        [$documentRoot, $forwardUrl, $forwardType, $forwardHost, 'tochange', $domainId]
-    );
-
+    execQuery(
+        'UPDATE domain SET document_root = ?, url_forward = ?, type_forward = ?, host_forward = ?, domain_status = ?WHERE domain_id = ?', [
+        $documentRoot, $forwardUrl, $forwardType, $forwardHost, 'tochange', $domainId
+    ]);
     Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterEditDomain, [
         'domainId'     => $domainId,
         'domainName'   => $domainData['domain_name'],
@@ -269,23 +254,18 @@ function client_editDomain()
         'forwardType'  => $forwardType,
         'forwardHost'  => $forwardHost
     ]);
-
-    send_request();
-    write_log(sprintf('The %s domain properties were updated by', $_SESSION['user_logged'], $_SESSION['user_logged']), E_USER_NOTICE);
+    sendDaemonRequest();
+    writeLog(sprintf('The %s domain properties were updated by', $_SESSION['user_logged'], $_SESSION['user_logged']), E_USER_NOTICE);
     return true;
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
 
 if (!empty($_POST) && client_editDomain()) {
-    set_page_message(tr('Domain successfully scheduled for update.'), 'success');
+    setPageMessage(tr('Domain successfully scheduled for update.'), 'success');
     redirectTo('domains_manage.php');
 }
 
@@ -315,25 +295,20 @@ $tpl->assign([
     'TR_302'                    => '302',
     'TR_303'                    => '303',
     'TR_307'                    => '307',
-    'TR_PROXY'                  => 'PROXY',
+    'TR_PROXY'                  => toHtml(tr('Proxy')),
     'TR_PROXY_PRESERVE_HOST'    => tr('Preserve Host'),
     'TR_UPDATE'                 => tr('Update'),
     'TR_CANCEL'                 => tr('Cancel')
 ]);
-
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener('onGetJsTranslations', function ($e) {
-    /** @var $e iMSCP_Events_Event */
+Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['close'] = tr('Close');
     $translations['core']['ftp_directories'] = tr('Select your own document root');
 });
-
 generateNavigation($tpl);
 client_generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

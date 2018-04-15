@@ -3,27 +3,23 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
-
-/***********************************************************************************************************************
- * Functions
- */
+use iMSCP_Registry as Registry;
 
 /**
  * Send email
@@ -41,20 +37,20 @@ function reseller_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToD
         return true;
     }
 
-    $ret = send_mail([
+    $ret = sendMail([
         'mail_id'      => 'admin-circular',
         'fname'        => $rcptToData['fname'],
         'lname'        => $rcptToData['lname'],
         'username'     => $rcptToData['admin_name'],
         'email'        => $rcptToData['email'],
         'sender_name'  => $senderName,
-        'sender_email' => encode_idna($senderEmail),
+        'sender_email' => encodeIdna($senderEmail),
         'subject'      => $subject,
         'message'      => $body
     ]);
 
     if (!$ret) {
-        write_log(sprintf('Could not send reseller circular to %s', $rcptToData['admin_name']), E_USER_ERROR);
+        writeLog(sprintf('Could not send reseller circular to %s', $rcptToData['admin_name']), E_USER_ERROR);
         return false;
     }
 
@@ -76,15 +72,7 @@ function reseller_sendToCustomers($senderName, $senderEmail, $subject, $body)
         return;
     }
 
-    $stmt = exec_query(
-        "
-            SELECT MIN(admin_name), MIN(fname), MIN(lname), email
-            FROM admin
-            WHERE created_by = ?
-            GROUP BY email
-        ",
-        [$_SESSION['user_id']]
-    );
+    $stmt = execQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE created_by = ? GROUP BY email", [$_SESSION['user_id']]);
     while ($rcptToData = $stmt->fetch()) {
         reseller_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
     }
@@ -103,22 +91,25 @@ function reseller_isValidCircular($senderName, $senderEmail, $subject, $body)
 {
     $ret = true;
     if ($senderName == '') {
-        set_page_message(tr('Sender name is missing.'), 'error');
+        setPageMessage(tr('Sender name is missing.'), 'error');
         $ret = false;
     }
+
     if ($senderEmail == '') {
-        set_page_message(tr('Reply-To email is missing.'), 'error');
+        setPageMessage(tr('Reply-To email is missing.'), 'error');
         $ret = false;
-    } elseif (!chk_email($senderEmail)) {
-        set_page_message(tr("Incorrect email length or syntax."), 'error');
+    } elseif (!ValidateEmail($senderEmail)) {
+        setPageMessage(tr("Incorrect email length or syntax."), 'error');
         $ret = false;
     }
+
     if ($subject == '') {
-        set_page_message(tr('Subject is missing.'), 'error');
+        setPageMessage(tr('Subject is missing.'), 'error');
         $ret = false;
     }
+
     if ($body == '') {
-        set_page_message(tr('Body is missing.'), 'error');
+        setPageMessage(tr('Body is missing.'), 'error');
         $ret = false;
     }
 
@@ -132,16 +123,12 @@ function reseller_isValidCircular($senderName, $senderEmail, $subject, $body)
  */
 function reseller_sendCircular()
 {
-    if (!isset($_POST['sender_name']) || !isset($_POST['sender_email']) || !isset($_POST['subject'])
-        || !isset($_POST['body'])
-    ) {
-        showBadRequestErrorPage();
-    }
+    isset($_POST['sender_name']) && isset($_POST['sender_email']) && isset($_POST['subject']) && isset($_POST['body']) or showBadRequestErrorPage();
 
-    $senderName = clean_input($_POST['sender_name']);
-    $senderEmail = clean_input($_POST['sender_email']);
-    $subject = clean_input($_POST['subject']);
-    $body = clean_input($_POST['body']);
+    $senderName = cleanInput($_POST['sender_name']);
+    $senderEmail = cleanInput($_POST['sender_email']);
+    $subject = cleanInput($_POST['subject']);
+    $body = cleanInput($_POST['body']);
 
     if (!reseller_isValidCircular($senderName, $senderEmail, $subject, $body)) {
         return false;
@@ -170,8 +157,8 @@ function reseller_sendCircular()
         'subject'      => $subject,
         'body'         => $body
     ]);
-    set_page_message(tr('Circular successfully sent.'), 'success');
-    write_log(sprintf('A circular has been sent by a reseller: %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    setPageMessage(tr('Circular successfully sent.'), 'success');
+    writeLog(sprintf('A circular has been sent by a reseller: %s', $_SESSION['user_logged']), E_USER_NOTICE);
     return true;
 }
 
@@ -189,9 +176,7 @@ function reseller_generatePageData($tpl)
     $body = isset($_POST['body']) ? $_POST['body'] : '';
 
     if ($senderName == '' && $senderEmail == '') {
-        $stmt = exec_query('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [
-            $_SESSION['user_id']
-        ]);
+        $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
         $row = $stmt->fetch();
 
         if (!empty($row['fname']) && !empty($row['lname'])) {
@@ -217,25 +202,18 @@ function reseller_generatePageData($tpl)
     }
 
     $tpl->assign([
-        'SENDER_NAME'  => tohtml($senderName),
-        'SENDER_EMAIL' => tohtml($senderEmail),
-        'SUBJECT'      => tohtml($subject),
-        'BODY'         => tohtml($body)
+        'SENDER_NAME'  => toHtml($senderName),
+        'SENDER_EMAIL' => toHtml($senderEmail),
+        'SUBJECT'      => toHtml($subject),
+        'BODY'         => toHtml($body)
     ]);
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require 'imscp-lib.php';
 
-check_login('reseller');
+checkLogin('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-
-if (!resellerHasCustomers()) {
-    showBadRequestErrorPage();
-}
+resellerHasCustomers() or showBadRequestErrorPage();
 
 if (!empty($_POST) && reseller_sendCircular()) {
     redirectTo('users.php');
@@ -258,13 +236,10 @@ $tpl->assign([
     'TR_SEND_CIRCULAR' => tr('Send circular'),
     'TR_CANCEL'        => tr('Cancel')
 ]);
-
 generateNavigation($tpl);
 reseller_generatePageData($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

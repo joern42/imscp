@@ -1,40 +1,29 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * The Original Code is "VHCS - Virtual Hosting Control System".
- *
- * The Initial Developer of the Original Code is moleSoftware GmbH.
- * Portions created by Initial Developer are Copyright (C) 2001-2006
- * by moleSoftware GmbH. All Rights Reserved.
- *
- * Portions created by the ispCP Team are Copyright (C) 2006-2010 by
- * isp Control Panel. All Rights Reserved.
- *
- * Portions created by the i-MSCP Team are Copyright (C) 2010-2018 by
- * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
-
-/***********************************************************************************************************************
- * Main
- */
+use iMSCP_Registry as Registry;
 
 require 'imscp-lib.php';
 
-check_login('reseller');
+checkLogin('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
@@ -53,14 +42,11 @@ if (isset($_SESSION['logged_from']) && isset($_SESSION['logged_from_id'])) {
 }
 
 if (!empty($_POST)) {
-    $resellerNewLanguage = clean_input($_POST['def_language']);
-
-    if (!in_array($resellerNewLanguage, i18n_getAvailableLanguages(true), true)) {
-        showBadRequestErrorPage();
-    }
+    $resellerNewLanguage = cleanInput($_POST['def_language']);
+    in_array($resellerNewLanguage, getAvailableLanguages(true), true) or showBadRequestErrorPage();
 
     if ($resellerCurrentLanguage != $resellerNewLanguage) {
-        exec_query('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [
+        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [
             $resellerNewLanguage, $_SESSION['user_id']
         ]);
 
@@ -69,9 +55,9 @@ if (!empty($_POST)) {
             $_SESSION['user_def_lang'] = $resellerNewLanguage;
         }
 
-        set_page_message(tr('Language has been updated.'), 'success');
+        setPageMessage(tr('Language has been updated.'), 'success');
     } else {
-        set_page_message(tr('Nothing has been changed.'), 'info');
+        setPageMessage(tr('Nothing has been changed.'), 'info');
     }
 
     redirectTo('language.php');
@@ -83,13 +69,10 @@ $tpl->assign([
     'TR_CHOOSE_LANGUAGE' => tr('Choose your language'),
     'TR_UPDATE'          => tr('Update')
 ]);
-
 generateNavigation($tpl);
 generateLanguagesList($tpl, $resellerCurrentLanguage);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

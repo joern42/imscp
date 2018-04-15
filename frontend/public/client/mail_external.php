@@ -3,28 +3,26 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
+use iMSCP_Events_Event as Event;
 use iMSCP_Exception_Database as DatabaseException;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Activate or deactivate external mail feature for the given domain
@@ -43,19 +41,14 @@ function updateExternalMailFeature($action, $domainId, $domainType)
         $db->beginTransaction();
 
         if ($domainType == 'dmn') {
-            $stmt = exec_query(
-                "
-                    UPDATE domain SET domain_status = 'tochange', external_mail = ?
-                    WHERE domain_id = ?
-                    AND domain_admin_id = ?
-                    AND domain_status = 'ok'
-                ", [
-                $action == 'activate' ? 'on' : 'off', $domainId, $_SESSION['user_id']
-            ]);
+            $stmt = execQuery(
+                "UPDATE domain SET domain_status = 'tochange', external_mail = ?WHERE domain_id = ? AND domain_admin_id = ? AND domain_status = 'ok'",
+                [$action == 'activate' ? 'on' : 'off', $domainId, $_SESSION['user_id']]
+            );
             $stmt->rowCount() or showBadRequestErrorPage(); # Cover case where domain_admin_id <> $_SESSION['user_id']
-            exec_query("UPDATE subdomain SET subdomain_status = 'tochange' WHERE domain_id = ?", [$domainId]);
+            execQuery("UPDATE subdomain SET subdomain_status = 'tochange' WHERE domain_id = ?", [$domainId]);
         } elseif ($domainType == 'als') {
-            $stmt = exec_query(
+            $stmt = execQuery(
                 "
                     UPDATE domain_aliases AS t1
                     JOIN domain AS t2 USING(domain_id)
@@ -67,7 +60,7 @@ function updateExternalMailFeature($action, $domainId, $domainType)
                 [$action == 'activate' ? 'on' : 'off', $domainId, $_SESSION['user_id']]
             );
             $stmt->rowCount() or showBadRequestErrorPage(); # Cover case where t2.domain_admin_id <> $_SESSION['user_id']
-            exec_query(
+            execQuery(
                 "
                     UPDATE subdomain_alias AS t1
                     JOIN domain_aliases AS t2 ON(t2.domain_id = ?)
@@ -83,13 +76,13 @@ function updateExternalMailFeature($action, $domainId, $domainType)
         $db->commit();
 
         if ($action == 'activate') {
-            write_log(sprintf('External mail feature has been activared by %s', $_SESSION['user_logged']));
-            set_page_message(tr('External mail server feature scheduled for activation.'), 'success');
+            writeLog(sprintf('External mail feature has been activared by %s', $_SESSION['user_logged']));
+            setPageMessage(tr('External mail server feature scheduled for activation.'), 'success');
             return;
         }
 
-        write_log(sprintf('External mail feature has been deactivated by %s', $_SESSION['user_logged']));
-        set_page_message(tr('External mail server feature scheduled for deactivation.'), 'success');
+        writeLog(sprintf('External mail feature has been deactivated by %s', $_SESSION['user_logged']));
+        setPageMessage(tr('External mail server feature scheduled for deactivation.'), 'success');
     } catch (DatabaseException $e) {
         $db->rollBack();
         throw $e;
@@ -113,8 +106,8 @@ function generateItem($tpl, $externalMail, $domainId, $domainName, $status, $typ
     if ($status == 'ok') {
         if ($externalMail == 'off') {
             $tpl->assign([
-                'DOMAIN'          => decode_idna($domainName),
-                'STATUS'          => ($status == 'ok') ? tr('Deactivated') : translate_dmn_status($status),
+                'DOMAIN'          => decodeIdna($domainName),
+                'STATUS'          => ($status == 'ok') ? tr('Deactivated') : humanizeDomainStatus($status),
                 'DOMAIN_TYPE'     => $type,
                 'DOMAIN_ID'       => $domainId,
                 'TR_ACTIVATE'     => ($status == 'ok') ? tr('Activate') : tr('N/A'),
@@ -125,8 +118,8 @@ function generateItem($tpl, $externalMail, $domainId, $domainName, $status, $typ
         }
 
         $tpl->assign([
-            'DOMAIN'        => decode_idna($domainName),
-            'STATUS'        => ($status == 'ok') ? tr('Activated') : translate_dmn_status($status),
+            'DOMAIN'        => decodeIdna($domainName),
+            'STATUS'        => ($status == 'ok') ? tr('Activated') : humanizeDomainStatus($status),
             'DOMAIN_TYPE'   => $type,
             'DOMAIN_ID'     => $domainId,
             'ACTIVATE_LINK' => '',
@@ -137,8 +130,8 @@ function generateItem($tpl, $externalMail, $domainId, $domainName, $status, $typ
     }
 
     $tpl->assign([
-        'DOMAIN'          => decode_idna($domainName),
-        'STATUS'          => translate_dmn_status($status),
+        'DOMAIN'          => decodeIdna($domainName),
+        'STATUS'          => humanizeDomainStatus($status),
         'ACTIVATE_LINK'   => '',
         'DEACTIVATE_LINK' => ''
     ]);
@@ -155,13 +148,13 @@ function generateItem($tpl, $externalMail, $domainId, $domainName, $status, $typ
  */
 function generateItemList($tpl, $domainId, $domainName)
 {
-    $stmt = exec_query('SELECT domain_status, external_mail FROM domain WHERE domain_id = ?', [$domainId]);
+    $stmt = execQuery('SELECT domain_status, external_mail FROM domain WHERE domain_id = ?', [$domainId]);
     $data = $stmt->fetch();
 
     generateItem($tpl, $data['external_mail'], $domainId, $domainName, $data['domain_status'], 'dmn');
 
     $tpl->parse('ITEM', '.item');
-    $stmt = exec_query(
+    $stmt = execQuery(
         'SELECT alias_id, alias_name, alias_status, external_mail FROM domain_aliases WHERE domain_id = ?', [$domainId]
     );
 
@@ -183,8 +176,7 @@ function generateItemList($tpl, $domainId, $domainName)
  */
 function generatePage($tpl)
 {
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(iMSCP_Events::onGetJsTranslations, function ($e) {
-        /** @var iMSCP_Events_Description $e */
+    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
         $translations = $e->getParam('translations');
         $translations['core']['datatable'] = getDataTablesPluginTranslations(false);
     });
@@ -199,38 +191,28 @@ function generatePage($tpl)
         'TR_CANCEL'     => tr('Cancel')
     ]);
 
-    $domainProps = get_domain_default_props($_SESSION['user_id']);
+    $domainProps = getCustomerProperties($_SESSION['user_id']);
     $domainId = $domainProps['domain_id'];
     $domainName = $domainProps['domain_name'];
     generateItemList($tpl, $domainId, $domainName);
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
+customerHasFeature('external_mail') or showBadRequestErrorPage();
 
-if (!customerHasFeature('external_mail')) {
-    showBadRequestErrorPage();
-}
-
-if (isset($_GET['action'])
-    && isset($_GET['domain_id'])
-    && isset($_GET['domain_type'])
-) {
-    $action = clean_input($_GET['action']);
+if (isset($_GET['action']) && isset($_GET['domain_id']) && isset($_GET['domain_type'])) {
+    $action = cleanInput($_GET['action']);
     $domainId = intval($_GET['domain_id']);
-    $domainType = clean_input($_GET['domain_type']);
+    $domainType = cleanInput($_GET['domain_type']);
 
     switch ($action) {
         case 'activate':
         case 'deactivate':
             updateExternalMailFeature($action, $domainId, $domainType);
-            send_request();
+            sendDaemonRequest();
             break;
         default:
             showBadRequestErrorPage();
@@ -248,13 +230,10 @@ $tpl->define([
     'activate_link'   => 'item',
     'deactivate_link' => 'item'
 ]);
-
 generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

@@ -1,35 +1,24 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * The Original Code is "VHCS - Virtual Hosting Control System".
- *
- * The Initial Developer of the Original Code is moleSoftware GmbH.
- * Portions created by Initial Developer are Copyright (C) 2001-2006
- * by moleSoftware GmbH. All Rights Reserved.
- *
- * Portions created by the ispCP Team are Copyright (C) 2006-2010 by
- * isp Control Panel. All Rights Reserved.
- *
- * Portions created by the i-MSCP Team are Copyright (C) 2010-2018 by
- * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Deletes an admin or reseller user
@@ -46,7 +35,7 @@ function admin_deleteUser($userId)
     /** @var iMSCP_Database $db */
     $db = Registry::get('iMSCP_Application')->getDatabase();
 
-    $stmt = exec_query('SELECT a.admin_type, b.logo FROM admin a LEFT JOIN user_gui_props b ON (b.user_id = a.admin_id) WHERE admin_id = ?', [
+    $stmt = execQuery('SELECT a.admin_type, b.logo FROM admin a LEFT JOIN user_gui_props b ON (b.user_id = a.admin_id) WHERE admin_id = ?', [
         $userId
     ]);
     $row = $stmt->fetch();
@@ -66,7 +55,7 @@ function admin_deleteUser($userId)
 
     if ($userType == 'reseller') {
         // Getting reseller's software packages to remove if any
-        $stmt = exec_query('SELECT software_id, software_archive FROM web_software WHERE reseller_id = ?', [$userId]);
+        $stmt = execQuery('SELECT software_id, software_archive FROM web_software WHERE reseller_id = ?', [$userId]);
         $swPackages = $stmt->fetchAll();
 
         // Getting custom reseller isp logo if set
@@ -94,7 +83,7 @@ function admin_deleteUser($userId)
 
         foreach ($itemsToDelete as $table => $where) {
             $query = "DELETE FROM " . quoteIdentifier($table) . ($where ? " WHERE $where" : '');
-            exec_query($query, array_fill(0, substr_count($where, '?'), $userId));
+            execQuery($query, array_fill(0, substr_count($where, '?'), $userId));
         }
 
         Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterDeleteUser, ['userId' => $userId]);
@@ -109,25 +98,23 @@ function admin_deleteUser($userId)
         // Deleting reseller software installer local repository
         if (isset($swPackages) && !empty($swPackages)) {
             _admin_deleteResellerSwPackages($userId, $swPackages);
-        } elseif ($userType == 'reseller'
-            && is_dir($cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $userId)
+        } elseif ($userType == 'reseller' && is_dir($cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $userId)
             && @rmdir($cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $userId) == false
         ) {
-            write_log(sprintf('Could not remove reseller software directory: %s', $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $userId), E_USER_ERROR);
+            writeLog(sprintf('Could not remove reseller software directory: %s', $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $userId), E_USER_ERROR);
         }
 
         // Deleting user logo
         if (isset($resellerLogo) && !empty($resellerLogo)) {
             $logoPath = $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . $resellerLogo;
-
             if (file_exists($logoPath) && @unlink($logoPath) == false) {
-                write_log(sprintf('Could not remove user logo %s', $logoPath), E_USER_ERROR);
+                writeLog(sprintf('Could not remove user logo %s', $logoPath), E_USER_ERROR);
             }
         }
 
         $userTr = $userType == 'reseller' ? tr('Reseller') : tr('Admin');
-        set_page_message(tr('%s account successfully deleted.', $userTr), 'success');
-        write_log($_SESSION['user_logged'] . ": deletes user " . $userId, E_USER_NOTICE);
+        setPageMessage(tr('%s account successfully deleted.', $userTr), 'success');
+        writeLog($_SESSION['user_logged'] . ": deletes user " . $userId, E_USER_NOTICE);
     } catch (iMSCP_Exception $e) {
         $db->rollBack();
         throw $e;
@@ -149,18 +136,16 @@ function _admin_deleteResellerSwPackages($userId, array $swPackages)
 
     // Remove all reseller's software packages if any
     foreach ($swPackages as $package) {
-        $packagePath = $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $userId . '/' . $package['software_archive'] . '-'
-            . $package['software_id'] . '.tar.gz';
-
+        $packagePath = $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $userId . '/' . $package['software_archive'] . '-' . $package['software_id'] . '.tar.gz';
         if (file_exists($packagePath) && !@unlink($packagePath)) {
-            write_log('Unable to remove reseller package ' . $packagePath, E_USER_ERROR);
+            writeLog('Unable to remove reseller package ' . $packagePath, E_USER_ERROR);
         }
     }
 
     // Remove reseller software installer local repository directory
     $resellerSwDirectory = $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $userId;
     if (is_dir($resellerSwDirectory) && @rmdir($resellerSwDirectory) == false) {
-        write_log('Unable to remove reseller software repository: ' . $resellerSwDirectory, E_USER_ERROR);
+        writeLog('Unable to remove reseller software repository: ' . $resellerSwDirectory, E_USER_ERROR);
     }
 }
 
@@ -172,26 +157,26 @@ function _admin_deleteResellerSwPackages($userId, array $swPackages)
  */
 function admin_validateUserDeletion($userId)
 {
-    $stmt = exec_query('SELECT admin_type, created_by FROM admin WHERE admin_id = ?', [$userId]);
+    $stmt = execQuery('SELECT admin_type, created_by FROM admin WHERE admin_id = ?', [$userId]);
     $stmt->rowCount() or showBadRequestErrorPage(); # No user found; assume a bad request
     $row = $stmt->fetch();
 
     if ($row['created_by'] == 0) {
-        set_page_message(tr('You cannot delete the default administrator.'), 'error');
+        setPageMessage(tr('You cannot delete the default administrator.'), 'error');
     }
 
     if (!in_array($row['admin_type'], ['admin', 'reseller'])) {
         showBadRequestErrorPage(); # Not an administrator, nor a reseller; assume a bad request
     }
 
-    $stmt = exec_query('SELECT COUNT(admin_id) AS user_count FROM admin WHERE created_by = ?', [$userId]);
+    $stmt = execQuery('SELECT COUNT(admin_id) AS user_count FROM admin WHERE created_by = ?', [$userId]);
     $row2 = $stmt->fetch();
 
     if ($row2['user_count'] > 0) {
         if ($row['admin_type'] == 'admin') {
-            set_page_message(tr('Prior to removing this administrator, please move his resellers to another administrator.'), 'error');
+            setPageMessage(tr('Prior to removing this administrator, please move his resellers to another administrator.'), 'error');
         } else {
-            set_page_message(tr('You cannot delete a reseller that has customer accounts.'), 'error');
+            setPageMessage(tr('You cannot delete a reseller that has customer accounts.'), 'error');
         }
 
         return false;
@@ -200,29 +185,22 @@ function admin_validateUserDeletion($userId)
     return true;
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require 'imscp-lib.php';
 
-check_login('admin');
+checkLogin('admin');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
 
-if (isset($_GET['delete_id']) && !empty($_GET['delete_id'])) { # admin/reseller deletion
-    if (admin_validateUserDeletion($_GET['delete_id'])) {
-        admin_deleteUser($_GET['delete_id']);
+if (isset($_GET['id'])) { # admin/reseller deletion
+    if (admin_validateUserDeletion($_GET['id'])) {
+        admin_deleteUser($_GET['id']);
     }
-} elseif (isset($_GET['user_id'])) {
-    $userId = intval($_GET['user_id']);
+} elseif (isset($_GET['id'])) {
+    $userId = intval($_GET['id']);
 
     try {
-        if (!deleteCustomer($userId)) {
-            showBadRequestErrorPage();
-        }
-
-        set_page_message(tr('Customer account successfully scheduled for deletion.'), 'success');
-        write_log(sprintf('%s scheduled deletion of the customer account with ID %d', $_SESSION['user_logged'], $userId), E_USER_NOTICE);
+        deleteCustomer($userId) or showBadRequestErrorPage();
+        setPageMessage(tr('Customer account successfully scheduled for deletion.'), 'success');
+        writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', $_SESSION['user_logged'], $userId), E_USER_NOTICE);
     } catch (iMSCP_Exception $e) {
         if (($previous = $e->getPrevious()) && $previous instanceof iMSCP_Exception_Database) {
             $queryMsgPart = ' Query was: ' . $previous->getQuery();
@@ -232,8 +210,8 @@ if (isset($_GET['delete_id']) && !empty($_GET['delete_id'])) { # admin/reseller 
             $queryMsgPart = '';
         }
 
-        set_page_message(tr('Unable to schedule deletion of the customer account. Please consult admin logs or your mail for more information.'), 'error');
-        write_log(
+        setPageMessage(tr('Unable to schedule deletion of the customer account. Please consult admin logs or your mail for more information.'), 'error');
+        writeLog(
             sprintf("System was unable to schedule deletion of customer account with ID %s. Message was: %s.", $userId, $e->getMessage() . $queryMsgPart),
             E_USER_ERROR
         );

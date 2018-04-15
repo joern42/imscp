@@ -1,36 +1,25 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * The Original Code is "VHCS - Virtual Hosting Control System".
- *
- * The Initial Developer of the Original Code is moleSoftware GmbH.
- * Portions created by Initial Developer are Copyright (C) 2001-2006
- * by moleSoftware GmbH. All Rights Reserved.
- *
- * Portions created by the ispCP Team are Copyright (C) 2006-2010 by
- * isp Control Panel. All Rights Reserved.
- *
- * Portions created by the i-MSCP Team are Copyright (C) 2010-2018 by
- * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
-
-/***********************************************************************************************************************
- * Functions
- */
+use iMSCP_Registry as Registry;
 
 /**
  * Get user errors
@@ -40,7 +29,7 @@ use iMSCP\TemplateEngine;
  */
 function debugger_getUserErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT admin_name, admin_status, admin_id
             FROM admin
@@ -58,9 +47,9 @@ function debugger_getUserErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'USER_MESSAGE' => '',
-            'USER_NAME'    => tohtml(decode_idna($row['admin_name'])),
-            'USER_ERROR'   => tohtml($row['admin_status']),
-            'CHANGE_ID'    => tohtml($row['admin_id']),
+            'USER_NAME'    => toHtml(decodeIdna($row['admin_name'])),
+            'USER_ERROR'   => toHtml($row['admin_status']),
+            'CHANGE_ID'    => toHtml($row['admin_id']),
             'CHANGE_TYPE'  => 'user'
         ]);
         $tpl->parse('USER_ITEM', '.user_item');
@@ -75,7 +64,7 @@ function debugger_getUserErrors($tpl)
  */
 function debugger_getDmnErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT domain_name, domain_status, domain_id
             FROM domain
@@ -93,9 +82,9 @@ function debugger_getDmnErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'DMN_MESSAGE' => '',
-            'DMN_NAME'    => tohtml(decode_idna($row['domain_name'])),
-            'DMN_ERROR'   => tohtml($row['domain_status']),
-            'CHANGE_ID'   => tohtml($row['domain_id']),
+            'DMN_NAME'    => toHtml(decodeIdna($row['domain_name'])),
+            'DMN_ERROR'   => toHtml($row['domain_status']),
+            'CHANGE_ID'   => toHtml($row['domain_id']),
             'CHANGE_TYPE' => 'domain'
         ]);
         $tpl->parse('DMN_ITEM', '.dmn_item');
@@ -110,13 +99,11 @@ function debugger_getDmnErrors($tpl)
  */
 function debugger_getAlsErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT alias_name, alias_status, alias_id
             FROM domain_aliases
-            WHERE alias_status NOT IN (
-                'ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete', 'ordered'
-            )
+            WHERE alias_status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete', 'ordered')
         "
     );
 
@@ -129,8 +116,8 @@ function debugger_getAlsErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'ALS_MESSAGE' => '',
-            'ALS_NAME'    => tohtml(decode_idna($row['alias_name'])),
-            'ALS_ERROR'   => tohtml($row['alias_status']),
+            'ALS_NAME'    => toHtml(decodeIdna($row['alias_name'])),
+            'ALS_ERROR'   => toHtml($row['alias_status']),
             'CHANGE_ID'   => $row['alias_id'],
             'CHANGE_TYPE' => 'alias',
         ]);
@@ -146,14 +133,12 @@ function debugger_getAlsErrors($tpl)
  */
 function debugger_getSubErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT subdomain_name, subdomain_status, subdomain_id, domain_name
             FROM subdomain
             LEFT JOIN domain ON (subdomain.domain_id = domain.domain_id)
-            WHERE subdomain_status NOT IN (
-                'ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete'                
-            )
+            WHERE subdomain_status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete'                )
         "
     );
 
@@ -166,8 +151,8 @@ function debugger_getSubErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'SUB_MESSAGE' => '',
-            'SUB_NAME'    => tohtml(decode_idna($row['subdomain_name'] . '.' . $row['domain_name'])),
-            'SUB_ERROR'   => tohtml($row['subdomain_status']),
+            'SUB_NAME'    => toHtml(decodeIdna($row['subdomain_name'] . '.' . $row['domain_name'])),
+            'SUB_ERROR'   => toHtml($row['subdomain_status']),
             'CHANGE_ID'   => $row['subdomain_id'],
             'CHANGE_TYPE' => 'subdomain'
         ]);
@@ -183,14 +168,12 @@ function debugger_getSubErrors($tpl)
  */
 function debugger_getAlssubErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT subdomain_alias_name, subdomain_alias_status, subdomain_alias_id, alias_name
             FROM subdomain_alias
             LEFT JOIN domain_aliases ON (subdomain_alias_id = domain_aliases.alias_id)
-            WHERE subdomain_alias_status NOT IN (
-                'ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete'
-            )
+            WHERE subdomain_alias_status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete')
         "
     );
 
@@ -203,8 +186,8 @@ function debugger_getAlssubErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'ALSSUB_MESSAGE' => '',
-            'ALSSUB_NAME'    => tohtml(decode_idna($row['subdomain_alias_name'] . '.' . $row['alias_name'])),
-            'ALSSUB_ERROR'   => tohtml($row['subdomain_alias_status']),
+            'ALSSUB_NAME'    => toHtml(decodeIdna($row['subdomain_alias_name'] . '.' . $row['alias_name'])),
+            'ALSSUB_ERROR'   => toHtml($row['subdomain_alias_status']),
             'CHANGE_ID'      => $row['subdomain_alias_id'],
             'CHANGE_TYPE'    => 'subdomain_alias'
         ]);
@@ -220,13 +203,11 @@ function debugger_getAlssubErrors($tpl)
  */
 function debugger_getCustomDNSErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT domain_dns, domain_dns_status, domain_dns_id
             FROM domain_dns
-            WHERE domain_dns_status NOT IN (
-                'ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete'
-            )
+            WHERE domain_dns_status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete')
         "
     );
 
@@ -239,9 +220,9 @@ function debugger_getCustomDNSErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'CUSTOM_DNS_MESSAGE' => '',
-            'CUSTOM_DNS_NAME'    => tohtml(decode_idna($row['domain_dns'])),
-            'CUSTOM_DNS_ERROR'   => tohtml($row['domain_dns_status']),
-            'CHANGE_ID'          => tohtml($row['domain_dns_id']),
+            'CUSTOM_DNS_NAME'    => toHtml(decodeIdna($row['domain_dns'])),
+            'CUSTOM_DNS_ERROR'   => toHtml($row['domain_dns_status']),
+            'CHANGE_ID'          => toHtml($row['domain_dns_id']),
             'CHANGE_TYPE'        => 'custom_dns'
         ]);
         $tpl->parse('CUSTOM_DNS_ITEM', '.custom_dns_item');
@@ -256,7 +237,7 @@ function debugger_getCustomDNSErrors($tpl)
  */
 function debugger_getHtaccessErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT id, dmn_id, auth_name AS name, status, 'htaccess' AS type
             FROM htaccess
@@ -281,9 +262,9 @@ function debugger_getHtaccessErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'HTACCESS_MESSAGE' => '',
-            'HTACCESS_NAME'    => tohtml($row['name']),
-            'HTACCESS_TYPE'    => tohtml($row['type']),
-            'HTACCESS_ERROR'   => tohtml($row['status']),
+            'HTACCESS_NAME'    => toHtml($row['name']),
+            'HTACCESS_TYPE'    => toHtml($row['type']),
+            'HTACCESS_ERROR'   => toHtml($row['status']),
             'CHANGE_ID'        => $row['id'],
             'CHANGE_TYPE'      => $row['type']
         ]);
@@ -299,13 +280,11 @@ function debugger_getHtaccessErrors($tpl)
  */
 function debugger_getFtpUserErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT userid, status
             FROM ftp_users
-            WHERE status NOT IN (
-                'ok', 'disabled', 'toadd', 'tochange', 'toenable', 'todisable', 'todelete'
-            )
+            WHERE status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'toenable', 'todisable', 'todelete')
         "
     );
 
@@ -318,9 +297,9 @@ function debugger_getFtpUserErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'FTP_MESSAGE' => '',
-            'FTP_NAME'    => tohtml(decode_idna($row['userid'])),
-            'FTP_ERROR'   => tohtml($row['status']),
-            'CHANGE_ID'   => tohtml($row['userid']),
+            'FTP_NAME'    => toHtml(decodeIdna($row['userid'])),
+            'FTP_ERROR'   => toHtml($row['status']),
+            'CHANGE_ID'   => toHtml($row['userid']),
             'CHANGE_TYPE' => 'ftp'
         ]);
         $tpl->parse('FTP_ITEM', '.ftp_item');
@@ -336,12 +315,10 @@ function debugger_getFtpUserErrors($tpl)
  */
 function debugger_getMailsErrors($tpl)
 {
-    $stmt = execute_query(
+    $stmt = executeQuery(
         "
             SELECT mail_acc, domain_id, mail_type, status, mail_id FROM mail_users
-            WHERE status NOT IN (
-                'ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete', 'ordered'
-            )
+            WHERE status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete', 'ordered')
         "
     );
 
@@ -368,9 +345,7 @@ function debugger_getMailsErrors($tpl)
             case MT_SUBDOM_FORWARD:
             case MT_SUBDOM_MAIL . ',' . MT_SUBDOM_FORWARD:
                 $query = "
-                    SELECT CONCAT(
-                        '@', subdomain_name, '.', IF(t2.domain_name IS NULL,'" . tr('missing domain') . "',t2.domain_name)
-                    ) AS 'domain_name'
+                    SELECT CONCAT('@', subdomain_name, '.', IF(t2.domain_name IS NULL,'" . tr('missing domain') . "',t2.domain_name)) AS 'domain_name'
                     FROM subdomain AS t1
                     LEFT JOIN domain AS t2 ON (t1.domain_id = t2.domain_id)
                     WHERE subdomain_id = ?
@@ -404,13 +379,11 @@ function debugger_getMailsErrors($tpl)
                 throw new iMSCP_Exception('FIXME: ' . __FILE__ . ':' . __LINE__ . $mailType);
         }
 
-        $domainName = ltrim(exec_query($query, $searchedId)->fetchColumn(), '@');
+        $domainName = ltrim(execQuery($query, $searchedId)->fetchColumn(), '@');
         $tpl->assign([
             'MAIL_MESSAGE' => '',
-            'MAIL_NAME'    => tohtml($mailAcc . '@' . (
-                $domainName == '' ? ' ' . tr('orphan entry') : decode_idna($domainName))
-            ),
-            'MAIL_ERROR'   => tohtml($mailStatus),
+            'MAIL_NAME'    => toHtml($mailAcc . '@' . ($domainName == '' ? ' ' . tr('orphan entry') : decodeIdna($domainName))),
+            'MAIL_ERROR'   => toHtml($mailStatus),
             'CHANGE_ID'    => $mailId,
             'CHANGE_TYPE'  => 'mail'
         ]);
@@ -426,12 +399,8 @@ function debugger_getMailsErrors($tpl)
  */
 function debugger_getIpErrors($tpl)
 {
-    $stmt = execute_query(
-        "
-            SELECT ip_id, ip_number, ip_card, ip_status
-            FROM server_ips
-            WHERE ip_status NOT IN ('ok', 'toadd', 'tochange', 'todelete')
-        "
+    $stmt = executeQuery(
+        "SELECT ip_id, ip_number, ip_card, ip_status FROM server_ips WHERE ip_status NOT IN ('ok', 'toadd', 'tochange', 'todelete')"
     );
 
     if (!$stmt->rowCount()) {
@@ -443,11 +412,10 @@ function debugger_getIpErrors($tpl)
     while ($row = $stmt->fetch()) {
         $tpl->assign([
             'IP_MESSAGE'  => '',
-            'IP_NAME'     => tohtml((($row['ip_number'] == '0.0.0.0') ? tr('Any') : $row['ip_number'])
-                . ' ' . '(' . $row['ip_card'] . (strpos($row['ip_number'], ':') == FALSE ? ':'
-                    . ($row['ip_id'] + 1000) : '') . ')'),
-            'IP_ERROR'    => tohtml($row['ip_status']),
-            'CHANGE_ID'   => tohtml($row['ip_id']),
+            'IP_NAME'     => toHtml((($row['ip_number'] == '0.0.0.0') ? tr('Any') : $row['ip_number'])
+                . ' ' . '(' . $row['ip_card'] . (strpos($row['ip_number'], ':') == FALSE ? ':' . ($row['ip_id'] + 1000) : '') . ')'),
+            'IP_ERROR'    => toHtml($row['ip_status']),
+            'CHANGE_ID'   => toHtml($row['ip_id']),
             'CHANGE_TYPE' => 'ip'
         ]);
         $tpl->parse('IP_ITEM', '.ip_item');
@@ -477,12 +445,12 @@ function debugger_getPluginItemErrors($tpl)
             foreach ($items as $item) {
                 $tpl->assign([
                     'PLUGIN_ITEM_MESSAGE' => '',
-                    'PLUGIN_NAME'         => tohtml($plugin->getName()) . ' (' . tohtml($item['item_name']) . ')',
-                    'PLUGIN_ITEM_ERROR'   => tohtml($item['status']),
+                    'PLUGIN_NAME'         => toHtml($plugin->getName()) . ' (' . toHtml($item['item_name']) . ')',
+                    'PLUGIN_ITEM_ERROR'   => toHtml($item['status']),
                     'CHANGE_ID'           => $item['item_id'],
-                    'CHANGE_TYPE'         => tohtml($plugin->getName()),
-                    'TABLE'               => tohtml($item['table']),
-                    'FIELD'               => tohtml($item['field'])
+                    'CHANGE_TYPE'         => toHtml($plugin->getName()),
+                    'TABLE'               => toHtml($item['table']),
+                    'FIELD'               => toHtml($item['field'])
                 ]);
                 $tpl->parse('PLUGIN_ITEM_ITEM', '.plugin_item_item');
             }
@@ -530,14 +498,11 @@ function debugger_countRequests($statusField = NULL, $tableName = NULL)
     if (NULL !== $statusField && NULL !== $tableName) {
         $statusField = quoteIdentifier($statusField);
         $tableName = quoteIdentifier($tableName);
-        $stmt = execute_query(
+        $stmt = executeQuery(
             "
                 SELECT $statusField
                 FROM $tableName
-                WHERE $statusField IN (
-                    'toinstall', 'toupdate', 'touninstall', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable',
-                    'todelete'
-                )
+                WHERE $statusField IN ('toinstall', 'toupdate', 'touninstall', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable','todelete')
             "
         );
         return $stmt->rowCount();
@@ -556,14 +521,9 @@ function debugger_countRequests($statusField = NULL, $tableName = NULL)
     return $nbRequests;
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
-
 require 'imscp-lib.php';
 
-check_login('admin');
+checkLogin('admin');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
 
 /** @var iMSCP_Plugin_Manager $plugingManager */
@@ -586,22 +546,20 @@ $rqstCount += debugger_countRequests(); // Plugin items
 if (isset($_GET['action'])) {
     if ($_GET['action'] == 'run') {
         if ($rqstCount > 0) {
-            if (send_request()) {
-                set_page_message(tr('Daemon request successful.'), 'success');
+            if (sendDaemonRequest()) {
+                setPageMessage(tr('Daemon request successful.'), 'success');
             } else {
-                set_page_message(tr('Daemon request failed.'), 'error');
+                setPageMessage(tr('Daemon request failed.'), 'error');
             }
         } else {
-            set_page_message(tr('There is no pending task. Operation canceled.'), 'warning');
+            setPageMessage(tr('There is no pending task. Operation canceled.'), 'warning');
         }
 
         redirectTo('imscp_debugger.php');
         exit;
     }
 
-    if ($_GET['action'] == 'change'
-        && (isset($_GET['id']) && isset($_GET['type']))
-    ) {
+    if ($_GET['action'] == 'change' && (isset($_GET['id']) && isset($_GET['type']))) {
         switch ($_GET['type']) {
             case 'user':
                 $query = "UPDATE admin SET admin_status = 'tochange' WHERE admin_id = ?";
@@ -643,22 +601,20 @@ if (isset($_GET['action'])) {
                 $query = "UPDATE plugin SET plugin_status = 'tochange' WHERE plugin_id = ?";
                 break;
             default:
-                if (!isset($_GET['table']) || !isset($_GET['field'])) {
-                    showBadRequestErrorPage();
-                }
+                isset($_GET['table']) && isset($_GET['field']) or showBadRequestErrorPage();
 
                 if (!debugger_changePluginItemStatus($_GET['type'], $_GET['table'], $_GET['field'], $_GET['id'])) {
-                    set_page_message(tr('Unknown type.'), 'error');
+                    setPageMessage(tr('Unknown type.'), 'error');
                 } else {
-                    set_page_message(tr('Done'), 'success');
+                    setPageMessage(tr('Done'), 'success');
                 }
 
                 redirectTo('imscp_debugger.php');
                 exit;
         }
 
-        $stmt = exec_query($query, [$_GET['id']]);
-        set_page_message(tr('Done'), 'success');
+        $stmt = execQuery($query, [$_GET['id']]);
+        setPageMessage(tr('Done'), 'success');
         redirectTo('imscp_debugger.php');
     }
 }
@@ -693,7 +649,6 @@ $tpl->define([
     'plugin_item_message' => 'page',
     'plugin_item_item'    => 'page'
 ]);
-
 debugger_getUserErrors($tpl);
 debugger_getDmnErrors($tpl);
 debugger_getAlsErrors($tpl);
@@ -705,34 +660,28 @@ debugger_getMailsErrors($tpl);
 debugger_getHtaccessErrors($tpl);
 debugger_getIpErrors($tpl);
 debugger_getPluginItemErrors($tpl);
-
 $tpl->assign([
-    'TR_PAGE_TITLE'         => tr('Admin / System Tools / Debugger'),
-    'TR_USER_ERRORS'        => tr('User errors'),
-    'TR_DMN_ERRORS'         => tr('Domain errors'),
-    'TR_ALS_ERRORS'         => tr('Domain alias errors'),
-    'TR_SUB_ERRORS'         => tr('Subdomain errors'),
-    'TR_ALSSUB_ERRORS'      => tr('Subdomain alias errors'),
-    'TR_CUSTOM_DNS_ERRORS'  => tr('Custom DNS errors'),
-    'TR_FTP_ERRORS'         => tr('FTP user errors'),
-    'TR_MAIL_ERRORS'        => tr('Mail account errors'),
-    'TR_IP_ERRORS'          => tr('IP errors'),
-    'TR_HTACCESS_ERRORS'    => tr('Htaccess, htgroups and htpasswd errors'),
-    'TR_PLUGINS_ERRORS'     => tr('Plugin errors'),
-    'TR_PLUGIN_ITEM_ERRORS' => tr('Plugin item errors'),
-    'TR_PENDING_TASKS'      => tr('Pending tasks'),
-    'TR_EXEC_TASKS'         => tr('Execute tasks'),
-    'TR_CHANGE_STATUS'      => tr("Change status of this item for a new attempt"),
-    'EXEC_COUNT'            => $rqstCount
+    'TR_PAGE_TITLE'         => toHtml(tr('Admin / System Tools / Debugger')),
+    'TR_USER_ERRORS'        => toHtml(tr('User errors')),
+    'TR_DMN_ERRORS'         => toHtml(tr('Domain errors')),
+    'TR_ALS_ERRORS'         => toHtml(tr('Domain alias errors')),
+    'TR_SUB_ERRORS'         => toHtml(tr('Subdomain errors')),
+    'TR_ALSSUB_ERRORS'      => toHtml(tr('Subdomain alias errors')),
+    'TR_CUSTOM_DNS_ERRORS'  => toHtml(tr('Custom DNS errors')),
+    'TR_FTP_ERRORS'         => toHtml(tr('FTP user errors')),
+    'TR_MAIL_ERRORS'        => toHtml(tr('Mail account errors')),
+    'TR_IP_ERRORS'          => toHtml(tr('IP errors')),
+    'TR_HTACCESS_ERRORS'    => toHtml(tr('Htaccess, htgroups and htpasswd errors')),
+    'TR_PLUGINS_ERRORS'     => toHtml(tr('Plugin errors')),
+    'TR_PLUGIN_ITEM_ERRORS' => toHtml(tr('Plugin item errors')),
+    'TR_PENDING_TASKS'      => toHtml(tr('Pending tasks')),
+    'TR_EXEC_TASKS'         => toHtml(tr('Execute tasks')),
+    'TR_CHANGE_STATUS'      => toHtml(tr('Change status of this item for a new attempt')),
+    'EXEC_COUNT'            => toHtml($rqstCount)
 ]);
-
 generateNavigation($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, [
-    'templateEngine' => $tpl
-]);
+Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

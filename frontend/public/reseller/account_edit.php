@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\PHPini;
@@ -41,17 +41,17 @@ function syncClientDomainIps($domainId, array $clientIps)
     sort($clientIps, SORT_NUMERIC);
 
     // dmn IP addresses
-    $domainIps = explode(',', exec_query('SELECT domain_ips FROM domain WHERE domain_id = ?', [$domainId])->fetchColumn());
+    $domainIps = explode(',', execQuery('SELECT domain_ips FROM domain WHERE domain_id = ?', [$domainId])->fetchColumn());
     $commonIps = array_intersect($domainIps, $clientIps);
     if (count($commonIps) < count($domainIps)) {
         if (empty($commonIps)) {
             $commonIps[] = $clientIps[0];
         }
-        exec_query('UPDATE domain SET domain_ips = ? WHERE domain_id = ?', [implode(',', $commonIps), $domainId]);
+        execQuery('UPDATE domain SET domain_ips = ? WHERE domain_id = ?', [implode(',', $commonIps), $domainId]);
     }
 
     // sub IP addresses
-    $stmt = exec_query('SELECT subdomain_id, subdomain_ips FROM subdomain WHERE domain_id = ?', [$domainId]);
+    $stmt = execQuery('SELECT subdomain_id, subdomain_ips FROM subdomain WHERE domain_id = ?', [$domainId]);
     while ($row = $stmt->fetch()) {
         $domainIps = explode(',', $row['subdomain_ips']);
         $commonIps = array_intersect($domainIps, $clientIps);
@@ -59,12 +59,12 @@ function syncClientDomainIps($domainId, array $clientIps)
             if (empty($commonIps)) {
                 $commonIps[] = $clientIps[0];
             }
-            exec_query('UPDATE subdomain SET subdomain_ips = ? WHERE subdomain_id = ?', [implode(',', $commonIps), $row['subdomain_id']]);
+            execQuery('UPDATE subdomain SET subdomain_ips = ? WHERE subdomain_id = ?', [implode(',', $commonIps), $row['subdomain_id']]);
         }
     }
 
     // als IP addresses
-    $stmt = exec_query('SELECT alias_id, alias_ips FROM domain_aliases WHERE domain_id = ?', [$domainId]);
+    $stmt = execQuery('SELECT alias_id, alias_ips FROM domain_aliases WHERE domain_id = ?', [$domainId]);
     while ($row = $stmt->fetch()) {
         $domainIps = explode(',', $row['alias_ips']);
         $commonIps = array_intersect($domainIps, $clientIps);
@@ -72,12 +72,12 @@ function syncClientDomainIps($domainId, array $clientIps)
             if (empty($commonIps)) {
                 $commonIps[] = $clientIps[0];
             }
-            exec_query('UPDATE domain_aliases SET alias_ips = ? WHERE alias_id = ?', [implode(',', $commonIps), $row['alias_id']]);
+            execQuery('UPDATE domain_aliases SET alias_ips = ? WHERE alias_id = ?', [implode(',', $commonIps), $row['alias_id']]);
         }
     }
 
     // alssub IP addresses
-    $stmt = exec_query(
+    $stmt = execQuery(
         '
             SELECT t1.subdomain_alias_id, t1.subdomain_alias_ips
             FROM subdomain_alias AS t1
@@ -93,7 +93,7 @@ function syncClientDomainIps($domainId, array $clientIps)
             if (empty($commonIps)) {
                 $commonIps[] = $clientIps[0];
             }
-            exec_query('UPDATE subdomain_alias SET subdomain_alias_ips = ? WHERE subdomain_alias_id = ?', [
+            execQuery('UPDATE subdomain_alias SET subdomain_alias_ips = ? WHERE subdomain_alias_id = ?', [
                 implode(',', $commonIps), $row['subdomain_alias_id']
             ]);
         }
@@ -108,7 +108,7 @@ function syncClientDomainIps($domainId, array $clientIps)
  */
 function reseller_getClientProps($clientId)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT t1.*, t2.admin_id, t2.admin_name
             FROM domain AS t1
@@ -124,7 +124,6 @@ function reseller_getClientProps($clientId)
     $data = $stmt->fetch();
     $data['mail_quota'] = $data['mail_quota'] / 1048576;
     $data['domainTraffic'] = getClientMonthlyTrafficStats($data['domain_id'])[4];
-
     return $data;
 }
 
@@ -136,7 +135,7 @@ function reseller_getClientProps($clientId)
  */
 function reseller_getResellerProps($resellerId)
 {
-    return exec_query(
+    return execQuery(
         '
             SELECT reseller_id, current_sub_cnt, max_sub_cnt, current_als_cnt, max_als_cnt, current_mail_cnt, max_mail_cnt, current_ftp_cnt,
                 max_ftp_cnt, current_sql_db_cnt, max_sql_db_cnt, current_sql_user_cnt, max_sql_user_cnt, current_disk_amnt, max_disk_amnt,
@@ -159,7 +158,7 @@ function getMailData($domainId, $mailQuota)
     static $mailData = NULL;
 
     if (NULL === $mailData) {
-        $stmt = exec_query('SELECT IFNULL(SUM(quota), 0) AS quota, COUNT(mail_id) AS nb_mailboxes FROM mail_users WHERE domain_id = ?', [$domainId]);
+        $stmt = execQuery('SELECT IFNULL(SUM(quota), 0) AS quota, COUNT(mail_id) AS nb_mailboxes FROM mail_users WHERE domain_id = ?', [$domainId]);
         $row = $stmt->fetch();
         $mailData = [
             'quota_sum'    => bytesHuman($row['quota']),
@@ -190,7 +189,7 @@ function &getData($clientId, $forUpdate = false)
     $resellerProps = reseller_getResellerProps($_SESSION['user_id']);
     $resellerProps['reseller_ips'] = explode(',', $resellerProps['reseller_ips']);
 
-    list($subCount, $alsCount, $mailCount, $ftpCount, $sqlDbCount, $sqlUsersCount) = get_customer_objects_counts($domainProps['admin_id']);
+    list($subCount, $alsCount, $mailCount, $ftpCount, $sqlDbCount, $sqlUsersCount) = getCustomerObjectsCounts($domainProps['admin_id']);
 
     $data['nbSubdomains'] = $subCount;
     $data['nbAliases'] = $alsCount;
@@ -240,27 +239,23 @@ function &getData($clientId, $forUpdate = false)
             ] as $customerLimit => $resellerMaxLimit
         ) {
             if (array_key_exists($customerLimit, $_POST) && $data[$resellerMaxLimit] != -1) {
-                $data[$customerLimit] = clean_input($_POST[$customerLimit]);
+                $data[$customerLimit] = cleanInput($_POST[$customerLimit]);
             }
         }
 
-        
-        echo '<pre>';
-        print_r($_POST);
-        exit;
         if (isset($_POST['domain_client_ips']) && is_array($_POST['domain_client_ips'])) {
             $data['domain_client_ips'] = $_POST['domain_client_ips'];
         }
 
         foreach (['domain_expires', 'domain_php', 'domain_cgi', 'domain_dns', 'domain_external_mail', 'web_folder_protection'] as $field) {
             if (isset($_POST[$field])) {
-                $data[$field] = clean_input($_POST[$field]);
+                $data[$field] = cleanInput($_POST[$field]);
             }
         }
 
         if ($data['software_allowed'] == 'yes') {
             $data['domain_software_allowed'] = isset($_POST['domain_software_allowed'])
-                ? clean_input($_POST['domain_software_allowed']) : $data['domain_software_allowed'];
+                ? cleanInput($_POST['domain_software_allowed']) : $data['domain_software_allowed'];
         } else {
             $data['domain_software_allowed'] = 'no';
         }
@@ -296,11 +291,11 @@ function reseller_checkAndUpdateData($clientId)
         // Check for account expiration date
         if ($data['domain_expires'] !== '') {
             if (!preg_match('%^\d{2}/\d{2}/\d{4}$%', $data['domain_expires']) || ($timestamp = strtotime($data['domain_expires'])) === false) {
-                set_page_message(tr("Wrong syntax for the account expiration date. Date must be provided in form 'dd/mm/yyyy'."), 'error');
+                setPageMessage(tr("Wrong syntax for the account expiration date. Date must be provided in form 'dd/mm/yyyy'."), 'error');
                 $errFieldsStack[] = 'domain_expires';
             } elseif ($timestamp != 0 && $timestamp <= time()) {
                 $data['domain_expires'] = $timestamp;
-                set_page_message(tr('You cannot set account expiration date in past.'), 'error');
+                setPageMessage(tr('You cannot set account expiration date in past.'), 'error');
                 $errFieldsStack[] = 'domain_expires';
             } else {
                 $data['domain_expires'] = $timestamp;
@@ -314,13 +309,11 @@ function reseller_checkAndUpdateData($clientId)
             print "god";
             $data['domain_client_ips'] = $data['fallback_domain_client_ips'];
         }
-        echo '<pre>';
-        print_r($data['domain_client_ips']);
-exit;
+
         // Check for the subdomains limit
         if ($data['fallback_domain_subd_limit'] != -1) {
-            if (!imscp_limit_check($data['domain_subd_limit'])) {
-                set_page_message(tr('Wrong syntax for the %s limit.', tr('subdomains')), 'error');
+            if (!validateLimit($data['domain_subd_limit'])) {
+                setPageMessage(tr('Wrong syntax for the %s limit.', tr('subdomains')), 'error');
                 $errFieldsStack[] = 'domain_subd_limit';
             } elseif (!isValidServiceLimit($data['domain_subd_limit'], $data['nbSubdomains'], $data['fallback_domain_subd_limit'],
                 $data['current_sub_cnt'], $data['max_sub_cnt'], $data['nbSubdomains'] > 1 ? tr('subdomains') : tr('subdomain'))
@@ -331,8 +324,8 @@ exit;
 
         // Check for the domain aliases limit
         if ($data['fallback_domain_alias_limit'] != -1) {
-            if (!imscp_limit_check($data['domain_alias_limit'])) {
-                set_page_message(tr('Wrong syntax for the %s limit.', tr('domain aliases')), 'error');
+            if (!validateLimit($data['domain_alias_limit'])) {
+                setPageMessage(tr('Wrong syntax for the %s limit.', tr('domain aliases')), 'error');
                 $errFieldsStack[] = 'domain_alias_limit';
             } elseif (!isValidServiceLimit($data['domain_alias_limit'], $data['nbAliases'], $data['fallback_domain_alias_limit'],
                 $data['current_als_cnt'], $data['max_als_cnt'], $data['nbAliases'] > 1 ? tr('domain aliases') : tr('domain alias'))
@@ -343,8 +336,8 @@ exit;
 
         // Check for the mail accounts limit
         if ($data['fallback_domain_mailacc_limit'] != -1) {
-            if (!imscp_limit_check($data['domain_mailacc_limit'])) {
-                set_page_message(tr('Wrong syntax for the %s limit.', tr('mail accounts')), 'error');
+            if (!validateLimit($data['domain_mailacc_limit'])) {
+                setPageMessage(tr('Wrong syntax for the %s limit.', tr('mail accounts')), 'error');
                 $errFieldsStack[] = 'domain_mailacc_limit';
             } elseif (!isValidServiceLimit($data['domain_mailacc_limit'], $data['nbMailAccounts'], $data['fallback_domain_mailacc_limit'],
                 $data['current_mail_cnt'], $data['max_mail_cnt'], $data["nbMailAccounts"] > 1 ? tr('mail accounts') : tr('mail account'))
@@ -355,8 +348,8 @@ exit;
 
         // Check for the Ftp accounts limit
         if ($data['fallback_domain_ftpacc_limit'] != -1) {
-            if (!imscp_limit_check($data['domain_ftpacc_limit'])) {
-                set_page_message(tr('Wrong syntax for the %s limit.', tr('Ftp accounts')), 'error');
+            if (!validateLimit($data['domain_ftpacc_limit'])) {
+                setPageMessage(tr('Wrong syntax for the %s limit.', tr('Ftp accounts')), 'error');
                 $errFieldsStack[] = 'domain_ftpacc_limit';
             } elseif (!isValidServiceLimit($data['domain_ftpacc_limit'], $data['nbFtpAccounts'], $data['fallback_domain_ftpacc_limit'],
                 $data['current_ftp_cnt'], $data['max_ftp_cnt'], $data['nbFtpAccounts'] > 1 ? tr('Ftp accounts') : tr('Ftp account'))
@@ -367,15 +360,15 @@ exit;
 
         // Check for the Sql databases limit
         if ($data['fallback_domain_sqld_limit'] != -1) {
-            if (!imscp_limit_check($data['domain_sqld_limit'])) {
-                set_page_message(tr('Wrong syntax for the %s limit.', tr('SQL databases')), 'error');
+            if (!validateLimit($data['domain_sqld_limit'])) {
+                setPageMessage(tr('Wrong syntax for the %s limit.', tr('SQL databases')), 'error');
                 $errFieldsStack[] = 'domain_sqld_limit';
             } elseif (!isValidServiceLimit($data['domain_sqld_limit'], $data['nbSqlDatabases'], $data['fallback_domain_sqld_limit'],
                 $data['current_sql_db_cnt'], $data['max_sql_db_cnt'], $data['nbSqlDatabases'] > 1 ? tr('SQL databases') : tr('SQL database'))
             ) {
                 $errFieldsStack[] = 'domain_sqld_limit';
             } elseif ($data['domain_sqld_limit'] != -1 && $data['domain_sqlu_limit'] == -1) {
-                set_page_message(tr('SQL users limit is disabled.'), 'error');
+                setPageMessage(tr('SQL users limit is disabled.'), 'error');
                 $errFieldsStack[] = 'domain_sqld_limit';
                 $errFieldsStack[] = 'domain_sqlu_limit';
             }
@@ -383,23 +376,23 @@ exit;
 
         // Check for the Sql users limit
         if ($data['fallback_domain_sqlu_limit'] != -1) {
-            if (!imscp_limit_check($data['domain_sqlu_limit'])) {
-                set_page_message(tr('Wrong syntax for the %s limit.', tr('SQL users')), 'error');
+            if (!validateLimit($data['domain_sqlu_limit'])) {
+                setPageMessage(tr('Wrong syntax for the %s limit.', tr('SQL users')), 'error');
                 $errFieldsStack[] = 'domain_sqlu_limit';
             } elseif (!isValidServiceLimit($data['domain_sqlu_limit'], $data['nbSqlUsers'], $data['fallback_domain_sqlu_limit'],
                 $data['current_sql_user_cnt'], $data['max_sql_user_cnt'], $data['nbSqlUsers'] > 1 ? tr('SQL users') : tr('SQL user'))
             ) {
                 $errFieldsStack[] = 'domain_sqlu_limit';
             } elseif ($data['domain_sqlu_limit'] != -1 && $data['domain_sqld_limit'] == -1) {
-                set_page_message(tr('SQL databases limit is disabled.'), 'error');
+                setPageMessage(tr('SQL databases limit is disabled.'), 'error');
                 $errFieldsStack[] = 'domain_sqlu_limit';
                 $errFieldsStack[] = 'domain_sqld_limit';
             }
         }
 
         // Check for the monthly traffic limit
-        if (!imscp_limit_check($data['domain_traffic_limit'], NULL)) {
-            set_page_message(tr('Wrong syntax for the %s limit.', tr('traffic')), 'error');
+        if (!validateLimit($data['domain_traffic_limit'], NULL)) {
+            setPageMessage(tr('Wrong syntax for the %s limit.', tr('traffic')), 'error');
             $errFieldsStack[] = 'domain_traffic_limit';
         } elseif (!isValidServiceLimit($data['domain_traffic_limit'], $data['domainTraffic'] / 1048576, $data['fallback_domain_traffic_limit'],
             $data['current_traff_amnt'], $data['max_traff_amnt'], tr('traffic'))
@@ -408,8 +401,8 @@ exit;
         }
 
         // Check for the disk space limit
-        if (!imscp_limit_check($data['domain_disk_limit'], NULL)) {
-            set_page_message(tr('Wrong syntax for the %s limit.', tr('disk space')), 'error');
+        if (!validateLimit($data['domain_disk_limit'], NULL)) {
+            setPageMessage(tr('Wrong syntax for the %s limit.', tr('disk space')), 'error');
             $errFieldsStack[] = 'domain_disk_limit';
         } elseif (!isValidServiceLimit($data['domain_disk_limit'], $data['domain_disk_usage'] / 1048576, $data['fallback_domain_disk_limit'],
             $data['current_disk_amnt'], $data['max_disk_amnt'], tr('disk space'))
@@ -419,20 +412,20 @@ exit;
 
         // Check for mail quota
         if ($data['fallback_domain_mailacc_limit'] != -1) {
-            if (!imscp_limit_check($data['mail_quota'], NULL)) {
-                set_page_message(tr('Wrong syntax for the mail quota value.'), 'error');
+            if (!validateLimit($data['mail_quota'], NULL)) {
+                setPageMessage(tr('Wrong syntax for the mail quota value.'), 'error');
                 $errFieldsStack[] = 'mail_quota';
             } elseif ($data['domain_disk_limit'] != 0 && $data['mail_quota'] > $data['domain_disk_limit']) {
-                set_page_message(tr('Mail quota cannot be bigger than disk space limit.'), 'error');
+                setPageMessage(tr('Mail quota cannot be bigger than disk space limit.'), 'error');
                 $errFieldsStack[] = 'mail_quota';
             } elseif ($data['domain_disk_limit'] != 0 && $data['mail_quota'] == 0) {
-                set_page_message(tr('Mail quota cannot be unlimited. Max value is %d MiB.', $data['domain_disk_limit']), 'error');
+                setPageMessage(tr('Mail quota cannot be unlimited. Max value is %d MiB.', $data['domain_disk_limit']), 'error');
                 $errFieldsStack[] = 'mail_quota';
             } else {
                 $mailData = getMailData($data['domain_id'], $data['fallback_mail_quota']);
 
                 if ($data['mail_quota'] != 0 && $data['mail_quota'] < $mailData['nb_mailboxes']) {
-                    set_page_message(tr('Mail quota cannot be lower than %d. Each mail account must have a least 1 MiB quota.', $mailData['nb_mailboxes']), 'error');
+                    setPageMessage(tr('Mail quota cannot be lower than %d. Each mail account must have a least 1 MiB quota.', $mailData['nb_mailboxes']), 'error');
                     $errFieldsStack[] = 'mail_quota';
                 }
             }
@@ -448,49 +441,49 @@ exit;
         $phpConfigLevel = $phpini->getClientPermission('phpiniConfigLevel');
 
         if (isset($_POST['php_ini_system']) && $data['domain_php'] == 'yes' && $phpini->resellerHasPermission('phpiniSystem')) {
-            $phpini->setClientPermission('phpiniSystem', clean_input($_POST['php_ini_system']));
+            $phpini->setClientPermission('phpiniSystem', cleanInput($_POST['php_ini_system']));
 
             if ($phpini->clientHasPermission('phpiniSystem')) {
                 if (isset($_POST['phpini_perm_config_level'])) {
-                    $phpini->setClientPermission('phpiniConfigLevel', clean_input($_POST['phpini_perm_config_level']));
+                    $phpini->setClientPermission('phpiniConfigLevel', cleanInput($_POST['phpini_perm_config_level']));
                 }
 
                 if (isset($_POST['phpini_perm_allow_url_fopen'])) {
-                    $phpini->setClientPermission('phpiniAllowUrlFopen', clean_input($_POST['phpini_perm_allow_url_fopen']));
+                    $phpini->setClientPermission('phpiniAllowUrlFopen', cleanInput($_POST['phpini_perm_allow_url_fopen']));
                 }
 
                 if (isset($_POST['phpini_perm_display_errors'])) {
-                    $phpini->setClientPermission('phpiniDisplayErrors', clean_input($_POST['phpini_perm_display_errors']));
+                    $phpini->setClientPermission('phpiniDisplayErrors', cleanInput($_POST['phpini_perm_display_errors']));
                 }
 
                 if (isset($_POST['phpini_perm_disable_functions'])) {
-                    $phpini->setClientPermission('phpiniDisableFunctions', clean_input($_POST['phpini_perm_disable_functions']));
+                    $phpini->setClientPermission('phpiniDisableFunctions', cleanInput($_POST['phpini_perm_disable_functions']));
                 }
 
                 if (isset($_POST['phpini_perm_mail_function'])) {
-                    $phpini->setClientPermission('phpiniMailFunction', clean_input($_POST['phpini_perm_mail_function']));
+                    $phpini->setClientPermission('phpiniMailFunction', cleanInput($_POST['phpini_perm_mail_function']));
                 }
 
                 if (isset($_POST['memory_limit'])) {
                     // Must be set before phpiniPostMaxSize
-                    $phpini->setIniOption('phpiniMemoryLimit', clean_input($_POST['memory_limit']));
+                    $phpini->setIniOption('phpiniMemoryLimit', cleanInput($_POST['memory_limit']));
                 }
 
                 if (isset($_POST['post_max_size'])) {
                     // Must be set before phpiniUploadMaxFileSize
-                    $phpini->setIniOption('phpiniPostMaxSize', clean_input($_POST['post_max_size']));
+                    $phpini->setIniOption('phpiniPostMaxSize', cleanInput($_POST['post_max_size']));
                 }
 
                 if (isset($_POST['upload_max_filesize'])) {
-                    $phpini->setIniOption('phpiniUploadMaxFileSize', clean_input($_POST['upload_max_filesize']));
+                    $phpini->setIniOption('phpiniUploadMaxFileSize', cleanInput($_POST['upload_max_filesize']));
                 }
 
                 if (isset($_POST['max_execution_time'])) {
-                    $phpini->setIniOption('phpiniMaxExecutionTime', clean_input($_POST['max_execution_time']));
+                    $phpini->setIniOption('phpiniMaxExecutionTime', cleanInput($_POST['max_execution_time']));
                 }
 
                 if (isset($_POST['max_input_time'])) {
-                    $phpini->setIniOption('phpiniMaxInputTime', clean_input($_POST['max_input_time']));
+                    $phpini->setIniOption('phpiniMaxInputTime', cleanInput($_POST['max_input_time']));
                 }
             } else {
                 // Reset client permissions to their default values
@@ -553,13 +546,13 @@ exit;
 
             if ($data['domain_dns'] != $data['fallback_domain_dns'] && $data['domain_dns'] == 'no') {
                 // We must delete all custom DNS entries, except those that are protected
-                exec_query("DELETE FROM domain_dns WHERE domain_id = ? AND owned_by = 'custom_dns_feature'", [$data['domain_id']]);
+                execQuery("DELETE FROM domain_dns WHERE domain_id = ? AND owned_by = 'custom_dns_feature'", [$data['domain_id']]);
                 $changeNeeded = true;
             }
 
             // Update client IP addresses, limits and permissions
 
-            exec_query(
+            execQuery(
                 '
                     UPDATE domain
                     SET domain_expires = ?, domain_last_modified = ?, domain_mailacc_limit = ?, domain_ftpacc_limit = ?, domain_traffic_limit = ?,
@@ -591,12 +584,12 @@ exit;
 
             if ($data['fallback_mail_quota'] != ($data['mail_quota'] * 1048576)) {
                 // Sync mailboxes quota
-                sync_mailboxes_quota($data['domain_id'], $data['mail_quota'] * 1048576);
+                syncMailboxesQuota($data['domain_id'], $data['mail_quota'] * 1048576);
             }
 
             if ($data['domain_disk_limit'] != $data['fallback_domain_disk_limit']) {
                 // Update FTP quota limit
-                exec_query(
+                execQuery(
                     "
                         REPLACE INTO quotalimits (
                             name, quota_type, per_session, limit_type, bytes_in_avail, bytes_out_avail, bytes_xfer_avail, files_in_avail,
@@ -609,7 +602,7 @@ exit;
                 );
             }
 
-            update_reseller_c_props($data['reseller_id']);
+            recalculateResellerAssignments($data['reseller_id']);
 
             Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditCustomerAccountProps, [
                 'customerId'          => $clientId,
@@ -651,12 +644,12 @@ exit;
                 // FIXME: This issue should be addressed by making use of a job queue instead of realying on the entity status
 
                 // Update dmn
-                exec_query(
+                execQuery(
                     "UPDATE domain SET domain_status = 'tochange' WHERE domain_id = ? AND domain_status NOT IN('disabled', 'todisable', 'todelete')",
                     [$data['domain_id']]
                 );
                 // Update sub, except those that disabled, being disabled or deleted
-                exec_query(
+                execQuery(
                     "
                         UPDATE subdomain
                         SET subdomain_status = 'tochange'
@@ -666,7 +659,7 @@ exit;
                     [$data['domain_id']]
                 );
                 // Update als, except those that ordered, disabled, being disabled or deleted
-                exec_query(
+                execQuery(
                     "
                         UPDATE domain_aliases
                         SET alias_status = 'tochange'
@@ -677,7 +670,7 @@ exit;
                 );
 
                 // Update alssub, except those that are disabled, being disabled or deleted
-                exec_query(
+                execQuery(
                     "
                         UPDATE subdomain_alias AS t1
                         JOIN domain_aliases AS t2 USING(alias_id)
@@ -694,12 +687,12 @@ exit;
             $db->commit();
 
             if ($changeNeeded) {
-                send_request();
+                sendDaemonRequest();
             }
 
-            set_page_message(tr('Domain successfully updated.'), 'success');
+            setPageMessage(tr('Domain successfully updated.'), 'success');
             $userLogged = isset($_SESSION['logged_from']) ? $_SESSION['logged_from'] : $_SESSION['user_logged'];
-            write_log(sprintf('%s account properties were updated by %s', decode_idna($data['admin_name']), $userLogged), E_USER_NOTICE);
+            writeLog(sprintf('%s account properties were updated by %s', decodeIdna($data['admin_name']), $userLogged), E_USER_NOTICE);
             return true;
         }
 
@@ -726,14 +719,14 @@ function isValidServiceLimit($newCustomerLimit, $customerConsumption, $customerL
 {
     // Please, don't change test order.
     if (($resellerLimit == -1 || $resellerLimit > 0) && $newCustomerLimit == 0) {
-        set_page_message(
+        setPageMessage(
             tr('The %s limit for this customer cannot be unlimited because your are limited for this service.', $translatedServiceName), 'error'
         );
         return false;
     }
 
     if ($newCustomerLimit == -1 && $customerConsumption > 0) {
-        set_page_message(
+        setPageMessage(
             tr(
                 "The %s limit for this customer cannot be set to 'disabled' because he has already %d %s.", $translatedServiceName,
                 $customerConsumption, $translatedServiceName
@@ -746,7 +739,7 @@ function isValidServiceLimit($newCustomerLimit, $customerConsumption, $customerL
     if ($resellerLimit != 0
         && $newCustomerLimit > ($resellerLimit - $resellerConsumption) + $customerLimit
     ) {
-        set_page_message(
+        setPageMessage(
             tr(
                 'The %s limit for this customer cannot be greater than %d, your calculated limit.', $translatedServiceName,
                 ($resellerLimit - $resellerConsumption) + $customerLimit
@@ -757,7 +750,7 @@ function isValidServiceLimit($newCustomerLimit, $customerConsumption, $customerL
     }
 
     if ($newCustomerLimit != -1 && $newCustomerLimit != 0 && $newCustomerLimit < $customerConsumption) {
-        set_page_message(
+        setPageMessage(
             tr(
                 'The %s limit for this customer cannot be lower than %d, the total of %s already used by him.', $translatedServiceName,
                 round($customerConsumption), $translatedServiceName
@@ -780,25 +773,25 @@ function isValidServiceLimit($newCustomerLimit, $customerConsumption, $customerL
 function generatePage(TemplateEngine $tpl, $clientId)
 {
     $data =& getData($clientId);
-    
+
     $tpl->assign([
-        'CLIENT_ID'                      => tohtml($clientId, 'htmlAttr'),
-        'TR_ACCOUNT'                     => tohtml(tr('Account')),
-        'TR_ACCOUNT_NAME'                => tohtml(tr('Name')),
-        'ACCOUNT_NAME'                   => tohtml(decode_idna($data['domain_name'])),
-        'TR_EXPIRY_DATE'                 => tohtml(tr('Expiration date')),
-        'TR_TOOLTIP_ACCOUNT_EXPIRY_DATE' => tohtml(tr('Leave blank for no expiry date.'), 'htmlAttr'),
-        'ACCOUNT_EXPIRY_DATE'            => tohtml(
+        'CLIENT_ID'                      => toHtml($clientId, 'htmlAttr'),
+        'TR_ACCOUNT'                     => toHtml(tr('Account')),
+        'TR_ACCOUNT_NAME'                => toHtml(tr('Name')),
+        'ACCOUNT_NAME'                   => toHtml(decodeIdna($data['domain_name'])),
+        'TR_EXPIRY_DATE'                 => toHtml(tr('Expiration date')),
+        'TR_TOOLTIP_ACCOUNT_EXPIRY_DATE' => toHtml(tr('Leave blank for no expiry date.'), 'htmlAttr'),
+        'ACCOUNT_EXPIRY_DATE'            => toHtml(
             isset($_POST['domain_expires']) ? $_POST['domain_expires'] : $data['domain_expires'] != 0 ? date('m/d/Y', $data['domain_expires']) : '',
             'htmlAttr'
         ),
-        'TR_IPS'                         => tohtml(tr('IP addresses')),
-        'TR_FEATURES_PERMISSIONS' => tohtml(tr('Features / Permissions')),
-        'TR_PHP'                  => tohtml(tr('PHP')),
-        'PHP_YES'                 => $data['domain_php'] == 'yes' ? ' checked' : '',
-        'PHP_NO'                  => $data['domain_php'] != 'yes' ? ' checked' : ''
+        'TR_IPS'                         => toHtml(tr('IP addresses')),
+        'TR_FEATURES_PERMISSIONS'        => toHtml(tr('Features / Permissions')),
+        'TR_PHP'                         => toHtml(tr('PHP')),
+        'PHP_YES'                        => $data['domain_php'] == 'yes' ? ' checked' : '',
+        'PHP_NO'                         => $data['domain_php'] != 'yes' ? ' checked' : ''
     ]);
-    
+
     generateResellerIpsList($tpl, $_SESSION['user_id'], $data['domain_client_ips']);
 
     $phpini = PhpIni::getInstance();
@@ -807,14 +800,14 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $tpl->assign('PHP_EDITOR_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_PHP_SETTINGS'          => tohtml(tr('PHP Settings')),
-            'TR_PHP_EDITOR'            => tohtml(tr('PHP Editor')),
-            'TR_PHP_EDITOR_SETTINGS'   => tohtml(tr('PHP Settings')),
-            'TR_PHP_PERMISSIONS'       => tohtml(tr('PHP Permissions')),
-            'TR_PHP_DIRECTIVES_VALUES' => tohtml(tr('PHP directives values')),
-            'TR_PHP_FIELDS_OK'         => tohtml(tr('All fields are valid.')),
-            'TR_MIB'                   => tohtml(tr('MiB')),
-            'TR_SEC'                   => tohtml(tr('Sec.')),
+            'TR_PHP_SETTINGS'          => toHtml(tr('PHP Settings')),
+            'TR_PHP_EDITOR'            => toHtml(tr('PHP Editor')),
+            'TR_PHP_EDITOR_SETTINGS'   => toHtml(tr('PHP Settings')),
+            'TR_PHP_PERMISSIONS'       => toHtml(tr('PHP Permissions')),
+            'TR_PHP_DIRECTIVES_VALUES' => toHtml(tr('PHP directives values')),
+            'TR_PHP_FIELDS_OK'         => toHtml(tr('All fields are valid.')),
+            'TR_MIB'                   => toHtml(tr('MiB')),
+            'TR_SEC'                   => toHtml(tr('Sec.')),
             'PHP_EDITOR_YES'           => $phpini->clientHasPermission('phpiniSystem') ? ' checked' : '',
             'PHP_EDITOR_NO'            => $phpini->clientHasPermission('phpiniSystem') ? '' : ' checked'
         ]);
@@ -827,10 +820,10 @@ function generatePage(TemplateEngine $tpl, $clientId)
             if ($phpini->getResellerPermission('phpiniConfigLevel') == 'per_site') {
                 $tpl->assign([
                     'TR_PHPINI_PERM_CONFIG_LEVEL'         => tr('PHP configuration level'),
-                    'TR_PHPINI_PERM_CONFIG_LEVEL_HELP'    => tohtml(tr('Per site: Different PHP configuration for each customer domain, including subdomains<br>Per domain: Identical PHP configuration for each customer domain, including subdomains<br>Per user: Identical PHP configuration for all customer domains, including subdomains'), 'htmlAttr'),
-                    'TR_PER_DOMAIN'                       => tohtml(tr('Per domain')),
-                    'TR_PER_SITE'                         => tohtml(tr('Per site')),
-                    'TR_PER_USER'                         => tohtml(tr('Per user')),
+                    'TR_PHPINI_PERM_CONFIG_LEVEL_HELP'    => toHtml(tr('Per site: Different PHP configuration for each customer domain, including subdomains<br>Per domain: Identical PHP configuration for each customer domain, including subdomains<br>Per user: Identical PHP configuration for all customer domains, including subdomains'), 'htmlAttr'),
+                    'TR_PER_DOMAIN'                       => toHtml(tr('Per domain')),
+                    'TR_PER_SITE'                         => toHtml(tr('Per site')),
+                    'TR_PER_USER'                         => toHtml(tr('Per user')),
                     'PHPINI_PERM_CONFIG_LEVEL_PER_DOMAIN' => $phpini->getClientPermission('phpiniConfigLevel') == 'per_domain' ? ' checked' : '',
                     'PHPINI_PERM_CONFIG_LEVEL_PER_SITE'   => $phpini->getClientPermission('phpiniConfigLevel') == 'per_site' ? ' checked' : '',
                     'PHPINI_PERM_CONFIG_LEVEL_PER_USER'   => $phpini->getClientPermission('phpiniConfigLevel') == 'per_user' ? ' checked' : '',
@@ -838,10 +831,10 @@ function generatePage(TemplateEngine $tpl, $clientId)
             } else {
                 $tpl->assign([
                     'PHPINI_PERM_CONFIG_LEVEL_PER_SITE_BLOCK' => '',
-                    'TR_PHPINI_PERM_CONFIG_LEVEL'             => tohtml(tr('PHP configuration level')),
-                    'TR_PHPINI_PERM_CONFIG_LEVEL_HELP'        => tohtml(tr('Per domain: Identical PHP configuration for each customer domain, including subdomains<br>Per user: Identical PHP configuration for all customer domains, including subdomains'), 'htmlAttr'),
-                    'TR_PER_DOMAIN'                           => tohtml(tr('Per domain')),
-                    'TR_PER_USER'                             => tohtml(tr('Per user')),
+                    'TR_PHPINI_PERM_CONFIG_LEVEL'             => toHtml(tr('PHP configuration level')),
+                    'TR_PHPINI_PERM_CONFIG_LEVEL_HELP'        => toHtml(tr('Per domain: Identical PHP configuration for each customer domain, including subdomains<br>Per user: Identical PHP configuration for all customer domains, including subdomains'), 'htmlAttr'),
+                    'TR_PER_DOMAIN'                           => toHtml(tr('Per domain')),
+                    'TR_PER_USER'                             => toHtml(tr('Per user')),
                     'PHPINI_PERM_CONFIG_LEVEL_PER_DOMAIN'     => $phpini->getClientPermission('phpiniConfigLevel') == 'per_domain' ? ' checked' : '',
                     'PHPINI_PERM_CONFIG_LEVEL_PER_SITE'       => $phpini->getClientPermission('phpiniConfigLevel') == 'per_site' ? ' checked' : '',
                     'PHPINI_PERM_CONFIG_LEVEL_PER_USER'       => $phpini->getClientPermission('phpiniConfigLevel') == 'per_user' ? ' checked' : '',
@@ -874,7 +867,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         }
 
         if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-            $apacheConfig = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+            $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
             $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
         } else {
             $isApacheItk = false;
@@ -917,20 +910,20 @@ function generatePage(TemplateEngine $tpl, $clientId)
 
         $tpl->assign([
             'TR_POST_MAX_SIZE'          => tr('PHP %s configuration option', '<b>post_max_size</b>'),
-            'POST_MAX_SIZE'             => tohtml($phpini->getIniOption('phpiniPostMaxSize'), 'htmlAttr'),
+            'POST_MAX_SIZE'             => toHtml($phpini->getIniOption('phpiniPostMaxSize'), 'htmlAttr'),
             'TR_UPLOAD_MAX_FILEZISE'    => tr('PHP %s configuration option', '<b>upload_max_filesize</b>'),
-            'UPLOAD_MAX_FILESIZE'       => tohtml($phpini->getIniOption('phpiniUploadMaxFileSize'), 'htmlAttr'),
+            'UPLOAD_MAX_FILESIZE'       => toHtml($phpini->getIniOption('phpiniUploadMaxFileSize'), 'htmlAttr'),
             'TR_MAX_EXECUTION_TIME'     => tr('PHP %s configuration option', '<b>max_execution_time</b>'),
-            'MAX_EXECUTION_TIME'        => tohtml($phpini->getIniOption('phpiniMaxExecutionTime'), 'htmlAttr'),
+            'MAX_EXECUTION_TIME'        => toHtml($phpini->getIniOption('phpiniMaxExecutionTime'), 'htmlAttr'),
             'TR_MAX_INPUT_TIME'         => tr('PHP %s configuration option', '<b>max_input_time</b>'),
-            'MAX_INPUT_TIME'            => tohtml($phpini->getIniOption('phpiniMaxInputTime'), 'htmlAttr'),
+            'MAX_INPUT_TIME'            => toHtml($phpini->getIniOption('phpiniMaxInputTime'), 'htmlAttr'),
             'TR_MEMORY_LIMIT'           => tr('PHP %s configuration option', '<b>memory_limit</b>'),
-            'MEMORY_LIMIT'              => tohtml($phpini->getIniOption('phpiniMemoryLimit'), 'htmlAttr'),
-            'POST_MAX_SIZE_LIMIT'       => tohtml($phpini->getResellerPermission('phpiniPostMaxSize'), 'htmlAttr'),
-            'UPLOAD_MAX_FILESIZE_LIMIT' => tohtml($phpini->getResellerPermission('phpiniUploadMaxFileSize'), 'htmlAttr'),
-            'MAX_EXECUTION_TIME_LIMIT'  => tohtml($phpini->getResellerPermission('phpiniMaxExecutionTime'), 'htmlAttr'),
-            'MAX_INPUT_TIME_LIMIT'      => tohtml($phpini->getResellerPermission('phpiniMaxInputTime'), 'htmlAttr'),
-            'MEMORY_LIMIT_LIMIT'        => tohtml($phpini->getResellerPermission('phpiniMemoryLimit'), 'htmlAttr')
+            'MEMORY_LIMIT'              => toHtml($phpini->getIniOption('phpiniMemoryLimit'), 'htmlAttr'),
+            'POST_MAX_SIZE_LIMIT'       => toHtml($phpini->getResellerPermission('phpiniPostMaxSize'), 'htmlAttr'),
+            'UPLOAD_MAX_FILESIZE_LIMIT' => toHtml($phpini->getResellerPermission('phpiniUploadMaxFileSize'), 'htmlAttr'),
+            'MAX_EXECUTION_TIME_LIMIT'  => toHtml($phpini->getResellerPermission('phpiniMaxExecutionTime'), 'htmlAttr'),
+            'MAX_INPUT_TIME_LIMIT'      => toHtml($phpini->getResellerPermission('phpiniMaxInputTime'), 'htmlAttr'),
+            'MEMORY_LIMIT_LIMIT'        => toHtml($phpini->getResellerPermission('phpiniMemoryLimit'), 'htmlAttr')
         ]);
     }
 
@@ -944,14 +937,14 @@ function generatePage(TemplateEngine $tpl, $clientId)
     });
 
     $tpl->assign([
-        'TR_CGI'  => tohtml(tr('CGI')),
+        'TR_CGI'  => toHtml(tr('CGI')),
         'CGI_YES' => $data['domain_cgi'] == 'yes' ? ' checked' : '',
         'CGI_NO'  => $data['domain_cgi'] != 'yes' ? ' checked' : ''
     ]);
 
     if (resellerHasFeature('custom_dns_records')) {
         $tpl->assign([
-            'TR_DNS'  => tohtml(tr('Custom DNS records')),
+            'TR_DNS'  => toHtml(tr('Custom DNS records')),
             'DNS_YES' => $data['domain_dns'] == 'yes' ? ' checked' : '',
             'DNS_NO'  => $data['domain_dns'] != 'yes' ? ' checked' : ''
         ]);
@@ -963,7 +956,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $tpl->assign('APS_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_APS'  => tohtml(tr('Software installer')),
+            'TR_APS'  => toHtml(tr('Software installer')),
             'APS_YES' => $data['domain_software_allowed'] == 'yes' ? ' checked' : '',
             'APS_NO'  => $data['domain_software_allowed'] != 'yes' ? ' checked' : ''
         ]);
@@ -973,7 +966,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $tpl->assign('EXT_MAIL_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_EXTMAIL'  => tohtml(tr('External mail server')),
+            'TR_EXTMAIL'  => toHtml(tr('External mail server')),
             'EXTMAIL_YES' => $data['domain_external_mail'] == 'yes' ? ' checked' : '',
             'EXTMAIL_NO'  => $data['domain_external_mail'] != 'yes' ? ' checked' : ''
         ]);
@@ -981,12 +974,12 @@ function generatePage(TemplateEngine $tpl, $clientId)
 
     if (Registry::get('config')['BACKUP_DOMAINS'] == 'yes') {
         $tpl->assign([
-            'TR_BACKUP'        => tohtml(tr('Backup')),
-            'TR_BACKUP_DOMAIN' => tohtml(tr('Domain')),
+            'TR_BACKUP'        => toHtml(tr('Backup')),
+            'TR_BACKUP_DOMAIN' => toHtml(tr('Domain')),
             'BACKUP_DOMAIN'    => in_array('dmn', $data['allowbackup']) ? ' checked' : '',
-            'TR_BACKUP_SQL'    => tohtml(tr('SQL')),
+            'TR_BACKUP_SQL'    => toHtml(tr('SQL')),
             'BACKUP_SQL'       => in_array('sql', $data['allowbackup']) ? ' checked' : '',
-            'TR_BACKUP_MAIL'   => tohtml(tr('Mail')),
+            'TR_BACKUP_MAIL'   => toHtml(tr('Mail')),
             'BACKUP_MAIL'      => in_array('mail', $data['allowbackup']) ? ' checked' : ''
         ]);
     } else {
@@ -994,22 +987,22 @@ function generatePage(TemplateEngine $tpl, $clientId)
     }
 
     $tpl->assign([
-        'TR_WEB_FOLDER_PROTECTION'      => tohtml(tr('Web folder protection')),
-        'TR_WEB_FOLDER_PROTECTION_HELP' => tohtml(tr('If set to `yes`, Web folders will be protected against deletion.'), 'htmlAttr'),
+        'TR_WEB_FOLDER_PROTECTION'      => toHtml(tr('Web folder protection')),
+        'TR_WEB_FOLDER_PROTECTION_HELP' => toHtml(tr('If set to `yes`, Web folders will be protected against deletion.'), 'htmlAttr'),
         'WEB_FOLDER_PROTECTION_YES'     => $data['web_folder_protection'] == 'yes' ? ' checked' : '',
         'WEB_FOLDER_PROTECTION_NO'      => $data['web_folder_protection'] != 'yes' ? ' checked' : '',
-        'TR_YES'                        => tohtml(tr('Yes')),
-        'TR_NO'                         => tohtml(tr('No'))
+        'TR_YES'                        => toHtml(tr('Yes')),
+        'TR_NO'                         => toHtml(tr('No'))
     ]);
 
     list(, $subdomainCount, $domainAliasesCount, $mailsCount, $ftpUsersCount, $sqlDbCount, $sqlUserCount, $trafficUsage, $diskUsage
         ) = getResellerStats($_SESSION['user_id']);
 
     $tpl->assign([
-        'TR_LIMITS'               => tohtml(tr('Limits')),
-        'TR_VALUE'                => tohtml(tr('Value')),
-        'TR_CUSTOMER_CONSUMPTION' => tohtml(tr('Customer consumption')),
-        'TR_RESELLER_CONSUMPTION' => tohtml(isset($_SESSION['logged_from']) ? tr('Reseller consumption') : tr('Your consumption'))
+        'TR_LIMITS'               => toHtml(tr('Limits')),
+        'TR_VALUE'                => toHtml(tr('Value')),
+        'TR_CUSTOMER_CONSUMPTION' => toHtml(tr('Customer consumption')),
+        'TR_RESELLER_CONSUMPTION' => toHtml(isset($_SESSION['logged_from']) ? tr('Reseller consumption') : tr('Your consumption'))
     ]);
 
     // Subdomains limit
@@ -1017,12 +1010,12 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $tpl->assign('SUBDOMAIN_LIMIT_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_SUBDOMAINS_LIMIT'               => tohtml(tr('Subdomains limit')) . '<br><i>(-1 ' . tohtml(tr('disabled')) . ', 0 ∞)</i>',
-            'SUBDOMAIN_LIMIT'                   => tohtml($data['domain_subd_limit']),
-            'TR_CUSTOMER_SUBDOMAINS_COMSUPTION' => $data['fallback_domain_subd_limit'] != -1 ? tohtml($data['nbSubdomains']) . ' / ' . (
-                $data['fallback_domain_subd_limit'] != 0 ? tohtml($data['fallback_domain_subd_limit']) : '∞') : tohtml(tr('Disabled')),
-            'TR_RESELLER_SUBDOMAINS_COMSUPTION' => tohtml($subdomainCount) . ' / ' . (
-                $data['max_sub_cnt'] != 0 ? tohtml($data['max_sub_cnt']) : '∞')
+            'TR_SUBDOMAINS_LIMIT'               => toHtml(tr('Subdomains limit')) . '<br><i>(-1 ' . toHtml(tr('disabled')) . ', 0 ∞)</i>',
+            'SUBDOMAIN_LIMIT'                   => toHtml($data['domain_subd_limit']),
+            'TR_CUSTOMER_SUBDOMAINS_COMSUPTION' => $data['fallback_domain_subd_limit'] != -1 ? toHtml($data['nbSubdomains']) . ' / ' . (
+                $data['fallback_domain_subd_limit'] != 0 ? toHtml($data['fallback_domain_subd_limit']) : '∞') : toHtml(tr('Disabled')),
+            'TR_RESELLER_SUBDOMAINS_COMSUPTION' => toHtml($subdomainCount) . ' / ' . (
+                $data['max_sub_cnt'] != 0 ? toHtml($data['max_sub_cnt']) : '∞')
         ]);
     }
 
@@ -1031,13 +1024,13 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $tpl->assign('DOMAIN_ALIASES_LIMIT_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_ALIASES_LIMIT'                      => tohtml(tr('Domain aliases limit')) . '<br><i>(-1 ' . tohtml(tr('disabled')) . ', 0 ∞)</i>',
-            'DOMAIN_ALIASES_LIMIT'                  => tohtml($data['domain_alias_limit']),
+            'TR_ALIASES_LIMIT'                      => toHtml(tr('Domain aliases limit')) . '<br><i>(-1 ' . toHtml(tr('disabled')) . ', 0 ∞)</i>',
+            'DOMAIN_ALIASES_LIMIT'                  => toHtml($data['domain_alias_limit']),
             'TR_CUSTOMER_DOMAIN_ALIASES_COMSUPTION' => $data['fallback_domain_alias_limit'] != -1
-                ? tohtml($data['nbAliases']) . ' / ' . ($data['fallback_domain_alias_limit'] != 0
-                    ? tohtml($data['fallback_domain_alias_limit']) : '∞') : tohtml(tr('Disabled')),
-            'TR_RESELLER_DOMAIN_ALIASES_COMSUPTION' => tohtml($domainAliasesCount) . ' / '
-                . ($data['max_als_cnt'] != 0 ? tohtml($data['max_als_cnt']) : '∞')
+                ? toHtml($data['nbAliases']) . ' / ' . ($data['fallback_domain_alias_limit'] != 0
+                    ? toHtml($data['fallback_domain_alias_limit']) : '∞') : toHtml(tr('Disabled')),
+            'TR_RESELLER_DOMAIN_ALIASES_COMSUPTION' => toHtml($domainAliasesCount) . ' / '
+                . ($data['max_als_cnt'] != 0 ? toHtml($data['max_als_cnt']) : '∞')
         ]);
     }
 
@@ -1048,17 +1041,17 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $mailData = getMailData($data['domain_id'], $data['fallback_mail_quota']);
 
         $tpl->assign([
-            'TR_MAIL_ACCOUNTS_LIMIT'               => tohtml(tr('Mail accounts limit')) . '<br><i>(-1 ' . tohtml(tr('disabled')) . ', 0 ∞)</i>',
-            'MAIL_ACCOUNTS_LIMIT'                  => tohtml($data['domain_mailacc_limit']),
+            'TR_MAIL_ACCOUNTS_LIMIT'               => toHtml(tr('Mail accounts limit')) . '<br><i>(-1 ' . toHtml(tr('disabled')) . ', 0 ∞)</i>',
+            'MAIL_ACCOUNTS_LIMIT'                  => toHtml($data['domain_mailacc_limit']),
             'TR_CUSTOMER_MAIL_ACCOUNTS_COMSUPTION' => $data['fallback_domain_mailacc_limit'] != -1
-                ? tohtml($data['nbMailAccounts']) . ' / ' . ($data['fallback_domain_mailacc_limit'] != 0
-                    ? tohtml($data['fallback_domain_mailacc_limit']) : '∞') : tr('Disabled'),
-            'TR_RESELLER_MAIL_ACCOUNTS_COMSUPTION' => tohtml($mailsCount) . ' / '
-                . ($data['max_mail_cnt'] != 0 ? tohtml($data['max_mail_cnt']) : '∞'),
-            'TR_MAIL_QUOTA'                        => tohtml(tr('Mail quota [MiB]')) . '<br/><i>(0 ∞)</i>',
-            'MAIL_QUOTA'                           => $data['mail_quota'] != 0 ? tohtml($data['mail_quota']) : 0,
+                ? toHtml($data['nbMailAccounts']) . ' / ' . ($data['fallback_domain_mailacc_limit'] != 0
+                    ? toHtml($data['fallback_domain_mailacc_limit']) : '∞') : tr('Disabled'),
+            'TR_RESELLER_MAIL_ACCOUNTS_COMSUPTION' => toHtml($mailsCount) . ' / '
+                . ($data['max_mail_cnt'] != 0 ? toHtml($data['max_mail_cnt']) : '∞'),
+            'TR_MAIL_QUOTA'                        => toHtml(tr('Mail quota [MiB]')) . '<br/><i>(0 ∞)</i>',
+            'MAIL_QUOTA'                           => $data['mail_quota'] != 0 ? toHtml($data['mail_quota']) : 0,
             'TR_CUSTOMER_MAIL_QUOTA_COMSUPTION'    => $mailData['quota_sum'] . ' / ' . $mailData['quota_limit'],
-            'TR_NO_AVAILABLE'                      => tohtml(tr('N/A'))
+            'TR_NO_AVAILABLE'                      => toHtml(tr('N/A'))
         ]);
     }
 
@@ -1067,13 +1060,13 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $tpl->assign('FTP_ACCOUNTS_LIMIT_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_FTP_ACCOUNTS_LIMIT'               => tohtml(tr('FTP accounts limit')) . '<br><i>(-1 ' . tohtml(tr('disabled')) . ', 0 ∞)</i>',
-            'FTP_ACCOUNTS_LIMIT'                  => tohtml($data['domain_ftpacc_limit']),
+            'TR_FTP_ACCOUNTS_LIMIT'               => toHtml(tr('FTP accounts limit')) . '<br><i>(-1 ' . toHtml(tr('disabled')) . ', 0 ∞)</i>',
+            'FTP_ACCOUNTS_LIMIT'                  => toHtml($data['domain_ftpacc_limit']),
             'TR_CUSTOMER_FTP_ACCOUNTS_COMSUPTION' => $data['fallback_domain_ftpacc_limit'] != -1
-                ? tohtml($data['nbFtpAccounts']) . ' / ' . ($data['fallback_domain_ftpacc_limit'] != 0
-                    ? tohtml($data['fallback_domain_ftpacc_limit']) : '∞') : tohtml(tr('Disabled')),
-            'TR_RESELLER_FTP_ACCOUNTS_COMSUPTION' => tohtml($ftpUsersCount) . ' / '
-                . ($data['max_ftp_cnt'] != 0 ? tohtml($data['max_ftp_cnt']) : '∞')
+                ? toHtml($data['nbFtpAccounts']) . ' / ' . ($data['fallback_domain_ftpacc_limit'] != 0
+                    ? toHtml($data['fallback_domain_ftpacc_limit']) : '∞') : toHtml(tr('Disabled')),
+            'TR_RESELLER_FTP_ACCOUNTS_COMSUPTION' => toHtml($ftpUsersCount) . ' / '
+                . ($data['max_ftp_cnt'] != 0 ? toHtml($data['max_ftp_cnt']) : '∞')
         ]);
     }
 
@@ -1082,48 +1075,46 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $tpl->assign('SQL_DB_AND_USERS_LIMIT_BLOCK', '');
     } else {
         $tpl->assign([
-            'TR_SQL_DATABASES_LIMIT'               => tohtml(tr('SQL databases limit')) . '<br><i>(-1 ' . tohtml(tr('disabled')) . ', 0 ∞)</i>',
-            'SQL_DATABASES_LIMIT'                  => tohtml($data['domain_sqld_limit']),
+            'TR_SQL_DATABASES_LIMIT'               => toHtml(tr('SQL databases limit')) . '<br><i>(-1 ' . toHtml(tr('disabled')) . ', 0 ∞)</i>',
+            'SQL_DATABASES_LIMIT'                  => toHtml($data['domain_sqld_limit']),
             'TR_CUSTOMER_SQL_DATABASES_COMSUPTION' => $data['fallback_domain_sqld_limit'] != -1
-                ? tohtml($data['nbSqlDatabases']) . ' / ' . ($data['fallback_domain_sqld_limit'] != 0
-                    ? tohtml($data['fallback_domain_sqld_limit']) : '∞') : tr('Disabled'),
-            'TR_RESELLER_SQL_DATABASES_COMSUPTION' => tohtml($sqlDbCount) . ' / '
-                . ($data['max_sql_db_cnt'] != 0 ? tohtml($data['max_sql_db_cnt']) : '∞'),
-            'TR_SQL_USERS_LIMIT'                   => tohtml(tr('SQL users limit')) . '<br><i>(-1 ' . tohtml(tr('disabled')) . ', 0 ∞)</i>',
-            'SQL_USERS_LIMIT'                      => tohtml($data['domain_sqlu_limit']),
+                ? toHtml($data['nbSqlDatabases']) . ' / ' . ($data['fallback_domain_sqld_limit'] != 0
+                    ? toHtml($data['fallback_domain_sqld_limit']) : '∞') : tr('Disabled'),
+            'TR_RESELLER_SQL_DATABASES_COMSUPTION' => toHtml($sqlDbCount) . ' / '
+                . ($data['max_sql_db_cnt'] != 0 ? toHtml($data['max_sql_db_cnt']) : '∞'),
+            'TR_SQL_USERS_LIMIT'                   => toHtml(tr('SQL users limit')) . '<br><i>(-1 ' . toHtml(tr('disabled')) . ', 0 ∞)</i>',
+            'SQL_USERS_LIMIT'                      => toHtml($data['domain_sqlu_limit']),
             'TR_CUSTOMER_SQL_USERS_COMSUPTION'     => $data['fallback_domain_sqlu_limit'] != -1
-                ? tohtml($data['nbSqlUsers']) . ' / ' . ($data['fallback_domain_sqlu_limit'] != 0
-                    ? tohtml($data['fallback_domain_sqlu_limit']) : '∞') : tohtml(tr('Disabled')),
-            'TR_RESELLER_SQL_USERS_COMSUPTION'     => tohtml($sqlUserCount) . ' / '
-                . ($data['max_sql_user_cnt'] != 0 ? tohtml($data['max_sql_user_cnt']) : '∞')
+                ? toHtml($data['nbSqlUsers']) . ' / ' . ($data['fallback_domain_sqlu_limit'] != 0
+                    ? toHtml($data['fallback_domain_sqlu_limit']) : '∞') : toHtml(tr('Disabled')),
+            'TR_RESELLER_SQL_USERS_COMSUPTION'     => toHtml($sqlUserCount) . ' / '
+                . ($data['max_sql_user_cnt'] != 0 ? toHtml($data['max_sql_user_cnt']) : '∞')
         ]);
     }
 
     // Traffic limit
     $tpl->assign([
-        'TR_TRAFFIC_LIMIT'                => tohtml(tr('Monthly traffic limit [MiB]')) . '<br/><i>(0 ∞)</i>',
-        'TRAFFIC_LIMIT'                   => tohtml($data['domain_traffic_limit']),
-        'TR_CUSTOMER_TRAFFIC_COMSUPTION'  => tohtml(bytesHuman($data['domainTraffic'])) . ' / '
-            . ($data['fallback_domain_traffic_limit'] != 0 ? tohtml(mebibytesHuman($data['fallback_domain_traffic_limit'])) : '∞'),
-        'TR_RESELLER_TRAFFIC_COMSUPTION'  => tohtml(bytesHuman($trafficUsage)) . ' / '
-            . ($data['max_traff_amnt'] != 0 ? tohtml(mebibytesHuman($data['max_traff_amnt'])) : '∞'),
+        'TR_TRAFFIC_LIMIT'                => toHtml(tr('Monthly traffic limit [MiB]')) . '<br/><i>(0 ∞)</i>',
+        'TRAFFIC_LIMIT'                   => toHtml($data['domain_traffic_limit']),
+        'TR_CUSTOMER_TRAFFIC_COMSUPTION'  => toHtml(bytesHuman($data['domainTraffic'])) . ' / '
+            . ($data['fallback_domain_traffic_limit'] != 0 ? toHtml(mebibytesHuman($data['fallback_domain_traffic_limit'])) : '∞'),
+        'TR_RESELLER_TRAFFIC_COMSUPTION'  => toHtml(bytesHuman($trafficUsage)) . ' / '
+            . ($data['max_traff_amnt'] != 0 ? toHtml(mebibytesHuman($data['max_traff_amnt'])) : '∞'),
 
         // Disk space limit
-        'TR_DISK_LIMIT'                   => tohtml(tr('Disk space limit [MiB]')) . '<br/><i>(0 ∞)</span>',
-        'DISK_LIMIT'                      => tohtml($data['domain_disk_limit']),
-        'TR_CUSTOMER_DISKPACE_COMSUPTION' => tohtml(bytesHuman($data['domain_disk_usage'])) . ' / '
-            . ($data['fallback_domain_disk_limit'] != 0 ? tohtml(mebibytesHuman($data['fallback_domain_disk_limit'])) : '∞'),
-        'TR_RESELLER_DISKPACE_COMSUPTION' => tohtml(bytesHuman($diskUsage)) . ' / '
-            . ($data['max_disk_amnt'] != 0 ? tohtml(mebibytesHuman($data['max_disk_amnt'])) : '∞')
+        'TR_DISK_LIMIT'                   => toHtml(tr('Disk space limit [MiB]')) . '<br/><i>(0 ∞)</span>',
+        'DISK_LIMIT'                      => toHtml($data['domain_disk_limit']),
+        'TR_CUSTOMER_DISKPACE_COMSUPTION' => toHtml(bytesHuman($data['domain_disk_usage'])) . ' / '
+            . ($data['fallback_domain_disk_limit'] != 0 ? toHtml(mebibytesHuman($data['fallback_domain_disk_limit'])) : '∞'),
+        'TR_RESELLER_DISKPACE_COMSUPTION' => toHtml(bytesHuman($diskUsage)) . ' / '
+            . ($data['max_disk_amnt'] != 0 ? toHtml(mebibytesHuman($data['max_disk_amnt'])) : '∞')
     ]);
 }
 
 require 'imscp-lib.php';
 
-check_login('reseller');
+checkLogin('reseller');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
-
-$cfg = Registry::get('config');
 
 isset($_GET['client_id']) or showBadRequestErrorPage();
 
@@ -1161,23 +1152,19 @@ $tpl->define([
     'backup_block'                            => 'page'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'                  => tohtml(tr('Reseller / Customers / Overview / Edit Account')),
-    'TR_UPDATE'                      => tohtml(tr('Update'), 'htmlAttr'),
-    'TR_CANCEL'                      => tohtml(tr('Cancel'))
+    'TR_PAGE_TITLE' => toHtml(tr('Reseller / Customers / Overview / Edit Account')),
+    'TR_UPDATE'     => toHtml(tr('Update'), 'htmlAttr'),
+    'TR_CANCEL'     => toHtml(tr('Cancel'))
 ]);
-
 Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['available'] = tr('Available');
     $translations['core']['assigned'] = tr('Assigned');
 });
-
 generateNavigation($tpl);
 generatePage($tpl, $clientId);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

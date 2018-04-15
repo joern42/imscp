@@ -38,12 +38,12 @@
                 $form.find("#Submit").blur();
 
                 if ($("input[type=checkbox]:checked", $oTable.fnGetNodes()).length < 1) {
-                    alert("<?= tojs(tr('You must select at least one reseller.')); ?>");
+                    alert("<?= toJs(tr('You must select at least one reseller.')); ?>");
                     return false;
                 }
 
                 return jQuery.imscp.confirm(
-                    "<?= tojs(tr('Are you sure you want to move the selected resellers?')); ?>",
+                    "<?= toJs(tr('Are you sure you want to move the selected resellers?')); ?>",
                     function (ret) {
                         if (ret) {
                             $form.get(0).submit();
@@ -76,20 +76,20 @@
     });
 </script>
 <p class="message static_info">
-    <?= tohtml(tr('Below you can move resellers from an administrator to another administrator by selecting them and clicking the submit button.')); ?><br>
+    <?= toHtml(tr('Below you can move resellers from an administrator to another administrator by selecting them and clicking the submit button.')); ?><br>
 </p>
 <form action="manage_reseller_owners.php" method="post">
     <table class="datatable">
         <thead>
         <tr>
             <th><label><input type="checkbox" id="select_all"></label></th>
-            <th><?= tohtml(tr('Reseller name')); ?></th>
+            <th><?= toHtml(tr('Reseller name')); ?></th>
         </tr>
         </thead>
         <tfoot>
         <tr>
             <td><label><input type="checkbox" id="select_all"></label></td>
-            <td><?= tohtml(tr('Reseller name')); ?></td>
+            <td><?= toHtml(tr('Reseller name')); ?></td>
         </tr>
         </tfoot>
         <tbody>
@@ -105,13 +105,13 @@
         <tbody>
         <tr style="background-color:#b0def5">
             <td colspan="2" class="buttons">
-                <label for="from_administrator"><?= tohtml(tr('From administrator')); ?></label>
+                <label for="from_administrator"><?= toHtml(tr('From administrator')); ?></label>
                 <select name="from_administrator" id="from_administrator">
                     <!-- BDP: from_administrator_item -->
                     <option value="{FROM_ADMINISTRATOR_ID}"{FROM_ADMINISTRATOR_SELECTED}>{FROM_ADMINISTRATOR_NAME}</option>
                     <!-- EDP: from_administrator_item -->
                 </select>
-                <label for="to_administrator"><?= tohtml(tr('to administrator')) ;?></label>
+                <label for="to_administrator"><?= toHtml(tr('to administrator')) ;?></label>
                 <select name="to_administrator" id="to_administrator">
                     <!-- BDP: to_administrator_item -->
                     <option value="{TO_ADMINISTRATOR_ID}"{TO_ADMINISTRATOR_SELECTED}>{TO_ADMINISTRATOR_NAME}</option>
@@ -122,7 +122,7 @@
         </tbody>
     </table>
     <div class="buttons">
-        <input type="submit" id="Submit" value="<?= tohtml(tr('Move selected resellers'), 'htmlAttr');?>">
+        <input type="submit" id="Submit" value="<?= toHtml(tr('Move selected resellers'), 'htmlAttr');?>">
         <input type="hidden" name="uaction" value="move_resellers">
     </div>
 </form>

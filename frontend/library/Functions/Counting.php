@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP_Registry as Registry;
@@ -28,9 +28,9 @@ use iMSCP_Registry as Registry;
  *
  * @return int Count of administrator accounts
  */
-function get_administrators_count()
+function getAdministratorsCount()
 {
-    return get_objects_count('admin', 'admin_id', "WHERE admin_type = 'admin' AND admin_status <> 'todelete'");
+    return getObjectsCount('admin', 'admin_id', "WHERE admin_type = 'admin' AND admin_status <> 'todelete'");
 }
 
 /**
@@ -38,9 +38,9 @@ function get_administrators_count()
  *
  * @return int Count of reseller accounts
  */
-function get_resellers_count()
+function getResellersCount()
 {
-    return get_objects_count('admin', 'admin_id', "WHERE admin_type = 'reseller' AND admin_status <> 'todelete'");
+    return getObjectsCount('admin', 'admin_id', "WHERE admin_type = 'reseller' AND admin_status <> 'todelete'");
 }
 
 /**
@@ -48,9 +48,9 @@ function get_resellers_count()
  *
  * @return int Count of customer accounts
  */
-function get_customers_count()
+function getCustomersCount()
 {
-    return get_objects_count('admin', 'admin_id', "WHERE admin_type = 'user' AND admin_status <> 'todelete'");
+    return getObjectsCount('admin', 'admin_id', "WHERE admin_type = 'user' AND admin_status <> 'todelete'");
 }
 
 /**
@@ -58,9 +58,9 @@ function get_customers_count()
  *
  * @return int Count of domains
  */
-function get_domains_count()
+function getDomainsCount()
 {
-    return get_objects_count('domain', 'domain_id', "WHERE domain_status <> 'todelete'");
+    return getObjectsCount('domain', 'domain_id', "WHERE domain_status <> 'todelete'");
 }
 
 /**
@@ -69,10 +69,10 @@ function get_domains_count()
  *
  * @return int Count of subdomains
  */
-function get_subdomains_count()
+function getSubdomainsCount()
 {
-    return get_objects_count('subdomain', 'subdomain_id', "WHERE subdomain_status <> 'todelete'")
-        + get_objects_count('subdomain_alias', 'subdomain_alias_id', "WHERE subdomain_alias_status <> 'todelete'");
+    return getObjectsCount('subdomain', 'subdomain_id', "WHERE subdomain_status <> 'todelete'")
+        + getObjectsCount('subdomain_alias', 'subdomain_alias_id', "WHERE subdomain_alias_status <> 'todelete'");
 }
 
 /**
@@ -80,9 +80,9 @@ function get_subdomains_count()
  *
  * @return int Count of domain aliases
  */
-function get_domain_aliases_count()
+function getDomainAliasesCount()
 {
-    return get_objects_count('domain_aliases', 'alias_id', "WHERE alias_status NOT IN('ordered', 'todelete')");
+    return getObjectsCount('domain_aliases', 'alias_id', "WHERE alias_status NOT IN('ordered', 'todelete')");
 }
 
 /**
@@ -92,7 +92,7 @@ function get_domain_aliases_count()
  *
  * @return int Count of mail accounts
  */
-function get_mail_accounts_count()
+function getMailAccountsCount()
 {
     $where = '';
 
@@ -115,7 +115,7 @@ function get_mail_accounts_count()
 
     $where .= ($where == '' ? 'WHERE ' : 'AND ') . "status <> 'todelete'";
 
-    return get_objects_count('mail_users', 'mail_id', $where);
+    return getObjectsCount('mail_users', 'mail_id', $where);
 }
 
 /**
@@ -123,9 +123,9 @@ function get_mail_accounts_count()
  *
  * @return int Count of FTP users
  */
-function get_ftp_users_count()
+function getFtpUsersCount()
 {
-    return get_objects_count('ftp_users', 'userid', "WHERE status <> 'todelete'");
+    return getObjectsCount('ftp_users', 'userid', "WHERE status <> 'todelete'");
 }
 
 /**
@@ -133,9 +133,9 @@ function get_ftp_users_count()
  *
  * @return int Count of SQL databases;
  */
-function get_sql_databases_count()
+function getSqlDatabasesCount()
 {
-    return get_objects_count('sql_database', 'sqld_id');
+    return getObjectsCount('sql_database', 'sqld_id');
 }
 
 /**
@@ -143,9 +143,9 @@ function get_sql_databases_count()
  *
  * @return int Count of SQL users
  */
-function get_sql_users_count()
+function getSqlUsersCount()
 {
-    return get_objects_count('sql_user', 'sqlu_name');
+    return getObjectsCount('sql_user', 'sqlu_name');
 }
 
 /**
@@ -157,11 +157,11 @@ function get_sql_users_count()
  * @param string $where OPTIONAL Where clause
  * @return int Count of objects
  */
-function get_objects_count($table, $idField, $where = '')
+function getObjectsCount($table, $idField, $where = '')
 {
     $table = quoteIdentifier($table);
     $idField = quoteIdentifier($idField);
-    return execute_query("SELECT COUNT(DISTINCT $idField) FROM $table $where")->fetchColumn();
+    return executeQuery("SELECT COUNT(DISTINCT $idField) FROM $table $where")->fetchColumn();
 }
 
 /**
@@ -173,12 +173,11 @@ function get_objects_count($table, $idField, $where = '')
  *              resellers, customers, domains, subdomains, domain aliases,
  *              mail accounts, FTP users, SQL databases and SQL users
  */
-function get_objects_counts()
+function getObjectsCounts()
 {
     return [
-        get_administrators_count(), get_resellers_count(), get_customers_count(), get_domains_count(),
-        get_subdomains_count(), get_domain_aliases_count(), get_mail_accounts_count(), get_ftp_users_count(),
-        get_sql_databases_count(), get_sql_users_count()
+        getAdministratorsCount(), getResellersCount(), getCustomersCount(), getDomainsCount(), getSubdomainsCount(), getDomainAliasesCount(),
+        getMailAccountsCount(), getFtpUsersCount(), getSqlDatabasesCount(), getSqlUsersCount()
     ];
 }
 
@@ -191,7 +190,7 @@ function get_objects_counts()
  * @param int $resellerId Reseller unique identifier
  * @return int Count of subdomains
  */
-function get_reseller_customers_count($resellerId)
+function getResellerCustomersCount($resellerId)
 {
     static $stmt = NULL;
 
@@ -212,7 +211,7 @@ function get_reseller_customers_count($resellerId)
  * @param int $resellerId Reseller unique identifier
  * @return int Count of subdomains
  */
-function get_reseller_domains_count($resellerId)
+function getResellerDomainsCount($resellerId)
 {
     static $stmt = NULL;
 
@@ -235,7 +234,7 @@ function get_reseller_domains_count($resellerId)
  * @param int $resellerId Reseller unique identifier
  * @return int Count of subdomains
  */
-function get_reseller_subdomains_count($resellerId)
+function getResellerSubdomainsCount($resellerId)
 {
     static $stmt = NULL;
 
@@ -275,7 +274,7 @@ function get_reseller_subdomains_count($resellerId)
  * @param int $resellerId Reseller unique identifier
  * @return int Count of domain aliases
  */
-function get_reseller_domain_aliases_count($resellerId)
+function getResellerDomainAliasesCount($resellerId)
 {
     static $stmt = NULL;
 
@@ -307,7 +306,7 @@ function get_reseller_domain_aliases_count($resellerId)
  * @param int $resellerId Domain unique identifier
  * @return int Count of mail accounts
  */
-function get_reseller_mail_accounts_count($resellerId)
+function getResellerMailAccountsCount($resellerId)
 {
     static $stmt = NULL;
 
@@ -349,7 +348,7 @@ function get_reseller_mail_accounts_count($resellerId)
  * @param int $resellerId Reseller unique identifier
  * @return int Count of FTP users
  */
-function get_reseller_ftp_users_count($resellerId)
+function getResellerFtpUsersCount($resellerId)
 {
     static $stmt = NULL;
 
@@ -369,7 +368,7 @@ function get_reseller_ftp_users_count($resellerId)
  * @param int $resellerId Reseller unique identifier
  * @return int Count of SQL databases
  */
-function get_reseller_sql_databases_count($resellerId)
+function getResellerSqlDatabasesCount($resellerId)
 {
     static $stmt = NULL;
 
@@ -391,7 +390,7 @@ function get_reseller_sql_databases_count($resellerId)
  * @param int $resellerId Domain unique identifier
  * @return int Count of SQL users
  */
-function get_reseller_sql_users_count($resellerId)
+function getResellerSqlUsersCount($resellerId)
 {
     static $stmt = NULL;
 
@@ -424,17 +423,12 @@ function get_reseller_sql_users_count($resellerId)
  *               domain aliases, mail accounts, FTP users, SQL databases and
  *               SQL users
  */
-function get_reseller_objects_counts($resellerId)
+function getResellerObjectsCounts($resellerId)
 {
     return [
-        get_reseller_customers_count($resellerId),
-        get_reseller_domains_count($resellerId),
-        get_reseller_subdomains_count($resellerId),
-        get_reseller_domain_aliases_count($resellerId),
-        get_reseller_mail_accounts_count($resellerId),
-        get_reseller_ftp_users_count($resellerId),
-        get_reseller_sql_databases_count($resellerId),
-        get_reseller_sql_users_count($resellerId)
+        getResellerCustomersCount($resellerId), getResellerDomainsCount($resellerId), getResellerSubdomainsCount($resellerId),
+        getResellerDomainAliasesCount($resellerId), getResellerMailAccountsCount($resellerId), getResellerFtpUsersCount($resellerId),
+        getResellerSqlDatabasesCount($resellerId), getResellerSqlUsersCount($resellerId)
     ];
 }
 
@@ -447,7 +441,7 @@ function get_reseller_objects_counts($resellerId)
  * @param int $domainId Customer main domain unique identifier
  * @return int Count of subdomains
  */
-function get_customer_subdomains_count($domainId)
+function getCustomerSubdomainsCount($domainId)
 {
     static $stmt = NULL;
 
@@ -480,7 +474,7 @@ function get_customer_subdomains_count($domainId)
  * @param int $domainId Customer main domain unique identifier
  * @return int Count of domain aliases
  */
-function get_customer_domain_aliases_count($domainId)
+function getCustomerDomainAliasesCount($domainId)
 {
     static $stmt = NULL;
 
@@ -503,7 +497,7 @@ function get_customer_domain_aliases_count($domainId)
  * @param int $domainId Customer main domain unique identifier
  * @return int Count of mail accounts
  */
-function get_customer_mail_accounts_count($domainId)
+function getCustomerMailAccountsCount($domainId)
 {
     static $stmt = NULL;
 
@@ -545,7 +539,7 @@ function get_customer_mail_accounts_count($domainId)
  * @param int $customerId Customer unique identifier
  * @return int Count of FTP users
  */
-function get_customer_ftp_users_count($customerId)
+function getCustomerFtpUsersCount($customerId)
 {
     static $stmt = NULL;
 
@@ -565,7 +559,7 @@ function get_customer_ftp_users_count($customerId)
  * @param int $domainId Customer main domain unique identifier
  * @return int Count of SQL databases
  */
-function get_customer_sql_databases_count($domainId)
+function getCustomerSqlDatabasesCount($domainId)
 {
     static $stmt = NULL;
 
@@ -585,7 +579,7 @@ function get_customer_sql_databases_count($domainId)
  * @param int $domainId Customer main domain unique identifier
  * @return int Count of SQL users
  */
-function get_customer_sql_users_count($domainId)
+function getCustomerSqlUsersCount($domainId)
 {
     static $stmt = NULL;
 
@@ -608,16 +602,12 @@ function get_customer_sql_users_count($domainId)
  * @return array An array containing count of subdomains, domain aliases, mail
  *               accounts, FTP users, SQL databases and SQL users
  */
-function get_customer_objects_counts($customerId)
+function getCustomerObjectsCounts($customerId)
 {
-    $domainId = get_user_domain_id($customerId, true);
+    $domainId = getCustomerMainDomainId($customerId, true);
 
     return [
-        get_customer_subdomains_count($domainId),
-        get_customer_domain_aliases_count($domainId),
-        get_customer_mail_accounts_count($domainId),
-        get_customer_ftp_users_count($customerId),
-        get_customer_sql_databases_count($domainId),
-        get_customer_sql_users_count($domainId)
+        getCustomerSubdomainsCount($domainId), getCustomerDomainAliasesCount($domainId), getCustomerMailAccountsCount($domainId),
+        getCustomerFtpUsersCount($customerId), getCustomerSqlDatabasesCount($domainId), getCustomerSqlUsersCount($domainId)
     ];
 }

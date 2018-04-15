@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\TemplateEngine;
@@ -36,26 +36,24 @@ use iMSCP_Registry as Registry;
 function createTicket($userId, $adminId, $urgency, $subject, $message, $userLevel)
 {
     if ($userLevel < 1 || $userLevel > 2) {
-        set_page_message(tr('Wrong user level provided.'), 'error');
+        setPageMessage(tr('Wrong user level provided.'), 'error');
         return false;
     }
 
-    $subject = clean_input($subject);
-    $userMessage = clean_input($message);
+    $subject = cleanInput($subject);
+    $userMessage = cleanInput($message);
 
-    exec_query(
+    execQuery(
         '
             INSERT INTO tickets (
-                ticket_level, ticket_from, ticket_to, ticket_status, ticket_reply, ticket_urgency, ticket_date,
-                ticket_subject, ticket_message
+                ticket_level, ticket_from, ticket_to, ticket_status, ticket_reply, ticket_urgency, ticket_date, ticket_subject, ticket_message
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         ',
         [$userLevel, $userId, $adminId, 1, 0, $urgency, time(), $subject, $userMessage]
     );
-
-    set_page_message(tr('Your message has been successfully sent.'), 'success');
+    setPageMessage(tr('Your message has been successfully sent.'), 'success');
     sendTicketNotification($adminId, $subject, $userMessage, 0, $urgency);
     return true;
 }
@@ -73,7 +71,7 @@ function showTicketContent($tpl, $ticketId, $userId)
     # Always show last replies first
     _showTicketReplies($tpl, $ticketId);
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         '
             SELECT ticket_id, ticket_status, ticket_reply, ticket_urgency, ticket_date, ticket_subject, ticket_message
             FROM tickets
@@ -85,7 +83,7 @@ function showTicketContent($tpl, $ticketId, $userId)
 
     if (!$stmt->rowCount()) {
         $tpl->assign('TICKET', '');
-        set_page_message(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
+        setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
         return false;
     }
 
@@ -104,12 +102,12 @@ function showTicketContent($tpl, $ticketId, $userId)
         'TR_TICKET_ACTION'      => $trAction,
         'TICKET_ACTION_VAL'     => $action,
         'TICKET_DATE_VAL'       => date(Registry::get('config')['DATE_FORMAT'] . ' (H:i)', $row['ticket_date']),
-        'TICKET_SUBJECT_VAL'    => tohtml($row['ticket_subject']),
-        'TICKET_CONTENT_VAL'    => nl2br(tohtml($row['ticket_message'])),
+        'TICKET_SUBJECT_VAL'    => toHtml($row['ticket_subject']),
+        'TICKET_CONTENT_VAL'    => nl2br(toHtml($row['ticket_message'])),
         'TICKET_ID_VAL'         => $row['ticket_id'],
         'TICKET_URGENCY_VAL'    => getTicketUrgency($row['ticket_urgency']),
         'TICKET_URGENCY_ID_VAL' => $row['ticket_urgency'],
-        'TICKET_FROM_VAL'       => tohtml($from)
+        'TICKET_FROM_VAL'       => toHtml($from)
     ]);
     $tpl->parse('TICKET_MESSAGE', '.ticket_message');
     return true;
@@ -132,9 +130,9 @@ function updateTicket($ticketId, $userId, $urgency, $subject, $message, $ticketL
 {
     /** @var iMSCP_Database $db */
     $db = Registry::get('iMSCP_Application')->getDatabase();
-    $subject = clean_input($subject);
-    $userMessage = clean_input($message);
-    $stmt = exec_query('SELECT ticket_from, ticket_to, ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)', [
+    $subject = cleanInput($subject);
+    $userMessage = cleanInput($message);
+    $stmt = execQuery('SELECT ticket_from, ticket_to, ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)', [
         $ticketId, $userId, $userId
     ]);
     $stmt->rowCount() or showBadRequestErrorPage();
@@ -156,7 +154,7 @@ function updateTicket($ticketId, $userId, $urgency, $subject, $message, $ticketL
 
         $db->beginTransaction();
 
-        exec_query(
+        execQuery(
             '
                 INSERT INTO tickets (
                     ticket_from, ticket_to, ticket_status, ticket_reply, ticket_urgency, ticket_date, ticket_subject, ticket_message
@@ -186,7 +184,7 @@ function updateTicket($ticketId, $userId, $urgency, $subject, $message, $ticketL
 
         $db->commit();
 
-        set_page_message(tr('Your message has been successfully sent.'), 'success');
+        setPageMessage(tr('Your message has been successfully sent.'), 'success');
         sendTicketNotification($ticketTo, $subject, $userMessage, $ticketId, $urgency);
     } catch (DatabaseException $e) {
         $db->rollBack();
@@ -202,7 +200,7 @@ function updateTicket($ticketId, $userId, $urgency, $subject, $message, $ticketL
  */
 function deleteTicket($ticketId)
 {
-    exec_query('DELETE FROM tickets WHERE ticket_id = ? OR ticket_reply = ?', [$ticketId, $ticketId]);
+    execQuery('DELETE FROM tickets WHERE ticket_id = ? OR ticket_reply = ?', [$ticketId, $ticketId]);
 }
 
 /**
@@ -215,7 +213,7 @@ function deleteTicket($ticketId)
 function deleteTickets($status, $userId)
 {
     $condition = ($status == 'open') ? "ticket_status != '0'" : "ticket_status = '0'";
-    exec_query("DELETE FROM tickets WHERE (ticket_from = ? OR ticket_to = ?) AND {$condition}", [$userId, $userId]);
+    execQuery("DELETE FROM tickets WHERE (ticket_from = ? OR ticket_to = ?) AND {$condition}", [$userId, $userId]);
 }
 
 /**
@@ -232,12 +230,12 @@ function deleteTickets($status, $userId)
 function generateTicketList($tpl, $userId, $start, $count, $userLevel, $status)
 {
     $condition = ($status == 'open') ? "ticket_status != 0" : 'ticket_status = 0';
-    $rowsCount = exec_query("SELECT COUNT(ticket_id) FROM tickets WHERE (ticket_from = ? OR ticket_to = ?) AND ticket_reply = '0' AND $condition", [
+    $rowsCount = execQuery("SELECT COUNT(ticket_id) FROM tickets WHERE (ticket_from = ? OR ticket_to = ?) AND ticket_reply = '0' AND $condition", [
         $userId, $userId
     ])->fetchColumn();
 
     if ($rowsCount > 0) {
-        $stmt = exec_query(
+        $stmt = execQuery(
             "
                 SELECT ticket_id, ticket_status, ticket_urgency, ticket_level, ticket_date, ticket_subject
                 FROM tickets WHERE (ticket_from = ? OR ticket_to = ?)
@@ -288,10 +286,10 @@ function generateTicketList($tpl, $userId, $start, $count, $userLevel, $status)
 
             $tpl->assign([
                 'TICKET_URGENCY_VAL'   => getTicketUrgency($row['ticket_urgency']),
-                'TICKET_FROM_VAL'      => tohtml(_getTicketSender($row['ticket_id'])),
+                'TICKET_FROM_VAL'      => toHtml(_getTicketSender($row['ticket_id'])),
                 'TICKET_LAST_DATE_VAL' => _ticketGetLastDate($row['ticket_id']),
-                'TICKET_SUBJECT_VAL'   => tohtml($row['ticket_subject']),
-                'TICKET_SUBJECT2_VAL'  => addslashes(clean_html($row['ticket_subject'])),
+                'TICKET_SUBJECT_VAL'   => toHtml($row['ticket_subject']),
+                'TICKET_SUBJECT2_VAL'  => addslashes(cleanHtml($row['ticket_subject'])),
                 'TICKET_ID_VAL'        => $row['ticket_id']
             ]);
             $tpl->parse('TICKETS_ITEM', '.tickets_item');
@@ -308,9 +306,9 @@ function generateTicketList($tpl, $userId, $start, $count, $userLevel, $status)
     ]);
 
     if ($status == 'open') {
-        set_page_message(tr('You have no open tickets.'), 'static_info');
+        setPageMessage(tr('You have no open tickets.'), 'static_info');
     } else {
-        set_page_message(tr('You have no closed tickets.'), 'static_info');
+        setPageMessage(tr('You have no closed tickets.'), 'static_info');
     }
 }
 
@@ -323,12 +321,12 @@ function generateTicketList($tpl, $userId, $start, $count, $userLevel, $status)
 function closeTicket($ticketId)
 {
     if (!changeTicketStatus($ticketId, 0)) {
-        set_page_message(tr("Unable to close the ticket with Id '%s'.", $ticketId), 'error');
-        write_log(sprintf("Unable to close the ticket with Id '%s'.", $ticketId), E_USER_ERROR);
+        setPageMessage(tr("Unable to close the ticket with Id '%s'.", $ticketId), 'error');
+        writeLog(sprintf("Unable to close the ticket with Id '%s'.", $ticketId), E_USER_ERROR);
         return false;
     }
 
-    set_page_message(tr('Ticket successfully closed.'), 'success');
+    setPageMessage(tr('Ticket successfully closed.'), 'success');
     return true;
 }
 
@@ -341,12 +339,12 @@ function closeTicket($ticketId)
 function reopenTicket($ticketId)
 {
     if (!changeTicketStatus($ticketId, 3)) {
-        set_page_message(tr("Unable to reopen ticket with Id '%s'.", $ticketId), 'error');
-        write_log(sprintf("Unable to reopen ticket with Id '%s'.", $ticketId), E_USER_ERROR);
+        setPageMessage(tr("Unable to reopen ticket with Id '%s'.", $ticketId), 'error');
+        writeLog(sprintf("Unable to reopen ticket with Id '%s'.", $ticketId), E_USER_ERROR);
         return false;
     }
 
-    set_page_message(tr('Ticket successfully reopened.'), 'success');
+    setPageMessage(tr('Ticket successfully reopened.'), 'success');
     return true;
 }
 
@@ -365,12 +363,12 @@ function reopenTicket($ticketId)
  */
 function getTicketStatus($ticketId)
 {
-    $stmt = exec_query('SELECT ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)', [
+    $stmt = execQuery('SELECT ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)', [
         $ticketId, $_SESSION['user_id'], $_SESSION['user_id']
     ]);
 
     if (!$stmt->rowCount()) {
-        set_page_message(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
+        setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
         return false;
     }
 
@@ -394,7 +392,7 @@ function getTicketStatus($ticketId)
  */
 function changeTicketStatus($ticketId, $ticketStatus)
 {
-    $stmt = exec_query('UPDATE tickets SET ticket_status = ? WHERE ticket_id = ? OR ticket_reply = ? AND (ticket_from = ? OR ticket_to = ?)', [
+    $stmt = execQuery('UPDATE tickets SET ticket_status = ? WHERE ticket_id = ? OR ticket_reply = ? AND (ticket_from = ? OR ticket_to = ?)', [
         $ticketStatus, $ticketId, $ticketId, $_SESSION['user_id'], $_SESSION['user_id']
     ]);
 
@@ -410,10 +408,10 @@ function changeTicketStatus($ticketId, $ticketStatus)
 function getUserLevel($ticketId)
 {
     // Get info about the type of message
-    $stmt = exec_query('SELECT ticket_level FROM tickets WHERE ticket_id = ?', [$ticketId]);
+    $stmt = execQuery('SELECT ticket_level FROM tickets WHERE ticket_id = ?', [$ticketId]);
 
     if (!$stmt->rowCount()) {
-        set_page_message(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
+        setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
         return false;
     }
 
@@ -453,19 +451,18 @@ function getTicketUrgency($ticketUrgency)
  */
 function _getTicketSender($ticketId)
 {
-    $stmt = exec_query(
+    $stmt = execQuery(
         'SELECT a.admin_name, a.fname, a.lname, a.admin_type FROM tickets t LEFT JOIN admin a ON (t.ticket_from = a.admin_id) WHERE ticket_id = ?',
         [$ticketId]
     );
 
     if (!$stmt->rowCount()) {
-        set_page_message(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
+        setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
         return false;
     }
 
     $row = $stmt->fetch();
-
-    return $row['fname'] . ' ' . $row['lname'] . ' (' . (($row['admin_type'] == 'user') ? decode_idna($row['admin_name']) : $row['admin_name']) . ')';
+    return $row['fname'] . ' ' . $row['lname'] . ' (' . (($row['admin_type'] == 'user') ? decodeIdna($row['admin_name']) : $row['admin_name']) . ')';
 }
 
 /**
@@ -478,8 +475,7 @@ function _getTicketSender($ticketId)
  */
 function _ticketGetLastDate($ticketId)
 {
-    $stmt = exec_query('SELECT ticket_date FROM tickets WHERE ticket_reply = ? ORDER BY ticket_date DESC LIMIT 1', [$ticketId]);
-
+    $stmt = execQuery('SELECT ticket_date FROM tickets WHERE ticket_reply = ? ORDER BY ticket_date DESC LIMIT 1', [$ticketId]);
     if (!$stmt->rowCount()) {
         return tr('Never');
     }
@@ -498,9 +494,8 @@ function _ticketGetLastDate($ticketId)
  */
 function _showTicketReplies($tpl, $ticketId)
 {
-    $stmt = exec_query(
-        'SELECT ticket_id, ticket_urgency, ticket_date, ticket_message FROM tickets WHERE ticket_reply = ? ORDER BY ticket_date DESC',
-        [$ticketId]
+    $stmt = execQuery(
+        'SELECT ticket_id, ticket_urgency, ticket_date, ticket_message FROM tickets WHERE ticket_reply = ? ORDER BY ticket_date DESC', [$ticketId]
     );
 
     if (!$stmt->rowCount()) {
@@ -511,7 +506,7 @@ function _showTicketReplies($tpl, $ticketId)
         $tpl->assign([
             'TICKET_FROM_VAL'    => _getTicketSender($row['ticket_id']),
             'TICKET_DATE_VAL'    => date(Registry::get('config')['DATE_FORMAT'] . ' (H:i)', $row['ticket_date']),
-            'TICKET_CONTENT_VAL' => nl2br(tohtml($row['ticket_message']))
+            'TICKET_CONTENT_VAL' => nl2br(toHtml($row['ticket_message']))
         ]);
         $tpl->parse('TICKET_MESSAGE', '.ticket_message');
     }
@@ -532,7 +527,7 @@ function _showTicketReplies($tpl, $ticketId)
  */
 function sendTicketNotification($toId, $ticketSubject, $ticketMessage, $ticketStatus, $urgency)
 {
-    $stmt = exec_query('SELECT admin_name, fname, lname, email, admin_name FROM admin WHERE admin_id = ?', [$toId]);
+    $stmt = execQuery('SELECT admin_name, fname, lname, email, admin_name FROM admin WHERE admin_id = ?', [$toId]);
     $toData = $stmt->fetch();
 
     if ($ticketStatus == 0) {
@@ -571,7 +566,7 @@ ___________________________
 i-MSCP Mailer');
     }
 
-    $ret = send_mail([
+    $ret = sendMail([
         'mail_id'      => 'support-ticket-notification',
         'fname'        => $toData['fname'],
         'lname'        => $toData['lname'],
@@ -586,7 +581,7 @@ i-MSCP Mailer');
     ]);
 
     if (!$ret) {
-        write_log(sprintf("Couldn't send ticket notification to %s", $toData['admin_name']), E_USER_ERROR);
+        writeLog(sprintf("Couldn't send ticket notification to %s", $toData['admin_name']), E_USER_ERROR);
         return false;
     }
 

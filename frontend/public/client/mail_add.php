@@ -3,30 +3,27 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\Crypt as Crypt;
-use iMSCP_Events as Events;
-use iMSCP_Exception_Database as DatabaseException;
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
+use iMSCP_Events_Event as Event;
+use iMSCP_Exception_Database as DatabaseException;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Get domains list
@@ -38,13 +35,13 @@ function getDomainsList()
     static $domainsList = NULL;
 
     if (NULL === $domainsList) {
-        $mainDmnProps = get_domain_default_props($_SESSION['user_id']);
+        $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
         $domainsList = [[
             'name' => $mainDmnProps['domain_name'],
             'id'   => $mainDmnProps['domain_id'],
             'type' => 'dmn'
         ]];
-        $stmt = exec_query(
+        $stmt = execQuery(
             "
               SELECT CONCAT(t1.subdomain_name, '.', t2.domain_name) AS name, t1.subdomain_id AS id, 'sub' AS type
               FROM subdomain AS t1
@@ -61,15 +58,12 @@ function getDomainsList()
               JOIN domain_aliases AS t2 USING(alias_id)
               WHERE t2.domain_id = :domain_id AND subdomain_alias_status = :status_ok
           ",
-            [
-                'domain_id' => $mainDmnProps['domain_id'],
-                'status_ok' => 'ok'
-            ]
+            ['domain_id' => $mainDmnProps['domain_id'], 'status_ok' => 'ok']
         );
         if ($stmt->rowCount()) {
             $domainsList = array_merge($domainsList, $stmt->fetchAll());
             usort($domainsList, function ($a, $b) {
-                return strnatcmp(decode_idna($a['name']), decode_idna($b['name']));
+                return strnatcmp(decodeIdna($a['name']), decodeIdna($b['name']));
             });
         }
     }
@@ -84,19 +78,14 @@ function getDomainsList()
  */
 function addMailAccount()
 {
-    if (!isset($_POST['username'])
-        || !isset($_POST['domain_name'])
-        || !isset($_POST['password'])
-        || !isset($_POST['password_rep'])
-        || !isset($_POST['quota'])
-        || !isset($_POST['forward_list'])
-        || !isset($_POST['account_type'])
+    if (!isset($_POST['username']) || !isset($_POST['domain_name']) || !isset($_POST['password']) || !isset($_POST['password_rep'])
+        || !isset($_POST['quota']) || !isset($_POST['forward_list']) || !isset($_POST['account_type'])
         || !in_array($_POST['account_type'], ['1', '2', '3'], true)
     ) {
         showBadRequestErrorPage();
     }
 
-    $mainDmnProps = get_domain_default_props($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
     $password = $forwardList = '_no_';
     $mailType = $subId = '';
     $mailTypeNormal = in_array($_POST['account_type'], ['1', '3']);
@@ -104,17 +93,15 @@ function addMailAccount()
     $mailQuotaLimitBytes = NULL;
 
     // Check for username
-    $username = mb_strtolower(clean_input($_POST['username']));
+    $username = mb_strtolower(cleanInput($_POST['username']));
 
-    if ($_POST['username'] == ''
-        || !chk_email($username, true)
-    ) {
-        set_page_message(tr('Invalid email username.'), 'error');
+    if ($_POST['username'] == '' || !ValidateEmail($username, true)) {
+        setPageMessage(tr('Invalid email username.'), 'error');
         return false;
     }
 
     // Check for domain existence and owner
-    $domainName = mb_strtolower(clean_input($_POST['domain_name']));
+    $domainName = mb_strtolower(cleanInput($_POST['domain_name']));
     $domainType = NULL;
     $domainId = NULL;
 
@@ -136,7 +123,7 @@ function addMailAccount()
         # parameters. See http://www.postfix.org/VIRTUAL_README.html#canonical
         # This necessarily means that Postfix canonical domains cannot have
         # virtual mailboxes, hence their prohibition.
-        set_page_message(tr('You cannot create new mailboxes for that domain. Only forwarded mail accounts are allowed.'), 'warning');
+        setPageMessage(tr('You cannot create new mailboxes for that domain. Only forwarded mail accounts are allowed.'), 'warning');
         return false;
     }
 
@@ -144,21 +131,21 @@ function addMailAccount()
 
     if ($mailTypeNormal) {
         // Check for password
-        $password = clean_input($_POST['password']);
-        $passwordRep = clean_input($_POST['password_rep']);
+        $password = cleanInput($_POST['password']);
+        $passwordRep = cleanInput($_POST['password_rep']);
 
         if ($password == '') {
-            set_page_message(tr('Password is missing.'), 'error');
+            setPageMessage(tr('Password is missing.'), 'error');
             return false;
         }
 
         if ($passwordRep == '') {
-            set_page_message(tr('You must confirm your password.'), 'error');
+            setPageMessage(tr('You must confirm your password.'), 'error');
             return false;
         }
 
         if ($password !== $passwordRep) {
-            set_page_message(tr('Passwords do not match.'), 'error');
+            setPageMessage(tr('Passwords do not match.'), 'error');
             return false;
         }
 
@@ -168,16 +155,16 @@ function addMailAccount()
 
         // Check for quota
 
-        $customerEmailQuotaLimitBytes = filter_digits($mainDmnProps['mail_quota'], 0);
-        $mailQuotaLimitBytes = filter_digits($_POST['quota']) * 1048576; // MiB to Bytes
+        $customerEmailQuotaLimitBytes = filterDigits($mainDmnProps['mail_quota'], 0);
+        $mailQuotaLimitBytes = filterDigits($_POST['quota']) * 1048576; // MiB to Bytes
 
         if ($customerEmailQuotaLimitBytes > 0) {
             if ($mailQuotaLimitBytes < 1) {
-                set_page_message(tr('Incorrect email quota.'), 'error');
+                setPageMessage(tr('Incorrect email quota.'), 'error');
                 return false;
             }
 
-            $customerMailboxesQuotaSumBytes = exec_query(
+            $customerMailboxesQuotaSumBytes = execQuery(
                 'SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [$mainDmnProps['domain_id']]
             )->fetchColumn();
 
@@ -186,7 +173,7 @@ function addMailAccount()
             }
 
             if ($mailQuotaLimitBytes > $customerEmailQuotaLimitBytes - $customerMailboxesQuotaSumBytes) {
-                set_page_message(tr('Email quota cannot be bigger than %s', bytesHuman($mailQuotaLimitBytes)), 'error');
+                setPageMessage(tr('Email quota cannot be bigger than %s', bytesHuman($mailQuotaLimitBytes)), 'error');
                 return false;
             }
         }
@@ -210,31 +197,31 @@ function addMailAccount()
 
     if ($mailTypeForward) {
         // Check forward list
-        $forwardList = clean_input($_POST['forward_list']);
+        $forwardList = cleanInput($_POST['forward_list']);
 
         if ($forwardList == '') {
-            set_page_message(tr('Forward list is empty.'), 'error');
+            setPageMessage(tr('Forward list is empty.'), 'error');
             return false;
         }
 
         $forwardList = array_unique(preg_split('/\s|,/', $forwardList, -1, PREG_SPLIT_NO_EMPTY));
 
         foreach ($forwardList as $key => &$forwardEmailAddr) {
-            $forwardEmailAddr = encode_idna(mb_strtolower($forwardEmailAddr));
+            $forwardEmailAddr = encodeIdna(mb_strtolower($forwardEmailAddr));
 
-            if (!chk_email($forwardEmailAddr)) {
-                set_page_message(tr('Bad email address in forward list field.'), 'error');
+            if (!ValidateEmail($forwardEmailAddr)) {
+                setPageMessage(tr('Bad email address in forward list field.'), 'error');
                 return false;
             }
 
             if ($forwardEmailAddr == $mailAddr) {
-                set_page_message(tr('You cannot forward %s on itself.', $mailAddr), 'error');
+                setPageMessage(tr('You cannot forward %s on itself.', $mailAddr), 'error');
                 return false;
             }
         }
 
         if (empty($forwardList)) {
-            set_page_message(tr('Forward list is empty.'), 'error');
+            setPageMessage(tr('Forward list is empty.'), 'error');
             return false;
         }
 
@@ -242,16 +229,16 @@ function addMailAccount()
 
         switch ($domainType) {
             case 'dmn':
-                $mailType .= (($mailType != '') ? ',' : '') . MT_NORMAL_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . MT_NORMAL_FORWARD;
                 break;
             case 'sub':
-                $mailType .= (($mailType != '') ? ',' : '') . MT_SUBDOM_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . MT_SUBDOM_FORWARD;
                 break;
             case 'als':
-                $mailType .= (($mailType != '') ? ',' : '') . MT_ALIAS_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . MT_ALIAS_FORWARD;
                 break;
             case 'alssub':
-                $mailType .= (($mailType != '') ? ',' : '') . MT_ALSSUB_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . MT_ALSSUB_FORWARD;
         }
     }
 
@@ -265,14 +252,14 @@ function addMailAccount()
             'forwardList'  => $mailTypeForward ? $forwardList : '',
             'MailAddress'  => $mailAddr
         ]);
-        exec_query(
+        execQuery(
             '
-              INSERT INTO mail_users (
-                mail_acc, mail_pass, mail_forward, domain_id, mail_type, sub_id, status, po_active, mail_auto_respond,
-                mail_auto_respond_text, quota, mail_addr
-              ) VALUES(
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-              )
+                INSERT INTO mail_users (
+                    mail_acc, mail_pass, mail_forward, domain_id, mail_type, sub_id, status, po_active, mail_auto_respond, mail_auto_respond_text,
+                    quota, mail_addr
+                ) VALUES(
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
             ',
             [
                 $username, $password, $forwardList, $mainDmnProps['domain_id'], $mailType, $subId, 'toadd',
@@ -286,12 +273,12 @@ function addMailAccount()
             'forwardList'  => $mailTypeForward ? $forwardList : '',
             'mailAddress'  => $mailAddr
         ]);
-        send_request();
-        write_log(sprintf('A mail account has been added by %s', $_SESSION['user_logged']), E_USER_NOTICE);
-        set_page_message(tr('Mail account successfully scheduled for addition.'), 'success');
+        sendDaemonRequest();
+        writeLog(sprintf('A mail account has been added by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+        setPageMessage(tr('Mail account successfully scheduled for addition.'), 'success');
     } catch (DatabaseException $e) {
         if ($e->getCode() == 23000) {
-            set_page_message(tr('Mail account already exists.'), 'error');
+            setPageMessage(tr('Mail account already exists.'), 'error');
             return false;
         }
     }
@@ -306,18 +293,18 @@ function addMailAccount()
  */
 function generatePage($tpl)
 {
-    $mainDmnProps = get_domain_default_props($_SESSION['user_id']);
-    $customerMailboxesQuotaSumBytes = exec_query('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [
+    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $customerMailboxesQuotaSumBytes = execQuery('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [
         $mainDmnProps['domain_id']
     ])->fetchColumn();
-    $customerEmailQuotaLimitBytes = filter_digits($mainDmnProps['mail_quota'], 0);
+    $customerEmailQuotaLimitBytes = filterDigits($mainDmnProps['mail_quota'], 0);
 
     if ($customerEmailQuotaLimitBytes < 1) {
         $tpl->assign([
-            'TR_QUOTA'  => tohtml(tr('Quota in MiB (0 ∞)')),
+            'TR_QUOTA'  => toHtml(tr('Quota in MiB (0 ∞)')),
             'MIN_QUOTA' => 0,
-            'MAX_QUOTA' => tohtml(17592186044416, 'htmlAttr'), // Max quota = MySQL UNSIGNED BIGINT in MiB
-            'QUOTA'     => isset($_POST['quota']) ? tohtml(filter_digits($_POST['quota']), 'htmlAttr') : 10
+            'MAX_QUOTA' => toHtml(17592186044416, 'htmlAttr'), // Max quota = MySQL UNSIGNED BIGINT in MiB
+            'QUOTA'     => isset($_POST['quota']) ? toHtml(filterDigits($_POST['quota']), 'htmlAttr') : 10
         ]);
         $mailTypeForwardOnly = false;
     } else {
@@ -327,8 +314,8 @@ function generatePage($tpl)
             $mailQuotaLimitMiB = $mailMaxQuotaLimitMib;
             $mailTypeForwardOnly = false;
         } else {
-            set_page_message(tr('You cannot add normal mail accounts because you have already assigned all your mail quota. If you want to add a normal mail account, you must first lower the quota assigned to one of your other mail account.'), 'static_info');
-            set_page_message(tr('For the time being, you can only add forwarded mail account.'), 'static_info');
+            setPageMessage(tr('You cannot add normal mail accounts because you have already assigned all your mail quota. If you want to add a normal mail account, you must first lower the quota assigned to one of your other mail account.'), 'static_info');
+            setPageMessage(tr('For the time being, you can only add forwarded mail account.'), 'static_info');
             # Only for sanity; Attempting to create account involving quota
             # will fail because quota is already full assigned (expected)
             $mailQuotaLimitBytes = 1048576; # 1 Mio
@@ -338,11 +325,11 @@ function generatePage($tpl)
         }
 
         $tpl->assign([
-            'TR_QUOTA'  => tohtml(tr('Quota in MiB (Max: %s)', bytesHuman($mailQuotaLimitBytes))),
+            'TR_QUOTA'  => toHtml(tr('Quota in MiB (Max: %s)', bytesHuman($mailQuotaLimitBytes))),
             'MIN_QUOTA' => 1,
-            'MAX_QUOTA' => tohtml($mailMaxQuotaLimitMib, 'htmlAttr'),
+            'MAX_QUOTA' => toHtml($mailMaxQuotaLimitMib, 'htmlAttr'),
             'QUOTA'     => isset($_POST['quota'])
-                ? tohtml(filter_digits($_POST['quota']), 'htmlAttr') : tohtml(min(10, $mailQuotaLimitMiB), 'htmlAttr')
+                ? toHtml(filterDigits($_POST['quota']), 'htmlAttr') : toHtml(min(10, $mailQuotaLimitMiB), 'htmlAttr')
         ]);
     }
 
@@ -350,50 +337,43 @@ function generatePage($tpl)
         ? $_POST['account_type'] : '1';
 
     $tpl->assign([
-        'USERNAME'               => isset($_POST['username']) ? tohtml($_POST['username']) : '',
+        'USERNAME'               => isset($_POST['username']) ? toHtml($_POST['username']) : '',
         'NORMAL_CHECKED'         => ($mailType == '1') ? ' checked' : '',
         'FORWARD_CHECKED'        => ($mailType == '2') ? ' checked' : '',
         'NORMAL_FORWARD_CHECKED' => ($mailType == '3') ? ' checked' : '',
-        'FORWARD_LIST'           => isset($_POST['forward_list']) ? tohtml($_POST['forward_list']) : '',
+        'FORWARD_LIST'           => isset($_POST['forward_list']) ? toHtml($_POST['forward_list']) : '',
     ]);
 
     foreach (getDomainsList() as $domain) {
         $tpl->assign([
-            'DOMAIN_NAME'          => tohtml($domain['name']),
-            'DOMAIN_NAME_UNICODE'  => tohtml(decode_idna($domain['name'])),
-            'DOMAIN_NAME_SELECTED' => (isset($_POST['domain_name']) && $_POST['domain_name'] == $domain['name'])
-                ? ' selected' : '',
+            'DOMAIN_NAME'          => toHtml($domain['name']),
+            'DOMAIN_NAME_UNICODE'  => toHtml(decodeIdna($domain['name'])),
+            'DOMAIN_NAME_SELECTED' => (isset($_POST['domain_name']) && $_POST['domain_name'] == $domain['name']) ? ' selected' : '',
         ]);
         $tpl->parse('DOMAIN_NAME_ITEM', '.domain_name_item');
     }
 
     Registry::get('iMSCP_Application')->getEventsManager()->registerListener(
-        'onGetJsTranslations',
-        function ($event) use ($mailTypeForwardOnly) {
-            /** @var $event iMSCP_Events_Description */
-            $event->getParam('translations')->core['mail_add_forward_only'] = $mailTypeForwardOnly;
+        Events::onGetJsTranslations,
+        function (Event $e) use ($mailTypeForwardOnly) {
+            $e->getParam('translations')->core['mail_add_forward_only'] = $mailTypeForwardOnly;
         }
     );
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
 customerHasFeature('mail') or showBadRequestErrorPage();
 
-$dmnProps = get_domain_default_props($_SESSION['user_id']);
+$dmnProps = getCustomerProperties($_SESSION['user_id']);
 $emailAccountsLimit = $dmnProps['domain_mailacc_limit'];
 
 if ($emailAccountsLimit != '0') {
-    $nbEmailAccounts = get_customer_mail_accounts_count($dmnProps['domain_id']);
-
+    $nbEmailAccounts = getCustomerMailAccountsCount($dmnProps['domain_id']);
     if ($nbEmailAccounts >= $emailAccountsLimit) {
-        set_page_message(tr('You have reached the maximum number of mail accounts allowed by your subscription.'), 'warning');
+        setPageMessage(tr('You have reached the maximum number of mail accounts allowed by your subscription.'), 'warning');
         redirectTo('mail_accounts.php');
     }
 }
@@ -425,13 +405,10 @@ $tpl->assign([
     'TR_ADD'                 => tr('Add'),
     'TR_CANCEL'              => tr('Cancel')
 ]);
-
 generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

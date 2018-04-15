@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 namespace iMSCP\Update;
@@ -37,6 +37,68 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      * @var int Last database update revision
      */
     protected $lastUpdate = 284;
+
+    /**
+     * Decrypt any SSL private key
+     *
+     * @return array|null SQL statements to be executed
+     */
+    public function r178()
+    {
+        $sqlQueries = [];
+        $stmt = executeQuery('SELECT cert_id, password, `key` FROM ssl_certs');
+
+        if (!$stmt->rowCount()) {
+            return NULL;
+        }
+
+        while ($row = $stmt->fetch()) {
+            $certId = quoteValue($row['cert_id'], PDO::PARAM_INT);
+            $privateKey = new RSA();
+
+            if ($row['password'] != '') {
+                $privateKey->setPassword($row['password']);
+            }
+
+            if (!$privateKey->loadKey($row['key'], RSA::PRIVATE_FORMAT_PKCS1)) {
+                $sqlQueries[] = "DELETE FROM ssl_certs WHERE cert_id = $certId";
+                continue;
+            }
+
+            // Clear out passphrase
+            $privateKey->setPassword();
+            // Get unencrypted private key
+            $privateKey = $privateKey->getPrivateKey();
+            $privateKey = quoteValue($privateKey);
+            $sqlQueries[] = "UPDATE ssl_certs SET `key` = $privateKey WHERE cert_id = $certId";
+        }
+
+        return $sqlQueries;
+    }
+
+    /**
+     * Remove password column from the ssl_certs table
+     *
+     * @return null|string SQL statements to be executed
+     */
+    public function r179()
+    {
+        return $this->dropColumn('ssl_certs', 'password');
+    }
+
+    /**
+     * Drop deprecated columns -- Those are not removed when upgrading from some older versions
+     *
+     * @return array SQL statements to be executed
+     */
+    public function r270()
+    {
+        return [
+            $this->dropColumn('reseller_props', 'php_ini_al_register_globals'),
+            $this->dropColumn('domain', 'phpini_perm_register_globals'),
+            $this->dropColumn('php_ini', 'register_globals')
+        ];
+    }
 
     /**
      * Prohibit upgrade from i-MSCP versions older than 1.1.x
@@ -94,7 +156,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         }
 
         $sqlUserHost = quoteValue($sqlUserHost);
-        $stmt = execute_query('SELECT DISTINCT sqlu_name FROM sql_user');
+        $stmt = executeQuery('SELECT DISTINCT sqlu_name FROM sql_user');
 
         if ($stmt->rowCount()) {
             while ($row = $stmt->fetch()) {
@@ -108,54 +170,6 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         }
 
         return $sqlQueries;
-    }
-
-    /**
-     * Decrypt any SSL private key
-     *
-     * @return array|null SQL statements to be executed
-     */
-    public function r178()
-    {
-        $sqlQueries = [];
-        $stmt = execute_query('SELECT cert_id, password, `key` FROM ssl_certs');
-
-        if (!$stmt->rowCount()) {
-            return NULL;
-        }
-
-        while ($row = $stmt->fetch()) {
-            $certId = quoteValue($row['cert_id'], PDO::PARAM_INT);
-            $privateKey = new RSA();
-
-            if ($row['password'] != '') {
-                $privateKey->setPassword($row['password']);
-            }
-
-            if (!$privateKey->loadKey($row['key'], RSA::PRIVATE_FORMAT_PKCS1)) {
-                $sqlQueries[] = "DELETE FROM ssl_certs WHERE cert_id = $certId";
-                continue;
-            }
-
-            // Clear out passphrase
-            $privateKey->setPassword();
-            // Get unencrypted private key
-            $privateKey = $privateKey->getPrivateKey();
-            $privateKey = quoteValue($privateKey);
-            $sqlQueries[] = "UPDATE ssl_certs SET `key` = $privateKey WHERE cert_id = $certId";
-        }
-
-        return $sqlQueries;
-    }
-
-    /**
-     * Remove password column from the ssl_certs table
-     *
-     * @return null|string SQL statements to be executed
-     */
-    public function r179()
-    {
-        return $this->dropColumn('ssl_certs', 'password');
     }
 
     /**
@@ -238,7 +252,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r189()
     {
         $sqlQueries = [];
-        $stmt = execute_query('SELECT cert_id, private_key, certificate, ca_bundle FROM ssl_certs');
+        $stmt = executeQuery('SELECT cert_id, private_key, certificate, ca_bundle FROM ssl_certs');
 
         if (!$stmt->rowCount()) {
             return NULL;
@@ -430,7 +444,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r204()
     {
         $sqlQueries = [];
-        $stmt = execute_query('SELECT id, props FROM hosting_plans');
+        $stmt = executeQuery('SELECT id, props FROM hosting_plans');
 
         if (!$stmt->rowCount()) {
             return NULL;
@@ -525,7 +539,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         );
 
         // Add PHP mail permission property in hosting plans if any
-        $stmt = execute_query('SELECT id, props FROM hosting_plans');
+        $stmt = executeQuery('SELECT id, props FROM hosting_plans');
         while ($row = $stmt->fetch()) {
             $id = quoteValue($row['id'], PDO::PARAM_INT);
             $props = explode(';', $row['props']);
@@ -656,16 +670,16 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r222()
     {
-        $stmt = execute_query('SELECT userid FROM ftp_users');
+        $stmt = executeQuery('SELECT userid FROM ftp_users');
         while ($row = $stmt->fetch()) {
-            exec_query('UPDATE ftp_users SET userid = ? WHERE userid = ?', [encode_idna($row['userid']), $row['userid']]);
+            execQuery('UPDATE ftp_users SET userid = ? WHERE userid = ?', [encodeIdna($row['userid']), $row['userid']]);
         }
 
-        $stmt = execute_query('SELECT groupname, members FROM ftp_group');
+        $stmt = executeQuery('SELECT groupname, members FROM ftp_group');
         while ($row = $stmt->fetch()) {
-            $members = implode(',', array_map('encode_idna', explode(',', $row['members'])));
-            exec_query('UPDATE ftp_group SET groupname = ?, members = ? WHERE groupname = ?', [
-                encode_idna($row['groupname']), $members, $row['groupname']
+            $members = implode(',', array_map('encodeIdna', explode(',', $row['members'])));
+            execQuery('UPDATE ftp_group SET groupname = ?, members = ? WHERE groupname = ?', [
+                encodeIdna($row['groupname']), $members, $row['groupname']
             ]);
         }
 
@@ -738,30 +752,30 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r226()
     {
-        $stmt = execute_query("SELECT alias_id, url_forward FROM domain_aliasses WHERE url_forward <> 'no'");
+        $stmt = executeQuery("SELECT alias_id, url_forward FROM domain_aliasses WHERE url_forward <> 'no'");
 
         while ($row = $stmt->fetch()) {
             $uri = UriRedirect::fromString($row['url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
-            exec_query('UPDATE domain_aliasses SET url_forward = ? WHERE alias_id = ?', [$uri->getUri(), $row['alias_id']]);
+            execQuery('UPDATE domain_aliasses SET url_forward = ? WHERE alias_id = ?', [$uri->getUri(), $row['alias_id']]);
         }
 
-        $stmt = execute_query("SELECT subdomain_id, subdomain_url_forward FROM subdomain WHERE subdomain_url_forward <> 'no'");
+        $stmt = executeQuery("SELECT subdomain_id, subdomain_url_forward FROM subdomain WHERE subdomain_url_forward <> 'no'");
 
         while ($row = $stmt->fetch()) {
             $uri = UriRedirect::fromString($row['subdomain_url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
-            exec_query('UPDATE subdomain SET subdomain_url_forward = ? WHERE subdomain_id = ?', [$uri->getUri(), $row['subdomain_id']]);
+            execQuery('UPDATE subdomain SET subdomain_url_forward = ? WHERE subdomain_id = ?', [$uri->getUri(), $row['subdomain_id']]);
         }
 
-        $stmt = execute_query("SELECT subdomain_alias_id, subdomain_alias_url_forward FROM subdomain_alias WHERE subdomain_alias_url_forward <> 'no'");
+        $stmt = executeQuery("SELECT subdomain_alias_id, subdomain_alias_url_forward FROM subdomain_alias WHERE subdomain_alias_url_forward <> 'no'");
         while ($row = $stmt->fetch()) {
             $uri = UriRedirect::fromString($row['subdomain_alias_url_forward']);
             $uriPath = rtrim(preg_replace('#/+#', '/', $uri->getPath()), '/') . '/';
             $uri->setPath($uriPath);
-            exec_query('UPDATE subdomain_alias SET subdomain_alias_url_forward = ? WHERE subdomain_alias_id = ?', [
+            execQuery('UPDATE subdomain_alias SET subdomain_alias_url_forward = ? WHERE subdomain_alias_id = ?', [
                     $uri->getUri(), $row['subdomain_alias_id']]
             );
         }
@@ -848,16 +862,16 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         $phpini = PhpIni::getInstance();
 
         // For each reseller
-        $resellers = execute_query("SELECT admin_id FROM admin WHERE admin_type = 'reseller'");
+        $resellers = executeQuery("SELECT admin_id FROM admin WHERE admin_type = 'reseller'");
         while ($reseller = $resellers->fetch()) {
             $phpini->loadResellerPermissions($reseller['admin_id']);
 
             // For each client of the reseller
-            $clients = exec_query("SELECT admin_id FROM admin WHERE created_by = ?", [$reseller['admin_id']]);
+            $clients = execQuery("SELECT admin_id FROM admin WHERE created_by = ?", [$reseller['admin_id']]);
             while ($client = $clients->fetch()) {
                 $phpini->loadClientPermissions($client['admin_id']);
 
-                $domain = exec_query("SELECT domain_id FROM domain WHERE domain_admin_id = ? AND domain_status <> 'todelete' ?", [
+                $domain = execQuery("SELECT domain_id FROM domain WHERE domain_admin_id = ? AND domain_status <> 'todelete' ?", [
                     $client['admin_id']
                 ]);
 
@@ -871,7 +885,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
                     $phpini->saveIniOptions($client['admin_id'], $domain['domain_id'], 'dmn');
                 }
 
-                $subdomains = exec_query("SELECT subdomain_id FROM subdomain WHERE domain_id = ? AND subdomain_status <> 'todelete'", [
+                $subdomains = execQuery("SELECT subdomain_id FROM subdomain WHERE domain_id = ? AND subdomain_status <> 'todelete'", [
                     $domain['domain_id']
                 ]);
                 while ($subdomain = $subdomains->fetch()) {
@@ -882,7 +896,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
                 }
                 unset($subdomains);
 
-                $domainAliases = exec_query("SELECT alias_id FROM domain_aliasses WHERE domain_id = ? AND alias_status <> 'todelete'", [
+                $domainAliases = execQuery("SELECT alias_id FROM domain_aliasses WHERE domain_id = ? AND alias_status <> 'todelete'", [
                     $domain['domain_id']
                 ]);
                 while ($domainAlias = $domainAliases->fetch()) {
@@ -893,7 +907,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
                 }
                 unset($domainAliases);
 
-                $subdomainAliases = exec_query(
+                $subdomainAliases = execQuery(
                     '
                         SELECT subdomain_alias_id
                         FROM subdomain_alias
@@ -1013,7 +1027,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r243()
     {
-        $stmt = execute_query('SELECT ip_id, ip_number, ip_netmask FROM server_ips');
+        $stmt = executeQuery('SELECT ip_id, ip_number, ip_netmask FROM server_ips');
 
         while ($row = $stmt->fetch()) {
             if ($this->config['BASE_SERVER_IP'] === $row['ip_number'] || $row['ip_netmask'] !== NULL) {
@@ -1026,7 +1040,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
                 $netmask = '32';
             }
 
-            exec_query('UPDATE server_ips SET ip_netmask = ? WHERE ip_id = ?', [$netmask, $row['ip_id']]);
+            execQuery('UPDATE server_ips SET ip_netmask = ? WHERE ip_id = ?', [$netmask, $row['ip_id']]);
         }
 
         return NULL;
@@ -1109,10 +1123,10 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r249()
     {
-        $stmt = exec_query('SELECT mail_id, mail_pass FROM mail_users WHERE mail_pass <> ? AND mail_pass NOT LIKE ?', ['_no_', '$6$%']);
+        $stmt = execQuery('SELECT mail_id, mail_pass FROM mail_users WHERE mail_pass <> ? AND mail_pass NOT LIKE ?', ['_no_', '$6$%']);
 
         while ($row = $stmt->fetch()) {
-            exec_query('UPDATE mail_users SET mail_pass = ? WHERE mail_id = ?', [Crypt::sha512($row['mail_pass']), $row['mail_id']]);
+            execQuery('UPDATE mail_users SET mail_pass = ? WHERE mail_id = ?', [Crypt::sha512($row['mail_pass']), $row['mail_id']]);
         }
     }
 
@@ -1170,7 +1184,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
      */
     protected function r254()
     {
-        $stmt = exec_query(
+        $stmt = execQuery(
             "SELECT mail_id, mail_type FROM mail_users WHERE mail_type LIKE '%_mail%' AND SUBSTRING(mail_addr, LOCATE('@', mail_addr)+1) = ?",
             [Registry::get('config')['SERVER_HOSTNAME']]
         );
@@ -1178,13 +1192,13 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         while ($row = $stmt->fetch()) {
             if (strpos($row['mail_type'], '_forward') !== FALSE) {
                 # Turn normal+forward account into forward only account
-                exec_query("UPDATE mail_users SET mail_pass = '_no_', mail_type = ?, quota = NULL WHERE mail_id = ?", [
+                execQuery("UPDATE mail_users SET mail_pass = '_no_', mail_type = ?, quota = NULL WHERE mail_id = ?", [
                     preg_replace('/,?\b\.*_mail\b,?/', '', $row['mail_type']), $row['mail_id']
                 ]);
             } else {
                 # Schedule deletion of the mail account as virtual mailboxes
                 # are prohibited for Postfix canonical domains.
-                exec_query("UPDATE mail_users SET status = 'todelete' WHERE mail_id = ?", [$row['mail_id']]);
+                execQuery("UPDATE mail_users SET status = 'todelete' WHERE mail_id = ?", [$row['mail_id']]);
             }
         }
 
@@ -1275,15 +1289,15 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r265()
     {
         if ($renameQuery = $this->renameTable('mail_users', 'old_mail_users')) {
-            execute_query($renameQuery);
+            executeQuery($renameQuery);
         }
 
         if (!$this->isTable('mail_users')) {
-            execute_query('CREATE TABLE mail_users LIKE old_mail_users');
+            executeQuery('CREATE TABLE mail_users LIKE old_mail_users');
         }
 
         if ($dropQuery = $this->dropIndexByName('mail_users', 'mail_addr')) {
-            execute_query($dropQuery);
+            executeQuery($dropQuery);
         }
 
         return [
@@ -1303,15 +1317,15 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r266()
     {
         if ($renameQuery = $this->renameTable('server_traffic', 'old_server_traffic')) {
-            execute_query($renameQuery);
+            executeQuery($renameQuery);
         }
 
         if (!$this->isTable('server_traffic')) {
-            execute_query('CREATE TABLE server_traffic LIKE old_server_traffic');
+            executeQuery('CREATE TABLE server_traffic LIKE old_server_traffic');
         }
 
         if ($dropQuery = $this->dropIndexByName('server_traffic', 'traff_time')) {
-            execute_query($dropQuery);
+            executeQuery($dropQuery);
         }
 
         return [
@@ -1332,15 +1346,15 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r268()
     {
         if ($renameQuery = $this->renameTable('domain_traffic', 'old_domain_traffic')) {
-            execute_query($renameQuery);
+            executeQuery($renameQuery);
         }
 
         if (!$this->isTable('domain_traffic')) {
-            execute_query('CREATE TABLE domain_traffic LIKE old_domain_traffic');
+            executeQuery('CREATE TABLE domain_traffic LIKE old_domain_traffic');
         }
 
         if ($dropQuery = $this->dropIndexByName('domain_traffic', 'i_unique_timestamp')) {
-            execute_query($dropQuery);
+            executeQuery($dropQuery);
         }
 
         return [
@@ -1360,35 +1374,21 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r269()
     {
         if ($renameQuery = $this->renameTable('httpd_vlogger', 'old_httpd_vlogger')) {
-            execute_query($renameQuery);
+            executeQuery($renameQuery);
         }
 
         if (!$this->isTable('httpd_vlogger')) {
-            execute_query('CREATE TABLE httpd_vlogger LIKE old_httpd_vlogger');
+            executeQuery('CREATE TABLE httpd_vlogger LIKE old_httpd_vlogger');
         }
 
         if ($dropQuery = $this->dropIndexByName('httpd_vlogger', 'PRIMARY')) {
-            execute_query($dropQuery);
+            executeQuery($dropQuery);
         }
 
         return [
             $this->addIndex('httpd_vlogger', ['vhost', 'ldate']),
             'INSERT IGNORE INTO httpd_vlogger SELECT * FROM old_httpd_vlogger',
             $this->dropTable('old_httpd_vlogger')
-        ];
-    }
-
-    /**
-     * Drop deprecated columns -- Those are not removed when upgrading from some older versions
-     *
-     * @return array SQL statements to be executed
-     */
-    public function r270()
-    {
-        return [
-            $this->dropColumn('reseller_props', 'php_ini_al_register_globals'),
-            $this->dropColumn('domain', 'phpini_perm_register_globals'),
-            $this->dropColumn('php_ini', 'register_globals')
         ];
     }
 
@@ -1402,28 +1402,28 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r271()
     {
         if ($renameQuery = $this->renameTable('php_ini', 'old_php_ini')) {
-            execute_query($renameQuery);
+            executeQuery($renameQuery);
         }
 
         if (!$this->isTable('php_ini')) {
-            execute_query('CREATE TABLE php_ini LIKE old_php_ini');
+            executeQuery('CREATE TABLE php_ini LIKE old_php_ini');
         }
 
         if ($dropQueries = $this->dropIndexByColumn('php_ini', 'admin_id')) {
             foreach ($dropQueries as $dropQuery) {
-                execute_query($dropQuery);
+                executeQuery($dropQuery);
             }
         }
 
         if ($dropQueries = $this->dropIndexByColumn('php_ini', 'domain_id')) {
             foreach ($dropQueries as $dropQuery) {
-                execute_query($dropQuery);
+                executeQuery($dropQuery);
             }
         }
 
         if ($dropQueries = $this->dropIndexByColumn('php_ini', 'domain_type')) {
             foreach ($dropQueries as $dropQuery) {
-                execute_query($dropQuery);
+                executeQuery($dropQuery);
             }
         }
 
@@ -1446,11 +1446,11 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r272()
     {
         if ($dropQuery = $this->dropColumn('domain_traffic', 'dtraff_id')) {
-            execute_query($dropQuery);
+            executeQuery($dropQuery);
         }
 
         if ($dropQuery = $this->dropIndexByName('domain_traffic', 'i_unique_timestamp')) {
-            execute_query($dropQuery);
+            executeQuery($dropQuery);
         }
 
         return $this->addIndex('domain_traffic', ['domain_id', 'dtraff_time']);
@@ -1469,12 +1469,12 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     protected function r274()
     {
         if ($dropQuery = $this->dropColumn('server_traffic', 'straff_id')) {
-            execute_query($dropQuery);
+            executeQuery($dropQuery);
         }
 
         if ($dropQueries = $this->dropIndexByColumn('server_traffic', 'traff_time')) {
             foreach ($dropQueries as $dropQuery) {
-                execute_query($dropQuery);
+                executeQuery($dropQuery);
             }
         }
 
@@ -1518,7 +1518,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
         $sqlQueries = [];
 
         // Add PHP mail permission property in hosting plans if any
-        $stmt = execute_query('SELECT id, props FROM hosting_plans');
+        $stmt = executeQuery('SELECT id, props FROM hosting_plans');
         while ($row = $stmt->fetch()) {
             $id = quoteValue($row['id'], PDO::PARAM_INT);
             $props = explode(';', $row['props']);
@@ -1555,7 +1555,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         if ($dropQueries = $this->dropIndexByColumn('mail_users', 'status')) {
             foreach ($dropQueries as $dropQuery) {
-                execute_query($dropQuery);
+                executeQuery($dropQuery);
             }
         }
 
@@ -1646,7 +1646,7 @@ class UpdateDatabase extends UpdateDatabaseAbstract
     {
         $sqlQueries = [];
 
-        $stmt = execute_query('SELECT reseller_id, reseller_ips FROM reseller_props');
+        $stmt = executeQuery('SELECT reseller_id, reseller_ips FROM reseller_props');
         while ($row = $stmt->fetch()) {
             if (strpos($row['reseller_ips'], ';') === FALSE) continue;
 

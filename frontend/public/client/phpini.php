@@ -3,29 +3,25 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 use iMSCP\PHPini;
 use iMSCP\TemplateEngine;
 use iMSCP_Config_Handler_File as ConfigFile;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Tells whether or not the status of the given domain
@@ -54,7 +50,7 @@ function isDomainStatusOk($domainId, $domainType)
             throw new iMSCP_Exception('Unknown domain type');
     }
 
-    $stmt = exec_query($query, [$domainId]);
+    $stmt = execQuery($query, [$domainId]);
 
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
@@ -78,12 +74,7 @@ function getDomainData($configLevel)
     $params = [];
 
     // Per user means only main domain
-    $query = "
-        SELECT domain_name, domain_status, domain_id, 'dmn' AS domain_type
-        FROM domain
-        WHERE domain_admin_id = ?
-        AND domain_status <> 'todelete'
-    ";
+    $query = "SELECT domain_name, domain_status, domain_id, 'dmn' AS domain_type FROM domain WHERE domain_admin_id = ? AND domain_status <> 'todelete'";
     $params[] = $_SESSION['user_id'];
 
     # Per domain or per site means also domain aliases
@@ -122,7 +113,7 @@ function getDomainData($configLevel)
         $params[] = $_SESSION['user_id'];
     }
 
-    return exec_query($query, $params)->fetchAll();
+    return execQuery($query, $params)->fetchAll();
 }
 
 /**
@@ -138,9 +129,9 @@ function updatePhpConfig($phpini)
 
     if (isset($_POST['domain_id']) && isset($_POST['domain_type'])) {
         $domainId = intval($_POST['domain_id']);
-        $domainType = clean_input($_POST['domain_type']);
+        $domainType = cleanInput($_POST['domain_type']);
     } else {
-        $domainId = get_user_domain_id($_SESSION['user_id']);
+        $domainId = getCustomerMainDomainId($_SESSION['user_id']);
         $domainType = 'dmn';
     }
 
@@ -151,22 +142,22 @@ function updatePhpConfig($phpini)
     }
 
     if (!isDomainStatusOk($domainId, $domainType)) {
-        set_page_message(tr('Domain status is not ok.'), 'error');
+        setPageMessage(tr('Domain status is not ok.'), 'error');
         return;
     }
 
     $phpini->loadIniOptions($_SESSION['user_id'], $domainId, $domainType);
 
     if (isset($_POST['allow_url_fopen'])) {
-        $phpini->setIniOption('phpiniAllowUrlFopen', clean_input($_POST['allow_url_fopen']));
+        $phpini->setIniOption('phpiniAllowUrlFopen', cleanInput($_POST['allow_url_fopen']));
     }
 
     if (isset($_POST['display_errors'])) {
-        $phpini->setIniOption('phpiniDisplayErrors', clean_input($_POST['display_errors']));
+        $phpini->setIniOption('phpiniDisplayErrors', cleanInput($_POST['display_errors']));
     }
 
     if (isset($_POST['error_reporting'])) {
-        $phpini->setIniOption('phpiniErrorReporting', clean_input($_POST['error_reporting']));
+        $phpini->setIniOption('phpiniErrorReporting', cleanInput($_POST['error_reporting']));
     }
 
     if ($phpini->getClientPermission('phpiniDisableFunctions') == 'yes') {
@@ -200,7 +191,7 @@ function updatePhpConfig($phpini)
     $phpini->saveIniOptions($_SESSION['user_id'], $domainId, $domainType);
     $phpini->updateDomainStatuses($_SESSION['user_id'], $domainId, $domainType, true);
 
-    set_page_message(tr('PHP configuration successfuly updated.'), 'success');
+    setPageMessage(tr('PHP configuration successfuly updated.'), 'success');
     redirectTo('domains_manage.php');
 }
 
@@ -217,9 +208,9 @@ function generatePage($tpl, $phpini)
 
     if (isset($_GET['domain_id']) && isset($_GET['domain_type'])) {
         $domainId = intval($_GET['domain_id']);
-        $domainType = clean_input($_GET['domain_type']);
+        $domainType = cleanInput($_GET['domain_type']);
     } else {
-        $domainId = get_user_domain_id($_SESSION['user_id']);
+        $domainId = getCustomerMainDomainId($_SESSION['user_id']);
         $domainType = 'dmn';
     }
 
@@ -247,12 +238,11 @@ function generatePage($tpl, $phpini)
     if ($configLevel != 'per_user') {
         foreach ($dmnsData as $dmnData) {
             $tpl->assign([
-                'DOMAIN_ID'           => tohtml($dmnData['domain_id'], 'htmlAttr'),
-                'DOMAIN_TYPE'         => tohtml($dmnData['domain_type'], 'htmlAttr'),
-                'DOMAIN_NAME_UNICODE' => tohtml(decode_idna($dmnData['domain_name'])),
+                'DOMAIN_ID'           => toHtml($dmnData['domain_id'], 'htmlAttr'),
+                'DOMAIN_TYPE'         => toHtml($dmnData['domain_type'], 'htmlAttr'),
+                'DOMAIN_NAME_UNICODE' => toHtml(decodeIdna($dmnData['domain_name'])),
                 'SELECTED'            => $dmnData['domain_id'] == $domainId && $dmnData['domain_type'] == $domainType ? ' selected' : ''
             ]);
-
             $tpl->parse('DOMAIN_NAME_BLOCK', '.domain_name_block');
         }
 
@@ -282,7 +272,7 @@ function generatePage($tpl, $phpini)
     }
 
     if (strpos($config{'iMSCP::Servers::Httpd'}, '::Apache2::') !== false) {
-        $apacheConfig = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+        $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -293,10 +283,10 @@ function generatePage($tpl, $phpini)
     } else {
         $errorReporting = $phpini->getIniOption('phpiniErrorReporting');
         $tpl->assign([
-            'TR_ERROR_REPORTING'              => tohtml(tr('Error reporting')),
-            'TR_ERROR_REPORTING_DEFAULT'      => tohtml(tr('All errors, except E_NOTICES, E_STRICT AND E_DEPRECATED (Default)')),
-            'TR_ERROR_REPORTING_DEVELOPEMENT' => tohtml(tr('All errors (Development)')),
-            'TR_ERROR_REPORTING_PRODUCTION'   => tohtml(tr('All errors, except E_DEPRECATED and E_STRICT (Production)')),
+            'TR_ERROR_REPORTING'              => toHtml(tr('Error reporting')),
+            'TR_ERROR_REPORTING_DEFAULT'      => toHtml(tr('All errors, except E_NOTICES, E_STRICT AND E_DEPRECATED (Default)')),
+            'TR_ERROR_REPORTING_DEVELOPEMENT' => toHtml(tr('All errors (Development)')),
+            'TR_ERROR_REPORTING_PRODUCTION'   => toHtml(tr('All errors, except E_DEPRECATED and E_STRICT (Production)')),
             'ERROR_REPORTING_0'               => $errorReporting == 'E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED' ? ' selected' : '',
             'ERROR_REPORTING_1'               => $errorReporting == 'E_ALL & ~E_DEPRECATED & ~E_STRICT' ? ' selected' : '',
             'ERROR_REPORTING_2'               => $errorReporting == '-1' ? ' selected' : ''
@@ -304,7 +294,7 @@ function generatePage($tpl, $phpini)
     }
 
     if (strpos($config['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = new ConfigFile(utils_normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+        $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -319,8 +309,8 @@ function generatePage($tpl, $phpini)
         $disableFunctions = explode(',', $phpini->getIniOption('phpiniDisableFunctions'));
         $execYes = in_array('exec', $disableFunctions) ? false : true;
         $tpl->assign([
-            'TR_DISABLE_FUNCTIONS_EXEC' => tohtml(tr('PHP exec() function')),
-            'TR_EXEC_HELP'              => tohtml(tr("When set to 'yes', your PHP scripts can call the PHP exec() function."), 'htmlAttr'),
+            'TR_DISABLE_FUNCTIONS_EXEC' => toHtml(tr('PHP exec() function')),
+            'TR_EXEC_HELP'              => toHtml(tr("When set to 'yes', your PHP scripts can call the PHP exec() function."), 'htmlAttr'),
             'EXEC_YES'                  => $execYes ? ' checked' : '',
             'EXEC_NO'                   => $execYes ? '' : ' checked',
             'DISABLE_FUNCTIONS_BLOCK'   => ''
@@ -340,25 +330,21 @@ function generatePage($tpl, $phpini)
         }
 
         $tpl->assign([
-            'TR_DISABLE_FUNCTIONS' => tohtml(tr('Disabled functions')),
+            'TR_DISABLE_FUNCTIONS' => toHtml(tr('Disabled functions')),
             'DISABLE_EXEC_BLOCK'   => ''
         ]);
     }
 
     $tpl->assign([
-        'TR_PHP_SETTINGS' => tohtml(tr('PHP Settings')),
-        'TR_YES'          => tohtml(tr('Yes')),
-        'TR_NO'           => tohtml(tr('No'))
+        'TR_PHP_SETTINGS' => toHtml(tr('PHP Settings')),
+        'TR_YES'          => toHtml(tr('Yes')),
+        'TR_NO'           => toHtml(tr('No'))
     ]);
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require_once 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
 customerHasFeature('php_editor') or showBadRequestErrorPage();
 
@@ -366,9 +352,7 @@ $phpini = PHPini::getInstance();
 $phpini->loadResellerPermissions($_SESSION['user_created_by']);
 $phpini->loadClientPermissions($_SESSION['user_id']);
 
-if (!empty($_POST)) {
-    updatePhpConfig($phpini);
-}
+empty($_POST) or updatePhpConfig($phpini);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -385,20 +369,17 @@ $tpl->define([
     'error_reporting_block'   => 'page'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'     => tohtml(tr('Client / Domains / PHP Settings'), 'htmlAttr'),
-    'TR_MENU_PHPINI'    => tohtml(tr('PHP Editor')),
-    'TR_DOMAIN'         => tohtml(tr('Domain')),
-    'TR_DOMAIN_TOOLTIP' => tohtml(tr('Domain for which PHP Editor must act.'), 'htmlAttr'),
-    'TR_UPDATE'         => tohtml(tr('Update'), 'htmlAttr'),
-    'TR_CANCEL'         => tohtml(tr('Cancel'))
+    'TR_PAGE_TITLE'     => toHtml(tr('Client / Domains / PHP Settings'), 'htmlAttr'),
+    'TR_MENU_PHPINI'    => toHtml(tr('PHP Editor')),
+    'TR_DOMAIN'         => toHtml(tr('Domain')),
+    'TR_DOMAIN_TOOLTIP' => toHtml(tr('Domain for which PHP Editor must act.'), 'htmlAttr'),
+    'TR_UPDATE'         => toHtml(tr('Update'), 'htmlAttr'),
+    'TR_CANCEL'         => toHtml(tr('Cancel'))
 ]);
-
 generateNavigation($tpl);
 generatePage($tpl, $phpini);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

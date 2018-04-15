@@ -3,30 +3,27 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+use iMSCP\TemplateEngine;
 use iMSCP_Config_Handler as ConfigArray;
 use iMSCP_Events as Events;
+use iMSCP_Events_Event as Event;
 use iMSCP_Exception as iMSCPException;
-use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Validates a service port and sets an appropriate message on error
@@ -53,25 +50,25 @@ function validatesService($name, $ip, $port, $protocol, $show, $index = '')
     $ip = ($ip == 'localhost') ? '127.0.0.1' : $ip;
 
     if (!preg_match('/^[\w\-]+$/D', $name)) {
-        set_page_message(tr("Invalid service name: %s", $name), 'error');
+        setPageMessage(tr("Invalid service name: %s", $name), 'error');
         $errorFieldsIds[] = "name$index";
     } elseif (strlen($name) > 25) {
-        set_page_message(tr("Service name cannot be greater than 25 characters.", $name), 'error');
+        setPageMessage(tr("Service name cannot be greater than 25 characters.", $name), 'error');
         $errorFieldsIds[] = "name$index";
     }
 
     if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
-        set_page_message(tr(' Wrong IP address.'), 'error');
+        setPageMessage(tr(' Wrong IP address.'), 'error');
         $errorFieldsIds[] = "ip$index";
     }
 
-    if (!is_number($port) || $port < 1 || $port > 65535) {
-        set_page_message(tr('Only numbers in range from 0 to 65535 are allowed.'), 'error');
+    if (!isNumber($port) || $port < 1 || $port > 65535) {
+        setPageMessage(tr('Only numbers in range from 0 to 65535 are allowed.'), 'error');
         $errorFieldsIds[] = "port$index";
     }
 
     if (!is_int($index) && isset($dbConfig[$dbServiceName])) {
-        set_page_message(tr('Service with same name already exists.'), 'error');
+        setPageMessage(tr('Service with same name already exists.'), 'error');
         $errorFieldsIds[] = "name$index";
     }
 
@@ -99,15 +96,13 @@ function deleteService($serviceName)
     $dbConfig = Registry::get('dbConfig');
 
     if (!isset($dbConfig[$serviceName])) {
-        set_page_message(tr("Unknown service name '%s'.", $serviceName), 'error');
+        setPageMessage(tr("Unknown service name '%s'.", $serviceName), 'error');
         return false;
     }
 
     unset($dbConfig[$serviceName]);
-    write_log(
-        sprintf('A service port (%s) has been removed by %s', $serviceName, $_SESSION['user_logged']), E_USER_NOTICE
-    );
-    set_page_message(tr('Service port successfully removed.'), 'success');
+    writeLog(sprintf('A service port (%s) has been removed by %s', $serviceName, $_SESSION['user_logged']), E_USER_NOTICE);
+    setPageMessage(tr('Service port successfully removed.'), 'success');
     return true;
 }
 
@@ -123,42 +118,27 @@ function addOrUpdateServices($mode = 'add')
     $dbConfig = Registry::get('dbConfig');
 
     if ($mode == 'add') {
-        if (!isset($_POST['port_new'])
-            || !isset($_POST['port_type_new'])
-            || !isset($_POST['port_type_new'])
-            || !isset($_POST['show_val_new'])
+        if (!isset($_POST['port_new']) || !isset($_POST['port_type_new']) || !isset($_POST['port_type_new']) || !isset($_POST['show_val_new'])
             || !isset($_POST['ip_new'])
         ) {
             showBadRequestErrorPage();
         }
 
-        $port = clean_input($_POST['port_new']);
-        $protocol = clean_input($_POST['port_type_new']);
-        $name = strtoupper(clean_input($_POST['name_new']));
-        $show = clean_input($_POST['show_val_new']);
-        $ip = clean_input($_POST['ip_new']);
+        $port = cleanInput($_POST['port_new']);
+        $protocol = cleanInput($_POST['port_type_new']);
+        $name = strtoupper(cleanInput($_POST['name_new']));
+        $show = cleanInput($_POST['show_val_new']);
+        $ip = cleanInput($_POST['ip_new']);
 
         if (validatesService($name, $ip, $port, $protocol, $show)) {
             $dbServiceName = "PORT_$name";
             $dbConfig[$dbServiceName] = "$port;$protocol;$name;$show;$ip";
-            write_log(
-                sprintf('A service port (%s:%s) has been added by %s', $name, $port, $_SESSION['user_logged']),
-                E_USER_NOTICE
-            );
+            writeLog(sprintf('A service port (%s:%s) has been added by %s', $name, $port, $_SESSION['user_logged']), E_USER_NOTICE);
         }
     } elseif ($mode == 'update') {
-        if (!isset($_POST['name'])
-            || !is_array($_POST['name'])
-            || !isset($_POST['var_name'])
-            || !is_array($_POST['var_name'])
-            || !isset($_POST['ip'])
-            || !is_array($_POST['ip'])
-            || !isset($_POST['port'])
-            || !is_array($_POST['port'])
-            || !isset($_POST['port_type'])
-            || !is_array($_POST['port_type'])
-            || !isset($_POST['show_val'])
-            || !is_array($_POST['show_val'])
+        if (!isset($_POST['name']) || !is_array($_POST['name']) || !isset($_POST['var_name']) || !is_array($_POST['var_name']) || !isset($_POST['ip'])
+            || !is_array($_POST['ip']) || !isset($_POST['port']) || !is_array($_POST['port']) || !isset($_POST['port_type'])
+            || !is_array($_POST['port_type']) || !isset($_POST['show_val']) || !is_array($_POST['show_val'])
         ) {
             showBadRequestErrorPage();
         }
@@ -167,10 +147,10 @@ function addOrUpdateServices($mode = 'add')
         $dbConfig->resetQueriesCounter('update');
 
         foreach ($_POST['name'] as $index => $name) {
-            $name = strtoupper(clean_input($name));
-            $ip = clean_input($_POST['ip'][$index]);
-            $port = clean_input($_POST['port'][$index]);
-            $protocol = clean_input($_POST['port_type'][$index]);
+            $name = strtoupper(cleanInput($name));
+            $ip = cleanInput($_POST['ip'][$index]);
+            $port = cleanInput($_POST['port'][$index]);
+            $protocol = cleanInput($_POST['port_type'][$index]);
             $show = $_POST['show_val'][$index];
 
             if (validatesService($name, $ip, $port, $protocol, $show, $index)) {
@@ -209,19 +189,16 @@ function addOrUpdateServices($mode = 'add')
     }
 
     if ($mode == 'add') {
-        set_page_message(tr('Service port successfully added'), 'success');
+        setPageMessage(tr('Service port successfully added'), 'success');
         return;
     }
 
     $updateCount = $dbConfig->countQueries('update');
 
     if ($updateCount > 0) {
-        set_page_message(
-            ntr('Service port has been updated.', '%d service ports were updated.', $updateCount, $updateCount),
-            'success'
-        );
+        setPageMessage(ntr('Service port has been updated.', '%d service ports were updated.', $updateCount), 'success');
     } else {
-        set_page_message(tr('Nothing has been changed.'), 'info');
+        setPageMessage(tr('Nothing has been changed.'), 'info');
     }
 
     redirectTo('settings_ports.php');
@@ -254,7 +231,7 @@ function generatePage($tpl)
 
     if (empty($services)) {
         $tpl->assign('SERVICE_PORTS', '');
-        set_page_message(tr('There are no service ports yet.'), 'static_info');
+        setPageMessage(tr('There are no service ports yet.'), 'static_info');
         return;
     }
 
@@ -262,13 +239,13 @@ function generatePage($tpl)
         list($port, $protocol, $name, $status, $ip) = explode(';', $values->{$service});
 
         $tpl->assign([
-            'NAME'         => tohtml($name, 'htmlAttr'),
-            'TR_DELETE'    => tohtml(tr('Delete')),
-            'DELETE_ID'    => tourl($service),
-            'NUM'          => tohtml($index, 'htmlAttr'),
-            'VAR_NAME'     => tohtml($service, 'htmlAttr'),
-            'IP'           => ($ip == 'localhost') ? '127.0.0.1' : (!$ip ? '0.0.0.0' : tohtml($ip, 'htmlAttr')),
-            'PORT'         => tohtml($port, 'htmlAttr'),
+            'NAME'         => toHtml($name, 'htmlAttr'),
+            'TR_DELETE'    => toHtml(tr('Delete')),
+            'DELETE_ID'    => toUrl($service),
+            'NUM'          => toHtml($index, 'htmlAttr'),
+            'VAR_NAME'     => toHtml($service, 'htmlAttr'),
+            'IP'           => ($ip == 'localhost') ? '127.0.0.1' : (!$ip ? '0.0.0.0' : toHtml($ip, 'htmlAttr')),
+            'PORT'         => toHtml($port, 'htmlAttr'),
             'SELECTED_UDP' => ($protocol == 'udp') ? ' selected' : '',
             'SELECTED_TCP' => ($protocol == 'udp') ? '' : ' selected',
             'SELECTED_ON'  => ($status) ? ' selected' : '',
@@ -295,19 +272,15 @@ function generatePage($tpl)
     );
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require 'imscp-lib.php';
 
-check_login('admin');
+checkLogin('admin');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] != 'reset') {
-    addOrUpdateServices((clean_input($_POST['uaction'])));
+    addOrUpdateServices((cleanInput($_POST['uaction'])));
 } elseif (isset($_GET['delete'])) {
-    deleteService(clean_input($_GET['delete']));
+    deleteService(cleanInput($_GET['delete']));
 }
 
 $tpl = new TemplateEngine();
@@ -318,33 +291,30 @@ $tpl->define([
     'service_ports' => 'page'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'            => tohtml(tr('Admin / Settings / Service Ports')),
-    'TR_YES'                   => tohtml(tr('Yes'), 'htmlAttr'),
-    'TR_NO'                    => tohtml(tr('No'), 'htmlAttr'),
-    'TR_SERVICE'               => tohtml(tr('Service name')),
-    'TR_IP'                    => tohtml(tr('IP address')),
-    'TR_PORT'                  => tohtml(tr('Port')),
-    'TR_PROTOCOL'              => tohtml(tr('Protocol')),
-    'TR_SHOW'                  => tohtml(tr('Show')),
-    'TR_DELETE'                => tohtml(tr('Delete')),
-    'TR_MESSAGE_DELETE'        => tojs(tr('Are you sure you want to delete the %s service port ?', '%s')),
-    'TR_ACTION'                => tohtml(tr('Actions')),
-    'VAL_FOR_SUBMIT_ON_UPDATE' => tohtml(tr('Update'), 'htmlAttr'),
-    'VAL_FOR_SUBMIT_ON_ADD'    => tohtml(tr('Add'), 'htmlAttr'),
-    'VAL_FOR_SUBMIT_ON_RESET'  => tohtml(tr('Reset'), 'htmlAttr')
+    'TR_PAGE_TITLE'            => toHtml(tr('Admin / Settings / Service Ports')),
+    'TR_YES'                   => toHtml(tr('Yes'), 'htmlAttr'),
+    'TR_NO'                    => toHtml(tr('No'), 'htmlAttr'),
+    'TR_SERVICE'               => toHtml(tr('Service name')),
+    'TR_IP'                    => toHtml(tr('IP address')),
+    'TR_PORT'                  => toHtml(tr('Port')),
+    'TR_PROTOCOL'              => toHtml(tr('Protocol')),
+    'TR_SHOW'                  => toHtml(tr('Show')),
+    'TR_DELETE'                => toHtml(tr('Delete')),
+    'TR_MESSAGE_DELETE'        => toJs(tr('Are you sure you want to delete the %s service port ?', '%s')),
+    'TR_ACTION'                => toHtml(tr('Actions')),
+    'VAL_FOR_SUBMIT_ON_UPDATE' => toHtml(tr('Update'), 'htmlAttr'),
+    'VAL_FOR_SUBMIT_ON_ADD'    => toHtml(tr('Add'), 'htmlAttr'),
+    'VAL_FOR_SUBMIT_ON_RESET'  => toHtml(tr('Reset'), 'htmlAttr')
 ]);
 
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function ($e) {
-    /** @var $e \iMSCP_Events_Event */
+Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
     $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
 });
 
 generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

@@ -3,24 +3,24 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+use iMSCP\TemplateEngine;
 use iMSCP_Authentication as Authentication;
 use iMSCP_Events as Events;
-use iMSCP\TemplateEngine;
 use iMSCP_Registry as Registry;
 use Zend_Form as Form;
 
@@ -35,7 +35,7 @@ function updatePersonalData(Form $form)
     if (!$form->isValid($_POST)) {
         foreach ($form->getMessages() as $msgsStack) {
             foreach ($msgsStack as $msg) {
-                set_page_message(tohtml($msg), 'error');
+                setPageMessage(toHtml($msg), 'error');
             }
         }
 
@@ -48,7 +48,7 @@ function updatePersonalData(Form $form)
         'userId'   => $_SESSION['user_id'],
         'userData' => $form->getValues()
     ]);
-    exec_query(
+    execQuery(
         "
             UPDATE admin
             SET fname = ?, lname = ?, firm = ?, zip = ?, city = ?, state = ?, country = ?, email = ?, phone = ?, fax = ?, street1 = ?, street2 = ?,
@@ -71,8 +71,8 @@ function updatePersonalData(Form $form)
         'userId'   => $_SESSION['user_id'],
         'userData' => $form->getValues()
     ]);
-    write_log(sprintf('The %s user data were updated', $_SESSION['user_logged']), E_USER_NOTICE);
-    set_page_message(tr('Personal data were updated.'), 'success');
+    writeLog(sprintf('The %s user data were updated', $_SESSION['user_logged']), E_USER_NOTICE);
+    setPageMessage(tr('Personal data were updated.'), 'success');
     redirectTo('personal_change.php');
 }
 
@@ -91,7 +91,7 @@ function generatePage(TemplateEngine $tpl, Form $form)
         return;
     }
 
-    $stmt = exec_query(
+    $stmt = execQuery(
         "
             SELECT admin_name, admin_type, fname, lname, IFNULL(gender, 'U') as gender, firm, zip, city, state, country, street1, street2, email,
             phone, fax
@@ -119,7 +119,6 @@ $tpl->define([
     'page'         => 'shared/partials/personal_change.phtml',
     'page_message' => 'layout'
 ]);
-
 generateNavigation($tpl);
 generatePage($tpl, $form);
 generatePageMessage($tpl);

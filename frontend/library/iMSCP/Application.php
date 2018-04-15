@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 namespace iMSCP;
@@ -154,25 +154,6 @@ class Application
         }
 
         return $this->translator;
-    }
-
-    /**
-     * Retrieve plugin manager
-     *
-     * @return PluginManager
-     */
-    public function getPluginManager()
-    {
-        if (NULL === $this->pluginManager) {
-            $this->pluginManager = new PluginManager(
-                $this->getConfig()['FRONTEND_ROOT_DIR'] . '/plugins', $this->getEventsManager(), $this->getCache()
-            );
-
-            // Make plugin manager available through registry (bc)
-            Registry::set('pluginManager', $this->pluginManager);
-        }
-
-        return $this->pluginManager;
     }
 
     /**
@@ -469,10 +450,10 @@ class Application
         $this->config['ENABLE_SSL'] = 1;
 
         // Converting some possible IDN to ACE
-        $this->config['DEFAULT_ADMIN_ADDRESS'] = encode_idna($this->config->get('DEFAULT_ADMIN_ADDRESS'));
-        $this->config['SERVER_HOSTNAME'] = encode_idna($this->config->get('SERVER_HOSTNAME'));
-        $this->config['BASE_SERVER_VHOST'] = encode_idna($this->config->get('BASE_SERVER_VHOST'));
-        $this->config['DATABASE_HOST'] = encode_idna($this->config->get('DATABASE_HOST'));
+        $this->config['DEFAULT_ADMIN_ADDRESS'] = encodeIdna($this->config->get('DEFAULT_ADMIN_ADDRESS'));
+        $this->config['SERVER_HOSTNAME'] = encodeIdna($this->config->get('SERVER_HOSTNAME'));
+        $this->config['BASE_SERVER_VHOST'] = encodeIdna($this->config->get('BASE_SERVER_VHOST'));
+        $this->config['DATABASE_HOST'] = encodeIdna($this->config->get('DATABASE_HOST'));
 
         // Server traffic settings
         $this->config['SERVER_TRAFFIC_LIMIT'] = 0;
@@ -489,7 +470,7 @@ class Application
             $this->getEventsManager()->registerListener([
                 Events::onAdminScriptStart, Events::onResellerScriptStart, Events::onClientScriptStart
             ], function () {
-                if (is_xhr()
+                if (isXhr()
                     || ($_SESSION['user_type'] != 'admin'
                         && (!isset($_SESSION['logged_from_type']) || $_SESSION['logged_from_type'] != 'admin')
                     )
@@ -515,55 +496,6 @@ class Application
     }
 
     /**
-     * Retrieve application cache
-     *
-     * @return \Zend_Cache_Core
-     */
-    public function getCache()
-    {
-        if (NULL === $this->cache) {
-            $this->cache = Cache::factory(
-                'Core',
-                # Make use of 'APC' backend if APC(u) is available, else
-                # fallback to the 'File' backend
-                extension_loaded('apc') && ini_get('apc.enabled') ? 'Apc' : 'File',
-                [
-                    'caching'                   => (PHP_SAPI != 'cli'),
-                    // Cache is never flushed automatically (default)
-                    'lifetime'                  => 0,
-                    'automatic_serialization'   => true,
-                    'automatic_cleaning_factor' => 0,
-                    'ignore_user_abort'         => true
-                ],
-                // Options below are only relevant for the 'File' backend
-                // (fallback backend)
-                [
-                    'file_locking'           => true,
-                    'hashed_directory_level' => 0,
-                    'cache_dir'              => CACHE_PATH,
-                    'read_control'           => true
-                ]
-            );
-        }
-
-        return $this->cache;
-    }
-
-    /**
-     * Retrieve shared events manager instance
-     *
-     * @return EventsManager
-     */
-    public function getEventsManager()
-    {
-        if (NULL === $this->eventsManager) {
-            $this->eventsManager = new EventsManager();
-        }
-
-        return $this->eventsManager;
-    }
-
-    /**
      * Sets timezone
      *
      * @throws iMSCPException
@@ -577,21 +509,6 @@ class Application
         if (!@date_default_timezone_set($timezone)) {
             @date_default_timezone_set('UTC');
         }
-    }
-
-    /**
-     * Retrieve main configuration
-     *
-     * @throws iMSCPException if the configuration is not available yet
-     * @return ConfigFile
-     */
-    public function getConfig()
-    {
-        if (NULL === $this->config) {
-            throw new iMSCPException('Main configuration not available yet');
-        }
-
-        return $this->config;
     }
 
     /**
@@ -699,7 +616,7 @@ class Application
         }
 
         $config = $this->getConfig();
-        $stmt = exec_query('SELECT lang, layout FROM user_gui_props WHERE user_id = ?', [$_SESSION['user_id']]);
+        $stmt = execQuery('SELECT lang, layout FROM user_gui_props WHERE user_id = ?', [$_SESSION['user_id']]);
 
         if ($stmt->rowCount()) {
             $row = $stmt->fetch();
@@ -820,7 +737,7 @@ class Application
     protected function initLayout()
     {
         if (PHP_SAPI == 'cli'
-            || is_xhr()
+            || isXhr()
         ) {
             return;
         }
@@ -834,7 +751,7 @@ class Application
                 Events::onResellerScriptEnd,
                 Events::onClientScriptEnd
             ],
-            'layout_init'
+            'initLayout'
         );
 
         if (isset($_SESSION['user_logged'])) {
@@ -853,7 +770,7 @@ class Application
      */
     protected function loadNavigation()
     {
-        if (PHP_SAPI == 'cli' || is_xhr()) {
+        if (PHP_SAPI == 'cli' || isXhr()) {
             return;
         }
 
@@ -863,7 +780,7 @@ class Application
                 Events::onResellerScriptStart,
                 Events::onClientScriptStart
             ],
-            'layout_loadNavigation'
+            'loadNavigation'
         );
     }
 
@@ -887,5 +804,88 @@ class Application
 
             $pluginManager->pluginLoad($pluginName);
         }
+    }
+
+    /**
+     * Retrieve plugin manager
+     *
+     * @return PluginManager
+     */
+    public function getPluginManager()
+    {
+        if (NULL === $this->pluginManager) {
+            $this->pluginManager = new PluginManager(
+                $this->getConfig()['FRONTEND_ROOT_DIR'] . '/plugins', $this->getEventsManager(), $this->getCache()
+            );
+
+            // Make plugin manager available through registry (bc)
+            Registry::set('pluginManager', $this->pluginManager);
+        }
+
+        return $this->pluginManager;
+    }
+
+    /**
+     * Retrieve main configuration
+     *
+     * @throws iMSCPException if the configuration is not available yet
+     * @return ConfigFile
+     */
+    public function getConfig()
+    {
+        if (NULL === $this->config) {
+            throw new iMSCPException('Main configuration not available yet');
+        }
+
+        return $this->config;
+    }
+
+    /**
+     * Retrieve shared events manager instance
+     *
+     * @return EventsManager
+     */
+    public function getEventsManager()
+    {
+        if (NULL === $this->eventsManager) {
+            $this->eventsManager = new EventsManager();
+        }
+
+        return $this->eventsManager;
+    }
+
+    /**
+     * Retrieve application cache
+     *
+     * @return \Zend_Cache_Core
+     */
+    public function getCache()
+    {
+        if (NULL === $this->cache) {
+            $this->cache = Cache::factory(
+                'Core',
+                # Make use of 'APC' backend if APC(u) is available, else
+                # fallback to the 'File' backend
+                extension_loaded('apc') && ini_get('apc.enabled') ? 'Apc' : 'File',
+                [
+                    'caching'                   => (PHP_SAPI != 'cli'),
+                    // Cache is never flushed automatically (default)
+                    'lifetime'                  => 0,
+                    'automatic_serialization'   => true,
+                    'automatic_cleaning_factor' => 0,
+                    'ignore_user_abort'         => true
+                ],
+                // Options below are only relevant for the 'File' backend
+                // (fallback backend)
+                [
+                    'file_locking'           => true,
+                    'hashed_directory_level' => 0,
+                    'cache_dir'              => CACHE_PATH,
+                    'read_control'           => true
+                ]
+            );
+        }
+
+        return $this->cache;
     }
 }

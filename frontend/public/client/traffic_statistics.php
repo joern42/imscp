@@ -3,28 +3,24 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
 use iMSCP\TemplateEngine;
+use iMSCP_Events as Events;
 use iMSCP_Registry as Registry;
-
-/***********************************************************************************************************************
- * Functions
- */
 
 /**
  * Get traffic for the given domain and the given period
@@ -61,7 +57,6 @@ function getUserTraffic($domainId, $startDate, $endDate)
     }
 
     $row = $stmt->fetch();
-
     return [$row['web_traffic'], $row['ftp_traffic'], $row['smtp_traffic'], $row['pop_traffic']];
 }
 
@@ -73,29 +68,26 @@ function getUserTraffic($domainId, $startDate, $endDate)
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $domainId = get_user_domain_id($_SESSION['user_id']);
-    $month = isset($_GET['month']) ? filter_digits($_GET['month']) : date('n');
-    $year = isset($_GET['year']) ? filter_digits($_GET['year']) : date('Y');
-    $stmt = exec_query(
-        'SELECT dtraff_time FROM domain_traffic WHERE domain_id = ? ORDER BY dtraff_time ASC LIMIT 1', [$domainId]
-    );
+    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $month = isset($_GET['month']) ? filterDigits($_GET['month']) : date('n');
+    $year = isset($_GET['year']) ? filterDigits($_GET['year']) : date('Y');
+    $stmt = execQuery('SELECT dtraff_time FROM domain_traffic WHERE domain_id = ? ORDER BY dtraff_time ASC LIMIT 1', [$domainId]);
     $nPastYears = $stmt->rowCount() ? date('Y') - date('Y', $stmt->fetchColumn()) : 0;
 
     generateDMYlists($tpl, 0, $month, $year, $nPastYears);
 
-    $stmt = exec_query(
-        'SELECT domain_id FROM domain_traffic WHERE domain_id = ? AND dtraff_time BETWEEN ? AND ? LIMIT 1',
-        [$domainId, getFirstDayOfMonth($month, $year), getLastDayOfMonth($month, $year)]
-    );
+    $stmt = execQuery('SELECT domain_id FROM domain_traffic WHERE domain_id = ? AND dtraff_time BETWEEN ? AND ? LIMIT 1', [
+        $domainId, getFirstDayOfMonth($month, $year), getLastDayOfMonth($month, $year)
+    ]);
 
     if (!$stmt->rowCount()) {
-        set_page_message(tr('No statistics found for the given period. Try another period.'), 'static_info');
+        setPageMessage(tr('No statistics found for the given period. Try another period.'), 'static_info');
         $tpl->assign('STATISTICS_BLOCK', '');
         return;
     }
 
     $requestedPeriod = getLastDayOfMonth($month, $year);
-    $toDay = ($requestedPeriod < time()) ? date('j', $requestedPeriod) : date('j');
+    $toDay = $requestedPeriod < time() ? date('j', $requestedPeriod) : date('j');
     $all = array_fill(0, 8, 0);
     $dateFormat = Registry::get('config')['DATE_FORMAT'];
 
@@ -104,12 +96,12 @@ function generatePage(TemplateEngine $tpl)
         $endDate = mktime(23, 59, 59, $month, $fromDay, $year);
         list($webTraffic, $ftpTraffic, $smtpTraffic, $popTraffic) = getUserTraffic($domainId, $startDate, $endDate);
         $tpl->assign([
-            'DATE'       => tohtml(date($dateFormat, strtotime($year . '-' . $month . '-' . $fromDay))),
-            'WEB_TRAFF'  => tohtml(bytesHuman($webTraffic)),
-            'FTP_TRAFF'  => tohtml(bytesHuman($ftpTraffic)),
-            'SMTP_TRAFF' => tohtml(bytesHuman($smtpTraffic)),
-            'POP_TRAFF'  => tohtml(bytesHuman($popTraffic)),
-            'SUM_TRAFF'  => tohtml(bytesHuman($webTraffic + $ftpTraffic + $smtpTraffic + $popTraffic))
+            'DATE'       => toHtml(date($dateFormat, strtotime($year . '-' . $month . '-' . $fromDay))),
+            'WEB_TRAFF'  => toHtml(bytesHuman($webTraffic)),
+            'FTP_TRAFF'  => toHtml(bytesHuman($ftpTraffic)),
+            'SMTP_TRAFF' => toHtml(bytesHuman($smtpTraffic)),
+            'POP_TRAFF'  => toHtml(bytesHuman($popTraffic)),
+            'SUM_TRAFF'  => toHtml(bytesHuman($webTraffic + $ftpTraffic + $smtpTraffic + $popTraffic))
         ]);
         $all[0] += $webTraffic;
         $all[1] += $ftpTraffic;
@@ -119,22 +111,18 @@ function generatePage(TemplateEngine $tpl)
     }
 
     $tpl->assign([
-        'WEB_ALL'  => tohtml(bytesHuman($all[0])),
-        'FTP_ALL'  => tohtml(bytesHuman($all[1])),
-        'SMTP_ALL' => tohtml(bytesHuman($all[2])),
-        'POP_ALL'  => tohtml(bytesHuman($all[3])),
-        'SUM_ALL'  => tohtml(bytesHuman(array_sum($all)))
+        'WEB_ALL'  => toHtml(bytesHuman($all[0])),
+        'FTP_ALL'  => toHtml(bytesHuman($all[1])),
+        'SMTP_ALL' => toHtml(bytesHuman($all[2])),
+        'POP_ALL'  => toHtml(bytesHuman($all[3])),
+        'SUM_ALL'  => toHtml(bytesHuman(array_sum($all)))
     ]);
 
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require 'imscp-lib.php';
 
-check_login('user');
+checkLogin('user');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
 
 $tpl = new TemplateEngine();
@@ -148,26 +136,23 @@ $tpl->define([
     'traffic_table_item' => 'statistics_block'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE' => tohtml(tr('Client / Statistics')),
-    'TR_STATISTICS' => tohtml(tr('Statistics')),
-    'TR_MONTH'      => tohtml(tr('Month')),
-    'TR_YEAR'       => tohtml(tr('Year')),
-    'TR_SHOW'       => tohtml(tr('Show')),
-    'TR_WEB_TRAFF'  => tohtml(tr('Web traffic')),
-    'TR_FTP_TRAFF'  => tohtml(tr('FTP traffic')),
-    'TR_SMTP_TRAFF' => tohtml(tr('SMTP traffic')),
-    'TR_POP_TRAFF'  => tohtml(tr('POP3/IMAP traffic')),
-    'TR_SUM'        => tohtml(tr('All traffic')),
-    'TR_ALL'        => tohtml(tr('All')),
-    'TR_DATE'       => tohtml(tr('Date'))
+    'TR_PAGE_TITLE' => toHtml(tr('Client / Statistics')),
+    'TR_STATISTICS' => toHtml(tr('Statistics')),
+    'TR_MONTH'      => toHtml(tr('Month')),
+    'TR_YEAR'       => toHtml(tr('Year')),
+    'TR_SHOW'       => toHtml(tr('Show')),
+    'TR_WEB_TRAFF'  => toHtml(tr('Web traffic')),
+    'TR_FTP_TRAFF'  => toHtml(tr('FTP traffic')),
+    'TR_SMTP_TRAFF' => toHtml(tr('SMTP traffic')),
+    'TR_POP_TRAFF'  => toHtml(tr('POP3/IMAP traffic')),
+    'TR_SUM'        => toHtml(tr('All traffic')),
+    'TR_ALL'        => toHtml(tr('All')),
+    'TR_DATE'       => toHtml(tr('Date'))
 ]);
-
 generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

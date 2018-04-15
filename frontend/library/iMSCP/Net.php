@@ -3,19 +3,19 @@
  * i-MSCP - internet Multi Server Control Panel
  * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 namespace iMSCP;
@@ -155,19 +155,14 @@ class Net
     }
 
     /**
-     * Expand the given IP address
+     * Get version of the given IP address
      *
      * @param string $ipAddr IP address
-     * @return string
+     * @return int IP address version
      */
-    public function expand($ipAddr)
+    public function getVersion($ipAddr)
     {
-        if ($this->getVersion($ipAddr) == 4) {
-            return $ipAddr;
-        }
-
-        $hex = unpack("H*hex", inet_pton($ipAddr));
-        return substr(preg_replace("/([A-f0-9]{4})/", "$1:", $hex['hex']), 0, -1);
+        return strpos($ipAddr, ':') !== false ? 6 : 4;
     }
 
     /**
@@ -181,6 +176,22 @@ class Net
         }
 
         return self::$instance;
+    }
+
+    /**
+     * Expand the given IP address
+     *
+     * @param string $ipAddr IP address
+     * @return string
+     */
+    public function expand($ipAddr)
+    {
+        if ($this->getVersion($ipAddr) == 4) {
+            return $ipAddr;
+        }
+
+        $hex = unpack("H*hex", inet_pton($ipAddr));
+        return substr(preg_replace("/([A-f0-9]{4})/", "$1:", $hex['hex']), 0, -1);
     }
 
     /**
@@ -219,17 +230,6 @@ class Net
     {
         $this->loadData();
         return array_keys($this->ipAddresses);
-    }
-
-    /**
-     * Get version of the given IP address
-     *
-     * @param string $ipAddr IP address
-     * @return int IP address version
-     */
-    public function getVersion($ipAddr)
-    {
-        return strpos($ipAddr, ':') !== false ? 6 : 4;
     }
 
     /**

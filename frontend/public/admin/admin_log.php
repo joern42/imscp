@@ -1,36 +1,27 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
- * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
  *
- * The Original Code is "VHCS - Virtual Hosting Control System".
- *
- * The Initial Developer of the Original Code is moleSoftware GmbH.
- * Portions created by Initial Developer are Copyright (C) 2001-2006
- * by moleSoftware GmbH. All Rights Reserved.
- *
- * Portions created by the ispCP Team are Copyright (C) 2006-2010 by
- * isp Control Panel. All Rights Reserved.
- *
- * Portions created by the i-MSCP Team are Copyright (C) 2010-2018 by
- * i-MSCP - internet Multi Server Control Panel. All Rights Reserved.
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
 use iMSCP\TemplateEngine;
-
-/***********************************************************************************************************************
- * Functions
- */
+use iMSCP_Events as Events;
+use iMSCP_Events_Event as Event;
+use iMSCP_Registry as Registry;
 
 /**
  * Send JSON response
@@ -70,7 +61,6 @@ function admin_sendJsonResponse($statusCode = 200, array $data = [])
 /**
  * Clear logs
  *
- * @throws iMSCP_Exception
  * @return void
  */
 function admin_clearLogs()
@@ -107,10 +97,10 @@ function admin_clearLogs()
     }
 
     try {
-        $stmt = execute_query($query);
+        $stmt = executeQuery($query);
 
         if ($stmt->rowCount()) {
-            write_log($msg, E_USER_NOTICE);
+            writeLog($msg, E_USER_NOTICE);
             admin_sendJsonResponse(200, ['message' => tr('Log entries successfully deleted.')]);
         } else {
             admin_sendJsonResponse(202, ['message' => tr('Nothing has been deleted.')]);
@@ -123,46 +113,36 @@ function admin_clearLogs()
 /**
  * Get logs
  *
- * @throws iMSCP_Exception
  */
 function admin_getLogs()
 {
     try {
         // Filterable / orderable columns
         $columns = ['log_time', 'log_message'];
-
         $nbColumns = count($columns);
-
         $indexColumn = 'log_id';
-
         /* DB table to use */
         $table = 'log';
 
         /* Paging */
         $limit = '';
-
         if (isset($_GET['iDisplayStart']) && isset($_GET['iDisplayLength']) && $_GET['iDisplayLength'] !== '-1') {
             $limit = 'LIMIT ' . intval($_GET['iDisplayStart']) . ', ' . intval($_GET['iDisplayLength']);
         }
 
         /* Ordering */
         $order = '';
-
         if (isset($_GET['iSortCol_0']) && isset($_GET['iSortingCols'])) {
             $order = 'ORDER BY ';
 
             for ($i = 0; $i < intval($_GET['iSortingCols']); $i++) {
                 if ($_GET['bSortable_' . intval($_GET['iSortCol_' . $i])] === 'true') {
-                    $sortDir = (
-                        isset($_GET['sSortDir_' . $i]) && in_array($_GET['sSortDir_' . $i], ['asc', 'desc'])
-                    ) ? $_GET['sSortDir_' . $i] : 'asc';
-
+                    $sortDir = isset($_GET['sSortDir_' . $i]) && in_array($_GET['sSortDir_' . $i], ['asc', 'desc']) ? $_GET['sSortDir_' . $i] : 'asc';
                     $order .= $columns[intval($_GET['iSortCol_' . $i])] . ' ' . $sortDir . ', ';
                 }
             }
 
             $order = substr_replace($order, '', -2);
-
             if ($order == 'ORDER BY ') {
                 $order = '';
             }
@@ -170,7 +150,6 @@ function admin_getLogs()
 
         /* Filtering */
         $where = '';
-
         if (isset($_GET['sSearch']) && $_GET['sSearch'] != '') {
             $where .= 'WHERE (';
 
@@ -190,7 +169,7 @@ function admin_getLogs()
         }
 
         /* Get data to display */
-        $rResult = execute_query(
+        $rResult = executeQuery(
             '
                 SELECT SQL_CALC_FOUND_ROWS ' . str_replace(' , ', ' ', implode(', ', $columns)) . "
                 FROM $table
@@ -201,12 +180,12 @@ function admin_getLogs()
         );
 
         /* Data set length after filtering */
-        $resultFilterTotal = execute_query('SELECT FOUND_ROWS()');
+        $resultFilterTotal = executeQuery('SELECT FOUND_ROWS()');
         $resultFilterTotal = $resultFilterTotal->fetch(\PDO::FETCH_NUM);
         $filteredTotal = $resultFilterTotal[0];
 
         /* Total data set length */
-        $resultTotal = execute_query("SELECT COUNT($indexColumn) FROM $table");
+        $resultTotal = executeQuery("SELECT COUNT($indexColumn) FROM $table");
         $resultTotal = $resultTotal->fetch(\PDO::FETCH_NUM);
         $total = $resultTotal[0];
 
@@ -253,27 +232,21 @@ function admin_getLogs()
 
         admin_sendJsonResponse(200, $output);
     } catch (iMSCP_Exception_Database $e) {
-        write_log(sprintf('Unable to get logs: %s', $e->getMessage()), E_USER_ERROR);
-        admin_sendJsonResponse(
-            500, ['message' => tr('An unexpected error occurred: %s', $e->getMessage())]
-        );
+        writeLog(sprintf('Unable to get logs: %s', $e->getMessage()), E_USER_ERROR);
+        admin_sendJsonResponse(500, ['message' => tr('An unexpected error occurred: %s', $e->getMessage())]);
     }
 
     admin_sendJsonResponse(400, ['message' => tr('Bad request.')]);
 }
 
-/***********************************************************************************************************************
- * Main
- */
-
 require 'imscp-lib.php';
 
-check_login('admin');
+checkLogin('admin');
 Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
 
 if (isset($_REQUEST['action'])) {
-    if (is_xhr()) {
-        switch (clean_input($_REQUEST['action'])) {
+    if (isXhr()) {
+        switch (cleanInput($_REQUEST['action'])) {
             case 'get_logs':
                 admin_getLogs();
                 break;
@@ -311,21 +284,12 @@ $tpl->assign([
     'TR_TIMEOUT_ERROR'        => json_encode(tr('Request Timeout: The server took too long to send the data.')),
     'TR_UNEXPECTED_ERROR'     => json_encode(tr('An unexpected error occurred.'))
 ]);
-
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(
-    'onGetJsTranslations',
-    function (iMSCP_Events_Description $e) {
-        $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
-    }
-);
-
+Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+    $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+});
 generateNavigation($tpl);
 generatePageMessage($tpl);
-
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, [
-    'templateEngine' => $tpl
-]);
+Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
-
 unsetMessages();

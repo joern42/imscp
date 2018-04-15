@@ -188,7 +188,7 @@ return [
                     'name' => function () {
                         if (customerSqlDbLimitIsReached()) {
                             if (Registry::get('navigation')->findOneBy('uri', '/client/sql_manage.php')->isActive()) {
-                                set_page_message(
+                                setPageMessage(
                                     tr("SQL databases limit is reached. You cannot add new SQL databases."),
                                     'static_info'
                                 );
