@@ -288,7 +288,7 @@ EOF
         );
         # Simply mimic Debian behavior (/usr/share/mysql/debian-start.inc.sh)
         my $rs = execute(
-            "/mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'", \my $stdout, \my $stderr
+            "mysql_upgrade --defaults-extra-file=$defaultsExtraFile 2>&1 | egrep -v '^(1|\@had|ERROR (1054|1060|1061))'", \my $stdout, \my $stderr
         );
         debug( $stdout ) if length $stdout;
         $rs == 0 or die( sprintf( "Couldn't upgrade SQL server system tables: %s", $stderr || 'Unknown error' ));
