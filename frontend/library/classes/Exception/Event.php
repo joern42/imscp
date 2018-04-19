@@ -52,8 +52,9 @@ class Event extends \Zend\EventManager\Event
      * Set exception
      *
      * @param \Throwable $exception
+     * @return void
      */
-    public function setException(\Throwable $exception)
+    public function setException(\Throwable $exception) :void
     {
         $this->exception = $exception;
     }

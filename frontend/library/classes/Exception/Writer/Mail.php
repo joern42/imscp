@@ -121,10 +121,10 @@ An exception has been thrown in file {FILE} at line {LINE}:
 {EXCEPTION}
 ==========================================================================
 
-Traces:
+Stack trace:
 _______
 
-{TRACES}
+{STRACK_TRACE}
 
 Contextual information:
 _______________________
@@ -143,7 +143,7 @@ EOF
                     '{FILE}'         => $exception->getFile(),
                     '{LINE}'         => $exception->getLine(),
                     '{EXCEPTION}'    => $message,
-                    '{TRACES}'       => $exception->getTrace(),
+                    '{STRACK_TRACE}' => $exception->getTrace(),
                     '{CONTEXT_INFO}' => $contextInfo
                 ]
             ];

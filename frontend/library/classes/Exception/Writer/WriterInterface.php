@@ -34,5 +34,5 @@ interface WriterInterface
      * @param Event $event
      * @return void
      */
-    public function __invoke(Event $event);
+    public function __invoke(Event $event) :void;
 }
