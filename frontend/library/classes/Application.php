@@ -259,7 +259,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                 // a production environment is not a good thing for performances
                 // reasons (cache disabled)
                 $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
-                    setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled..'), 'static_warning');
+                    setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled.'), 'static_warning');
                     setPageMessage(tr('For better performances, you should consider disabling it through the %s.', CONFIG_FILE_PATH), 'static_warning');
                 });
             }
@@ -279,7 +279,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     }
 
     /**
-     * Set eapplication nvironment
+     * Set eapplication environment
      *
      * @param string $environment
      * @return Application
@@ -438,19 +438,14 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
      *
      * @return Container
      */
-    public function getSession(): Container
+    public function getSession(): ?Container
     {
         if (NULL === $this->sessionContainer) {
             if (PHP_SAPI == 'cli') {
-                return $this->sessionContainer = new Container('iMSCP');
-            }
-
-            if (!is_writable(FRONTEND_ROOT_DIR . '/data/sessions')) {
-                throw new \RuntimeException('The frontend/data/sessions directory is not writable.');
+                return NULL;
             }
 
             $config = new SessionConfig();
-            # FIXME: cookie_secure if scheme only https
             $config->setOptions([
                 'name'                => 'iMSCP',
                 'use_cookies'         => true,
@@ -466,9 +461,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                 'save_path'           => FRONTEND_ROOT_DIR . '/data/sessions'
             ]);
 
-            $manager = new SessionManager($config);
-            Container::setDefaultManager($manager);
-
+            Container::setDefaultManager(new SessionManager($config));
             $this->sessionContainer = new Container('iMSCP');
         }
 
@@ -496,7 +489,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
      */
     public function loadFunctions()
     {
-        # TODO Replace by classes with static method, with better separation concerns
+        // TODO Replace by classes with static methods and with better separation concerns
         require_once 'admin.php';
         require_once 'client.php';
         require_once 'counting.php';
@@ -527,6 +520,9 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     /**
      * Get application database handle
      *
+     * FIXME: Should it be safe to cache key/iv and decrypted password for faster processing?
+     * FIXME: Acpu cache is not shared accross multiple user here.
+     *
      * @return DbAdapter
      */
     public function getDb(): DbAdapter
@@ -537,6 +533,8 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             $imscpKEY = $imscpIV = '';
 
             if (!(@include_once $keyFile) || empty($imscpKEY) || empty($imscpIV)) {
+                // FIXME: Provide a tool for regenerating key file without
+                // having to trigger full i-MSCP reconfiguration
                 throw new \RuntimeException(sprintf(
                     'Missing or invalid key file. Delete the %s key file if any and run the imscp-reconfigure script.', $keyFile
                 ));
