@@ -6,6 +6,5 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
-    $baseDir . '/library',
-    $vendorDir . '/zendframework/zendframework1/library',
+    $baseDir . '/library/include',
 );
