@@ -18,13 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -36,8 +37,8 @@ $tpl->define([
 
 $selected_on = '';
 $selected_off = '';
-$data_1 = getLostpasswordActivationEmail($_SESSION['user_id']);
-$data_2 = getLostpasswordEmail($_SESSION['user_id']);
+$data_1 = Mail::getLostpasswordActivationEmail(Application::getInstance()->getSession()['user_id']);
+$data_2 = Mail::getLostpasswordEmail(Application::getInstance()->getSession()['user_id']);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     $error = false;
@@ -60,12 +61,12 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
         return false;
     }
 
-    setLostpasswordActivationEmail($_SESSION['user_id'], $data_1);
-    setLostpasswordEmail($_SESSION['user_id'], $data_2);
+    Mail::setLostpasswordActivationEmail(Application::getInstance()->getSession()['user_id'], $data_1);
+    Mail::setLostpasswordEmail(Application::getInstance()->getSession()['user_id'], $data_2);
     setPageMessage(tr('Lost password email templates were updated.'), 'success');
 }
 
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 $tpl->assign([
     'TR_PAGE_TITLE'               => tr('Reseller / Customers / Lost Password Email'),
     'TR_MESSAGE_TEMPLATE_INFO'    => tr('Message template info'),
@@ -94,6 +95,6 @@ $tpl->assign([
 ]);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

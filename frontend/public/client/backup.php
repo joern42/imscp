@@ -18,8 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Schedule backup restoration.
@@ -30,19 +32,17 @@ use iMSCP_Registry as Registry;
 function scheduleBackupRestoration($userId)
 {
     execQuery("UPDATE domain SET domain_status = ? WHERE domain_admin_id = ?", ['torestore', $userId]);
-    sendDaemonRequest();
-    writeLog(sprintf('A backup restore has been scheduled by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
+    Daemon::sendRequest();
+    writeLog(sprintf('A backup restore has been scheduled by %s.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('Backup has been successfully scheduled for restoration.'), 'success');
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('backup') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('backup') or View::showBadRequestErrorPage();
 
 if (!empty($_POST)) {
-    scheduleBackupRestoration($_SESSION['user_id']);
+    scheduleBackupRestoration(Application::getInstance()->getSession()['user_id']);
     redirectTo('backup.php');
 }
 
@@ -65,9 +65,9 @@ $tpl->assign([
     'TR_RESTORE'            => tr('Restore'),
     'TR_CONFIRM_MESSAGE'    => tr('Are you sure you want to restore the last daily backup?')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

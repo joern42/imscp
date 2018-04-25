@@ -162,9 +162,9 @@ sub _installFiles
     my $packageDir = "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/monsta-ftp";
     -d $packageDir or die( "Couldn't find the imscp/monsta-ftp package into the packages cache directory" );
 
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp" )->remove();
-    iMSCP::Dir->new( dirname => "$packageDir/src" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp" );
-    iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp" );
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/monstaftp" )->remove();
+    iMSCP::Dir->new( dirname => "$packageDir/src" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/monstaftp" );
+    iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/monstaftp" );
 }
 
 =item _buildHttpdConfig( )
@@ -205,7 +205,7 @@ sub _buildConfig
         TIMEZONE => ::setupGetQuestion( 'TIMEZONE', 'UTC' ),
         TMP_PATH => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/data/tmp"
     };
-    my $file = iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp/settings/config.php" );
+    my $file = iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/monstaftp/settings/config.php" );
     my $cfgTpl = $file->getAsRef( TRUE );
 
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'config.php', $cfgTpl, $data );
@@ -236,7 +236,7 @@ sub _buildConfig
         }
     };
 
-    $file = iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp/settings/settings.json" );
+    $file = iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/monstaftp/settings/settings.json" );
     $cfgTpl = $file->getAsRef( TRUE );
     $self->{'eventManager'}->trigger( 'onLoadTemplate', 'monstaftp', 'settings.json', $cfgTpl, $data );
     ${ $cfgTpl } = JSON->new()->utf8()->pretty( TRUE )->encode( $data ) unless length ${ $cfgTpl };
@@ -277,7 +277,7 @@ sub _removeFiles
 {
     my ( $self ) = @_;
 
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp" )->remove();
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/monstaftp" )->remove();
     iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_monstaftp.conf" )->remove();
 }
 

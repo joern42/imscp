@@ -34,7 +34,7 @@ use iMSCP::EventManager;
 
 iMSCP::EventManager->getInstance()->register( 'afterSetupTasks', sub
 {
-    my $file = iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail/config/config.inc.php" );
+    my $file = iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/roundcube/config/config.inc.php" );
     ${ $file->getAsRef() } =~ s/(\$config\['(?:default_host|smtp_server)?'\]\s+=\s+').*(';)/$1tls:\/\/$::imscpConfig{'BASE_SERVER_VHOST'}$2/g;
     $file->save();
 } )->register( 'beforeUpdateRoundCubeMailHostEntries', sub {

@@ -4,7 +4,7 @@
     <pre>{BOX_MESSAGE}</pre>
     <!-- BDP: backlink_block -->
     <div class="buttons">
-        <a class="link_as_button" href="{BACK_BUTTON_DESTINATION}" target="_self">{TR_BACK}</a>
+        <a class="link_as_button" href="javascript:history.go(-1)" target="_self">{TR_BACK}</a>
     </div>
     <!-- EDP: backlink_block -->
 </div>

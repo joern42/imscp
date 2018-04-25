@@ -18,8 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Generate layout color form
@@ -34,7 +35,7 @@ function client_generateLayoutColorForm($tpl)
     if (!empty($POST) && isset($_POST['layoutColor']) && in_array($_POST['layoutColor'], $colors)) {
         $selectedColor = $_POST['layoutColor'];
     } else {
-        $selectedColor = getLayoutColor($_SESSION['user_id']);
+        $selectedColor = getLayoutColor(Application::getInstance()->getSession()['user_id']);
     }
 
     if (!empty($colors)) {
@@ -50,10 +51,8 @@ function client_generateLayoutColorForm($tpl)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -66,9 +65,9 @@ $tpl->define([
 
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'changeLayoutColor' && isset($_POST['layoutColor'])) {
-        if (setLayoutColor($_SESSION['user_id'], $_POST['layoutColor'])) {
-            if (!isset($_SESSION['logged_from_id'])) {
-                $_SESSION['user_theme_color'] = $_POST['layoutColor'];
+        if (setLayoutColor(Application::getInstance()->getSession()['user_id'], $_POST['layoutColor'])) {
+            if (!isset(Application::getInstance()->getSession()['logged_from_id'])) {
+                Application::getInstance()->getSession()['user_theme_color'] = $_POST['layoutColor'];
                 setPageMessage(tr('Layout color successfully updated.'), 'success');
             } else {
                 setPageMessage(tr("Customer's layout color successfully updated."), 'success');
@@ -77,14 +76,14 @@ if (isset($_POST['uaction'])) {
             setPageMessage(tr('Unknown layout color.'), 'error');
         }
     } elseif ($_POST['uaction'] == 'changeShowLabels') {
-        setMainMenuLabelsVisibility($_SESSION['user_id'], intval($_POST['mainMenuShowLabels']));
+        setMainMenuLabelsVisibility(Application::getInstance()->getSession()['user_id'], intval($_POST['mainMenuShowLabels']));
         setPageMessage(tr('Main menu labels visibility successfully updated.'), 'success');
     } else {
         setPageMessage(tr('Unknown action: %s', toHtml($_POST['uaction'])), 'error');
     }
 }
 
-if (isMainMenuLabelsVisible($_SESSION['user_id'])) {
+if (isMainMenuLabelsVisible(Application::getInstance()->getSession()['user_id'])) {
     $tpl->assign([
         'MAIN_MENU_SHOW_LABELS_ON'  => ' selected',
         'MAIN_MENU_SHOW_LABELS_OFF' => ''
@@ -106,10 +105,10 @@ $tpl->assign([
     'TR_OTHER_SETTINGS'        => tr('Other settings'),
     'TR_MAIN_MENU_SHOW_LABELS' => tr('Show labels for main menu links')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 client_generateLayoutColorForm($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

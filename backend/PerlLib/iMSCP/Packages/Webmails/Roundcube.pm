@@ -168,7 +168,7 @@ sub install
 {
     my ( $self ) = @_;
 
-    $self->_backupConfigFile( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail/config/config.inc.php" );
+    $self->_backupConfigFile( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/roundcube/config/config.inc.php" );
     $self->_installFiles();
     $self->_mergeConfig();
     $self->_buildRoundcubeConfig();
@@ -203,7 +203,7 @@ sub uninstall
 
 sub setFrontendPermissions
 {
-    return unless -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail";
+    return unless -d "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/roundcube";
 
     # Set executable bit on *.sh scripts
     local $SIG{'__WARN__'} = sub { die @_ };
@@ -220,7 +220,7 @@ sub setFrontendPermissions
             },
             no_chdir => 1
         },
-        "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail"
+        "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/roundcube"
     );
 }
 
@@ -373,7 +373,7 @@ sub _installFiles
 
     my $packageDir = "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/roundcube";
     -d $packageDir or die( "Couldn't find the imscp/roundcube package into the packages cache directory" );
-    my $destDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail";
+    my $destDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/roundcube";
 
     iMSCP::Dir->new( dirname => $destDir )->clear( qr/^logs$/, 'inverseMatching' ) if -d $destDir;
     iMSCP::Dir->new( dirname => "$packageDir/iMSCP/config" )->copy( $self->{'cfgDir'} );
@@ -470,7 +470,7 @@ sub _buildRoundcubeConfig
         ->save()
         ->owner( $usergroup, $usergroup )
         ->mode( 0640 )
-        ->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail/config/config.inc.php", { preserve => TRUE } );
+        ->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/roundcube/config/config.inc.php", { preserve => TRUE } );
 }
 
 =item _setupDatabase( )
@@ -485,7 +485,7 @@ sub _setupDatabase
 {
     my ( $self ) = @_;
 
-    my $rcDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail";
+    my $rcDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/roundcube";
     my $imscpDbName = ::setupGetQuestion( 'DATABASE_NAME' );
     my $rcDbName = $imscpDbName . '_roundcube';
     my $dbUser = ::setupGetQuestion( 'ROUNDCUBE_SQL_USER' );
@@ -676,7 +676,7 @@ sub _removeFiles
 
     iMSCP::File->new( filename => "$frontend->{'config'}->{'HTTPD_CONF_DIR'}/imscp_roundcube.conf" )->remove();
     iMSCP::File->new( filename => "/etc/$_/imscp_roundcube" )->remove() for 'cron.d', 'logrotate.d';
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/webmail" )->remove();
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/roundcube" )->remove();
     iMSCP::Dir->new( dirname => $self->{'cfgDir'} )->remove();
 }
 

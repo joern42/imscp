@@ -18,13 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     $errorMessage = '';
@@ -44,14 +45,14 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     if (!empty($errorMessage)) {
         setPageMessage($errorMessage, 'error');
     } else {
-        setLostpasswordActivationEmail(0, $activationEmailData);
-        setLostpasswordEmail(0, $passwordEmailData);
+        Mail::setLostpasswordActivationEmail(0, $activationEmailData);
+        Mail::setLostpasswordEmail(0, $passwordEmailData);
         setPageMessage(tr('Lost password email templates were updated.'), 'success');
         redirectTo('settings_lostpassword.php');
     }
 } else {
-    $activationEmailData = getLostpasswordActivationEmail($_SESSION['user_id']);
-    $passwordEmailData = getLostpasswordEmail($_SESSION['user_id']);
+    $activationEmailData = Mail::getLostpasswordActivationEmail(Application::getInstance()->getSession()['user_id']);
+    $passwordEmailData = Mail::getLostpasswordEmail(Application::getInstance()->getSession()['user_id']);
 }
 
 $tpl = new TemplateEngine();
@@ -86,9 +87,9 @@ $tpl->assign([
     'TR_BASE_SERVER_VHOST'        => tr('URL to this admin panel'),
     'TR_BASE_SERVER_VHOST_PORT'   => tr('URL port')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

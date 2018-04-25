@@ -18,9 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Exception as iMSCPException;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Checks the given mail account
@@ -47,31 +49,28 @@ function checkMailAccount($mailAccountId)
             AND t1.status = 'ok'
             AND t1.mail_auto_respond = 1
         ",
-            [$mailAccountId, $_SESSION['user_id'], MT_NORMAL_CATCHALL . '|' . MT_SUBDOM_CATCHALL . '|' . MT_ALIAS_CATCHALL . '|' . MT_ALSSUB_CATCHALL]
+            [$mailAccountId, Application::getInstance()->getSession()['user_id'], Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL]
         )->fetchColumn() > 0;
 }
 
 /**
  * Deactivate autoresponder of the given mail account
  *
- * @throws iMSCPException
  * @param int $mailAccountId Mail account id
  * @return void
  */
 function deactivateAutoresponder($mailAccountId)
 {
     execQuery("UPDATE mail_users SET status = 'tochange', mail_auto_respond = 0 WHERE mail_id = ?", [$mailAccountId]);
-    sendDaemonRequest();
-    writeLog(sprintf('A mail autoresponder has been deactivated by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    Daemon::sendRequest();
+    writeLog(sprintf('A mail autoresponder has been deactivated by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('Autoresponder has been deactivated.'), 'success');
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $mailAccountId = intval($_GET['id']);
-checkMailAccount($mailAccountId) or showBadRequestErrorPage();
+checkMailAccount($mailAccountId) or View::showBadRequestErrorPage();
 deactivateAutoresponder($mailAccountId);
 redirectTo('mail_accounts.php');

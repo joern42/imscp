@@ -18,23 +18,24 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') && isset($_GET['uname']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') && isset($_GET['uname']) or View::showBadRequestErrorPage();
 
-/** @var iMSCP_Database $db */
-$db = Registry::get('iMSCP_Application')->getDatabase();
+$db = Application::getInstance()->getDb();
 
 try {
-    $db->beginTransaction();
+    $db->getDriver()->getConnection()->beginTransaction();
     $htuserId = intval($_GET['uname']);
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
     $stmt = execQuery('SELECT uname FROM htaccess_users WHERE dmn_id = ? AND id = ?', [$domainId, $htuserId]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
     $htuserName = $row['uname'];
 
@@ -77,12 +78,12 @@ try {
 
     // Schedule htuser deletion
     execQuery("UPDATE htaccess_users SET status = 'todelete' WHERE id = ? AND dmn_id = ?", [$htuserId, $domainId]);
-    $db->commit();
+    $db->getDriver()->getConnection()->commit();
     setPageMessage(tr('User scheduled for deletion.'), 'success');
-    sendDaemonRequest();
-    writeLog(sprintf('%s deletes user ID (protected areas): %s', $_SESSION['user_logged'], $htuserName), E_USER_NOTICE);
-} catch (iMSCP_Exception_Database $e) {
-    $db->rollBack();
+    Daemon::sendRequest();
+    writeLog(sprintf('%s deletes user ID (protected areas): %s', Application::getInstance()->getSession()['user_logged'], $htuserName), E_USER_NOTICE);
+} catch (\Exception $e) {
+    $db->getDriver()->getConnection()->rollBack();
     setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     writeLog(sprintf('Could not delete htaccess user: %s', $e->getMessage()));
 }

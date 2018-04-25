@@ -18,13 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -33,12 +33,12 @@ $tpl->define([
     'page_message' => 'layout'
 ]);
 
-$cfg = Registry::get('config');
+$cfg = Application::getInstance()->getConfig();
 
 if (isset($_POST['uaction']) and $_POST['uaction'] == 'apply') {
     $maintenancemode = $_POST['maintenancemode'];
     $maintenancemode_message = cleanInput($_POST['maintenancemode_message']);
-    $db_cfg = Registry::get('dbConfig');
+    $db_cfg = Application::getInstance()->getRegistry()->get('dbConfig');
     $db_cfg->MAINTENANCEMODE = $maintenancemode;
     $db_cfg->MAINTENANCEMODE_MESSAGE = $maintenancemode_message;
     $cfg->merge($db_cfg);
@@ -69,10 +69,9 @@ $tpl->assign([
     'TR_APPLY'               => toHtml(tr('Apply')),
     'TR_MAINTENANCE_MESSAGE' => toHtml(tr('Maintenance message'))
 ]);
-
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

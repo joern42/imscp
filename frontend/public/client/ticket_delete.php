@@ -18,16 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
-require_once LIBRARY_PATH . '/Functions/Tickets.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Support;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('support') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('support') or View::showBadRequestErrorPage();
 
-$userId = $_SESSION['user_id'];
+$userId = Application::getInstance()->getSession()['user_id'];
 $previousPage = 'ticket_system';
 
 if (isset($_GET['ticket_id'])) {
@@ -44,17 +45,17 @@ if (isset($_GET['ticket_id'])) {
         $previousPage = 'ticket_closed';
     }
 
-    deleteTicket($ticketId);
+    Support::deleteTicket($ticketId);
     setPageMessage(tr('Ticket successfully deleted.'), 'success');
-    writeLog(sprintf("%s: deleted ticket %d", $_SESSION['user_logged'], $ticketId), E_USER_NOTICE);
+    writeLog(sprintf("%s: deleted ticket %d", Application::getInstance()->getSession()['user_logged'], $ticketId), E_USER_NOTICE);
 } elseif (isset($_GET['delete']) && $_GET['delete'] == 'open') {
-    deleteTickets('open', $userId);
+    Support::deleteTickets('open', $userId);
     setPageMessage(tr('All open tickets were successfully deleted.'), 'success');
-    writeLog(sprintf("%s: deleted all open tickets.", $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf("%s: deleted all open tickets.", Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
 } elseif (isset($_GET['delete']) && $_GET['delete'] == 'closed') {
-    deleteTickets('closed', $userId);
+    Support::deleteTickets('closed', $userId);
     setPageMessage(tr('All closed tickets were successfully deleted.'), 'success');
-    writeLog(sprintf("%s: deleted all closed tickets.", $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf("%s: deleted all closed tickets.", Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     $previousPage = 'ticket_closed';
 } else {
     setPageMessage(tr('Unknown action requested.'), 'error');

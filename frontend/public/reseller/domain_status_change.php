@@ -18,16 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 if (isset($_GET['domain_id'])) {
     $domainId = intval($_GET['domain_id']);
-    $resellerId = intval($_SESSION['user_id']);
+    $resellerId = intval(Application::getInstance()->getSession()['user_id']);
     $stmt = execQuery(
         'SELECT admin_id, created_by, domain_status FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE domain_id = ? AND created_by = ?',
         [$domainId, $resellerId]
@@ -40,11 +41,11 @@ if (isset($_GET['domain_id'])) {
         } elseif ($row['domain_status'] == 'disabled') {
             changeDomainStatus($row['admin_id'], 'activate');
         } else {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
         redirectTo('users.php');
     }
 }
 
-showBadRequestErrorPage();
+View::showBadRequestErrorPage();

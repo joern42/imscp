@@ -18,22 +18,24 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
-use Zend_Form as Form;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\View;
+use Zend\Form\Form;
 
 /**
  * Add admin user
  *
- * @throws Exception
  * @param Form $form
  * @return void
  */
 function addAdminUser(Form $form)
 {
-    if (!$form->isValid($_POST)) {
+    $form->setData($_POST);
+
+    if (!$form->isValid()) {
         foreach ($form->getMessages() as $msgsStack) {
             foreach ($msgsStack as $msg) {
                 setPageMessage(toHtml($msg), 'error');
@@ -43,14 +45,14 @@ function addAdminUser(Form $form)
         return;
     }
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $session = Application::getInstance()->getSession();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddUser, [
-            'userData' => $form->getValues()
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddUser, NULL, [
+            'userData' => $form->getData()
         ]);
 
         execQuery(
@@ -63,7 +65,7 @@ function addAdminUser(Form $form)
                 )
             ",
             [
-                $form->getValue('admin_name'), Crypt::apr1MD5($form->getValue('admin_pass')), $_SESSION['user_id'],
+                $form->getValue('admin_name'), Crypt::apr1MD5($form->getValue('admin_pass')), $session['user_id'],
                 $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'),
                 $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
                 encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
@@ -71,39 +73,37 @@ function addAdminUser(Form $form)
             ]
         );
 
-        $adminId = $db->lastInsertId();
-        $cfg = Registry::get('config');
+        $adminId = $db->getDriver()->getLastGeneratedValue();
+        $cfg = Application::getInstance()->getConfig();
 
         execQuery('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (?, ?, ?)', [
             $adminId, $cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']
         ]);
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddUser, [
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterAddUser, NULL, [
             'userId'   => $adminId,
             'userData' => $form->getValues()
         ]);
 
-        $db->commit();
-    } catch (Exception $e) {
-        $db->rollBack();
+        $db->getDriver()->getConnection()->commit();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         throw $e;
     }
 
-    sendWelcomeMail(
-        $_SESSION['user_id'], $form->getValue('admin_name'), $form->getValue('admin_pass'), $form->getValue('email'),
-        $form->getValue('fname'), $form->getValue('lname'), tr('Administrator')
+    Mail::sendWelcomeMail(
+        $session['user_id'], $form->getValue('admin_name'), $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
+        $form->getValue('lname'), tr('Administrator')
     );
-    writeLog(sprintf('The %s administrator has been added by %s', $form->getValue('admin_name'), $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('The %s administrator has been added by %s', $form->getValue('admin_name'), Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage('Administrator has been added.', 'success');
     redirectTo('users.php');
 }
 
-require 'imscp-lib.php';
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
-
-$form = getUserLoginDataForm(true, true)->addElements(getUserPersonalDataForm()->getElements());
+$form = getUserLoginDataForm(true, true)->add(getUserPersonalDataForm()->getElements());
 $form->setDefault('gender', 'U');
 
 empty($_POST) or addAdminUser($form);
@@ -115,10 +115,10 @@ $tpl->define([
     'page_message' => 'layout'
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Add Admin')));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->form = $form;
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

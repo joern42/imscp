@@ -18,8 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Checks for external event
@@ -28,22 +29,20 @@ use iMSCP_Registry as Registry;
  */
 function check_external_events()
 {
-    if (isset($_SESSION['edit'])) {
-        if ('_yes_' == $_SESSION['edit']) {
+    if (isset(Application::getInstance()->getSession()['edit'])) {
+        if ('_yes_' == Application::getInstance()->getSession()['edit']) {
             setPageMessage(tr('User data were successfully updated.'), 'success');
         } else {
             setPageMessage(tr('User data were not updated.'), 'error');
         }
 
-        unset($_SESSION['edit']);
+        unset(Application::getInstance()->getSession()['edit']);
         return;
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -68,11 +67,11 @@ $tpl->define([
     'client_scroll_next'             => 'client_list'
 ]);
 $tpl->assign('TR_PAGE_TITLE', tr('Reseller / Customers / Overview'));
-generateNavigation($tpl);
-generateCustomersList($tpl);
+View::generateNavigation($tpl);
+View::generateCustomersList($tpl);
 check_external_events();
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

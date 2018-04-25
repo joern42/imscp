@@ -18,15 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\PHPini;
-use iMSCP\TemplateEngine;
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\Config;
 
 /**
  * Tells whether or not the status of the given domain
  *
- * @throws iMSCP_Exception
  * @param int $domainId Domain unique identifier
  * @param string $domainType Domain type (dmn|als|sub|subals)
  * @return bool TRUE if domain status is 'ok', FALSE otherwise
@@ -47,7 +47,7 @@ function isDomainStatusOk($domainId, $domainType)
             $query = 'SELECT subdomain_alias_status AS status FROM subdomain_alias WHERE subdomain_alias_id = ?';
             break;
         default:
-            throw new iMSCP_Exception('Unknown domain type');
+            throw new \Exception('Unknown domain type');
     }
 
     $stmt = execQuery($query, [$domainId]);
@@ -73,9 +73,9 @@ function getDomainData($configLevel)
 {
     $params = [];
 
-    // Per user means only main domain
+    // Per user means only primary domain
     $query = "SELECT domain_name, domain_status, domain_id, 'dmn' AS domain_type FROM domain WHERE domain_admin_id = ? AND domain_status <> 'todelete'";
-    $params[] = $_SESSION['user_id'];
+    $params[] = Application::getInstance()->getSession()['user_id'];
 
     # Per domain or per site means also domain aliases
     # FIXME: we should mention that parameters are also for subdomains in the per_domain case
@@ -89,7 +89,7 @@ function getDomainData($configLevel)
             AND t1.url_forward = 'no'
             AND t1.alias_status <> 'todelete'
         ";
-        $params[] = $_SESSION['user_id'];
+        $params[] = Application::getInstance()->getSession()['user_id'];
     }
 
     # Per site also means also subdomains
@@ -109,8 +109,8 @@ function getDomainData($configLevel)
             WHERE domain_admin_id = ?
             AND subdomain_alias_status <> 'todelete'
         ";
-        $params[] = $_SESSION['user_id'];
-        $params[] = $_SESSION['user_id'];
+        $params[] = Application::getInstance()->getSession()['user_id'];
+        $params[] = Application::getInstance()->getSession()['user_id'];
     }
 
     return execQuery($query, $params)->fetchAll();
@@ -119,7 +119,6 @@ function getDomainData($configLevel)
 /**
  * Update PHP configuration options
  *
- * @throws iMSCP_Exception
  * @param PHPini $phpini PHP editor instance
  * @çeturn void
  */
@@ -131,14 +130,14 @@ function updatePhpConfig($phpini)
         $domainId = intval($_POST['domain_id']);
         $domainType = cleanInput($_POST['domain_type']);
     } else {
-        $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+        $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
         $domainType = 'dmn';
     }
 
     $configLevel = $phpini->getClientPermission('phpiniConfigLevel');
 
     if (($configLevel == 'per_user' && $domainType !== 'dmn') || ($configLevel == 'per_domain' && !in_array($domainType, ['dmn', 'als'], true))) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     if (!isDomainStatusOk($domainId, $domainType)) {
@@ -146,7 +145,7 @@ function updatePhpConfig($phpini)
         return;
     }
 
-    $phpini->loadIniOptions($_SESSION['user_id'], $domainId, $domainType);
+    $phpini->loadIniOptions(Application::getInstance()->getSession()['user_id'], $domainId, $domainType);
 
     if (isset($_POST['allow_url_fopen'])) {
         $phpini->setIniOption('phpiniAllowUrlFopen', cleanInput($_POST['allow_url_fopen']));
@@ -188,8 +187,8 @@ function updatePhpConfig($phpini)
         $phpini->setIniOption('phpiniDisableFunctions', $phpini->assembleDisableFunctions($disabledFunctions));
     }
 
-    $phpini->saveIniOptions($_SESSION['user_id'], $domainId, $domainType);
-    $phpini->updateDomainStatuses($_SESSION['user_id'], $domainId, $domainType, true);
+    $phpini->saveIniOptions(Application::getInstance()->getSession()['user_id'], $domainId, $domainType);
+    $phpini->updateDomainStatuses(Application::getInstance()->getSession()['user_id'], $domainId, $domainType, true);
 
     setPageMessage(tr('PHP configuration successfuly updated.'), 'success');
     redirectTo('domains_manage.php');
@@ -204,20 +203,18 @@ function updatePhpConfig($phpini)
  */
 function generatePage($tpl, $phpini)
 {
-    $config = Registry::get('config');
-
     if (isset($_GET['domain_id']) && isset($_GET['domain_type'])) {
         $domainId = intval($_GET['domain_id']);
         $domainType = cleanInput($_GET['domain_type']);
     } else {
-        $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+        $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
         $domainType = 'dmn';
     }
 
     $configLevel = $phpini->getClientPermission('phpiniConfigLevel');
 
     if (($configLevel == 'per_user' && $domainType != 'dmn') || ($configLevel == 'per_domain' && !in_array($domainType, ['dmn', 'als'], true))) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     $dmnsData = getDomainData($configLevel);
@@ -230,10 +227,10 @@ function generatePage($tpl, $phpini)
     }
 
     if (!$knowDomain) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
-    $phpini->loadIniOptions($_SESSION['user_id'], $domainId, $domainType);
+    $phpini->loadIniOptions(Application::getInstance()->getSession()['user_id'], $domainId, $domainType);
 
     if ($configLevel != 'per_user') {
         foreach ($dmnsData as $dmnData) {
@@ -271,8 +268,10 @@ function generatePage($tpl, $phpini)
         ]);
     }
 
+    $config = Application::getInstance()->getConfig();
+    $apacheConfig = Config\Factory::fromFile(normalizePath($config['CONF_DIR'] . '/apache/apache.data'));
+    
     if (strpos($config{'iMSCP::Servers::Httpd'}, '::Apache2::') !== false) {
-        $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -294,7 +293,6 @@ function generatePage($tpl, $phpini)
     }
 
     if (strpos($config['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -342,15 +340,13 @@ function generatePage($tpl, $phpini)
     ]);
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('php_editor') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('php_editor') or View::showBadRequestErrorPage();
 
 $phpini = PHPini::getInstance();
-$phpini->loadResellerPermissions($_SESSION['user_created_by']);
-$phpini->loadClientPermissions($_SESSION['user_id']);
+$phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_created_by']);
+$phpini->loadClientPermissions(Application::getInstance()->getSession()['user_id']);
 
 empty($_POST) or updatePhpConfig($phpini);
 
@@ -376,10 +372,10 @@ $tpl->assign([
     'TR_UPDATE'         => toHtml(tr('Update'), 'htmlAttr'),
     'TR_CANCEL'         => toHtml(tr('Cancel'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $phpini);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

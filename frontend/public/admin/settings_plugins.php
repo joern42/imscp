@@ -18,13 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Listener_ResponseCollection as EventCollection;
-use iMSCP_Exception as iMSCPException;
-use iMSCP_Plugin_Manager as PluginManager;
-use iMSCP_Registry as Registry;
-use iMSCP_Utility_OpcodeCache as OpcodeCacheUtils;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use iMSCP\Plugin\PluginManager as PluginManager;
+use iMSCP\Utility\OpcodeCache;
+use Zend\EventManager\Event;
 
 /**
  * Upload plugin archive into the frontend/plugins directory
@@ -36,7 +36,7 @@ use iMSCP_Utility_OpcodeCache as OpcodeCacheUtils;
  */
 function uploadPlugin($pluginManager)
 {
-    isset($_FILES['plugin_archive']) or showBadRequestErrorPage();
+    isset($_FILES['plugin_archive']) or View::showBadRequestErrorPage();
 
     $pluginName = 'dummy.xxxxxxx';
     $pluginDirectory = $pluginManager->pluginGetDirectory();
@@ -67,18 +67,18 @@ function uploadPlugin($pluginManager)
     }
 
     try {
-        $arch = new PharData($tmpArchPath);
+        $arch = new \PharData($tmpArchPath);
         $pluginName = $arch->getBasename();
 
         // Abort early if the plugin is known and is protected
         if ($pluginManager->pluginIsKnown($pluginName) && $pluginManager->pluginIsProtected($pluginName)) {
-            throw new iMSCPException(tr('You cannot update a protected plugin.'));
+            throw new \Exception(tr('You cannot update a protected plugin.'));
         }
 
         // Check for plugin integrity (Any plugin must provide at least two files: $pluginName.php and info.php files
         foreach ([$pluginName, 'info'] as $file) {
             if (!isset($arch["$pluginName/$file.php"])) {
-                throw new iMSCPException(tr("%s doesn't look like an i-MSCP plugin archive.", "$pluginName/$file.php"));
+                throw new \Exception(tr("%s doesn't look like an i-MSCP plugin archive. File %s is missing.", $pluginName, "$pluginName/$file.php"));
             }
         }
 
@@ -88,20 +88,20 @@ function uploadPlugin($pluginManager)
         # Backup current plugin directory in temporary directory if exists
         if ($pluginManager->pluginIsKnown($pluginName)) {
             if (!@rename("$pluginDirectory/$pluginName", "$tmpDirectory/$pluginName" . '-old')) {
-                throw new iMSCPException(tr("Could not backup current %s plugin directory.", $pluginName));
+                throw new \Exception(tr("Could not backup current %s plugin directory.", $pluginName));
             }
         }
 
         # Extract new plugin archive
         $arch->extractTo($pluginDirectory, NULL, true);
         $ret = true;
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         setPageMessage($e->getMessage(), 'error');
 
         if (!empty($pluginName) && is_dir("$tmpDirectory/$pluginName" . '-old')) {
             // Try to restore previous plugin directory on error
             if (!@rename("$tmpDirectory/$pluginName" . '-old', "$pluginDirectory/$pluginName")) {
-                setPageMessage(tr('Could not restore %s plugin directory', $pluginName), 'error');
+                setPageMessage(tr('Could not restore ancient %s plugin directory', $pluginName), 'error');
             }
         }
     }
@@ -338,7 +338,7 @@ function checkAction($pluginManager, $pluginName, $action)
 
             break;
         default:
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
     }
 
     return $ret;
@@ -354,7 +354,7 @@ function checkAction($pluginManager, $pluginName, $action)
  */
 function doAction($pluginManager, $pluginName, $action)
 {
-    $pluginManager->pluginIsKnown($pluginName) or showBadRequestErrorPage();
+    $pluginManager->pluginIsKnown($pluginName) or View::showBadRequestErrorPage();
 
     try {
         if (in_array($action, ['install', 'update', 'enable'])) {
@@ -462,7 +462,7 @@ function doAction($pluginManager, $pluginName, $action)
         }
 
         setPageMessage($msg, 'success');
-    } catch (iMSCPException $e) {
+    } catch (\Exception $e) {
         setPageMessage($e->getMessage(), 'error');
     }
 }
@@ -477,7 +477,7 @@ function doBulkAction($pluginManager)
 {
     $action = cleanInput($_POST['bulk_actions']);
 
-    in_array($action, ['install', 'uninstall', 'enable', 'disable', 'delete', 'protect']) or showBadRequestErrorPage();
+    in_array($action, ['install', 'uninstall', 'enable', 'disable', 'delete', 'protect']) or View::showBadRequestErrorPage();
 
     if (!isset($_POST['checked']) || !is_array($_POST['checked']) || empty($_POST['checked'])) {
         setPageMessage(tr('You must select at least one plugin.'), 'error');
@@ -497,14 +497,13 @@ function doBulkAction($pluginManager)
  */
 function updatePluginList(PluginManager $pluginManager)
 {
-    /** @var EventCollection $responses */
-    $responses = $pluginManager->getEventsManager()->dispatch(Events::onBeforeUpdatePluginList, ['pluginManager' => $pluginManager]);
-    if ($responses->isStopped()) {
+    $responses = $pluginManager->getEventManager()->trigger(Events::onBeforeUpdatePluginList, NULL, ['pluginManager' => $pluginManager]);
+    if ($responses->stopped()) {
         return;
     }
 
     $updateInfo = $pluginManager->pluginUpdateList();
-    $pluginManager->getEventsManager()->dispatch(Events::onAfterUpdatePluginList, ['pluginManager' => $pluginManager]);
+    $pluginManager->getEventManager()->trigger(Events::onAfterUpdatePluginList, NULL, ['pluginManager' => $pluginManager]);
     setPageMessage(
         tr(
             'Plugins list has been updated: %s new plugin(s) found, %s plugin(s) updated, %s plugin(s) reconfigured, and %s plugin(s) deleted.',
@@ -514,13 +513,10 @@ function updatePluginList(PluginManager $pluginManager)
     );
 }
 
-require 'imscp-lib.php';
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
-
-/** @var PluginManager $pluginManager */
-$pluginManager = Registry::get('iMSCP_Application')->getPluginManager();
+$pluginManager = Application::getInstance()->getPluginManager();
 
 if (!empty($_REQUEST)
     || !empty($_FILES)
@@ -574,12 +570,12 @@ if (!empty($_REQUEST)
 
             doAction($pluginManager, $pluginName, $action);
         } else {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
     } elseif (isset($_POST['bulk_actions'])) {
         doBulkAction($pluginManager);
     } elseif (!empty($_FILES) && uploadPlugin($pluginManager)) {
-        OpcodeCacheUtils::clearAllActive(); // Force newest files to be loaded on next run
+        OpcodeCache::clearAllActive(); // Force newest files to be loaded on next run
         setPageMessage(tr('Plugin has been successfully uploaded.'), 'success');
         redirectTo('settings_plugins.php?update_plugin_list');
     }
@@ -599,15 +595,14 @@ $tpl->define([
     'plugin_deactivate_link'      => 'plugin_block',
     'plugin_protected_link'       => 'plugin_block'
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Event $event) {
-    $event->getParam('translations')['core'] = array_merge($event->getParam('translations')['core'], [
-        'dataTable'     => getDataTablesPluginTranslations(false),
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+    $e->getParam('translations')['core'] = array_merge($e->getParam('translations')['core'], [
+        'dataTable'     => View::getDataTablesPluginTranslations(false),
         'force_retry'   => tr('Force retry'),
         'close'         => tr('Close'),
         'error_details' => tr('Error details')
     ]);
 });
-
 $tpl->assign([
     'TR_PAGE_TITLE'             => toHtml(tr('Admin / Settings / Plugin Management')),
     'TR_BULK_ACTIONS'           => toHtml(tr('Bulk Actions')),
@@ -635,10 +630,10 @@ $tpl->assign([
     'TR_PLUGIN_HINT'            => tr('Plugins hook into i-MSCP to extend its functionality with custom features. Plugins are developed independently from the core i-MSCP application by thousands of developers all over the world. You can find new plugins to install by browsing the %s.', '<a style="text-decoration: underline" href="https://i-mscp.net/filebase/" target="_blank">' . tr('i-MSCP plugin store') . '</a></u>'),
     'TR_CLICK_FOR_MORE_DETAILS' => toHtml(tr('Click here for more details'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $pluginManager);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

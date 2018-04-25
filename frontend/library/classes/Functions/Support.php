@@ -560,7 +560,7 @@ ___________________________
 i-MSCP Mailer');
         }
 
-        $ret = Email::sendMail([
+        $ret = Mail::sendMail([
             'mail_id'      => 'support-ticket-notification',
             'fname'        => $toData['fname'],
             'lname'        => $toData['lname'],

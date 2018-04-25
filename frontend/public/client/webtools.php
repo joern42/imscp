@@ -18,8 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\View;
 
 /**
  * Hide disabled feature.
@@ -32,7 +34,7 @@ function client_hideDisabledFeatures($tpl)
         $tpl->assign('BACKUP_FEATURE', '');
     }
 
-    $webmails = getWebmailList();
+    $webmails = Mail::getWebmailList();
     if (!customerHasFeature('mail') || empty($webmails)) {
         $tpl->assign('MAIL_FEATURE', '');
     } else {
@@ -43,12 +45,8 @@ function client_hideDisabledFeatures($tpl)
         }
     }
 
-    if (!customerHasFeature('ftp') || Registry::get('config')['FILEMANAGERS'] == 'no') {
+    if (!customerHasFeature('ftp') || Application::getInstance()->getConfig()['FILEMANAGERS'] == 'no') {
         $tpl->assign('FTP_FEATURE', '');
-    }
-
-    if (!customerHasFeature('aps')) {
-        $tpl->assign('APS_FEATURE', '');
     }
 
     if (!customerHasFeature('webstats')) {
@@ -56,10 +54,8 @@ function client_hideDisabledFeatures($tpl)
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define(
@@ -70,7 +66,6 @@ $tpl->define(
         'backup_feature'   => 'page',
         'mail_feature'     => 'page',
         'ftp_feature'      => 'page',
-        'aps_feature'      => 'page',
         'webstats_feature' => 'page'
     ]
 );
@@ -95,10 +90,10 @@ $tpl->assign(
         'TR_APP_INSTALLER_TXT' => tr('Install various Web applications with a few clicks.')
     ]
 );
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 client_hideDisabledFeatures($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

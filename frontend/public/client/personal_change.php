@@ -18,16 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
+use iMSCP\Functions\Login;
+
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
+global $tpl;
 require_once '../shared/personal_change.php';
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Client / Profile / Personal Data')));
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

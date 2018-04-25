@@ -125,10 +125,9 @@ iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
     my $fileContent = <<'EOF';
 <?php
 
-use iMSCP::Registry as Registry;
+namespace iMSCP;
 
-require '../../library/imscp-lib.php';
-$config = Registry::get('config');
+$config = Application::GetInstance()->getConfig();
 $masterDnsServerIp = $config['BASE_SERVER_PUBLIC_IP'];
 echo "// CONFIGURATION FOR MAIN DOMAIN\n";
 echo "zone \"$config->BASE_SERVER_VHOST\" {\n";

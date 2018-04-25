@@ -113,11 +113,9 @@ sub registerSetupListeners
             composer_json => iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/composer.json" )->get(),
             composer_path => '/usr/local/bin/composer'
         );
-        $composer->getComposerJson( 'scalar' )->{'config'} = {
-            %{ $composer->getComposerJson( 'scalar' )->{'config'} },
-            cafile => $::imscpConfig{'DISTRO_CA_BUNDLE'},
-            capath => $::imscpConfig{'DISTRO_CA_PATH'}
-        };
+        @{ $composer->getComposerJson( TRUE )->{'config'} }{ qw/ cafile capath / } = (
+            $::imscpConfig{'DISTRO_CA_BUNDLE'}, $::imscpConfig{'DISTRO_CA_PATH'}
+        );
         startDetail;
         $composer->setStdRoutines( sub {}, sub {
             ( my $stdout = $_[0] ) =~ s/^\s+|\s+$//g;

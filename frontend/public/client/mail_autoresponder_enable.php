@@ -18,9 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Checks the given mail account
@@ -44,7 +46,7 @@ function checkMailAccount($mailAccountId)
             WHERE t1.mail_id = ? AND t2.domain_admin_id = ? AND t1.mail_type NOT RLIKE ? AND t1.status = 'ok'
             AND t1.mail_auto_respond = 0
         ",
-        [$mailAccountId, $_SESSION['user_id'], MT_NORMAL_CATCHALL . '|' . MT_SUBDOM_CATCHALL . '|' . MT_ALIAS_CATCHALL . '|' . MT_ALSSUB_CATCHALL]
+        [$mailAccountId, Application::getInstance()->getSession()['user_id'], Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL]
     )->fetchColumn();
 }
 
@@ -65,8 +67,8 @@ function activateAutoresponder($mailAccountId, $autoresponderMessage)
     execQuery("UPDATE mail_users SET status = 'tochange', mail_auto_respond = 1, mail_auto_respond_text = ? WHERE mail_id = ?", [
         $autoresponderMessage, $mailAccountId
     ]);
-    sendDaemonRequest();
-    writeLog(sprintf('A mail autoresponder has been activated by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    Daemon::sendRequest();
+    writeLog(sprintf('A mail autoresponder has been activated by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('Autoresponder has been activated.'), 'success');
 }
 
@@ -84,16 +86,14 @@ function generatePage($tpl, $mailAccountId)
     $tpl->assign('AUTORESPONDER_MESSAGE', toHtml($row['mail_auto_respond_text']));
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_REQUEST['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
 
 $mailAccountId = intval($_REQUEST['id']);
 
 if (($autoresponderMsg = checkMailAccount($mailAccountId)) === FALSE) {
-    showBadRequestErrorPage();
+    View::showBadRequestErrorPage();
 }
 
 if ($autoresponderMsg !== '') {
@@ -115,16 +115,16 @@ if (!isset($_POST['id'])) {
         'TR_CANCEL'                => toHtml(tr('Cancel')),
         'MAIL_ACCOUNT_ID'          => toHtml($mailAccountId)
     ]);
-    generateNavigation($tpl);
+    View::generateNavigation($tpl);
     generatePage($tpl, $mailAccountId);
     generatePageMessage($tpl);
     $tpl->parse('LAYOUT_CONTENT', 'page');
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+    Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
     $tpl->prnt();
     unsetMessages();
 } elseif (isset($_POST['autoresponder_message'])) {
     activateAutoresponder($mailAccountId, cleanInput($_POST['autoresponder_message']));
     redirectTo('mail_accounts.php');
 } else {
-    showBadRequestErrorPage();
+    View::showBadRequestErrorPage();
 }

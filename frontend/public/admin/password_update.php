@@ -18,16 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
+use iMSCP\Functions\Login;
+
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
+global $tpl;
 require_once '../shared/password_update.php';
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Profile / Password')));
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

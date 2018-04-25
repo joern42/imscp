@@ -18,9 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Can add SQL user for the given SQL database?
@@ -30,13 +32,13 @@ use iMSCP_Registry as Registry;
  */
 function canAddSQLUserForDatabase($sqldId)
 {
-    $domainProps = getCustomerProperties($_SESSION['user_id']);
+    $domainProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
     if ($domainProps['domain_sqlu_limit'] == 0) {
         return true;
     }
 
-    if (getCustomerSqlUsersCount($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']) {
+    if (Counting::getCustomerSqlUsersCount($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']) {
         // Count all SQL users that are owned by the customer, excluding those
         // that are already assigned to $sqldId
         return execQuery(
@@ -49,7 +51,7 @@ function canAddSQLUserForDatabase($sqldId)
                 AND CONCAT(t1.sqlu_name, t1.sqlu_host) NOT IN(
                 SELECT CONCAT(sqlu_name, sqlu_host) FROM sql_user WHERE sqld_id = ?
             )',
-                [$sqldId, getCustomerMainDomainId($_SESSION['user_id']), $sqldId]
+                [$sqldId, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $sqldId]
             )->fetchColumn() > 0;
     }
 
@@ -99,7 +101,7 @@ function generateDatabaseSqlUserList(TemplateEngine $tpl, $sqldId)
 function generatePage(TemplateEngine $tpl)
 {
     $stmt = execQuery('SELECT sqld_id, sqld_name FROM sql_database WHERE domain_id = ? ORDER BY sqld_name ', [
-        getCustomerMainDomainId($_SESSION['user_id'])
+        getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])
     ]);
 
     if (!$stmt->rowCount()) {
@@ -126,11 +128,9 @@ function generatePage(TemplateEngine $tpl)
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('sql') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('sql') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -154,10 +154,10 @@ $tpl->assign([
     'TR_DATABASE_MESSAGE_DELETE' => toJs(tr("This database will be permanently deleted. This process cannot be recovered. All users linked to this database will also be deleted if not linked to another database. Are you sure you want to delete the '%s' database?", '%s')),
     'TR_USER_MESSAGE_DELETE'     => toJs(tr('Are you sure you want delete the %s SQL user?', '%s'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

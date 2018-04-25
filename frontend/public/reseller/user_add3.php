@@ -18,13 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\PHPini;
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Exception as iMSCPException;
-use iMSCP_Registry as Registry;
-use Zend_Form as Form;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\View;
+use Zend\Form\Form;
 
 /**
  * Get data from previous step
@@ -35,24 +35,26 @@ function getPreviousStepData()
 {
     global $adminName, $hpId, $dmnName, $dmnExpire, $dmnUrlForward, $dmnTypeForward, $dmnHostForward;
 
-    $dmnExpire = $_SESSION['dmn_expire'];
-    $dmnUrlForward = $_SESSION['dmn_url_forward'];
-    $dmnTypeForward = $_SESSION['dmn_type_forward'];
-    $dmnHostForward = $_SESSION['dmn_host_forward'];
+    $session = Application::getInstance()->getSession();
+    
+    $dmnExpire = $session['dmn_expire'];
+    $dmnUrlForward = $session['dmn_url_forward'];
+    $dmnTypeForward = $session['dmn_type_forward'];
+    $dmnHostForward = $session['dmn_host_forward'];
 
-    if (isset($_SESSION['step_one'])) {
-        $stepTwo = $_SESSION['dmn_name'] . ';' . $_SESSION['dmn_tpl'];
-        $hpId = $_SESSION['dmn_tpl'];
-        unset($_SESSION['dmn_name']);
-        unset($_SESSION['dmn_tpl']);
-        unset($_SESSION['chtpl']);
-        unset($_SESSION['step_one']);
-    } elseif (isset($_SESSION['step_two_data'])) {
-        $stepTwo = $_SESSION['step_two_data'];
-        unset($_SESSION['step_two_data']);
-    } elseif (isset($_SESSION['local_data'])) {
-        $stepTwo = $_SESSION['local_data'];
-        unset($_SESSION['local_data']);
+    if (isset($session['step_one'])) {
+        $stepTwo = $session['dmn_name'] . ';' . $session['dmn_tpl'];
+        $hpId = $session['dmn_tpl'];
+        unset($session['dmn_name']);
+        unset($session['dmn_tpl']);
+        unset($session['chtpl']);
+        unset($session['step_one']);
+    } elseif (isset($session['step_two_data'])) {
+        $stepTwo = $session['step_two_data'];
+        unset($session['step_two_data']);
+    } elseif (isset($session['local_data'])) {
+        $stepTwo = $session['local_data'];
+        unset($session['local_data']);
     } else {
         $stepTwo = "'';0";
     }
@@ -70,8 +72,6 @@ function getPreviousStepData()
 /**
  * Add customer user
  *
- * @throws Exception
- * @throws iMSCP_Exception
  * @param Form $form
  * @return void
  */
@@ -79,23 +79,24 @@ function addCustomer(Form $form)
 {
     global $hpId, $dmnName, $dmnExpire, $dmnUrlForward, $dmnTypeForward, $dmnHostForward, $clientIps, $adminName;
 
+    $session = Application::getInstance()->getSession();
     $formIsValid = TRUE;
 
     if (isset($_POST['domain_client_ips']) && is_array($_POST['domain_client_ips'])) {
-        $stmt = execQuery('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$_SESSION['user_id']]);
+        $stmt = execQuery('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$session['user_id']]);
         if (!$stmt->rowCount()) {
-            throw new iMSCPException(sprintf('Could not find IPs for reseller with ID %s', $_SESSION['user_id']));
+            throw new \Exception(sprintf('Could not find IPs for reseller with ID %s', $session['user_id']));
         }
 
         $clientIps = array_intersect($_POST['domain_client_ips'], explode(',', $stmt->fetchColumn()));
         if (count($clientIps) < count($_POST['domain_client_ips'])) {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
     } elseif (!isset($_POST['domain_client_ips'])) {
         setPageMessage(toHtml(tr('You must select at least one IP address.')), 'error');
         $formIsValid = FALSE;
     } else {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     if (!$form->isValid($_POST)) {
@@ -112,34 +113,31 @@ function addCustomer(Form $form)
         return;
     }
 
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
 
-    if (isset($_SESSION['ch_hpprops'])) {
-        $props = $_SESSION['ch_hpprops'];
-        unset($_SESSION['ch_hpprops']);
+    if (isset($session['ch_hpprops'])) {
+        $props = $session['ch_hpprops'];
+        unset($session['ch_hpprops']);
     } else {
-        $stmt = execQuery('SELECT props FROM hosting_plans WHERE reseller_id = ? AND id = ?', [$_SESSION['user_id'], $hpId]);
+        $stmt = execQuery('SELECT props FROM hosting_plans WHERE reseller_id = ? AND id = ?', [$session['user_id'], $hpId]);
         $props = $stmt->fetchColumn();
     }
 
-    list($php, $cgi, $sub, $als, $mail, $ftp, $sql_db, $sql_user, $traff, $disk, $backup, $dns, $aps, $phpEditor, $phpConfigLevel,
-        $phpiniAllowUrlFopen, $phpiniDisplayErrors, $phpiniDisableFunctions, $phpMailFunction, $phpiniPostMaxSize, $phpiniUploadMaxFileSize,
-        $phpiniMaxExecutionTime, $phpiniMaxInputTime, $phpiniMemoryLimit, $extMailServer, $webFolderProtection, $mailQuota
-        ) = explode(';', $props);
+    list($php, $cgi, $sub, $als, $mail, $ftp, $sql_db, $sql_user, $traff, $disk, $backup, $dns, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen,
+        $phpiniDisplayErrors, $phpiniDisableFunctions, $phpMailFunction, $phpiniPostMaxSize, $phpiniUploadMaxFileSize, $phpiniMaxExecutionTime,
+        $phpiniMaxInputTime, $phpiniMemoryLimit, $extMailServer, $webFolderProtection, $mailQuota) = explode(';', $props);
 
     $php = str_replace('_', '', $php);
     $cgi = str_replace('_', '', $cgi);
     $backup = str_replace('_', '', $backup);
     $dns = str_replace('_', '', $dns);
-    $aps = str_replace('_', '', $aps);
     $extMailServer = str_replace('_', '', $extMailServer);
     $webFolderProtection = str_replace('_', '', $webFolderProtection);
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         execQuery(
             "
@@ -151,17 +149,17 @@ function addCustomer(Form $form)
                 )
             ",
             [
-                $adminName, Crypt::apr1MD5($form->getValue('admin_pass')), 'user', $_SESSION['user_id'], $form->getValue('fname'),
+                $adminName, Crypt::apr1MD5($form->getValue('admin_pass')), 'user', $session['user_id'], $form->getValue('fname'),
                 $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'),
                 $form->getValue('country'), encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
                 $form->getValue('street1'), $form->getValue('street2'), $form->getValue('gender')
             ]
         );
 
-        $adminId = $db->lastInsertId();
+        $adminId = $db->getDriver()->getLastGeneratedValue();
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddDomain, [
-            'createdBy'     => $_SESSION['user_id'],
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddDomain, NULL, [
+            'createdBy'     => $session['user_id'],
             'customerId'    => $adminId,
             'customerEmail' => $form->getValue('email'),
             'domainName'    => $dmnName,
@@ -177,7 +175,7 @@ function addCustomer(Form $form)
                 INSERT INTO domain (
                     domain_name, domain_admin_id, domain_created, domain_expires, domain_mailacc_limit, domain_ftpacc_limit, domain_traffic_limit,
                     domain_sqld_limit, domain_sqlu_limit, domain_status, domain_alias_limit, domain_subd_limit, domain_client_ips, domain_ips,
-                    domain_disk_limit, domain_disk_usage, domain_php, domain_cgi, allowbackup, domain_dns, domain_software_allowed, phpini_perm_system,
+                    domain_disk_limit, domain_disk_usage, domain_php, domain_cgi, allowbackup, domain_dns, phpini_perm_system,
                     phpini_perm_config_level, phpini_perm_allow_url_fopen, phpini_perm_display_errors, phpini_perm_disable_functions,
                     phpini_perm_mail_function, domain_external_mail, web_folder_protection, mail_quota, url_forward,type_forward, host_forward
                 ) VALUES (
@@ -186,16 +184,16 @@ function addCustomer(Form $form)
             ',
             [
                 $dmnName, $adminId, time(), $dmnExpire, $mail, $ftp, $traff, $sql_db, $sql_user, 'toadd', $als, $sub, implode(',', $clientIps),
-                $clientIps[0], $disk, 0, $php, $cgi, $backup, $dns, $aps, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen, $phpiniDisplayErrors,
+                $clientIps[0], $disk, 0, $php, $cgi, $backup, $dns, $phpEditor, $phpConfigLevel, $phpiniAllowUrlFopen, $phpiniDisplayErrors,
                 $phpiniDisableFunctions, $phpMailFunction, $extMailServer, $webFolderProtection, $mailQuota, $dmnUrlForward, $dmnTypeForward,
                 $dmnHostForward
             ]
         );
 
-        $dmnId = $db->lastInsertId();
+        $dmnId = $db->getDriver()->getLastGeneratedValue();
 
         $phpini = PhpIni::getInstance();
-        $phpini->loadResellerPermissions($_SESSION['user_id']); // Load reseller PHP permissions
+        $phpini->loadResellerPermissions($session['user_id']); // Load reseller PHP permissions
         $phpini->loadClientPermissions(); // Load client default PHP permissions
         $phpini->loadIniOptions(); // Load domain default PHP configuration options
         $phpini->setIniOption('phpiniMemoryLimit', $phpiniMemoryLimit); // Must be set before phpiniPostMaxSize
@@ -205,17 +203,17 @@ function addCustomer(Form $form)
         $phpini->setIniOption('phpiniMaxInputTime', $phpiniMaxInputTime);
         $phpini->saveIniOptions($adminId, $dmnId, 'dmn');
 
-        createDefaultMailAccounts($dmnId, $form->getValue('email'), $dmnName);
-        sendWelcomeMail(
-            $_SESSION['user_id'], $adminName, $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
+        Mail::createDefaultMailAccounts($dmnId, $form->getValue('email'), $dmnName);
+        Mail::sendWelcomeMail(
+            $session['user_id'], $adminName, $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
             $form->getValue('lname'), tr('Customer')
         );
         execQuery('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (?, ?, ?)', [
             $adminId, $cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']
         ]);
-        recalculateResellerAssignments($_SESSION['user_id']);
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddDomain, [
-            'createdBy'     => $_SESSION['user_id'],
+        recalculateResellerAssignments($session['user_id']);
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterAddDomain, NULL, [
+            'createdBy'     => $session['user_id'],
             'customerId'    => $adminId,
             'customerEmail' => $form->getValue('email'),
             'domainId'      => $dmnId,
@@ -227,14 +225,14 @@ function addCustomer(Form $form)
             'forwardType'   => $dmnTypeForward,
             'forwardHost'   => $dmnHostForward
         ]);
-        $db->commit();
-        sendDaemonRequest();
-        writeLog(sprintf('A new customer (%s) has been created by: %s:', $adminName, $_SESSION['user_logged']), E_USER_NOTICE);
+        $db->getDriver()->getConnection()->commit();
+        Daemon::sendRequest();
+        writeLog(sprintf('A new customer (%s) has been created by: %s:', $adminName, $session['user_logged']), E_USER_NOTICE);
         setPageMessage(tr('Customer account successfully scheduled for creation.'), 'success');
         unsetMessages();
         redirectTo('users.php');
-    } catch (Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         throw $e;
     }
 }
@@ -252,14 +250,12 @@ function generatePage(TemplateEngine $tpl, Form $form)
 
     $form->setDefault('admin_name', $dmnName);
     $tpl->form = $form;
-    generateResellerIpsList($tpl, $_SESSION['user_id'], $clientIps ?: []);
-    $_SESSION['local_data'] = "$dmnName;$hpId";
+    View::generateResellerIpsList($tpl, Application::getInstance()->getSession()['user_id'], $clientIps ?: []);
+    Application::getInstance()->getSession()['local_data'] = "$dmnName;$hpId";
 }
 
-require 'imscp-lib.php';
-
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 if (!getPreviousStepData()) {
     setPageMessage(tr('Data were altered. Please try again.'), 'error');
@@ -270,10 +266,10 @@ if (!getPreviousStepData()) {
 $form = getUserLoginDataForm(false, true)->addElements(getUserPersonalDataForm()->getElements());
 $form->setDefault('gender', 'U');
 
-if (isset($_POST['uaction']) && 'user_add3_nxt' == $_POST['uaction'] && !isset($_SESSION['step_two_data'])) {
+if (isset($_POST['uaction']) && 'user_add3_nxt' == $_POST['uaction'] && !isset(Application::getInstance()->getSession()['step_two_data'])) {
     addCustomer($form);
 } else {
-    unset($_SESSION['step_two_data']);
+    unset(Application::getInstance()->getSession()['step_two_data']);
 }
 
 $tpl = new TemplateEngine();
@@ -284,9 +280,9 @@ $tpl->define([
     'ip_entry'     => 'page'
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Reseller / Customers / Add Customer - Next Step')));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $form);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

@@ -18,13 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -58,15 +58,15 @@ $tpl->define([
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Overview')));
 
 if (isset($_POST['details']) && !empty($_POST['details'])) {
-    $_SESSION['details'] = $_POST['details'];
-} elseif (!isset($_SESSION['details'])) {
-    $_SESSION['details'] = 'hide';
+    Application::getInstance()->getSession()['details'] = $_POST['details'];
+} elseif (!isset(Application::getInstance()->getSession()['details'])) {
+    Application::getInstance()->getSession()['details'] = 'hide';
 }
 
-generateNavigation($tpl);
-get_admin_manage_users($tpl);
+View::generateNavigation($tpl);
+View::generateUsersLists($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

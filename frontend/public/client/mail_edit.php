@@ -18,11 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\Config;
+use Zend\EventManager\Event;
 
 /**
  * Get mail account data
@@ -38,15 +41,14 @@ function client_getEmailAccountData($mailId)
         return $mailData;
     }
 
-    $stmt = execQuery('SELECT * FROM mail_users WHERE mail_id = ? AND domain_id = ?', [$mailId, getCustomerMainDomainId($_SESSION['user_id'])]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt = execQuery('SELECT * FROM mail_users WHERE mail_id = ? AND domain_id = ?', [$mailId, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])]);
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     return $stmt->fetch();
 }
 
 /**
  * Edit mail account
  *
- * @throws iMSCP_Exception
  * @return bool TRUE on success, FALSE otherwise
  */
 function client_editMailAccount()
@@ -54,17 +56,17 @@ function client_editMailAccount()
     if (!isset($_POST['password']) || !isset($_POST['password_rep']) || !isset($_POST['quota']) || !isset($_POST['forward_list'])
         || !isset($_POST['account_type']) || !in_array($_POST['account_type'], ['1', '2', '3'], true)
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     $mailData = client_getEmailAccountData(cleanInput($_GET['id']));
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
     $password = $forwardList = '_no_';
     $mailType = '';
     $mailQuotaLimitBytes = NULL;
 
     if (!preg_match('/^(.*?)_(?:mail|forward)/', $mailData['mail_type'], $match)) {
-        throw new iMSCP_Exception('Could not determine mail type');
+        throw new \Exception('Could not determine mail type');
     }
 
     $domainType = $match[1];
@@ -72,10 +74,10 @@ function client_editMailAccount()
     $mailTypeForward = in_array($_POST['account_type'], ['2', '3']);
 
     if (!$mailTypeNormal && !$mailTypeForward) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
-    if (Registry::get('config')['SERVER_HOSTNAME'] == explode('@', $mailData['mail_addr'])[1] && $mailTypeNormal) {
+    if (Application::getInstance()->getConfig()['SERVER_HOSTNAME'] == explode('@', $mailData['mail_addr'])[1] && $mailTypeNormal) {
         # SERVER_HOSTNAME is a canonical domain (local domain) which cannot be
         # listed in both `mydestination' and `virtual_mailbox_domains' Postfix
         # parameters. See http://www.postfix.org/VIRTUAL_README.html#canonical
@@ -132,7 +134,7 @@ function client_editMailAccount()
             ])->fetchColumn();
 
             if ($customerMailboxesQuotaSumBytes >= $customerEmailQuotaLimitBytes) {
-                showBadRequestErrorPage(); # Customer should never goes here excepted if it try to bypass js code
+                View::showBadRequestErrorPage(); # Customer should never goes here excepted if it try to bypass js code
             }
 
             if ($mailQuotaLimitBytes > $customerEmailQuotaLimitBytes - $customerMailboxesQuotaSumBytes) {
@@ -143,16 +145,16 @@ function client_editMailAccount()
 
         switch ($domainType) {
             case 'normal':
-                $mailType = MT_NORMAL_MAIL;
+                $mailType = Mail::MT_NORMAL_MAIL;
                 break;
             case 'subdom':
-                $mailType = MT_SUBDOM_MAIL;
+                $mailType = Mail::MT_SUBDOM_MAIL;
                 break;
             case 'alias':
-                $mailType = MT_ALIAS_MAIL;
+                $mailType = Mail::MT_ALIAS_MAIL;
                 break;
             case 'alssub':
-                $mailType = MT_ALSSUB_MAIL;
+                $mailType = Mail::MT_ALSSUB_MAIL;
         }
     }
 
@@ -186,33 +188,33 @@ function client_editMailAccount()
         $forwardList = implode(',', $forwardList);
         switch ($domainType) {
             case 'normal':
-                $mailType .= (($mailType != '') ? ',' : '') . MT_NORMAL_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . Mail::MT_NORMAL_FORWARD;
                 break;
             case 'subdom':
-                $mailType .= (($mailType != '') ? ',' : '') . MT_SUBDOM_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . Mail::MT_SUBDOM_FORWARD;
                 break;
             case 'alias':
-                $mailType .= (($mailType != '') ? ',' : '') . MT_ALIAS_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . Mail::MT_ALIAS_FORWARD;
                 break;
             case 'alssub':
-                $mailType .= (($mailType != '') ? ',' : '') . MT_ALSSUB_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . Mail::MT_ALSSUB_FORWARD;
         }
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeEditMail, ['mailId' => $mailData['mail_id']]);
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditMail, NULL, ['mailId' => $mailData['mail_id']]);
     execQuery(
         'UPDATE mail_users SET mail_pass = ?, mail_forward = ?, mail_type = ?, status = ?, po_active = ?, quota = ? WHERE mail_id = ?',
         [$password, $forwardList, $mailType, 'tochange', $mailTypeNormal ? 'yes' : 'no', $mailQuotaLimitBytes, $mailData['mail_id']]
     );
 
     # Force synching of quota info on next load (or remove cached data in case of normal account changed to forward account)
-    $postfixConfig = new iMSCP_Config_Handler_File(normalizePath(Registry::get('config')['CONF_DIR'] . '/postfix/postfix.data'));
+    $postfixConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data'), true);
     list($user, $domain) = explode('@', $mailAddr);
-    unset($_SESSION['maildirsize'][normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")]);
+    unset(Application::getInstance()->getSession()['maildirsize'][normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterEditMail, ['mailId' => $mailData['mail_id']]);
-    sendDaemonRequest();
-    writeLog(sprintf('A mail account (%s) has been edited by %s', decodeIdna($mailAddr), $_SESSION['user_logged']), E_USER_NOTICE);
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditMail, NULL, ['mailId' => $mailData['mail_id']]);
+    Daemon::sendRequest();
+    writeLog(sprintf('A mail account (%s) has been edited by %s', decodeIdna($mailAddr), Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('Mail account successfully scheduled for update.'), 'success');
     return true;
 }
@@ -225,7 +227,7 @@ function client_editMailAccount()
 function client_generatePage($tpl)
 {
     $mailId = cleanInput($_GET['id']);
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
     $mailData = client_getEmailAccountData($mailId);
     list($username, $domainName) = explode('@', $mailData['mail_addr']);
 
@@ -297,19 +299,17 @@ function client_generatePage($tpl)
         'DOMAIN_NAME_SELECTED'   => ' selected'
     ]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(
+    Application::getInstance()->getEventManager()->attach(
         Events::onGetJsTranslations,
-        function (Event $event) use ($mailTypeForwardOnly) {
-            $event->getParam('translations')->core['mail_add_forward_only'] = $mailTypeForwardOnly;
+        function (Event $e) use ($mailTypeForwardOnly) {
+            $e->getParam('translations')->core['mail_add_forward_only'] = $mailTypeForwardOnly;
         }
     );
 }
 
-require 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 if (!empty($_POST) && client_editMailAccount()) {
     redirectTo('mail_accounts.php');
@@ -338,9 +338,9 @@ $tpl->assign([
     'TR_CANCEL'              => tr('Cancel')
 ]);
 client_generatePage($tpl);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

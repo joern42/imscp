@@ -18,15 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
-isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+isset($_GET['id']) or View::showBadRequestErrorPage();
 
-execQuery(
+$stmt = execQuery(
     "
         SELECT COUNT(DISTINCT t2.reseller_id) As num_assignments, COUNT(t3.ip_id) AS remaining_ips, t1.*
         FROM server_ips AS t1
@@ -37,8 +39,7 @@ execQuery(
     ",
     [intval($_GET['id'])]
 );
-
-$stmt->rowCount() or showBadRequestErrorPage();
+$stmt->rowCount() or View::showBadRequestErrorPage();
 $row = $stmt->fetch();
 
 if ($row['num_assignments'] > 0) {
@@ -51,7 +52,7 @@ if ($row['remaining_ips'] < 1) {
     redirectTo('ip_manage.php');
 }
 
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onDeleteIpAddr, [
+Application::getInstance()->getEventManager()->trigger(Events::onDeleteIpAddr, NULL, [
     'ip_id'          => $row['ip_id'],
     'ip_number'      => $row['ip_number'],
     'ip_netmask'     => $row['ip_netmask'],
@@ -59,7 +60,7 @@ Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::o
     'ip_config_mode' => $row['auto']
 ]);
 execQuery("UPDATE server_ips SET ip_status = 'todelete' WHERE ip_id = ?", $row['ip_id']);
-sendDaemonRequest();
-writeLog(sprintf("The %s IP address has been deleted by %s", $row['ip_number'], $_SESSION['user_logged']), E_USER_NOTICE);
+Daemon::sendRequest();
+writeLog(sprintf("The %s IP address has been deleted by %s", $row['ip_number'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
 setPageMessage(tr('IP address successfully scheduled for deletion.'), 'success');
 redirectTo('ip_manage.php');

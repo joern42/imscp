@@ -30,12 +30,12 @@ FRONTEND_ROOT_DIR=$(readlink -f ../../frontend)
 # PHP files
 find ${FRONTEND_ROOT_DIR} -type f \( -name '*.php' -o -name '*.phtml' -o -name '*.tpl' \) -print > php.lst
 xgettext --copyright-holder='i-MSCP Team - All rights reserved' --package-name='i-MSCP' \
---package-version="1.5.x" --msgid-bugs-address='i18n@i-mscp.net' --language=PHP --keyword='tr' --keyword='ntr:1,2' \
+--package-version="1.5.x" --msgid-bugs-address='i18n@i-mscp.net' --language=php --keyword='tr' --keyword='ntr:1,2' \
 --from-code=utf-8 --files-from=php.lst --no-location --sort-output --output=${i18N_DIR}/iMSCP.pot
 rm -f php.lst
 
 # XML files (No longer needed since 1.2.4)
 #find ${FRONTEND_ROOT_DIR} -type f -name '*.xml' -print > xml.lst
-#xgettext --language=Glade --omit-header --keyword='label' --files-from=xml.lst --no-location --sort-output \
+#xgettext --language=glade --omit-header --keyword='label' --files-from=xml.lst --no-location --sort-output \
 #--join-existing --output=${i18N_DIR}/iMSCP.pot
 #rm -f xml.lst

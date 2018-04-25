@@ -18,9 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
 
 /**
  * Is the given directory hidden inside the mountpoints?
@@ -134,10 +133,10 @@ function generateDirectoryList($tpl)
     }
 }
 
-require_once 'imscp-lib.php';
 
-checkLogin('all');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onSharedScriptStart);
+
+Login::checkLogin('all');
+Application::getInstance()->getEventManager()->trigger(Events::onSharedScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -154,22 +153,22 @@ $tpl->assign([
     'layout'         => ''
 ]);
 
-if (!isset($_SESSION['ftp_chooser_user']) || !isset($_SESSION['ftp_chooser_domain_id'])) {
+if (!isset(Application::getInstance()->getSession()['ftp_chooser_user']) || !isset(Application::getInstance()->getSession()['ftp_chooser_domain_id'])) {
     $tpl->assign('FTP_CHOOSER', '');
     setPageMessage(toHtml(tr('Could not retrieve directories.')), 'error');
 } else {
-    $vftpDomainId = $_SESSION['ftp_chooser_domain_id'];
-    $vftpUser = $_SESSION['ftp_chooser_user'];
-    $vftpRootDir = !empty($_SESSION['ftp_chooser_root_dir']) ? $_SESSION['ftp_chooser_root_dir'] : '/';
-    $vftpHiddenDirs = !empty($_SESSION['ftp_chooser_hidden_dirs'])
+    $vftpDomainId = Application::getInstance()->getSession()['ftp_chooser_domain_id'];
+    $vftpUser = Application::getInstance()->getSession()['ftp_chooser_user'];
+    $vftpRootDir = !empty(Application::getInstance()->getSession()['ftp_chooser_root_dir']) ? Application::getInstance()->getSession()['ftp_chooser_root_dir'] : '/';
+    $vftpHiddenDirs = !empty(Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'])
         ? implode('|', array_map(function ($dir) {
             return quotemeta(normalizePath('/' . $dir));
-        }, (array)$_SESSION['ftp_chooser_hidden_dirs']))
+        }, (array)Application::getInstance()->getSession()['ftp_chooser_hidden_dirs']))
         : '';
-    $vftpUnselectableDirs = !empty($_SESSION['ftp_chooser_unselectable_dirs'])
+    $vftpUnselectableDirs = !empty(Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'])
         ? implode('|', array_map(function ($dir) {
             return quotemeta(normalizePath('/' . $dir));
-        }, (array)$_SESSION['ftp_chooser_unselectable_dirs']))
+        }, (array)Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs']))
         : '';
     $mountPoints = implode('|', array_map(function ($dir) {
         $path = normalizePath('/' . $dir);
@@ -182,5 +181,5 @@ if (!isset($_SESSION['ftp_chooser_user']) || !isset($_SESSION['ftp_chooser_domai
 
 generatePageMessage($tpl);
 $tpl->parse('PARTIAL', 'partial');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onSharedScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onSharedScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();

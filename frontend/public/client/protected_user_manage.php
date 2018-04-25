@@ -18,8 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Generates user action
@@ -64,7 +65,7 @@ function _client_generateHtgroupAction($status)
  */
 function client_generateUsersList($tpl)
 {
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
     $stmt = execQuery('SELECT * FROM `htaccess_users` WHERE `dmn_id` = ? ORDER BY `dmn_id` DESC', [$domainId]);
 
     if (!$stmt->rowCount()) {
@@ -101,7 +102,7 @@ function client_generateUsersList($tpl)
  */
 function client_generateGroupsList($tpl)
 {
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
     $stmt = execQuery('SELECT * FROM htaccess_groups WHERE dmn_id = ? ORDER BY dmn_id DESC', [$domainId]);
 
     if (!$stmt->rowCount()) {
@@ -128,21 +129,19 @@ function client_generateGroupsList($tpl)
         if (empty($row['members'])) {
             $tpl->assign('MEMBER', '');
         } else {
-            $stmt2 = executeQuery(
+            $stmt2 = execQuery(
                 'SELECT uname FROM htaccess_users WHERE id IN(' . implode(', ', array_map('quoteValue', explode(',', $row['members']))) . ')'
             );
-            $tpl->assign('MEMBER', toHtml(implode(', ', $stmt2->fetchAll(PDO::FETCH_COLUMN))));
+            $tpl->assign('MEMBER', toHtml(implode(', ', $stmt2->fetchAll(\PDO::FETCH_COLUMN))));
         }
 
         $tpl->parse('GROUP_BLOCK', '.group_block');
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -172,11 +171,11 @@ $tpl->assign([
     'TR_STATUS'         => tr('Status'),
     'TR_MESSAGE_DELETE' => tr('Are you sure you want to delete %s?', '%s'),
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 client_generateUsersList($tpl);
 client_generateGroupsList($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

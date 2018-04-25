@@ -18,13 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+namespace iMSCP;
+
+use iMSCP\Update\Database;
+
 try {
     chdir(dirname(__FILE__));
-    require_once '../../frontend/library/imscp-lib.php';
-    $dbUpdater = new iMSCP\Update\UpdateDatabase();
+    require_once '../../frontend/library/include/application.php';
+    $dbUpdater = new Database();
 
     if ($dbUpdater->getLastAppliedUpdate() > $dbUpdater->getLastUpdate()) {
-        throw new \RuntimeException('An i-MSCP downgrade attempt has been detected. Downgrade is not supported.');
+        throw new \RuntimeException("A downgrade attempt has been detected. Downgrade to an older version isn't supported by the i-MSCP installer.");
     }
 
     if (!$dbUpdater->applyUpdates()) {
@@ -32,7 +36,7 @@ try {
     }
 
     buildLanguagesIndex();
-} catch (Throwable $e) {
+} catch (\Throwable $e) {
     fwrite(STDERR, sprintf("[ERROR] %s \n\nStack trace:\n%s\n", $e->getMessage(), $e->getTraceAsString()));
     exit(1);
 }

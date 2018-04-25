@@ -18,14 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Move the given reseller from the given administrator to the given administrator
  *
- * @throws Exception
  * @param int $resellerId Reseller unique identifier
  * @param int $fromAdministratorId Administrator unique identifier
  * @param int $toAdministratorId Administrator unique identifier
@@ -33,25 +33,24 @@ use iMSCP_Registry as Registry;
  */
 function moveReseller($resellerId, $fromAdministratorId, $toAdministratorId)
 {
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         // Move reseller to (TO) administrator
         execQuery('UPDATE admin SET created_by = ? WHERE admin_id = ?', [$toAdministratorId, $resellerId]);
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onMoveReseller, [
+        Application::getInstance()->getEventManager()->trigger(Events::onMoveReseller, NULL, [
             'resellerId'          => $resellerId,
             'fromAdministratorId' => $fromAdministratorId,
             'toAdministratorId'   => $toAdministratorId
         ]);
 
-        $db->commit();
-    } catch (Exception $e) {
-        $db->rollBack();
+        $db->getDriver()->getConnection()->commit();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf("Couldn't move reseller with ID %d: %s", $resellerId, $e->getMessage()));
-        throw new Exception(tr("Couldn't move reseller with ID %d: %s", $resellerId, $e->getMessage()), $e->getCode(), $e);
+        throw new \Exception(tr("Couldn't move reseller with ID %d: %s", $resellerId, $e->getMessage()), $e->getCode(), $e);
     }
 }
 
@@ -65,7 +64,7 @@ function moveResellers()
     if (!isset($_POST['from_administrator']) || !isset($_POST['to_administrator']) || !isset($_POST['administrator_resellers'])
         || !is_array($_POST['administrator_resellers'])
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     set_time_limit(0);
@@ -74,15 +73,12 @@ function moveResellers()
     try {
         $fromAdministratorId = intval($_POST['from_administrator']);
         $toAdministratorId = intval($_POST['to_administrator']);
-
-        if ($fromAdministratorId == $toAdministratorId) {
-            showBadRequestErrorPage();
-        }
+        $fromAdministratorId != $toAdministratorId or View::showBadRequestErrorPage();
 
         foreach ($_POST['administrator_resellers'] as $resellerId) {
             moveReseller(intval($resellerId), $fromAdministratorId, $toAdministratorId);
         }
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         setPageMessage(toHtml($e->getMessage()), 'error');
         return false;
     }
@@ -98,7 +94,7 @@ function moveResellers()
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $administrators = $stmt = executeQuery("SELECT admin_id, admin_name FROM admin WHERE admin_type = 'admin'")->fetchAll();
+    $administrators = $stmt = execQuery("SELECT admin_id, admin_name FROM admin WHERE admin_type = 'admin'")->fetchAll();
     $fromAdministratorId = isset($_POST['from_administrator']) ? intval($_POST['from_administrator']) : $administrators[0]['admin_id'];
     $toAdministratorId = isset($_POST['to_administrator']) ? intval($_POST['to_administrator']) : $administrators[1]['admin_id'];
 
@@ -107,7 +103,7 @@ function generatePage(TemplateEngine $tpl)
         $tpl->assign([
             'FROM_ADMINISTRATOR_ID'       => toHtml($administrator['admin_id'], 'htmlAttr'),
             'FROM_ADMINISTRATOR_NAME'     => toHtml($administrator['admin_name']),
-            'FROM_ADMINISTRATOR_SELECTED' => ($fromAdministratorId == $administrator['admin_id']) ? ' selected' : ''
+            'FROM_ADMINISTRATOR_SELECTED' => $fromAdministratorId == $administrator['admin_id'] ? ' selected' : ''
         ]);
         $tpl->parse('FROM_ADMINISTRATOR_ITEM', '.from_administrator_item');
         $tpl->assign([
@@ -139,11 +135,9 @@ function generatePage(TemplateEngine $tpl)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
-systemHasManyAdmins() or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+Counting::systemHasManyAdmins() && Counting::systemHasResellers() or View::showBadRequestErrorPage();
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'move_resellers' && moveResellers()) {
     setPageMessage(tr('Reseller(s) successfully moved.'), 'success');
@@ -161,10 +155,10 @@ $tpl->define([
     'to_administrator_item'             => 'page'
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Reseller Assignments')));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

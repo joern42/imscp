@@ -112,9 +112,9 @@ class Counting
                 WHERE ! (
                     mail_acc IN('abuse', 'hostmaster', 'postmaster', 'webmaster')
                     AND
-                    mail_type IN('" . MT_NORMAL_FORWARD . "', '" . MT_ALIAS_FORWARD . "')
+                    mail_type IN('" . Mail::MT_NORMAL_FORWARD . "', '" . Mail::MT_ALIAS_FORWARD . "')
                 )
-                AND !(mail_acc = 'webmaster' AND mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "'))
+                AND !(mail_acc = 'webmaster' AND mail_type IN('" . Mail::MT_SUBDOM_FORWARD . "', '" . Mail::MT_ALSSUB_FORWARD . "'))
             ";
         }
 
@@ -321,9 +321,9 @@ class Counting
                     AND !(
                         mail_acc IN('abuse', 'hostmaster', 'postmaster', 'webmaster')
                         AND
-                        mail_type IN('" . MT_NORMAL_FORWARD . "', '" . MT_ALIAS_FORWARD . "')
+                        mail_type IN('" . Mail::MT_NORMAL_FORWARD . "', '" . Mail::MT_ALIAS_FORWARD . "')
                     )    
-                    AND !(mail_acc = 'webmaster' AND mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "'))
+                    AND !(mail_acc = 'webmaster' AND mail_type IN('" . Mail::MT_SUBDOM_FORWARD . "', '" . Mail::MT_ALSSUB_FORWARD . "'))
                 ";
             }
 
@@ -502,9 +502,9 @@ class Counting
                     AND !(
                         mail_acc IN('abuse', 'hostmaster', 'postmaster', 'webmaster')
                         AND
-                        mail_type IN('" . MT_NORMAL_FORWARD . "', '" . MT_ALIAS_FORWARD . "')
+                        mail_type IN('" . Mail::MT_NORMAL_FORWARD . "', '" . Mail::MT_ALIAS_FORWARD . "')
                     )    
-                    AND !(mail_acc = 'webmaster' AND mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "'))
+                    AND !(mail_acc = 'webmaster' AND mail_type IN('" . Mail::MT_SUBDOM_FORWARD . "', '" . Mail::MT_ALSSUB_FORWARD . "'))
                 ";
             }
 
@@ -595,5 +595,113 @@ class Counting
             static::getCustomerSqlDatabasesCount($domainId),
             static::getCustomerSqlUsersCount($domainId)
         ];
+    }
+
+    /**
+     * Whether or not the system has a least the given number of registered resellers
+     *
+     * @param int $minResellers Minimum number of resellers
+     * @return bool TRUE if the system has a least the given number of registered resellers, FALSE otherwise
+     */
+    public static function systemHasResellers(int $minResellers = 1): bool
+    {
+        static $count = NULL;
+
+        if (NULL === $count) {
+            $count = execQuery("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'reseller'")->fetchColumn();
+        }
+
+        return $count >= $minResellers;
+    }
+
+    /**
+     * Whether or not the system has a least the given number of registered customers
+     *
+     * @param int $minCustomers Minimum number of customers
+     * @return bool TRUE if system has a least the given number of registered customers, FALSE otherwise
+     */
+    public static function systemHasCustomers(int $minCustomers = 1): bool
+    {
+        static $count = NULL;
+
+        if (NULL === $count) {
+            $count = execQuery("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND admin_status <> 'todelete'")->fetchColumn();
+        }
+
+        return $count >= $minCustomers;
+    }
+
+    /**
+     * Whether or not system has registered admins (many), resellers or customers
+     *
+     * @return bool
+     */
+    public static function systemHasAdminsOrResellersOrCustomers(): bool
+    {
+        return static::systemHasManyAdmins() || static::systemHasResellers() || static::systemHasCustomers();
+    }
+
+    /**
+     * Whether or not system has registered resellers or customers
+     *
+     * @return bool
+     */
+    public static function systemHasResellersOrCustomers(): bool
+    {
+        return static::systemHasResellers() || static::systemHasCustomers();
+    }
+
+    /**
+     * Whether or not system as many admins
+     *
+     * @return bool
+     */
+    public static function systemHasManyAdmins(): bool
+    {
+        static $hasManyAdmins = NULL;
+
+        if (NULL === $hasManyAdmins) {
+            $hasManyAdmins = execQuery("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'admin'")->fetchColumn() > 1;
+        }
+
+        return $hasManyAdmins;
+    }
+
+    /**
+     * Whether or not system has anti-rootkits
+     *
+     * @return bool
+     */
+    public static function systemHasAntiRootkits(): bool
+    {
+        $config = $db = Application::getInstance()->getConfig();
+        if ((isset($config['ANTIROOTKITS']) && $config['ANTIROOTKITS'] != 'no' && $config['ANTIROOTKITS'] != ''
+                && ((isset($config['CHKROOTKIT_LOG']) && $config['CHKROOTKIT_LOG'] != '')
+                    || (isset($config['RKHUNTER_LOG']) && $config['RKHUNTER_LOG'] != '')))
+            || isset($config['OTHER_ROOTKIT_LOG']) && $config['OTHER_ROOTKIT_LOG'] != ''
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether or not the logged-in reseller has a least the given number of registered customers
+     *
+     * @param int $minNbCustomers Minimum number of customers
+     * @return bool TRUE if the logged-in reseller has a least the given number of registered customer, FALSE otherwise
+     */
+    public static function resellerHasCustomers(int $minNbCustomers = 1): bool
+    {
+        static $customerCount = NULL;
+
+        if (NULL === $customerCount) {
+            $customerCount = execQuery("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND created_by = ? AND admin_status <> 'todelete'", [
+                Application::getInstance()->getSession()['user_id']
+            ])->fetchColumn();
+        }
+
+        return $customerCount >= $minNbCustomers;
     }
 }

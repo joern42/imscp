@@ -216,10 +216,8 @@ sub installComposer
     - Read composer.lock file
     - Install the packages specified in the composer.lock file
 
- Param bool $requireDev OPTIONAL Flag indicating whether or not packages listed
-                        in require-dev must be installed
- Param bool $noautoloader OPTIONAL flag indicating whether or not autoloader
-                          generation must be skipped
+ Param bool $requireDev OPTIONAL Flag indicating whether or not packages listed in require-dev must be installed
+ Param bool $noautoloader OPTIONAL flag indicating whether or not autoloader generation must be skipped
  Return iMSCP::Composer, die on failure
 
 =cut
@@ -268,10 +266,8 @@ sub installPackages
     - Install the latest version of the packages
     - Update the composer.lock file to store the installed packages version
 
- Param bool $requireDev OPTIONAL Flag indicating whether or not packages listed
-                        in require-dev must be installed
- Param bool $noautoloader OPTIONAL flag indicating whether or not autoloader
-                          generation must be skipped
+ Param bool $requireDev OPTIONAL Flag indicating whether or not packages listed in require-dev must be installed
+ Param bool $noautoloader OPTIONAL flag indicating whether or not autoloader generation must be skipped
  Return iMSCP::Composer, die on failure
 
 =cut
@@ -368,12 +364,12 @@ sub checkPackageRequirements
     $self;
 }
 
-=item getComposerJson( $scalar = false )
+=item getComposerJson( $hashref = FALSE )
 
  Return composer.json file as string
 
- Param bool $scalar OPTIONAL Whether composer.json must be returned as scalar (default: false)
- Return string|scalar, croak on failure
+ Param bool $hashref OPTIONAL Whether composer.json must be returned as a hash reference (default: FALSE)
+ Return string|hashref, croak on failure
 
 =cut
 

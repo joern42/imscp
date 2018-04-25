@@ -18,18 +18,18 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-$cfg = Registry::get('config');
+$cfg = Application::getInstance()->getConfig();
 
 if (!empty($_POST)) {
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeEditAdminGeneralSettings);
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditAdminGeneralSettings);
 
     $checkForUpdate = isset($_POST['checkforupdate']) ? cleanInput($_POST['checkforupdate']) : $cfg['CHECK_FOR_UPDATES'];
 
@@ -78,70 +78,64 @@ if (!empty($_POST)) {
         ? cleanInput($_POST['prevent_external_login_client']) : $cfg['PREVENT_EXTERNAL_LOGIN_CLIENT'];
     $enableSSL = isset($_POST['enableSSL']) ? cleanInput($_POST['enableSSL']) : $cfg['ENABLE_SSL'];
 
-    if (
-        !isNumber($checkForUpdate) || !isNumber($lostPasswd) || !isNumber($passwdStrong) || !isNumber($bruteforce)
-        || !isNumber($bruteforceBetween) || !isNumber($countDefaultEmails) || !isNumber($protecttDefaultEmails) || !isNumber($hardMailSuspension)
-        || !isNumber($emailQuotaSyncMode) || !isNumber($supportSystem) || !isNumber($prevExtLoginAdmin) || !isNumber($prevExtLoginReseller)
-        || !isNumber($prevExtLoginClient) || !isNumber($enableSSL) || !in_array($userInitialLang, getAvailableLanguages(true), true)
+    if (!isNumber($checkForUpdate) || !isNumber($lostPasswd) || !isNumber($passwdStrong) || !isNumber($bruteforce) || !isNumber($bruteforceBetween)
+        || !isNumber($countDefaultEmails) || !isNumber($protecttDefaultEmails) || !isNumber($hardMailSuspension) || !isNumber($emailQuotaSyncMode)
+        || !isNumber($supportSystem) || !isNumber($prevExtLoginAdmin) || !isNumber($prevExtLoginReseller) || !isNumber($prevExtLoginClient)
+        || !isNumber($enableSSL) || !in_array($userInitialLang, getAvailableLanguages(true), true)
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
-    if (
-        !isNumber($lostPasswdTimeout) || !isNumber($passwdChars) || !isNumber($bruteforceMaxLogin) || !isNumber($bruteforceBlockTime)
+    if (!isNumber($lostPasswdTimeout) || !isNumber($passwdChars) || !isNumber($bruteforceMaxLogin) || !isNumber($bruteforceBlockTime)
         || !isNumber($bruteforceBetweenTime) || !isNumber($bruteforceMaxCapcha) || !isNumber($bruteforceMaxAttemptsBeforeWait)
         || !isNumber($domainRowsPerPage)
     ) {
         setPageMessage(tr('Only positive numbers are allowed.'), 'error');
-    } elseif ($domainRowsPerPage < 1) {
-        $domainRowsPerPage = 1;
     } else {
-        /** @var iMSCP_Config_Handler_Db $dbCfg */
-        $dbCfg = Registry::get('dbConfig');
+        $dbConfig = Application::getInstance()->getDbConfig();
+        $dbConfig['CHECK_FOR_UPDATES'] = $checkForUpdate;
+        $dbConfig['LOSTPASSWORD'] = $lostPasswd;
+        $dbConfig['LOSTPASSWORD_TIMEOUT'] = $lostPasswdTimeout;
+        $dbConfig['PASSWD_STRONG'] = $passwdStrong;
+        $dbConfig['PASSWD_CHARS'] = $passwdChars;
+        $dbConfig['BRUTEFORCE'] = $bruteforce;
+        $dbConfig['BRUTEFORCE_BETWEEN'] = $bruteforceBetween;
+        $dbConfig['BRUTEFORCE_MAX_LOGIN'] = $bruteforceMaxLogin;
+        $dbConfig['BRUTEFORCE_BLOCK_TIME'] = $bruteforceBlockTime;
+        $dbConfig['BRUTEFORCE_BETWEEN_TIME'] = $bruteforceBetweenTime;
+        $dbConfig['BRUTEFORCE_MAX_CAPTCHA'] = $bruteforceMaxCapcha;
+        $dbConfig['BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT'] = $bruteforceMaxAttemptsBeforeWait;
+        $dbConfig['COUNT_DEFAULT_EMAIL_ADDRESSES'] = $countDefaultEmails;
+        $dbConfig['PROTECT_DEFAULT_EMAIL_ADDRESSES'] = $protecttDefaultEmails;
+        $dbConfig['HARD_MAIL_SUSPENSION'] = $hardMailSuspension;
+        $dbConfig['EMAIL_QUOTA_SYNC_MODE'] = $emailQuotaSyncMode;
+        $dbConfig['USER_INITIAL_LANG'] = $userInitialLang;
+        $dbConfig['IMSCP_SUPPORT_SYSTEM'] = $supportSystem;
+        $dbConfig['DOMAIN_ROWS_PER_PAGE'] = $domainRowsPerPage > 0 ? $domainRowsPerPage : 1;
+        $dbConfig['LOG_LEVEL'] = defined($logLevel) ? constant($logLevel) : 0;
+        $dbConfig['PREVENT_EXTERNAL_LOGIN_ADMIN'] = $prevExtLoginAdmin;
+        $dbConfig['PREVENT_EXTERNAL_LOGIN_RESELLER'] = $prevExtLoginReseller;
+        $dbConfig['PREVENT_EXTERNAL_LOGIN_CLIENT'] = $prevExtLoginClient;
+        $dbConfig['ENABLE_SSL'] = $enableSSL;
 
-        $dbCfg['CHECK_FOR_UPDATES'] = $checkForUpdate;
-        $dbCfg['LOSTPASSWORD'] = $lostPasswd;
-        $dbCfg['LOSTPASSWORD_TIMEOUT'] = $lostPasswdTimeout;
-        $dbCfg['PASSWD_STRONG'] = $passwdStrong;
-        $dbCfg['PASSWD_CHARS'] = $passwdChars;
-        $dbCfg['BRUTEFORCE'] = $bruteforce;
-        $dbCfg['BRUTEFORCE_BETWEEN'] = $bruteforceBetween;
-        $dbCfg['BRUTEFORCE_MAX_LOGIN'] = $bruteforceMaxLogin;
-        $dbCfg['BRUTEFORCE_BLOCK_TIME'] = $bruteforceBlockTime;
-        $dbCfg['BRUTEFORCE_BETWEEN_TIME'] = $bruteforceBetweenTime;
-        $dbCfg['BRUTEFORCE_MAX_CAPTCHA'] = $bruteforceMaxCapcha;
-        $dbCfg['BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT'] = $bruteforceMaxAttemptsBeforeWait;
-        $dbCfg['COUNT_DEFAULT_EMAIL_ADDRESSES'] = $countDefaultEmails;
-        $dbCfg['PROTECT_DEFAULT_EMAIL_ADDRESSES'] = $protecttDefaultEmails;
-        $dbCfg['HARD_MAIL_SUSPENSION'] = $hardMailSuspension;
-        $dbCfg['EMAIL_QUOTA_SYNC_MODE'] = $emailQuotaSyncMode;
-        $dbCfg['USER_INITIAL_LANG'] = $userInitialLang;
-        $dbCfg['IMSCP_SUPPORT_SYSTEM'] = $supportSystem;
-        $dbCfg['DOMAIN_ROWS_PER_PAGE'] = $domainRowsPerPage;
-        $dbCfg['LOG_LEVEL'] = defined($logLevel) ? constant($logLevel) : 0;
-        $dbCfg['PREVENT_EXTERNAL_LOGIN_ADMIN'] = $prevExtLoginAdmin;
-        $dbCfg['PREVENT_EXTERNAL_LOGIN_RESELLER'] = $prevExtLoginReseller;
-        $dbCfg['PREVENT_EXTERNAL_LOGIN_CLIENT'] = $prevExtLoginClient;
-        $dbCfg['ENABLE_SSL'] = $enableSSL;
+        Application::getInstance()->getCache()->removeItem('merged_config'); // Force new merge
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterEditAdminGeneralSettings);
 
-        $cfg->merge($dbCfg);
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterEditAdminGeneralSettings);
-
-        $updtCount = $dbCfg->countQueries('update');
-        $newCount = $dbCfg->countQueries('insert');
+        $updtCount = $dbConfig->countQueries('update');
+        $newCount = $dbConfig->countQueries('insert');
 
         if ($updtCount > 0) {
-            setPageMessage(ntr('The configuration parameter has been updated.', '%d configuration parameters were updated', $updtCount), 'success');
+            setPageMessage(ntr('The configuration parameter has been updated.', '%d configuration parameters were updated', $updtCount, $updtCount), 'success');
         }
 
         if ($newCount > 0) {
-            setPageMessage(ntr('A new configuration parameter has been created.', '%d configuration parameters were created', $newCount), 'success');
+            setPageMessage(ntr('A new configuration parameter has been created.', '%d configuration parameters were created', $newCount, $newCount), 'success');
         }
 
         if ($newCount == 0 && $updtCount == 0) {
             setPageMessage(tr('Nothing has been changed.'), 'info');
         } else {
-            writeLog(sprintf('Settings were updated by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('Settings were updated by %s.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
         }
     }
 
@@ -413,10 +407,10 @@ $tpl->assign([
     'TR_PREVENT_EXTERNAL_LOGIN_RESELLER'     => toHtml(tr('Prevent external login for resellers')),
     'TR_PREVENT_EXTERNAL_LOGIN_CLIENT'       => toHtml(tr('Prevent external login for clients'))
 ]);
-generateNavigation($tpl);
-generateLanguagesList($tpl, $cfg['USER_INITIAL_LANG']);
+View::generateNavigation($tpl);
+View::generateLanguagesList($tpl, $cfg['USER_INITIAL_LANG']);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

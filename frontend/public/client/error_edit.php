@@ -18,9 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Write error page
@@ -30,7 +30,7 @@ use iMSCP_Registry as Registry;
  */
 function writeErrorPage($eid)
 {
-    $vfs = new VirtualFileSystem($_SESSION['user_logged'], '/errors');
+    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], '/errors');
     return $vfs->put($eid . '.html', $_POST['error']);
 }
 
@@ -42,7 +42,7 @@ function writeErrorPage($eid)
  */
 function editErrorPage($eid)
 {
-    isset($_POST['error']) or showBadRequestErrorPage();
+    isset($_POST['error']) or View::showBadRequestErrorPage();
 
     if (in_array($eid, [401, 403, 404, 500, 503]) && writeErrorPage($eid)) {
         setPageMessage(tr('Custom error page updated.'), 'success');
@@ -62,20 +62,18 @@ function editErrorPage($eid)
  */
 function generatePage($tpl, $eid)
 {
-    $vfs = new VirtualFileSystem($_SESSION['user_logged'], '/errors');
+    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], '/errors');
     $errorPageContent = $vfs->get($eid . '.html');
     $tpl->assign('ERROR', ($errorPageContent !== false) ? toHtml($errorPageContent) : '');
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('custom_error_pages') && isset($_REQUEST['eid']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('custom_error_pages') && isset($_REQUEST['eid']) or View::showBadRequestErrorPage();
 
 $eid = intval($_REQUEST['eid']);
 
-in_array($eid, ['401', '403', '404', '500', '503']) or showBadRequestErrorPage();
+in_array($eid, ['401', '403', '404', '500', '503']) or View::showBadRequestErrorPage();
 
 if (!empty($_POST) && editErrorPage($eid)) {
     redirectTo('error_pages.php');
@@ -88,16 +86,16 @@ $tpl->define([
     'page_message' => 'layout'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'      => tr(' Client / Webtools / Custom Error Pages / Edit Custom Error Page'),
+    'TR_PAGE_TITLE'      => tr('Client / Webtools / Custom Error Pages / Edit Custom Error Page'),
     'TR_ERROR_EDIT_PAGE' => tr('Edit error page'),
     'TR_SAVE'            => tr('Save'),
     'TR_CANCEL'          => tr('Cancel'),
     'EID'                => $eid
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $eid);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

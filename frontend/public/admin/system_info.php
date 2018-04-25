@@ -18,15 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -35,8 +34,8 @@ $tpl->define([
     'page_message' => 'layout',
     'device_block' => 'page'
 ]);
-$tpl->info = json_decode(executeQuery("SELECT `value` FROM `config` WHERE `name` = 'iMSCP_INFO'")->fetchColumn(), true);
-$sysinfo = new iMSCP_SystemInfo();
+$tpl->info = json_decode(execQuery("SELECT `value` FROM `config` WHERE `name` = 'iMSCP_INFO'")->fetchColumn(), true);
+$sysinfo = new SystemInfo();
 $tpl->assign([
     'CPU_MODEL'       => toHtml($sysinfo->cpu['model']),
     'CPU_CORES'       => toHtml($sysinfo->cpu['cpus']),
@@ -109,12 +108,12 @@ $tpl->assign([
     'TR_PERCENT'                  => toHtml(tr('Percent')),
     'TR_SIZE'                     => toHtml(tr('Size'))
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
-    $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations();
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+    $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations();
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

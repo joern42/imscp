@@ -18,14 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\PHPini;
-use iMSCP\TemplateEngine;
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Events as Events;
-use iMSCP_Exception as iMSCPException;
-use iMSCP_Registry as Registry;
-use Zend_Form as Form;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\View;
+use Zend\Db\Exception\RuntimeException;
+use Zend\EventManager\Event;
+use Zend\Form\Form;
 
 /**
  * Retrieve form data
@@ -40,7 +40,7 @@ function getFormData()
         return $data;
     }
 
-    $stmt = executeQuery('SELECT ip_id, ip_number FROM server_ips ORDER BY ip_number');
+    $stmt = execQuery('SELECT ip_id, ip_number FROM server_ips ORDER BY ip_number');
     if ($stmt->rowCount()) {
         $data['server_ips'] = $stmt->fetchAll();
     } else {
@@ -61,9 +61,6 @@ function getFormData()
             'max_sql_user_cnt'             => '0',
             'max_traff_amnt'               => '0',
             'max_disk_amnt'                => '0',
-            'software_allowed'             => 'no',
-            'softwaredepot_allowed'        => 'no',
-            'websoftwaredepot_allowed'     => 'no',
             'support_system'               => 'yes',
             'php_ini_system'               => $phpini->getResellerPermission('phpiniSystem'),
             'php_ini_al_config_level'      => $phpini->getResellerPermission('phpiniConfigLevel'),
@@ -101,8 +98,8 @@ function generateIpListForm(TemplateEngine $tpl)
     $data = getFormData();
     $tpl->assign('TR_IPS', toHtml(tr('IP addresses')));
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Description $e) {
-        $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+        $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
         $e->getParam('translations')->core['available'] = tr('Available');
         $e->getParam('translations')->core['assigned'] = tr('Assigned');
     });
@@ -192,15 +189,6 @@ function generateFeaturesForm(TemplateEngine $tpl)
         'MAX_EXECUTION_TIME'                 => toHtml($data['max_execution_time']),
         'TR_MAX_INPUT_TIME'                  => tr('PHP %s configuration option', '<strong>max_input_time</strong>'),
         'MAX_INPUT_TIME'                     => toHtml($data['max_input_time']),
-        'TR_SOFTWARES_INSTALLER'             => toHtml(tr('Software installer')),
-        'SOFTWARES_INSTALLER_YES'            => $data['software_allowed'] == 'yes' ? ' checked' : '',
-        'SOFTWARES_INSTALLER_NO'             => $data['software_allowed'] != 'yes' ? ' checked' : '',
-        'TR_SOFTWARES_REPOSITORY'            => toHtml(tr('Software repository')),
-        'SOFTWARES_REPOSITORY_YES'           => $data['softwaredepot_allowed'] == 'yes' ? ' checked' : '',
-        'SOFTWARES_REPOSITORY_NO'            => $data['softwaredepot_allowed'] != 'yes' ? ' checked' : '',
-        'TR_WEB_SOFTWARES_REPOSITORY'        => toHtml(tr('Web software repository')),
-        'WEB_SOFTWARES_REPOSITORY_YES'       => $data['websoftwaredepot_allowed'] == 'yes' ? ' checked' : '',
-        'WEB_SOFTWARES_REPOSITORY_NO'        => $data['websoftwaredepot_allowed'] != 'yes' ? ' checked' : '',
         'TR_SUPPORT_SYSTEM'                  => toHtml(tr('Support system')),
         'SUPPORT_SYSTEM_YES'                 => $data['support_system'] == 'yes' ? ' checked' : '',
         'SUPPORT_SYSTEM_NO'                  => $data['support_system'] != 'yes' ? ' checked' : '',
@@ -212,19 +200,18 @@ function generateFeaturesForm(TemplateEngine $tpl)
         'TR_SEC'                             => toHtml(tr('Sec.'))
     ]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Description $e) {
-        /** @var iMSCP_Events_Event $e */
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $translations = $e->getParam('translations');
         $translations['core']['close'] = tr('Close');
         $translations['core']['fields_ok'] = tr('All fields are valid.');
         $translations['core']['out_of_range_value_error'] = tr('Value for the PHP %%s directive must be in range %%d to %%d.');
         $translations['core']['lower_value_expected_error'] = tr('%%s cannot be greater than %%s.');
-        $translations['core']['error_field_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
+        $translations['core']['error_field_stack'] = Application::getInstance()->getRegistry()->has('errFieldsStack')
+            ? Application::getInstance()->getRegistry()->get('errFieldsStack') : [];
     });
 
-
-    if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+    if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
+        $apacheConfig = new ConfigFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data'));
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -249,7 +236,6 @@ function generateFeaturesForm(TemplateEngine $tpl)
 /**
  * Add reseller user
  *
- * @throws Exception
  * @param Form $form
  * @return void
  */
@@ -258,8 +244,7 @@ function addResellerUser(Form $form)
     $error = false;
     $errFieldsStack = [];
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
         // Check for login and personal data
@@ -344,7 +329,7 @@ function addResellerUser(Form $form)
             $errFieldsStack[] = 'max_disk_amnt';
         }
 
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         // Check for PHP settings
         $phpini = PhpIni::getInstance();
@@ -365,7 +350,7 @@ function addResellerUser(Form $form)
         }
 
         if (empty($errFieldsStack) && !$error) {
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddUser, [
+            Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddUser, NULL, [
                 'userData' => $form->getValues()
             ]);
 
@@ -380,15 +365,15 @@ function addResellerUser(Form $form)
                 ',
                 [
                     $form->getValue('admin_name'), Crypt::apr1MD5($form->getValue('admin_pass')), 'reseller',
-                    $_SESSION['user_id'], $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'),
+                    Application::getInstance()->getSession()['user_id'], $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'),
                     $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
                     encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
                     $form->getValue('street1'), $form->getValue('street2'), $form->getValue('gender')
                 ]
             );
 
-            $resellerId = $db->lastInsertId();
-            $cfg = Registry::get('config');
+            $resellerId = $db->getDriver()->getLastGeneratedValue();
+            $cfg = Application::getInstance()->getConfig();
 
             execQuery('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (?, ?, ?)', [
                 $resellerId, $cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']
@@ -398,19 +383,18 @@ function addResellerUser(Form $form)
                     INSERT INTO reseller_props (
                         reseller_id, reseller_ips, max_dmn_cnt, current_dmn_cnt, max_sub_cnt, current_sub_cnt, max_als_cnt, current_als_cnt,
                         max_mail_cnt, current_mail_cnt, max_ftp_cnt, current_ftp_cnt, max_sql_db_cnt, current_sql_db_cnt, max_sql_user_cnt,
-                        current_sql_user_cnt, max_traff_amnt, current_traff_amnt, max_disk_amnt, current_disk_amnt, support_system, software_allowed,
-                        softwaredepot_allowed, websoftwaredepot_allowed, php_ini_system, php_ini_al_config_level, php_ini_al_disable_functions,
-                        php_ini_al_mail_function, php_ini_al_allow_url_fopen, php_ini_al_display_errors, php_ini_max_post_max_size,
-                        php_ini_max_upload_max_filesize,php_ini_max_max_execution_time, php_ini_max_max_input_time, php_ini_max_memory_limit
+                        current_sql_user_cnt, max_traff_amnt, current_traff_amnt, max_disk_amnt, current_disk_amnt, support_system, php_ini_system,
+                        php_ini_al_config_level, php_ini_al_disable_functions, php_ini_al_mail_function, php_ini_al_allow_url_fopen,
+                        php_ini_al_display_errors, php_ini_max_post_max_size, php_ini_max_upload_max_filesize,php_ini_max_max_execution_time,
+                        php_ini_max_max_input_time, php_ini_max_memory_limit
                     ) VALUES (
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                     )
                 ',
                 [
                     $resellerId, implode(',', $resellerIps), $data['max_dmn_cnt'], '0', $data['max_sub_cnt'], '0', $data['max_als_cnt'], '0',
                     $data['max_mail_cnt'], '0', $data['max_ftp_cnt'], '0', $data['max_sql_db_cnt'], '0', $data['max_sql_user_cnt'], '0',
-                    $data['max_traff_amnt'], '0', $data['max_disk_amnt'], '0', $data['support_system'], $data['software_allowed'],
-                    $data['softwaredepot_allowed'], $data['websoftwaredepot_allowed'],
+                    $data['max_traff_amnt'], '0', $data['max_disk_amnt'], '0', $data['support_system'],
                     $phpini->getResellerPermission('phpiniSystem'),
                     $phpini->getResellerPermission('phpiniConfigLevel'),
                     $phpini->getResellerPermission('phpiniDisableFunctions'),
@@ -425,31 +409,25 @@ function addResellerUser(Form $form)
                 ]
             );
 
-            // Creating Software repository for reseller if needed
-            if ($data['software_allowed'] == 'yes' && !@mkdir($cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/softwares/' . $resellerId, 0750, true)) {
-                writeLog('System was unable to create directory for reseller software repository', E_USER_ERROR);
-                throw new iMSCPException(sprintf('Could not create directory for software repository'));
-            }
-
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddUser, [
+            Application::getInstance()->getEventManager()->trigger(Events::onAfterAddUser, NULL, [
                 'userId'   => $resellerId,
                 'userData' => $form->getValues()
             ]);
 
-            $db->commit();
-            sendWelcomeMail(
-                $_SESSION['user_id'], $form->getValue('admin_name'), $form->getValue('admin_pass'),
+            $db->getDriver()->getConnection()->commit();
+            Mail::sendWelcomeMail(
+                Application::getInstance()->getSession()['user_id'], $form->getValue('admin_name'), $form->getValue('admin_pass'),
                 $form->getValue('email'), $form->getValue('fname'),
                 $form->getValue('lname'), tr('Reseller')
             );
-            writeLog(sprintf('The %s reseller has been added by %s', $form->getValue('admin_name'), $_SESSION['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('The %s reseller has been added by %s', $form->getValue('admin_name'), Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
             setPageMessage('Reseller has been added.', 'success');
             redirectTo('users.php');
         } elseif (!empty($errFieldsStack)) {
-            Registry::set('errFieldsStack', $errFieldsStack);
+            Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
         }
-    } catch (Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         throw $e;
     }
 }
@@ -470,10 +448,8 @@ function generatePage(TemplateEngine $tpl, Form $form)
     generateFeaturesForm($tpl);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $phpini = PhpIni::getInstance();
 $phpini->loadResellerPermissions();
@@ -493,10 +469,10 @@ $tpl->define([
     'php_editor_mail_function_block'     => 'page'
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Add Reseller')));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $form);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

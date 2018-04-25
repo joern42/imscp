@@ -18,13 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('domain_aliases') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
 deleteSubdomainAlias(intval($_GET['id']));
 redirectTo('domains_manage.php');

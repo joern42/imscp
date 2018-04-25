@@ -18,8 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Get user errors
@@ -27,9 +30,9 @@ use iMSCP_Registry as Registry;
  * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getUserErrors($tpl)
+function debugger_getUserErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT admin_name, admin_status, admin_id
             FROM admin
@@ -59,12 +62,12 @@ function debugger_getUserErrors($tpl)
 /**
  * Get domain errors
  *
- * @param iMSCP\TemplateEngine $tpl Template engine instance
+ * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getDmnErrors($tpl)
+function debugger_getDmnErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT domain_name, domain_status, domain_id
             FROM domain
@@ -94,12 +97,12 @@ function debugger_getDmnErrors($tpl)
 /**
  * Get domain aliases errors
  *
- * @param iMSCP\TemplateEngine $tpl Template engine instance
+ * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getAlsErrors($tpl)
+function debugger_getAlsErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT alias_name, alias_status, alias_id
             FROM domain_aliases
@@ -128,12 +131,12 @@ function debugger_getAlsErrors($tpl)
 /**
  * Get subdomains errors
  *
- * @param iMSCP\TemplateEngine $tpl Template engine instance
+ * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getSubErrors($tpl)
+function debugger_getSubErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT subdomain_name, subdomain_status, subdomain_id, domain_name
             FROM subdomain
@@ -163,12 +166,12 @@ function debugger_getSubErrors($tpl)
 /**
  * Get subdomain aliases errors
  *
- * @param iMSCP\TemplateEngine $tpl Template engine instance
+ * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getAlssubErrors($tpl)
+function debugger_getAlssubErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT subdomain_alias_name, subdomain_alias_status, subdomain_alias_id, alias_name
             FROM subdomain_alias
@@ -198,12 +201,12 @@ function debugger_getAlssubErrors($tpl)
 /**
  * Get custom dns errors
  *
- * @param iMSCP\TemplateEngine $tpl Template engine instance
+ * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getCustomDNSErrors($tpl)
+function debugger_getCustomDNSErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT domain_dns, domain_dns_status, domain_dns_id
             FROM domain_dns
@@ -235,9 +238,9 @@ function debugger_getCustomDNSErrors($tpl)
  * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getHtaccessErrors($tpl)
+function debugger_getHtaccessErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT id, dmn_id, auth_name AS name, status, 'htaccess' AS type
             FROM htaccess
@@ -276,11 +279,10 @@ function debugger_getHtaccessErrors($tpl)
  * Get FTP user errors
  *
  * @param TemplateEngine $tpl
- * @throws iMSCP_Exception_Database
  */
-function debugger_getFtpUserErrors($tpl)
+function debugger_getFtpUserErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT userid, status
             FROM ftp_users
@@ -309,13 +311,12 @@ function debugger_getFtpUserErrors($tpl)
 /**
  * Get mails errors
  *
- * @throws iMSCP_Exception
  * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getMailsErrors($tpl)
+function debugger_getMailsErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "
             SELECT mail_acc, domain_id, mail_type, status, mail_id FROM mail_users
             WHERE status NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete', 'ordered')
@@ -336,14 +337,14 @@ function debugger_getMailsErrors($tpl)
         $mailStatus = $row['status'];
 
         switch ($mailType) {
-            case MT_NORMAL_MAIL:
-            case MT_NORMAL_FORWARD:
-            case MT_NORMAL_MAIL . ',' . MT_NORMAL_FORWARD:
+            case Mail::MT_NORMAL_MAIL:
+            case Mail::MT_NORMAL_FORWARD:
+            case Mail::MT_NORMAL_MAIL . ',' . Mail::MT_NORMAL_FORWARD:
                 $query = "SELECT CONCAT('@', domain_name) AS domain_name FROM domain WHERE domain_id = ?";
                 break;
-            case MT_SUBDOM_MAIL:
-            case MT_SUBDOM_FORWARD:
-            case MT_SUBDOM_MAIL . ',' . MT_SUBDOM_FORWARD:
+            case Mail::MT_SUBDOM_MAIL:
+            case Mail::MT_SUBDOM_FORWARD:
+            case Mail::MT_SUBDOM_MAIL . ',' . Mail::MT_SUBDOM_FORWARD:
                 $query = "
                     SELECT CONCAT('@', subdomain_name, '.', IF(t2.domain_name IS NULL,'" . tr('missing domain') . "',t2.domain_name)) AS 'domain_name'
                     FROM subdomain AS t1
@@ -351,9 +352,9 @@ function debugger_getMailsErrors($tpl)
                     WHERE subdomain_id = ?
                 ";
                 break;
-            case MT_ALSSUB_MAIL:
-            case MT_ALSSUB_FORWARD:
-            case MT_ALSSUB_MAIL . ',' . MT_ALSSUB_FORWARD:
+            case Mail::MT_ALSSUB_MAIL:
+            case Mail::MT_ALSSUB_FORWARD:
+            case Mail::MT_ALSSUB_MAIL . ',' . Mail::MT_ALSSUB_FORWARD:
                 $query = "
                     SELECT CONCAT('@', t1.subdomain_alias_name, '.', IF(t2.alias_name IS NULL,'" . tr('missing alias')
                     . "',t2.alias_name) ) AS domain_name
@@ -362,21 +363,21 @@ function debugger_getMailsErrors($tpl)
                     WHERE subdomain_alias_id = ?
                 ";
                 break;
-            case MT_NORMAL_CATCHALL:
-            case MT_ALIAS_CATCHALL:
-            case MT_ALSSUB_CATCHALL:
-            case MT_SUBDOM_CATCHALL:
+            case Mail::MT_NORMAL_CATCHALL:
+            case Mail::MT_ALIAS_CATCHALL:
+            case Mail::MT_ALSSUB_CATCHALL:
+            case Mail::MT_SUBDOM_CATCHALL:
                 $query = 'SELECT mail_addr AS domain_name FROM mail_users WHERE mail_id = ?';
                 $searchedId = $mailId;
                 $mailAcc = '';
                 break;
-            case MT_ALIAS_MAIL:
-            case MT_ALIAS_FORWARD:
-            case MT_ALIAS_MAIL . ',' . MT_ALIAS_FORWARD:
+            case Mail::MT_ALIAS_MAIL:
+            case Mail::MT_ALIAS_FORWARD:
+            case Mail::MT_ALIAS_MAIL . ',' . Mail::MT_ALIAS_FORWARD:
                 $query = "SELECT CONCAT('@', alias_name) AS domain_name FROM domain_aliases WHERE alias_id = ?";
                 break;
             default:
-                throw new iMSCP_Exception('FIXME: ' . __FILE__ . ':' . __LINE__ . $mailType);
+                throw new \Exception('FIXME: ' . __FILE__ . ':' . __LINE__ . $mailType);
         }
 
         $domainName = ltrim(execQuery($query, $searchedId)->fetchColumn(), '@');
@@ -397,9 +398,9 @@ function debugger_getMailsErrors($tpl)
  * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function debugger_getIpErrors($tpl)
+function debugger_getIpErrors(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         "SELECT ip_id, ip_number, ip_card, ip_status FROM server_ips WHERE ip_status NOT IN ('ok', 'toadd', 'tochange', 'todelete')"
     );
 
@@ -428,12 +429,11 @@ function debugger_getIpErrors($tpl)
  * @param TemplateEngine $tpl
  * @return void
  */
-function debugger_getPluginItemErrors($tpl)
+function debugger_getPluginItemErrors(TemplateEngine $tpl)
 {
-    /** @var iMSCP_Plugin_Manager $pluginManager */
-    $pluginManager = Registry::get('iMSCP_Application')->getPluginManager();
+    $pluginManager = Application::getInstance()->getPluginManager();
 
-    /** @var iMSCP_Plugin[] $plugins */
+    /** @var AbstractPlugin[] $plugins */
     $plugins = $pluginManager->pluginGetLoaded();
 
     $itemFound = false;
@@ -474,8 +474,7 @@ function debugger_getPluginItemErrors($tpl)
  */
 function debugger_changePluginItemStatus($pluginName, $table, $field, $itemId)
 {
-    /** @var iMSCP_Plugin_Manager $pluginManager */
-    $pluginManager = Registry::get('iMSCP_Application')->getPluginManager();
+    $pluginManager = Application::getInstance()->getPluginManager();
     if ($pluginManager->pluginIsLoaded($pluginName)) {
         $pluginManager->pluginGet($pluginName)->changeItemStatus($table, $field, $itemId);
         return true;
@@ -498,7 +497,7 @@ function debugger_countRequests($statusField = NULL, $tableName = NULL)
     if (NULL !== $statusField && NULL !== $tableName) {
         $statusField = quoteIdentifier($statusField);
         $tableName = quoteIdentifier($tableName);
-        $stmt = executeQuery(
+        $stmt = execQuery(
             "
                 SELECT $statusField
                 FROM $tableName
@@ -508,8 +507,8 @@ function debugger_countRequests($statusField = NULL, $tableName = NULL)
         return $stmt->rowCount();
     }
 
-    /** @var iMSCP_Plugin[] $plugins */
-    $plugins = Registry::get('iMSCP_Application')->getPluginManager()->pluginGetLoaded();
+    /** @var AbstractPlugin[] $plugins */
+    $plugins = Application::getInstance()->getPluginManager()->pluginGetLoaded();
     $nbRequests = 0;
 
     if (!empty($plugins)) {
@@ -521,13 +520,8 @@ function debugger_countRequests($statusField = NULL, $tableName = NULL)
     return $nbRequests;
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
-
-/** @var iMSCP_Plugin_Manager $plugingManager */
-$plugingManager = Registry::get('iMSCP_Application')->getPluginManager();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $rqstCount = debugger_countRequests('admin_status', 'admin');
 $rqstCount += debugger_countRequests('domain_status', 'domain');
@@ -546,7 +540,7 @@ $rqstCount += debugger_countRequests(); // Plugin items
 if (isset($_GET['action'])) {
     if ($_GET['action'] == 'run') {
         if ($rqstCount > 0) {
-            if (sendDaemonRequest()) {
+            if (Daemon::sendRequest()) {
                 setPageMessage(tr('Daemon request successful.'), 'success');
             } else {
                 setPageMessage(tr('Daemon request failed.'), 'error');
@@ -601,7 +595,7 @@ if (isset($_GET['action'])) {
                 $query = "UPDATE plugin SET plugin_status = 'tochange' WHERE plugin_id = ?";
                 break;
             default:
-                isset($_GET['table']) && isset($_GET['field']) or showBadRequestErrorPage();
+                isset($_GET['table']) && isset($_GET['field']) or View::showBadRequestErrorPage();
 
                 if (!debugger_changePluginItemStatus($_GET['type'], $_GET['table'], $_GET['field'], $_GET['id'])) {
                     setPageMessage(tr('Unknown type.'), 'error');
@@ -613,7 +607,7 @@ if (isset($_GET['action'])) {
                 exit;
         }
 
-        $stmt = execQuery($query, [$_GET['id']]);
+        execQuery($query, [$_GET['id']]);
         setPageMessage(tr('Done'), 'success');
         redirectTo('imscp_debugger.php');
     }
@@ -679,9 +673,9 @@ $tpl->assign([
     'TR_CHANGE_STATUS'      => toHtml(tr('Change status of this item for a new attempt')),
     'EXEC_COUNT'            => toHtml($rqstCount)
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

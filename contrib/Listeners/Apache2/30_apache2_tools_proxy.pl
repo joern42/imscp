@@ -20,8 +20,10 @@
 ## Provides transparent access to i-MSCP tools (pma, webmail...) through customer domains. For instance:
 #
 #  http://customer.tld/webmail/ will be redirected to https://customer.tld/webmail/ if ssl is enabled for customer domain
-#  http://customer.tld/webmail/ will proxy to i-MSCP webmail transparently if ssl is not enabled for customer domain
-#  https://customer.tld/webmail/ will proxy to i-MSCP webmail transparently
+#  http://customer.tld/webmail/ will proxy to i-MSCP primary webmail transparently if ssl is not enabled for customer domain
+#  https://customer.tld/webmail/ will proxy to i-MSCP primary webmail transparently
+#
+# You can change primary Webmail, SQL manager and filemanager through configuration variable below.
 #
 
 package iMSCP::Listener::Apache2::Tools::Proxy;
@@ -34,6 +36,17 @@ use iMSCP::Boolean;
 use iMSCP::EventManager;
 use iMSCP::Template::Processor qw/ processBlocByRef processVarsByRef /;
 use version;
+
+#
+## Configuration variables
+#
+
+# Primary File manager (e.g. monstaftp or pydio, depending on your i-MSCP setup)
+my $PRIMARY_FILEMANAGER = 'monstaftp';
+# Primary File manager (e.g. roundcube or rainloop, depending on your i-MSCP setup)
+my $PRIMARY_WEBMAIL = 'roundcube';
+# Primary SQL manager (e.g. phpmyadmin)
+my $PRIMARY_SQL_MANAGER = 'phpmyadmin';
 
 #
 ## Please, don't edit anything below this line
@@ -56,13 +69,13 @@ EOF
         return;
     }
 
-    my $cfgProxy = ( $::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes' ? "    SSLProxyEngine On\n" : '' ) . <<'EOF';
-    ProxyPass /ftp/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/ftp/ retry=1 acquire=3000 timeout=600 Keepalive=On
-    ProxyPassReverse /ftp/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/ftp/
-    ProxyPass /pma/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/pma/ retry=1 acquire=3000 timeout=600 Keepalive=On
-    ProxyPassReverse /pma/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/pma/
-    ProxyPass /webmail/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/webmail/ retry=1 acquire=3000 timeout=600 Keepalive=On
-    ProxyPassReverse /webmail/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/webmail/
+    my $cfgProxy = ( $::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes' ? "    SSLProxyEngine On\n" : '' ) . <<"EOF";
+    ProxyPass /ftp/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/$PRIMARY_FILEMANAGER/ retry=1 acquire=3000 timeout=600 Keepalive=On
+    ProxyPassReverse /ftp/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/$PRIMARY_FILEMANAGER/
+    ProxyPass /pma/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/$PRIMARY_SQL_MANAGER/ retry=1 acquire=3000 timeout=600 Keepalive=On
+    ProxyPassReverse /pma/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/$PRIMARY_SQL_MANAGER/
+    ProxyPass /webmail/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/$PRIMARY_WEBMAIL/ retry=1 acquire=3000 timeout=600 Keepalive=On
+    ProxyPassReverse /webmail/ {HTTP_URI_SCHEME}{HTTP_HOST}:{HTTP_PORT}/$PRIMARY_WEBMAIL/
 EOF
     processVarsByRef( \$cfgProxy, {
         HTTP_URI_SCHEME => ( $::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes' ) ? 'https://' : 'http://',

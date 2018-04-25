@@ -18,16 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('domain_aliases') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $stmt = execQuery("DELETE FROM domain_aliases WHERE alias_id = ? AND domain_id = ? AND alias_status = 'ordered'", [
-    intval($_GET['id']), getCustomerMainDomainId($_SESSION['user_id'])
+    intval($_GET['id']), getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])
 ]);
-$stmt->rowCount() or showBadRequestErrorPage();
+$stmt->rowCount() or View::showBadRequestErrorPage();
 setPageMessage(tr('Order successfully canceled.'), 'success');
 redirectTo('domains_manage.php');

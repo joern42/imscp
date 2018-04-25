@@ -18,8 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Send email
@@ -37,7 +40,7 @@ function admin_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData
         return true;
     }
 
-    $ret = sendMail([
+    $ret = Mail::sendMail([
         'mail_id'      => 'admin-circular',
         'fname'        => $rcptToData['fname'],
         'lname'        => $rcptToData['lname'],
@@ -68,11 +71,11 @@ function admin_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData
  */
 function admin_sendToAdministrators($senderName, $senderEmail, $subject, $body)
 {
-    if (!systemHasManyAdmins()) {
+    if (!Counting::systemHasManyAdmins()) {
         return;
     }
 
-    $stmt = executeQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE admin_type = 'admin' GROUP BY email");
+    $stmt = execQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE admin_type = 'admin' GROUP BY email");
 
     while ($rcptToData = $stmt->fetch()) {
         admin_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
@@ -90,11 +93,11 @@ function admin_sendToAdministrators($senderName, $senderEmail, $subject, $body)
  */
 function admin_sendToResellers($senderName, $senderEmail, $subject, $body)
 {
-    if (!systemHasResellers()) {
+    if (!Counting::systemHasResellers()) {
         return;
     }
 
-    $stmt = executeQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE admin_type = 'reseller' GROUP BY email");
+    $stmt = execQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE admin_type = 'reseller' GROUP BY email");
     while ($rcptToData = $stmt->fetch()) {
         admin_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
     }
@@ -111,11 +114,11 @@ function admin_sendToResellers($senderName, $senderEmail, $subject, $body)
  */
 function admin_sendToCustomers($senderName, $senderEmail, $subject, $body)
 {
-    if (!systemHasCustomers()) {
+    if (!Counting::systemHasCustomers()) {
         return;
     }
 
-    $stmt = executeQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE admin_type = 'user' GROUP BY email");
+    $stmt = execQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE admin_type = 'user' GROUP BY email");
     while ($rcptToData = $stmt->fetch()) {
         admin_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
     }
@@ -169,7 +172,7 @@ function admin_sendCircular()
     if (!isset($_POST['sender_name']) || !isset($_POST['sender_email']) || !isset($_POST['rcpt_to']) || !isset($_POST['subject'])
         || !isset($_POST['body'])
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     $senderName = cleanInput($_POST['sender_name']);
@@ -182,8 +185,7 @@ function admin_sendCircular()
         return false;
     }
 
-    /** @var iMSCP_Events_Listener_ResponseCollection $responses */
-    $responses = Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeSendCircular, [
+    $responses = Application::getInstance()->getEventManager()->trigger(Events::onBeforeSendCircular, NULL, [
         'sender_name'  => $senderName,
         'sender_email' => $senderEmail,
         'rcpt_to'      => $rcptTo,
@@ -191,7 +193,7 @@ function admin_sendCircular()
         'body'         => $body
     ]);
 
-    if ($responses->isStopped()) {
+    if ($responses->stopped()) {
         return true;
     }
 
@@ -210,7 +212,7 @@ function admin_sendCircular()
         admin_sendToCustomers($senderName, $senderEmail, $subject, $body);
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterSendCircular, [
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterSendCircular, NULL, [
         'sender_name'  => $senderName,
         'sender_email' => $senderEmail,
         'rcpt_to'      => $rcptTo,
@@ -218,7 +220,7 @@ function admin_sendCircular()
         'body'         => $body
     ]);
     setPageMessage(tr('Circular successfully sent.'), 'success');
-    writeLog(sprintf('A circular has been sent by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A circular has been sent by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     return true;
 }
 
@@ -237,7 +239,7 @@ function generatePage($tpl)
     $body = isset($_POST['body']) ? $_POST['body'] : '';
 
     if ($senderName == '' && $senderEmail == '') {
-        $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
+        $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
         $row = $stmt->fetch();
 
         if (!empty($row['fname']) && !empty($row['lname'])) {
@@ -253,7 +255,7 @@ function generatePage($tpl)
         if ($row['email'] != '') {
             $senderEmail = $row['email'];
         } else {
-            $config = Registry::get('config');
+            $config = Application::getInstance()->getConfig();
             if (isset($config['DEFAULT_ADMIN_ADDRESS']) && $config['DEFAULT_ADMIN_ADDRESS'] != '') {
                 $senderEmail = $config['DEFAULT_ADMIN_ADDRESS'];
             } else {
@@ -269,31 +271,29 @@ function generatePage($tpl)
         'BODY'         => toHtml($body)
     ]);
 
-    $rcptToOptions = [
-        ['all_users', tr('All users')]
-    ];
+    $rcptToOptions = [['all_users', tr('All users')]];
 
-    if (systemHasManyAdmins() && systemHasResellers()) {
+    if (Counting::systemHasManyAdmins() && Counting::systemHasResellers()) {
         $rcptToOptions[] = ['administrators_resellers', tr('Administrators and resellers')];
     }
 
-    if (systemHasManyAdmins() && systemHasCustomers()) {
+    if (Counting::systemHasManyAdmins() && Counting::systemHasCustomers()) {
         $rcptToOptions[] = ['administrators_customers', tr('Administrators and customers')];
     }
 
-    if (systemHasResellers() && systemHasCustomers()) {
+    if (Counting::systemHasResellers() && Counting::systemHasCustomers()) {
         $rcptToOptions[] = ['resellers_customers', tr('Resellers and customers')];
     }
 
-    if (systemHasManyAdmins()) {
+    if (Counting::systemHasManyAdmins()) {
         $rcptToOptions[] = ['administrators', tr('Administrators')];
     }
 
-    if (systemHasResellers()) {
+    if (Counting::systemHasResellers()) {
         $rcptToOptions[] = ['resellers', tr('Resellers')];
     }
 
-    if (systemHasCustomers()) {
+    if (Counting::systemHasCustomers()) {
         $rcptToOptions[] = ['customers', tr('Customers')];
     }
 
@@ -307,11 +307,9 @@ function generatePage($tpl)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
-systemHasAdminsOrResellersOrCustomers() or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+Counting::systemHasAdminsOrResellersOrCustomers() or View::showBadRequestErrorPage();
 
 if (!empty($_POST) && admin_sendCircular()) {
     redirectTo('users.php');
@@ -335,10 +333,10 @@ $tpl->assign([
     'TR_SEND_CIRCULAR' => tr('Send circular'),
     'TR_CANCEL'        => tr('Cancel')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

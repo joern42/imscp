@@ -18,20 +18,23 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') && isset($_GET['gname']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') && isset($_GET['gname']) or View::showBadRequestErrorPage();
 
+$db = Application::getInstance()->getDb();
 
 try {
-    Registry::get('iMSCP_Application')->getDatabase()->beginTransaction();
+    $db->getDriver()->getConnection()->beginTransaction();
 
     $htgroupId = intval($_GET['gname']);
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 
     // Schedule deletion or update of any .htaccess files in which the htgroup was used
     $stmt = execQuery('SELECT * FROM htaccess WHERE dmn_id = ?', [$domainId]);
@@ -58,12 +61,12 @@ try {
 
     // Schedule htgroup deletion
     execQuery("UPDATE htaccess_groups SET status = 'todelete' WHERE id = ? AND dmn_id = ?", [$htgroupId, $domainId]);
-    Registry::get('iMSCP_Application')->getDatabase()->commit();
+    $db->getDriver()->getConnection()->commit();
     setPageMessage(tr('Htaccess group successfully scheduled for deletion.'), 'success');
-    sendDaemonRequest();
-    writeLog(sprintf('%s deleted Htaccess group ID: %s', $_SESSION['user_logged'], $htgroupId), E_USER_NOTICE);
-} catch (iMSCP_Exception_Database $e) {
-    Registry::get('iMSCP_Application')->getDatabase()->rollBack();
+    Daemon::sendRequest();
+    writeLog(sprintf('%s deleted Htaccess group ID: %s', Application::getInstance()->getSession()['user_logged'], $htgroupId), E_USER_NOTICE);
+} catch (\Exception $e) {
+    $db->getDriver()->getConnection()->rollBack();
     setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     writeLog(sprintf('Could not delete htaccess group: %s', $e->getMessage()));
 }

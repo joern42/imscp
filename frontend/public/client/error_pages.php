@@ -18,14 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('custom_error_pages') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('custom_error_pages') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -35,7 +35,7 @@ $tpl->define([
 ]);
 $tpl->assign([
     'TR_PAGE_TITLE'  => tr('Client / Webtools / Custom Error Pages'),
-    'DOMAIN'         => toHtml('http://www.' . $_SESSION['user_logged'], 'htmlAttr'),
+    'DOMAIN'         => toHtml('http://www.' . Application::getInstance()->getSession()['user_logged'], 'htmlAttr'),
     'TR_ERROR_401'   => tr('Unauthorized'),
     'TR_ERROR_403'   => tr('Forbidden'),
     'TR_ERROR_404'   => tr('Not Found'),
@@ -45,9 +45,9 @@ $tpl->assign([
     'TR_EDIT'        => tr('Edit'),
     'TR_VIEW'        => tr('View')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

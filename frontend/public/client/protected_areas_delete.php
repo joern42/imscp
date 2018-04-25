@@ -18,19 +18,21 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $id = intval($_GET['id']);
 $stmt = execQuery("UPDATE htaccess SET status = 'todelete' WHERE id = ? AND dmn_id = ? AND status = 'ok'", [
-    $id, getCustomerMainDomainId($_SESSION['user_id'])
+    $id, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])
 ]);
-$stmt->rowCount() or showBadRequestErrorPage();
-sendDaemonRequest();
-writeLog(sprintf('%s deleted protected area with ID %s', $_SESSION['user_logged'], $id), E_USER_NOTICE);
+$stmt->rowCount() or View::showBadRequestErrorPage();
+Daemon::sendRequest();
+writeLog(sprintf('%s deleted protected area with ID %s', Application::getInstance()->getSession()['user_logged'], $id), E_USER_NOTICE);
 setPageMessage(tr('Protected area successfully scheduled for deletion.'), 'success');
 redirectTo('protected_areas.php');

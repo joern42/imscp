@@ -18,8 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Generates page
@@ -27,26 +28,24 @@ use iMSCP_Registry as Registry;
  * @param TemplateEngine $tpl
  * @return void
  */
-function generatePage($tpl)
+function generatePage(TemplateEngine $tpl)
 {
-    $stmt = execQuery('SELECT domain_created FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
+    $stmt = execQuery('SELECT domain_created FROM admin WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
     $row = $stmt->fetch();
     $tpl->assign([
         'TR_ACCOUNT_SUMMARY'   => toHtml(tr('Account summary')),
         'TR_USERNAME'          => toHtml(tr('Username')),
-        'USERNAME'             => toHtml($_SESSION['user_logged']),
+        'USERNAME'             => toHtml(Application::getInstance()->getSession()['user_logged']),
         'TR_ACCOUNT_TYPE'      => toHtml(tr('Account type')),
         'ACCOUNT_TYPE'         => toHtml(tr('Administrator')),
         'TR_REGISTRATION_DATE' => toHtml(tr('Registration date')),
         'REGISTRATION_DATE'    => $row['domain_created'] != 0
-            ? toHtml(date(Registry::get('config')['DATE_FORMAT'], $row['domain_created'])) : toHtml(tr('N/A'))
+            ? toHtml(date(Application::getInstance()->getConfig()['DATE_FORMAT'], $row['domain_created'])) : toHtml(tr('N/A'))
     ]);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -55,10 +54,10 @@ $tpl->define([
     'page_message' => 'layout'
 ]);
 $tpl->assign('TR_PAGE_TITLE', tr('Admin / Profile / Account Summary'));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

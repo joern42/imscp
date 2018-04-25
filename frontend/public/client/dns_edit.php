@@ -18,11 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
-use Net_DNS2_Exception as DnsResolverException;
-use Net_DNS2_Resolver as DnsResolver;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Get quoted and unquoted strings from the given string
@@ -107,10 +106,10 @@ function client_getPost($varname, $defaultValue = '')
  */
 function hasConflict($rrName, $rrType, $isNewRecord, &$errorString)
 {
-    $resolver = new DnsResolver(['nameservers' => ['127.0.0.1']]);
+    $resolver = new \Net_DNS2_Resolver(['nameservers' => ['127.0.0.1']]);
 
     try {
-        /** @var Net_DNS2_Packet_Response $response */
+        /** @var \Net_DNS2_Packet_Response $response */
         $response = $resolver->query($rrName, 'CNAME');
 
         if (empty($response->answer) || (!$isNewRecord && $rrType == 'CNAME' && $rrName == $response->answer[0]->name)) {
@@ -119,7 +118,7 @@ function hasConflict($rrName, $rrType, $isNewRecord, &$errorString)
 
         $errorString = tr("Conflict with the %s DNS resource record.", $response->answer[0]);
         return true;
-    } catch (DnsResolverException $e) {
+    } catch (\Net_DNS2_Exception $e) {
         // In case of failure, we just go ahead.
     }
 
@@ -231,7 +230,7 @@ function client_validate_AAAA($ip, &$errorString)
 function client_validate_MX($pref, $host, &$errorString)
 {
     if (!isNumber($pref) || $pref > 65535) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     if ($host === '') {
@@ -350,14 +349,14 @@ function client_validate_SRV($srvName, $proto, $priority, $weight, $port, $host,
         return false;
     }
 
-    in_array($proto, ['udp', 'tcp', 'tls']) or showBadRequestErrorPage();
+    in_array($proto, ['udp', 'tcp', 'tls']) or View::showBadRequestErrorPage();
 
     if (!isNumber($priority) || $priority > 65535) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     if (!isNumber($weight) || $weight > 65535) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     if ($port === '') {
@@ -392,7 +391,7 @@ function client_validate_SRV($srvName, $proto, $priority, $weight, $port, $host,
 function client_validate_TTL($ttl)
 {
     if (!isNumber($ttl) || $ttl < 60 || $ttl > 2147483647) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     return $ttl;
@@ -489,15 +488,13 @@ function client_decodeDnsRecordData($data)
 /**
  * Check and save DNS record
  *
- * @throws iMSCP_Exception
- * @throws iMSCP_Exception_Database
  * @param int $dnsRecordId DNS record unique identifier (0 for new record)
  * @return bool
  */
 function client_saveDnsRecord($dnsRecordId)
 {
     $error = false;
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
     $mainDmnId = $mainDmnProps['domain_id'];
     $errorString = '';
     $dnsRecordClass = client_getPost('class');
@@ -506,7 +503,7 @@ function client_saveDnsRecord($dnsRecordId)
         $dnsRecordType = client_getPost('type');
 
         if ($dnsRecordClass != 'IN' || !in_array($dnsRecordType, ['A', 'AAAA', 'CNAME', 'MX', 'NS', 'SPF', 'SRV', 'TXT'])) {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
         if (client_getPost('zone_id') == 0) {
@@ -516,7 +513,7 @@ function client_saveDnsRecord($dnsRecordId)
             $stmt = execQuery('SELECT alias_id, alias_name FROM domain_aliases WHERE alias_id = ? AND domain_id = ?', [
                 intval($_POST['zone_id']), $mainDmnId
             ]);
-            $stmt->rowCount() or showBadRequestErrorPage();
+            $stmt->rowCount() or View::showBadRequestErrorPage();
             $row = $stmt->fetch();
             $domainName = $row['alias_name'];
             $domainId = $row['alias_id'];
@@ -534,7 +531,7 @@ function client_saveDnsRecord($dnsRecordId)
             [$dnsRecordId, $mainDmnId]
         );
 
-        $stmt->rowCount() or showBadRequestErrorPage();
+        $stmt->rowCount() or View::showBadRequestErrorPage();
         $row = $stmt->fetch();
         $domainId = $row['alias_id'] ? $row['alias_id'] : $row['domain_id'];
         $domainName = $row['domain_name'];
@@ -700,7 +697,7 @@ function client_saveDnsRecord($dnsRecordId)
 
             break;
         default :
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
             exit;
     }
 
@@ -723,14 +720,13 @@ function client_saveDnsRecord($dnsRecordId)
     $dnsRecordName .= '.'; // Add trailing dot
     $dnsRecordName .= "\t$ttl"; // Add TTL
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         if (!$dnsRecordId) {
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddCustomDNSrecord, [
+            Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddCustomDNSrecord, NULL, [
                 'domainId' => $mainDmnId,
                 'aliasId'  => $domainId,
                 'name'     => $dnsRecordName,
@@ -755,8 +751,8 @@ function client_saveDnsRecord($dnsRecordId)
                 ",
                 [$mainDmnId]
             );
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddCustomDNSrecord, [
-                'id'       => $db->lastInsertId(),
+            Application::getInstance()->getEventManager()->trigger(Events::onAfterAddCustomDNSrecord, NULL, [
+                'id'       => $db->getDriver()->getLastGeneratedValue(),
                 'domainId' => $mainDmnId,
                 'aliasId'  => $domainId,
                 'name'     => $dnsRecordName,
@@ -765,7 +761,7 @@ function client_saveDnsRecord($dnsRecordId)
                 'data'     => $dnsRecordData
             ]);
         } else {
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditCustomDNSrecord, [
+            Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditCustomDNSrecord, NULL, [
                 'id'       => $dnsRecordId,
                 'domainId' => $mainDmnId,
                 'aliasId'  => $domainId,
@@ -792,7 +788,7 @@ function client_saveDnsRecord($dnsRecordId)
                 ",
                 [$mainDmnId]
             );
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditCustomDNSrecord, [
+            Application::getInstance()->getEventManager()->trigger(Events::onAfterEditCustomDNSrecord, NULL, [
                 'id'       => $dnsRecordId,
                 'domainId' => $mainDmnId,
                 'aliasId'  => $domainId,
@@ -803,14 +799,14 @@ function client_saveDnsRecord($dnsRecordId)
             ]);
         }
 
-        $db->commit();
-        sendDaemonRequest();
+        $db->getDriver()->getConnection()->commit();
+        Daemon::sendRequest();
         writeLog(
-            sprintf('DNS resource record has been scheduled for %s by %s', $dnsRecordId ? tr('update') : tr('addition'), $_SESSION['user_logged']),
+            sprintf('DNS resource record has been scheduled for %s by %s', $dnsRecordId ? tr('update') : tr('addition'), Application::getInstance()->getSession()['user_logged']),
             E_USER_NOTICE
         );
-    } catch (iMSCP_Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         if ($e->getCode() == 23000) { // Duplicate entries
             setPageMessage(tr('DNS record already exist.'), 'error');
             return false;
@@ -831,7 +827,7 @@ function client_saveDnsRecord($dnsRecordId)
  */
 function generatePage($tpl, $dnsRecordId)
 {
-    $mainDomainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $mainDomainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 
     // Add DNS record
     if ($dnsRecordId == 0) {
@@ -860,7 +856,7 @@ function generatePage($tpl, $dnsRecordId)
     } // Edit DNS record
     else {
         $stmt = execQuery('SELECT * FROM domain_dns WHERE domain_dns_id = ? AND domain_id = ?', [$dnsRecordId, $mainDomainId]);
-        $stmt->rowCount() or showBadRequestErrorPage();
+        $stmt->rowCount() or View::showBadRequestErrorPage();
         $data = $stmt->fetch();
         $tpl->assign([
             'ADD_RECORD'        => '',
@@ -872,7 +868,7 @@ function generatePage($tpl, $dnsRecordId)
         ) = client_decodeDnsRecordData($data);
 
     // Protection against edition (eg. for external mail MX record)
-    $ownedBy == 'custom_dns_feature' or showBadRequestErrorPage();
+    $ownedBy == 'custom_dns_feature' or View::showBadRequestErrorPage();
     $dnsTypes = client_create_options(['A', 'AAAA', 'SRV', 'CNAME', 'MX', 'NS', 'SPF', 'TXT'], client_getPost('type', $data['domain_type']));
     $dnsClasses = client_create_options(['IN'], client_getPost('class', $data['domain_class']));
     $tpl->assign([
@@ -894,11 +890,9 @@ function generatePage($tpl, $dnsRecordId)
     ]);
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('custom_dns_records') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('custom_dns_records') or View::showBadRequestErrorPage();
 
 $dnsRecordId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
@@ -949,10 +943,10 @@ $tpl->assign([
     'TR_CANCEL'            => toHtml(tr('Cancel'))
 ]);
 $tpl->assign(($dnsRecordId > 0) ? 'FORM_ADD_MODE' : 'FORM_EDIT_MODE', '');
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $dnsRecordId);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

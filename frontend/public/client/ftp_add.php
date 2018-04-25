@@ -18,22 +18,22 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\TemplateEngine;
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Exception as iMSCPException;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Generate domain type list
  *
- * @param int $mainDmnId Customer main domain id
+ * @param int $domainId Customer primary domain unique identifier
  * @param TemplateEngine $tpl
  * @return void
  */
-function generateDomainTypeList($mainDmnId, $tpl)
+function generateDomainTypeList($domainId, $tpl)
 {
     $stmt = execQuery(
         '
@@ -44,7 +44,7 @@ function generateDomainTypeList($mainDmnId, $tpl)
             LEFT JOIN subdomain_alias AS t4 ON(t4.alias_id = t3.alias_id)
             WHERE t1.domain_id = ?
         ',
-        [$mainDmnId]
+        [$domainId]
     );
     $row = $stmt->fetch();
 
@@ -71,24 +71,24 @@ function generateDomainTypeList($mainDmnId, $tpl)
 /**
  * Get domain list
  *
- * @param string $mainDmnName Customer main domain name
- * @param string $mainDmnId Customer main domain id
- * @param string $dmnType Domain type (dmn|sub|als|alssub) for which list must be generated
+ * @param string $domainName Customer primary domain name
+ * @param string $domainId Customer primary domain unique identifier
+ * @param string $domainType Domain type (dmn|sub|als|alssub) for which list must be generated
  * @return array Domain list
  */
-function getDomainList($mainDmnName, $mainDmnId, $dmnType = 'dmn')
+function getDomainList($domainName, $domainId, $domainType = 'dmn')
 {
-    if ($dmnType == 'dmn') {
-        $domainName = decodeIdna($mainDmnName);
+    if ($domainType == 'dmn') {
+        $domainName = decodeIdna($domainName);
         return [[
             'domain_name_val' => $domainName,
             'domain_name'     => $domainName
         ]];
     }
 
-    switch ($dmnType) {
+    switch ($domainType) {
         case 'sub':
-            $query = "SELECT CONCAT(subdomain_name, '.', '$mainDmnName') AS name FROM subdomain WHERE domain_id = ? AND subdomain_status = ?";
+            $query = "SELECT CONCAT(subdomain_name, '.', '$domainName') AS name FROM subdomain WHERE domain_id = ? AND subdomain_status = ?";
             break;
         case 'als':
             $query = 'SELECT alias_name AS name FROM domain_aliases WHERE domain_id = ? AND alias_status = ?';
@@ -103,16 +103,12 @@ function getDomainList($mainDmnName, $mainDmnId, $dmnType = 'dmn')
             ";
             break;
         default:
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
             exit;
     }
 
-
-    $stmt = execQuery($query, [$mainDmnId, 'ok']);
-    if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
-    }
-
+    $stmt = execQuery($query, [$domainId, 'ok']);
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $dmnList = [];
     while ($row = $stmt->fetch()) {
         $domainName = decodeIdna($row['name']);
@@ -126,9 +122,8 @@ function getDomainList($mainDmnName, $mainDmnId, $dmnType = 'dmn')
 }
 
 /**
- * Add Ftp account
+ * Add FTP account
  *
- * @throws iMSCPException
  * @return bool TRUE on success, FALSE on failure
  */
 function addAccount()
@@ -136,7 +131,7 @@ function addAccount()
     if (!isset($_POST['domain_type']) || !isset($_POST['username']) || !isset($_POST['domain_name']) || !isset($_POST['password'])
         || !isset($_POST['password_repeat']) || !isset($_POST['home_dir'])
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     $error = false;
@@ -146,7 +141,7 @@ function addAccount()
     $passwdRepeat = cleanInput($_POST['password_repeat']);
     $homeDir = normalizePath('/' . cleanInput($_POST['home_dir']));
 
-    customerHasDomain($dmnName, $_SESSION['user_id']) or showBadRequestErrorPage();
+    customerHasDomain($dmnName, Application::getInstance()->getSession()['user_id']) or View::showBadRequestErrorPage();
 
     if (!validateUsername($username)) {
         setPageMessage(tr('Invalid FTP username.'), 'error');
@@ -169,16 +164,16 @@ function addAccount()
         return false;
     }
 
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
-    $vfs = new VirtualFileSystem($_SESSION['user_logged']);
+    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged']);
     if ($homeDir !== '/' && !$vfs->exists($homeDir, VirtualFileSystem::VFS_TYPE_DIR)) {
         setPageMessage(tr("Directory '%s' doesn't exist.", $homeDir), 'error');
         return false;
     }
 
     $username .= '@' . encodeIdna($dmnName);
-    $homeDir = normalizePath('/' . Registry::get('config')['USER_WEB_DIR'] . '/' . $mainDmnProps['domain_name'] . '/' . $homeDir);
+    $homeDir = normalizePath('/' . Application::getInstance()->getConfig()['USER_WEB_DIR'] . '/' . $mainDmnProps['domain_name'] . '/' . $homeDir);
     $stmt = execQuery(
         '
             SELECT t1.admin_name, t1.admin_sys_uid, t1.admin_sys_gid, t2.domain_disk_limit, t3.name AS quota_entry
@@ -187,17 +182,16 @@ function addAccount()
             LEFT JOIN quotalimits AS t3 ON (t3.name = t1.admin_name)
             WHERE t1.admin_id = ?
         ',
-        [$_SESSION['user_id']]
+        [Application::getInstance()->getSession()['user_id']]
     );
     $row1 = $stmt->fetch();
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddFtp, [
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddFtp, NULL, [
             'ftpUserId'    => $username,
             'ftpPassword'  => $passwd,
             'ftpUserUid'   => $row1['admin_sys_uid'],
@@ -213,7 +207,7 @@ function addAccount()
                     ?, ?, ?, ?, ?, '/bin/sh', ?, 'toadd'
                 )
             ",
-            [$username, $_SESSION['user_id'], Crypt::sha512($passwd), $row1['admin_sys_uid'], $row1['admin_sys_gid'], $homeDir]
+            [$username, Application::getInstance()->getSession()['user_id'], Crypt::sha512($passwd), $row1['admin_sys_uid'], $row1['admin_sys_gid'], $homeDir]
         );
         execQuery(
             "INSERT INTO ftp_group (groupname, gid, members) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE members = CONCAT(members, ',', ?)",
@@ -234,7 +228,7 @@ function addAccount()
             );
         }
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddFtp, [
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterAddFtp, NULL, [
             'ftpUserId'    => $username,
             'ftpPassword'  => $passwd,
             'ftpUserUid'   => $row1['admin_sys_uid'],
@@ -243,12 +237,12 @@ function addAccount()
             'ftpUserHome'  => $homeDir
         ]);
 
-        $db->commit();
-        sendDaemonRequest();
-        writeLog(sprintf('A new FTP account (%s) has been created by %s', $username, $_SESSION['user_logged']), E_USER_NOTICE);
+        $db->getDriver()->getConnection()->commit();
+        Daemon::sendRequest();
+        writeLog(sprintf('A new FTP account (%s) has been created by %s', $username, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
         setPageMessage(tr('FTP account successfully added.'), 'success');
-    } catch (iMSCPException $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         if ($e->getCode() == 23000) {
             setPageMessage(tr('FTP account already exists.'), 'error');
             return false;
@@ -268,14 +262,14 @@ function addAccount()
  */
 function generatePage($tpl)
 {
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
     # Set parameters for the FTP chooser
-    $_SESSION['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
-    $_SESSION['ftp_chooser_user'] = $_SESSION['user_logged'];
-    $_SESSION['ftp_chooser_root_dir'] = '/';
-    $_SESSION['ftp_chooser_hidden_dirs'] = [];
-    $_SESSION['ftp_chooser_unselectable_dirs'] = [];
+    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
+    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_root_dir'] = '/';
+    Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
+    Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
 
     $tpl->assign([
         'USERNAME' => isset($_POST['username']) ? toHtml($_POST['username'], 'htmlAttr') : '',
@@ -299,13 +293,11 @@ function generatePage($tpl)
     }
 }
 
-require_once 'imscp-lib.php';
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('ftp') or View::showBadRequestErrorPage();
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('ftp') or showBadRequestErrorPage();
-
-$mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+$mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
 if (isXhr() && isset($_POST['domain_type'])) {
     echo json_encode(getDomainList($mainDmnProps['domain_name'], $mainDmnProps['domain_id'], cleanInput($_POST['domain_type'])));
@@ -313,7 +305,7 @@ if (isXhr() && isset($_POST['domain_type'])) {
 }
 
 if (!empty($_POST)) {
-    $nbFtpAccounts = getCustomerFtpUsersCount($_SESSION['user_id']);
+    $nbFtpAccounts = Counting::getCustomerFtpUsersCount(Application::getInstance()->getSession()['user_id']);
 
     if ($mainDmnProps['domain_ftpacc_limit'] && $nbFtpAccounts >= $mainDmnProps['domain_ftpacc_limit']) {
         setPageMessage(tr('FTP account limit reached.'), 'error');
@@ -346,15 +338,15 @@ $tpl->assign([
     'TR_CANCEL'            => tr('Cancel')
 ]);
 
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['close'] = tr('Close');
     $translations['core']['ftp_directories'] = tr('FTP home directory');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

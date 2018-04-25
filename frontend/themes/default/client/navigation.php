@@ -18,8 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Registry as Registry;
-
 return [
     'general'    => [
         'label' => tr('General'),
@@ -140,16 +138,16 @@ return [
                 'uri'         => '/client/ftp_add.php',
                 'title_class' => 'ftp'
             ],
-            'file_manager'    => [
+            /*'file_manager'    => [
                 'label'              => tr('FileManager'),
                 'uri'                => '/ftp/',
                 'target'             => '_blank',
                 'privilege_callback' => [
                     'name' => function () {
-                        return Registry::get('config')['FILEMANAGERS'] != 'no';
+                        return \iMSCP\Application::getInstance()->getConfig()['FILEMANAGERS'] != 'no';
                     }
                 ]
-            ]
+            ]*/
         ]
     ],
     'databases'  => [
@@ -187,11 +185,8 @@ return [
                 'privilege_callback' => [
                     'name' => function () {
                         if (customerSqlDbLimitIsReached()) {
-                            if (Registry::get('navigation')->findOneBy('uri', '/client/sql_manage.php')->isActive()) {
-                                setPageMessage(
-                                    tr("SQL databases limit is reached. You cannot add new SQL databases."),
-                                    'static_info'
-                                );
+                            if (\iMSCP\Application::getInstance()->getRegistry()->get('navigation')->findOneBy('uri', '/client/sql_manage.php')->isActive()) {
+                                setPageMessage(tr("SQL databases limit is reached. You cannot add new SQL databases."), 'static_info');
                             }
 
                             return false;
@@ -201,11 +196,12 @@ return [
                     }
                 ]
             ],
-            'phpmyadmin'       => [
-                'label'  => tr('PhpMyAdmin'),
+            /*'sql_manager'       => [
+                'label'  => tr('SQL manager'),
                 'uri'    => '/pma/',
                 'target' => '_blank'
             ]
+            */
         ]
     ],
     'mail'       => [
@@ -375,29 +371,6 @@ return [
                     ],
                 ],
             ],
-            'softwares'          => [
-                'label'              => tr('Software'),
-                'uri'                => '/client/software.php',
-                'title_class'        => 'apps_installer',
-                'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
-                    'param' => 'aps'
-                ],
-                'pages'              => [
-                    'software_view'    => [
-                        'label'       => tr('Software details'),
-                        'uri'         => '/client/software_view.php',
-                        'title_class' => 'apps_installer',
-                        'visible'     => false
-                    ],
-                    'software_install' => [
-                        'label'       => tr('Software installation'),
-                        'uri'         => '/client/software_install.php',
-                        'title_class' => 'apps_installer',
-                        'visible'     => false
-                    ]
-                ]
-            ],
             'daily_backup'       => [
                 'label'              => tr('Daily backup'),
                 'uri'                => '/client/backup.php',
@@ -407,7 +380,7 @@ return [
                     'param' => 'backup'
                 ],
             ],
-            'file_manager'       => [
+            /*'file_manager'       => [
                 'label'              => tr('FileManager'),
                 'uri'                => '/ftp/',
                 'target'             => '_blank',
@@ -416,9 +389,10 @@ return [
                     'param' => 'ftp'
                 ],
             ],
+            */
             'phpmyadmin'         => [
                 'label'              => tr('PhpMyAdmin'),
-                'uri'                => '/pma/',
+                'uri'                => '/phpmyadmin/',
                 'target'             => '_blank',
                 'privilege_callback' => [
                     'name'  => 'customerHasFeature',

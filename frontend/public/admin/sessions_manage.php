@@ -18,8 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Kill user session
@@ -42,11 +45,11 @@ function kill_session()
         session_start();
 
         if (isset($_GET['logout_only'])) {
-            iMSCP_Authentication::getInstance()->unsetIdentity();
+            AuthenticationService::getInstance()->unsetIdentity();
             session_write_close();
             $message = tr('User successfully disconnected.');
         } else {
-            iMSCP_Authentication::getInstance()->unsetIdentity();
+            AuthenticationService::getInstance()->unsetIdentity();
             session_destroy();
             $message = tr('User session successfully destroyed.');
         }
@@ -54,7 +57,7 @@ function kill_session()
         session_id($currentSessionId);
         session_start();
         setPageMessage($message, 'success');
-        writeLog(sprintf('The session of the %s user has been disconnected/destroyed by %s', $username, $_SESSION['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf('The session of the %s user has been disconnected/destroyed by %s', $username, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     } elseif (isset($_GET['own'])) {
         setPageMessage(tr("You are not allowed to act on your own session."), 'warning');
     }
@@ -69,7 +72,7 @@ function kill_session()
 function client_generatePage($tpl)
 {
     $currentUserSessionId = session_id();
-    $stmt = executeQuery('SELECT session_id, user_name, lastaccess FROM login');
+    $stmt = execQuery('SELECT session_id, user_name, lastaccess FROM login');
 
     while ($row = $stmt->fetch()) {
         $username = toHtml($row['user_name']);
@@ -83,7 +86,7 @@ function client_generatePage($tpl)
         } else {
             $tpl->assign([
                 'ADMIN_USERNAME' => $username
-                    . (($username == $_SESSION['user_logged'] && $currentUserSessionId !== $sessionId) ? ' (' . tr('from other browser') . ')' : ''),
+                    . (($username == Application::getInstance()->getSession()['user_logged'] && $currentUserSessionId !== $sessionId) ? ' (' . tr('from other browser') . ')' : ''),
                 'LOGIN_TIME'     => date('G:i:s', $row['lastaccess'])
             ]);
         }
@@ -104,10 +107,8 @@ function client_generatePage($tpl)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -125,11 +126,11 @@ $tpl->assign([
     'TR_DISCONNECT' => tr('Disconnect'),
     'TR_KILL'       => tr('Kill session')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 kill_session();
 client_generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

@@ -18,10 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Generate page
@@ -31,7 +32,7 @@ use iMSCP_Registry as Registry;
  */
 function generatePage($tpl)
 {
-    $stmt = execQuery('SELECT userid, status FROM ftp_users WHERE admin_id = ?', [$_SESSION['user_id']]);
+    $stmt = execQuery('SELECT userid, status FROM ftp_users WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
 
     if (!$stmt->rowCount()) {
         setPageMessage(tr('You do not have FTP accounts.'), 'static_info');
@@ -56,11 +57,9 @@ function generatePage($tpl)
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('ftp') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('ftp') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -81,15 +80,15 @@ $tpl->assign([
     'TR_DELETE'             => tr('Delete'),
     'TR_MESSAGE_DELETE'     => tr('Are you sure you want to delete the %s FTP account?', '%s'),
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
-    $translations['core']['dataTable'] = getDataTablesPluginTranslations();
+    $translations['core']['dataTable'] = View::getDataTablesPluginTranslations();
     $translations['core']['deletion_confirm_msg'] = tr('Are you sure you want to delete the `%%s` FTP user?');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

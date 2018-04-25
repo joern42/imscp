@@ -18,11 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Get domain alias data
@@ -47,7 +48,7 @@ function _client_getAliasData($domainAliasId)
             AND domain_id = ?
             AND alias_status = 'ok'
         ",
-        [$domainAliasId, getCustomerMainDomainId($_SESSION['user_id'])]
+        [$domainAliasId, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])]
     );
 
     if (!$stmt->rowCount()) {
@@ -66,11 +67,11 @@ function _client_getAliasData($domainAliasId)
  */
 function client_editDomainAlias()
 {
-    isset($_GET['id']) or showBadRequestErrorPage();
+    isset($_GET['id']) or View::showBadRequestErrorPage();
 
     $domainAliasId = intval($_GET['id']);
     $domainAliasData = _client_getAliasData($domainAliasId);
-    $domainAliasData !== FALSE or showBadRequestErrorPage();
+    $domainAliasData !== FALSE or View::showBadRequestErrorPage();
 
     // Check for domain alias IP addresses
     $domainAliasIps = [];
@@ -78,13 +79,13 @@ function client_editDomainAlias()
         setPageMessage(toHtml(tr('You must assign at least one IP address to that domain alias.')), 'error');
         return false;
     } elseif (!is_array($_POST['alias_ips'])) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     } else {
-        $clientIps = explode(',', getCustomerProperties($_SESSION['user_id'])['domain_client_ips']);
+        $clientIps = explode(',', getCustomerProperties(Application::getInstance()->getSession()['user_id'])['domain_client_ips']);
         $domainAliasIps = array_intersect($_POST['alias_ips'], $clientIps);
         if (count($domainAliasIps) < count($_POST['alias_ips'])) {
             // Situation where unknown IP address identifier has been submitten
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
     }
 
@@ -98,7 +99,7 @@ function client_editDomainAlias()
     if (isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' && isset($_POST['forward_type'])
         && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)
     ) {
-        isset($_POST['forward_url_scheme']) && isset($_POST['forward_url']) or showBadRequestErrorPage();
+        isset($_POST['forward_url_scheme']) && isset($_POST['forward_url']) or View::showBadRequestErrorPage();
 
         $forwardUrl = cleanInput($_POST['forward_url_scheme']) . cleanInput($_POST['forward_url']);
         $forwardType = cleanInput($_POST['forward_type']);
@@ -117,7 +118,7 @@ function client_editDomainAlias()
             $uri->setPath(rtrim(normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
 
             if ($uri->getHost() == $domainAliasData['alias_name'] && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))) {
-                throw new iMSCP_Exception(
+                throw new \Exception(
                     tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>") . ' '
                     . tr('Domain alias %s cannot be forwarded on itself.', "<strong>{$domainAliasData['alias_name_utf8']}</strong>")
                 );
@@ -126,12 +127,12 @@ function client_editDomainAlias()
             if ($forwardType == 'proxy') {
                 $port = $uri->getPort();
                 if ($port && $port < 1025) {
-                    throw new iMSCP_Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
+                    throw new \Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
                 }
             }
 
             $forwardUrl = $uri->getUri();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             setPageMessage($e->getMessage(), 'error');
             return false;
         }
@@ -139,7 +140,7 @@ function client_editDomainAlias()
     elseif (isset($_POST['document_root'])) {
         $documentRoot = normalizePath('/' . cleanInput($_POST['document_root']));
         if ($documentRoot !== '') {
-            $vfs = new VirtualFileSystem($_SESSION['user_logged'], $domainAliasData['alias_mount'] . '/htdocs');
+            $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], $domainAliasData['alias_mount'] . '/htdocs');
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
                 setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
                 return false;
@@ -148,7 +149,7 @@ function client_editDomainAlias()
         $documentRoot = normalizePath('/htdocs' . $documentRoot);
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeEditDomainAlias, [
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditDomainAlias, [
         'domainAliasId'  => $domainAliasId,
         'domainAliasIps' => $domainAliasIps,
         'mountPoint'     => $domainAliasData['alias_mount'],
@@ -165,7 +166,7 @@ function client_editDomainAlias()
         ',
         [$documentRoot, implode(',', $domainAliasIps), $forwardUrl, $forwardType, $forwardHost, 'tochange', $domainAliasId]
     );
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterEditDomainAlias, [
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditDomainAlias, [
         'domainAliasId'  => $domainAliasId,
         'domainAliasIps' => $domainAliasIps,
         'mountPoint'     => $domainAliasData['alias_mount'],
@@ -174,8 +175,8 @@ function client_editDomainAlias()
         'forwardType'    => $forwardType,
         'forwardHost'    => $forwardHost
     ]);
-    sendDaemonRequest();
-    writeLog(sprintf('%s updated properties of the %s domain alias', $_SESSION['user_logged'], $domainAliasData['alias_name_utf8']), E_USER_NOTICE);
+    Daemon::sendRequest();
+    writeLog(sprintf('%s updated properties of the %s domain alias', Application::getInstance()->getSession()['user_logged'], $domainAliasData['alias_name_utf8']), E_USER_NOTICE);
     return true;
 }
 
@@ -187,16 +188,16 @@ function client_editDomainAlias()
  */
 function client_generatePage($tpl)
 {
-    isset($_GET['id']) or showBadRequestErrorPage();
+    isset($_GET['id']) or View::showBadRequestErrorPage();
 
     $domainAliasId = intval($_GET['id']);
     $domainAliasData = _client_getAliasData($domainAliasId);
-    $domainAliasData !== FALSE or showBadRequestErrorPage();
+    $domainAliasData !== FALSE or View::showBadRequestErrorPage();
     $domainAliasData['alias_ips'] = explode(',', $domainAliasData['alias_ips']);
     $forwardHost = 'Off';
 
     if (empty($_POST)) {
-        generateClientIpsList($tpl, $_SESSION['user_id'], $domainAliasData['alias_ips']);
+        View::generateClientIpsList($tpl, Application::getInstance()->getSession()['user_id'], $domainAliasData['alias_ips']);
 
         $documentRoot = strpos($domainAliasData['alias_document_root'], '/htdocs') !== FALSE
             ? substr($domainAliasData['alias_document_root'], 7) : '';
@@ -216,7 +217,9 @@ function client_generatePage($tpl)
             $forwardType = '302';
         }
     } else {
-        generateClientIpsList($tpl, $_SESSION['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []);
+        View::generateClientIpsList(
+            $tpl, Application::getInstance()->getSession()['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []
+        );
 
         $documentRoot = isset($_POST['document_root']) ? $_POST['document_root'] : '';
         $urlForwarding = isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' ? true : false;
@@ -251,7 +254,7 @@ function client_generatePage($tpl)
     // Cover the case where URL forwarding feature is activated and that the
     // default /htdocs directory doesn't exist yet
     if ($domainAliasData['url_forward'] != 'no') {
-        $vfs = new VirtualFileSystem($_SESSION['user_logged'], $domainAliasData['alias_mount']);
+        $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], $domainAliasData['alias_mount']);
         if (!$vfs->exists('/htdocs')) {
             $tpl->assign('DOCUMENT_ROOT_BLOC', '');
             return;
@@ -259,18 +262,16 @@ function client_generatePage($tpl)
     }
 
     # Set parameters for the FTP chooser
-    $_SESSION['ftp_chooser_domain_id'] = getCustomerMainDomainId($_SESSION['user_id']);
-    $_SESSION['ftp_chooser_user'] = $_SESSION['user_logged'];
-    $_SESSION['ftp_chooser_root_dir'] = normalizePath($domainAliasData['alias_mount'] . '/htdocs');
-    $_SESSION['ftp_chooser_hidden_dirs'] = [];
-    $_SESSION['ftp_chooser_unselectable_dirs'] = [];
+    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_root_dir'] = normalizePath($domainAliasData['alias_mount'] . '/htdocs');
+    Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
+    Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('domain_aliases') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('domain_aliases') or View::showBadRequestErrorPage();
 
 if (!empty($_POST) && client_editDomainAlias()) {
     setPageMessage(tr('Domain alias successfully scheduled for update.'), 'success');
@@ -310,17 +311,17 @@ $tpl->assign([
     'TR_UPDATE'                 => toHtml(tr('Update'), 'htmlAttr'),
     'TR_CANCEL'                 => toHtml(tr('Cancel'))
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['close'] = tr('Close');
     $translations['core']['ftp_directories'] = tr('Select your own document root');
     $translations['core']['available'] = tr('Available');
     $translations['core']['assigned'] = tr('Assigned');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 client_generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

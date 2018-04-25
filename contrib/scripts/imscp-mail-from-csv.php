@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
 /**
  * Script that allows to import mail accounts into i-MSCP using a CSV file as source.
@@ -29,10 +29,12 @@ use iMSCP_Registry as Registry;
  * ...
  */
 
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+
 /**
  * Get mail data
  *
- * @throws iMSCP_Exception in case data are not found
  * @param string $domainName Domain name
  * @return array Array which contains mail data
  */
@@ -47,7 +49,7 @@ function cli_getMailData($domainName)
     $stmt = execQuery('SELECT domain_id FROM domain WHERE domain_name = ?', [$domainName]);
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
-        $data[$domainName] = [$row['domain_id'], 0, MT_NORMAL_MAIL];
+        $data[$domainName] = [$row['domain_id'], 0, Mail::MT_NORMAL_MAIL];
         return $data[$domainName];
     }
 
@@ -56,13 +58,13 @@ function cli_getMailData($domainName)
     );
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
-        $data[$domainName] = [$row['domain_id'], $row['subdomain_id'], MT_SUBDOM_MAIL];
+        $data[$domainName] = [$row['domain_id'], $row['subdomain_id'], Mail::MT_SUBDOM_MAIL];
         return $data[$domainName];
     }
 
     $stmt = execQuery('SELECT domain_id FROM domain_aliases WHERE alias_name = ?', [$domainName]);
     if ($stmt->rowCount()) {
-        $data[$domainName] = [$stmt->fetchColumn(), 0, MT_ALIAS_MAIL];
+        $data[$domainName] = [$stmt->fetchColumn(), 0, Mail::MT_ALIAS_MAIL];
         return $data[$domainName];
     }
 
@@ -78,15 +80,15 @@ function cli_getMailData($domainName)
     );
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
-        $data[$domainName] = [$row['domain_id'], $row['subdomain_alias_id'], MT_ALSSUB_MAIL];
+        $data[$domainName] = [$row['domain_id'], $row['subdomain_alias_id'], Mail::MT_ALSSUB_MAIL];
         return $data[$domainName];
     }
     $data[$domainName] = NULL;
 
-    throw new iMSCP_Exception('This script can only add mail accounts for domains which are already managed by i-MSCP.');
+    throw new \Exception('This script can only add mail accounts for domains which are already managed by i-MSCP.');
 }
 
-include '/var/www/imscp/frontend/library/imscp-lib.php';
+include '/var/www/imscp/frontend/library/include/application.php';
 
 error_reporting(0);
 ini_set('display_errors', 0);
@@ -108,8 +110,7 @@ if (($handle = fopen($csvFilePath, 'r')) === false) {
     exit(1);
 }
 
-/** @var iMSCP_Database $db */
-$db = Registry::get('iMSCP_Application')->getDatabase();
+$db = Application::getInstance()->getDb();
 $stmt = $db->prepare(
     "
         INSERT INTO mail_users (
@@ -119,12 +120,12 @@ $stmt = $db->prepare(
         )
     "
 );
-$stmt->bindParam(1, $mailUser, PDO::PARAM_STR);
-$stmt->bindParam(2, $mailPassword, PDO::PARAM_STR);
-$stmt->bindParam(3, $domainId, PDO::PARAM_INT);
-$stmt->bindParam(4, $mailType, PDO::PARAM_STR);
-$stmt->bindParam(5, $subId, PDO::PARAM_INT);
-$stmt->bindParam(6, $mailAddrACE, PDO::PARAM_STR);
+$stmt->bindParam(1, $mailUser, \PDO::PARAM_STR);
+$stmt->bindParam(2, $mailPassword, \PDO::PARAM_STR);
+$stmt->bindParam(3, $domainId, \PDO::PARAM_INT);
+$stmt->bindParam(4, $mailType, \PDO::PARAM_STR);
+$stmt->bindParam(5, $subId, \PDO::PARAM_INT);
+$stmt->bindParam(6, $mailAddrACE, \PDO::PARAM_STR);
 
 // Create i-MSCP mail accounts using entries from CSV file
 while (($csvEntry = fgetcsv($handle, 1024, $csvDelimiter)) !== false) {
@@ -134,11 +135,11 @@ while (($csvEntry = fgetcsv($handle, 1024, $csvDelimiter)) !== false) {
 
     try {
         if (!ValidateEmail($mailAddrACE)) {
-            throw new iMSCP_Exception(sprintf('%s is not a valid email address.', $mailAddr));
+            throw new \Exception(sprintf('%s is not a valid email address.', $mailAddr));
         }
 
         if (!checkPasswordSyntax($mailPassword)) {
-            throw new iMSCP_Exception(sprintf('Wrong password syntax or length for the %s mail account.', $mailAddr));
+            throw new \Exception(sprintf('Wrong password syntax or length for the %s mail account.', $mailAddr));
         }
 
         $mailPassword = \iMSCP\Crypt::sha512($mailPassword);
@@ -148,19 +149,19 @@ while (($csvEntry = fgetcsv($handle, 1024, $csvDelimiter)) !== false) {
         try {
             $stmt->execute();
             printf("`%s` has been successfully inserted in database.\n", $mailAddr);
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             if ($e->getCode() == 23000) {
                 printf("WARN: `%s` already exists in database. Skipping...\n", $mailAddr);
             } else {
                 fwrite(STDERR, sprintf("ERROR: Couldn't insert `%s in database: %s\n", $mailAddr, $e->getMessage()));
             }
         }
-    } catch (iMSCP_Exception $e) {
+    } catch (\Exception $e) {
         fwrite(STDERR, sprintf("ERROR: `%s` has been skipped: %s\n", $mailAddr, $e->getMessage()));
     }
 }
 
-if (!sendDaemonRequest()) {
+if (!Daemon::sendRequest()) {
     fwrite(STDERR, "ERROR: Couldn't send request to i-MSCP daemon.\n");
     exit(1);
 }

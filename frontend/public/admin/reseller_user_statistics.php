@@ -18,10 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Statistics;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Genrate statistics entry for the given user
@@ -33,12 +35,12 @@ use iMSCP_Registry as Registry;
 function _generateUserStatistics(TemplateEngine $tpl, $adminId)
 {
     list($webTraffic, $ftpTraffic, $smtpTraffic, $pop3Traffic, $trafficUsage, $diskUsage
-        ) = getClientTrafficAndDiskStats($adminId);
+        ) = Statistics::getClientTrafficAndDiskStats($adminId);
     list($subCount, $subLimit, $alsCount, $alsLimit, $mailCount, $mailLimit, $ftpCount, $ftpLimit, $sqlDbCount,
         $sqlDbLimit, $sqlUsersCount, $sqlUsersLlimit, $trafficLimit, $diskLimit
-        ) = getClientItemsCountAndLimits($adminId);
-    $trafficUsagePercent = getPercentUsage($trafficUsage, $trafficLimit);
-    $diskspaceUsagePercent = getPercentUsage($diskUsage, $diskLimit);
+        ) = Statistics::getClientItemsCountAndLimits($adminId);
+    $trafficUsagePercent = Statistics::getPercentUsage($trafficUsage, $trafficLimit);
+    $diskspaceUsagePercent = Statistics::getPercentUsage($diskUsage, $diskLimit);
     $tpl->assign([
         'USER_NAME'             => toHtml(decodeIdna(getUsername($adminId))),
         'USER_ID'               => toHtml($adminId),
@@ -87,19 +89,17 @@ function generatePage(TemplateEngine $tpl, $resellerId)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_GET['reseller_id'])) {
     $resellerId = intval($_GET['reseller_id']);
-    $_SESSION['stats_reseller_id'] = $resellerId;
-} elseif (isset($_SESSION['stats_reseller_id'])) {
-    redirectTo('reseller_user_statistics.php?reseller_id=' . $_SESSION['stats_reseller_id']);
+    Application::getInstance()->getSession()['stats_reseller_id'] = $resellerId;
+} elseif (isset(Application::getInstance()->getSession()['stats_reseller_id'])) {
+    redirectTo('reseller_user_statistics.php?reseller_id=' . Application::getInstance()->getSession()['stats_reseller_id']);
     exit;
 } else {
-    showBadRequestErrorPage();
+    View::showBadRequestErrorPage();
     exit;
 }
 
@@ -127,13 +127,13 @@ $tpl->assign([
     'TR_SQL_USER'               => toHtml(tr('SQL users')),
     'TR_DETAILED_STATS_TOOLTIP' => toHtml(tr('Show detailed statistics for this user'), 'htmlAttr')
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
-    $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+    $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $resellerId);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

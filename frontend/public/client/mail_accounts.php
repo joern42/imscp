@@ -18,10 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\Config;
 
 /**
  * Get count of default mail accounts
@@ -33,10 +35,10 @@ use iMSCP_Registry as Registry;
  * mail account into a normal mail account, it is no longer seen as
  * default mail account.
  *
- * @param int $mainDmnId Main domain id
+ * @param int $domainId Customer primary domain unqiue identifier
  * @return int Number of default mail accounts
  */
-function countDefaultMailAccounts($mainDmnId)
+function countDefaultMailAccounts($domainId)
 {
     static $count = NULL;
 
@@ -52,14 +54,14 @@ function countDefaultMailAccounts($mainDmnId)
             (
                 (
                     mail_acc IN('abuse', 'hostmaster', 'postmaster', 'webmaster')
-                    AND mail_type IN('" . MT_NORMAL_FORWARD . "', '" . MT_ALIAS_FORWARD . "')
+                    AND mail_type IN('" . Mail::MT_NORMAL_FORWARD . "', '" . Mail::MT_ALIAS_FORWARD . "')
                 )
                 OR
-                (mail_acc = 'webmaster' AND mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "'))
+                (mail_acc = 'webmaster' AND mail_type IN('" . Mail::MT_SUBDOM_FORWARD . "', '" . Mail::MT_ALSSUB_FORWARD . "'))
             )
             AND domain_id = ?
         ",
-        [$mainDmnId]
+        [$domainId]
     )->fetchColumn();
 }
 
@@ -97,10 +99,10 @@ function generateDynamicTplParts($tpl, $mailAcc, $mailType, $mailStatus, $mailAu
         return;
     }
 
-    if (Registry::get('config')['PROTECT_DEFAULT_EMAIL_ADDRESSES']
+    if (Application::getInstance()->getConfig()['PROTECT_DEFAULT_EMAIL_ADDRESSES']
         && (
-            (in_array($mailType, [MT_NORMAL_FORWARD, MT_ALIAS_FORWARD]) && in_array($mailAcc, ['abuse', 'hostmaster', 'postmaster', 'webmaster']))
-            || ($mailAcc == 'webmaster' && in_array($mailType, [MT_SUBDOM_FORWARD, MT_ALSSUB_FORWARD]))
+            (in_array($mailType, [Mail::MT_NORMAL_FORWARD, Mail::MT_ALIAS_FORWARD]) && in_array($mailAcc, ['abuse', 'hostmaster', 'postmaster', 'webmaster']))
+            || ($mailAcc == 'webmaster' && in_array($mailType, [Mail::MT_SUBDOM_FORWARD, Mail::MT_ALSSUB_FORWARD]))
         )
     ) {
         if ($mailAutoResponder) {
@@ -147,24 +149,24 @@ function generateDynamicTplParts($tpl, $mailAcc, $mailType, $mailStatus, $mailAu
  * Generate Mail accounts list
  *
  * @param TemplateEngine $tpl Template engine
- * @param int $mainDmnId Customer main domain unique identifier
+ * @param int $domainId Customer primary domain unique identifier
  * @return int number of mail accounts
  */
-function generateMailAccountsList($tpl, $mainDmnId)
+function generateMailAccountsList($tpl, $domainId)
 {
     $where = '';
-    if (countDefaultMailAccounts($mainDmnId)) {
-        if (!isset($_SESSION['show_default_mail_accounts'])) {
+    if (countDefaultMailAccounts($domainId)) {
+        if (!isset(Application::getInstance()->getSession()['show_default_mail_accounts'])) {
             $tpl->assign('MAIL_HIDE_DEFAULT_MAIL_ACCOUNTS_LINK', '');
             $where .= "
                 AND !(
                     (
                         mail_acc IN('abuse', 'hostmaster', 'postmaster', 'webmaster')
                         AND
-                        mail_type IN('" . MT_NORMAL_FORWARD . "', '" . MT_ALIAS_FORWARD . "')
+                        mail_type IN('" . Mail::MT_NORMAL_FORWARD . "', '" . Mail::MT_ALIAS_FORWARD . "')
                     )
                     OR
-                    (mail_acc = 'webmaster' AND mail_type IN('" . MT_SUBDOM_FORWARD . "', '" . MT_ALSSUB_FORWARD . "'))
+                    (mail_acc = 'webmaster' AND mail_type IN('" . Mail::MT_SUBDOM_FORWARD . "', '" . Mail::MT_ALSSUB_FORWARD . "'))
                 )
             ";
         } else {
@@ -183,7 +185,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
           $where
           ORDER BY mail_addr ASC, mail_type DESC
         ",
-        [$mainDmnId]
+        [$domainId]
     );
 
     unset($where);
@@ -198,7 +200,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
         return 0;
     }
 
-    $postfixConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/postfix/postfix.data'));
+    $postfixConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data'));
     $syncQuotaInfo = isset($_GET['sync_quota_info']);
     $hasMailboxes = $overQuota = false;
 
@@ -256,7 +258,7 @@ function generateMailAccountsList($tpl, $mainDmnId)
         $tpl->assign([
             'MAIL_ACCOUNT_ID'         => toHtml($row['mail_id']),
             'MAIL_ACCOUNT_ADDR'       => toHtml(substr(decodeIdna('-' . $row['mail_addr']), 1)),
-            'MAIL_ACCOUNT_TYPE'       => toHtml(humanizeMailType($row['mail_acc'], $row['mail_type'])),
+            'MAIL_ACCOUNT_TYPE'       => toHtml(Mail::humanizeMailType($row['mail_acc'], $row['mail_type'])),
             'MAIL_ACCOUNT_QUOTA_INFO' => toHtml($mailQuotaInfo),
             'MAIL_ACCOUNT_STATUS'     => humanizeDomainStatus($row['status'])
         ]);
@@ -308,23 +310,23 @@ function generatePage($tpl)
 
     if (isset($_GET['show_default_mail_accounts'])) {
         if ($_GET['show_default_mail_accounts']) {
-            $_SESSION['show_default_mail_accounts'] = '1';
+            Application::getInstance()->getSession()['show_default_mail_accounts'] = '1';
         } else {
-            unset($_SESSION['show_default_mail_accounts']);
+            unset(Application::getInstance()->getSession()['show_default_mail_accounts']);
         }
     }
 
-    $dmnProps = getCustomerProperties($_SESSION['user_id']);
+    $dmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
     $mainDmnId = $dmnProps['domain_id'];
     $dmnMailAccLimit = $dmnProps['domain_mailacc_limit'];
     $mailAccountsCount = generateMailAccountsList($tpl, $mainDmnId);
     $defaultMailAccountsCount = countDefaultMailAccounts($mainDmnId);
 
-    if (!Registry::get('config')['COUNT_DEFAULT_EMAIL_ADDRESSES']) {
-        if (isset($_SESSION['show_default_mail_accounts'])) {
+    if (!Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES']) {
+        if (isset(Application::getInstance()->getSession()['show_default_mail_accounts'])) {
             $mailAccountsCount -= $defaultMailAccountsCount;
         }
-    } elseif (!isset($_SESSION['show_default_mail_accounts'])) {
+    } elseif (!isset(Application::getInstance()->getSession()['show_default_mail_accounts'])) {
         $mailAccountsCount += $defaultMailAccountsCount;
     }
 
@@ -340,11 +342,9 @@ function generatePage($tpl)
     setPageMessage(tr('Mail accounts list is empty.'), 'static_info');
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasMailOrExtMailFeatures() or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasMailOrExtMailFeatures() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -371,10 +371,10 @@ $tpl->define([
     'mail_delete_selected_items_button'            => 'mail_accounts'
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Client / Mail / Overview')));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

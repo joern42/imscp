@@ -18,16 +18,16 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Exception_Database as DatabaseException;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Activate or deactivate external mail feature for the given domain
  *
- * @throws DatabaseException
  * @param string $action Action to be done (activate|deactivate)
  * @param int $domainId Domain unique identifier
  * @param string $domainType Domain type
@@ -35,17 +35,17 @@ use iMSCP_Registry as Registry;
  */
 function updateExternalMailFeature($action, $domainId, $domainType)
 {
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
+
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         if ($domainType == 'dmn') {
             $stmt = execQuery(
                 "UPDATE domain SET domain_status = 'tochange', external_mail = ?WHERE domain_id = ? AND domain_admin_id = ? AND domain_status = 'ok'",
-                [$action == 'activate' ? 'on' : 'off', $domainId, $_SESSION['user_id']]
+                [$action == 'activate' ? 'on' : 'off', $domainId, Application::getInstance()->getSession()['user_id']]
             );
-            $stmt->rowCount() or showBadRequestErrorPage(); # Cover case where domain_admin_id <> $_SESSION['user_id']
+            $stmt->rowCount() or View::showBadRequestErrorPage(); # Cover case where domain_admin_id <> Application::getInstance()->getSession()['user_id']
             execQuery("UPDATE subdomain SET subdomain_status = 'tochange' WHERE domain_id = ?", [$domainId]);
         } elseif ($domainType == 'als') {
             $stmt = execQuery(
@@ -57,9 +57,9 @@ function updateExternalMailFeature($action, $domainId, $domainType)
                     AND t1.alias_status = 'ok'
                     AND t2.domain_admin_id = ?
                 ",
-                [$action == 'activate' ? 'on' : 'off', $domainId, $_SESSION['user_id']]
+                [$action == 'activate' ? 'on' : 'off', $domainId, Application::getInstance()->getSession()['user_id']]
             );
-            $stmt->rowCount() or showBadRequestErrorPage(); # Cover case where t2.domain_admin_id <> $_SESSION['user_id']
+            $stmt->rowCount() or View::showBadRequestErrorPage(); # Cover case where t2.domain_admin_id <> Application::getInstance()->getSession()['user_id']
             execQuery(
                 "
                     UPDATE subdomain_alias AS t1
@@ -70,21 +70,21 @@ function updateExternalMailFeature($action, $domainId, $domainType)
                 $domainId
             );
         } else {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
-        $db->commit();
+        $db->getDriver()->getConnection()->commit();
 
         if ($action == 'activate') {
-            writeLog(sprintf('External mail feature has been activared by %s', $_SESSION['user_logged']));
+            writeLog(sprintf('External mail feature has been activared by %s', Application::getInstance()->getSession()['user_logged']));
             setPageMessage(tr('External mail server feature scheduled for activation.'), 'success');
             return;
         }
 
-        writeLog(sprintf('External mail feature has been deactivated by %s', $_SESSION['user_logged']));
+        writeLog(sprintf('External mail feature has been deactivated by %s', Application::getInstance()->getSession()['user_logged']));
         setPageMessage(tr('External mail server feature scheduled for deactivation.'), 'success');
-    } catch (DatabaseException $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         throw $e;
     }
 }
@@ -176,9 +176,9 @@ function generateItemList($tpl, $domainId, $domainName)
  */
 function generatePage($tpl)
 {
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $translations = $e->getParam('translations');
-        $translations['core']['datatable'] = getDataTablesPluginTranslations(false);
+        $translations['core']['datatable'] = View::getDataTablesPluginTranslations(false);
     });
 
     $tpl->assign([
@@ -191,17 +191,15 @@ function generatePage($tpl)
         'TR_CANCEL'     => tr('Cancel')
     ]);
 
-    $domainProps = getCustomerProperties($_SESSION['user_id']);
+    $domainProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
     $domainId = $domainProps['domain_id'];
     $domainName = $domainProps['domain_name'];
     generateItemList($tpl, $domainId, $domainName);
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('external_mail') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('external_mail') or View::showBadRequestErrorPage();
 
 if (isset($_GET['action']) && isset($_GET['domain_id']) && isset($_GET['domain_type'])) {
     $action = cleanInput($_GET['action']);
@@ -212,10 +210,10 @@ if (isset($_GET['action']) && isset($_GET['domain_id']) && isset($_GET['domain_t
         case 'activate':
         case 'deactivate':
             updateExternalMailFeature($action, $domainId, $domainType);
-            sendDaemonRequest();
+            Daemon::sendRequest();
             break;
         default:
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
     }
 
     redirectTo('mail_external.php');
@@ -230,10 +228,10 @@ $tpl->define([
     'activate_link'   => 'item',
     'deactivate_link' => 'item'
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

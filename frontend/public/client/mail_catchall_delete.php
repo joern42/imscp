@@ -18,22 +18,24 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $catchallId = intval($_GET['id']);
 $stmt = execQuery('SELECT COUNT(mail_id) FROM mail_users JOIN domain USING(domain_id) WHERE mail_id = ? AND domain_admin_id = ?', [
-    $catchallId, $_SESSION['user_id']
+    $catchallId, Application::getInstance()->getSession()['user_id']
 ]);
-$stmt->fetchColumn() or showBadRequestErrorPage();
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeDeleteMailCatchall, ['mailCatchallId' => $catchallId]);
+$stmt->fetchColumn() or View::showBadRequestErrorPage();
+Application::getInstance()->getEventManager()->trigger(Events::onBeforeDeleteMailCatchall, NULL, ['mailCatchallId' => $catchallId]);
 execQuery("UPDATE mail_users SET status = 'todelete' WHERE mail_id = ?", [$catchallId]);
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterDeleteMailCatchall, ['mailCatchallId' => $catchallId]);
-sendDaemonRequest();
-writeLog(sprintf('A catch-all account has been deleted by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteMailCatchall, NULL, ['mailCatchallId' => $catchallId]);
+Daemon::sendRequest();
+writeLog(sprintf('A catch-all account has been deleted by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
 setPageMessage(tr('Catch-all account successfully scheduled for deletion.'), 'success');
 redirectTo('mail_catchall.php');

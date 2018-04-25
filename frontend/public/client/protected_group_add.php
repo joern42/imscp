@@ -18,8 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Adds Htaccess group
@@ -32,7 +34,7 @@ function client_addHtaccessGroup()
         return;
     }
 
-    isset($_POST['groupname']) or showBadRequestErrorPage();
+    isset($_POST['groupname']) or View::showBadRequestErrorPage();
 
     $htgroupName = cleanInput($_POST['groupname']);
 
@@ -41,7 +43,7 @@ function client_addHtaccessGroup()
         return;
     }
 
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 
     $stmt = execQuery('SELECT id FROM htaccess_groups WHERE ugroup = ? AND dmn_id = ?', [$htgroupName, $domainId]);
     if ($stmt->rowCount()) {
@@ -49,17 +51,15 @@ function client_addHtaccessGroup()
     }
 
     execQuery("INSERT INTO htaccess_groups (dmn_id, ugroup, status) VALUES (?, ?, 'toadd')", [$domainId, $htgroupName]);
-    sendDaemonRequest();
+    Daemon::sendRequest();
     setPageMessage(tr('Htaccess group successfully scheduled for addition.'), 'success');
-    writeLog(sprintf('%s added htaccess group: %s', $_SESSION['user_logged'], $htgroupName), E_USER_NOTICE);
+    writeLog(sprintf('%s added htaccess group: %s', Application::getInstance()->getSession()['user_logged'], $htgroupName), E_USER_NOTICE);
     redirectTo('protected_user_manage.php');
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 client_addHtaccessGroup();
 
 $tpl = new TemplateEngine();
@@ -76,9 +76,9 @@ $tpl->assign([
     'TR_ADD_GROUP'      => tr('Add'),
     'TR_CANCEL'         => tr('Cancel')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

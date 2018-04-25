@@ -160,7 +160,7 @@ class View
             $tpl->assign('WEBSTATS_PATH', 'http://' . decodeIdna($domainProperties['domain_name']) . '/stats/');
 
             if (customerHasFeature('mail')) {
-                $webmails = getWebmailList();
+                $webmails = Mail::getWebmailList();
 
                 if (!empty($webmails)) {
                     $page1 = $navigation->findOneBy('class', 'email');
@@ -447,7 +447,8 @@ class View
      * @param string|null $searchStatus Status to search
      * @return array Array containing count and search queries
      */
-    public static function getSearchUserQueries(int $sLimit, int $eLimit, string $searchField = NULL, string $searchValue = NULL, string $searchStatus = NULL): array
+    public static function getSearchUserQueries(
+        int $sLimit, int $eLimit, string $searchField = NULL, string $searchValue = NULL, string $searchStatus = NULL): array
     {
         $sLimit = intval($sLimit);
         $eLimit = intval($eLimit);
@@ -620,7 +621,7 @@ class View
 
         if (!empty($_POST)) {
             isset($_POST['search_status']) && isset($_POST['search_field']) && isset($_POST['client_domain_aliases_switch'])
-                && in_array($_POST['client_domain_aliases_switch'], ['show', 'hide']) or static::showBadRequestErrorPage();
+            && in_array($_POST['client_domain_aliases_switch'], ['show', 'hide']) or static::showBadRequestErrorPage();
 
             $session['client_domain_aliases_switch'] = cleanInput($_POST['client_domain_aliases_switch']);
             $session['search_field'] = cleanInput($_POST['search_field']);

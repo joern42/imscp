@@ -18,19 +18,19 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
-require_once LIBRARY_PATH . '/Functions/Tickets.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Support;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-resellerHasFeature('support') or showBadRequestErrorPage();
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+resellerHasFeature('support') or View::showBadRequestErrorPage();
 
-$_SESSION['previousPage'] = 'ticket_system.php';
+Application::getInstance()->getSession()['previousPage'] = 'ticket_system.php';
 
-!isset($_GET['ticket_id']) or closeTicket(intval($_GET['ticket_id']));
+!isset($_GET['ticket_id']) or Support::closeTicket(intval($_GET['ticket_id']));
 
 if (isset($_GET['psi'])) {
     $start = $_GET['psi'];
@@ -69,10 +69,12 @@ $tpl->assign([
     'TR_PREVIOUS'                   => tr('Previous'),
     'TR_NEXT'                       => tr('Next')
 ]);
-generateNavigation($tpl);
-generateTicketList($tpl, $_SESSION['user_id'], $start, Registry::get('config')['DOMAIN_ROWS_PER_PAGE'], 'reseller', 'open');
+View::generateNavigation($tpl);
+Support::generateTicketList(
+    $tpl, Application::getInstance()->getSession()['user_id'], $start, Application::getInstance()->getConfig()['DOMAIN_ROWS_PER_PAGE'], 'reseller', 'open'
+);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

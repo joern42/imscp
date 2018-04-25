@@ -4,7 +4,7 @@
         $('#languagesTable').find("input[type=radio]").button().change(function () {
             $(this).closest("form").submit();
         }).closest("table").dataTable({
-            language: <?= getDataTablesPluginTranslations(); ?>,
+            language: <?= \iMSCP\Functions\View::getDataTablesPluginTranslations(); ?>,
             stateSave: true,
             pagingType: "simple",
             columnDefs: [

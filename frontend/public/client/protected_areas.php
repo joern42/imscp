@@ -18,10 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Generate page
@@ -31,7 +32,7 @@ use iMSCP_Registry as Registry;
  */
 function generatePage($tpl)
 {
-    $stmt = execQuery('SELECT * FROM htaccess WHERE dmn_id = ?', [getCustomerMainDomainId($_SESSION['user_id'])]);
+    $stmt = execQuery('SELECT * FROM htaccess WHERE dmn_id = ?', [getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])]);
 
     if (!$stmt->rowCount()) {
         $tpl->assign('PROTECTED_AREAS', '');
@@ -60,11 +61,9 @@ function generatePage($tpl)
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -86,16 +85,15 @@ $tpl->assign([
     'TR_ADD_PROTECTED_AREA'      => tr('Add new protected area'),
     'TR_MANAGE_USERS_AND_GROUPS' => tr('Manage users and groups')
 ]);
-
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
-    $translations['core']['dataTable'] = getDataTablesPluginTranslations();
+    $translations['core']['dataTable'] = View::getDataTablesPluginTranslations();
     $translations['core']['deletion_confirm_msg'] = tr('Are you sure you want to delete the `%%s` protected area?');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

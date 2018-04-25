@@ -22,6 +22,7 @@ namespace iMSCP\Exception\Writer;
 
 use iMSCP\Application;
 use iMSCP\Exception\Event;
+use iMSCP\Functions\Mail as MailFunct;
 use iMSCP\Utility\OpcodeCache;
 
 /**
@@ -69,7 +70,7 @@ class Mail implements WriterInterface
             return;
         }
 
-        sendMail($data);
+        MailFunct::sendMail($data);
 
         // Update footprints cache file
         $footprints[$data['footprint']] = strtotime('+24 hours');
@@ -122,7 +123,7 @@ An exception has been thrown in file {FILE} at line {LINE}:
 ==========================================================================
 
 Stack trace:
-_______
+____________
 
 {STRACK_TRACE}
 
@@ -143,7 +144,7 @@ EOF
                     '{FILE}'         => $exception->getFile(),
                     '{LINE}'         => $exception->getLine(),
                     '{EXCEPTION}'    => $message,
-                    '{STRACK_TRACE}' => $exception->getTrace(),
+                    '{STRACK_TRACE}' => $exception->getTraceAsString(),
                     '{CONTEXT_INFO}' => $contextInfo
                 ]
             ];

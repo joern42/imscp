@@ -43,18 +43,18 @@ class Login
     {
         static::doSessionTimeout();
 
-        $em = Application::getInstance()->getEventManager();
+        $events = Application::getInstance()->getEventManager();
 
         if (Application::getInstance()->getConfig()['BRUTEFORCE']) {
             $bruteforce = new Bruteforce(Application::getInstance()->getPluginManager());
-            $bruteforce->attach($em);
+            $bruteforce->attach($events);
         }
 
         // Register default authentication handler with high-priority
-        $em->attach(Events::onAuthentication, [Login::class, 'defaultCredentialsHandler'], 99);
+        $events->attach(Events::onAuthentication, [Login::class, 'defaultCredentialsHandler'], 99);
 
         // Register listener that is responsible to check domain status and expire date
-        $em->attach(Events::onBeforeSetIdentity, [Login::class, 'checkDomainAccountHandler']);
+        $events->attach(Events::onBeforeSetIdentity, [Login::class, 'checkDomainAccountHandler']);
     }
 
     /**
@@ -121,7 +121,7 @@ class Login
                     ]);
                     writeLog(sprintf('Password for user %s has been re-encrypted using APR-1 algorithm', $identity->admin_name), E_USER_NOTICE);
 
-                    $identity->admin_type != 'user' or sendDaemonRequest();
+                    $identity->admin_type != 'user' or Daemon::sendRequest();
                 },
                 ['password' => $password, 'identity' => $identity]
             );

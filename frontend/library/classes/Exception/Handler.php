@@ -33,8 +33,9 @@ class Handler implements EventManagerAwareInterface
      * @var string[] Exception writers
      */
     protected $writers = [
-        Writer\Browser::class,
-        Writer\Mail::class
+        // Must be registered first on event manager so that even if Browser exception writer raise an exception, mail will be sent
+        Writer\Mail::class,
+        Writer\Browser::class
     ];
 
     use EventManagerAwareTrait;
@@ -47,14 +48,15 @@ class Handler implements EventManagerAwareInterface
      */
     public function __invoke(\Throwable $e): void
     {
+        $event = new Event();
+        $event->setTarget($this);
+        $event->setException($e);
+
         try {
             foreach ($this->writers as $writer) {
                 $this->getEventManager()->attach('onUncaughtException', new $writer);
             }
 
-            $event = new Event();
-            $event->setTarget($this);
-            $event->setException($e);
             $this->getEventManager()->triggerEvent($event);
         } catch (\Throwable $e) {
             if (PHP_SAPI != 'cli') {
@@ -67,17 +69,35 @@ class Handler implements EventManagerAwareInterface
     <meta name="robots" content="nofollow, noindex">
     </head>
     <body>
-        <pre>
-Couldn't handle uncaught exception:
+    <div style="text-align:center;font-size: x-large;font-weight: bold">Couldn't handle uncaught exception</div>
+        <pre style="padding: 1.1em">
+<b>Uncaught exception (thrown in file {$event->getException()->getFile()} at line {$event->getException()->getLine()}):</b>
+
+<b>Message:</b> {$event->getException()->getMessage()}
+<b>Stack trace:</b> {$event->getException()->getTraceAsString()}
+
+<b>Last exception (thrown in file {$e->getFile()} at line {$e->getLine()}):</b>
 
 <b>Message:</b> {$e->getMessage()}
-<b>Trace :</b> {$e->getTraceAsString()}
+<b>Stack trace:</b> {$e->getTraceAsString()}
         </pre>
     </body>
 </html>
 HTML;
             } else {
-                $message = sprintf("Couldn't handle uncaught exception:\n\n%s %s", $e->getMessage(), $e->getTraceAsString());
+                $message = <<<TEXT
+Couldn't handle uncaught exception:
+
+Uncaught exception (thrown in file {$event->getException()->getFile()} at line {$event->getException()->getLine()}):
+
+Message: {$event->getException()->getMessage()}
+Stack trace: {$event->getException()->getTraceAsString()}
+
+Last exception (thrown in file {$e->getFile()} at line {$e->getLine()}):
+
+Message: {$e->getMessage()}
+Stack trace: {$e->getTraceAsString()}
+TEXT;
             }
 
             die($message);

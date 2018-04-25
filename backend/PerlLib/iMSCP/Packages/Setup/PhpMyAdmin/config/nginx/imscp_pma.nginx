@@ -1,8 +1,8 @@
-location = /pma {
-    return 301 /pma/;
+location = /phpmyadmin {
+    return 301 /phpmyadmin/;
 }
 
-location ^~ /pma/ {
+location ^~ /phpmyadmin/ {
     root {FRONTEND_ROOT_DIR}/public/tools;
 
     location ~ \.php$ {

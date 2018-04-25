@@ -18,13 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -49,40 +50,39 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'email_setup') {
     }
 
     if (!$error) {
-        setWelcomeEmail(0, $data);
+        Mail::setWelcomeEmail(0, $data);
         setPageMessage(tr('Welcome email template has been updated.'), 'success');
         redirectTo('settings_welcome_mail.php');
     }
 }
 
-$data = getWelcomeEmail($_SESSION['user_id']);
+$data = Mail::getWelcomeEmail(Application::getInstance()->getSession()['user_id']);
 
 $tpl->assign([
-    'TR_PAGE_TITLE'               => tr('Admin / Settings / Welcome Email'),
-    'TR_EMAIL_SETUP'              => tr('Email setup'),
-    'TR_MESSAGE_TEMPLATE_INFO'    => tr('Message template info'),
-    'TR_USER_LOGIN_NAME'          => tr('User login (system) name'),
-    'TR_USER_PASSWORD'            => tr('User password'),
-    'TR_USER_REAL_NAME'           => tr('User real (first and last) name'),
-    'TR_MESSAGE_TEMPLATE'         => tr('Message template'),
-    'TR_SUBJECT'                  => tr('Subject'),
-    'TR_MESSAGE'                  => tr('Message'),
-    'TR_SENDER_EMAIL'             => tr('Reply-To email'),
-    'TR_SENDER_NAME'              => tr('Reply-To name'),
-    'TR_UPDATE'                   => tr('Update'),
-    'TR_USERTYPE'                 => tr('User type (admin, reseller, user)'),
-    'TR_BASE_SERVER_VHOST_PREFIX' => tr('URL protocol'),
-    'TR_BASE_SERVER_VHOST'        => tr('URL to this admin panel'),
-    'TR_BASE_SERVER_VHOST_PORT'   => tr('URL port'),
+    'TR_PAGE_TITLE'               => toHtml(tr('Admin / Settings / Welcome Email')),
+    'TR_EMAIL_SETUP'              => toHtml(tr('Email setup')),
+    'TR_MESSAGE_TEMPLATE_INFO'    => toHtml(tr('Message template info')),
+    'TR_USER_LOGIN_NAME'          => toHtml(tr('User login (system) name')),
+    'TR_USER_PASSWORD'            => toHtml(tr('User password')),
+    'TR_USER_REAL_NAME'           => toHtml(tr('User real (first and last) name')),
+    'TR_MESSAGE_TEMPLATE'         => toHtml(tr('Message template')),
+    'TR_SUBJECT'                  => toHtml(tr('Subject')),
+    'TR_MESSAGE'                  => toHtml(tr('Message')),
+    'TR_SENDER_EMAIL'             => toHtml(tr('Reply-To email')),
+    'TR_SENDER_NAME'              => toHtml(tr('Reply-To name')),
+    'TR_UPDATE'                   => toHtml(tr('Update')),
+    'TR_USERTYPE'                 => toHtml(tr('User type (admin, reseller, user)')),
+    'TR_BASE_SERVER_VHOST_PREFIX' => toHtml(tr('URL protocol')),
+    'TR_BASE_SERVER_VHOST'        => toHtml(tr('URL to this admin panel')),
+    'TR_BASE_SERVER_VHOST_PORT'   => toHtml(tr('URL port')),
     'SUBJECT_VALUE'               => toHtml($data['subject']),
     'MESSAGE_VALUE'               => toHtml($data['message']),
     'SENDER_EMAIL_VALUE'          => toHtml($data['sender_email']),
     'SENDER_NAME_VALUE'           => toHtml($data['sender_name'])
 ]);
-
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

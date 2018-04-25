@@ -18,8 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Generate page
@@ -27,9 +29,9 @@ use iMSCP_Registry as Registry;
  * @param TemplateEngine $tpl
  * @return void
  */
-function generatePage($tpl)
+function generatePage(TemplateEngine $tpl)
 {
-    $stmt = executeQuery('SELECT ip_id, ip_number FROM server_ips ORDER BY LENGTH(ip_number), ip_number');
+    $stmt = execQuery('SELECT ip_id, ip_number FROM server_ips ORDER BY LENGTH(ip_number), ip_number');
     $ips = $stmt->fetchAll();
     $sip = isset($_POST['ip_address']) && in_array($_POST['ip_address'], array_column($ips, 'ip_id')) ? $_POST['ip_address'] : $ips[0]['ip_id'];
 
@@ -96,11 +98,9 @@ function generatePage($tpl)
 
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
-systemHasCustomers() or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+Counting::systemHasCustomers() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -116,10 +116,10 @@ $tpl->assign([
     'TR_PAGE_TITLE'     => toHtml(tr('Admin / Statistics / IP Assignments')),
     'TR_DROPDOWN_LABEL' => toHtml(tr('Select an IP address to see its assignments'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

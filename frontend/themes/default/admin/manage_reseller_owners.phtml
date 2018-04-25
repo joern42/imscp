@@ -2,7 +2,7 @@
     $(function () {
         var $oTable = $('.datatable').dataTable(
             {
-                language: <?= getDataTablesPluginTranslations(true, ['emptyTable' =>  tr('No reseller found for the selected administrator.')]); ?>,
+                language: <?= \iMSCP\Functions\View::getDataTablesPluginTranslations(true, ['emptyTable' =>  tr('No reseller found for the selected administrator.')]); ?>,
                 displayLength: 10,
                 stateSave: true,
                 pagingType: "simple"

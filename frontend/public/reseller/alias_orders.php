@@ -18,21 +18,23 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
- * Reject a domain alias order
+ * Reject domain alias order
  *
- * @throws Zend_Exception
- * @throws iMSCP_Exception
- * @throws iMSCP_Exception_Database
+ * @throws \Exception
  */
-function reseller_rejectOrder()
+function rejectDomainAliasOrder()
 {
-    isset($_GET['id']) or showBadRequestErrorPage();
+    isset($_GET['id']) or View::showBadRequestErrorPage();
     $domainAliasId = intval($_GET['id']);
 
     $stmt = execQuery(
@@ -45,37 +47,34 @@ function reseller_rejectOrder()
             AND t1.alias_status = 'ordered'
             AND t3.created_by = ?
         ",
-        [$domainAliasId, $_SESSION['user_id']]
+        [$domainAliasId, Application::getInstance()->getSession()['user_id']]
     );
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
         execQuery("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'als'", [$domainAliasId]);
         execQuery('DELETE FROM domain_aliases WHERE alias_id = ?', [$domainAliasId]);
-        $db->commit();
-        writeLog(sprintf('A domain alias order has been rejected by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
+        $db->getDriver()->getConnection()->commit();
+        writeLog(sprintf('A domain alias order has been rejected by %s.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
         setPageMessage(toHtml(tr('Domain alias order successfully rejected.')), 'success');
-    } catch (iMSCP_Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to reject a domain alias order: %s', $e->getMessage()), E_USER_ERROR);
         setPageMessage(toHtml(tr("Couldn't reject the domain alias order. An unexpected error occurred.")), 'error');
     }
 }
 
 /**
- * Approve a domain alias order
+ * Approve domain alias order
  *
- * @throws Zend_Exception
- * @throws iMSCP_Exception
- * @throws iMSCP_Exception_Database
+ * @throws \Exception
  */
-function reseller_approveOrder()
+function approveDomainAliasOrder()
 {
-    isset($_GET['id']) or showBadRequestErrorPage();
+    isset($_GET['id']) or View::showBadRequestErrorPage();
     $domainAliasId = intval($_GET['id']);
 
     $stmt = execQuery(
@@ -88,16 +87,15 @@ function reseller_approveOrder()
             AND t1.alias_status = 'ordered'
             AND t3.created_by = ?
         ",
-        [$domainAliasId, $_SESSION['user_id']]
+        [$domainAliasId, Application::getInstance()->getSession()['user_id']]
     );
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         // Since domain alias has been ordered, the IP set while ordering could have
         // been unassigned or even removed. In such case, we set the domain alias with
@@ -113,7 +111,7 @@ function reseller_approveOrder()
         }
         unset($clientIps);
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddDomainAlias, [
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddDomainAlias, NULL, [
             'domainId'        => $row['domain_id'],
             'domainAliasName' => $row['alias_name'],
             'domainAliasIps'  => $row['alias_ips'],
@@ -126,8 +124,8 @@ function reseller_approveOrder()
         execQuery("UPDATE domain_aliases SET alias_ips = ?, alias_status = 'toadd' WHERE alias_id = ?", [
             implode(',', $row['alias_ips']), $domainAliasId
         ]);
-        createDefaultMailAccounts($row['domain_id'], $row['email'], $row['alias_name'], MT_ALIAS_FORWARD, $domainAliasId);
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddDomainAlias, [
+        Mail::createDefaultMailAccounts($row['domain_id'], $row['email'], $row['alias_name'], Mail::MT_ALIAS_FORWARD, $domainAliasId);
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterAddDomainAlias, NULL, [
             'domainId'        => $row['domain_id'],
             'domainAliasName' => $row['alias_name'],
             'domainAliasIps'  => $row['alias_ips'],
@@ -137,12 +135,12 @@ function reseller_approveOrder()
             'forwardType'     => $row['type_forward'],
             'forwardHost'     => $row['host_forward']
         ]);
-        $db->commit();
-        sendDaemonRequest();
-        writeLog(sprintf('A domain alias order has been approved by %s.', $_SESSION['user_logged']), E_USER_NOTICE);
+        $db->getDriver()->getConnection()->commit();
+        Daemon::sendRequest();
+        writeLog(sprintf('A domain alias order has been approved by %s.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
         setPageMessage(toHtml(tr('Order successfully approved.')), 'success');
-    } catch (iMSCP_Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to approve a domain alias order: %s', $e->getMessage()), E_USER_ERROR);
         setPageMessage(toHtml(tr("Couldn't approve the domain alias order. An unexpected error occurred.")), 'error');
     }
@@ -153,7 +151,7 @@ function reseller_approveOrder()
  *
  * @return array
  */
-function reseller_generatePageData()
+function generatePage()
 {
     $columns = ['alias_name', 'alias_mount', 'url_forward', 'admin_name'];
     $columnAliases = ['t1.alias_name', 't1.alias_mount', 't1.url_forward', 't3.admin_name'];
@@ -188,7 +186,7 @@ function reseller_generatePageData()
     }
 
     /* Filtering */
-    $where = 'WHERE t3.created_by = ' . quoteValue($_SESSION['user_id'], PDO::PARAM_INT) . " AND t1.alias_status = 'ordered'";
+    $where = 'WHERE t3.created_by = ' . quoteValue(Application::getInstance()->getSession()['user_id']) . " AND t1.alias_status = 'ordered'";
     if (isset($_GET['sSearch']) && $_GET['sSearch'] != '') {
         $where .= ' AND (';
         for ($i = 0; $i < $nbColumns; $i++) {
@@ -206,7 +204,7 @@ function reseller_generatePageData()
     }
 
     /* Get data to display */
-    $rResult = executeQuery(
+    $rResult = execQuery(
         "
             SELECT SQL_CALC_FOUND_ROWS t1.alias_id, " . implode(', ', $columnAliases) . "
             FROM domain_aliases AS t1
@@ -217,7 +215,7 @@ function reseller_generatePageData()
     );
 
     /* Total records after filtering (without limit) */
-    $iTotalDisplayRecords = executeQuery('SELECT FOUND_ROWS()')->fetchColumn();
+    $iTotalDisplayRecords = execQuery('SELECT FOUND_ROWS()')->fetchColumn();
     /* Total record before any filtering */
     $iTotalRecords = execQuery(
         "
@@ -228,7 +226,7 @@ function reseller_generatePageData()
             WHERE t3.created_by = ?
             AND t1.alias_status = 'ordered'
         ",
-        [$_SESSION['user_id']]
+        [Application::getInstance()->getSession()['user_id']]
     )->fetchColumn();
 
     /* Output */
@@ -266,19 +264,17 @@ function reseller_generatePageData()
     return $output;
 }
 
-require 'imscp-lib.php';
-
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-resellerHasFeature('domain_aliases') && resellerHasCustomers() or showBadRequestErrorPage();
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+resellerHasFeature('domain_aliases') && Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
 
 if (isset($_GET['action'])) {
     if ($_GET['action'] == 'reject') {
-        reseller_rejectOrder();
+        rejectDomainAliasOrder();
     } elseif ($_GET['action'] == 'approve') {
-        reseller_approveOrder();
+        approveDomainAliasOrder();
     } else {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     redirectTo('alias_orders.php');
@@ -301,15 +297,15 @@ if (!isXhr()) {
         'TR_ACTIONS'     => toHtml(tr('Actions')),
         'TR_PROCESSING'  => toHtml(tr('Processing...'))
     ]);
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $translation = $e->getParam('translations');
-        $translation['core']['dataTable'] = getDataTablesPluginTranslations(false);
+        $translation['core']['dataTable'] = View::getDataTablesPluginTranslations(false);
         $translation['core']['reject_domain_alias_order'] = tr('Are you sure you want to reject the order for the %s domain alias?', '%s');
     });
-    generateNavigation($tpl);
+    View::generateNavigation($tpl);
     generatePageMessage($tpl);
     $tpl->parse('LAYOUT_CONTENT', 'page');
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+    Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
     $tpl->prnt();
     unsetMessages();
 } else {
@@ -317,5 +313,5 @@ if (!isXhr()) {
     header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
     header('Content-type: application/json');
     header('Status: 200 OK');
-    echo json_encode(reseller_generatePageData());
+    echo json_encode(generatePage());
 }

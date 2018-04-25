@@ -18,28 +18,28 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
-require_once LIBRARY_PATH . '/Functions/Tickets.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Support;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
-Registry::get('config')['IMSCP_SUPPORT_SYSTEM'] && isset($_GET['ticket_id']) or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+Application::getInstance()->getConfig()['IMSCP_SUPPORT_SYSTEM'] && isset($_GET['ticket_id']) or View::showBadRequestErrorPage();
 
 $ticketId = intval($_GET['ticket_id']);
-$status = getTicketStatus($ticketId);
+$status = Support::getTicketStatus($ticketId);
 
 if ($status == 1 || $status == 4) {
-    if (!changeTicketStatus($ticketId, 3)) {
+    if (!Support::changeTicketStatus($ticketId, 3)) {
         redirectTo('ticket_system.php');
     }
 }
 
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'close') {
-        closeTicket($ticketId);
+        Support::closeTicket($ticketId);
         redirectTo('ticket_system.php');
     }
 
@@ -47,7 +47,9 @@ if (isset($_POST['uaction'])) {
         if (empty($_POST['user_message'])) {
             setPageMessage(tr('Please type your message.'), 'error');
         } else {
-            updateTicket($ticketId, $_SESSION['user_id'], $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3);
+            Support::updateTicket(
+                $ticketId, Application::getInstance()->getSession()['user_id'], $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3
+            );
             redirectTo("ticket_view.php?ticket_id=$ticketId");
         }
     }
@@ -72,10 +74,10 @@ $tpl->assign([
     'TR_TICKET_NEW_REPLY' => tr('Reply'),
     'TR_TICKET_REPLY'     => tr('Send reply')
 ]);
-generateNavigation($tpl);
-showTicketContent($tpl, $ticketId, $_SESSION['user_id']);
+View::generateNavigation($tpl);
+Support::showTicketContent($tpl, $ticketId, Application::getInstance()->getSession()['user_id']);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

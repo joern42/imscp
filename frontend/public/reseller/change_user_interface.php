@@ -18,33 +18,36 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 // Switch back to admin
-if (isset($_SESSION['logged_from']) && isset($_SESSION['logged_from_id']) && isset($_GET['action']) && $_GET['action'] == 'go_back') {
-    changeUserInterface($_SESSION['user_id'], $_SESSION['logged_from_id']);
+if (isset(Application::getInstance()->getSession()['logged_from']) && isset(Application::getInstance()->getSession()['logged_from_id'])
+    && isset($_GET['action']) && $_GET['action'] == 'go_back'
+) {
+    Login::changeUserInterface(Application::getInstance()->getSession()['user_id'], Application::getInstance()->getSession()['logged_from_id']);
 }
 
-if (isset($_SESSION['user_id']) && isset($_GET['to_id'])) {
+if (isset(Application::getInstance()->getSession()['user_id']) && isset($_GET['to_id'])) {
     // Switch to customer
     $toUserId = intval($_GET['to_id']);
 
-    if (isset($_SESSION['logged_from']) && isset($_SESSION['logged_from_id'])) {
+    if (isset(Application::getInstance()->getSession()['logged_from']) && isset(Application::getInstance()->getSession()['logged_from_id'])) {
         // Admin logged as reseller
-        $fromUserId = $_SESSION['logged_from_id'];
+        $fromUserId = Application::getInstance()->getSession()['logged_from_id'];
     } else {
         // reseller to customer
-        $fromUserId = $_SESSION['user_id'];
+        $fromUserId = Application::getInstance()->getSession()['user_id'];
         execQuery('SELECT COUNT(admin_id) FROM admin WHERE admin_id = ? AND created_by = ?', [$toUserId, $fromUserId])->fetchColumn() > 0 or
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
-    changeUserInterface($fromUserId, $toUserId);
+    Login::changeUserInterface($fromUserId, $toUserId);
 }
 
-showBadRequestErrorPage();
+View::showBadRequestErrorPage();

@@ -18,14 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Get traffic data for the given user and period
  *
- * @param int $domainId User main domain unique identifier
+ * @param int $domainId Customer primary domain unique identifier
  * @param int $startDate An UNIX timestamp representing a start date
  * @param int $endDate An UNIX timestamp representing an end date
  * @return array
@@ -35,29 +36,25 @@ function getUserTraffic($domainId, $startDate, $endDate)
     static $stmt;
 
     if (NULL === $stmt) {
-        /** @var iMSCP_Database $db */
-        $db = Registry::get('iMSCP_Application')->getDatabase();
-        $stmt = $db->prepare(
+        $stmt = Application::getInstance()->getDb()->createStatement(
             '
-               SELECT IFNULL(SUM(dtraff_web), 0) AS web_traffic,
-                    IFNULL(SUM(dtraff_ftp), 0) AS ftp_traffic,
-                    IFNULL(SUM(dtraff_mail), 0) AS smtp_traffic,
-                    IFNULL(SUM(dtraff_pop),0) AS pop_traffic
+                SELECT IFNULL(SUM(dtraff_web), 0) AS web_traffic, IFNULL(SUM(dtraff_ftp), 0) AS ftp_traffic,
+                    IFNULL(SUM(dtraff_mail), 0) AS smtp_traffic, IFNULL(SUM(dtraff_pop),0) AS pop_traffic
                 FROM domain_traffic
                 WHERE domain_id = ?
                 AND dtraff_time BETWEEN ? AND ?
             '
         );
+        $stmt->prepare();
     }
 
-    $stmt->execute([$domainId, $startDate, $endDate]);
+    $result = $stmt->execute([$domainId, $startDate, $endDate])->getResource();
 
-    if (!$stmt->rowCount()) {
+    if (!$result->rowCount()) {
         return [0, 0, 0, 0];
     }
 
-    $row = $stmt->fetch();
-
+    $row = $result->fetch();
     return [$row['web_traffic'], $row['ftp_traffic'], $row['smtp_traffic'], $row['pop_traffic']];
 }
 
@@ -71,9 +68,9 @@ function generatePage(TemplateEngine $tpl)
 {
     $userId = intval($_GET['user_id']);
     $stmt = execQuery('SELECT admin_name, domain_id FROM admin JOIN domain ON(domain_admin_id = admin_id) WHERE admin_id = ? AND created_by = ?', [
-        $userId, $_SESSION['user_id']
+        $userId, Application::getInstance()->getSession()['user_id']
     ]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
     $domainId = $row['domain_id'];
     $adminName = decodeIdna($row['admin_name']);
@@ -82,7 +79,7 @@ function generatePage(TemplateEngine $tpl)
     $stmt = execQuery('SELECT dtraff_time FROM domain_traffic WHERE domain_id = ? ORDER BY dtraff_time ASC LIMIT 1', [$domainId]);
     $nPastYears = $stmt->rowCount() ? date('Y') - date('Y', $stmt->fetchColumn()) : 0;
 
-    generateDMYlists($tpl, 0, $month, $year, $nPastYears);
+    View::generateDMYlists($tpl, 0, $month, $year, $nPastYears);
 
     $stmt = execQuery('SELECT domain_id FROM domain_traffic WHERE domain_id = ? AND dtraff_time BETWEEN ? AND ? LIMIT 1', [
         $domainId, getFirstDayOfMonth($month, $year), getLastDayOfMonth($month, $year)
@@ -100,7 +97,7 @@ function generatePage(TemplateEngine $tpl)
 
     $requestedPeriod = getLastDayOfMonth($month, $year);
     $toDay = ($requestedPeriod < time()) ? date('j', $requestedPeriod) : date('j');
-    $dateFormat = Registry::get('config')['DATE_FORMAT'];
+    $dateFormat = Application::getInstance()->getConfig()['DATE_FORMAT'];
     $all = array_fill(0, 8, 0);
 
     for ($fromDay = 1; $fromDay <= $toDay; $fromDay++) {
@@ -133,11 +130,9 @@ function generatePage(TemplateEngine $tpl)
     ]);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
-resellerHasCustomers() && isset($_GET['user_id']) or showBadRequestErrorPage();
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+Counting::resellerHasCustomers() && isset($_GET['user_id']) or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -163,10 +158,10 @@ $tpl->assign([
     'TR_DAY'          => toHtml(tr('Day'))
 ]);
 
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

@@ -7,7 +7,7 @@
     $(function () {
         var $oTable = $('.datatable').dataTable(
             {
-                language: <?= getDataTablesPluginTranslations(); ?>,
+                language: <?= \iMSCP\Functions\View::getDataTablesPluginTranslations(); ?>,
                 displayLength: 10,
                 stateSave: true,
                 columnDefs: [ { sortable: false, targets: [5] }],

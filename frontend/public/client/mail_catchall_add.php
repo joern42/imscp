@@ -18,9 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Get catch-all domain
@@ -32,12 +34,12 @@ use iMSCP_Registry as Registry;
 function getCatchallDomain($catchallDomainId, $catchalType)
 {
     switch ($catchalType) {
-        case MT_NORMAL_CATCHALL:
+        case Mail::MT_NORMAL_CATCHALL:
             $stmt = execQuery('SELECT domain_name FROM domain WHERE domain_id = ? AND domain_admin_id = ?', [
-                $catchallDomainId, $_SESSION['user_id']
+                $catchallDomainId, Application::getInstance()->getSession()['user_id']
             ]);
             break;
-        case MT_SUBDOM_CATCHALL:
+        case Mail::MT_SUBDOM_CATCHALL:
             $stmt = execQuery(
                 "
                     SELECT CONCAT(subdomain_name, '.', domain_name) FROM subdomain
@@ -45,10 +47,10 @@ function getCatchallDomain($catchallDomainId, $catchalType)
                     WHERE subdomain_id = ?
                     AND domain_admin_id = ?
                 ",
-                [$catchallDomainId, $_SESSION['user_id']]
+                [$catchallDomainId, Application::getInstance()->getSession()['user_id']]
             );
             break;
-        case MT_ALIAS_CATCHALL:
+        case Mail::MT_ALIAS_CATCHALL:
             $stmt = execQuery(
                 "
                     SELECT alias_name FROM domain_aliases
@@ -56,10 +58,10 @@ function getCatchallDomain($catchallDomainId, $catchalType)
                     WHERE alias_id = ?
                     AND domain_admin_id = ?
                 ",
-                [$catchallDomainId, $_SESSION['user_id']]
+                [$catchallDomainId, Application::getInstance()->getSession()['user_id']]
             );
             break;
-        case MT_ALSSUB_CATCHALL:
+        case Mail::MT_ALSSUB_CATCHALL:
             $stmt = execQuery(
                 "
                     SELECT CONCAT(subdomain_alias_name, '.', alias_name) FROM subdomain_alias
@@ -68,7 +70,7 @@ function getCatchallDomain($catchallDomainId, $catchalType)
                     WHERE subdomain_alias_id = ?
                     AND domain_admin_id = ?
                 ",
-                [$catchallDomainId, $_SESSION['user_id']]
+                [$catchallDomainId, Application::getInstance()->getSession()['user_id']]
             );
             break;
         default:
@@ -91,26 +93,26 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
     if (!isset($_POST['catchall_addresses_type']) || !in_array($_POST['catchall_addresses_type'], ['auto', 'manual'])
         || ($_POST['catchall_addresses_type'] == 'manual' && !isset($_POST['manual_catchall_addresses']))
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     if ($_POST['catchall_addresses_type'] == 'auto') {
         if (!isset($_POST['automatic_catchall_addresses']) || !is_array($_POST['automatic_catchall_addresses'])) {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
         if (empty($_POST['automatic_catchall_addresses'])) {
             setPageMessage(tr('You must select at least one catch-all address.'), 'error');
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
         $catchallAddresses = [];
 
         foreach ($_POST['automatic_catchall_addresses'] as $catchallAddressId) {
             $stmt = execQuery('SELECT mail_addr FROM mail_users WHERE mail_id = ? AND domain_id = ?', [
-                intval($catchallAddressId), getCustomerMainDomainId($_SESSION['user_id'])
+                intval($catchallAddressId), getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])
             ]);
-            $stmt->rowCount() or showBadRequestErrorPage();
+            $stmt->rowCount() or View::showBadRequestErrorPage();
             $catchallAddresses[] = $stmt->fetchColumn();
         }
     } else {
@@ -135,23 +137,23 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         }
     }
 
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 
     switch ($catchallType) {
-        case MT_NORMAL_CATCHALL:
+        case Mail::MT_NORMAL_CATCHALL:
             $subId = '0';
             break;
-        case MT_ALIAS_CATCHALL:
-        case MT_SUBDOM_CATCHALL:
-        case MT_ALSSUB_CATCHALL:
+        case Mail::MT_ALIAS_CATCHALL:
+        case Mail::MT_SUBDOM_CATCHALL:
+        case Mail::MT_ALSSUB_CATCHALL:
             $subId = $catchallDomainId;
             break;
         default:
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
             exit;
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddMailCatchall, [
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddMailCatchall, NULL, [
         'mailCatchallDomain'    => $catchallDomain,
         'mailCatchallAddresses' => $catchallAddresses
     ]);
@@ -165,13 +167,13 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         ",
         [implode(',', $catchallAddresses), $domainId, $catchallType, $subId, '@' . $catchallDomain]
     );
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddMailCatchall, [
-        'mailCatchallId'        => Registry::get('iMSCP_Application')->getDatabase()->lastInsertId(),
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterAddMailCatchall, NULL, [
+        'mailCatchallId'        => Application::getInstance()->getDb()->getDriver()->getLastGeneratedValue(),
         'mailCatchallDomain'    => $catchallDomain,
         'mailCatchallAddresses' => $catchallAddresses
     ]);
-    sendDaemonRequest();
-    writeLog(sprintf('A catch-all account has been created by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    Daemon::sendRequest();
+    writeLog(sprintf('A catch-all account has been created by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('Catch-all successfully scheduled for addition.'), 'success');
     redirectTo('mail_catchall.php');
 }
@@ -187,9 +189,9 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
 function generatePage($tpl, $catchallDomainId, $catchallType)
 {
     switch ($catchallType) {
-        case MT_NORMAL_CATCHALL:
+        case Mail::MT_NORMAL_CATCHALL:
             $stmt = execQuery("SELECT mail_id, mail_addr FROM mail_users WHERE domain_id = ? AND mail_type RLIKE ? AND status = 'ok'", [
-                $catchallDomainId, MT_NORMAL_MAIL . '|' . MT_NORMAL_FORWARD
+                $catchallDomainId, Mail::MT_NORMAL_MAIL . '|' . Mail::MT_NORMAL_FORWARD
             ]);
 
             if (!$stmt->rowCount()) {
@@ -218,9 +220,9 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
                 }
             }
             break;
-        case MT_SUBDOM_CATCHALL:
+        case Mail::MT_SUBDOM_CATCHALL:
             $stmt = execQuery("SELECT mail_id, mail_addr FROM mail_users WHERE domain_id AND sub_id = ? AND mail_type RLIKE ? AND status = 'ok'", [
-                getCustomerMainDomainId($_SESSION['user_id']), $catchallDomainId, MT_SUBDOM_MAIL . '|' . MT_SUBDOM_FORWARD
+                getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $catchallDomainId, Mail::MT_SUBDOM_MAIL . '|' . Mail::MT_SUBDOM_FORWARD
             ]);
 
             if (!$stmt->rowCount()) {
@@ -249,10 +251,10 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
                 }
             }
             break;
-        case MT_ALIAS_CATCHALL:
+        case Mail::MT_ALIAS_CATCHALL:
             $stmt = execQuery(
                 "SELECT mail_id, mail_addr FROM mail_users WHERE domain_id = ? AND sub_id = ? AND mail_type RLIKE ? AND status = 'ok'",
-                [getCustomerMainDomainId($_SESSION['user_id']), $catchallDomainId, MT_ALIAS_MAIL . '|' . MT_ALIAS_FORWARD]
+                [getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $catchallDomainId, Mail::MT_ALIAS_MAIL . '|' . Mail::MT_ALIAS_FORWARD]
             );
 
             if (!$stmt->rowCount()) {
@@ -281,10 +283,10 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
                 }
             }
             break;
-        case MT_ALSSUB_CATCHALL:
+        case Mail::MT_ALSSUB_CATCHALL:
             $stmt = execQuery(
                 "SELECT mail_id, mail_addr FROM mail_users WHERE domain_id = ? AND sub_id = ? AND mail_type RLIKE ? AND status = 'ok'",
-                [getCustomerMainDomainId($_SESSION['user_id']), $catchallDomainId, MT_ALSSUB_MAIL . '|' . MT_ALSSUB_FORWARD]
+                [getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $catchallDomainId, Mail::MT_ALSSUB_MAIL . '|' . Mail::MT_ALSSUB_FORWARD]
             );
 
             if (!$stmt->rowCount()) {
@@ -313,28 +315,26 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
             }
             break;
         default:
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $catchallId = cleanInput($_GET['id']);
 
 if (!preg_match(
         '/^(?P<catchallDomainId>\d+);(?P<catchallType>(?:'
-        . MT_NORMAL_CATCHALL . '|' . MT_SUBDOM_CATCHALL . '|' . MT_ALIAS_CATCHALL . '|' . MT_ALSSUB_CATCHALL
+        . Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL
         . '))$/',
         $catchallId,
         $matches
     )
     || ($catchallDomain = getCatchallDomain($matches['catchallDomainId'], $matches['catchallType'])) === false
 ) {
-    showBadRequestErrorPage();
+    View::showBadRequestErrorPage();
     exit;
 }
 
@@ -355,10 +355,10 @@ $tpl->assign([
     'CATCHALL_DOMAIN' => toHtml(decodeIdna($catchallDomain)),
     'CATCHALL_ID'     => toHtml($catchallId, 'htmlAttr')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $matches['catchallDomainId'], $matches['catchallType']);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

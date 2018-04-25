@@ -18,12 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\TemplateEngine;
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Update Ftp account
@@ -33,7 +33,7 @@ use iMSCP_Registry as Registry;
  */
 function updateFtpAccount($userid)
 {
-    isset($_POST['password']) && isset($_POST['password_repeat']) && isset($_POST['home_dir']) or showBadRequestErrorPage();
+    isset($_POST['password']) && isset($_POST['password_repeat']) && isset($_POST['home_dir']) or View::showBadRequestErrorPage();
 
     $error = false;
     $passwd = cleanInput($_POST['password']);
@@ -60,17 +60,17 @@ function updateFtpAccount($userid)
         return false;
     }
 
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
-    $vfs = new VirtualFileSystem($_SESSION['user_logged']);
+    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged']);
     if ($homeDir !== '/' && !$vfs->exists($homeDir, VirtualFileSystem::VFS_TYPE_DIR)) {
         setPageMessage(tr("Directory '%s' doesn't exist.", $homeDir), 'error');
         return false;
     }
 
-    $homeDir = normalizePath(Registry::get('config')['USER_WEB_DIR'] . '/' . $mainDmnProps['domain_name'] . '/' . $homeDir);
+    $homeDir = normalizePath(Application::getInstance()->getConfig()['USER_WEB_DIR'] . '/' . $mainDmnProps['domain_name'] . '/' . $homeDir);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditFtp, [
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditFtp, NULL, [
         'ftpUserId'   => $userid,
         'ftpPassword' => $passwd,
         'ftpUserHome' => $homeDir
@@ -78,22 +78,22 @@ function updateFtpAccount($userid)
 
     if ($passwd !== '') {
         execQuery("UPDATE ftp_users SET passwd = ?, homedir = ?, status = 'tochange' WHERE userid = ? AND admin_id = ?", [
-            Crypt::sha512($passwd), $homeDir, $userid, $_SESSION['user_id']
+            Crypt::sha512($passwd), $homeDir, $userid, Application::getInstance()->getSession()['user_id']
         ]);
     } else {
         execQuery("UPDATE ftp_users SET homedir = ?, status = 'tochange' WHERE userid = ? AND admin_id = ?", [
-            $homeDir, $userid, $_SESSION['user_id']
+            $homeDir, $userid, Application::getInstance()->getSession()['user_id']
         ]);
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditFtp, [
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditFtp, NULL, [
         'ftpUserId'   => $userid,
         'ftpPassword' => $passwd,
         'ftpUserHome' => $homeDir
     ]);
 
-    sendDaemonRequest();
-    writeLog(sprintf('An FTP account (%s) has been updated by', $userid, $_SESSION['user_logged']), E_USER_NOTICE);
+    Daemon::sendRequest();
+    writeLog(sprintf('An FTP account (%s) has been updated by', $userid, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('FTP account successfully updated.'), 'success');
     return true;
 }
@@ -107,16 +107,16 @@ function updateFtpAccount($userid)
  */
 function generatePage($tpl, $ftpUserId)
 {
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
     # Set parameters for the FTP chooser
-    $_SESSION['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
-    $_SESSION['ftp_chooser_user'] = $_SESSION['user_logged'];
-    $_SESSION['ftp_chooser_root_dir'] = '/';
-    $_SESSION['ftp_chooser_hidden_dirs'] = [];
-    $_SESSION['ftp_chooser_unselectable_dirs'] = [];
+    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
+    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_root_dir'] = '/';
+    Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
+    Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
 
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
     $stmt = execQuery('SELECT homedir FROM ftp_users WHERE userid = ?', [$ftpUserId]);
     $row = $stmt->fetch();
 
@@ -136,16 +136,14 @@ function generatePage($tpl, $ftpUserId)
     ]);
 }
 
-require_once 'imscp-lib.php';
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-
-customerHasFeature('ftp') && isset($_GET['id']) or showBadRequestErrorPage();
+customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $userid = cleanInput($_GET['id']);
-$stmt = execQuery('SELECT COUNT(admin_id) FROM ftp_users WHERE userid = ? AND admin_id = ?', [$userid, $_SESSION['user_id']]);
-$stmt->fetchColumn() or showBadRequestErrorPage();
+$stmt = execQuery('SELECT COUNT(admin_id) FROM ftp_users WHERE userid = ? AND admin_id = ?', [$userid, Application::getInstance()->getSession()['user_id']]);
+$stmt->fetchColumn() or View::showBadRequestErrorPage();
 
 if (!empty($_POST)) {
     if (updateFtpAccount($userid)) {
@@ -170,16 +168,16 @@ $tpl->assign([
     'TR_CHANGE'          => tr('Update'),
     'TR_CANCEL'          => tr('Cancel')
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['close'] = tr('Close');
     $translations['core']['ftp_directories'] = tr('FTP home directory');
 });
 
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $userid);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

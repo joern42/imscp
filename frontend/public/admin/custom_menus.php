@@ -18,9 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Generates menus list
@@ -28,9 +30,9 @@ use iMSCP_Registry as Registry;
  * @param TemplateEngine $tpl Template engine instance
  * @return void
  */
-function admin_generateMenusList($tpl)
+function admin_generateMenusList(TemplateEngine $tpl)
 {
-    $stmt = executeQuery('SELECT * FROM custom_menus');
+    $stmt = execQuery('SELECT * FROM custom_menus');
 
     if (!$stmt->rowCount()) {
         $tpl->assign('MENUS_LIST_BLOCK', '');
@@ -73,7 +75,7 @@ function admin_generateMenusList($tpl)
  *
  * @param TemplateEngine $tpl Template engine
  */
-function admin_generateForm($tpl)
+function admin_generateForm(TemplateEngine $tpl)
 {
     $customMenu = [
         'menu_id'     => '',
@@ -86,12 +88,10 @@ function admin_generateForm($tpl)
 
     if (empty($_POST) && isset($_GET['edit_id'])) {
         $stmt = execQuery('SELECT * FROM custom_menus WHERE menu_id = ?', [intval($_GET['edit_id'])]);
-
         if (!$stmt->rowCount()) {
             setPageMessage(tr("The menu you are trying to edit doesn't exist."), 'error');
             redirectTo('custom_menus.php');
         }
-
         $customMenu = $stmt->fetch();
     } elseif (!empty($_POST)) {
         $customMenu = $_POST;
@@ -175,7 +175,7 @@ function admin_isValidMenu($menuName, $menuLink, $menuTarget, $menuLevel, $menuO
         $errorFieldsStack[] = 'menu_target';
     }
 
-    in_array($menuLevel, ['A', 'R', 'C', 'AR', 'AC', 'RC', 'ARC']) or showBadRequestErrorPage();
+    in_array($menuLevel, ['A', 'R', 'C', 'AR', 'AC', 'RC', 'ARC']) or View::showBadRequestErrorPage();
 
     if ($menuOrder !== '' && !isNumber($menuOrder)) {
         setPageMessage(tr('Invalid menu order.'), 'error');
@@ -183,7 +183,7 @@ function admin_isValidMenu($menuName, $menuLink, $menuTarget, $menuLevel, $menuO
     }
 
     if (!empty($errorFieldsStack)) {
-        Registry::set('errorFieldsStack', $errorFieldsStack);
+        Application::getInstance()->getRegistry()->set('errorFieldsStack', $errorFieldsStack);
         return false;
     }
 
@@ -253,10 +253,8 @@ function admin_deleteMenu($menuId)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'menu_add') {
@@ -268,7 +266,7 @@ if (isset($_POST['uaction'])) {
             redirectTo('custom_menus.php');
         }
     } else {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 } elseif (isset($_GET['delete_id'])) {
     admin_deleteMenu($_GET['delete_id']);
@@ -303,17 +301,18 @@ $tpl->assign([
     'TR_TH_ORDER'               => toHtml(tr('Order')),
     'TR_CANCEL'                 => toHtml(tr('Cancel')),
     'TR_MESSAGE_DELETE_JS'      => toJs(tr('Are you sure you want to delete the %s menu?', '%s')),
-    'ERR_FIELDS_STACK'          => Registry::isRegistered('errorFieldsStack') ? json_encode(Registry::get('errorFieldsStack')) : '[]'
+    'ERR_FIELDS_STACK'          => Application::getInstance()->getRegistry()->has('errorFieldsStack')
+        ?  json_encode(Application::getInstance()->getRegistry()->get('errorFieldsStack')) : '[]'
 ]);
 
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Description $e) {
-    $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+    $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 admin_generateMenusList($tpl);
 admin_generateForm($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

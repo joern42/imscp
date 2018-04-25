@@ -18,17 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+Counting::systemHasAntiRootkits() or View::showBadRequestErrorPage();
 
-systemHasAntiRootkits() or showBadRequestErrorPage();
-
-$config = Registry::get('config');
+$config = Application::getInstance()->getConfig();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -59,14 +59,13 @@ foreach ($antiRootkitLogFiles as $antiRootkit => $logVar) {
 }
 
 if (!empty($antiRootkitLogFiles)) {
-    /** @var Zend_Cache_Core $cache */
-    $cache = Registry::get('iMSCP_Application')->getCache();
+    $cache = Application::getInstance()->getCache();
 
     foreach ($antiRootkitLogFiles AS $antiRootkit => $logVar) {
         $logFile = $config[$logVar];
         $cacheId = 'iMSCP_Rootkit_' . pathinfo($logFile, PATHINFO_FILENAME);
 
-        if (!($content = $cache->load($cacheId))) {
+        if (NULL === $content = $cache->getItem($cacheId)) {
             if (@is_readable($logFile) && @filesize($logFile) > 0) {
                 $handle = fopen($logFile, 'r');
                 $log = fread($handle, filesize($logFile));
@@ -125,7 +124,7 @@ if (!empty($antiRootkitLogFiles)) {
                 $content = '<strong style="color:red">' . tr("%s doesn't exist or is empty.", $logFile) . '</strong>';
             }
 
-            $cache->save($content, $cacheId, [], 86400);
+            $cache->addItem($content, $cacheId, [], 86400);
         }
 
         $tpl->assign([
@@ -141,9 +140,9 @@ if (!empty($antiRootkitLogFiles)) {
     setPageMessage(tr('No anti-rootkits logs'), 'static_info');
 }
 
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

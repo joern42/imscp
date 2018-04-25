@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP;
+namespace iMSCP\Container;
 
 use iMSCP\Container\Exception\DataNotFoundException;
 use Psr\Container\ContainerInterface;
@@ -37,20 +37,7 @@ class Registry implements ContainerInterface
     /**
      * @inheritdoc
      */
-    public function &get($id)
-    {
-        if (!$this->has($id)) {
-            throw new DataNotFoundException(sprintf('Data by name %s not found'));
-
-        }
-
-        return $this->data[$id];
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function has($id): string
+    public function has($id)
     {
         if (array_key_exists($id, $this->data)) {
             return true;
@@ -58,14 +45,28 @@ class Registry implements ContainerInterface
 
         return false;
     }
+    
+    /**
+     * @inheritdoc
+     */
+    public function &get($id)
+    {
+        if (!$this->has($id)) {
+            throw new DataNotFoundException(sprintf('Data by name %s not found', $id));
+
+        }
+
+        return $this->data[$id];
+    }
 
     /**
      * Register the given data in the registry
      *
      * @param string $id
      * @param mixed $value
+     * @return void
      */
-    public function set(string $id, $value): void
+    public function set(string $id, $value)
     {
         $this->data[$id] = $value;
     }

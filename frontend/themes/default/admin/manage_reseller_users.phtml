@@ -3,7 +3,7 @@
     $(function () {
         var $oTable = $('.datatable').dataTable(
             {
-                language: <?= getDataTablesPluginTranslations(true, ['emptyTable' =>  tr('No customer found for the selected reseller.')]); ?>,
+                language: <?= \iMSCP\Functions\View::getDataTablesPluginTranslations(true, ['emptyTable' =>  tr('No customer found for the selected reseller.')]); ?>,
                 displayLength: 10,
                 stateSave: true,
                 pagingType: "simple"

@@ -18,16 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
-use Zend_Form as Form;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\View;
+use Zend\Form\Form;
 
 /**
  * Update user data
  *
- * @throws Exception
  * @param Form $form
  * @param int $userId User unique identifier
  * @return void
@@ -37,7 +38,7 @@ function updateUserData(Form $form, $userId)
     global $userType;
 
     $data = execQuery('SELECT admin_name, admin_type FROM admin WHERE admin_id = ?', [$userId])->fetch();
-    $data !== false or showBadRequestErrorPage();
+    $data !== false or View::showBadRequestErrorPage();
     $userType = $data['admin_type'];
 
     if (!$form->isValid($_POST)) {
@@ -52,13 +53,12 @@ function updateUserData(Form $form, $userId)
 
     $passwordUpdated = $form->getValue('admin_pass') != '';
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditUser, [
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, NULL, [
             'userId'   => $userId,
             'userData' => $form->getValues()
         ]);
@@ -79,27 +79,27 @@ function updateUserData(Form $form, $userId)
         );
         // Force user to login again (needed due to possible password or email change)
         execQuery('DELETE FROM login WHERE user_name = ?', [$data['admin_name']]);
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditUser, [
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, NULL, [
             'userId'   => $userId,
             'userData' => $form->getValues()
         ]);
-        $db->commit();
-    } catch (Exception $e) {
-        $db->rollBack();
+        $db->getDriver()->getConnection()->commit();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         throw $e;
     }
 
     $ret = false;
     if ($passwordUpdated) {
-        $ret = sendWelcomeMail(
+        $ret = Mail::sendWelcomeMail(
             $userId, $data['admin_name'], $form->getValue('admin_pass'), $form->getValue('email'),
             $form->getValue('fname'), $form->getValue('lname'), $data['admin_type'] == 'admin' ? tr('Administrator') : tr('Customer')
         );
     }
 
-    $userType != 'user' or sendDaemonRequest();
+    $userType != 'user' or Daemon::sendRequest();
 
-    writeLog(sprintf('The %s user has been updated by %s', $data['admin_name'], $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('The %s user has been updated by %s', $data['admin_name'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage('User has been updated.', 'success');
     !$ret or setPageMessage(tr('New login data were sent to the %s user.', decodeIdna($data['admin_name'])), 'success');
     redirectTo("user_edit.php?edit_id=$userId");
@@ -136,19 +136,17 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
         [$userId]
     );
 
-    $data = $stmt->fetch() !== false or showBadRequestErrorPage();
+    $data = $stmt->fetch() !== false or View::showBadRequestErrorPage();
     $userType = $data['admin_type'];
     $form->setDefaults($data);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
-isset($_GET['edit_id']) or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+isset($_GET['edit_id']) or View::showBadRequestErrorPage();
 
 $userId = intval($_GET['edit_id']);
-$userId != $_SESSION['user_id'] or redirectTo('personal_change.php');
+$userId != Application::getInstance()->getSession()['user_id'] or redirectTo('personal_change.php');
 
 global $userType;
 
@@ -163,7 +161,7 @@ $tpl->define([
     'page_message' => 'layout'
 ]);
 
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $form, $userId);
 generatePageMessage($tpl);
 
@@ -182,6 +180,6 @@ if ($userType == 'admin') {
 }
 
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

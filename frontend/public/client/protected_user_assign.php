@@ -18,8 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Return htaccess username
@@ -31,7 +33,7 @@ use iMSCP_Registry as Registry;
 function client_getHtaccessUsername($htuserId, $domainId)
 {
     $stmt = execQuery('SELECT uname, status FROM htaccess_users WHERE id = ? AND dmn_id = ?', [$htuserId, $domainId]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
 
     if ($row['status'] != 'ok') {
@@ -50,7 +52,7 @@ function client_getHtaccessUsername($htuserId, $domainId)
  */
 function client_generatePage($tpl)
 {
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 
     if (isset($_GET['uname']) && isNumber($_GET['uname'])) {
         $htuserId = intval($_GET['uname']);
@@ -127,7 +129,7 @@ function client_addHtaccessUserToHtaccessGroup()
         return;
     }
 
-    isset($_POST['uaction']) or showBadRequestErrorPage();
+    isset($_POST['uaction']) or View::showBadRequestErrorPage();
 
     if ($_POST['uaction'] != 'add') {
         return;
@@ -136,14 +138,14 @@ function client_addHtaccessUserToHtaccessGroup()
     if (!isset($_GET['uname']) || !isset($_POST['groups']) || empty($_POST['groups']) || !isset($_POST['nadmin_name']) || !isNumber($_POST['groups'])
         || !isNumber($_POST['nadmin_name'])
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
     $htuserId = cleanInput($_POST['nadmin_name']);
     $htgroupId = $_POST['groups'];
     $stmt = execQuery('SELECT id, ugroup, members FROM htaccess_groups WHERE dmn_id = ? AND id = ?', [$domainId, $htgroupId]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
     $members = $row['members'];
     if ($members == '') {
@@ -153,7 +155,7 @@ function client_addHtaccessUserToHtaccessGroup()
     }
 
     execQuery("UPDATE htaccess_groups SET members = ?, status = 'tochange' WHERE id = ? AND dmn_id = ?", [$members, $htgroupId, $domainId]);
-    sendDaemonRequest();
+    Daemon::sendRequest();
     setPageMessage(tr('Htaccess user successfully assigned to the %s htaccess group', $row['ugroup']), 'success');
     redirectTo('protected_user_manage.php');
 }
@@ -169,7 +171,7 @@ function client_removeHtaccessUserFromHtaccessGroup()
         return;
     }
 
-    isset($_POST['uaction']) or showBadRequestErrorPage();
+    isset($_POST['uaction']) or View::showBadRequestErrorPage();
 
     if ($_POST['uaction'] != 'remove') {
         return;
@@ -178,14 +180,14 @@ function client_removeHtaccessUserFromHtaccessGroup()
     if (!isset($_POST['groups_in']) || empty($_POST['groups_in']) || !isset($_POST['nadmin_name']) || !isNumber($_POST['groups_in'])
         || !isNumber($_POST['nadmin_name'])
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
     $htgroupId = intval($_POST['groups_in']);
     $htuserId = cleanInput($_POST['nadmin_name']);
     $stmt = execQuery('SELECT ugroup, members FROM htaccess_groups WHERE id = ? AND dmn_id = ?', [$htgroupId, $domainId]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
     $members = explode(',', $row['members']);
     $key = array_search($htuserId, $members);
@@ -198,16 +200,14 @@ function client_removeHtaccessUserFromHtaccessGroup()
     $members = implode(',', $members);
 
     execQuery("UPDATE htaccess_groups SET members = ?, status = 'tochange' WHERE id = ? AND dmn_id = ?", [$members, $htgroupId, $domainId]);
-    sendDaemonRequest();
+    Daemon::sendRequest();
     setPageMessage(tr('Htaccess user successfully deleted from the %s htaccess group ', $row['ugroup']), 'success');
     redirectTo('protected_user_manage.php');
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 
 client_addHtaccessUserToHtaccessGroup();
 client_removeHtaccessUserFromHtaccessGroup();
@@ -232,10 +232,10 @@ $tpl->assign([
     'TR_REMOVE'          => tr('Remove'),
     'TR_CANCEL'          => tr('Cancel')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 client_generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

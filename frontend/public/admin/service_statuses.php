@@ -18,11 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
-use iMSCP_Services as Services;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Generate page
@@ -32,7 +32,7 @@ use iMSCP_Services as Services;
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $imscpDaemonType = json_decode(Registry::get('iMSCP_Application')->getConfig()['iMSCP_INFO'])->daemon_type;
+    $imscpDaemonType = json_decode(Application::getInstance()->getConfig()['iMSCP_INFO'])->daemon_type;
     $services = new Services();
 
     foreach ($services as $service) {
@@ -65,10 +65,8 @@ function generatePage(TemplateEngine $tpl)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -87,13 +85,13 @@ $tpl->assign([
     'TR_FORCE_REFRESH' => toHtml(tr('Force refresh', 'htmlAttr'))
 ]);
 
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
-    $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+    $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

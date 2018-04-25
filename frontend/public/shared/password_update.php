@@ -18,10 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\View;
 
 /**
  * Update password
@@ -42,36 +41,36 @@ function updatePassword()
         return;
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditUser, [
-        'userId'   => $_SESSION['user_id'],
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, null, [
+        'userId'   => Application::getInstance()->getSession()['user_id'],
         'userData' => [
-            'admin_name' => getUsername($_SESSION['user_id']),
+            'admin_name' => getUsername(Application::getInstance()->getSession()['user_id']),
             'admin_pass' => $form->getValue('admin_pass')
         ]
     ]);
     execQuery("UPDATE admin SET admin_pass = ?, admin_status = IF(admin_type = 'user', 'tochangepwd', admin_status) WHERE admin_id = ?", [
-        Crypt::apr1MD5($form->getValue('admin_pass')), $_SESSION['user_id']
+        Crypt::apr1MD5($form->getValue('admin_pass')), Application::getInstance()->getSession()['user_id']
     ]);
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditUser, [
-        'userId'   => $_SESSION['user_id'],
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, null, [
+        'userId'   => Application::getInstance()->getSession()['user_id'],
         'userData' => [
-            'admin_name' => getUsername($_SESSION['user_id']),
+            'admin_name' => getUsername(Application::getInstance()->getSession()['user_id']),
             'admin_pass' => $form->getValue('admin_pass')
         ]
     ]);
 
-    if ($_SESSION['user_type'] == 'user') {
-        sendDaemonRequest();
+    if (Application::getInstance()->getSession()['user_type'] == 'user') {
+        Daemon::sendRequest();
     }
 
-    writeLog(sprintf('Password has been updated for the %s user.', $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('Password has been updated for the %s user.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('Password successfully updated.'), 'success');
     redirectTo('password_update.php');
 }
 
-require_once 'imscp-lib.php';
 
-defined('SHARED_SCRIPT_NEEDED') or showNotFoundErrorPage();
+
+defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
 
 empty($_POST) or updatePassword();
 
@@ -81,5 +80,5 @@ $tpl->define([
     'page'         => 'shared/partials/password_update.phtml',
     'page_message' => 'layout'
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);

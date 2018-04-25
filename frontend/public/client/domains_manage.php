@@ -18,10 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Generates domains list
@@ -32,7 +33,7 @@ use iMSCP_Registry as Registry;
 function generateDomainsList($tpl)
 {
     global $baseServerVhostUtf8;
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
 
     $stmt = execQuery(
         "
@@ -42,7 +43,7 @@ function generateDomainsList($tpl)
             WHERE domain_admin_id = ?
             ORDER BY domain_name
         ",
-        [$_SESSION['user_id']]
+        [Application::getInstance()->getSession()['user_id']]
     );
 
     while ($row = $stmt->fetch()) {
@@ -126,9 +127,9 @@ function generateDomainAliasesList($tpl)
     }
 
     global $baseServerVhostUtf8;
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
 
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
     $stmt = execQuery(
         "
             SELECT t1.alias_id, t1.alias_name, t1.alias_status, t1.alias_mount, t1.alias_document_root, t1.url_forward, t2.status AS ssl_status
@@ -244,8 +245,8 @@ function generateSubdomainsList($tpl)
     }
 
     global $baseServerVhostUtf8;
-    $cfg = Registry::get('config');
-    $domainId = getCustomerMainDomainId($_SESSION['user_id']);
+    $cfg = Application::getInstance()->getConfig();
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 
     $stmt = execQuery(
         "
@@ -403,7 +404,7 @@ function generateCustomDnsRecordsList($tpl)
             LEFT JOIN domain_aliases AS t3 USING (alias_id)
             WHERE t1.domain_id = ? $filterCond ORDER BY t1.domain_id, t1.alias_id, t1.domain_dns, t1.domain_type
         ",
-        [getCustomerMainDomainId($_SESSION['user_id'])]
+        [getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])]
     );
 
     if (!$stmt->rowCount()) {
@@ -464,10 +465,8 @@ function generateCustomDnsRecordsList($tpl)
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -533,27 +532,27 @@ $tpl->assign([
     'TR_DOMAIN_NAME'    => tr('Domain')
 ]);
 
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['als_delete_alert'] = tr('Are you sure you want to delete this domain alias?');
     $translations['core']['als_order_cancel_alert'] = tr('Are you sure you want to cancel this domain alias order?');
     $translations['core']['sub_delete_alert'] = tr('Are you sure you want to delete this subdomain?');
     $translations['core']['dns_delete_alert'] = tr('Are you sure you want to delete this DNS record?');
-    $translations['core']['dataTable'] = getDataTablesPluginTranslations(false);
+    $translations['core']['dataTable'] = View::getDataTablesPluginTranslations(false);
 });
 
 global $baseServerVhostUtf8;
-if (Registry::get('config')->get('CLIENT_DOMAIN_ALT_URLS') == 'yes') {
-    $baseServerVhostUtf8 = decodeIdna(Registry::get('config')->get('BASE_SERVER_VHOST'));
+if (Application::getInstance()->getConfig()->get('CLIENT_DOMAIN_ALT_URLS') == 'yes') {
+    $baseServerVhostUtf8 = decodeIdna(Application::getInstance()->getConfig()->get('BASE_SERVER_VHOST'));
 }
 
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generateDomainsList($tpl);
 generateSubdomainsList($tpl);
 generateDomainAliasesList($tpl);
 generateCustomDnsRecordsList($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

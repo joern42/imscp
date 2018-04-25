@@ -18,13 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\PHPini;
-use iMSCP\TemplateEngine;
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
-use Zend_Form as Form;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Statistics;
+use iMSCP\Functions\View;
+use Zend\Config;
+use Zend\EventManager\Event;
+use Zend\Form\Form;
 
 /**
  * Retrieve form data
@@ -46,7 +48,7 @@ function getFormData($resellerId, $forUpdate = false)
     );
 
     if (!$stmt->rowCount()) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     $data = $stmt->fetch();
@@ -55,18 +57,17 @@ function getFormData($resellerId, $forUpdate = false)
     // Getting total of consumed items for the given reseller.
     list($data['nbDomains'], $data['nbSubdomains'], $data['nbDomainAliases'], $data['nbMailAccounts'],
         $data['nbFtpAccounts'], $data['nbSqlDatabases'], $data['nbSqlUsers'], $data['totalTraffic'],
-        $data['totalDiskspace']) = getResellerStats($resellerId);
+        $data['totalDiskspace']) = Statistics::getResellerStats($resellerId);
 
     // IP addresses
 
     // Retrieve list of all server IP addresses
-    $stmt = executeQuery('SELECT ip_id, ip_number FROM server_ips ORDER BY ip_number');
+    $stmt = execQuery('SELECT ip_id, ip_number FROM server_ips ORDER BY ip_number');
     if (!$stmt->rowCount()) {
         setPageMessage(tr('Unable to get the IP address list. Please fix this problem.'), 'error');
         redirectTo('users.php');
     }
     $data['server_ips'] = $stmt->fetchAll();
-
 
     $data['reseller_ips'] = explode(',', $data['reseller_ips']);
 
@@ -105,7 +106,7 @@ function getFormData($resellerId, $forUpdate = false)
     foreach (
         [
             'max_dmn_cnt', 'max_sub_cnt', 'max_als_cnt', 'max_mail_cnt', 'max_ftp_cnt', 'max_sql_db_cnt', 'max_sql_user_cnt', 'max_traff_amnt',
-            'max_disk_amnt', 'software_allowed', 'softwaredepot_allowed', 'websoftwaredepot_allowed', 'support_system'
+            'max_disk_amnt', 'support_system'
         ] as $key
     ) {
         if (isset($_POST[$key])) {
@@ -191,9 +192,8 @@ function generateIpListForm(TemplateEngine $tpl)
         'TR_STATUS'     => toHtml(tr('Usage status'))
     ]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function ($e) {
-        /** @var $e \iMSCP_Events_Event */
-        $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+        $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
     });
 
     foreach ($data['server_ips'] as $ipData) {
@@ -254,7 +254,6 @@ function generateFeaturesForm(TemplateEngine $tpl)
 {
     global $resellerId;
 
-
     $data = getFormData($resellerId);
 
     $tpl->assign([
@@ -294,15 +293,6 @@ function generateFeaturesForm(TemplateEngine $tpl)
         'MAX_EXECUTION_TIME'                 => toHtml($data['max_execution_time']),
         'TR_MAX_INPUT_TIME'                  => tr('PHP %s configuration option', '<strong>max_input_time</strong>'),
         'MAX_INPUT_TIME'                     => toHtml($data['max_input_time']),
-        'TR_SOFTWARES_INSTALLER'             => toHtml(tr('Software installer')),
-        'SOFTWARES_INSTALLER_YES'            => $data['software_allowed'] == 'yes' ? ' checked' : '',
-        'SOFTWARES_INSTALLER_NO'             => $data['software_allowed'] != 'yes' ? ' checked' : '',
-        'TR_SOFTWARES_REPOSITORY'            => toHtml(tr('Software repository')),
-        'SOFTWARES_REPOSITORY_YES'           => $data['softwaredepot_allowed'] == 'yes' ? ' checked' : '',
-        'SOFTWARES_REPOSITORY_NO'            => $data['softwaredepot_allowed'] != 'yes' ? ' checked' : '',
-        'TR_WEB_SOFTWARES_REPOSITORY'        => toHtml(tr('Web software repository')),
-        'WEB_SOFTWARES_REPOSITORY_YES'       => $data['websoftwaredepot_allowed'] == 'yes' ? ' checked' : '',
-        'WEB_SOFTWARES_REPOSITORY_NO'        => $data['websoftwaredepot_allowed'] != 'yes' ? ' checked' : '',
         'TR_SUPPORT_SYSTEM'                  => toHtml(tr('Support system')),
         'SUPPORT_SYSTEM_YES'                 => $data['support_system'] == 'yes' ? ' checked' : '',
         'SUPPORT_SYSTEM_NO'                  => $data['support_system'] != 'yes' ? ' checked' : '',
@@ -314,17 +304,18 @@ function generateFeaturesForm(TemplateEngine $tpl)
         'TR_SEC'                             => toHtml(tr('Sec.'))
     ]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Event $e) {
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $translations = $e->getParam('translations');
         $translations['core']['close'] = tr('Close');
         $translations['core']['fields_ok'] = tr('All fields are valid.');
         $translations['core']['out_of_range_value_error'] = tr('Value for the PHP %%s directive must be in range %%d to %%d.');
         $translations['core']['lower_value_expected_error'] = tr('%%s cannot be greater than %%s.');
-        $translations['core']['error_field_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
+        $translations['core']['error_field_stack'] = Application::getInstance()->getRegistry()->has('errFieldsStack')
+            ? Application::getInstance()->getRegistry()->get('errFieldsStack') : [];
     });
 
-    if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+    if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
+        $apacheConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data'));
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -349,7 +340,6 @@ function generateFeaturesForm(TemplateEngine $tpl)
 /**
  * Update reseller user
  *
- * @throws Exception
  * @param Form $form
  * @return void
  */
@@ -359,9 +349,7 @@ function updateResellerUser(Form $form)
 
     $error = false;
     $errFieldsStack = [];
-
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
         $data = getFormData($resellerId, true);
@@ -549,7 +537,7 @@ function updateResellerUser(Form $form)
             $errFieldsStack[] = 'max_disk_amnt';
         }
 
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         // Check for PHP settings
         $phpini = PHPini::getInstance();
@@ -575,7 +563,7 @@ function updateResellerUser(Form $form)
         }
 
         if (empty($errFieldsStack) && !$error) {
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditUser, [
+            Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, NULL, [
                 'userId'   => $resellerId,
                 'userData' => $form->getValues()
             ]);
@@ -610,14 +598,12 @@ function updateResellerUser(Form $form)
                 '
                     UPDATE reseller_props
                     SET max_dmn_cnt = ?, max_sub_cnt = ?, max_als_cnt = ?, max_mail_cnt = ?, max_ftp_cnt = ?, max_sql_db_cnt = ?,
-                        max_sql_user_cnt = ?, max_traff_amnt = ?, max_disk_amnt = ?, reseller_ips = ?, software_allowed = ?,
-                        softwaredepot_allowed = ?, websoftwaredepot_allowed = ?, support_system = ?
+                        max_sql_user_cnt = ?, max_traff_amnt = ?, max_disk_amnt = ?, reseller_ips = ?, support_system = ?
                     WHERE reseller_id = ?
                 ',
                 [
                     $data['max_dmn_cnt'], $data['max_sub_cnt'], $data['max_als_cnt'], $data['max_mail_cnt'], $data['max_ftp_cnt'],
-                    $data['max_sql_db_cnt'], $data['max_sql_user_cnt'], $data['max_traff_amnt'], $data['max_disk_amnt'],
-                    implode(',', $resellerIps), $data['software_allowed'], $data['softwaredepot_allowed'], $data['websoftwaredepot_allowed'],
+                    $data['max_sql_db_cnt'], $data['max_sql_user_cnt'], $data['max_traff_amnt'], $data['max_disk_amnt'], implode(',', $resellerIps),
                     $data['support_system'], $resellerId
                 ]
             );
@@ -625,52 +611,32 @@ function updateResellerUser(Form $form)
             $phpini->saveResellerPermissions($resellerId);
             $phpini->syncClientPermissionsAndIniOptions($resellerId);
 
-            // Update software installer properties
-
-            if ($data['software_allowed'] == 'no') {
-                execQuery('UPDATE domain JOIN admin ON(admin_id = domain_admin_id) SET domain_software_allowed = ? WHERE created_by = ?', [
-                    $data['softwaredepot_allowed'], $resellerId
-                ]);
-            }
-
-            if ($data['websoftwaredepot_allowed'] == 'no') {
-                $stmt = execQuery("SELECT software_id FROM web_software WHERE software_depot = 'yes' AND reseller_id = ?", [$resellerId]);
-
-                if ($stmt->rowCount()) {
-                    while ($row = $stmt->fetch()) {
-                        execQuery("UPDATE web_software_inst SET software_res_del = '1' WHERE software_id = ?", [$row['software_id']]);
-                    }
-
-                    execQuery("DELETE FROM web_software WHERE software_depot = 'yes' AND reseller_id = ?", [$resellerId]);
-                }
-            }
-
             // Force user to login again (needed due to possible password or email change)
             execQuery('DELETE FROM login WHERE user_name = ?', [$data['fallback_admin_name']]);
 
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditUser, [
+            Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, NULL, [
                 'userId'   => $resellerId,
                 'userData' => $form->getValues()
             ]);
 
-            $db->commit();
+            $db->getDriver()->getConnection()->commit();
 
             // Send mail to reseller for new password
             if ($form->getValue('admin_pass') !== '') {
-                sendWelcomeMail(
-                    $_SESSION['user_id'], $data['admin_name'], $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
+                Mail::sendWelcomeMail(
+                    Application::getInstance()->getSession()['user_id'], $data['admin_name'], $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
                     $form->getValue('lname'), tr('Reseller')
                 );
             }
 
-            writeLog(sprintf('The %s reseller has been updated by %s', $form->getValue('admin_name'), $_SESSION['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('The %s reseller has been updated by %s', $form->getValue('admin_name'), Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
             setPageMessage('Reseller has been updated.', 'success');
             redirectTo('users.php');
         } elseif (!empty($errFieldsStack)) {
-            Registry::set('errFieldsStack', $errFieldsStack);
+            Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
         }
-    } catch (Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         throw $e;
     }
 }
@@ -736,7 +702,6 @@ function checkResellerLimit($newLimit, $assignedByReseller, $consumedByCustomers
         $retVal = false;
     }
 
-
     return $retVal;
 }
 
@@ -763,11 +728,9 @@ function generatePage(TemplateEngine $tpl, Form $form)
     generateFeaturesForm($tpl);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
-isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+isset($_GET['id']) or View::showBadRequestErrorPage();
 
 global $resellerId;
 $resellerId = intval($_GET['edit_id']);
@@ -793,10 +756,10 @@ $tpl->assign([
     'TR_PAGE_TITLE' => toHtml(tr('Admin / Users / Edit Reseller')),
     'EDIT_ID'       => toUrl($resellerId)
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $form);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

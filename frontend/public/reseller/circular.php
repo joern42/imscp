@@ -18,11 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
- * Send email
+ * Send circular mail
  *
  * @param string $senderName Sender name
  * @param string $senderEmail Sender email
@@ -31,13 +35,13 @@ use iMSCP_Registry as Registry;
  * @param array $rcptToData Recipient data
  * @return bool TRUE on success, FALSE on failure
  */
-function reseller_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData)
+function sendCircularMail($senderName, $senderEmail, $subject, $body, $rcptToData)
 {
     if ($rcptToData['email'] == '') {
         return true;
     }
 
-    $ret = sendMail([
+    $ret = Mail::sendMail([
         'mail_id'      => 'admin-circular',
         'fname'        => $rcptToData['fname'],
         'lname'        => $rcptToData['lname'],
@@ -66,15 +70,17 @@ function reseller_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToD
  * @param string $body Body
  * @return void
  */
-function reseller_sendToCustomers($senderName, $senderEmail, $subject, $body)
+function sendCircularToCustomers($senderName, $senderEmail, $subject, $body)
 {
-    if (!resellerHasCustomers()) {
+    if (!Counting::resellerHasCustomers()) {
         return;
     }
 
-    $stmt = execQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE created_by = ? GROUP BY email", [$_SESSION['user_id']]);
+    $stmt = execQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE created_by = ? GROUP BY email", [
+        Application::getInstance()->getSession()['user_id']
+    ]);
     while ($rcptToData = $stmt->fetch()) {
-        reseller_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
+        sendCircularMail($senderName, $senderEmail, $subject, $body, $rcptToData);
     }
 }
 
@@ -87,7 +93,7 @@ function reseller_sendToCustomers($senderName, $senderEmail, $subject, $body)
  * @param string $body Body
  * @return bool TRUE if circular is valid, FALSE otherwise
  */
-function reseller_isValidCircular($senderName, $senderEmail, $subject, $body)
+function isValidCircular($senderName, $senderEmail, $subject, $body)
 {
     $ret = true;
     if ($senderName == '') {
@@ -121,21 +127,20 @@ function reseller_isValidCircular($senderName, $senderEmail, $subject, $body)
  *
  * @return bool TRUE on success, FALSE otherwise
  */
-function reseller_sendCircular()
+function sendCircular()
 {
-    isset($_POST['sender_name']) && isset($_POST['sender_email']) && isset($_POST['subject']) && isset($_POST['body']) or showBadRequestErrorPage();
+    isset($_POST['sender_name']) && isset($_POST['sender_email']) && isset($_POST['subject']) && isset($_POST['body']) or View::showBadRequestErrorPage();
 
     $senderName = cleanInput($_POST['sender_name']);
     $senderEmail = cleanInput($_POST['sender_email']);
     $subject = cleanInput($_POST['subject']);
     $body = cleanInput($_POST['body']);
 
-    if (!reseller_isValidCircular($senderName, $senderEmail, $subject, $body)) {
+    if (!isValidCircular($senderName, $senderEmail, $subject, $body)) {
         return false;
     }
 
-    /** @var iMSCP_Events_Listener_ResponseCollection $responses */
-    $responses = Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeSendCircular, [
+    $responses = Application::getInstance()->getEventManager()->trigger(Events::onBeforeSendCircular, NULL, [
         'sender_name'  => $senderName,
         'sender_email' => $senderEmail,
         'rcpt_to'      => 'customers',
@@ -143,14 +148,14 @@ function reseller_sendCircular()
         'body'         => $body
     ]);
 
-    if ($responses->isStopped()) {
+    if ($responses->stopped()) {
         return true;
     }
 
     set_time_limit(0);
     ignore_user_abort(true);
-    reseller_sendToCustomers($senderName, $senderEmail, $subject, $body);
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterSendCircular, [
+    sendCircularToCustomers($senderName, $senderEmail, $subject, $body);
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterSendCircular, NULL, [
         'sender_name'  => $senderName,
         'sender_email' => $senderEmail,
         'rcpt_to'      => 'customers',
@@ -158,17 +163,17 @@ function reseller_sendCircular()
         'body'         => $body
     ]);
     setPageMessage(tr('Circular successfully sent.'), 'success');
-    writeLog(sprintf('A circular has been sent by a reseller: %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A circular has been sent by a reseller: %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     return true;
 }
 
 /**
- * Generate page data
+ * Generate page
  *
  * @param TemplateEngine $tpl
  * @return void
  */
-function reseller_generatePageData($tpl)
+function generatePage($tpl)
 {
     $senderName = isset($_POST['sender_name']) ? $_POST['sender_name'] : '';
     $senderEmail = isset($_POST['sender_email']) ? $_POST['sender_email'] : '';
@@ -176,7 +181,9 @@ function reseller_generatePageData($tpl)
     $body = isset($_POST['body']) ? $_POST['body'] : '';
 
     if ($senderName == '' && $senderEmail == '') {
-        $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
+        $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [
+            Application::getInstance()->getSession()['user_id']
+        ]);
         $row = $stmt->fetch();
 
         if (!empty($row['fname']) && !empty($row['lname'])) {
@@ -192,7 +199,7 @@ function reseller_generatePageData($tpl)
         if ($row['email'] != '') {
             $senderEmail = $row['email'];
         } else {
-            $config = Registry::get('config');
+            $config = Application::getInstance()->getConfig();
             if (isset($config['DEFAULT_ADMIN_ADDRESS']) && $config['DEFAULT_ADMIN_ADDRESS'] != '') {
                 $senderEmail = $config['DEFAULT_ADMIN_ADDRESS'];
             } else {
@@ -209,13 +216,11 @@ function reseller_generatePageData($tpl)
     ]);
 }
 
-require 'imscp-lib.php';
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-resellerHasCustomers() or showBadRequestErrorPage();
-
-if (!empty($_POST) && reseller_sendCircular()) {
+if (!empty($_POST) && sendCircular()) {
     redirectTo('users.php');
 }
 
@@ -236,10 +241,10 @@ $tpl->assign([
     'TR_SEND_CIRCULAR' => tr('Send circular'),
     'TR_CANCEL'        => tr('Cancel')
 ]);
-generateNavigation($tpl);
-reseller_generatePageData($tpl);
+View::generateNavigation($tpl);
+generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

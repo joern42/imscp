@@ -18,20 +18,21 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-isset($_GET['user_id']) or showBadRequestErrorPage();
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+isset($_GET['user_id']) or View::showBadRequestErrorPage();
 $customerId = intval($_GET['client_id']);
 
 try {
-    deleteCustomer($customerId, true) or showBadRequestErrorPage();
+    deleteCustomer($customerId, true) or View::showBadRequestErrorPage();
     setPageMessage(tr('Customer account successfully scheduled for deletion.'), 'success');
-    writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', $_SESSION['user_logged'], $customerId), E_USER_NOTICE);
-} catch (iMSCP_Exception $e) {
+    writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', Application::getInstance()->getSession()['user_logged'], $customerId), E_USER_NOTICE);
+} catch (\Exception $e) {
     setPageMessage(tr('Unable to schedule deletion of the customer account. A message has been sent to the administrator.'), 'error');
     writeLog(sprintf("System was unable to schedule deletion of the customer account with ID %s. Message was: %s", $customerId, $e->getMessage()), E_USER_ERROR);
 }

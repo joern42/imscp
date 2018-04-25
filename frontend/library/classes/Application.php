@@ -22,8 +22,8 @@ namespace iMSCP;
 
 use Composer\Autoload\ClassLoader as Autoloader;
 use iMSCP\Authentication\Adapter\Event as AuthEventAdapter;
-use iMSCP\Config\Reader\JavaProperties;
-use iMSCP\Config\StandaloneReaderPluginManager;
+use iMSCP\Config\DbConfig;
+use iMSCP\Container\Registry;
 use iMSCP\Exception;
 use iMSCP\Plugin\PluginManager;
 use Zend\Authentication\AuthenticationService;
@@ -33,8 +33,11 @@ use Zend\Db\Adapter\Adapter as DbAdapter;
 use Zend\EventManager;
 use Zend\I18n\Translator\Translator;
 use Zend\Session\Config\SessionConfig;
-use Zend\Session\Container;
+use Zend\Session\Container as SessionContainer;
 use Zend\Session\SessionManager;
+use Zend\Session\Storage\SessionStorage;
+use Zend\Session\Validator\HttpUserAgent;
+use Zend\Session\Validator\RemoteAddr;
 
 /**
  * Class Application
@@ -73,6 +76,11 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     protected $config;
 
     /**
+     * @var DbConfig
+     */
+    protected $dbConfig;
+
+    /**
      * @var Cache\Storage\Adapter\BlackHole|Cache\Storage\Adapter\Apcu
      */
     protected $cache;
@@ -103,9 +111,14 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     protected $bootstrapped = false;
 
     /**
-     * @var Container
+     * @var SessionContainer
      */
     protected $sessionContainer;
+
+    /**
+     * @var FlashMessenger
+     */
+    protected $flashMessenger;
 
     /**
      * Get application instance
@@ -143,8 +156,38 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         $this->setErrorHandling();
         $this->setEncoding();
         $this->setTimezone();
-        $this->loadPlugins();
 
+        // Setup default session manager
+        $config = $this->getConfig();
+        $sessionConfig = new SessionConfig();
+        $sessionConfig->setOptions([
+            'name'                => 'iMSCP_FrontEnd',
+            'use_cookies'         => true,
+            'use_only_cookies'    => true,
+            'cookie_domain'       => $config['BASE_SERVER_VHOST'],
+            'cookie_secure'       => $config['BASE_SERVER_VHOST_PREFIX'] == 'https://',
+            'cookie_httponly'     => true,
+            'cookie_path'         => '/',
+            'use_trans_sid'       => false,
+            'remember_me_seconds' => 1400,
+            'gc_divisor'          => 100,
+            'gc_maxlifetime'      => 1440,
+            'gc_probability'      => 1,
+            //'save_path'           => FRONTEND_ROOT_DIR . '/data/sessions'
+        ]);
+        SessionContainer::setDefaultManager(new SessionManager($sessionConfig, new SessionStorage(),
+            new \Zend\Session\SaveHandler\Cache(new Cache\Storage\Adapter\Memcached([
+                'namespace'   => 'iMSCPSession',
+                'servers'     => '127.0.0.1',
+                'lib_options' => [
+                    \Memcached::OPT_CONNECT_TIMEOUT => 10,
+                    \Memcached::OPT_DISTRIBUTION    => \Memcached::DISTRIBUTION_CONSISTENT
+                ]
+            ])),
+            [RemoteAddr::class, HttpUserAgent::class]
+        ));
+
+        $this->loadPlugins();
         $this->getEventManager()->trigger(Events::onAfterApplicationBootstrap, $this);
         $this->bootstrapped = true;
         return $this;
@@ -158,9 +201,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     public function getAuthService(): AuthenticationService
     {
         if (NULL === $this->authService) {
-            $this->authService = new AuthenticationService(
-                NULL, new AuthEventAdapter($this->getEventManager())
-            );
+            $this->authService = new AuthenticationService(NULL, new AuthEventAdapter($this->getEventManager()));
         }
 
         return $this->authService;
@@ -197,18 +238,22 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     {
         if (NULL === $this->cache) {
             $adapter = PHP_SAPI != 'cli' && version_compare(phpversion('apcu'), '5.1.0', '>=') && ini_get('apc.enabled') ? 'Apcu' : 'BlackHole';
-            $this->cache = Cache\StorageFactory::factory([
-                'adapter' => [
-                    'name'    => $adapter,
-                    'options' => [
-                        'namespace' => 'iMSCPcache'
-                    ]
-                ]
-            ]);
-
             if ($adapter == 'Apcu') {
+                $this->cache = new Cache\Storage\Adapter\Apcu(['namespace' => 'iMSCPcache']);
                 $this->cache->addPlugin(Cache\StorageFactory::pluginFactory('ExceptionHandler', ['throw_exceptions' => false]));
                 $this->cache->addPlugin(Cache\StorageFactory::pluginFactory('IgnoreUserAbort', ['exit_on_abort' => false]));
+            } else {
+                $this->cache = new Cache\Storage\Adapter\BlackHole();
+                if (PHP_SAPI != 'cli') {
+                    $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
+                        $session = $this->getSession();
+                        if (!isXhr()
+                            && ($session['user_type'] == 'admin' || (isset($session['logged_from_type']) && $session['logged_from_type'] == 'admin'))
+                        ) {
+                            setPageMessage(tr('The Apcu extension is not enabled on your system. This can lead to performance issues.', 'static_warning'));
+                        }
+                    });
+                }
             }
         }
 
@@ -227,45 +272,62 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         }
 
         // Load settings from master i-MSCP configuration file.
-        // We need set our own JavaProperties configuration file reader as
-        // the one provided by ZF doesn't handle equal sign as separator
-        Config\Factory::setReaderPluginManager(new StandaloneReaderPluginManager());
-        Config\Factory::registerReader('conf', JavaProperties::class);
-        $this->config = new Config\Config(Config\Factory::fromFile(CONFIG_FILE_PATH), true);
+        Config\Factory::registerReader('conf', Config\Reader\JavaProperties::class);
+        $this->config = new Config\Reader\JavaProperties('=', Config\Reader\JavaProperties::WHITESPACE_TRIM);
+        $this->config = new Config\Config($this->config->fromFile(CONFIG_FILE_PATH), true);
 
-        // Load and merge overridable settings
-        $this->config->merge(new Config\Config(include_once 'osettings.php', true));
+        // Load and merge overridable settings (default values)
+        $this->config->merge(new Config\Config(include_once('osettings.php'), true));
 
-        // Load and merge settings from database
-        $this->config->merge(new Config\Config($this->getDb()
-            ->createStatement('SELECT name, value FROM config')
-            ->execute()
-            ->getResource()
-            ->fetchAll(\PDO::FETCH_KEY_PAIR)
-        ));
+        // Load and merge overridable settings from the database (overridden values)
+        $this->config->merge(new Config\Config($this->getDbConfig()->getArrayCopy()));
 
         // Set default root template directory according current theme
         $this->config['ROOT_TEMPLATE_PATH'] = FRONTEND_ROOT_DIR . '/themes/' . $this->config['USER_INITIAL_THEME'];
 
+        // Make config object readonly
+        $this->config->setReadOnly();
+
         // Cache the resulting merged configuration into cache, unless debug mode is enabled
         if (!$this->config['DEBUG']) {
-            $this->getCache()->addItem('merged_config', $this->config);
-        } else {
-            $session = $this->getSession();
-
-            if (!isXhr() && ($session['user_type'] == 'admin' || (isset($session['logged_from_type']) && $session['logged_from_type'] == 'admin'))) {
-                // If the debug mode is enabled, and if logged user is of 'admin'
-                // type, we display a warning as having the debug mode enabled in
-                // a production environment is not a good thing for performances
-                // reasons (cache disabled)
-                $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
-                    setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled.'), 'static_warning');
-                    setPageMessage(tr('For better performances, you should consider disabling it through the %s.', CONFIG_FILE_PATH), 'static_warning');
-                });
-            }
+            $this->getCache()->setItem('merged_config', $this->config);
+            return $this->config;
         }
 
+        $this->getCache()->getOptions()->setWritable(false);
+        $this->getCache()->getOptions()->setReadable(false);
+
+        // If the debug mode is enabled, and if logged user is of 'admin'
+        // type, we display a warning as having the debug mode enabled in
+        // a production environment is not a good thing for performances
+        // reasons (cache disabled)
+        $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
+            $session = $this->getSession();
+            if (!isXhr() && ($session['user_type'] == 'admin' || (isset($session['logged_from_type']) && $session['logged_from_type'] == 'admin'))) {
+                setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled.'), 'static_warning');
+                setPageMessage(
+                    tr('For better performances, you should consider disabling it through the %s configuration file.', CONFIG_FILE_PATH),
+                    'static_warning'
+                );
+            }
+        });
+
+
         return $this->config;
+    }
+
+    /**
+     * Get configuration from database
+     *
+     * @return DbConfig
+     */
+    public function getDbConfig()
+    {
+        if (NULL === $this->dbConfig) {
+            $this->dbConfig = new DbConfig($this->getDb());
+        }
+
+        return $this->dbConfig;
     }
 
     /**
@@ -279,7 +341,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     }
 
     /**
-     * Set eapplication environment
+     * Set application environment
      *
      * @param string $environment
      * @return Application
@@ -291,8 +353,6 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     }
 
     /**
-     * Get application event manager
-     *
      * @inheritdoc
      */
     public function getEventManager(): EventManager\EventManagerInterface
@@ -306,7 +366,6 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     }
 
     /**
-     * Get application shared event manager
      * @inheritdoc
      */
     public function getSharedManager(): EventManager\SharedEventManagerInterface
@@ -336,49 +395,11 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     public function getTranslator(): Translator
     {
         if (NULL === $this->translator) {
-            $locale = new \Locale();
-
-            if (PHP_SAPI == 'cli') {
-                $locale->setDefault('en_GB');
-            } else {
-                $locale->setDefault($locale->acceptFromHttp($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'en_GB'));
-            }
-
-            $fallbackLocales = [
-                'bg' => 'bg_BG',
-                'ca' => 'ca_es',
-                'cs' => 'cs_CZ',
-                'da' => 'da_DK',
-                'de' => 'de_DE',
-                'en' => 'en_GB',
-                'es' => 'es_ES',
-                'eu' => 'eu_ES',
-                'fa' => 'fa_IR',
-                'fi' => 'fi_FI',
-                'fr' => 'fr_FR',
-                'gl' => 'gl_ES',
-                'hu' => 'hu_HU',
-                'it' => 'it_IT',
-                'ja' => 'ja_JP',
-                'lt' => 'lt_LT',
-                'nb' => 'nb_NO',
-                'nl' => 'nl_NL',
-                'pl' => 'pl_PL',
-                'pt' => 'pt_PT',
-                'ro' => 'ro_RO',
-                'ru' => 'ru_RU',
-                'sk' => 'sk_SK',
-                'sv' => 'sv_SE',
-                'th' => 'th_TH',
-                'tr' => 'tr_TR',
-                'uk' => 'uk_UA',
-                'zh' => 'zh_CN'
-            ];
-
+            \Locale::setDefault(\Locale::acceptFromHttp($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'en_GB'));
             $this->translator = Translator::factory([
                 'locale'                    => [
-                    $locale::getDefault(),
-                    $fallbackLocales[$locale::getDefault()] ?? 'en_GB'
+                    (include_once 'flocales.php')[\Locale::getDefault()] ?? \Locale::getDefault(),
+                    'en_GB'
                 ],
                 'translation_file_patterns' => [
                     [
@@ -436,33 +457,13 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     /**
      * Get application session
      *
-     * @return Container
+     * @return SessionContainer
      */
-    public function getSession(): ?Container
+    public function getSession(): SessionContainer
     {
         if (NULL === $this->sessionContainer) {
-            if (PHP_SAPI == 'cli') {
-                return NULL;
-            }
-
-            $config = new SessionConfig();
-            $config->setOptions([
-                'name'                => 'iMSCP',
-                'use_cookies'         => true,
-                'use_only_cookies'    => true,
-                'cookie_domain'       => $this->getConfig()['BASE_SERVER_VHOST'],
-                'cookie_secure'       => $this->getConfig()['BASE_SERVER_VHOST_PREFIX'] == 'https://',
-                'cookie_httponly'     => $this->getConfig()['BASE_SERVER_VHOST_PREFIX'] == 'https://',
-                'use_trans_sid'       => false,
-                'remember_me_seconds' => 1800,
-                'gc_divisor'          => 100,
-                'gc_maxlifetime'      => 1440,
-                'gc_probability'      => 1,
-                'save_path'           => FRONTEND_ROOT_DIR . '/data/sessions'
-            ]);
-
-            Container::setDefaultManager(new SessionManager($config));
-            $this->sessionContainer = new Container('iMSCP');
+            $this->sessionContainer = new SessionContainer('iMSCP');
+            $this->getEventManager()->trigger(Events::onAfterSessionStart, $this);
         }
 
         return $this->sessionContainer;
@@ -483,6 +484,20 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     }
 
     /**
+     * Get application flash messenger
+     *
+     * @return FlashMessenger
+     */
+    public function getFlashMessenger(): FlashMessenger
+    {
+        if (NULL === $this->flashMessenger) {
+            $this->flashMessenger = new FlashMessenger();
+        }
+
+        return $this->flashMessenger;
+    }
+
+    /**
      * Load application functions
      *
      * @return void
@@ -490,19 +505,10 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     public function loadFunctions()
     {
         // TODO Replace by classes with static methods and with better separation concerns
-        require_once 'admin.php';
-        require_once 'client.php';
-        require_once 'counting.php';
-        require_once 'email.php';
         require_once 'input.php';
         require_once 'i18n.php';
         require_once 'layout.php';
-        require_once 'login.php';
-        require_once 'reseller.php';
         require_once 'shared.php';
-        require_once 'aps.php';
-        require_once 'stats.php';
-        require_once 'view.php';
     }
 
     /**

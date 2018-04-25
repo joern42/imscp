@@ -5,7 +5,7 @@
 
     $(function () {
         $('.datatable').dataTable({
-            language: <?= getDataTablesPluginTranslations(); ?>,
+            language: <?= \iMSCP\Functions\View::getDataTablesPluginTranslations(); ?>,
             displayLength: 10,
             stateSave: true,
             pagingType: "simple"

@@ -18,17 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
-require_once LIBRARY_PATH . '/Functions/Tickets.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Support;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
-Registry::get('config')['IMSCP_SUPPORT_SYSTEM'] or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+Application::getInstance()->getConfig()['IMSCP_SUPPORT_SYSTEM'] or View::showBadRequestErrorPage();
 
-!isset($_GET['ticket_id']) or reopenTicket(intval($_GET['ticket_id']));
+!isset($_GET['ticket_id']) or Support::reopenTicket(intval($_GET['ticket_id']));
 
 if (isset($_GET['psi'])) {
     $start = $_GET['psi'];
@@ -67,10 +67,12 @@ $tpl->assign([
     'TR_PREVIOUS'                   => tr('Previous'),
     'TR_NEXT'                       => tr('Next')
 ]);
-generateNavigation($tpl);
-generateTicketList($tpl, $_SESSION['user_id'], $start, Registry::get('config')['DOMAIN_ROWS_PER_PAGE'], 'admin', 'closed');
+View::generateNavigation($tpl);
+Support::generateTicketList(
+    $tpl, Application::getInstance()->getSession()['user_id'], $start, Application::getInstance()->getConfig()['DOMAIN_ROWS_PER_PAGE'], 'admin', 'closed'
+);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

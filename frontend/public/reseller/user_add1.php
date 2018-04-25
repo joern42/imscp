@@ -18,8 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Check input data
@@ -48,7 +49,7 @@ function reseller_checkData()
 
     $asciiDmnName = encodeIdna($dmnName);
 
-    if (isKnownDomain($asciiDmnName, $_SESSION['user_id'])) {
+    if (isKnownDomain($asciiDmnName, Application::getInstance()->getSession()['user_id'])) {
         setPageMessage(tr('Domain %s is unavailable.', "<strong>$dmnName</strong>"), 'error');
         return;
     }
@@ -61,7 +62,7 @@ function reseller_checkData()
     if (isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' && isset($_POST['forward_type'])
         && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)
     ) {
-        isset($_POST['forward_url_scheme']) && isset($_POST['forward_url']) or showBadRequestErrorPage();
+        isset($_POST['forward_url_scheme']) && isset($_POST['forward_url']) or View::showBadRequestErrorPage();
 
         $forwardUrl = cleanInput($_POST['forward_url_scheme']) . cleanInput($_POST['forward_url']);
         $forwardType = cleanInput($_POST['forward_type']);
@@ -74,14 +75,14 @@ function reseller_checkData()
             try {
                 $uri = iMSCP_Uri_Redirect::fromString($forwardUrl);
             } catch (Zend_Uri_Exception $e) {
-                throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
+                throw new \Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
             }
 
             $uri->setHost(encodeIdna(mb_strtolower($uri->getHost()))); // Normalize URI host
             $uri->setPath(rtrim(normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
 
             if ($uri->getHost() == $asciiDmnName && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))) {
-                throw new iMSCP_Exception(
+                throw new \Exception(
                     tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>") . ' ' .
                     tr('Domain %s cannot be forwarded on itself.', "<strong>$dmnName</strong>")
                 );
@@ -91,12 +92,12 @@ function reseller_checkData()
                 $port = $uri->getPort();
 
                 if ($port && $port < 1025) {
-                    throw new iMSCP_Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
+                    throw new \Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
                 }
             }
 
             $forwardUrl = $uri->getUri();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             setPageMessage($e->getMessage(), 'error');
             return;
         }
@@ -117,30 +118,30 @@ function reseller_checkData()
     $customizeHp = $hpId > 0 && isset($_POST['chtpl']) ? $_POST['chtpl'] : '_no_';
 
     if ($hpId == 0 || $customizeHp == '_yes_') {
-        $_SESSION['dmn_name'] = $asciiDmnName;
-        $_SESSION['dmn_expire'] = $dmnExpire;
-        $_SESSION['dmn_url_forward'] = $forwardUrl;
-        $_SESSION['dmn_type_forward'] = $forwardType;
-        $_SESSION['dmn_host_forward'] = $forwardHost;
-        $_SESSION['dmn_tpl'] = $hpId;
-        $_SESSION['chtpl'] = '_yes_';
-        $_SESSION['step_one'] = '_yes_';
+        Application::getInstance()->getSession()['dmn_name'] = $asciiDmnName;
+        Application::getInstance()->getSession()['dmn_expire'] = $dmnExpire;
+        Application::getInstance()->getSession()['dmn_url_forward'] = $forwardUrl;
+        Application::getInstance()->getSession()['dmn_type_forward'] = $forwardType;
+        Application::getInstance()->getSession()['dmn_host_forward'] = $forwardHost;
+        Application::getInstance()->getSession()['dmn_tpl'] = $hpId;
+        Application::getInstance()->getSession()['chtpl'] = '_yes_';
+        Application::getInstance()->getSession()['step_one'] = '_yes_';
         redirectTo('user_add2.php');
     }
 
-    if (!validateHostingPlanLimits($hpId, $_SESSION['user_id'])) {
+    if (!validateHostingPlanLimits($hpId, Application::getInstance()->getSession()['user_id'])) {
         setPageMessage(tr('Hosting plan limits exceed reseller limits.'), 'error');
         return;
     }
 
-    $_SESSION['dmn_name'] = $asciiDmnName;
-    $_SESSION['dmn_expire'] = $dmnExpire;
-    $_SESSION['dmn_url_forward'] = $forwardUrl;
-    $_SESSION['dmn_type_forward'] = $forwardType;
-    $_SESSION['dmn_host_forward'] = $forwardHost;
-    $_SESSION['dmn_tpl'] = $hpId;
-    $_SESSION['chtpl'] = $customizeHp;
-    $_SESSION['step_one'] = '_yes_';
+    Application::getInstance()->getSession()['dmn_name'] = $asciiDmnName;
+    Application::getInstance()->getSession()['dmn_expire'] = $dmnExpire;
+    Application::getInstance()->getSession()['dmn_url_forward'] = $forwardUrl;
+    Application::getInstance()->getSession()['dmn_type_forward'] = $forwardType;
+    Application::getInstance()->getSession()['dmn_host_forward'] = $forwardHost;
+    Application::getInstance()->getSession()['dmn_tpl'] = $hpId;
+    Application::getInstance()->getSession()['chtpl'] = $customizeHp;
+    Application::getInstance()->getSession()['step_one'] = '_yes_';
     redirectTo('user_add3.php');
 }
 
@@ -176,7 +177,7 @@ function reseller_generatePage($tpl)
         'CHTPL2_VAL'           => isset($_POST['chtpl']) && $_POST['chtpl'] == '_yes_' ? '' : ' checked'
     ]);
 
-    $stmt = execQuery("SELECT id, name FROM hosting_plans WHERE reseller_id = ? AND status = 1 ORDER BY name", [$_SESSION['user_id']]);
+    $stmt = execQuery("SELECT id, name FROM hosting_plans WHERE reseller_id = ? AND status = 1 ORDER BY name", [Application::getInstance()->getSession()['user_id']]);
 
     if (!$stmt->rowCount()) {
         $tpl->assign('HOSTING_PLAN_ENTRIES_BLOCK', '');
@@ -194,10 +195,8 @@ function reseller_generatePage($tpl)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 empty($_POST) or reseller_checkData();
 
@@ -235,9 +234,9 @@ $tpl->assign([
     'TR_PROXY_PRESERVE_HOST'    => toHtml(tr('Preserve Host')),
     'TR_NEXT_STEP'              => toHtml(tr('Next step'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 reseller_generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

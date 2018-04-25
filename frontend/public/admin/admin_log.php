@@ -18,10 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Send JSON response
@@ -68,28 +69,28 @@ function admin_clearLogs()
     switch ($_POST['uaction_clear']) {
         case 0:
             $query = 'DELETE FROM log';
-            $msg = sprintf('%s deleted the full admin log.', $_SESSION['user_logged']);
+            $msg = sprintf('%s deleted the full admin log.', Application::getInstance()->getSession()['user_logged']);
             break;
         case 2:
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 14 DAY) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than two weeks!', $_SESSION['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than two weeks!', Application::getInstance()->getSession()['user_logged']);
             break;
         case 4:
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 1 MONTH) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than one month.', $_SESSION['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than one month.', Application::getInstance()->getSession()['user_logged']);
             break;
         case 12:
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 3 MONTH) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than three months.', $_SESSION['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than three months.', Application::getInstance()->getSession()['user_logged']);
             break;
 
         case 26:
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 6 MONTH) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than six months.', $_SESSION['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than six months.', Application::getInstance()->getSession()['user_logged']);
             break;
         case 52;
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 1 YEAR) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than one year.', $_SESSION['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than one year.', Application::getInstance()->getSession()['user_logged']);
             break;
         default:
             admin_sendJsonResponse(400, ['message' => tr('Bad request.')]);
@@ -97,15 +98,14 @@ function admin_clearLogs()
     }
 
     try {
-        $stmt = executeQuery($query);
-
+        $stmt = execQuery($query);
         if ($stmt->rowCount()) {
             writeLog($msg, E_USER_NOTICE);
             admin_sendJsonResponse(200, ['message' => tr('Log entries successfully deleted.')]);
         } else {
             admin_sendJsonResponse(202, ['message' => tr('Nothing has been deleted.')]);
         }
-    } catch (iMSCP_Exception_Database $e) {
+    } catch (\Exception $e) {
         admin_sendJsonResponse(500, ['message' => tr('An unexpected error occurred: %s', $e->getMessage())]);
     }
 }
@@ -169,7 +169,7 @@ function admin_getLogs()
         }
 
         /* Get data to display */
-        $rResult = executeQuery(
+        $rResult = execQuery(
             '
                 SELECT SQL_CALC_FOUND_ROWS ' . str_replace(' , ', ' ', implode(', ', $columns)) . "
                 FROM $table
@@ -180,14 +180,10 @@ function admin_getLogs()
         );
 
         /* Data set length after filtering */
-        $resultFilterTotal = executeQuery('SELECT FOUND_ROWS()');
-        $resultFilterTotal = $resultFilterTotal->fetch(\PDO::FETCH_NUM);
-        $filteredTotal = $resultFilterTotal[0];
+        $filteredTotal = execQuery('SELECT FOUND_ROWS()')->fetch(\PDO::FETCH_NUM)[0];
 
         /* Total data set length */
-        $resultTotal = executeQuery("SELECT COUNT($indexColumn) FROM $table");
-        $resultTotal = $resultTotal->fetch(\PDO::FETCH_NUM);
-        $total = $resultTotal[0];
+        $total = execQuery("SELECT COUNT($indexColumn) FROM $table")->fetch(\PDO::FETCH_NUM)[0];
 
         /* Output */
         $output = [
@@ -197,7 +193,7 @@ function admin_getLogs()
             'aaData'               => []
         ];
 
-        $dateFormat = Registry::get('config')['DATE_FORMAT'] . ' H:i:s';
+        $dateFormat = Application::getInstance()->getConfig()['DATE_FORMAT'] . ' H:i:s';
 
         while ($data = $rResult->fetch()) {
             $row = [];
@@ -231,7 +227,7 @@ function admin_getLogs()
         }
 
         admin_sendJsonResponse(200, $output);
-    } catch (iMSCP_Exception_Database $e) {
+    } catch (\Exception $e) {
         writeLog(sprintf('Unable to get logs: %s', $e->getMessage()), E_USER_ERROR);
         admin_sendJsonResponse(500, ['message' => tr('An unexpected error occurred: %s', $e->getMessage())]);
     }
@@ -239,10 +235,8 @@ function admin_getLogs()
     admin_sendJsonResponse(400, ['message' => tr('Bad request.')]);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_REQUEST['action'])) {
     if (isXhr()) {
@@ -258,7 +252,7 @@ if (isset($_REQUEST['action'])) {
         }
     }
 
-    showBadRequestErrorPage();
+    View::showBadRequestErrorPage();
 }
 
 $tpl = new TemplateEngine();
@@ -270,7 +264,7 @@ $tpl->define([
 $tpl->assign([
     'TR_PAGE_TITLE'           => tr('Admin / General / Admin Log'),
     'TR_CLEAR_LOG'            => tr('Clear log'),
-    'ROWS_PER_PAGE'           => json_encode(Registry::get('config')['DOMAIN_ROWS_PER_PAGE']),
+    'ROWS_PER_PAGE'           => json_encode(Application::getInstance()->getConfig()['DOMAIN_ROWS_PER_PAGE']),
     'TR_DATE'                 => tr('Date'),
     'TR_MESSAGE'              => tr('Message'),
     'TR_CLEAR_LOG_MESSAGE'    => tr('Delete from log:'),
@@ -284,12 +278,12 @@ $tpl->assign([
     'TR_TIMEOUT_ERROR'        => json_encode(tr('Request Timeout: The server took too long to send the data.')),
     'TR_UNEXPECTED_ERROR'     => json_encode(tr('An unexpected error occurred.'))
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
-    $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+    $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

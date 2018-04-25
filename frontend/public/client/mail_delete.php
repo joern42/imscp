@@ -18,23 +18,25 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Events as Events;
-use iMSCP_Exception as iMSCPException;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\Config;
 
 /**
  * Schedule deletion of the given mail account
  *
- * @throws iMSCPException on error
  * @param int $mailId Mail account unique identifier
- * @param int $domainId Main domain unique identifier
- * @param ConfigFile $config
- * @param ConfigFile $mtaConfig
+ * @param int $domainId Customer primary domain unique identifier
+ * @param Config\Config $config
+ * @param Config\Config $postfixConfig
  * @param int &$nbDeletedMails Counter for deleted mail accounts
  * @return void
  */
-function deleteMailAccount($mailId, $domainId, $config, $mtaConfig, &$nbDeletedMails)
+function deleteMailAccount($mailId, $domainId, $config, $postfixConfig, &$nbDeletedMails)
 {
     $stmt = execQuery('SELECT mail_acc, mail_addr, mail_type FROM mail_users WHERE mail_id = ? AND domain_id = ?', [$mailId, $domainId]);
 
@@ -46,22 +48,24 @@ function deleteMailAccount($mailId, $domainId, $config, $mtaConfig, &$nbDeletedM
 
     if ($config['PROTECT_DEFAULT_EMAIL_ADDRESSES']
         && (
-            (in_array($row['mail_type'], [MT_NORMAL_FORWARD, MT_ALIAS_FORWARD])
+            (in_array($row['mail_type'], [Mail::MT_NORMAL_FORWARD, Mail::MT_ALIAS_FORWARD])
                 && in_array($row['mail_acc'], ['abuse', 'hostmaster', 'postmaster', 'webmaster'])
             )
-            || ($row['mail_acc'] == 'webmaster' && in_array($row['mail_type'], [MT_SUBDOM_FORWARD, MT_ALSSUB_FORWARD]))
+            || ($row['mail_acc'] == 'webmaster' && in_array($row['mail_type'], [Mail::MT_SUBDOM_FORWARD, Mail::MT_ALSSUB_FORWARD]))
         )
     ) {
         return;
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeDeleteMail, ['mailId' => $mailId]);
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeDeleteMail, NULL, ['mailId' => $mailId]);
     execQuery("UPDATE mail_users SET status = 'todelete' WHERE mail_id = ?", [$mailId]);
 
     if (strpos($row['mail_type'], '_mail') !== false) {
         # Remove cached quota info if any
         list($user, $domain) = explode('@', $row['mail_addr']);
-        unset($_SESSION['maildirsize'][normalizePath($mtaConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")]);
+        unset(Application::getInstance()->getSession()['maildirsize'][
+            normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")
+        ]);
     }
 
     # Update or delete forward and/or catch-all accounts that list mail_addr of
@@ -104,18 +108,16 @@ function deleteMailAccount($mailId, $domainId, $config, $mtaConfig, &$nbDeletedM
         }
     }
 
-    deleteAutorepliesLogs();
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterDeleteMail, ['mailId' => $mailId]);
+    Mail::deleteAutorepliesLogs();
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteMail, NULL, ['mailId' => $mailId]);
     $nbDeletedMails++;
 }
 
-require_once 'imscp-lib.php';
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_REQUEST['id']) or showBadRequestErrorPage();
-
-$domainId = getCustomerMainDomainId($_SESSION['user_id']);
+$domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 $nbDeletedMails = 0;
 $mailIds = (array)$_REQUEST['id'];
 
@@ -124,31 +126,30 @@ if (empty($mailIds)) {
     redirectTo('mail_accounts.php');
 }
 
-/** @var iMSCP_Database $db */
-$db = Registry::get('iMSCP_Application')->getDatabase();
+$db = Application::getInstance()->getDb();
 
 try {
-    $db->beginTransaction();
-    $config = Registry::get('config');
-    $mtaConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/postfix/postfix.data'));
+    $db->getDriver()->getConnection()->beginTransaction();
+    $config = Application::getInstance()->getConfig();
+    $postfixConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data'), true);
 
     foreach ($mailIds as $mailId) {
-        deleteMailAccount(intval($mailId), $domainId, $config, $mtaConfig, $nbDeletedMails);
+        deleteMailAccount(intval($mailId), $domainId, $config, $postfixConfig, $nbDeletedMails);
     }
 
-    $db->commit();
-    sendDaemonRequest();
+    $db->getDriver()->getConnection()->commit();
+    Daemon::sendRequest();
 
     if ($nbDeletedMails) {
-        writeLog(sprintf('%d mail account(s) were deleted by %s', $nbDeletedMails, $_SESSION['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf('%d mail account(s) were deleted by %s', $nbDeletedMails, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
         setPageMessage(
-            ntr('Mail account has been scheduled for deletion.', '%d mail accounts were scheduled for deletion.', $nbDeletedMails), 'success'
+            ntr('Mail account has been scheduled for deletion.', '%d mail accounts were scheduled for deletion.', $nbDeletedMails, $nbDeletedMails), 'success'
         );
     } else {
         setPageMessage(tr('No mail account has been deleted.'), 'warning');
     }
-} catch (iMSCPException $e) {
-    $db->rollBack();
+} catch (\Exception $e) {
+    $db->getDriver()->getConnection()->rollBack();
     $errorMessage = $e->getMessage();
     $code = $e->getCode();
     writeLog(sprintf('An unexpected error occurred while attempting to delete a mail account: %s', $errorMessage), E_USER_ERROR);
@@ -156,7 +157,7 @@ try {
     if ($code == 403) {
         setPageMessage(tr('Operation cancelled: %s', $errorMessage), 'warning');
     } elseif ($e->getCode() == 400) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     } else {
         setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     }

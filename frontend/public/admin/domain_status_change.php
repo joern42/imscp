@@ -18,18 +18,19 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-isset($_GET['domain_id']) or showBadRequestErrorPage();
+isset($_GET['domain_id']) or View::showBadRequestErrorPage();
 
 $domainId = intval($_GET['domain_id']);
 $stmt = execQuery('SELECT domain_admin_id, domain_status FROM domain WHERE domain_id = ?', [$domainId]);
-$stmt->rowCount() or showBadRequestErrorPage();
+$stmt->rowCount() or View::showBadRequestErrorPage();
 $row = $stmt->fetch();
 
 if ($row['domain_status'] == 'ok') {
@@ -37,7 +38,7 @@ if ($row['domain_status'] == 'ok') {
 } elseif ($row['domain_status'] == 'disabled') {
     changeDomainStatus($row['domain_admin_id'], 'activate');
 } else {
-    showBadRequestErrorPage();
+    View::showBadRequestErrorPage();
 }
 
 redirectTo('users.php');

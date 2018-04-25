@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
 return [
     'general'      => [
@@ -141,7 +141,7 @@ return [
                 'title_class'        => 'update',
                 'privilege_callback' => [
                     'name' => function () {
-                        return stripos(Registry::get('config')['Version'], 'git') === false;
+                        return stripos(Application::getInstance()->getConfig()['Version'], 'git') === false;
                     }
                 ]
             ],
@@ -275,24 +275,6 @@ return [
                 'label'       => tr('Service ports'),
                 'uri'         => '/admin/settings_ports.php',
                 'title_class' => 'general'
-            ],
-            'softwares_management' => [
-                'label'       => tr('Software management'),
-                'uri'         => '/admin/software_manage.php',
-                'title_class' => 'apps_installer',
-                'pages'       => [
-                    'softwares_permissions' => [
-                        'label'       => tr('Software permissions'),
-                        'uri'         => '/admin/software_rights.php',
-                        'visible'     => false,
-                        'title_class' => 'apps_installer'
-                    ]
-                ]
-            ],
-            'softwares_options'    => [
-                'label'       => tr('Software options'),
-                'uri'         => '/admin/software_options.php',
-                'title_class' => 'apps_installer'
             ],
             'plugins_management'   => [
                 'label'       => tr('Plugin management'),

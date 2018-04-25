@@ -18,11 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Get domain data
@@ -47,7 +48,7 @@ function _client_getDomainData($domainId)
             AND domain_admin_id = ?
             AND domain_status = 'ok'
         ",
-        [$domainId, $_SESSION['user_id']]
+        [$domainId, Application::getInstance()->getSession()['user_id']]
     );
 
     if (!$stmt->rowCount()) {
@@ -67,11 +68,11 @@ function _client_getDomainData($domainId)
  */
 function client_generatePage($tpl)
 {
-    isset($_GET['id']) or showBadRequestErrorPage();
+    isset($_GET['id']) or View::showBadRequestErrorPage();
 
     $domainId = intval($_GET['id']);
     $domainData = _client_getDomainData($domainId);
-    $domainData !== false or showBadRequestErrorPage();
+    $domainData !== false or View::showBadRequestErrorPage();
     $forwardHost = 'Off';
 
     if (empty($_POST)) {
@@ -124,7 +125,7 @@ function client_generatePage($tpl)
     // Cover the case where URL forwarding feature is activated and that the
     // default /htdocs directory doesn't exist yet
     if ($domainData['url_forward'] != 'no') {
-        $vfs = new VirtualFileSystem($_SESSION['user_logged']);
+        $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged']);
         if (!$vfs->exists('/htdocs')) {
             $tpl->assign('DOCUMENT_ROOT_BLOC', '');
             return;
@@ -132,11 +133,11 @@ function client_generatePage($tpl)
     }
 
     # Set parameters for the FTP chooser
-    $_SESSION['ftp_chooser_domain_id'] = $domainId;
-    $_SESSION['ftp_chooser_user'] = $_SESSION['user_logged'];
-    $_SESSION['ftp_chooser_root_dir'] = '/htdocs';
-    $_SESSION['ftp_chooser_hidden_dirs'] = [];
-    $_SESSION['ftp_chooser_unselectable_dirs'] = [];
+    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $domainId;
+    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_root_dir'] = '/htdocs';
+    Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
+    Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
 }
 
 /**
@@ -147,14 +148,14 @@ function client_generatePage($tpl)
 function client_editDomain()
 {
     if (!isset($_GET['id'])) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     $domainId = intval($_GET['id']);
     $domainData = _client_getDomainData($domainId);
 
     if ($domainData === false) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     // Default values
@@ -170,7 +171,7 @@ function client_editDomain()
         && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)
     ) {
         if (!isset($_POST['forward_url_scheme']) || !isset($_POST['forward_url'])) {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
         $forwardUrl = cleanInput($_POST['forward_url_scheme']) . cleanInput($_POST['forward_url']);
@@ -184,7 +185,7 @@ function client_editDomain()
             try {
                 $uri = iMSCP_Uri_Redirect::fromString($forwardUrl);
             } catch (Zend_Uri_Exception $e) {
-                throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
+                throw new \Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
             }
 
             $uri->setHost(encodeIdna(mb_strtolower($uri->getHost()))); // Normalize URI host
@@ -193,24 +194,21 @@ function client_editDomain()
             if ($uri->getHost() == $domainData['domain_name']
                 && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))
             ) {
-                throw new iMSCP_Exception(
+                throw new \Exception(
                     tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>") . ' ' .
-                    tr(
-                        'Domain %s cannot be forwarded on itself.',
-                        "<strong>{$domainData['domain_name_utf8']}</strong>"
-                    )
+                    tr('Domain %s cannot be forwarded on itself.', "<strong>{$domainData['domain_name_utf8']}</strong>")
                 );
             }
 
             if ($forwardType == 'proxy') {
                 $port = $uri->getPort();
                 if ($port && $port < 1025) {
-                    throw new iMSCP_Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
+                    throw new \Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
                 }
             }
 
             $forwardUrl = $uri->getUri();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             setPageMessage($e->getMessage(), 'error');
             return false;
         }
@@ -219,7 +217,7 @@ function client_editDomain()
         $documentRoot = normalizePath('/' . cleanInput($_POST['document_root']));
 
         if ($documentRoot !== '') {
-            $vfs = new VirtualFileSystem($_SESSION['user_logged'], '/htdocs');
+            $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], '/htdocs');
 
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
                 setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
@@ -230,7 +228,7 @@ function client_editDomain()
         $documentRoot = normalizePath('/htdocs' . $documentRoot);
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeEditDomain, [
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditDomain, NULL, [
         'domainId'     => $domainId,
         'domainName'   => $domainData['domain_name'],
         'domainIps'    => $domainIps,
@@ -244,7 +242,7 @@ function client_editDomain()
         'UPDATE domain SET document_root = ?, url_forward = ?, type_forward = ?, host_forward = ?, domain_status = ?WHERE domain_id = ?', [
         $documentRoot, $forwardUrl, $forwardType, $forwardHost, 'tochange', $domainId
     ]);
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterEditDomain, [
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditDomain, NULL, [
         'domainId'     => $domainId,
         'domainName'   => $domainData['domain_name'],
         'domainIps'    => $domainIps,
@@ -254,15 +252,13 @@ function client_editDomain()
         'forwardType'  => $forwardType,
         'forwardHost'  => $forwardHost
     ]);
-    sendDaemonRequest();
-    writeLog(sprintf('The %s domain properties were updated by', $_SESSION['user_logged'], $_SESSION['user_logged']), E_USER_NOTICE);
+    Daemon::sendRequest();
+    writeLog(sprintf('The %s domain properties were updated by', Application::getInstance()->getSession()['user_logged'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     return true;
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 if (!empty($_POST) && client_editDomain()) {
     setPageMessage(tr('Domain successfully scheduled for update.'), 'success');
@@ -300,15 +296,15 @@ $tpl->assign([
     'TR_UPDATE'                 => tr('Update'),
     'TR_CANCEL'                 => tr('Cancel')
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['close'] = tr('Close');
     $translations['core']['ftp_directories'] = tr('Select your own document root');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 client_generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

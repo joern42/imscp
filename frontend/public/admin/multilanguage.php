@@ -18,9 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Generate page
@@ -28,28 +28,26 @@ use iMSCP_Registry as Registry;
  * @param TemplateEngine $tpl Template engine
  * @return void
  */
-function admin_generateLanguagesList($tpl)
+function admin_generateLanguagesList(TemplateEngine $tpl)
 {
-    $defaultLanguage = Registry::get('config')['USER_INITIAL_LANG'];
+    $defaultLanguage = Application::getInstance()->getConfig()['USER_INITIAL_LANG'];
 
     foreach (getAvailableLanguages() as $language) {
         $tpl->assign([
             'LANGUAGE_NAME'             => toHtml($language['language']),
-            'NUMBER_TRANSLATED_STRINGS' => ($language['locale'] == Zend_Locale::BROWSER)
+            'NUMBER_TRANSLATED_STRINGS' => $language['locale'] == \Locale::getDefault()
                 ? $language['translatedStrings'] : toHtml(tr('%d strings translated', $language['translatedStrings'])),
             'LANGUAGE_CREATION_DATE'    => toHtml($language['creation']),
             'LAST_TRANSLATOR'           => toHtml($language['lastTranslator']),
-            'LOCALE_CHECKED'            => ($language['locale'] == $defaultLanguage) ? ' checked' : '',
+            'LOCALE_CHECKED'            => $language['locale'] == $defaultLanguage ? ' checked' : '',
             'LOCALE'                    => toHtml($language['locale'], 'htmlAttr')
         ]);
         $tpl->parse('LANGUAGE_BLOCK', '.language_block');
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'uploadLanguage') {
@@ -95,10 +93,10 @@ $tpl->assign([
     'TR_UPLOAD_HELP'               => toHtml(tr('Only gettext Machine Object files (MO files) are accepted.'), 'htmlAttr'),
     'TR_IMPORT'                    => toHtml(tr('Import'), 'htmlAttr')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 admin_generateLanguagesList($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

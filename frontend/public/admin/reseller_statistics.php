@@ -18,10 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Statistics;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Generates statistics for the given reseller
@@ -37,10 +40,10 @@ function _generateResellerStatistics(TemplateEngine $tpl, $resellerId, $reseller
     $rtraffLimit = $resellerProps['max_traff_amnt'] * 1048576;
     $rdiskLimit = $resellerProps['max_disk_amnt'] * 1048576;
     list($rdmnConsumed, $rsubConsumed, $ralsConsumed, $rmailConsumed, $rftpConsumed, $rsqlDbConsumed,
-        $rsqlUserConsumed, $rtraffConsumed, $rdiskConsumed) = getResellerStats($resellerId);
+        $rsqlUserConsumed, $rtraffConsumed, $rdiskConsumed) = Statistics::getResellerStats($resellerId);
 
-    $diskUsagePercent = getPercentUsage($rdiskConsumed, $rdiskLimit);
-    $trafficPercent = getPercentUsage($rtraffConsumed, $rtraffLimit);
+    $diskUsagePercent = Statistics::getPercentUsage($rdiskConsumed, $rdiskLimit);
+    $trafficPercent = Statistics::getPercentUsage($rtraffConsumed, $rtraffLimit);
 
     $tpl->assign([
         'RESELLER_NAME'         => toHtml($resellerName),
@@ -94,18 +97,16 @@ function _generateResellerStatistics(TemplateEngine $tpl, $resellerId, $reseller
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $stmt = executeQuery("SELECT admin_id, admin_name FROM admin WHERE admin_type = 'reseller'");
+    $stmt = execQuery("SELECT admin_id, admin_name FROM admin WHERE admin_type = 'reseller'");
     while ($row = $stmt->fetch()) {
         _generateResellerStatistics($tpl, $row['admin_id'], $row['admin_name']);
         $tpl->parse('RESELLER_STATISTICS_BLOCK', '.reseller_statistics_block');
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
-systemHasResellers() or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+Counting::systemHasResellers() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -128,13 +129,13 @@ $tpl->assign([
     'TR_SQL_USERS'               => toHtml(tr('SQL users')),
     'TR_DETAILED_STATS_TOOLTIPS' => toHtml(tr('Show detailed statistics for this reseller'), 'htmlAttr')
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
-    $e->getParam('translations')->core['dataTable'] = getDataTablesPluginTranslations(false);
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
+    $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

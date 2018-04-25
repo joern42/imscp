@@ -18,12 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
-use iMSCP_Validate as Validator;
-use Zend_Validate_Hostname as ValidateHostname;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\Config;
 
 /**
  * Check SQL permissions
@@ -37,11 +37,9 @@ function checkSqlUserPermissions(TemplateEngine $tpl, $sqldId)
     global $canAddNewSQLUser;
 
     $canAddNewSQLUser = true;
-    $domainProps = getCustomerProperties($_SESSION['user_id']);
+    $domainProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
-    if ($domainProps['domain_sqlu_limit'] != 0
-        && getCustomerSqlUsersCount($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']
-    ) {
+    if ($domainProps['domain_sqlu_limit'] != 0 && Counting::getCustomerSqlUsersCount($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']) {
         setPageMessage(tr("SQL users limit is reached. You cannot add new SQL users."), 'static_info');
         $canAddNewSQLUser = false;
         $tpl->assign('CREATE_SQLUSER', '');
@@ -50,7 +48,7 @@ function checkSqlUserPermissions(TemplateEngine $tpl, $sqldId)
     $stmt = execQuery('SELECT COUNT(sqld_id) FROM sql_database JOIN domain USING(domain_id) WHERE sqld_id = ? AND domain_id = ?', [
         $sqldId, $domainProps['domain_id']
     ]);
-    $stmt->fetchColumn() or showBadRequestErrorPage();
+    $stmt->fetchColumn() or View::showBadRequestErrorPage();
 }
 
 /**
@@ -76,7 +74,7 @@ function generateSqlUserList(TemplateEngine $tpl, $sqldId)
             AND CONCAT(t1.sqlu_name, t1.sqlu_host) NOT IN(SELECT CONCAT(sqlu_name, sqlu_host) FROM sql_user WHERE sqld_id = ?)
             GROUP BY t1.sqlu_name, t1.sqlu_host
         ",
-        [$sqldId, getCustomerMainDomainId($_SESSION['user_id']), $sqldId]
+        [$sqldId, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $sqldId]
     );
 
     if ($stmt->rowCount()) {
@@ -91,7 +89,7 @@ function generateSqlUserList(TemplateEngine $tpl, $sqldId)
         return;
     }
 
-    $canAddNewSQLUser or showBadRequestErrorPage();
+    $canAddNewSQLUser or View::showBadRequestErrorPage();
 
     $tpl->assign('SHOW_SQLUSER_LIST', '');
 }
@@ -111,21 +109,20 @@ function isSqlUser($sqlUser, $sqlUserHost)
 /**
  * Add SQL user for the given database
  *
- * @throws Exception
  * @param int $sqldId Database unique identifier
  * @return void
  */
 function addSqlUser($sqldId)
 {
-    isset($_POST['uaction']) or showBadRequestErrorPage();
+    isset($_POST['uaction']) or View::showBadRequestErrorPage();
 
-    $dmnId = getCustomerMainDomainId($_SESSION['user_id']);
+    $dmnId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 
     if (!isset($_POST['reuse_sqluser'])) {
         $needUserCreate = true;
 
         if (!isset($_POST['user_name']) || !isset($_POST['user_host']) || !isset($_POST['pass']) || !isset($_POST['pass_rep'])) {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
         $user = cleanInput($_POST['user_name']);
@@ -197,22 +194,21 @@ function addSqlUser($sqldId)
             [intval($_POST['sqluser_id']), $sqldId, $dmnId]
         );
 
-        $stmt->rowCount() or showBadRequestErrorPage();
+        $stmt->rowCount() or View::showBadRequestErrorPage();
         $row = $stmt->fetch();
         $user = $row['sqlu_name'];
         $host = $row['sqlu_host'];
     } else {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
         return;
     }
 
     # Retrieve database to which SQL user should be assigned
     $stmt = execQuery('SELECT sqld_name FROM sql_database WHERE sqld_id = ? AND domain_id = ?', [$sqldId, $dmnId]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
-    $mysqlConfig = new ConfigFile(Registry::get('config')['CONF_DIR'] . '/mysql/mysql.data');
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddSqlUser, [
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddSqlUser, NULL, [
         'SqlUsername'     => $user,
         'SqlUserHost'     => $host,
         'SqlUserPassword' => isset($password) ? $password : ''
@@ -223,6 +219,7 @@ function addSqlUser($sqldId)
     // See https://dev.mysql.com/doc/refman/5.7/en/implicit-commit.html for more details
 
     if ($needUserCreate && isset($password)) {
+        $mysqlConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data'));
         if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
             execQuery('CREATE USER ?@? IDENTIFIED BY ?', [$user, $host, $password]);
         } else {
@@ -241,14 +238,14 @@ function addSqlUser($sqldId)
 
     execQuery(sprintf('GRANT ALL PRIVILEGES ON %s.* TO ?@?', quoteIdentifier($row['sqld_name'])), [$user, $host]);
     execQuery('INSERT INTO sql_user (sqld_id, sqlu_name, sqlu_host) VALUES (?, ?, ?)', [$sqldId, $user, $host]);
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddSqlUser, [
-        'SqlUserId'       => Registry::get('iMSCP_Application')->getDatabase()->lastInsertId(),
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterAddSqlUser, NULL, [
+        'SqlUserId'       => Application::getInstance()->getDb()->getDriver()->getLastGeneratedValue(),
         'SqlUsername'     => $user,
         'SqlUserHost'     => $host,
         'SqlUserPassword' => isset($password) ? $password : '',
         'SqlDatabaseId'   => $sqldId
     ]);
-    writeLog(sprintf('A SQL user has been added by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A SQL user has been added by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('SQL user successfully added.'), 'success');
     redirectTo('sql_manage.php');
 }
@@ -265,7 +262,7 @@ function generatePage(TemplateEngine $tpl, $sqldId)
     checkSqlUserPermissions($tpl, $sqldId);
     generateSqlUserList($tpl, $sqldId);
 
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
 
     if ($cfg['MYSQL_PREFIX'] != 'none') {
         $tpl->assign('MYSQL_PREFIX_YES', '');
@@ -313,11 +310,9 @@ function generatePage(TemplateEngine $tpl, $sqldId)
     $tpl->assign('SQLD_ID', $sqldId);
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('sql') && isset($_REQUEST['sqld_id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('sql') && isset($_REQUEST['sqld_id']) or View::showBadRequestErrorPage();
 
 $sqldId = intval($_REQUEST['sqld_id']);
 
@@ -354,11 +349,10 @@ $tpl->assign([
     'TR_ASSIGN_EXISTING_SQL_USER' => toHtml(tr('Assign existing SQL user')),
     'TR_NEW_SQL_USER_DATA'        => toHtml(tr('New SQL user data'))
 ]);
-
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $sqldId);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

@@ -18,8 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
 
 /**
  * Generates notice for support system
@@ -29,25 +29,25 @@ use iMSCP_Registry as Registry;
 function generateSupportSystemNotices()
 {
     $aCnt = execQuery("SELECT COUNT(ticket_id) FROM tickets WHERE ticket_from = ? AND ticket_status = '2' AND ticket_reply = '0'", [
-        $_SESSION['user_id']
+        Application::getInstance()->getSession()['user_id']
     ])->fetchColumn();
 
     if (!$aCnt) {
         return;
     }
 
-    setPageMessage(ntr('You have a new answer to your support ticket.', 'You have %d new answers to your support tickets.', $aCnt), 'static_info');
+    setPageMessage(ntr('You have a new answer to your support ticket.', 'You have %d new answers to your support tickets.', $aCnt, $aCnt), 'static_info');
 }
 
-require_once 'imscp-lib.php';
-checkLogin('user', $cfg['PREVENT_EXTERNAL_LOGIN_CLIENT']);
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
+Login::checkLogin('user', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_CLIENT']);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
-$_GET['id'] = $_SESSION['user_id'];
+$_GET['id'] = Application::getInstance()->getSession()['user_id'];
 generateSupportSystemNotices();
+global $tpl;
 require_once '../shared/account_details.php';
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Client / General / Overview')));
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

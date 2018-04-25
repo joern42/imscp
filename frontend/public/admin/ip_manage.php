@@ -18,12 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Net as Net;
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
-use Zend_Session as Session;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Send Json response
@@ -65,7 +65,7 @@ function sendJsonResponse($statusCode = 200, array $data = [])
  * @param TemplateEngine $tpl Template engine
  * @return void
  */
-function generatePage($tpl)
+function generatePage(TemplateEngine $tpl)
 {
     generateIpsList($tpl);
     generateDevicesList($tpl);
@@ -85,9 +85,9 @@ function generatePage($tpl)
  * @param TemplateEngine $tpl Template engine
  * @return void
  */
-function generateIpsList($tpl)
+function generateIpsList(TemplateEngine $tpl)
 {
-    $stmt = executeQuery(
+    $stmt = execQuery(
         '
             SELECT t1.*, COUNT(t2.reseller_id) AS num_assignments
             FROM server_ips AS t1
@@ -101,25 +101,25 @@ function generateIpsList($tpl)
         return;
     }
 
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
     $isIPv6Allowed = $cfg['IPV6_SUPPORT'] == 'yes';
     $net = Net::getInstance();
-    $baseServerIp = $net->compress($cfg['BASE_SERVER_IP']);
+    $baseServerIp = Net::compress($cfg['BASE_SERVER_IP']);
 
     while ($row = $stmt->fetch()) {
-        $isIpV6Addr = $net->getVersion($row['ip_number']) == 6;
+        $isIpV6Addr = Net::getVersion($row['ip_number']) == 6;
         if ($isIpV6Addr && !$isIPv6Allowed) {
             continue;
         }
 
-        $ipAddr = $net->compress($row['ip_number']);
+        $ipAddr = Net::compress($row['ip_number']);
 
         if ($baseServerIp == $ipAddr) {
             $actionName = $row['ip_status'] == 'ok' ? toHtml(tr('Protected')) : toHtml(humanizeDomainStatus($row['ip_status']));
             $actionIpId = NULL;
         } elseif ($row['num_assignments'] > 0) {
             $actionName = ($row['ip_status'] == 'ok')
-                ? toHtml(ntr('Assigned to one reseller', 'Assigned to %d one reseller', $row['num_assignments']))
+                ? toHtml(ntr('Assigned to one reseller', 'Assigned to %d one reseller', $row['num_assignments'], $row['num_assignments']))
                 : toHtml(humanizeDomainStatus($row['ip_status']));
             $actionIpId = NULL;
         } elseif ($row['ip_status'] == 'ok') {
@@ -132,7 +132,7 @@ function generateIpsList($tpl)
 
         $tpl->assign([
             'IP'           => toHtml($ipAddr == '0.0.0.0' ? tr('Any') : $ipAddr),
-            'IP_NETMASK'   => $net->getIpPrefixLength($net->compress($row['ip_number'])) ?: $row['ip_netmask'] ?: toHtml(tr('N/A')),
+            'IP_NETMASK'   => $net->getIpPrefixLength(Net::compress($row['ip_number'])) ?: $row['ip_netmask'] ?: toHtml(tr('N/A')),
             'IP_EDITABLE'  => $row['ip_status'] == 'ok' && $baseServerIp != $ipAddr && $row['ip_config_mode'] != 'manual' ? true : false,
             'NETWORK_CARD' => toHtml(is_null($row['ip_card']) ? '' : ($row['ip_card'] !== 'any' ? $row['ip_card'] : tr('Any')))
         ]);
@@ -168,7 +168,7 @@ function generateIpsList($tpl)
  * @param TemplateEngine $tpl Template engine
  * @return void
  */
-function generateDevicesList($tpl)
+function generateDevicesList(TemplateEngine $tpl)
 {
     $netDevices = array_filter(Net::getInstance()->getDevices(), function ($device) {
         return $device != 'lo';
@@ -197,9 +197,9 @@ function generateDevicesList($tpl)
  */
 function reconfigureIpAddresses()
 {
-    executeQuery("UPDATE server_ips SET ip_status = 'tochange' WHERE ip_status <> 'todelete'");
+    execQuery("UPDATE server_ips SET ip_status = 'tochange' WHERE ip_status <> 'todelete'");
     setPageMessage(toHtml(tr('Server IP addresses scheduled for reconfiguration.')), 'success');
-    sendDaemonRequest();
+    Daemon::sendRequest();
     redirectTo('ip_manage.php');
 }
 
@@ -223,9 +223,8 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
         $errFieldsStack[] = 'ip_number';
     }
 
-    $net = Net::getInstance();
-    $isIPv6 = $net->getVersion($ipAddr) == 6;
-    $isIPv6Allowed = Registry::get('config')['IPV6_SUPPORT'] == 'yes';
+    $isIPv6 = Net::getVersion($ipAddr) == 6;
+    $isIPv6Allowed = Application::getInstance()->getConfig()['IPV6_SUPPORT'] == 'yes';
 
     if (!$isIPv6Allowed && $isIPv6) {
         setPageMessage(toHtml(tr('IPv6 support is currently disabled. You cannot add new IPv6 IP addresses.')), 'error');
@@ -241,21 +240,19 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
     // Validate Network interface
     $networkCards = Net::getInstance()->getDevices();
     if (!in_array($ipCard, $networkCards) || $ipCard == 'lo') {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     // Validate IP addr configuration mode
     if (!in_array($ipConfigMode, ['auto', 'manual'], true)) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     if ($checkDuplicate) {
-        $net = Net::getInstance();
-
         // Make sure that $ipAddr is not already under the control of i-MSCP
-        $stmt = executeQuery('SELECT ip_number FROM server_ips');
+        $stmt = execQuery('SELECT ip_number FROM server_ips');
         while ($row = $stmt->fetch()) {
-            if ($net->compress($row['ip_number']) == $net->compress($ipAddr)) {
+            if (Net::compress($row['ip_number']) == Net::compress($ipAddr)) {
                 setPageMessage(toHtml(tr('IP address already under the control of i-MSCP.')), 'error');
                 $errFieldsStack[] = 'ip_number';
                 break;
@@ -265,7 +262,7 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
 
     if (!empty($errFieldsStack)) {
         if (!isXhr()) {
-            Registry::set('errFieldsStack', $errFieldsStack);
+            Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
         }
 
         return false;
@@ -298,7 +295,7 @@ function editIpAddr()
         $net = Net::getInstance();
         $ipNetmask = isset($_POST['ip_netmask'])
             ? cleanInput($_POST['ip_netmask'])
-            : ($net->getIpPrefixLength($row['ip_number']) ?: ($row['ip_netmask'] ?: ($net->getVersion() == 4 ? 24 : 64)));
+            : ($net->getIpPrefixLength($row['ip_number']) ?: ($row['ip_netmask'] ?: (Net::getVersion() == 4 ? 24 : 64)));
         $ipCard = isset($_POST['ip_card']) ? cleanInput($_POST['ip_card']) : $row['ip_card'];
         $ipConfigMode = isset($_POST['ip_config_mode'][$ipId]) ? cleanInput($_POST['ip_config_mode'][$ipId]) : $row['ip_config_mode'];
 
@@ -307,9 +304,9 @@ function editIpAddr()
             sendJsonResponse(400, ['message' => tr('Bad request.')]);
         }
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onEditIpAddr, [
+        Application::getInstance()->getEventManager()->trigger(Events::onEditIpAddr, NULL, [
             'ip_id'          => $ipId,
-            'ip_number'      => $net->compress($row['ip_number']),
+            'ip_number'      => Net::compress($row['ip_number']),
             'ip_netmask'     => $ipNetmask,
             'ip_card'        => $ipCard,
             'ip_config_mode' => $ipConfigMode
@@ -317,8 +314,8 @@ function editIpAddr()
         execQuery("UPDATE server_ips SET ip_netmask = ?, ip_card = ?, ip_config_mode = ?, ip_status = 'tochange' WHERE ip_id = ?", [
             $ipNetmask, $ipCard, $ipConfigMode, $ipId
         ]);
-        sendDaemonRequest();
-        writeLog(sprintf("Configuration for the %s IP address has been updated by %s", $row['ip_number'], $_SESSION['user_logged']), E_USER_NOTICE);
+        Daemon::sendRequest();
+        writeLog(sprintf("Configuration for the %s IP address has been updated by %s", $row['ip_number'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
         setPageMessage(toHtml(tr('IP address successfully scheduled for modification.')), 'success');
         sendJsonResponse(200);
     } catch (\Exception $e) {
@@ -342,9 +339,9 @@ function addIpAddr()
         return;
     }
 
-    $ipAddr = Net::getInstance()->compress($ipAddr);
+    $ipAddr = Net::compress($ipAddr);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAddIpAddr, [
+    Application::getInstance()->getEventManager()->trigger(Events::onAddIpAddr, NULL, [
         'ip_number'      => $ipAddr,
         'ip_netmask'     => $ipNetmask,
         'ip_card'        => $ipCard,
@@ -355,16 +352,14 @@ function addIpAddr()
         $ipAddr, $ipNetmask, $ipCard, $ipConfigMode
     ]);
 
-    sendDaemonRequest();
+    Daemon::sendRequest();
     setPageMessage(toHtml(tr('IP address successfully scheduled for addition.')), 'success');
-    writeLog(sprintf("An IP address (%s) has been added by %s", $ipAddr, $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf("An IP address (%s) has been added by %s", $ipAddr, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     redirectTo('ip_manage.php');
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (!empty($_POST)) {
     if (isXhr()) {
@@ -407,18 +402,19 @@ $tpl->assign([
     'TR_AUTO'                 => toHtml(tr('Auto')),
     'TR_MANUAL'               => toHtml(tr('Manual'))
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translation = $e->getParam('translations');
-    $translation['core']['datatable'] = getDataTablesPluginTranslations(false);
-    $translation['core']['err_fields_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
+    $translation['core']['datatable'] = View::getDataTablesPluginTranslations(false);
+    $translation['core']['err_fields_stack'] = Application::getInstance()->getRegistry()->has('errFieldsStack')
+        ? Application::getInstance()->getRegistry()->get('errFieldsStack') : [];
     $translation['core']['confirm_deletion_msg'] = tr("Are you sure you want to delete the %%s IP address?");
     $translation['core']['confirm_reconfigure_msg'] = tr("Are you sure you want to schedule reconfiguration of all IP addresses?");
     $translation['core']['edit_tooltip'] = tr('Click to edit');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

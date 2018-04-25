@@ -18,16 +18,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
+use iMSCP\Functions\Login;
+
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
+global $tpl;
 require_once '../shared/account_details.php';
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Reseller / Customers / Overview / Domain Details')));
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

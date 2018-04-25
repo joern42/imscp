@@ -18,15 +18,20 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('custom_dns_records') && isset($_GET['id']) or showBadRequestErrorPage();
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onBeforeDeleteCustomDNSrecord, ['id' => $dnsRecordId]);
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('custom_dns_records') && isset($_GET['id']) or View::showBadRequestErrorPage();
+
 $dnsRecordId = intval($_GET['id']);
+
+Application::getInstance()->getEventManager()->trigger(Events::onBeforeDeleteCustomDNSrecord, NULL, ['id' => $dnsRecordId]);
+
 $stmt = execQuery(
     "
       UPDATE domain_dns
@@ -37,11 +42,11 @@ $stmt = execQuery(
       AND owned_by = 'custom_dns_feature'
       AND domain_dns_status NOT IN('toadd', 'tochange', 'todelete')
     ",
-    ['todelete', $dnsRecordId, $_SESSION['user_id']]
+    ['todelete', $dnsRecordId, Application::getInstance()->getSession()['user_id']]
 );
-$stmt->rowCount() or showBadRequestErrorPage();
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAfterDeleteCustomDNSrecord, ['id' => $dnsRecordId]);
-sendDaemonRequest();
-writeLog(sprintf('%s scheduled deletion of a custom DNS record', $_SESSION['user_logged']), E_USER_NOTICE);
+$stmt->rowCount() or View::showBadRequestErrorPage();
+Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteCustomDNSrecord, NULL, ['id' => $dnsRecordId]);
+Daemon::sendRequest();
+writeLog(sprintf('%s scheduled deletion of a custom DNS record', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
 setPageMessage(tr('Custom DNS record successfully scheduled for deletion.'), 'success');
 redirectTo('domains_manage.php');

@@ -38,7 +38,7 @@ class StandaloneReaderPluginManager implements ContainerInterface
         'json'           => ZfReader\Json::class,
         'xml'            => ZfReader\Xml::class,
         'yaml'           => ZfReader\Yaml::class,
-        'javaproperties' => Reader\JavaProperties::class,
+        'javaproperties' => Reader\JavaProperties::class
     ];
 
     /**

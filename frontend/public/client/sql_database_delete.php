@@ -18,23 +18,23 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('sql') && isset($_GET['sqld_id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('sql') && isset($_GET['sqld_id']) or View::showBadRequestErrorPage();
 
 $sqldId = intval($_GET['sqld_id']);
 
-if (!deleteSqlDatabase(getCustomerMainDomainId($_SESSION['user_id']), $sqldId)) {
+if (!deleteSqlDatabase(getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $sqldId)) {
     writeLog(sprintf('Could not delete SQL database with ID %s. An unexpected error occurred.', $sqldId), E_USER_NOTICE);
     setPageMessage(tr('Could not delete SQL database. An unexpected error occurred.'), 'error');
     redirectTo('sql_manage.php');
 }
 
 setPageMessage(tr('SQL database successfully deleted.'), 'success');
-writeLog(sprintf('%s deleted SQL database with ID %s', $_SESSION['user_logged'], $sqldId), E_USER_NOTICE);
+writeLog(sprintf('%s deleted SQL database with ID %s', Application::getInstance()->getSession()['user_logged'], $sqldId), E_USER_NOTICE);
 redirectTo('sql_manage.php');

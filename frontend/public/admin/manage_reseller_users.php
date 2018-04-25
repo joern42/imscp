@@ -18,15 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\PHPini;
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Move the given customer from the given reseller to the given reseller
  *
- * @throws Exception
  * @param int $customerId Customer unique identifier
  * @param int $fromResellerId Reseller unique identifier
  * @param int $toResellerId Reseller unique identifier
@@ -34,8 +34,7 @@ use iMSCP_Registry as Registry;
  */
 function moveCustomer($customerId, $fromResellerId, $toResellerId)
 {
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
         $toResellerProps = getResellerProperties($toResellerId);
@@ -49,14 +48,11 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
             'domain_traffic_limit' => ['current_traff_amnt', 'max_traff_amnt'],
             'domain_disk_limit'    => ['current_disk_amnt', 'max_disk_amnt']
         ];
-        $resellerToCustomerPerms = [
-            'software_allowed' => 'domain_software_allowed'
-        ];
 
         $stmt = execQuery(
             '
                 SELECT domain_subd_limit, domain_alias_limit, domain_mailacc_limit, domain_ftpacc_limit, domain_sqld_limit, domain_sqlu_limit,
-                    domain_traffic_limit, domain_disk_limit, domain_client_ips, domain_software_allowed
+                    domain_traffic_limit, domain_disk_limit, domain_client_ips
                 FROM domain
                 WHERE domain_admin_id = ?
             ',
@@ -64,12 +60,12 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
         );
 
         if (!$stmt->rowCount()) {
-            throw new Exception(tr("Couldn't find domain properties for customer with ID %d.", $customerId));
+            throw new \Exception(tr("Couldn't find domain properties for customer with ID %d.", $customerId));
         }
 
         $customerProps = $stmt->fetch();
 
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         // For each item (sub, mail, ftp....), we adjust the target reseller
         // limits according the customer limits. We cannot do the reverse side
@@ -126,10 +122,6 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
 
         // Update the customer permissions according the target reseller permissions
 
-        execQuery('UPDATE domain SET domain_software_allowed = ? WHERE domain_admin_id = ?', [
-            $customerProps['domain_software_allowed'], $customerId
-        ]);
-
         PhpIni::getInstance()->syncClientPermissionsAndIniOptions($toResellerId, $customerId);
 
         // Update the target reseller limits, permissions and IP addresses 
@@ -137,13 +129,13 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
             '
                 UPDATE reseller_props 
                 SET max_sub_cnt = ?, max_als_cnt = ?, max_mail_cnt = ?, max_ftp_cnt = ?, max_sql_db_cnt = ?, max_sql_user_cnt = ?, max_traff_amnt = ?,
-                    max_disk_amnt = ?, reseller_ips = ?, software_allowed = ?
+                    max_disk_amnt = ?, reseller_ips = ?
                 WHERE reseller_id = ?
             ',
             [
                 $toResellerProps['max_sub_cnt'], $toResellerProps['max_als_cnt'], $toResellerProps['max_mail_cnt'], $toResellerProps['max_ftp_cnt'],
                 $toResellerProps['max_sql_db_cnt'], $toResellerProps['max_sql_user_cnt'], $toResellerProps['max_traff_amnt'],
-                $toResellerProps['max_disk_amnt'], $toResellerProps['reseller_ips'], $toResellerProps['software_allowed'], $toResellerId
+                $toResellerProps['max_disk_amnt'], $toResellerProps['reseller_ips'], $toResellerId
             ]
         );
 
@@ -151,17 +143,17 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
         recalculateResellerAssignments($toResellerId);
         recalculateResellerAssignments($fromResellerId);
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onMoveCustomer, [
+        Application::getInstance()->getEventManager()->trigger(Events::onMoveCustomer, NULL, [
             'customerId'     => $customerId,
             'fromResellerId' => $fromResellerId,
             'toResellerId'   => $toResellerId
         ]);
 
-        $db->commit();
-    } catch (Exception $e) {
-        $db->rollBack();
+        $db->getDriver()->getConnection()->commit();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf("Couldn't move customer with ID %d: %s", $customerId, $e->getMessage()), E_USER_ERROR);
-        throw new Exception(tr("Couldn't move customer with ID %d: %s", $customerId, $e->getMessage()), $e->getCode(), $e);
+        throw new \Exception(tr("Couldn't move customer with ID %d: %s", $customerId, $e->getMessage()), $e->getCode(), $e);
     }
 }
 
@@ -175,7 +167,7 @@ function moveCustomers()
     if (!isset($_POST['from_reseller']) || !isset($_POST['to_reseller']) || !isset($_POST['reseller_customers'])
         || !is_array($_POST['reseller_customers'])
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     set_time_limit(0);
@@ -186,13 +178,13 @@ function moveCustomers()
         $toResellerId = intval($_POST['to_reseller']);
 
         if ($fromResellerId == $toResellerId) {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
         foreach ($_POST['reseller_customers'] as $customerId) {
             moveCustomer(intval($customerId), $fromResellerId, $toResellerId);
         }
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         setPageMessage(toHtml($e->getMessage()), 'error');
         return false;
     }
@@ -208,7 +200,7 @@ function moveCustomers()
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $resellers = $stmt = executeQuery("SELECT admin_id, admin_name FROM admin WHERE admin_type = 'reseller'")->fetchAll();
+    $resellers = $stmt = execQuery("SELECT admin_id, admin_name FROM admin WHERE admin_type = 'reseller'")->fetchAll();
     $fromResellerId = isset($_POST['from_reseller']) ? intval($_POST['from_reseller']) : $resellers[0]['admin_id'];
     $toResellerId = isset($_POST['to_reseller']) ? intval($_POST['to_reseller']) : $resellers[1]['admin_id'];
 
@@ -249,11 +241,9 @@ function generatePage(TemplateEngine $tpl)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
-systemHasResellers(2) or showBadRequestErrorPage();
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+Counting::systemHasResellers(2) or View::showBadRequestErrorPage();
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'move_customers' && moveCustomers()) {
     setPageMessage(tr('Customer(s) successfully moved.'), 'success');
@@ -271,10 +261,10 @@ $tpl->define([
     'to_reseller_item'             => 'page'
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Customer Assignments')));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

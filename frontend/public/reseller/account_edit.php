@@ -18,11 +18,16 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\PHPini;
-use iMSCP\TemplateEngine;
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Statistics;
+use iMSCP\Functions\View;
+use Zend\Config;
+use Zend\EventManager\Event;
 
 /**
  * Synchronizes IP addresses of client's domains and subdomains with his new IP addresses list
@@ -32,7 +37,7 @@ use iMSCP_Registry as Registry;
  * - If all IP addresses assigned to a domain or subdomain are no longer available, they are
  *   replaced with the first IP found in the new IP addresses list.
  *
- * @param int $domainId Customer main domain unique identifier
+ * @param int $domainId Customer primary domain unique identifier
  * @param array $clientIps Client new IP addresses list
  * @return void
  */
@@ -106,7 +111,7 @@ function syncClientDomainIps($domainId, array $clientIps)
  * @param int $clientId Client unique identifier
  * @return array Array containing domain properties
  */
-function reseller_getClientProps($clientId)
+function getClientProperties($clientId)
 {
     $stmt = execQuery(
         "
@@ -117,13 +122,13 @@ function reseller_getClientProps($clientId)
             AND t1.domain_status <> 'disabled'
             AND t2.created_by = ? 
         ",
-        [$clientId, $_SESSION['user_id']]
+        [$clientId, Application::getInstance()->getSession()['user_id']]
     );
 
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $data = $stmt->fetch();
     $data['mail_quota'] = $data['mail_quota'] / 1048576;
-    $data['domainTraffic'] = getClientMonthlyTrafficStats($data['domain_id'])[4];
+    $data['domainTraffic'] = Statistics::getClientMonthlyTrafficStats($data['domain_id'])[4];
     return $data;
 }
 
@@ -133,13 +138,13 @@ function reseller_getClientProps($clientId)
  * @param int $resellerId Reseller id
  * @return array Reseller properties
  */
-function reseller_getResellerProps($resellerId)
+function getResellerProperties($resellerId)
 {
     return execQuery(
         '
             SELECT reseller_id, current_sub_cnt, max_sub_cnt, current_als_cnt, max_als_cnt, current_mail_cnt, max_mail_cnt, current_ftp_cnt,
                 max_ftp_cnt, current_sql_db_cnt, max_sql_db_cnt, current_sql_user_cnt, max_sql_user_cnt, current_disk_amnt, max_disk_amnt,
-                current_traff_amnt, max_traff_amnt, reseller_ips, software_allowed
+                current_traff_amnt, max_traff_amnt, reseller_ips
             FROM reseller_props WHERE reseller_id = ?
         ',
         [$resellerId]
@@ -185,11 +190,11 @@ function &getData($clientId, $forUpdate = false)
         return $data;
     }
 
-    $domainProps = reseller_getClientProps($clientId);
-    $resellerProps = reseller_getResellerProps($_SESSION['user_id']);
+    $clientProps = getClientProperties($clientId);
+    $resellerProps = getResellerProperties(Application::getInstance()->getSession()['user_id']);
     $resellerProps['reseller_ips'] = explode(',', $resellerProps['reseller_ips']);
 
-    list($subCount, $alsCount, $mailCount, $ftpCount, $sqlDbCount, $sqlUsersCount) = getCustomerObjectsCounts($domainProps['admin_id']);
+    list($subCount, $alsCount, $mailCount, $ftpCount, $sqlDbCount, $sqlUsersCount) = Counting::getCustomerObjectsCounts($clientProps['admin_id']);
 
     $data['nbSubdomains'] = $subCount;
     $data['nbAliases'] = $alsCount;
@@ -197,7 +202,7 @@ function &getData($clientId, $forUpdate = false)
     $data['nbFtpAccounts'] = $ftpCount;
     $data['nbSqlDatabases'] = $sqlDbCount;
     $data['nbSqlUsers'] = $sqlUsersCount;
-    $data = array_merge($data, $domainProps, $resellerProps);
+    $data = array_merge($data, $clientProps, $resellerProps);
 
     // Fallback values
     $data['fallback_domain_expires'] = $data['domain_expires'];
@@ -213,14 +218,13 @@ function &getData($clientId, $forUpdate = false)
     $data['fallback_domain_php'] = $data['domain_php'];
     $data['fallback_domain_cgi'] = $data['domain_cgi'];
     $data['fallback_domain_dns'] = $data['domain_dns'];
-    $data['fallback_domain_software_allowed'] = $data['domain_software_allowed'];
     $data['fallback_allowbackup'] = $data['allowbackup'] = explode('|', $data['allowbackup']);
     $data['fallback_domain_external_mail'] = $data['domain_external_mail'];
     $data['fallback_web_folder_protection'] = $data['web_folder_protection'];
     $data['fallback_mail_quota'] = $data['mail_quota'];
 
     $phpini = PhpIni::getInstance();
-    $phpini->loadResellerPermissions($_SESSION['user_id']); // Load reseller PHP permissions
+    $phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_id']); // Load reseller PHP permissions
     $phpini->loadClientPermissions($data['admin_id']); // Load client PHP permissions
     $phpini->loadIniOptions($data['admin_id'], $data['domain_id'], 'dmn'); // Load domain PHP configuration options
 
@@ -253,14 +257,7 @@ function &getData($clientId, $forUpdate = false)
             }
         }
 
-        if ($data['software_allowed'] == 'yes') {
-            $data['domain_software_allowed'] = isset($_POST['domain_software_allowed'])
-                ? cleanInput($_POST['domain_software_allowed']) : $data['domain_software_allowed'];
-        } else {
-            $data['domain_software_allowed'] = 'no';
-        }
-
-        if (Registry::get('config')['BACKUP_DOMAINS'] == 'yes') {
+        if (Application::getInstance()->getConfig()['BACKUP_DOMAINS'] == 'yes') {
             $data['allowbackup'] = isset($_POST['allowbackup']) && is_array($_POST['allowbackup'])
                 ? array_intersect($_POST['allowbackup'], ['dmn', 'sql', 'mail']) : [];
         } else {
@@ -272,16 +269,14 @@ function &getData($clientId, $forUpdate = false)
 }
 
 /**
- * Check and updates domain data
+ * Update account of the given client
  *
- * @throws iMSCP_Exception
  * @param int $clientId Client unique identifier
  * @return bool
  */
-function reseller_checkAndUpdateData($clientId)
+function updateClientAccount($clientId)
 {
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     $errFieldsStack = [];
 
@@ -500,10 +495,6 @@ function reseller_checkAndUpdateData($clientId)
         // Check for custom DNS records support
         $data['domain_dns'] = in_array($data['domain_dns'], ['no', 'yes']) ? $data['domain_dns'] : $data['fallback_domain_dns'];
 
-        // Check for APS support
-        $data['domain_software_allowed'] = in_array($data['domain_software_allowed'], ['no', 'yes'])
-            ? $data['domain_software_allowed'] : $data['fallback_domain_software_allowed'];
-
         // Check for External mail server support
         $data['domain_external_mail'] = in_array($data['domain_external_mail'], ['no', 'yes'])
             ? $data['domain_external_mail'] : $data['fallback_domain_external_mail'];
@@ -517,9 +508,9 @@ function reseller_checkAndUpdateData($clientId)
             ? $data['web_folder_protection'] : $data['fallback_web_folder_protection'];
 
         if (empty($errFieldsStack)) { // Update process begin here
-            $db->beginTransaction();
+            $db->getDriver()->getConnection()->beginTransaction();
 
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditCustomerAccountProps, [
+            Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditCustomerAccountProps, NULL, [
                 'customerId'          => $clientId,
                 'expirationDate'      => $data['domain_expires'],
                 'ips'                 => $data['domain_client_ips'],
@@ -527,7 +518,6 @@ function reseller_checkAndUpdateData($clientId)
                 'phpEditor'           => $phpini->getClientPermission('phpiniSystem'),
                 'cgi'                 => $data['domain_cgi'],
                 'dns'                 => $data['domain_dns'],
-                'aps'                 => $data['domain_software_allowed'],
                 'extMailServer'       => $data['domain_external_mail'],
                 'backup'              => $data['allowbackup'],
                 'webFolderProtection' => $data['web_folder_protection'],
@@ -557,16 +547,16 @@ function reseller_checkAndUpdateData($clientId)
                     UPDATE domain
                     SET domain_expires = ?, domain_last_modified = ?, domain_mailacc_limit = ?, domain_ftpacc_limit = ?, domain_traffic_limit = ?,
                         domain_sqld_limit = ?, domain_sqlu_limit = ?, domain_alias_limit = ?, domain_subd_limit = ?, domain_client_ips = ?,
-                        domain_disk_limit = ?, domain_php = ?, domain_cgi = ?, allowbackup = ?, domain_dns = ?, domain_software_allowed = ?,
-                         domain_external_mail = ?, web_folder_protection = ?, mail_quota = ?
+                        domain_disk_limit = ?, domain_php = ?, domain_cgi = ?, allowbackup = ?, domain_dns = ?, domain_external_mail = ?,
+                        web_folder_protection = ?, mail_quota = ?
                     WHERE domain_admin_id = ?
                 ',
                 [
                     $data['domain_expires'], time(), $data['domain_mailacc_limit'], $data['domain_ftpacc_limit'], $data['domain_traffic_limit'],
                     $data['domain_sqld_limit'], $data['domain_sqlu_limit'], $data['domain_alias_limit'], $data['domain_subd_limit'],
                     implode(',', $data['domain_client_ips']), $data['domain_disk_limit'], $data['domain_php'], $data['domain_cgi'],
-                    implode('|', $data['allowbackup']), $data['domain_dns'], $data['domain_software_allowed'], $data['domain_external_mail'],
-                    $data['web_folder_protection'], $data['mail_quota'] * 1048576, $clientId
+                    implode('|', $data['allowbackup']), $data['domain_dns'], $data['domain_external_mail'], $data['web_folder_protection'],
+                    $data['mail_quota'] * 1048576, $clientId
                 ]
             );
 
@@ -584,7 +574,7 @@ function reseller_checkAndUpdateData($clientId)
 
             if ($data['fallback_mail_quota'] != ($data['mail_quota'] * 1048576)) {
                 // Sync mailboxes quota
-                syncMailboxesQuota($data['domain_id'], $data['mail_quota'] * 1048576);
+                Mail::syncMailboxesQuota($data['domain_id'], $data['mail_quota'] * 1048576);
             }
 
             if ($data['domain_disk_limit'] != $data['fallback_domain_disk_limit']) {
@@ -604,7 +594,7 @@ function reseller_checkAndUpdateData($clientId)
 
             recalculateResellerAssignments($data['reseller_id']);
 
-            Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditCustomerAccountProps, [
+            Application::getInstance()->getEventManager()->trigger(Events::onAfterEditCustomerAccountProps, NULL, [
                 'customerId'          => $clientId,
                 'expirationDate'      => $data['domain_expires'],
                 'ips'                 => $data['domain_client_ips'],
@@ -612,7 +602,6 @@ function reseller_checkAndUpdateData($clientId)
                 'phpEditor'           => $phpini->getClientPermission('phpiniSystem'),
                 'cgi'                 => $data['domain_cgi'],
                 'dns'                 => $data['domain_dns'],
-                'aps'                 => $data['domain_software_allowed'],
                 'extMailServer'       => $data['domain_external_mail'],
                 'backup'              => $data['allowbackup'],
                 'webFolderProtection' => $data['web_folder_protection'],
@@ -684,22 +673,22 @@ function reseller_checkAndUpdateData($clientId)
                 $changeNeeded = true;
             }
 
-            $db->commit();
+            $db->getDriver()->getConnection()->commit();
 
             if ($changeNeeded) {
-                sendDaemonRequest();
+                Daemon::sendRequest();
             }
 
             setPageMessage(tr('Domain successfully updated.'), 'success');
-            $userLogged = isset($_SESSION['logged_from']) ? $_SESSION['logged_from'] : $_SESSION['user_logged'];
+            $userLogged = isset(Application::getInstance()->getSession()['logged_from']) ? Application::getInstance()->getSession()['logged_from'] : Application::getInstance()->getSession()['user_logged'];
             writeLog(sprintf('%s account properties were updated by %s', decodeIdna($data['admin_name']), $userLogged), E_USER_NOTICE);
             return true;
         }
 
-        Registry::set('errFieldsStack', $errFieldsStack);
+        Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
         return false;
-    } catch (iMSCP_Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         throw $e;
     }
 }
@@ -792,7 +781,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         'PHP_NO'                         => $data['domain_php'] != 'yes' ? ' checked' : ''
     ]);
 
-    generateResellerIpsList($tpl, $_SESSION['user_id'], $data['domain_client_ips']);
+    View::generateResellerIpsList($tpl, Application::getInstance()->getSession()['user_id'], $data['domain_client_ips']);
 
     $phpini = PhpIni::getInstance();
 
@@ -866,8 +855,8 @@ function generatePage(TemplateEngine $tpl, $clientId)
             $permissionsBlock = true;
         }
 
-        if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-            $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+        if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
+            $apacheConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data'));
             $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
         } else {
             $isApacheItk = false;
@@ -927,13 +916,14 @@ function generatePage(TemplateEngine $tpl, $clientId)
         ]);
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Event $e) {
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $translations = $e->getParam('translations');
         $translations['core']['close'] = tr('Close');
         $translations['core']['fields_ok'] = tr('All fields are valid.');
         $translations['core']['out_of_range_value_error'] = tr('Value for the PHP %%s directive must be in range %%d to %%d.');
         $translations['core']['lower_value_expected_error'] = tr('%%s cannot be greater than %%s.');
-        $translations['core']['error_field_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
+        $translations['core']['error_field_stack'] = Application::getInstance()->getRegistry()->has('errFieldsStack')
+            ? Application::getInstance()->getRegistry()->get('errFieldsStack') : [];
     });
 
     $tpl->assign([
@@ -952,16 +942,6 @@ function generatePage(TemplateEngine $tpl, $clientId)
         $tpl->assign('CUSTOM_DNS_RECORDS_FEATURE', '');
     }
 
-    if ($data['software_allowed'] == 'no') {
-        $tpl->assign('APS_BLOCK', '');
-    } else {
-        $tpl->assign([
-            'TR_APS'  => toHtml(tr('Software installer')),
-            'APS_YES' => $data['domain_software_allowed'] == 'yes' ? ' checked' : '',
-            'APS_NO'  => $data['domain_software_allowed'] != 'yes' ? ' checked' : ''
-        ]);
-    }
-
     if ($data['max_mail_cnt'] == '-1') {
         $tpl->assign('EXT_MAIL_BLOCK', '');
     } else {
@@ -972,7 +952,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         ]);
     }
 
-    if (Registry::get('config')['BACKUP_DOMAINS'] == 'yes') {
+    if (Application::getInstance()->getConfig()['BACKUP_DOMAINS'] == 'yes') {
         $tpl->assign([
             'TR_BACKUP'        => toHtml(tr('Backup')),
             'TR_BACKUP_DOMAIN' => toHtml(tr('Domain')),
@@ -996,13 +976,13 @@ function generatePage(TemplateEngine $tpl, $clientId)
     ]);
 
     list(, $subdomainCount, $domainAliasesCount, $mailsCount, $ftpUsersCount, $sqlDbCount, $sqlUserCount, $trafficUsage, $diskUsage
-        ) = getResellerStats($_SESSION['user_id']);
+        ) = Statistics::getResellerStats(Application::getInstance()->getSession()['user_id']);
 
     $tpl->assign([
         'TR_LIMITS'               => toHtml(tr('Limits')),
         'TR_VALUE'                => toHtml(tr('Value')),
         'TR_CUSTOMER_CONSUMPTION' => toHtml(tr('Customer consumption')),
-        'TR_RESELLER_CONSUMPTION' => toHtml(isset($_SESSION['logged_from']) ? tr('Reseller consumption') : tr('Your consumption'))
+        'TR_RESELLER_CONSUMPTION' => toHtml(isset(Application::getInstance()->getSession()['logged_from']) ? tr('Reseller consumption') : tr('Your consumption'))
     ]);
 
     // Subdomains limit
@@ -1111,16 +1091,14 @@ function generatePage(TemplateEngine $tpl, $clientId)
     ]);
 }
 
-require 'imscp-lib.php';
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
-
-isset($_GET['client_id']) or showBadRequestErrorPage();
+isset($_GET['client_id']) or View::showBadRequestErrorPage();
 
 $clientId = intval($_GET['client_id']);
 
-if (!empty($_POST) && reseller_checkAndUpdateData($clientId)) {
+if (!empty($_POST) && updateClientAccount($clientId)) {
     redirectTo('users.php');
 }
 
@@ -1148,7 +1126,6 @@ $tpl->define([
     'php_editor_default_values_block'         => 'php_directives_editor_block',
     'cgi_block'                               => 'page',
     'custom_dns_records_feature'              => 'page',
-    'aps_block'                               => 'page',
     'backup_block'                            => 'page'
 ]);
 $tpl->assign([
@@ -1156,15 +1133,15 @@ $tpl->assign([
     'TR_UPDATE'     => toHtml(tr('Update'), 'htmlAttr'),
     'TR_CANCEL'     => toHtml(tr('Cancel'))
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (iMSCP_Events_Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['available'] = tr('Available');
     $translations['core']['assigned'] = tr('Assigned');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $clientId);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

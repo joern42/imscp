@@ -18,31 +18,30 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Exception as iMSCPException;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('ftp') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $userid = cleanInput($_GET['id']);
 $stmt = execQuery('SELECT admin_name as groupname FROM ftp_users JOIN admin USING(admin_id) WHERE userid = ? AND admin_id = ?', [
-    $userid, $_SESSION['user_id']
+    $userid, Application::getInstance()->getSession()['user_id']
 ]);
-$stmt->rowCount() or showBadRequestErrorPage();
+$stmt->rowCount() or View::showBadRequestErrorPage();
 $row = $stmt->fetch();
 $groupname = $row['groupname'];
 
-/** @var iMSCP_Database $db */
-$db = Registry::get('iMSCP_Application')->getDatabase();
+$db = Application::getInstance()->getDb();
 
 try {
-    $db->beginTransaction();
+    $db->getDriver()->getConnection()->beginTransaction();
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeDeleteFtp, ['ftpUserId' => $userid]);
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeDeleteFtp, NULL, ['ftpUserId' => $userid]);
 
     $stmt = execQuery('SELECT members FROM ftp_group WHERE groupname = ?', [$groupname]);
 
@@ -66,21 +65,21 @@ try {
 
     execQuery("UPDATE ftp_users SET status = 'todelete' WHERE userid = ?", [$userid]);
 
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
     if (in_array('Pydio', explode(',', $cfg['FILEMANAGERS']))) {
-        $userPrefDir = $cfg['FRONTEND_ROOT_DIR'] . '/public/tools/ftp/data/plugins/auth.serial/' . $userid;
+        $userPrefDir = $cfg['FRONTEND_ROOT_DIR'] . '/public/tools/pydio/data/plugins/auth.serial/' . $userid;
         if (is_dir($userPrefDir)) {
             removeDirectory($userPrefDir);
         }
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterDeleteFtp, ['ftpUserId' => $userid]);
-    $db->commit();
-    sendDaemonRequest();
-    writeLog(sprintf('An FTP account has been deleted by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteFtp, NULL, ['ftpUserId' => $userid]);
+    $db->getDriver()->getConnection()->commit();
+    Daemon::sendRequest();
+    writeLog(sprintf('An FTP account has been deleted by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('FTP account successfully deleted.'), 'success');
-} catch (iMSCPException $e) {
-    $db->rollBack();
+} catch (\Exception $e) {
+    $db->getDriver()->getConnection()->rollBack();
     throw $e;
 }
 

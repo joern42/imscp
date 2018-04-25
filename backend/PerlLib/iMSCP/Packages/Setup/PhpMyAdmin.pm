@@ -298,7 +298,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'frontend'} = iMSCP::Packages::Setup::FrontEnd->getInstance();
-    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/pma";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/phpmyadmin";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/phpmyadmin.data.dist";
@@ -379,8 +379,8 @@ sub _installFiles
 
     -d $packageDir or die( "Couldn't find the imscp/phpmyadmin package into the packages cache directory" );
 
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pma" )->remove();
-    iMSCP::Dir->new( dirname => "$packageDir" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pma" );
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/phpmyadmin" )->remove();
+    iMSCP::Dir->new( dirname => "$packageDir" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/phpmyadmin" );
 }
 
 =item _setupSqlUser( )
@@ -464,7 +464,7 @@ sub _setupDatabase
 {
     my ( $self ) = @_;
 
-    my $phpmyadminDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pma";
+    my $phpmyadminDir = "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/phpmyadmin";
     my $phpmyadminDbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
 
     # Drop previous database
@@ -529,7 +529,7 @@ sub _setVersion
     my ( $self ) = @_;
 
     my $json = JSON->new()->utf8()->decode(
-        iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pma/composer.json" )->get()
+        iMSCP::File->new( filename => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/phpmyadmin/composer.json" )->get()
     );
     debug( sprintf( 'Set new phpMyAdmin version to %s', $json->{'version'} ));
     $self->{'config'}->{'PHPMYADMIN_VERSION'} = $json->{'version'};
@@ -673,7 +673,7 @@ sub _removeFiles
     my ( $self ) = @_;
 
     iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_pma.conf" )->remove();
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pma" )->remove();
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/phpmyadmin" )->remove();
     iMSCP::Dir->new( dirname => $self->{'cfgDir'} )->remove();
 }
 

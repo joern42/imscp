@@ -18,14 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-isset($_GET['id']) or showBadRequestErrorPage();
-$stmt = execQuery('DELETE FROM hosting_plans WHERE id = ? AND reseller_id = ?', [intval($_GET['id']), $_SESSION['user_id']]);
-$stmt->rowCount() or showBadRequestErrorPage();
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+isset($_GET['id']) or View::showBadRequestErrorPage();
+$stmt = execQuery('DELETE FROM hosting_plans WHERE id = ? AND reseller_id = ?', [intval($_GET['id']), Application::getInstance()->getSession()['user_id']]);
+$stmt->rowCount() or View::showBadRequestErrorPage();
 setPageMessage(tr('Hosting plan successfully deleted.'), 'success');
 redirectTo('hosting_plan.php');

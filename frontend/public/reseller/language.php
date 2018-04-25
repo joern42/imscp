@@ -18,13 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -35,24 +35,22 @@ $tpl->define([
     'def_language'        => 'languages_available'
 ]);
 
-if (isset($_SESSION['logged_from']) && isset($_SESSION['logged_from_id'])) {
-    list($resellerCurrentLanguage) = get_user_gui_props($_SESSION['user_id']);
+if (isset(Application::getInstance()->getSession()['logged_from']) && isset(Application::getInstance()->getSession()['logged_from_id'])) {
+    list($resellerCurrentLanguage) = getUserGuiProperties(Application::getInstance()->getSession()['user_id']);
 } else {
-    $resellerCurrentLanguage = $_SESSION['user_def_lang'];
+    $resellerCurrentLanguage = Application::getInstance()->getSession()['user_def_lang'];
 }
 
 if (!empty($_POST)) {
     $resellerNewLanguage = cleanInput($_POST['def_language']);
-    in_array($resellerNewLanguage, getAvailableLanguages(true), true) or showBadRequestErrorPage();
+    in_array($resellerNewLanguage, getAvailableLanguages(true), true) or View::showBadRequestErrorPage();
 
     if ($resellerCurrentLanguage != $resellerNewLanguage) {
-        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [
-            $resellerNewLanguage, $_SESSION['user_id']
-        ]);
+        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [$resellerNewLanguage, Application::getInstance()->getSession()['user_id']]);
 
-        if (!isset($_SESSION['logged_from_id'])) {
-            unset($_SESSION['user_def_lang']);
-            $_SESSION['user_def_lang'] = $resellerNewLanguage;
+        if (!isset(Application::getInstance()->getSession()['logged_from_id'])) {
+            unset(Application::getInstance()->getSession()['user_def_lang']);
+            Application::getInstance()->getSession()['user_def_lang'] = $resellerNewLanguage;
         }
 
         setPageMessage(tr('Language has been updated.'), 'success');
@@ -69,10 +67,10 @@ $tpl->assign([
     'TR_CHOOSE_LANGUAGE' => tr('Choose your language'),
     'TR_UPDATE'          => tr('Update')
 ]);
-generateNavigation($tpl);
-generateLanguagesList($tpl, $resellerCurrentLanguage);
+View::generateNavigation($tpl);
+View::generateLanguagesList($tpl, $resellerCurrentLanguage);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

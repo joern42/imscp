@@ -18,9 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Get server traffic for the given period
@@ -34,9 +34,7 @@ function getServerTraffic($startDate, $endDate)
     static $stmt = NULL;
 
     if (NULL === $stmt) {
-        /** @var iMSCP_Database $db */
-        $db = Registry::get('iMSCP_Application')->getDatabase();
-        $stmt = $db->prepare(
+        $stmt = Application::getInstance()->getDb()->createStatement(
             '
                 SELECT IFNULL(SUM(bytes_in), 0) AS sbin,
                     IFNULL(SUM(bytes_out), 0) AS sbout,
@@ -50,11 +48,12 @@ function getServerTraffic($startDate, $endDate)
                 WHERE traff_time BETWEEN ? AND ?
             '
         );
+        $stmt->prepare();
     }
 
-    $stmt->execute([$startDate, $endDate]);
+    $result = $stmt->execute([$startDate, $endDate])->getResource();
 
-    if (($row = $stmt->fetch()) === false) {
+    if (($row = $result->fetch()) === false) {
         return array_fill(0, 10, 0);
     }
 
@@ -229,10 +228,10 @@ function generatePage(TemplateEngine $tpl)
     $day = isset($_GET['day']) ? filterDigits($_GET['day']) : 0;
     $month = isset($_GET['month']) ? filterDigits($_GET['month']) : date('n');
     $year = isset($_GET['year']) ? filterDigits($_GET['year']) : date('Y');
-    $stmt = executeQuery('SELECT traff_time FROM server_traffic ORDER BY traff_time ASC LIMIT 1');
+    $stmt = execQuery('SELECT traff_time FROM server_traffic ORDER BY traff_time ASC LIMIT 1');
     $nPastYears = $stmt->rowCount() ? date('Y') - date('Y', $stmt->fetchColumn()) : 0;
 
-    generateDMYlists($tpl, $day, $month, $year, $nPastYears);
+    View::generateDMYlists($tpl, $day, $month, $year, $nPastYears);
 
     if ($day == 0) {
         generateServerStatsByMonth($tpl, $month, $year);
@@ -244,10 +243,8 @@ function generatePage(TemplateEngine $tpl)
     generateServerStatsByDay($tpl, $day, $month, $year);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -280,10 +277,10 @@ $tpl->assign([
     'TR_ALL_OUT'    => toHtml(tr('All out')),
     'TR_ALL'        => toHtml(tr('All'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

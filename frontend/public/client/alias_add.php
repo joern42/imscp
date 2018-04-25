@@ -18,12 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\PHPini;
-use iMSCP\TemplateEngine;
-use iMSCP_Authentication as Authentication;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Send alias order email
@@ -33,10 +36,10 @@ use iMSCP_Registry as Registry;
  */
 function send_alias_order_email($aliasName)
 {
-    $stmt = execQuery('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
+    $stmt = execQuery('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
     $row = $stmt->fetch();
-    $data = getDomainAliasOrderEmail($row['created_by']);
-    $ret = sendMail([
+    $data = Mail::getDomainAliasOrderEmail($row['created_by']);
+    $ret = Mail::sendMail([
         'mail_id'      => 'alias-order-msg',
         'fname'        => $row['fname'],
         'lname'        => $row['lname'],
@@ -72,7 +75,7 @@ function getDomainsList()
     }
 
     $domainsList = [];
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
     if ($mainDmnProps['url_forward'] == 'no') {
         $domainsList = [[
@@ -145,7 +148,7 @@ function addDomainAlias()
         if (!validateDomainName($domainAliasName)) {
             setPageMessage(toHtml($dmnNameValidationErrMsg), 'error');
             $ret = false;
-        } elseif (isKnownDomain($domainAliasName, $_SESSION['user_created_by'])) {
+        } elseif (isKnownDomain($domainAliasName, Application::getInstance()->getSession()['user_created_by'])) {
             // Check for domain alias existence
             setPageMessage(tr('Domain %s is unavailable.', "<strong>$domainAliasName</strong>"), 'error');
             $ret = false;
@@ -158,13 +161,13 @@ function addDomainAlias()
         setPageMessage(toHtml(tr('You must assign at least one IP address to that domain alias.')), 'error');
         $ret = false;
     } elseif (!is_array($_POST['alias_ips'])) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     } else {
         $clientIps = explode(',', $mainDmnProps['domain_client_ips']);
         $domainAliasIps = array_intersect($_POST['alias_ips'], $clientIps);
         if (count($domainAliasIps) < count($_POST['alias_ips'])) {
             // Situation where unknown IP address identifier has been submitten
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
     }
 
@@ -180,12 +183,12 @@ function addDomainAlias()
     // Check for shared mount point option
     if (isset($_POST['shared_mount_point']) && $_POST['shared_mount_point'] == 'yes') { // We are safe here
         if (!isset($_POST['shared_mount_point_domain'])) {
-            showBadRequestErrorPage();
+            View::showBadRequestErrorPage();
         }
 
         $sharedMountPointDomain = cleanInput($_POST['shared_mount_point_domain']);
         $domainList = getDomainsList();
-        !empty($domainList) or showBadRequestErrorPage();
+        !empty($domainList) or View::showBadRequestErrorPage();
 
         // Get shared mount point
         foreach ($domainList as $domain) {
@@ -205,7 +208,7 @@ function addDomainAlias()
     if (isset($_POST['url_forwarding']) && $_POST['url_forwarding'] == 'yes' && isset($_POST['forward_type'])
         && in_array($_POST['forward_type'], ['301', '302', '303', '307', 'proxy'], true)
     ) {
-        isset($_POST['forward_url_scheme']) && !isset($_POST['forward_url']) or showBadRequestErrorPage();
+        isset($_POST['forward_url_scheme']) && !isset($_POST['forward_url']) or View::showBadRequestErrorPage();
 
         $forwardUrl = cleanInput($_POST['forward_url_scheme']) . cleanInput($_POST['forward_url']);
         $forwardType = cleanInput($_POST['forward_type']);
@@ -217,16 +220,14 @@ function addDomainAlias()
             try {
                 $uri = iMSCP_Uri_Redirect::fromString($forwardUrl);
             } catch (Zend_Uri_Exception $e) {
-                throw new iMSCP_Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
+                throw new \Exception(tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>"));
             }
 
             $uri->setHost(encodeIdna(mb_strtolower($uri->getHost()))); // Normalize URI host
             $uri->setPath(rtrim(normalizePath($uri->getPath()), '/') . '/'); // Normalize URI path
 
-            if ($uri->getHost() == $domainAliasNameAscii
-                && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))
-            ) {
-                throw new iMSCP_Exception(
+            if ($uri->getHost() == $domainAliasNameAscii && ($uri->getPath() == '/' && in_array($uri->getPort(), ['', 80, 443]))) {
+                throw new \Exception(
                     tr('Forward URL %s is not valid.', "<strong>$forwardUrl</strong>") . ' ' .
                     tr('Domain alias %s cannot be forwarded on itself.', "<strong>$domainAliasName</strong>")
                 );
@@ -235,27 +236,26 @@ function addDomainAlias()
             if ($forwardType == 'proxy') {
                 $port = $uri->getPort();
                 if ($port && $port < 1025) {
-                    throw new iMSCP_Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
+                    throw new \Exception(tr('Unallowed port in forward URL. Only ports above 1024 are allowed.', 'error'));
                 }
             }
 
             $forwardUrl = $uri->getUri();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             setPageMessage($e->getMessage(), 'error');
             return false;
         }
     }
 
     # See http://youtrack.i-mscp.net/issue/IP-1486
-    $isSuUser = isset($_SESSION['logged_from_type']);
+    $isSuUser = isset(Application::getInstance()->getSession()['logged_from_type']);
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddDomainAlias, [
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddDomainAlias, NULL, [
             'domainId'        => $mainDmnProps['domain_id'],
             'domainAliasName' => $domainAliasNameAscii,
             'domainAliasIps'  => $domainAliasIps,
@@ -279,31 +279,31 @@ function addDomainAlias()
             ]
         );
 
-        $domainAliasId = $db->lastInsertId();
+        $domainAliasId = $db->getDriver()->getLastGeneratedValue();
 
         // Create the phpini entry for that domain alias
 
         $phpini = PHPini::getInstance();
-        $phpini->loadResellerPermissions($_SESSION['user_created_by']);
-        $phpini->loadClientPermissions($_SESSION['user_id']);
+        $phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_created_by']);
+        $phpini->loadClientPermissions(Application::getInstance()->getSession()['user_id']);
 
         if ($phpini->getClientPermission('phpiniConfigLevel') == 'per_user') {
-            // Set INI options, based on main domain INI options
-            $phpini->loadIniOptions($_SESSION['user_id'], $mainDmnProps['domain_id'], 'dmn');
+            // Set INI options, based on custoerm primary domain INI options
+            $phpini->loadIniOptions(Application::getInstance()->getSession()['user_id'], $mainDmnProps['domain_id'], 'dmn');
         } else {
             $phpini->loadIniOptions(); // Set default INI options
         }
 
-        $phpini->saveIniOptions($_SESSION['user_id'], $domainAliasId, 'als');
+        $phpini->saveIniOptions(Application::getInstance()->getSession()['user_id'], $domainAliasId, 'als');
 
         if ($isSuUser) {
-            createDefaultMailAccounts(
-                $mainDmnProps['domain_id'], Authentication::getInstance()->getIdentity()->email, $domainAliasNameAscii, MT_ALIAS_FORWARD,
+            Mail::createDefaultMailAccounts(
+                $mainDmnProps['domain_id'], AuthenticationService::getInstance()->getIdentity()->email, $domainAliasNameAscii, Mail::MT_ALIAS_FORWARD,
                 $domainAliasId
             );
         }
 
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddDomainAlias, [
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterAddDomainAlias, NULL, [
             'domainId'        => $mainDmnProps['domain_id'],
             'domainAliasId'   => $domainAliasId,
             'domainAliasName' => $domainAliasNameAscii,
@@ -315,19 +315,19 @@ function addDomainAlias()
             'forwardHost'     => $forwardHost
         ]);
 
-        $db->commit();
+        $db->getDriver()->getConnection()->commit();
 
         if ($isSuUser) {
-            sendDaemonRequest();
-            writeLog(sprintf('A new domain alias (%s) has been created by %s', $domainAliasName, $_SESSION['user_logged']), E_USER_NOTICE);
+            Daemon::sendRequest();
+            writeLog(sprintf('A new domain alias (%s) has been created by %s', $domainAliasName, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
             setPageMessage(tr('Domain alias successfully created.'), 'success');
         } else {
             send_alias_order_email($domainAliasName);
-            writeLog(sprintf('A new domain alias (%s) has been ordered by %s', $domainAliasName, $_SESSION['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('A new domain alias (%s) has been ordered by %s', $domainAliasName, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
             setPageMessage(tr('Domain alias successfully ordered.'), 'success');
         }
-    } catch (iMSCP_Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to create the %s domain alias: %s', $domainAliasName, $e->getMessage()), E_USER_ERROR);
         setPageMessage(tr('Could not create domain alias. An unexpected error occurred.'), 'error');
         return false;
@@ -385,17 +385,17 @@ function generatePage(TemplateEngine $tpl)
         $tpl->assign('SHARED_MOUNT_POINT_OPTION', '');
     }
 
-    generateClientIpsList($tpl, $_SESSION['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []);
+    View::generateClientIpsList(
+        $tpl, Application::getInstance()->getSession()['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []
+    );
 }
 
-require_once 'imscp-lib.php';
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('domain_aliases') or View::showBadRequestErrorPage();
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('domain_aliases') or showBadRequestErrorPage();
-
-$mainDmnProps = getCustomerProperties($_SESSION['user_id']);
-$domainAliasesCount = getCustomerDomainAliasesCount($mainDmnProps['domain_id']);
+$mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+$domainAliasesCount = Counting::getCustomerDomainAliasesCount($mainDmnProps['domain_id']);
 
 if ($mainDmnProps['domain_alias_limit'] != 0 && $domainAliasesCount >= $mainDmnProps['domain_alias_limit']) {
     setPageMessage(tr('You have reached the maximum number of domain aliases allowed by your subscription.'), 'warning');
@@ -440,15 +440,15 @@ $tpl->assign([
     'TR_ADD'                        => toHtml(tr('Add'), 'htmlAttr'),
     'TR_CANCEL'                     => toHtml(tr('Cancel'))
 ]);
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['available'] = tr('Available');
     $translations['core']['assigned'] = tr('Assigned');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

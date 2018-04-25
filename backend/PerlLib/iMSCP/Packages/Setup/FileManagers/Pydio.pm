@@ -165,9 +165,9 @@ sub _installFiles
     my $packageDir = "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/ajaxplorer";
     -d $packageDir or die( "Couldn't find the imscp/ajaxplorer (Pydio) package into the packages cache directory" );
 
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp" )->remove();
-    iMSCP::Dir->new( dirname => "$packageDir/src" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp" );
-    iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp" );
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pydio" )->remove();
+    iMSCP::Dir->new( dirname => "$packageDir/src" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pydio" );
+    iMSCP::Dir->new( dirname => "$packageDir/iMSCP/src" )->copy( "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pydio" );
 }
 
 =item _buildHttpdConfig( )
@@ -223,7 +223,7 @@ sub _removeFiles
 {
     my ( $self ) = @_;
 
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/ftp" )->remove();
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'FRONTEND_ROOT_DIR'}/public/tools/pydio" )->remove();
     iMSCP::File->new( filename => "$self->{'frontend'}->{'config'}->{'HTTPD_CONF_DIR'}/imscp_pydio.conf" )->remove();
 }
 

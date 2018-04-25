@@ -18,12 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Exception_Database as DatabaseException;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Get domains list
@@ -35,7 +37,7 @@ function getDomainsList()
     static $domainsList = NULL;
 
     if (NULL === $domainsList) {
-        $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+        $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
         $domainsList = [[
             'name' => $mainDmnProps['domain_name'],
             'id'   => $mainDmnProps['domain_id'],
@@ -82,10 +84,10 @@ function addMailAccount()
         || !isset($_POST['quota']) || !isset($_POST['forward_list']) || !isset($_POST['account_type'])
         || !in_array($_POST['account_type'], ['1', '2', '3'], true)
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
     $password = $forwardList = '_no_';
     $mailType = $subId = '';
     $mailTypeNormal = in_array($_POST['account_type'], ['1', '3']);
@@ -114,10 +116,10 @@ function addMailAccount()
     }
 
     if (NULL === $domainType) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
-    if (Registry::get('config')['SERVER_HOSTNAME'] == $domainName && $mailTypeNormal) {
+    if (Application::getInstance()->getConfig()['SERVER_HOSTNAME'] == $domainName && $mailTypeNormal) {
         # SERVER_HOSTNAME is a canonical domain (local domain) which cannot be
         # listed in both `mydestination' and `virtual_mailbox_domains' Postfix
         # parameters. See http://www.postfix.org/VIRTUAL_README.html#canonical
@@ -169,7 +171,7 @@ function addMailAccount()
             )->fetchColumn();
 
             if ($customerMailboxesQuotaSumBytes >= $customerEmailQuotaLimitBytes) {
-                showBadRequestErrorPage(); # Customer should never goes here excepted if it try to bypass js code
+                View::showBadRequestErrorPage(); # Customer should never goes here excepted if it try to bypass js code
             }
 
             if ($mailQuotaLimitBytes > $customerEmailQuotaLimitBytes - $customerMailboxesQuotaSumBytes) {
@@ -180,16 +182,16 @@ function addMailAccount()
 
         switch ($domainType) {
             case 'dmn':
-                $mailType = MT_NORMAL_MAIL;
+                $mailType = Mail::MT_NORMAL_MAIL;
                 break;
             case 'sub':
-                $mailType = MT_SUBDOM_MAIL;
+                $mailType = Mail::MT_SUBDOM_MAIL;
                 break;
             case 'als':
-                $mailType = MT_ALIAS_MAIL;
+                $mailType = Mail::MT_ALIAS_MAIL;
                 break;
             case 'alssub':
-                $mailType = MT_ALSSUB_MAIL;
+                $mailType = Mail::MT_ALSSUB_MAIL;
         }
 
         $password = Crypt::sha512($password);
@@ -229,24 +231,21 @@ function addMailAccount()
 
         switch ($domainType) {
             case 'dmn':
-                $mailType .= ($mailType != '' ? ',' : '') . MT_NORMAL_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . Mail::MT_NORMAL_FORWARD;
                 break;
             case 'sub':
-                $mailType .= ($mailType != '' ? ',' : '') . MT_SUBDOM_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . Mail::MT_SUBDOM_FORWARD;
                 break;
             case 'als':
-                $mailType .= ($mailType != '' ? ',' : '') . MT_ALIAS_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . Mail::MT_ALIAS_FORWARD;
                 break;
             case 'alssub':
-                $mailType .= ($mailType != '' ? ',' : '') . MT_ALSSUB_FORWARD;
+                $mailType .= ($mailType != '' ? ',' : '') . Mail::MT_ALSSUB_FORWARD;
         }
     }
 
     try {
-        /** @var iMSCP_Database $db */
-        $db = Registry::get('iMSCP_Application')->getDatabase();
-
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddMail, [
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddMail, NULL, [
             'mailType'     => $mailTypeNormal ? ($mailTypeForward ? 'normal+forward' : 'normal') : 'forward',
             'mailUsername' => $username,
             'forwardList'  => $mailTypeForward ? $forwardList : '',
@@ -266,17 +265,17 @@ function addMailAccount()
                 $mailTypeNormal ? 'yes' : 'no', '0', NULL, $mailQuotaLimitBytes, $mailAddr
             ]
         );
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddMail, [
-            'mailId'       => $db->lastInsertId(),
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterAddMail, NULL, [
+            'mailId'       => Application::getInstance()->getDb()->getDriver()->getLastGeneratedValue(),
             'mailType'     => $mailTypeNormal ? ($mailTypeForward ? 'normal+forward' : 'normal') : 'forward',
             'mailUsername' => $username,
             'forwardList'  => $mailTypeForward ? $forwardList : '',
             'mailAddress'  => $mailAddr
         ]);
-        sendDaemonRequest();
-        writeLog(sprintf('A mail account has been added by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+        Daemon::sendRequest();
+        writeLog(sprintf('A mail account has been added by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
         setPageMessage(tr('Mail account successfully scheduled for addition.'), 'success');
-    } catch (DatabaseException $e) {
+    } catch (\Exception $e) {
         if ($e->getCode() == 23000) {
             setPageMessage(tr('Mail account already exists.'), 'error');
             return false;
@@ -293,7 +292,7 @@ function addMailAccount()
  */
 function generatePage($tpl)
 {
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
     $customerMailboxesQuotaSumBytes = execQuery('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [
         $mainDmnProps['domain_id']
     ])->fetchColumn();
@@ -353,7 +352,7 @@ function generatePage($tpl)
         $tpl->parse('DOMAIN_NAME_ITEM', '.domain_name_item');
     }
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(
+    Application::getInstance()->getEventManager()->attach(
         Events::onGetJsTranslations,
         function (Event $e) use ($mailTypeForwardOnly) {
             $e->getParam('translations')->core['mail_add_forward_only'] = $mailTypeForwardOnly;
@@ -361,17 +360,15 @@ function generatePage($tpl)
     );
 }
 
-require 'imscp-lib.php';
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('mail') or View::showBadRequestErrorPage();
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('mail') or showBadRequestErrorPage();
-
-$dmnProps = getCustomerProperties($_SESSION['user_id']);
+$dmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 $emailAccountsLimit = $dmnProps['domain_mailacc_limit'];
 
 if ($emailAccountsLimit != '0') {
-    $nbEmailAccounts = getCustomerMailAccountsCount($dmnProps['domain_id']);
+    $nbEmailAccounts = Counting::getCustomerMailAccountsCount($dmnProps['domain_id']);
     if ($nbEmailAccounts >= $emailAccountsLimit) {
         setPageMessage(tr('You have reached the maximum number of mail accounts allowed by your subscription.'), 'warning');
         redirectTo('mail_accounts.php');
@@ -405,10 +402,10 @@ $tpl->assign([
     'TR_ADD'                 => tr('Add'),
     'TR_CANCEL'              => tr('Cancel')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

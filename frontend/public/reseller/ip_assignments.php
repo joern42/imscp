@@ -18,8 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Generate page
@@ -37,7 +39,7 @@ function generatePage($tpl)
             WHERE t1.reseller_id = ?
             ORDER BY LENGTH(t2.ip_number), t2.ip_number
         ",
-        [$_SESSION['user_id']]
+        [Application::getInstance()->getSession()['user_id']]
     )->fetchAll();
 
     $sip = isset($_POST['ip_address']) && in_array($_POST['ip_address'], array_column($ips, 'ip_id')) ? $_POST['ip_address'] : $ips[0]['ip_id'];
@@ -81,11 +83,9 @@ function generatePage($tpl)
 
 }
 
-require 'imscp-lib.php';
-
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-resellerHasCustomers() or showBadRequestErrorPage();
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -101,12 +101,10 @@ $tpl->assign([
     'TR_PAGE_TITLE'     => toHtml(tr('Reseller / Statistics / IP Assignments')),
     'TR_DROPDOWN_LABEL' => toHtml(tr('Select an IP address to see its assignments'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, [
-    'templateEngine' => $tpl
-]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

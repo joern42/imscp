@@ -18,10 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP\Update\UpdateVersion;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Statistics;
+use iMSCP\Functions\View;
+use iMSCP\Update\Version;
+use iMSCP\Functions\Counting;
 
 /**
  * Generates support questions notice for administrator
@@ -31,7 +34,7 @@ use iMSCP_Registry as Registry;
 function admin_generateSupportQuestionsMessage()
 {
     $ticketsCount = execQuery('SELECT COUNT(ticket_id) FROM tickets WHERE ticket_to = ? AND ticket_status IN (1, 2) AND ticket_reply = 0', [
-        $_SESSION['user_id']
+        Application::getInstance()->getSession()['user_id']
     ])->fetchColumn();
 
     if ($ticketsCount > 0) {
@@ -42,17 +45,16 @@ function admin_generateSupportQuestionsMessage()
 /**
  * Generates update messages
  *
- * Generates update messages for both database updates and i-MSCP updates.
- *
  * @return void
  */
 function admin_generateUpdateMessages()
 {
-    if (!Registry::get('config')['CHECK_FOR_UPDATES'] || stripos(Registry::get('config')['Version'], 'git') !== false) {
+    $config = Application::getInstance()->getConfig();
+    if (!$config['CHECK_FOR_UPDATES'] || stripos($config['Version'], 'git') !== false) {
         return;
     }
 
-    $updateVersion = new UpdateVersion();
+    $updateVersion = new Version();
     if ($updateVersion->isAvailableUpdate()) {
         setPageMessage('<a href="imscp_updates.php" class="link">' . tr('A new i-MSCP version is available') . '</a>', 'static_info');
     } elseif (($error = $updateVersion->getError())) {
@@ -66,20 +68,20 @@ function admin_generateUpdateMessages()
  * @param TemplateEngine $tpl
  * @return void
  */
-function admin_getAdminGeneralInfo($tpl)
+function admin_getAdminGeneralInfo(TemplateEngine $tpl)
 {
     $tpl->assign([
-        'ADMIN_USERS'     => toHtml(getAdministratorsCount()),
-        'RESELLER_USERS'  => toHtml(getResellersCount()),
-        'NORMAL_USERS'    => toHtml(getCustomersCount()),
-        'DOMAINS'         => toHtml(getDomainsCount()),
-        'SUBDOMAINS'      => toHtml(getSubdomainsCount()),
-        'DOMAINS_ALIASES' => toHtml(getDomainAliasesCount()),
-        'MAIL_ACCOUNTS'   => toHtml(getMailAccountsCount())
-            . (!Registry::get('config')['COUNT_DEFAULT_EMAIL_ADDRESSES'] ? ' (' . toHtml('Excl. default mail accounts') . ')' : ''),
-        'FTP_ACCOUNTS'    => toHtml(getFtpUsersCount()),
-        'SQL_DATABASES'   => toHtml(getSqlDatabasesCount()),
-        'SQL_USERS'       => toHtml(getSqlUsersCount())
+        'ADMIN_USERS'     => toHtml(Counting::getAdministratorsCount()),
+        'RESELLER_USERS'  => toHtml(Counting::getResellersCount()),
+        'NORMAL_USERS'    => toHtml(Counting::getCustomersCount()),
+        'DOMAINS'         => toHtml(Counting::getDomainsCount()),
+        'SUBDOMAINS'      => toHtml(Counting::getSubdomainsCount()),
+        'DOMAINS_ALIASES' => toHtml(Counting::getDomainAliasesCount()),
+        'MAIL_ACCOUNTS'   => toHtml(Counting::getMailAccountsCount())
+            . (!Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES'] ? ' (' . toHtml('Excl. default mail accounts') . ')' : ''),
+        'FTP_ACCOUNTS'    => toHtml(Counting::getFtpUsersCount()),
+        'SQL_DATABASES'   => toHtml(Counting::getSqlDatabasesCount()),
+        'SQL_USERS'       => toHtml(Counting::getSqlUsersCount())
     ]);
 }
 
@@ -89,9 +91,9 @@ function admin_getAdminGeneralInfo($tpl)
  * @param TemplateEngine $tpl
  * @return void
  */
-function admin_generateServerTrafficInfo($tpl)
+function admin_generateServerTrafficInfo(TemplateEngine $tpl)
 {
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
     $trafficLimitBytes = filterDigits($cfg['SERVER_TRAFFIC_LIMIT']) * 1048576;
     $trafficWarningBytes = filterDigits($cfg['SERVER_TRAFFIC_WARN']) * 1048576;
 
@@ -106,7 +108,7 @@ function admin_generateServerTrafficInfo($tpl)
     )->fetchColumn();
 
     // Get traffic usage in percent
-    $trafficUsagePercent = getPercentUsage($trafficUsageBytes, $trafficLimitBytes);
+    $trafficUsagePercent = Statistics::getPercentUsage($trafficUsageBytes, $trafficLimitBytes);
     $trafficMessage = ($trafficLimitBytes > 0)
         ? sprintf('[%s / %s]', bytesHuman($trafficUsageBytes), bytesHuman($trafficLimitBytes)) : sprintf('[%s / ∞]', bytesHuman($trafficUsageBytes));
 
@@ -124,10 +126,8 @@ function admin_generateServerTrafficInfo($tpl)
     ]);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin', Registry::get('config')['PREVENT_EXTERNAL_LOGIN_ADMIN']);
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptStart);
+Login::checkLogin('admin', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_ADMIN']);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -152,13 +152,13 @@ $tpl->assign([
     'TR_SQL_USERS'       => toHtml(tr('SQL users')),
     'TR_SERVER_TRAFFIC'  => toHtml(tr('Monthly server traffic'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 admin_generateSupportQuestionsMessage();
 admin_generateUpdateMessages();
 admin_getAdminGeneralInfo($tpl);
 admin_generateServerTrafficInfo($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

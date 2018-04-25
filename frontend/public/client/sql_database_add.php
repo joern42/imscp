@@ -18,10 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Exception as iMSCPException;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Add SQL database
@@ -30,7 +29,7 @@ use iMSCP_Registry as Registry;
  */
 function addSqlDb()
 {
-    isset($_POST['db_name']) or showBadRequestErrorPage();
+    isset($_POST['db_name']) or View::showBadRequestErrorPage();
 
     $dbName = cleanInput($_POST['db_name']);
 
@@ -39,7 +38,7 @@ function addSqlDb()
         return;
     }
 
-    $mainDmnId = getCustomerMainDomainId($_SESSION['user_id']);
+    $mainDmnId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 
     if (isset($_POST['use_dmn_id']) && $_POST['use_dmn_id'] == 'on') {
         if (isset($_POST['id_pos']) && $_POST['id_pos'] == 'start') {
@@ -62,18 +61,18 @@ function addSqlDb()
     }
 
     try {
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeAddSqlDb, ['dbName' => $dbName]);
-        executeQuery(sprintf('CREATE DATABASE IF NOT EXISTS %s', quoteIdentifier($dbName)));
+        Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddSqlDb, NULL, ['dbName' => $dbName]);
+        execQuery(sprintf('CREATE DATABASE IF NOT EXISTS %s', quoteIdentifier($dbName)));
         execQuery('INSERT INTO sql_database (domain_id, sqld_name) VALUES (?, ?)', [$mainDmnId, $dbName]);
-        Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterAddSqlDb, [
-            'dbId'   => Registry::get('iMSCP_Application')->getDatabase()->lastInsertId(),
+        Application::getInstance()->getEventManager()->trigger(Events::onAfterAddSqlDb, NULL, [
+            'dbId'   => Application::getInstance()->getDb()->getDriver()->getLastGeneratedValue(),
             'dbName' => $dbName
         ]);
         setPageMessage(tr('SQL database successfully created.'), 'success');
         writeLog(
-            sprintf('A new database (%s) has been created by %s', $dbName, $_SESSION['user_logged']), E_USER_NOTICE
+            sprintf('A new database (%s) has been created by %s', $dbName, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE
         );
-    } catch (iMSCPException $e) {
+    } catch (\Exception $e) {
         writeLog(sprintf("Couldn't create the %s database: %s", $dbName, $e->getMessage()));
         setPageMessage(tr("Couldn't create the %s database.", $dbName), 'error');
     }
@@ -89,7 +88,7 @@ function addSqlDb()
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
 
     if ($cfg['MYSQL_PREFIX'] != 'none') {
         $tpl->assign('MYSQL_PREFIX_YES', '');
@@ -122,11 +121,9 @@ function generatePage(TemplateEngine $tpl)
     ]);
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('sql') && !customerSqlDbLimitIsReached() or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('sql') && !customerSqlDbLimitIsReached() or View::showBadRequestErrorPage();
 
 empty($_POST) or addSqlDb();
 
@@ -152,9 +149,9 @@ $tpl->assign([
     'TR_CANCEL'       => toHtml(tr('Cancel'))
 ]);
 generatePage($tpl);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

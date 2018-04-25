@@ -18,8 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Statistics;
+use iMSCP\Functions\View;
 
 /**
  * Generate mail quota date
@@ -29,7 +32,9 @@ use iMSCP_Registry as Registry;
  */
 function generateMailQuotaData($clientId)
 {
-    $clientProps = getCustomerProperties($clientId, $_SESSION['user_type'] == 'reseller' ? $_SESSION['user_id'] : NULL);
+    $clientProps = getCustomerProperties(
+        $clientId, Application::getInstance()->getSession()['user_type'] == 'reseller' ? Application::getInstance()->getSession()['user_id'] : NULL
+    );
     $mailQuota = execQuery('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [$clientProps['domain_id']])->fetchColumn();
     return [bytesHuman($mailQuota), $clientProps['mail_quota'] == 0 ? '∞' : bytesHuman($clientProps['mail_quota'])];
 }
@@ -50,50 +55,47 @@ function generatePage($tpl, $clientId)
             JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
             LEFT JOIN server_ips AS t3 ON(FIND_IN_SET(t3.ip_id, t1.domain_client_ips) AND t3.ip_status = 'ok')
             WHERE t1.domain_admin_id = ?
-        " . ($_SESSION['user_type'] == 'reseller' ? 'AND created_by = ?' : '') . ' GROUP BY domain_admin_id',
-        $_SESSION['user_type'] == 'reseller' ? [$clientId, $_SESSION['user_id']] : [$clientId]
+        " . (Application::getInstance()->getSession()['user_type'] == 'reseller' ? 'AND created_by = ?' : '') . ' GROUP BY domain_admin_id',
+        Application::getInstance()->getSession()['user_type'] == 'reseller'
+            ? [$clientId, Application::getInstance()->getSession()['user_id']] : [$clientId]
     );
 
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $clientData = $stmt->fetch();
 
     // Traffic data
-    $trafficUsageBytes = getClientMonthlyTrafficStats($clientData['domain_id'])[4];
+    $trafficUsageBytes = Statistics::getClientMonthlyTrafficStats($clientData['domain_id'])[4];
     $trafficLimitBytes = $clientData['domain_traffic_limit'] * 1048576;
-    $trafficUsagePercent = getPercentUsage($trafficUsageBytes, $trafficLimitBytes);
+    $trafficUsagePercent = Statistics::getPercentUsage($trafficUsageBytes, $trafficLimitBytes);
 
     // Disk usage data
     $diskspaceLimitBytes = $clientData['domain_disk_limit'] * 1048576;
-    $diskspaceUsagePercent = getPercentUsage($clientData['domain_disk_usage'], $diskspaceLimitBytes);
+    $diskspaceUsagePercent = Statistics::getPercentUsage($clientData['domain_disk_usage'], $diskspaceLimitBytes);
 
     // Email quota
     list($mailQuotaValue, $mailQuotaLimit) = generateMailQuotaData($clientData['domain_admin_id']);
 
-    $date = new Zend_Date($clientData['domain_expires']);
-    if ($clientData['domain_expires']) {
-        $cDate = clone $date;
-        $rDays = ceil($cDate->sub(Zend_Date::now())->toValue() / 60 / 60 / 24);
+    if ($clientData['domain_expires'] > 0) {
+        $nowDate = new \DateTime();
+        $expireDate = new \DateTime();
+        $expireDate->setTimestamp($clientData['domain_expires']);
 
-        if (!$rDays) {
-            if ($_SESSION['user_type'] == 'user') {
-                setPageMessage(tr('Account expired. Please renew your subscription.'), 'static_warning');
-            } else {
-                setPageMessage(tr('Account expired.'), 'static_warning');
-            }
-        } elseif ($rDays < 15) {
-            setPageMessage(
-                ntr('%d day remaining until account expiration.', '%d days remaining until account expiration.', $rDays),
-                $rDays < 8 ? 'static_warning' : 'static_info'
-            );
+        if ($expireDate < $nowDate) {
+            Application::getInstance()->getSession()['user_type'] == 'user'
+                ? setPageMessage(tr('Account expired. Please renew your subscription.'), 'static_warning')
+                : setPageMessage(tr('Account expired.'), 'static_warning');
+        } elseif ($rDays = $expireDate->diff($nowDate)->format('%a') < 15) {
+            setPageMessage(tr('%d days remaining until account expiration.', $rDays), $rDays < 8 ? 'static_warning' : 'static_info');
+        } else {
+            unset($expireDate);
         }
-    } else {
-        $rDays = 15;
     }
 
     $tpl->assign([
         'VL_ACCOUNT_NAME'            => toHtml(decodeIdna($clientData['admin_name'])),
-        'VL_ACCOUNT_EXPIRY_DATE'     => ($rDays < 15 ? '<span style="color:red;font-weight:bold;">' : '<span style="color:green;font-weight:bold;">')
-            . toHtml($clientData['domain_expires'] ? $date->toString(Registry::get('config')['DATE_FORMAT'], 'php') : tr('∞')) . '</span>',
+        'VL_ACCOUNT_EXPIRY_DATE'     => isset($expireDate)
+            ? '<span style="color:red;font-weight:bold;">' . $expireDate->format(Application::getInstance()->getConfig()['DATE_FORMAT']) . '</span>'
+            : '<span style="color:green;font-weight:bold;">' . toHtml(tr('∞')) . '</span>',
         'VL_PRIMARY_DOMAIN_NAME'     => toHtml(decodeIdna($clientData['domain_name'])),
         'VL_CLIENT_IPS'              => $clientData['client_ips'] == '0.0.0.0' ? tr('Any') : implode(', ', explode(',', $clientData['client_ips'])),
         'VL_STATUS'                  => humanizeDomainStatus($clientData['domain_status'], true, true),
@@ -102,20 +104,19 @@ function generatePage($tpl, $clientId)
         'VL_CGI_SUPP'                => humanizeDbValue($clientData['domain_cgi']),
         'VL_DNS_SUPP'                => humanizeDbValue($clientData['domain_dns']),
         'VL_EXT_MAIL_SUPP'           => humanizeDbValue($clientData['domain_external_mail']),
-        'VL_SOFTWARE_SUPP'           => humanizeDbValue($clientData['domain_software_allowed']),
         'VL_BACKUP_SUPP'             => humanizeDbValue($clientData['allowbackup']),
         'VL_WEB_FOLDER_PROTECTION'   => humanizeDbValue($clientData['web_folder_protection']),
-        'VL_SUBDOM_ACCOUNTS_USED'    => toHtml(getCustomerSubdomainsCount($clientData['domain_id'])),
+        'VL_SUBDOM_ACCOUNTS_USED'    => toHtml(Counting::getCustomerSubdomainsCount($clientData['domain_id'])),
         'VL_SUBDOM_ACCOUNTS_LIMIT'   => humanizeDbValue($clientData['domain_subd_limit']),
-        'VL_DOMALIAS_ACCOUNTS_USED'  => toHtml(getCustomerDomainAliasesCount($clientData['domain_id'])),
+        'VL_DOMALIAS_ACCOUNTS_USED'  => toHtml(Counting::getCustomerDomainAliasesCount($clientData['domain_id'])),
         'VL_DOMALIAS_ACCOUNTS_LIMIT' => humanizeDbValue($clientData['domain_alias_limit']),
-        'VL_FTP_ACCOUNTS_USED'       => toHtml(getCustomerFtpUsersCount($clientData['domain_admin_id'])),
+        'VL_FTP_ACCOUNTS_USED'       => toHtml(Counting::getCustomerFtpUsersCount($clientData['domain_admin_id'])),
         'VL_FTP_ACCOUNTS_LIMIT'      => humanizeDbValue($clientData['domain_ftpacc_limit']),
-        'VL_SQL_DB_ACCOUNTS_USED'    => toHtml(getCustomerSqlDatabasesCount($clientData['domain_id'])),
+        'VL_SQL_DB_ACCOUNTS_USED'    => toHtml(Counting::getCustomerSqlDatabasesCount($clientData['domain_id'])),
         'VL_SQL_DB_ACCOUNTS_LIMIT'   => humanizeDbValue($clientData['domain_sqld_limit']),
         'VL_SQL_USER_ACCOUNTS_LIMIT' => humanizeDbValue($clientData['domain_sqlu_limit']),
-        'VL_SQL_USER_ACCOUNTS_USED'  => toHtml(getCustomerSqlUsersCount($clientData['domain_id'])),
-        'VL_MAIL_ACCOUNTS_USED'      => toHtml(getCustomerMailAccountsCount($clientData['domain_id'])),
+        'VL_SQL_USER_ACCOUNTS_USED'  => toHtml(Counting::getCustomerSqlUsersCount($clientData['domain_id'])),
+        'VL_MAIL_ACCOUNTS_USED'      => toHtml(Counting::getCustomerMailAccountsCount($clientData['domain_id'])),
         'VL_MAIL_ACCOUNTS_LIMIT'     => humanizeDbValue($clientData['domain_mailacc_limit']),
         'VL_MAIL_QUOTA_USED'         => toHtml($mailQuotaValue),
         'VL_MAIL_QUOTA_LIMIT'        => humanizeDbValue($mailQuotaLimit),
@@ -131,11 +132,11 @@ function generatePage($tpl, $clientId)
     ]);
 }
 
-require_once 'imscp-lib.php';
 
-defined('SHARED_SCRIPT_NEEDED') or showNotFoundErrorPage();
 
-isset($_GET['id']) or showBadRequestErrorPage();
+defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
+
+isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -167,7 +168,6 @@ $tpl->assign([
     'TR_SQL_DB_ACCOUNTS'       => toHtml(tr('SQL databases')),
     'TR_SQL_USER_ACCOUNTS'     => toHtml(tr('SQL users')),
     'TR_UPDATE_DATA'           => toHtml(tr('Submit changes')),
-    'TR_SOFTWARE_SUPP'         => toHtml(tr('Software installer')),
     'TR_TRAFFIC_USAGE'         => toHtml(tr('Traffic usage')),
     'TR_DISK_USAGE'            => toHtml(tr('Disk usage')),
     'TR_DISK_USAGE_DETAILS'    => toHtml(tr('Details')),
@@ -175,6 +175,6 @@ $tpl->assign([
     'TR_DISK_SQL_USAGE'        => toHtml(tr('SQL data')),
     'TR_DISK_MAIL_USAGE'       => toHtml(tr('Mail data'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, intval($_GET['id']));
 generatePageMessage($tpl);

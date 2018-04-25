@@ -18,9 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\Crypt as Crypt;
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Updates htaccess user
@@ -35,7 +36,7 @@ function client_updateHtaccessUser($domainId, $htuserId)
         return;
     }
 
-    isset($_POST['pass']) && isset($_POST['pass_rep']) or showBadRequestErrorPage();
+    isset($_POST['pass']) && isset($_POST['pass_rep']) or View::showBadRequestErrorPage();
 
     if ($_POST['pass'] !== $_POST['pass_rep']) {
         setPageMessage(tr('Passwords do not match.'), 'error');
@@ -49,21 +50,19 @@ function client_updateHtaccessUser($domainId, $htuserId)
     execQuery('UPDATE htaccess_users SET upass = ?, status = ? WHERE id = ? AND dmn_id = ?', [
         Crypt::apr1MD5($_POST['pass']), 'tochange', $htuserId, $domainId
     ]);
-    sendDaemonRequest();
-    writeLog(sprintf('%s updated htaccess user ID: %s', $_SESSION['user_logged'], $htuserId), E_USER_NOTICE);
+    Daemon::sendRequest();
+    writeLog(sprintf('%s updated htaccess user ID: %s', Application::getInstance()->getSession()['user_logged'], $htuserId), E_USER_NOTICE);
     redirectTo('protected_user_manage.php');
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') && isset($_REQUEST['uname']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') && isset($_REQUEST['uname']) or View::showBadRequestErrorPage();
 
 $htuserId = intval($_REQUEST['uname']);
-$domainId = getCustomerMainDomainId($_SESSION['user_id']);
+$domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
 $stmt = execQuery('SELECT uname FROM htaccess_users WHERE id = ? AND dmn_id = ?', [$htuserId, $domainId]);
-$stmt->rowCount() or showBadRequestErrorPage();
+$stmt->rowCount() or View::showBadRequestErrorPage();
 $row = $stmt->fetch();
 
 client_updateHtaccessUser($domainId, $htuserId);
@@ -85,9 +84,9 @@ $tpl->assign([
     'TR_UPDATE'          => tr('Update'),
     'TR_CANCEL'          => tr('Cancel')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

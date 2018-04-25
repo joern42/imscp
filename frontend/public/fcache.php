@@ -18,26 +18,25 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
-use Zend_Cache_Core as Cache;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\View;
+use iMSCP\Utility\OpcodeCache;
 
-strtolower($_SERVER['REQUEST_METHOD']) == 'get' or showBadRequestErrorPage();
+strtolower($_SERVER['REQUEST_METHOD']) == 'get' or View::showBadRequestErrorPage();
 $cacheIds = explode(';', isset($_GET['ids']) ? cleanInput((string)$_GET['ids']) : []);
-!empty($cacheIds) or showBadRequestErrorPage();
+!empty($cacheIds) or View::showBadRequestErrorPage();
 
-/** @var Cache $cache */
-$cache = Registry::get('iMSCP_Application')->getCache();
+$cache = Application::getInstance()->getCache();
 foreach ($cacheIds as $cacheId) {
     if ($cacheId === 'opcache') {
-        iMSCP_Utility_OpcodeCache::clearAllActive();
+        OpcodeCache::clearAllActive();
         writeLog('OPcache has been flushed.', E_USER_NOTICE);
     } elseif ($cacheId === 'userland') {
-        $cache->clean() or showInternalServerError();
+        $cache->flush() or View::showInternalServerError();
         writeLog('APCu userland cache has been flushed.', E_USER_NOTICE);
-    } elseif ($cache->test($cacheId)) {
-        $cache->remove($cacheId) or showInternalServerError();
+    } elseif ($cache->hasItem($cacheId)) {
+        $cache->removeItem($cacheId) or View::showInternalServerError();
         writeLog(sprintf('APCu userland cache with ID `%s` has been flushed.', $cacheId), E_USER_NOTICE);
     }
 }

@@ -18,8 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Config\DbConfig;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Update server traffic settings
@@ -48,10 +51,9 @@ function admin_updateServerTrafficSettings($trafficLimit, $trafficWarning)
     }
 
     if ($retVal) {
-        /** @var $db_cfg iMSCP_Config_Handler_Db */
-        $dbConfig = Registry::get('dbConfig');
-        $dbConfig->SERVER_TRAFFIC_LIMIT = $trafficLimit;
-        $dbConfig->SERVER_TRAFFIC_WARN = $trafficWarning;
+        $dbConfig = Application::getInstance()->getDbConfig();
+        $dbConfig['SERVER_TRAFFIC_LIMIT'] = $trafficLimit;
+        $dbConfig['SERVER_TRAFFIC_WARN'] = $trafficWarning;
         // gets the number of queries that were been executed
         $updtCount = $dbConfig->countQueries('update');
         $newCount = $dbConfig->countQueries('insert');
@@ -59,7 +61,7 @@ function admin_updateServerTrafficSettings($trafficLimit, $trafficWarning)
         // An Update was been made in the database ?
         if ($updtCount || $newCount) {
             setPageMessage(tr('Monthly server traffic settings successfully updated.', $updtCount), 'success');
-            writeLog(sprintf('Server monthly traffic settings were updated by %s', $_SESSION['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('Server monthly traffic settings were updated by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
         } else {
             setPageMessage(tr('Nothing has been changed.'), 'info');
         }
@@ -78,7 +80,7 @@ function admin_updateServerTrafficSettings($trafficLimit, $trafficWarning)
  */
 function admin_generatePage($tpl, $trafficLimit, $trafficWarning)
 {
-    $cfg = Registry::get('config');
+    $cfg = Application::getInstance()->getConfig();
 
     if (empty($_POST)) {
         $trafficLimit = $cfg['SERVER_TRAFFIC_LIMIT'];
@@ -91,10 +93,8 @@ function admin_generatePage($tpl, $trafficLimit, $trafficWarning)
     ]);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $trafficLimit = $trafficWarning = 0;
 
@@ -119,10 +119,10 @@ $tpl->assign([
     'TR_UPDATE'                      => toHtml(tr('Update'), 'htmlAttr')
 ]);
 
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 admin_generatePage($tpl, $trafficLimit, $trafficWarning);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

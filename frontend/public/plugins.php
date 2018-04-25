@@ -18,29 +18,21 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\View;
 
 if (($urlComponents = parse_url($_SERVER['REQUEST_URI'])) === false || !isset($urlComponents['path'])) {
-    showBadRequestErrorPage();
+    View::showBadRequestErrorPage();
 }
 
 $urlComponents['path'] = rtrim($urlComponents['path'], '/');
-
-/** @var iMSCP_Plugin_Manager $pluginManager */
-$pluginManager = Registry::get('iMSCP_Application')->getPluginManager();
+$pluginManager = Application::getInstance()->getPluginManager();
 $plugins = $pluginManager->pluginGetLoaded();
-!empty($plugins) or showNotFoundErrorPage();
-
-/** @var iMSCP_Events_Manager_Interface $eventsManager */
-$eventsManager = Registry::get('iMSCP_Application')->getEventsManager();
-
-/** @var iMSCP_Events_Listener_ResponseCollection $responses */
-$responses = $eventsManager->dispatch(Events::onBeforePluginsRoute, ['pluginManager' => $pluginManager]);
-!$responses->isStopped() or showNotFoundErrorPage();
-
+!empty($plugins) or View::showNotFoundErrorPage();
+$eventsManager = Application::getInstance()->getEventManager();
+$responses = $eventsManager->trigger(Events::onBeforePluginsRoute, null, ['pluginManager' => $pluginManager]);
+!$responses->stopped() or View::showNotFoundErrorPage();
 
 $pluginActionScriptPath = NULL;
 foreach ($plugins as $plugin) {
@@ -61,12 +53,12 @@ foreach ($plugins as $plugin) {
     }
 }
 
-NULL !== $pluginActionScriptPath or showNotFoundErrorPage();
+NULL !== $pluginActionScriptPath or View::showNotFoundErrorPage();
 
-$eventsManager->dispatch(Events::onAfterPluginsRoute, [
+$eventsManager->trigger(Events::onAfterPluginsRoute, null, [
     'pluginManager' => $pluginManager,
     'scriptPath'    => $pluginActionScriptPath
 ]);
 
-is_file($pluginActionScriptPath) or showNotFoundErrorPage();
+is_file($pluginActionScriptPath) or View::showNotFoundErrorPage();
 include $pluginActionScriptPath;

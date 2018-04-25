@@ -18,11 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP\VirtualFileSystem as VirtualFileSystem;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Is allowed directory?
@@ -53,12 +54,11 @@ function isAllowedDir($directory)
 /**
  * Add/update protected area
  *
- * @throws iMSCP_Exception_Database
  * @return void
  */
 function handleProtectedArea()
 {
-    isset($_POST['protected_area_name']) && isset($_POST['protected_area_path']) or showBadRequestErrorPage();
+    isset($_POST['protected_area_name']) && isset($_POST['protected_area_path']) or View::showBadRequestErrorPage();
 
     $protectionType = (isset($_POST['protection_type']) && in_array($_POST['protection_type'], ['user', 'group'], true))
         ? $_POST['protection_type'] : 'user';
@@ -95,22 +95,22 @@ function handleProtectedArea()
         return;
     }
 
-    $vfs = new VirtualFileSystem($_SESSION['user_logged']);
+    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged']);
     if ($protectedAreaPath !== '/' && !$vfs->exists($protectedAreaPath, VirtualFileSystem::VFS_TYPE_DIR)) {
         setPageMessage(tr("Directory '%s' doesn't exist.", $protectedAreaPath), 'error');
         return;
     }
 
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
     if ($protectionType === 'user') {
         $stmt = execQuery(
             'SELECT id FROM htaccess_users WHERE id IN(' . implode(',', array_map('quoteValue', (array)$_POST['users'])) . ') AND dmn_id = ?',
             [$mainDmnProps['domain_id']]
         );
-        $stmt->rowCount() or showBadRequestErrorPage();
+        $stmt->rowCount() or View::showBadRequestErrorPage();
 
-        $userIdList = implode(',', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        $userIdList = implode(',', $stmt->fetchAll(\PDO::FETCH_COLUMN));
         $groupIdList = 0;
     } else {
         $stmt = execQuery(
@@ -122,20 +122,19 @@ function handleProtectedArea()
             ',
             [$mainDmnProps['domain_id']]
         );
-        $stmt->rowCount() or showBadRequestErrorPage();
-        $groupIdList = implode(',', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        $stmt->rowCount() or View::showBadRequestErrorPage();
+        $groupIdList = implode(',', $stmt->fetchAll(\PDO::FETCH_COLUMN));
         $userIdList = 0;
     }
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         if (isset($_REQUEST['id']) && $_REQUEST['id'] > 0) {
             $stmt = execQuery("UPDATE htaccess SET status = 'todelete' WHERE id = ? AND dmn_id = ?", [$_REQUEST['id'], $mainDmnProps['domain_id']]);
-            $stmt->rowCount() or showBadRequestErrorPage();
+            $stmt->rowCount() or View::showBadRequestErrorPage();
         }
 
         execQuery(
@@ -146,13 +145,13 @@ function handleProtectedArea()
             [$mainDmnProps['domain_id'], $userIdList, $groupIdList, $protectedAreaName, $protectedAreaPath]
         );
 
-        $db->commit();
-    } catch (iMSCP_Exception_Database $e) {
-        $db->rollBack();
+        $db->getDriver()->getConnection()->commit();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         throw $e;
     }
 
-    sendDaemonRequest();
+    Daemon::sendRequest();
 
     if (isset($_REQUEST['id']) && $_REQUEST['id'] > 0) {
         setPageMessage(tr('Protected area successfully scheduled for update.'), 'success');
@@ -173,18 +172,18 @@ function generatePage($tpl)
 {
     global $mountpoints;
 
-    $mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
     # Set parameters for the FTP chooser
-    $_SESSION['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
-    $_SESSION['ftp_chooser_user'] = $_SESSION['user_logged'];
-    $_SESSION['ftp_chooser_root_dir'] = '/';
-    $_SESSION['ftp_chooser_hidden_dirs'] = ['00_private', 'backups', 'errors', 'logs', 'phptmp'];
-    $_SESSION['ftp_chooser_unselectable_dirs'] = $mountpoints;
+    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
+    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_root_dir'] = '/';
+    Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = ['00_private', 'backups', 'errors', 'logs', 'phptmp'];
+    Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = $mountpoints;
 
     if (isset($_REQUEST['id']) && $_REQUEST['id'] > 0) {
         $stmt = execQuery('SELECT * FROM htaccess WHERE dmn_id = ? AND id = ?', [$mainDmnProps['domain_id'], intval($_REQUEST['id'])]);
-        $stmt->rowCount() or showBadRequestErrorPage();
+        $stmt->rowCount() or View::showBadRequestErrorPage();
         $row = $stmt->fetch();
         $tpl->assign('ID', $row['id']);
         $userIds = $row['user_id'];
@@ -263,13 +262,13 @@ function generatePage($tpl)
     }
 }
 
-require_once 'imscp-lib.php';
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('protected_areas') or showBadRequestErrorPage();
+$mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
-$mainDmnProps = getCustomerProperties($_SESSION['user_id']);
+global $mountpoints;
 $mountpoints = getMountpoints($mainDmnProps['domain_id']);
 
 empty($_POST) or handleProtectedArea();
@@ -288,7 +287,7 @@ $tpl->define([
 ]);
 $tpl->assign([
     'TR_PAGE_TITLE'          => tr('Client / Webtools / Protected Areas / {TR_DYNAMIC_TITLE}'),
-    'TR_DYNAMIC_TITLE'       => (isset($_REQUEST['id']) && $_REQUEST['id'] > 0) ? tr('Edit protected area') : tr('Add protected area'),
+    'TR_DYNAMIC_TITLE'       => isset($_REQUEST['id']) && $_REQUEST['id'] > 0 ? tr('Edit protected area') : tr('Add protected area'),
     'TR_PROTECTED_AREA_DATA' => tr('Protected area data'),
     'TR_AREA_NAME'           => tr('Protected area name'),
     'TR_PATH'                => tr('Protected area path'),
@@ -299,15 +298,15 @@ $tpl->assign([
     'TR_CANCEL'              => tr('Cancel')
 ]);
 
-Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['close'] = tr('Close');
     $translations['core']['ftp_directories'] = tr('Protected area path');
 });
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

@@ -18,9 +18,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Statistics;
+use iMSCP\Functions\View;
 
 /**
  * Generates support questions notice for reseller
@@ -32,11 +35,12 @@ use iMSCP_Registry as Registry;
 function generateSupportQuestionsMessage()
 {
     $ticketsCount = execQuery(
-        'SELECT count(ticket_id) FROM tickets WHERE ticket_to = ? AND ticket_status IN (1, 4) AND ticket_reply = 0', [$_SESSION['user_id']]
-    )->fetchColumn();
+        'SELECT count(ticket_id) FROM tickets WHERE ticket_to = ? AND ticket_status IN (1, 4) AND ticket_reply = 0', [
+            Application::getInstance()->getSession()['user_id']
+    ])->fetchColumn();
 
     if ($ticketsCount > 0) {
-        setPageMessage(ntr('You have a new support ticket.', 'You have %d new support tickets.', $ticketsCount), 'static_info');
+        setPageMessage(ntr('You have a new support ticket.', 'You have %d new support tickets.', $ticketsCount, $ticketsCount), 'static_info');
     }
 }
 
@@ -56,11 +60,11 @@ function generateOrdersAliasesMessage()
             WHERE alias_status = 'ordered'
             AND created_by = ?
         ",
-        [$_SESSION['user_id']]
+        [Application::getInstance()->getSession()['user_id']]
     )->fetchColumn();
 
     if ($countAliasOrders > 0) {
-        setPageMessage(ntr('You have a new domain alias order.', 'You have %d new domain alias orders', $countAliasOrders), 'static_info');
+        setPageMessage(ntr('You have a new domain alias order.', 'You have %d new domain alias orders', $countAliasOrders, $countAliasOrders), 'static_info');
     }
 }
 
@@ -74,7 +78,7 @@ function generateOrdersAliasesMessage()
  */
 function generateTrafficUsageBar($tpl, $trafficUsageBytes, $trafficLimitBytes)
 {
-    $trafficUsagePercent = getPercentUsage($trafficUsageBytes, $trafficLimitBytes);
+    $trafficUsagePercent = Statistics::getPercentUsage($trafficUsageBytes, $trafficLimitBytes);
     $trafficUsageData = ($trafficLimitBytes > 0)
         ? sprintf('[%s / %s]', bytesHuman($trafficUsageBytes), bytesHuman($trafficLimitBytes))
         : sprintf('[%s / ∞]', bytesHuman($trafficUsageBytes), bytesHuman($trafficLimitBytes));
@@ -95,7 +99,7 @@ function generateTrafficUsageBar($tpl, $trafficUsageBytes, $trafficLimitBytes)
  */
 function generateDiskUsageBar($tpl, $diskspaceUsageBytes, $diskspaceLimitBytes)
 {
-    $diskspaceUsagePercent = getPercentUsage($diskspaceUsageBytes, $diskspaceLimitBytes);
+    $diskspaceUsagePercent = Statistics::getPercentUsage($diskspaceUsageBytes, $diskspaceLimitBytes);
     $diskUsageData = ($diskspaceLimitBytes > 0)
         ? sprintf('[%s / %s]', bytesHuman($diskspaceUsageBytes), bytesHuman($diskspaceLimitBytes))
         : sprintf('[%s / ∞]', bytesHuman($diskspaceUsageBytes));
@@ -120,26 +124,24 @@ function generatePage($tpl, $resellerId, $resellerName)
     generateOrdersAliasesMessage();
 
     $resellerProperties = getResellerProperties($resellerId);
-    $domainsCount = getResellerDomainsCount($resellerId);
-    $subdomainsCount = getResellerSubdomainsCount($resellerId);
-    $domainAliasesCount = getResellerDomainAliasesCount($resellerId);
-    $mailAccountsCount = getResellerMailAccountsCount($resellerId);
-    $ftpUsersCount = getResellerFtpUsersCount($resellerId);
-    $sqlDatabasesCount = getResellerSqlDatabasesCount($resellerId);
-    $sqlUsersCount = getResellerSqlUsersCount($resellerId);
+    $domainsCount = Counting::getResellerDomainsCount($resellerId);
+    $subdomainsCount = Counting::getResellerSubdomainsCount($resellerId);
+    $domainAliasesCount = Counting::getResellerDomainAliasesCount($resellerId);
+    $mailAccountsCount = Counting::getResellerMailAccountsCount($resellerId);
+    $ftpUsersCount = Counting::getResellerFtpUsersCount($resellerId);
+    $sqlDatabasesCount = Counting::getResellerSqlDatabasesCount($resellerId);
+    $sqlUsersCount = Counting::getResellerSqlUsersCount($resellerId);
 
     $domainIds = execQuery(
-        'SELECT domain_id FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [$_SESSION['user_id']]
-    )->fetchAll(PDO::FETCH_COLUMN);
+        'SELECT domain_id FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [Application::getInstance()->getSession()['user_id']]
+    )->fetchAll(\PDO::FETCH_COLUMN);
 
     $totalConsumedMonthlyTraffic = 0;
 
     if (!empty($domainIds)) {
         $firstDayOfMonth = getFirstDayOfMonth();
         $lastDayOfMonth = getLastDayOfMonth();
-
-        /** @var \iMSCP\Database\ResultSet $stmt */
-        $stmt = Registry::get('iMSCP_Application')->getDatabase()->prepare(
+        $stmt = Application::getInstance()->getDb()->createStatement(
             '
                 SELECT
                     IFNULL(SUM(dtraff_web), 0) +
@@ -151,6 +153,7 @@ function generatePage($tpl, $resellerId, $resellerName)
                 AND dtraff_time BETWEEN ? AND ?
             '
         );
+        $stmt->prepare();
         $stmt->bindParam(1, $domainId);
         $stmt->bindParam(2, $firstDayOfMonth);
         $stmt->bindParam(3, $lastDayOfMonth);
@@ -179,7 +182,7 @@ function generatePage($tpl, $resellerId, $resellerName)
             JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
             WHERE created_by = ?
         ',
-        [$_SESSION['user_id']]
+        [Application::getInstance()->getSession()['user_id']]
     )->fetchColumn();
     $diskUsageLimit = $resellerProperties['max_disk_amnt'] * 1048576;
     generateDiskUsageBar($tpl, $totalDiskUsage, $diskUsageLimit);
@@ -229,19 +232,13 @@ function generatePage($tpl, $resellerId, $resellerName)
         'PHP_EDITOR_STATUS' => ($resellerProperties['php_ini_system'] == 'yes')
             ? '<span style="color:green;">' . toHtml(tr('Enabled')) . '</span>'
             : '<span style="color:red;">' . toHtml(tr('Disabled')) . '</span>',
-        'TR_APS'            => tr('Software installer'),
-        'APS_STATUS'        => ($resellerProperties['software_allowed'] == 'yes')
-            ? '<span style="color:green;">' . toHtml(tr('Enabled')) . '</span>'
-            : '<span style="color:red;">' . toHtml(tr('Disabled')) . '</span>',
         'TR_TRAFFIC_USAGE'  => toHtml(tr('Monthly traffic usage')),
         'TR_DISK_USAGE'     => toHtml(tr('Disk usage')),
     ]);
 }
 
-require 'imscp-lib.php';
-
-checkLogin('reseller', Registry::get('config')['PREVENT_EXTERNAL_LOGIN_RESELLER']);
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptStart);
+Login::checkLogin('reseller', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_RESELLER']);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -252,10 +249,10 @@ $tpl->define([
     'disk_warning_message'    => 'page'
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Reseller / General / Overview')));
-generateNavigation($tpl);
-generatePage($tpl, $_SESSION['user_id'], $_SESSION['user_logged']);
+View::generateNavigation($tpl);
+generatePage($tpl, Application::getInstance()->getSession()['user_id'], Application::getInstance()->getSession()['user_logged']);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

@@ -18,11 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Authentication as Authentication;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
-use Zend_Form as Form;
+namespace iMSCP;
+
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\View;
+use Zend\Form\Form;
 
 /**
  * Update personal data
@@ -44,8 +44,8 @@ function updatePersonalData(Form $form)
 
     $idnaEmail = $form->getValue('email');
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditUser, [
-        'userId'   => $_SESSION['user_id'],
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, null, [
+        'userId'   => Application::getInstance()->getSession()['user_id'],
         'userData' => $form->getValues()
     ]);
     execQuery(
@@ -59,19 +59,19 @@ function updatePersonalData(Form $form)
             $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'),
             $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
             $idnaEmail, $form->getValue('phone'), $form->getValue('fax'), $form->getValue('street1'),
-            $form->getValue('street2'), $form->getValue('gender'), $_SESSION['user_id']
+            $form->getValue('street2'), $form->getValue('gender'), Application::getInstance()->getSession()['user_id']
         ]
     );
 
     # We need also update user email in session
-    Authentication::getInstance()->getIdentity()->email = $idnaEmail;
-    $_SESSION['user_email'] = $idnaEmail; // Only for backward compatibility
+    AuthenticationService::getInstance()->getIdentity()->email = $idnaEmail;
+    Application::getInstance()->getSession()['user_email'] = $idnaEmail; // Only for backward compatibility
 
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditUser, [
-        'userId'   => $_SESSION['user_id'],
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, null, [
+        'userId'   => Application::getInstance()->getSession()['user_id'],
         'userData' => $form->getValues()
     ]);
-    writeLog(sprintf('The %s user data were updated', $_SESSION['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('The %s user data were updated', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
     setPageMessage(tr('Personal data were updated.'), 'success');
     redirectTo('personal_change.php');
 }
@@ -98,16 +98,16 @@ function generatePage(TemplateEngine $tpl, Form $form)
             FROM admin
             WHERE admin_id = ?
         ",
-        [$_SESSION['user_id']]
+        [Application::getInstance()->getSession()['user_id']]
     );
 
-    $data = $stmt->fetch() or showBadRequestErrorPage();
+    $data = $stmt->fetch() or View::showBadRequestErrorPage();
     $form->setDefaults($data);
 }
 
-require_once 'imscp-lib.php';
 
-defined('SHARED_SCRIPT_NEEDED') or showNotFoundErrorPage();
+
+defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
 
 $form = getUserPersonalDataForm();
 
@@ -119,6 +119,6 @@ $tpl->define([
     'page'         => 'shared/partials/personal_change.phtml',
     'page_message' => 'layout'
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $form);
 generatePageMessage($tpl);

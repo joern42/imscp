@@ -18,15 +18,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
-require_once LIBRARY_PATH . '/Functions/Tickets.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\Support;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-resellerHasFeature('support') or showBadRequestErrorPage();
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+resellerHasFeature('support') or View::showBadRequestErrorPage();
 
 if (isset($_POST['uaction'])) {
     if (empty($_POST['subject'])) {
@@ -34,8 +34,8 @@ if (isset($_POST['uaction'])) {
     } elseif (empty($_POST['user_message'])) {
         setPageMessage(tr('You must specify a message.'), 'error');
     } else {
-        createTicket($_SESSION['user_id'], $_SESSION['user_created_by'],
-            $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2);
+        $session = Application::getInstance()->getSession();
+        Support::createTicket($session['user_id'], $session['user_created_by'], $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2);
         redirectTo('ticket_system.php');
     }
 }
@@ -91,9 +91,9 @@ $tpl->assign([
     'TR_CLOSED_TICKETS' => tr('Closed tickets')
 ]);
 $tpl->assign($userdata);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

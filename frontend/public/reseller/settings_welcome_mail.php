@@ -18,13 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -49,13 +50,13 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'email_setup') {
     }
 
     if (!$error) {
-        setWelcomeEmail($_SESSION['user_id'], $data);
+        Mail::setWelcomeEmail(Application::getInstance()->getSession()['user_id'], $data);
         setPageMessage(tr('Welcome email template has been updated.'), 'success');
         redirectTo('settings_welcome_mail.php');
     }
 }
 
-$data = getWelcomeEmail($_SESSION['user_id']);
+$data = Mail::getWelcomeEmail(Application::getInstance()->getSession()['user_id']);
 
 $tpl->assign([
     'TR_PAGE_TITLE'               => tr('Reseller / Customers / Welcome Email'),
@@ -78,9 +79,9 @@ $tpl->assign([
     'SENDER_EMAIL_VALUE'          => toHtml($data['sender_email']),
     'SENDER_NAME_VALUE'           => toHtml(!empty($data['sender_name'])) ? $data['sender_name'] : tr('Unknown')
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

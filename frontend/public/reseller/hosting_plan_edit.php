@@ -18,24 +18,25 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\PHPini;
-use iMSCP\TemplateEngine;
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\Config;
+use Zend\EventManager\Event;
 
 /**
  * Load hosting plan
  *
+ * @param int $id Hosting plan unique identifier
  * @return bool TRUE on success, FALSE on failure
  */
-function loadHostingPlan()
+function loadHostingPlan($id)
 {
-    global $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $id, $backup, $dns, $aps,
-           $extMail, $webFolderProtection, $status;
+    global $id, $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $backup, $dns, $extMail,
+           $webFolderProtection, $status;
 
-    $stmt = execQuery('SELECT * FROM hosting_plans WHERE id = ? AND reseller_id = ?', [$id, $_SESSION['user_id']]);
+    $stmt = execQuery('SELECT * FROM hosting_plans WHERE id = ? AND reseller_id = ?', [$id, Application::getInstance()->getSession()['user_id']]);
     if (!$stmt->rowCount()) {
         return false;
     }
@@ -46,7 +47,7 @@ function loadHostingPlan()
     $status = $data['status'];
 
     list(
-        $php, $cgi, $sub, $als, $mail, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $backup, $dns, $aps, $phpEditor, $phpConfigLevel, $phpAllowUrlFopen,
+        $php, $cgi, $sub, $als, $mail, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $backup, $dns, $phpEditor, $phpConfigLevel, $phpAllowUrlFopen,
         $phpDisplayErrors, $phpDisableFunctions, $phpiniMailFunction, $phpPostMaxSizeValue, $phpUploadMaxFilesizeValue, $phpMaxExecutionTimeValue,
         $phpMaxInputTimeValue, $phpMemoryLimitValue, $extMail, $webFolderProtection, $mailQuota
         ) = explode(';', $data['props']);
@@ -55,7 +56,7 @@ function loadHostingPlan()
     $mailQuota = $mailQuota / 1048576;
 
     $phpini = PHPini::getInstance();
-    $phpini->loadResellerPermissions($_SESSION['user_id']);
+    $phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_id']);
     $phpini->loadClientPermissions();
     $phpini->loadIniOptions();
 
@@ -82,7 +83,7 @@ function loadHostingPlan()
  * @param TemplateEngine $tpl
  * @return void
  */
-function generatePhpBlock($tpl)
+function generatePhpBlock(TemplateEngine $tpl)
 {
     $phpini = PHPini::getInstance();
 
@@ -102,7 +103,7 @@ function generatePhpBlock($tpl)
         'TR_SEC'                 => toHtml(tr('Sec.'))
     ]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $translations = $e->getParam('translations');
         $translations['core']['close'] = toHtml(tr('Close'));
         $translations['core']['fields_ok'] = toHtml(tr('All fields are valid.'));
@@ -163,8 +164,8 @@ function generatePhpBlock($tpl)
         $permissionsBlock = true;
     }
 
-    if (strpos(Registry::get('config')['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = new ConfigFile(normalizePath(Registry::get('config')['CONF_DIR'] . '/apache/apache.data'));
+    if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
+        $apacheConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data'));
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -235,10 +236,10 @@ function generatePhpBlock($tpl)
  * @param $tpl TemplateEngine
  * @return void
  */
-function generatePage($tpl)
+function generatePage(TemplateEngine $tpl)
 {
-    global $id, $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $backup, $dns, $aps,
-           $extMail, $webFolderProtection, $status;
+    global $id, $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $backup, $dns, $extMail,
+           $webFolderProtection, $status;
 
     $tpl->assign([
         'ID'                      => toHtml($id, 'htmlAttr'),
@@ -259,8 +260,6 @@ function generatePage($tpl)
         'CGI_NO'                  => $cgi == '_yes_' ? '' : ' checked',
         'DNS_YES'                 => $dns == '_yes_' ? ' checked' : '',
         'DNS_NO'                  => $dns == '_yes_' ? '' : ' checked',
-        'SOFTWARE_YES'            => $aps == '_yes_' ? ' checked' : '',
-        'SOFTWARE_NO'             => $aps == '_yes_' ? '' : ' checked',
         'EXTMAIL_YES'             => $extMail == '_yes_' ? ' checked' : '',
         'EXTMAIL_NO'              => $extMail == '_yes_' ? '' : ' checked',
         'BACKUPD'                 => in_array('_dmn_', $backup) ? ' checked' : '',
@@ -272,9 +271,10 @@ function generatePage($tpl)
         'STATUS_NO'               => !$status ? ' checked' : ''
     ]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $translations = $e->getParam('translations');
-        $translations['core']['error_field_stack'] = Registry::isRegistered('errFieldsStack') ? Registry::get('errFieldsStack') : [];
+        $translations['core']['error_field_stack'] = Application::getInstance()->getRegistry()->has('errFieldsStack')
+            ? Application::getInstance()->getRegistry()->get('errFieldsStack') : [];
     });
 
     if (!resellerHasFeature('subdomains')) {
@@ -317,10 +317,6 @@ function generatePage($tpl)
         $tpl->assign('CUSTOM_DNS_RECORDS_FEATURE', '');
     }
 
-    if (!resellerHasFeature('aps')) {
-        $tpl->assign('APS_FEATURE', '');
-    }
-
     if (!resellerHasFeature('external_mail')) {
         $tpl->assign('EXT_MAIL_FEATURE', '');
     }
@@ -339,7 +335,7 @@ function generatePage($tpl)
  */
 function checkInputData()
 {
-    global $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $dns, $backup, $aps, $extMail,
+    global $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $dns, $backup, $extMail,
            $webFolderProtection, $status;
 
     $name = isset($_POST['name']) ? cleanInput($_POST['name']) : $name;
@@ -357,7 +353,6 @@ function checkInputData()
     $cgi = isset($_POST['cgi']) ? cleanInput($_POST['cgi']) : $cgi;
     $dns = isset($_POST['dns']) ? cleanInput($_POST['dns']) : $dns;
     $backup = isset($_POST['backup']) && is_array($_POST['backup']) ? $_POST['backup'] : $backup;
-    $aps = isset($_POST['softwares_installer']) ? cleanInput($_POST['softwares_installer']) : $aps;
     $extMail = isset($_POST['external_mail']) ? cleanInput($_POST['external_mail']) : $extMail;
     $webFolderProtection = isset($_POST['protected_webfolders']) ? cleanInput($_POST['protected_webfolders']) : $webFolderProtection;
     $status = isset($_POST['status']) ? cleanInput($_POST['status']) : $status;
@@ -366,15 +361,9 @@ function checkInputData()
     $cgi = $cgi === '_yes_' ? '_yes_' : '_no_';
     $dns = resellerHasFeature('custom_dns_records') && $dns === '_yes_' ? '_yes_' : '_no_';
     $backup = resellerHasFeature('backup') ? array_intersect($backup, ['_dmn_', '_sql_', '_mail_']) : [];
-    $aps = resellerHasFeature('aps') && $aps === '_yes_' ? '_yes_' : '_no_';
     $extMail = $extMail === '_yes_' ? '_yes_' : '_no_';
     $webFolderProtection = $webFolderProtection === '_yes_' ? '_yes_' : '_no_';
-
     $errFieldsStack = [];
-
-    if ($aps == '_yes_') { // Ensure that PHP is enabled when software installer is enabled
-        $php = '_yes_';
-    }
 
     if ($name === '') {
         setPageMessage(tr('Name cannot be empty.'), 'error');
@@ -518,7 +507,7 @@ function checkInputData()
     }
 
     if (!empty($errFieldsStack)) {
-        Registry::set('errFieldsStack', $errFieldsStack);
+        Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
         return false;
     }
 
@@ -532,11 +521,11 @@ function checkInputData()
  */
 function updateHostingPlan()
 {
-    global $id, $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $dns, $backup, $aps,
-           $extMail, $webFolderProtection, $status;
+    global $id, $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $dns, $backup, $extMail,
+           $webFolderProtection, $status;
 
     $phpini = PHPini::getInstance();
-    $props = "$php;$cgi;$sub;$als;$mail;$ftp;$sqld;$sqlu;$traffic;$diskSpace;" . implode('|', $backup) . ";$dns;$aps";
+    $props = "$php;$cgi;$sub;$als;$mail;$ftp;$sqld;$sqlu;$traffic;$diskSpace;" . implode('|', $backup) . ";$dns";
     $props .= ';' . $phpini->getClientPermission('phpiniSystem');
     $props .= ';' . $phpini->getClientPermission('phpiniConfigLevel');
     $props .= ';' . $phpini->getClientPermission('phpiniAllowUrlFopen');
@@ -550,7 +539,7 @@ function updateHostingPlan()
     $props .= ';' . $phpini->getIniOption('phpiniMemoryLimit');
     $props .= ';' . $extMail . ';' . $webFolderProtection . ';' . $mailQuota * 1048576;
 
-    if (!validateHostingPlanLimits($props, $_SESSION['user_id'])) {
+    if (!validateHostingPlanLimits($props, Application::getInstance()->getSession()['user_id'])) {
         setPageMessage(tr('Hosting plan limits exceed your limits.'), 'error');
         return false;
     }
@@ -559,15 +548,14 @@ function updateHostingPlan()
     return true;
 }
 
-require 'imscp-lib.php';
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+isset($_GET['id']) or View::showBadRequestErrorPage();
 
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
-isset($_GET['id']) or showBadRequestErrorPage();
-
+global $id;
 $id = intval($_GET['id']);
 
-loadHostingPlan() or showBadRequestErrorPage();
+loadHostingPlan() or View::showBadRequestErrorPage();
 
 if (!empty($_POST) && checkInputData() && updateHostingPlan()) {
     setPageMessage(tr('Hosting plan successfully updated.'), 'success');
@@ -597,7 +585,6 @@ $tpl->define([
     'php_editor_default_values_block'         => 'php_editor_feature',
     'cgi_feature'                             => 'page',
     'custom_dns_feature'                      => 'page',
-    'aps_feature'                             => 'page',
     'backup_feature'                          => 'page'
 ]);
 $tpl->assign([
@@ -634,10 +621,10 @@ $tpl->assign([
     'TR_UPDATE'                     => toHtml(tr('Update'), 'htmlAttr'),
     'TR_CANCEL'                     => toHtml(tr('Cancel'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

@@ -18,23 +18,23 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('sql') && isset($_GET['sqlu_id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('sql') && isset($_GET['sqlu_id']) or View::showBadRequestErrorPage();
 
 $sqluId = intval($_GET['sqlu_id']);
 
-if (!deleteSqlUser(getCustomerMainDomainId($_SESSION['user_id']), $sqluId)) {
+if (!deleteSqlUser(getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $sqluId)) {
     writeLog(sprintf('Could not delete SQL user with ID %d. An unexpected error occurred.', $sqluId), E_USER_ERROR);
     setPageMessage(tr('Could not delete SQL user. An unexpected error occurred.'), 'error');
     redirectTo('sql_manage.php');
 }
 
 setPageMessage(tr('SQL user successfully deleted.'), 'success');
-writeLog(sprintf('%s deleted SQL user with ID %d', $_SESSION['user_logged'], $sqluId), E_USER_NOTICE);
+writeLog(sprintf('%s deleted SQL user with ID %d', Application::getInstance()->getSession()['user_logged'], $sqluId), E_USER_NOTICE);
 redirectTo('sql_manage.php');

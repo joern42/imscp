@@ -18,13 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('admin');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptStart);
+Login::checkLogin('admin');
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -35,18 +35,18 @@ $tpl->define([
     'def_language'        => 'languages_available'
 ]);
 
-$adminCurrentLanguage = $_SESSION['user_def_lang'];
+$adminCurrentLanguage = Application::getInstance()->getSession()['user_def_lang'];
 
 if (!empty($_POST)) {
     $adminNewLanguage = cleanInput($_POST['def_language']);
 
     if (!in_array($adminNewLanguage, getAvailableLanguages(true), true)) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     if ($adminCurrentLanguage != $adminNewLanguage) {
-        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [$adminNewLanguage, $_SESSION['user_id']]);
-        $_SESSION['user_def_lang'] = $adminNewLanguage;
+        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [$adminNewLanguage, Application::getInstance()->getSession()['user_id']]);
+        Application::getInstance()->getSession()['user_def_lang'] = $adminNewLanguage;
         setPageMessage(tr('Language has been updated.'), 'success');
     } else {
         setPageMessage(tr('Nothing has been changed.'), 'info');
@@ -61,10 +61,10 @@ $tpl->assign([
     'TR_CHOOSE_LANGUAGE' => tr('Choose your language'),
     'TR_UPDATE'          => tr('Update')
 ]);
-generateNavigation($tpl);
-generateLanguagesList($tpl, $adminCurrentLanguage);
+View::generateNavigation($tpl);
+View::generateLanguagesList($tpl, $adminCurrentLanguage);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onAdminScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

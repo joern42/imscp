@@ -18,9 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Daemon;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Get domain name
@@ -66,7 +67,7 @@ function _client_getDomainName($domainId, $domainType)
                 ";
         }
 
-        $stmt = execQuery($query, [$domainId, $_SESSION['user_id']]);
+        $stmt = execQuery($query, [$domainId, Application::getInstance()->getSession()['user_id']]);
 
         if (!$stmt->rowCount()) {
             return false;
@@ -156,7 +157,7 @@ EOF
         'COMMON_NAME'       => $data['domain_name'],
         'EMAIL_ADDRESS'     => $data['email'],
         'DOMAIN_NAME'       => $data['domain_name'],
-        'BASE_SERVER_VHOST' => Registry::get('config')['BASE_SERVER_VHOST']
+        'BASE_SERVER_VHOST' => Application::getInstance()->getConfig()['BASE_SERVER_VHOST']
     ]);
 
     foreach (
@@ -175,7 +176,7 @@ EOF
 
     $tpl->parse('OPENSSL', 'openssl');
 
-    $opensslConfFile = @tempnam(sys_get_temp_dir(), $_SESSION['user_id'] . '-openssl.cnf');
+    $opensslConfFile = @tempnam(sys_get_temp_dir(), Application::getInstance()->getSession()['user_id'] . '-openssl.cnf');
     if ($opensslConfFile === false) {
         writeLog("Couldn't create temporary openssl configuration file.", E_USER_ERROR);
         return false;
@@ -201,7 +202,7 @@ EOF
  */
 function client_generateSelfSignedCert($domainName)
 {
-    $stmt = execQuery('SELECT firm, city, state, country, email FROM admin WHERE admin_id = ?', [$_SESSION['user_id']]);
+    $stmt = execQuery('SELECT firm, city, state, country, email FROM admin WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
 
     if (!$stmt->rowCount()) {
         return false;
@@ -235,7 +236,7 @@ function client_generateSelfSignedCert($domainName)
         return false;
     }
 
-    $cert = @openssl_csr_sign($csr, NULL, $pkeyStr, 365, $sslConfig, (int)($_SESSION['user_id'] . time()));
+    $cert = @openssl_csr_sign($csr, NULL, $pkeyStr, 365, $sslConfig, (int)(Application::getInstance()->getSession()['user_id'] . time()));
     if (!is_resource($cert)) {
         writeLog(sprintf("Couldn't generate SSL certificate: %s", openssl_error_string()));
         return false;
@@ -265,7 +266,7 @@ function client_generateSelfSignedCert($domainName)
  */
 function client_addSslCert($domainId, $domainType)
 {
-    $config = Registry::get('config');
+    $config = Application::getInstance()->getConfig();
     $domainName = _client_getDomainName($domainId, $domainType);
     $allowHSTS = (isset($_POST['allow_hsts']) && in_array($_POST['allow_hsts'], ['on', 'off'], true))
         ? $_POST['allow_hsts'] : 'off';
@@ -276,7 +277,7 @@ function client_addSslCert($domainId, $domainType)
         ? $_POST['hsts_include_subdomains'] : 'off';
     $selfSigned = (isset($_POST['selfsigned']) && $_POST['selfsigned'] === 'on');
 
-    $domainName !== false or showBadRequestErrorPage();
+    $domainName !== false or View::showBadRequestErrorPage();
 
     if ($selfSigned && !client_generateSelfSignedCert($domainName)) {
         setPageMessage(tr('Could not generate SSL certificate. An unexpected error occurred.'), 'error');
@@ -286,7 +287,7 @@ function client_addSslCert($domainId, $domainType)
     if (!isset($_POST['passphrase']) || !isset($_POST['private_key']) || !isset($_POST['certificate']) || !isset($_POST['ca_bundle'])
         || !isset($_POST['cert_id'])
     ) {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 
     $passPhrase = cleanInput($_POST['passphrase']);
@@ -315,7 +316,7 @@ function client_addSslCert($domainId, $domainType)
             return;
         }
 
-        $tmpfname = @tempnam(sys_get_temp_dir(), $_SESSION['user_id'] . 'ssl-ca');
+        $tmpfname = @tempnam(sys_get_temp_dir(), Application::getInstance()->getSession()['user_id'] . 'ssl-ca');
         if ($tmpfname === false) {
             writeLog("Couldn't create temporary file for CA bundle.", E_USER_ERROR);
             setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
@@ -375,11 +376,10 @@ function client_addSslCert($domainId, $domainType)
         $caBundleStr = $caBundle;
     }
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         if ($certId == 0) { // Add new certificate
             execQuery(
@@ -407,21 +407,21 @@ function client_addSslCert($domainId, $domainType)
 
         _client_updateDomainStatus($domainId, $domainType);
 
-        $db->commit();
+        $db->getDriver()->getConnection()->commit();
 
-        sendDaemonRequest();
+        Daemon::sendRequest();
 
         if ($certId == 0) {
             setPageMessage(tr('SSL certificate successfully scheduled for addition.'), 'success');
-            writeLog(sprintf('%s added a new SSL certificate for the %s domain', $_SESSION['user_logged'], decodeIdna($domainName)), E_USER_NOTICE);
+            writeLog(sprintf('%s added a new SSL certificate for the %s domain', Application::getInstance()->getSession()['user_logged'], decodeIdna($domainName)), E_USER_NOTICE);
         } else {
             setPageMessage(tr('SSL certificate successfully scheduled for update.'), 'success');
-            writeLog(sprintf('%s updated an SSL certificate for the %s domain', $_SESSION['user_logged'], $domainName), E_USER_NOTICE);
+            writeLog(sprintf('%s updated an SSL certificate for the %s domain', Application::getInstance()->getSession()['user_logged'], $domainName), E_USER_NOTICE);
         }
 
         redirectTo("cert_view.php?id=$domainId&type=$domainType");
-    } catch (iMSCP_Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         writeLog("Couldn't add/update SSL certificate in database", E_USER_ERROR);
         setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     }
@@ -437,28 +437,27 @@ function client_addSslCert($domainId, $domainType)
 function client_deleteSslCert($domainId, $domainType)
 {
     $domainName = _client_getDomainName($domainId, $domainType);
-    $domainName !== false && isset($_POST['cert_id']) or showBadRequestErrorPage();
+    $domainName !== false && isset($_POST['cert_id']) or View::showBadRequestErrorPage();
     $certId = intval($_POST['cert_id']);
 
-    /** @var iMSCP_Database $db */
-    $db = Registry::get('iMSCP_Application')->getDatabase();
+    $db = Application::getInstance()->getDb();
 
     try {
-        $db->beginTransaction();
+        $db->getDriver()->getConnection()->beginTransaction();
 
         execQuery("UPDATE ssl_certs SET status = 'todelete' WHERE cert_id = ? AND domain_id = ? AND domain_type = ?", [
             $certId, $domainId, $domainType
         ]);
         _client_updateDomainStatus($domainId, $domainType);
 
-        $db->commit();
+        $db->getDriver()->getConnection()->commit();
 
-        sendDaemonRequest();
+        Daemon::sendRequest();
         setPageMessage(tr('SSL certificate successfully scheduled for deletion.'), 'success');
-        writeLog(sprintf('%s deleted SSL certificate for the %s domain.', $_SESSION['user_logged'], decodeIdna($domainName)), E_USER_NOTICE);
+        writeLog(sprintf('%s deleted SSL certificate for the %s domain.', Application::getInstance()->getSession()['user_logged'], decodeIdna($domainName)), E_USER_NOTICE);
         redirectTo('domains_manage.php');
-    } catch (iMSCP_Exception $e) {
-        $db->rollBack();
+    } catch (\Exception $e) {
+        $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf("Couldn't export SSL certificate: %s", $e->getMessage()), E_USER_ERROR);
         setPageMessage(tr('Could not delete SSL certificate. An unexpected error occurred.'), 'error');
     }
@@ -475,7 +474,7 @@ function client_deleteSslCert($domainId, $domainType)
 function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
 {
     $domainName = _client_getDomainName($domainId, $domainType);
-    $domainName !== false or showBadRequestErrorPage();
+    $domainName !== false or View::showBadRequestErrorPage();
     $stmt = execQuery('SELECT * FROM ssl_certs WHERE domain_id = ? AND domain_type = ?', [$domainId, $domainType]);
 
     if ($stmt->rowCount()) {
@@ -551,11 +550,9 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-isset($_GET['id']) && isset($_GET['type']) && in_array($_GET['type'], ['dmn', 'als', 'sub', 'alssub']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+isset($_GET['id']) && isset($_GET['type']) && in_array($_GET['type'], ['dmn', 'als', 'sub', 'alssub']) or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -575,7 +572,7 @@ if (customerHasFeature('ssl') && !empty($_POST)) {
     } elseif (isset($_POST['delete'])) {
         client_deleteSslCert($domainId, $domainType);
     } else {
-        showBadRequestErrorPage();
+        View::showBadRequestErrorPage();
     }
 }
 
@@ -599,10 +596,10 @@ $tpl->assign([
     'DOMAIN_ID'                          => toHtml($domainId),
     'DOMAIN_TYPE'                        => toHtml($domainType)
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 client_generatePage($tpl, $domainId, $domainType);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

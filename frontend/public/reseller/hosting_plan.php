@@ -18,10 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Events_Event as Event;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\EventManager\Event;
 
 /**
  * Generate page
@@ -31,7 +32,9 @@ use iMSCP_Registry as Registry;
  */
 function generatePage($tpl)
 {
-    $stmt = execQuery('SELECT id, name, status FROM hosting_plans WHERE reseller_id = ? ORDER BY id', [$_SESSION['user_id']]);
+    $stmt = execQuery('SELECT id, name, status FROM hosting_plans WHERE reseller_id = ? ORDER BY id', [
+        Application::getInstance()->getSession()['user_id']
+    ]);
     if (!$stmt->rowCount()) {
         $tpl->assign('HOSTING_PLANS', '');
         setPageMessage(tr('No hosting plan available.'), 'static_info');
@@ -47,7 +50,7 @@ function generatePage($tpl)
         'TR_DELETE' => tr('Delete')
     ]);
 
-    Registry::get('iMSCP_Application')->getEventsManager()->registerListener(Events::onGetJsTranslations, function (Event $e) {
+    Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $translations = $e->getParam('translations');
         $translations['core']['hp_delete_confirmation'] = tr('Are you sure you want to delete this hosting plan?');
     });
@@ -62,10 +65,8 @@ function generatePage($tpl)
     }
 }
 
-require 'imscp-lib.php';
-
-checkLogin('reseller');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptStart);
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -76,10 +77,10 @@ $tpl->define([
     'hosting_plan'  => 'hosting_plans'
 ]);
 $tpl->assign('TR_PAGE_TITLE', tr('Reseller / Hosting Plans / Overview'));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onResellerScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

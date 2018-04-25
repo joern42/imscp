@@ -18,13 +18,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP_Registry as Registry;
+namespace iMSCP;
 
-require_once 'imscp-lib.php';
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(iMSCP_Events::onClientScriptStart);
-customerHasFeature('domain_aliases') && isset($_GET['id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $id = intval($_GET['id']);
 $stmt = execQuery(
@@ -35,10 +36,10 @@ $stmt = execQuery(
         WHERE t1.alias_id = ?
         AND t2.domain_admin_id = ?
     ',
-    [$id, $_SESSION['user_id']]
+    [$id, Application::getInstance()->getSession()['user_id']]
 );
 
-$stmt->rowCount() or showBadRequestErrorPage();
+$stmt->rowCount() or View::showBadRequestErrorPage();
 $row = $stmt->fetch();
-deleteDomainAlias($_SESSION['user_id'], $row['domain_id'], $id, $row['alias_name'], $row['alias_mount']);
+deleteDomainAlias(Application::getInstance()->getSession()['user_id'], $row['domain_id'], $id, $row['alias_name'], $row['alias_mount']);
 redirectTo('domains_manage.php');

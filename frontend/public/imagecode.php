@@ -18,7 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-require_once 'imscp-lib.php';
-require_once LIBRARY_PATH . '/Functions/LostPassword.php';
+namespace iMSCP;
 
-generateCaptcha('capcode');
+use iMSCP\Functions\LostPassword;
+
+LostPassword::generateCaptcha('capcode');

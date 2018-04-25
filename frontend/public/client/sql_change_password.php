@@ -18,10 +18,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Config_Handler_File as ConfigFile;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
+use Zend\Config;
 
 /**
  * Update SQL user password
@@ -32,10 +33,10 @@ use iMSCP_Registry as Registry;
 function updateSqlUserPassword($sqluId)
 {
     $stmt = execQuery('SELECT sqlu_name, sqlu_host FROM sql_user WHERE sqlu_id = ?', [$sqluId]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
 
-    isset($_POST['password']) && isset($_POST['password_confirmation']) or showBadRequestErrorPage();
+    isset($_POST['password']) && isset($_POST['password_confirmation']) or View::showBadRequestErrorPage();
 
     $password = cleanInput($_POST['password']);
     $passwordConf = cleanInput($_POST['password_confirmation']);
@@ -59,10 +60,7 @@ function updateSqlUserPassword($sqluId)
         return;
     }
 
-    $config = Registry::get('config');
-    $mysqlConfig = new ConfigFile($config['CONF_DIR'] . '/mysql/mysql.data');
-
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onBeforeEditSqlUser, [
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditSqlUser, NULL, [
         'sqlUserId'       => $sqluId,
         'sqlUserPassword' => $password
     ]);
@@ -70,8 +68,9 @@ function updateSqlUserPassword($sqluId)
     // Here we cannot use transaction due to statements that cause an implicit commit. Thus we execute
     // those statements first to let the i-MSCP database in clean state if one of them fails.
     // See https://dev.mysql.com/doc/refman/5.7/en/implicit-commit.html for more details
-
+    
     // Update SQL user password in the mysql system tables;
+    $mysqlConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data'));
     if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
         execQuery('SET PASSWORD FOR ?@? = PASSWORD(?)', [$row['sqlu_name'], $row['sqlu_host'], $password]);
     } else {
@@ -79,8 +78,8 @@ function updateSqlUserPassword($sqluId)
     }
 
     setPageMessage(tr('SQL user password successfully updated.'), 'success');
-    writeLog(sprintf('%s updated %s@%s SQL user password.', $_SESSION['user_logged'], $row['sqlu_name'], $row['sqlu_host']), E_USER_NOTICE);
-    Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onAfterEditSqlUser, [
+    writeLog(sprintf('%s updated %s@%s SQL user password.', Application::getInstance()->getSession()['user_logged'], $row['sqlu_name'], $row['sqlu_host']), E_USER_NOTICE);
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditSqlUser, NULL, [
         'sqlUserId'       => $sqluId,
         'sqlUserPassword' => $password
     ]);
@@ -97,7 +96,7 @@ function updateSqlUserPassword($sqluId)
 function generatePage(TemplateEngine $tpl, $sqluId)
 {
     $stmt = execQuery('SELECT sqlu_name, sqlu_host FROM sql_user WHERE sqlu_id = ?', [$sqluId]);
-    $stmt->rowCount() or showBadRequestErrorPage();
+    $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
     $tpl->assign([
         'USER_NAME' => toHtml($row['sqlu_name']),
@@ -122,19 +121,17 @@ function checkSqlUserPerms($sqlUserId)
             WHERE t1.sqlu_id = ?
             AND t3.domain_admin_id = ?
         ',
-            [$sqlUserId, $_SESSION['user_id']]
+            [$sqlUserId, Application::getInstance()->getSession()['user_id']]
         )->fetchColumn() > 0;
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('sql') && isset($_REQUEST['sqlu_id']) or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('sql') && isset($_REQUEST['sqlu_id']) or View::showBadRequestErrorPage();
 
 $sqluId = intval($_REQUEST['sqlu_id']);
 
-checkSqlUserPerms($sqluId) or showBadRequestErrorPage();
+checkSqlUserPerms($sqluId) or View::showBadRequestErrorPage();
 
 empty($_POST) or updateSqlUserPassword($sqluId);
 
@@ -153,10 +150,10 @@ $tpl->assign([
     'TR_UPDATE'                => toHtml(tr('Update'), 'htmlAttr'),
     'TR_CANCEL'                => toHtml(tr('Cancel'))
 ]);
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl, $sqluId);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();

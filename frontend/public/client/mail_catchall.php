@@ -18,9 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-use iMSCP\TemplateEngine;
-use iMSCP_Events as Events;
-use iMSCP_Registry as Registry;
+namespace iMSCP;
+use iMSCP\Functions\Mail;
+use iMSCP\Functions\Login;
+use iMSCP\Functions\View;
 
 /**
  * Generate catch-all item
@@ -81,20 +82,20 @@ function generateCatchallItem($tpl, $domainName, $mailId, $mailAcc, $domainId, $
  */
 function generatePage($tpl)
 {
-    $dmnProps = getCustomerProperties($_SESSION['user_id']);
+    $dmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
 
     // Normal catch-all account
 
     $stmt = execQuery('SELECT mail_id, mail_acc, status FROM mail_users WHERE domain_id = ? AND sub_id = ? AND mail_type = ?', [
-        $dmnProps['domain_id'], 0, MT_NORMAL_CATCHALL
+        $dmnProps['domain_id'], 0, Mail::MT_NORMAL_CATCHALL
     ]);
 
     if (!$stmt->rowCount()) {
-        generateCatchallItem($tpl, $dmnProps['domain_name'], 0, tr('N/A'), $dmnProps['domain_id'], tr('N/A'), MT_NORMAL_CATCHALL);
+        generateCatchallItem($tpl, $dmnProps['domain_name'], 0, tr('N/A'), $dmnProps['domain_id'], tr('N/A'), Mail::MT_NORMAL_CATCHALL);
     } else {
         $row = $stmt->fetch();
         generateCatchallItem(
-            $tpl, $dmnProps['domain_name'], $row['mail_id'], $row['mail_acc'], $dmnProps['domain_id'], $row['status'], MT_NORMAL_CATCHALL
+            $tpl, $dmnProps['domain_name'], $row['mail_id'], $row['mail_acc'], $dmnProps['domain_id'], $row['status'], Mail::MT_NORMAL_CATCHALL
         );
     }
 
@@ -115,15 +116,15 @@ function generatePage($tpl)
 
     while ($data = $stmt->fetch()) {
         $stmt2 = execQuery('SELECT mail_id, mail_acc, status FROM mail_users WHERE domain_id = ? AND sub_id = ? AND mail_type = ?', [
-            $dmnProps['domain_id'], $data['subdomain_id'], MT_SUBDOM_CATCHALL
+            $dmnProps['domain_id'], $data['subdomain_id'], Mail::MT_SUBDOM_CATCHALL
         ]);
 
         if (!$stmt2->rowCount()) {
-            generateCatchallItem($tpl, $data['subdomain_name'], 0, tr('N/A'), $data['subdomain_id'], tr('N/A'), MT_SUBDOM_CATCHALL);
+            generateCatchallItem($tpl, $data['subdomain_name'], 0, tr('N/A'), $data['subdomain_id'], tr('N/A'), Mail::MT_SUBDOM_CATCHALL);
         } else {
             $row = $stmt2->fetch();
             generateCatchallItem(
-                $tpl, $data['subdomain_name'], $row['mail_id'], $row['mail_acc'], $data['subdomain_id'], $row['status'], MT_SUBDOM_CATCHALL
+                $tpl, $data['subdomain_name'], $row['mail_id'], $row['mail_acc'], $data['subdomain_id'], $row['status'], Mail::MT_SUBDOM_CATCHALL
             );
         }
 
@@ -136,14 +137,16 @@ function generatePage($tpl)
 
     while ($data = $stmt->fetch()) {
         $stmt2 = execQuery('SELECT mail_id, mail_acc, status FROM mail_users WHERE domain_id = ? AND sub_id = ? AND mail_type = ?', [
-            $dmnProps['domain_id'], $data['alias_id'], MT_ALIAS_CATCHALL
+            $dmnProps['domain_id'], $data['alias_id'], Mail::MT_ALIAS_CATCHALL
         ]);
 
         if (!$stmt2->rowCount()) {
-            generateCatchallItem($tpl, $data['alias_name'], 0, tr('N/A'), $data['alias_id'], tr('N/A'), MT_ALIAS_CATCHALL);
+            generateCatchallItem($tpl, $data['alias_name'], 0, tr('N/A'), $data['alias_id'], tr('N/A'), Mail::MT_ALIAS_CATCHALL);
         } else {
             $row = $stmt2->fetch();
-            generateCatchallItem($tpl, $data['alias_name'], $row['mail_id'], $row['mail_acc'], $data['alias_id'], $row['status'], MT_ALIAS_CATCHALL);
+            generateCatchallItem(
+                $tpl, $data['alias_name'], $row['mail_id'], $row['mail_acc'], $data['alias_id'], $row['status'], Mail::MT_ALIAS_CATCHALL
+            );
         }
 
         $tpl->parse('CATCHALL_ITEM', '.catchall_item');
@@ -165,15 +168,15 @@ function generatePage($tpl)
 
     while ($data = $stmt->fetch()) {
         $stmt2 = execQuery('SELECT mail_id, mail_acc, status FROM mail_users WHERE domain_id = ? AND sub_id = ? AND mail_type = ?', [
-            $dmnProps['domain_id'], $data['subdomain_alias_id'], MT_ALSSUB_CATCHALL
+            $dmnProps['domain_id'], $data['subdomain_alias_id'], Mail::MT_ALSSUB_CATCHALL
         ]);
 
         if (!$stmt2->rowCount()) {
-            generateCatchallItem($tpl, $data['subdomain_name'], 0, tr('N/A'), $data['subdomain_alias_id'], tr('N/A'), MT_ALSSUB_CATCHALL);
+            generateCatchallItem($tpl, $data['subdomain_name'], 0, tr('N/A'), $data['subdomain_alias_id'], tr('N/A'), Mail::MT_ALSSUB_CATCHALL);
         } else {
             $row = $stmt2->fetch();
             generateCatchallItem(
-                $tpl, $data['subdomain_name'], $row['mail_id'], $row['mail_acc'], $data['subdomain_alias_id'], $row['status'], MT_ALSSUB_CATCHALL
+                $tpl, $data['subdomain_name'], $row['mail_id'], $row['mail_acc'], $data['subdomain_alias_id'], $row['status'], Mail::MT_ALSSUB_CATCHALL
             );
         }
 
@@ -181,11 +184,9 @@ function generatePage($tpl)
     }
 }
 
-require_once 'imscp-lib.php';
-
-checkLogin('user');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptStart);
-customerHasFeature('mail') or showBadRequestErrorPage();
+Login::checkLogin('user');
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
+customerHasFeature('mail') or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -198,10 +199,10 @@ $tpl->define([
 
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Client / Mail / Catch-all Accounts')));
-generateNavigation($tpl);
+View::generateNavigation($tpl);
 generatePage($tpl);
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Registry::get('iMSCP_Application')->getEventsManager()->dispatch(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
 unsetMessages();
