@@ -20,52 +20,43 @@
 
 namespace iMSCP\Authentication;
 
-use Zend\Authentication\Result as AuthResult;
-use Zend\EventManager\Event;
+use iMSCP\Model\IdentityInterface;
+use Zend\Authentication\Result;
 
 /**
- * Class AuthEvent
+ * Class AuthResult
  * @package iMSCP\Authentication
  */
-class AuthEvent extends Event
+class AuthResult extends Result
 {
-    const EVENT_BEFORE_AUTHENTICATION = 'onBeforeAuthentication';
-    const EVENT_AUTHENTICATION = 'onAuthentication';
-    const EVENT_AFTER_AUTHENTICATION = 'onAfterAuthentication';
-
     /**
-     * @var AuthResult
-     */
-    protected $authenticationResult = NULL;
-
-    /**
-     * Has authentication result?
+     * The identity used in the authentication attempt
      *
-     * @return bool
+     * @var IdentityInterface
      */
-    public function hasAuthenticationResult(): bool
+    protected $identity;
+
+    /**
+     * Sets the result code, identity, and failure messages
+     *
+     * @param  int $code
+     * @param  mixed $identity
+     * @param  array $messages
+     */
+    public function __construct(int $code, IdentityInterface $identity = NULL, array $messages = [])
     {
-        return $this->authenticationResult !== NULL;
+        $this->code = $code;
+        $this->identity = $identity;
+        $this->messages = $messages;
     }
 
     /**
-     * Get authentication result
+     * Returns the identity used in the authentication attempt
      *
-     * @return AuthResult
+     * @return IdentityInterface
      */
-    public function getAuthenticationResult(): ?AuthResult
+    public function getIdentity(): IdentityInterface
     {
-        return $this->authenticationResult;
-    }
-
-    /**
-     * Set authentication result
-     *
-     * @param AuthResult $authResult
-     * @param void
-     */
-    public function setAuthenticationResult(AuthResult $authResult): void
-    {
-        $this->authenticationResult = $authResult;
+        return $this->identity;
     }
 }
