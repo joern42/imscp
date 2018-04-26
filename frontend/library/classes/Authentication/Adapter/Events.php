@@ -71,7 +71,7 @@ class Events extends AbstractAdapter
                 $authResult = $authEvent->getAuthenticationResult();
             }
         } else {
-            $authResult = new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, NULL, $responses->last());
+            $authResult = new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, NULL, [$responses->last()]);
             $authEvent->setAuthenticationResult($authResult);
         }
 

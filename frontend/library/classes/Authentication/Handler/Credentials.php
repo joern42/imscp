@@ -80,14 +80,13 @@ class Credentials implements HandlerInterface
 
             $identity = $resultSet->current();
 
-            if (!Crypt::hashEqual($identity->getUserPassword(), md5($password)) && !Crypt::verify($password, $identity->getUserPassword())) {
+            if (!Crypt::verify($password, $identity->getUserPassword())) {
                 $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, [tr('Bad password.')]));
                 return;
             }
 
-            // If not an APR-1 hashed password, we need recreate the hash
-            // FIXME: Replace APR-1 by BCRYPT (If not a bcryt hashed password ...)
-            if (strpos($identity->getUserPassword(), '$apr1$') !== 0) {
+            // If not a Bcrypt hashed password, we need recreate the hash
+            if (strpos($identity->getUserPassword(), '$2a$') !== 0) {
                 // We must defer password hash update to handle cases where the authentication
                 // process has failed case of a multi-factor authentication process)
                 Application::getInstance()->getEventManager()->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, function (AuthEvent $event) use ($password) {
@@ -99,8 +98,8 @@ class Credentials implements HandlerInterface
                     $identity = $authResult->getIdentity();
                     $stmt = Application::getInstance()->getDb()->createStatement('UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?');
                     $stmt->prepare();
-                    $stmt->execute([Crypt::apr1MD5($password), $identity->getUserType() == 'user' ? 'tochangepwd' : 'ok', $identity->getUserId()]);
-                    writeLog(sprintf('Password for user %s has been re-encrypted using APR-1 algorithm', $identity->getUsername()), E_USER_NOTICE);
+                    $stmt->execute([Crypt::bcrypt($password), $identity->getUserType() == 'user' ? 'tochangepwd' : 'ok', $identity->getUserId()]);
+                    writeLog(sprintf('Password for user %s has been re-encrypted using Bcrypt algorithm', $identity->getUsername()), E_USER_NOTICE);
                     $identity->getUserType() != 'user' or Daemon::sendRequest();
                 });
             }

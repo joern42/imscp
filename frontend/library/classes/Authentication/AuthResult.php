@@ -40,7 +40,7 @@ class AuthResult extends Result
      * Sets the result code, identity, and failure messages
      *
      * @param  int $code
-     * @param  mixed $identity
+     * @param  IdentityInterface $identity
      * @param  array $messages
      */
     public function __construct(int $code, IdentityInterface $identity = NULL, array $messages = [])
