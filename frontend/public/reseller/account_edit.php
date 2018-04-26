@@ -26,7 +26,6 @@ use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
-use Zend\Config;
 use Zend\EventManager\Event;
 
 /**
@@ -856,7 +855,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         }
 
         if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-            $apacheConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data'));
+            $apacheConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
             $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
         } else {
             $isApacheItk = false;

@@ -65,7 +65,7 @@ function addAdminUser(Form $form)
                 )
             ",
             [
-                $form->getValue('admin_name'), Crypt::apr1MD5($form->getValue('admin_pass')), $session['user_id'],
+                $form->getValue('admin_name'), Crypt::bcrypt($form->getValue('admin_pass')), $session['user_id'],
                 $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'),
                 $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
                 encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),

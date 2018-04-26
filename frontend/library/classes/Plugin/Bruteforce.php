@@ -106,8 +106,10 @@ class Bruteforce extends AbstractPlugin
      * @param string $targetForm Target form (login|captcha)
      * @çeturn void
      */
-    public function __construct(PluginManager $pluginManager, $targetForm = 'login')
+    public function __construct(PluginManager $pluginManager, string $targetForm = 'login')
     {
+        parent::__construct($pluginManager);
+
         $config = Application::getInstance()->getConfig();
 
         if ($targetForm == 'login') {
@@ -127,7 +129,6 @@ class Bruteforce extends AbstractPlugin
         $this->blockingTime = $config['BRUTEFORCE_BLOCK_TIME'];
 
         execQuery('DELETE FROM login WHERE UNIX_TIMESTAMP() > (lastaccess + ?)', [$this->blockingTime * 60]);
-        parent::__construct($pluginManager);
     }
 
     /**
@@ -152,7 +153,7 @@ class Bruteforce extends AbstractPlugin
     /**
      * @inheritdoc
      */
-    public function attach(EventManagerInterface $events, $priority = 100)
+    public function attach(EventManagerInterface $events, $priority = 100): void
     {
         // That plugin must acts early in the authentication process
         $events->attach(AuthEvent::EVENT_BEFORE_AUTHENTICATION, [$this, 'onBeforeAuthentication'], $priority);
@@ -164,7 +165,7 @@ class Bruteforce extends AbstractPlugin
      * @param Event $event
      * @return null|string
      */
-    public function onBeforeAuthentication($event)
+    public function onBeforeAuthentication($event): ?string
     {
         if ($this->isWaiting() || $this->isBlocked()) {
             $event->stopPropagation();
@@ -180,7 +181,7 @@ class Bruteforce extends AbstractPlugin
      *
      * @return bool TRUE if the client have to wait for a next login/captcha attempts, FALSE otherwise
      */
-    public function isWaiting()
+    public function isWaiting(): bool
     {
         if ($this->isWaitingFor == 0) {
             return false;
@@ -198,9 +199,9 @@ class Bruteforce extends AbstractPlugin
     /**
      * Is blocked IP address?
      *
-     * @return bool TRUE if the client is blocked
+     * @return bool TRUE if the client is blocked, FALSE otherwise
      */
-    public function isBlocked()
+    public function isBlocked(): bool
     {
         if ($this->isBlockedFor == 0) {
             return false;
@@ -220,7 +221,7 @@ class Bruteforce extends AbstractPlugin
      *
      * @return string
      */
-    public function getLastMessage()
+    public function getLastMessage(): string
     {
         return $this->message;
     }
@@ -230,7 +231,7 @@ class Bruteforce extends AbstractPlugin
      *
      * @return void
      */
-    public function logAttempt()
+    public function logAttempt(): void
     {
         if (!$this->recordExists) {
             $this->createRecord();
@@ -245,7 +246,7 @@ class Bruteforce extends AbstractPlugin
      *
      * @return void
      */
-    protected function createRecord()
+    protected function createRecord(): void
     {
         execQuery(
             "REPLACE INTO login (session_id, ipaddr, {$this->targetForm}_count, user_name, lastaccess) VALUES (?, ?, 1, NULL, UNIX_TIMESTAMP())",
@@ -258,7 +259,7 @@ class Bruteforce extends AbstractPlugin
      *
      * @return void
      */
-    protected function updateRecord()
+    protected function updateRecord(): void
     {
         execQuery(
             "
@@ -276,7 +277,7 @@ class Bruteforce extends AbstractPlugin
      *
      * @return void
      */
-    protected function init()
+    protected function init(): void
     {
         $stmt = execQuery('SELECT lastaccess, login_count, captcha_count FROM login WHERE ipaddr = ? AND user_name IS NULL', [$this->clientIpAddr]);
 

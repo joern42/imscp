@@ -22,7 +22,6 @@ namespace iMSCP;
 
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
-use Zend\Config;
 
 /**
  * Update SQL user password
@@ -70,7 +69,7 @@ function updateSqlUserPassword($sqluId)
     // See https://dev.mysql.com/doc/refman/5.7/en/implicit-commit.html for more details
     
     // Update SQL user password in the mysql system tables;
-    $mysqlConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data'));
+    $mysqlConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data');
     if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
         execQuery('SET PASSWORD FOR ?@? = PASSWORD(?)', [$row['sqlu_name'], $row['sqlu_host'], $password]);
     } else {

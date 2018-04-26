@@ -116,7 +116,7 @@ class LostPassword
      */
     public static function setPassword(string $userType, string $uniqueKey, string $userPassword): void
     {
-        $passwordHash = Crypt::apr1MD5($userPassword);
+        $passwordHash = Crypt::bcrypt($userPassword);
 
         if ($userType == 'user') {
             execQuery('UPDATE admin SET admin_pass = ?, uniqkey = NULL, uniqkey_time = NULL, admin_status = ? WHERE uniqkey = ?', [

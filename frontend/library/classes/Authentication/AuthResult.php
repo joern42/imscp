@@ -20,7 +20,7 @@
 
 namespace iMSCP\Authentication;
 
-use iMSCP\Model\IdentityInterface;
+use iMSCP\Model\UserIdentityInterface;
 use Zend\Authentication\Result;
 
 /**
@@ -32,7 +32,7 @@ class AuthResult extends Result
     /**
      * The identity used in the authentication attempt
      *
-     * @var IdentityInterface
+     * @var UserIdentityInterface
      */
     protected $identity;
 
@@ -40,10 +40,10 @@ class AuthResult extends Result
      * Sets the result code, identity, and failure messages
      *
      * @param  int $code
-     * @param  IdentityInterface $identity
+     * @param  UserIdentityInterface $identity
      * @param  array $messages
      */
-    public function __construct(int $code, IdentityInterface $identity = NULL, array $messages = [])
+    public function __construct(int $code, UserIdentityInterface $identity = NULL, array $messages = [])
     {
         $this->code = $code;
         $this->identity = $identity;
@@ -53,9 +53,9 @@ class AuthResult extends Result
     /**
      * Returns the identity used in the authentication attempt
      *
-     * @return IdentityInterface
+     * @return UserIdentityInterface
      */
-    public function getIdentity(): IdentityInterface
+    public function getIdentity(): UserIdentityInterface
     {
         return $this->identity;
     }

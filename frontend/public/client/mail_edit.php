@@ -208,7 +208,7 @@ function client_editMailAccount()
     );
 
     # Force synching of quota info on next load (or remove cached data in case of normal account changed to forward account)
-    $postfixConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data'), true);
+    $postfixConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
     list($user, $domain) = explode('@', $mailAddr);
     unset(Application::getInstance()->getSession()['maildirsize'][normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")]);
 

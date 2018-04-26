@@ -149,7 +149,7 @@ function addCustomer(Form $form)
                 )
             ",
             [
-                $adminName, Crypt::apr1MD5($form->getValue('admin_pass')), 'user', $session['user_id'], $form->getValue('fname'),
+                $adminName, Crypt::bcrypt($form->getValue('admin_pass')), 'user', $session['user_id'], $form->getValue('fname'),
                 $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'),
                 $form->getValue('country'), encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
                 $form->getValue('street1'), $form->getValue('street2'), $form->getValue('gender')

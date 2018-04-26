@@ -23,7 +23,6 @@ namespace iMSCP;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
-use Zend\Config;
 
 /**
  * Check SQL permissions
@@ -219,7 +218,7 @@ function addSqlUser($sqldId)
     // See https://dev.mysql.com/doc/refman/5.7/en/implicit-commit.html for more details
 
     if ($needUserCreate && isset($password)) {
-        $mysqlConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data'));
+        $mysqlConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data');
         if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
             execQuery('CREATE USER ?@? IDENTIFIED BY ?', [$user, $host, $password]);
         } else {

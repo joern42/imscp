@@ -49,7 +49,7 @@ function updatePassword()
         ]
     ]);
     execQuery("UPDATE admin SET admin_pass = ?, admin_status = IF(admin_type = 'user', 'tochangepwd', admin_status) WHERE admin_id = ?", [
-        Crypt::apr1MD5($form->getValue('admin_pass')), Application::getInstance()->getSession()['user_id']
+        Crypt::bcrypt($form->getValue('admin_pass')), Application::getInstance()->getSession()['user_id']
     ]);
     Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, null, [
         'userId'   => Application::getInstance()->getSession()['user_id'],

@@ -22,10 +22,6 @@ use iMSCP\Application;
 use iMSCP\Events;
 use Mso\IdnaConvert\IdnaConvert;
 
-//
-// Account functions
-//
-
 /**
  * Returns name of user matching the identifier
  *
@@ -43,10 +39,6 @@ function getUsername($userId)
 
     return $stmt->execute([$userId])->getResource()->fetchColumn();
 }
-
-//
-// Domain related functions
-//
 
 /**
  * Is the given domain a known domain name?
@@ -1461,7 +1453,7 @@ i-MSCP Mailer'),
  * Convenience function to prepare and execute a SQL statement with optional parameters
  *
  * For backward compatibility reasons, we return the underlying \PDOStatement object.
- * 
+ *
  * @param string $sql SQL statement
  * @param array $parameters Parameter
  * @return \PDOStatement
@@ -1687,7 +1679,7 @@ function humanizeDbValue($value, $autosize = false, $to = NULL)
  * @param int|null $year OPTIONAL year as returned by Date('y')
  * @return int
  */
-function getFirstDayOfMonth($month = NULL, $year = NULL)
+function getFirstDayOfMonth($month = NULL, $year = NULL): int
 {
     $date = new \DateTime('first day of this month 00:00:00', new \DateTimeZone('UTC'));
 
@@ -1701,9 +1693,11 @@ function getFirstDayOfMonth($month = NULL, $year = NULL)
 /**
  * Return UNIX timestamp representing last day of current month
  *
+ * @param int $month
+ * @param int $year
  * @return int
  */
-function getLastDayOfMonth($month, $year)
+function getLastDayOfMonth(int $month = NULL, int $year = NULL): int
 {
     $date = new \DateTime('last day of this month 23:59:59', new \DateTimeZone('UTC'));
 
@@ -1719,7 +1713,7 @@ function getLastDayOfMonth($month, $year)
  *
  * @return array
  */
-function getFilemanagerList()
+function getFilemanagerList(): array
 {
     $config = $db = Application::getInstance()->getConfig();
     if (isset($config['FILEMANAGERS']) && strtolower($config['FILEMANAGERS']) != 'no') {
@@ -1730,11 +1724,11 @@ function getFilemanagerList()
 }
 
 /**
- * Returns the user Ip address
+ * Returns client IP address
  *
  * @return string User's Ip address
  */
-function getIpAddr()
+function getIpAddr(): string
 {
     $ipAddr = !empty($_SERVER['HTTP_CLIENT_IP']) ? $_SERVER['HTTP_CLIENT_IP'] : false;
 
@@ -1765,7 +1759,7 @@ function getIpAddr()
  * @param int $resellerId Reseller unique identifier
  * @return bool TRUE if none of the given hosting plan limits is exceeding limits of the given reseller, FALSE otherwise
  */
-function validateHostingPlanLimits($hp, $resellerId)
+function validateHostingPlanLimits($hp, int $resellerId): bool
 {
     $ret = true;
 
@@ -1905,9 +1899,8 @@ function validateHostingPlanLimits($hp, $resellerId)
  * @param string $featureName Feature name
  * @param bool $forceReload If true force data to be reloaded
  * @return bool TRUE if $featureName is available for reseller, FALSE otherwise
- * TODO add hosting_plan feature
  */
-function resellerHasFeature($featureName, $forceReload = false)
+function resellerHasFeature(string $featureName, bool $forceReload = false): bool
 {
     static $availableFeatures = NULL;
     $featureName = strtolower($featureName);
@@ -1948,7 +1941,7 @@ function resellerHasFeature($featureName, $forceReload = false)
  * @param bool $forceReload If true force data to be reloaded
  * @return bool TRUE if $featureName is available for customer, FALSE otherwise
  */
-function customerHasFeature($featureNames, $forceReload = false)
+function customerHasFeature(string $featureNames, bool $forceReload = false): bool
 {
     static $availableFeatures = NULL;
     static $debug = false;
@@ -2012,7 +2005,7 @@ function customerHasFeature($featureNames, $forceReload = false)
  * Tells whether or not the current customer can access the mail or external mail feature.
  * @return bool
  */
-function customerHasMailOrExtMailFeatures()
+function customerHasMailOrExtMailFeatures(): bool
 {
     return customerHasFeature('mail') || customerHasFeature('external_mail');
 }
@@ -2025,7 +2018,7 @@ function customerHasMailOrExtMailFeatures()
  * @return bool TRUE if the given customer is the owner of the given domain, FALSE otherwise
  * TODO add admin_id as foreign key in all domain tables too avoid too many jointures
  */
-function customerHasDomain($domainName, $customerId)
+function customerHasDomain(string $domainName, int $customerId): bool
 {
     $domainName = encodeIdna($domainName);
 
@@ -2083,7 +2076,7 @@ function customerHasDomain($domainName, $customerId)
  * @param int $domainId Customer primary domain unique identifier
  * @return array List of mount points
  */
-function getMountpoints($domainId)
+function getMountpoints(int $domainId): array
 {
     static $mountpoints = [];
 
@@ -2118,7 +2111,7 @@ function getMountpoints($domainId)
  * @param int $ownerId Domain owner unique identifier
  * @return array Array containing domain mount point and document root
  */
-function getDomainMountpoint($domainId, $domainType, $ownerId)
+function getDomainMountpoint(int $domainId, string $domainType, int $ownerId): array
 {
     switch ($domainType) {
         case 'dmn':
@@ -2175,7 +2168,7 @@ function getDomainMountpoint($domainId, $domainType, $ownerId)
  * @param bool $refreshData Flag indicating if data must be refreshed
  * @return array|bool Array containing maildirsize data, FALSE on failure
  */
-function parseMaildirsize($maildirsizeFilePath, $refreshData = false)
+function parseMaildirsize(string $maildirsizeFilePath, bool $refreshData = false)
 {
     $session = Application::getInstance()->getSession();
 
@@ -2241,7 +2234,7 @@ function parseMaildirsize($maildirsizeFilePath, $refreshData = false)
  * @param int $id Subdomain unique identifier
  * @return void
  */
-function deleteSubdomain($id)
+function deleteSubdomain(int $id): void
 {
     ignore_user_abort(true);
     set_time_limit(0);
@@ -2341,7 +2334,7 @@ function deleteSubdomain($id)
  * @param int $id Subdomain alias unique identifier
  * @return void
  */
-function deleteSubdomainAlias($id)
+function deleteSubdomainAlias(int $id): void
 {
     ignore_user_abort(true);
     set_time_limit(0);
@@ -2441,11 +2434,11 @@ function deleteSubdomainAlias($id)
 }
 
 /**
- * Check if SQL databases limit of the given customer is reached
+ * Is the SQL databases limit of the logged-in customer has been reached?
  *
  * @return bool TRUE if SQL database limit is reached, FALSE otherwise
  */
-function customerSqlDbLimitIsReached()
+function customerSqlDbLimitIsReached(): bool
 {
     $domainProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
     if ($domainProps['domain_sqld_limit'] == 0
@@ -2455,4 +2448,27 @@ function customerSqlDbLimitIsReached()
     }
 
     return true;
+}
+
+/**
+ * Load the given configuration file
+ *
+ * @param string $configFilePath Configuration file path
+ * @return array
+ */
+function loadConfigFile(string $configFilePath): array
+{
+    $configFilePath = normalizePath($configFilePath);
+    $id = md5($configFilePath);
+
+    if (Application::getInstance()->getCache()->hasItem($id)) {
+        return Application::getInstance()->getCache()->getItem($id);
+    }
+
+    \Zend\Config\Factory::registerReader('conf', \Zend\Config\Reader\JavaProperties::class);
+    $config = new \Zend\Config\Reader\JavaProperties('=', \Zend\Config\Reader\JavaProperties::WHITESPACE_TRIM);
+    $config = $config->fromFile($configFilePath);
+
+    Application::getInstance()->getCache()->setItem($id, $config);
+    return $config;
 }

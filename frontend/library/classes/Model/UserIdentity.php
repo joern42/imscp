@@ -24,7 +24,7 @@ namespace iMSCP\Model;
  * Class UserIdentity
  * @package iMSCP\Model
  */
-class UserIdentity implements IdentityInterface
+class UserIdentity implements UserIdentityInterface
 {
     /**
      * @var int User unique identifier

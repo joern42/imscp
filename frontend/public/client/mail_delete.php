@@ -32,11 +32,11 @@ use Zend\Config;
  * @param int $mailId Mail account unique identifier
  * @param int $domainId Customer primary domain unique identifier
  * @param Config\Config $config
- * @param Config\Config $postfixConfig
+ * @param array &$postfixConfig
  * @param int &$nbDeletedMails Counter for deleted mail accounts
  * @return void
  */
-function deleteMailAccount($mailId, $domainId, $config, $postfixConfig, &$nbDeletedMails)
+function deleteMailAccount($mailId, $domainId, $config, &$postfixConfig, &$nbDeletedMails)
 {
     $stmt = execQuery('SELECT mail_acc, mail_addr, mail_type FROM mail_users WHERE mail_id = ? AND domain_id = ?', [$mailId, $domainId]);
 
@@ -131,7 +131,7 @@ $db = Application::getInstance()->getDb();
 try {
     $db->getDriver()->getConnection()->beginTransaction();
     $config = Application::getInstance()->getConfig();
-    $postfixConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data'), true);
+    $postfixConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
 
     foreach ($mailIds as $mailId) {
         deleteMailAccount(intval($mailId), $domainId, $config, $postfixConfig, $nbDeletedMails);

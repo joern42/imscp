@@ -24,7 +24,6 @@ use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
-use Zend\Config;
 use Zend\EventManager\Event;
 use Zend\Form\Form;
 
@@ -315,7 +314,7 @@ function generateFeaturesForm(TemplateEngine $tpl)
     });
 
     if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data'));
+        $apacheConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -578,7 +577,7 @@ function updateResellerUser(Form $form)
 
             if ($form->getValue('admin_pass') != '') {
                 $setPassword = 'admin_pass = ?,';
-                array_unshift($bindParams, Crypt::apr1MD5($form->getValue('admin_pass')));
+                array_unshift($bindParams, Crypt::bcrypt($form->getValue('admin_pass')));
             } else {
                 $setPassword = '';
             }

@@ -23,7 +23,6 @@ namespace iMSCP;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
-use Zend\Db\Exception\RuntimeException;
 use Zend\EventManager\Event;
 use Zend\Form\Form;
 
@@ -211,7 +210,7 @@ function generateFeaturesForm(TemplateEngine $tpl)
     });
 
     if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = new ConfigFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data'));
+        $apacheConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -364,7 +363,7 @@ function addResellerUser(Form $form)
                     )
                 ',
                 [
-                    $form->getValue('admin_name'), Crypt::apr1MD5($form->getValue('admin_pass')), 'reseller',
+                    $form->getValue('admin_name'), Crypt::bcrypt($form->getValue('admin_pass')), 'reseller',
                     Application::getInstance()->getSession()['user_id'], $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'),
                     $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
                     encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),

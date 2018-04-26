@@ -22,10 +22,8 @@ namespace iMSCP\Functions;
 
 use iMSCP\Application;
 use iMSCP\Authentication\AuthEvent;
-use iMSCP\Crypt;
-use iMSCP\Events;
+use iMSCP\Authentication\Handler\Credentials;
 use iMSCP\Plugin\Bruteforce;
-use Zend\Authentication\Result as AuthResult;
 use Zend\EventManager\Event;
 
 /**
@@ -51,83 +49,10 @@ class Login
         }
 
         // Register default authentication handler with high-priority
-        $events->attach(Events::onAuthentication, [Login::class, 'defaultCredentialsHandler'], 99);
+        $events->attach(AuthEvent::EVENT_AUTHENTICATION, [Credentials::class, 'authenticate'], 99);
 
         // Register listener that is responsible to check domain status and expire date
-        $events->attach(Events::onBeforeSetIdentity, [Login::class, 'checkDomainAccountHandler']);
-    }
-
-    /**
-     * Default credentials authentication handler
-     *
-     * @param AuthEvent $authEvent
-     * @return void
-     */
-    public static function defaultCredentialsHandler(AuthEvent $authEvent): void
-    {
-        $username = !empty($_POST['uname']) ? encodeIdna(cleanInput($_POST['uname'])) : '';
-        $password = !empty($_POST['upass']) ? cleanInput($_POST['upass']) : '';
-
-        if ($username === '' || $password === '') {
-            $message = [];
-
-            if (empty($username)) {
-                $message[] = tr('The username field is empty.');
-            }
-
-            if (empty($password)) {
-                $message[] = tr('The password field is empty.');
-            }
-
-            $authEvent->setAuthenticationResult(new AuthResult(
-                count($message) == 2 ? AuthResult::FAILURE : AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, $message
-            ));
-            return;
-        }
-
-        $stmt = execQuery('SELECT admin_id, admin_name, admin_pass, admin_type, email, created_by FROM admin WHERE admin_name = ?', [$username]);
-
-        if (!$stmt->rowCount()) {
-            $authEvent->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_IDENTITY_NOT_FOUND, NULL, tr('Unknown username.')));
-            return;
-        }
-
-        $identity = $stmt->fetch(\PDO::FETCH_OBJ);
-
-        if (!Crypt::hashEqual($identity->admin_pass, md5($password)) && !Crypt::verify($password, $identity->admin_pass)) {
-            $authEvent->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, tr('Bad password.')));
-            return;
-        }
-
-        # If not an APR-1 hashed password, we need recreate the hash
-        # FIXME: Replace APR-1 by BCRYPT (If not a bcryt hashed password ...)
-        if (strpos($identity->admin_pass, '$apr1$') !== 0) {
-            // We must postpone update until the onAfterAuthentication event to handle cases where the authentication process
-            // fail later on (case of a multi-factor authentication process)
-            Application::getInstance()->getEventManager()->attach(
-                Events::onAfterAuthentication,
-                function (Event $event) use ($password) {
-                    /** @var AuthResult $authResult */
-                    $authResult = $event->getParam('authResult');
-
-                    if (!$authResult->isValid()) {
-                        return;
-                    }
-
-                    $identity = $authResult->getIdentity();
-
-                    execQuery('UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?', [
-                        Crypt::apr1MD5($password), $identity->admin_type == 'user' ? 'tochangepwd' : 'ok', $identity->admin_id
-                    ]);
-                    writeLog(sprintf('Password for user %s has been re-encrypted using APR-1 algorithm', $identity->admin_name), E_USER_NOTICE);
-
-                    $identity->admin_type != 'user' or Daemon::sendRequest();
-                },
-                ['password' => $password, 'identity' => $identity]
-            );
-        }
-
-        $authEvent->setAuthenticationResult(new AuthResult(AuthResult::SUCCESS, $identity));
+        //$events->attach(Events::onBeforeSetIdentity, [Login::class, 'checkDomainAccountHandler']);
     }
 
     /**

@@ -22,7 +22,6 @@ namespace iMSCP;
 
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
-use Zend\Config;
 
 /**
  * Tells whether or not the status of the given domain
@@ -269,7 +268,7 @@ function generatePage($tpl, $phpini)
     }
 
     $config = Application::getInstance()->getConfig();
-    $apacheConfig = Config\Factory::fromFile(normalizePath($config['CONF_DIR'] . '/apache/apache.data'));
+    $apacheConfig = loadConfigFile($config['CONF_DIR'] . '/apache/apache.data');
     
     if (strpos($config{'iMSCP::Servers::Httpd'}, '::Apache2::') !== false) {
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';

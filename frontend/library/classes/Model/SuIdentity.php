@@ -22,30 +22,24 @@ namespace iMSCP\Model;
 
 /**
  * Class SuIdentity
- *
- * The SU identity is used to "usurp" an identity during a login session.
- * The original identity is referred as the 'SU' identity while the new
- * identity is referred  as the 'User' identity. This identity compose
- * the original identity and the" usurped" identity.
- *
  * @package iMSCP\Model
  */
 class SuIdentity implements SuIdentityInterface
 {
     /**
-     * @var UserIdentity
+     * @var UserIdentityInterface
      */
     protected $suIdentity;
 
     /**
-     * @var UserIdentity
+     * @var UserIdentityInterface
      */
     protected $userIdentity;
 
     /**
      * @inheritdoc
      */
-    public function __construct(UserIdentity $suIdentity, UserIdentity $userIdentity)
+    public function __construct(UserIdentityInterface $suIdentity, UserIdentityInterface $userIdentity)
     {
         $this->suIdentity = $suIdentity;
         $this->userIdentity = $userIdentity;

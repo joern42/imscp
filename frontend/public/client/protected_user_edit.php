@@ -48,7 +48,7 @@ function client_updateHtaccessUser($domainId, $htuserId)
     }
 
     execQuery('UPDATE htaccess_users SET upass = ?, status = ? WHERE id = ? AND dmn_id = ?', [
-        Crypt::apr1MD5($_POST['pass']), 'tochange', $htuserId, $domainId
+        Crypt::bcrypt($_POST['pass']), 'tochange', $htuserId, $domainId
     ]);
     Daemon::sendRequest();
     writeLog(sprintf('%s updated htaccess user ID: %s', Application::getInstance()->getSession()['user_logged'], $htuserId), E_USER_NOTICE);

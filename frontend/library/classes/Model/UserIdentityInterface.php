@@ -21,10 +21,10 @@
 namespace iMSCP\Model;
 
 /**
- * Interface IdentityInterface
+ * Interface UserIdentityInterface
  * @package iMSCP\Model
  */
-interface IdentityInterface
+interface UserIdentityInterface
 {
     /**
      * Get user unique identifier

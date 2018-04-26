@@ -23,7 +23,6 @@ namespace iMSCP;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
-use Zend\Config;
 
 /**
  * Get count of default mail accounts
@@ -200,7 +199,7 @@ function generateMailAccountsList($tpl, $domainId)
         return 0;
     }
 
-    $postfixConfig = Config\Factory::fromFile(normalizePath(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data'));
+    $postfixConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
     $syncQuotaInfo = isset($_GET['sync_quota_info']);
     $hasMailboxes = $overQuota = false;
 
@@ -232,9 +231,8 @@ function generateMailAccountsList($tpl, $domainId)
             list($user, $domain) = explode('@', $row['mail_addr']);
 
             $maildirsize = ($row['quota'])
-                ? parseMaildirsize(
-                    normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize"), $syncQuotaInfo
-                ) : false;
+                ? parseMaildirsize(normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize"), $syncQuotaInfo)
+                : false;
 
             if ($maildirsize === false) {
                 $mailQuotaInfo = ($row['quota']) ? '- / ' . bytesHuman($row['quota']) : '- / ∞';

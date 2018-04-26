@@ -67,7 +67,7 @@ function updateUserData(Form $form, $userId)
                 WHERE admin_id = ?
             ",
             [
-                $passwordUpdated ? Crypt::apr1MD5($form->getValue('admin_pass')) : NULL, $form->getValue('fname'), $form->getValue('lname'),
+                $passwordUpdated ? Crypt::bcrypt($form->getValue('admin_pass')) : NULL, $form->getValue('fname'), $form->getValue('lname'),
                 $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
                 encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'), $form->getValue('street1'),
                 $form->getValue('street2'), $form->getValue('gender'), $passwordUpdated ? 1 : 0, $userId
