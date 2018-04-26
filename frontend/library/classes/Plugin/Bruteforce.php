@@ -20,9 +20,8 @@
 
 namespace iMSCP\Plugin;
 
-use iMSCP\AbstractPlugin;
 use iMSCP\Application;
-use iMSCP\Events;
+use iMSCP\Authentication\AuthEvent;
 use iMSCP\Plugin\PluginManager as PluginManager;
 use Zend\EventManager\Event;
 use Zend\EventManager\EventManagerInterface;
@@ -35,7 +34,7 @@ use Zend\EventManager\EventManagerInterface;
  * This class can be used in two different ways:
  *  - As a plugin that listen to the onBeforeAuthentication event which is triggered by authentication service class
  *  - As a simple component
- * 
+ *
  * @package iMSCP\Plugin
  */
 class Bruteforce extends AbstractPlugin
@@ -141,9 +140,9 @@ class Bruteforce extends AbstractPlugin
         return [
             'author'      => 'Laurent Declercq',
             'email'       => 'l.declercq@nuxwin.com',
-            'version'     => '0.0.7',
+            'version'     => '1.0.0',
             'require_api' => '1.6.0',
-            'date'        => '2018-04-23',
+            'date'        => '2018-04-26',
             'name'        => 'Bruteforce',
             'desc'        => 'Provides countermeasures against brute-force and dictionary attacks.',
             'url'         => 'http://www.i-mscp.net'
@@ -151,14 +150,12 @@ class Bruteforce extends AbstractPlugin
     }
 
     /**
-     * Register listeners
-     *
-     * @param EventManagerInterface $eventsManager
+     * @inheritdoc
      */
-    public function register(EventManagerInterface $eventsManager)
+    public function attach(EventManagerInterface $events, $priority = 100)
     {
         // That plugin must acts early in the authentication process
-        $eventsManager->attach(Events::onBeforeAuthentication, $this, 100);
+        $events->attach(AuthEvent::EVENT_BEFORE_AUTHENTICATION, [$this, 'onBeforeAuthentication'], $priority);
     }
 
     /**
@@ -251,9 +248,7 @@ class Bruteforce extends AbstractPlugin
     protected function createRecord()
     {
         execQuery(
-            "
-                REPLACE INTO login (session_id, ipaddr, {$this->targetForm}_count, user_name, lastaccess) VALUES (?, ?, 1, NULL, UNIX_TIMESTAMP())
-            ",
+            "REPLACE INTO login (session_id, ipaddr, {$this->targetForm}_count, user_name, lastaccess) VALUES (?, ?, 1, NULL, UNIX_TIMESTAMP())",
             [$this->sessionId, $this->clientIpAddr]
         );
     }

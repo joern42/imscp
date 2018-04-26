@@ -18,8 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP;
+namespace iMSCP\Plugin;
 
+use iMSCP\Application;
 use iMSCP\Plugin\PluginManager as PluginManager;
 use iMSCP\Utility\OpcodeCache;
 use Zend\EventManager\EventManagerInterface;
@@ -28,7 +29,7 @@ use Zend\EventManager\ListenerAggregateTrait;
 
 /**
  * Class AbstractPlugin
- * @package iMSCP
+ * @package iMSCP\Plugin
  */
 abstract class AbstractPlugin implements ListenerAggregateInterface
 {
