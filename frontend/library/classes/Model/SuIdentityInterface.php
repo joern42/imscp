@@ -43,7 +43,7 @@ interface SuIdentityInterface extends UserIdentityInterface
     /**
      * Get SU identity
      *
-     * @return UserIdentityInterface
+     * @return UserIdentityInterface|SuIdentityInterface
      */
     public function getSuIdentity(): UserIdentityInterface;
 

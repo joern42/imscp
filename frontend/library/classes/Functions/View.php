@@ -53,7 +53,12 @@ class View
         
         if($identity->getSuIdentity() instanceof SuIdentityInterface) {
             $tpl->assign([
-                'YOU_ARE_LOGGED_AS' => tr('%1$s you are now logged as %2$s, then as %3$s', $identity->getSuUsername(), $identity->getUsername()),
+                'YOU_ARE_LOGGED_AS' => tr(
+                    '%1$s you are now logged as %2$s, then as %3$s',
+                    $identity->getSuIdentity()->getSuUsername(),
+                    $identity->getSuUsername(),
+                    $identity->getUsername()
+                ),
                 'TR_GO_BACK'        => tr('Back')
             ]);
         } else {
