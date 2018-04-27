@@ -41,6 +41,19 @@ interface SuIdentityInterface extends UserIdentityInterface
     public function __construct(UserIdentityInterface $suIdentity, UserIdentityInterface $userIdentity);
 
     /**
+     * Get SU identity
+     *
+     * @return UserIdentityInterface
+     */
+    public function getSuIdentity(): UserIdentityInterface;
+
+    /**
+     * Get User identity
+     * @return UserIdentityInterface
+     */
+    public function getUserIdentity(): UserIdentityInterface;
+
+    /**
      * get SU user unique identitfier
      *
      * @return int
@@ -60,7 +73,6 @@ interface SuIdentityInterface extends UserIdentityInterface
      * @return string
      */
     public function getSuUserEmail(): string;
-
 
     /**
      * get SU user type

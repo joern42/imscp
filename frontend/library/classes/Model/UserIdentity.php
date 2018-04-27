@@ -105,5 +105,4 @@ class UserIdentity implements UserIdentityInterface
     {
         return $this->created_by;
     }
-
 }

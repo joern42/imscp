@@ -46,6 +46,22 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
+     * @inheritdoc
+     */
+    public function getSuIdentity(): UserIdentityInterface
+    {
+        return $this->suIdentity;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getUserIdentity(): UserIdentityInterface
+    {
+        return $this->userIdentity;
+    }
+
+    /**
      * Get user unique identifier
      *
      * @return int
