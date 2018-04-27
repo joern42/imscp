@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP\Authentication\Handler;
+namespace iMSCP\Authentication\Listener;
 
 use iMSCP\Application;
 use iMSCP\Authentication\AuthEvent;
@@ -31,21 +31,22 @@ use Zend\Db\ResultSet\HydratingResultSet;
 use Zend\Hydrator\Reflection as ReflectionHydrator;
 
 /**
- * Class Credentials
+ * Class CheckCredentials
  *
- * Default credentials authentication handler
+ * Default credentials authentication listener
+ * Expects to listen on the AuthEvent::EVENT_AUTHENTICATION
  *
- * @package iMSCP\Authentication\Handler
+ * @package iMSCP\Authentication\Listener
  */
-class Credentials implements HandlerInterface
+class CheckCredentials implements AuthenticationListenerInterface
 {
     /**
      * @inheritdoc
      */
-    public static function authenticate(AuthEvent $event): void
+    public function __invoke(AuthEvent $event): void
     {
-        $username = !empty($_POST['uname']) ? encodeIdna(cleanInput($_POST['uname'])) : '';
-        $password = !empty($_POST['upass']) ? cleanInput($_POST['upass']) : '';
+        $username = !empty($_POST['admin_name']) ? encodeIdna(cleanInput($_POST['admin_name'])) : '';
+        $password = !empty($_POST['admin_pass']) ? cleanInput($_POST['admin_pass']) : '';
 
         if ($username === '' || $password === '') {
             $messages = [];
@@ -88,20 +89,26 @@ class Credentials implements HandlerInterface
             // If not a Bcrypt hashed password, we need recreate the hash
             if (strpos($identity->getUserPassword(), '$2a$') !== 0) {
                 // We must defer password hash update to handle cases where the authentication
-                // process has failed case of a multi-factor authentication process)
-                Application::getInstance()->getEventManager()->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, function (AuthEvent $event) use ($password) {
-                    $authResult = $event->getAuthenticationResult();
-                    if (!$authResult->isValid()) {
-                        return; // Return early if authentication process has failed
-                    }
+                // process has failed later on (case of a multi-factor authentication process)
+                Application::getInstance()->getEventManager()->attach(
+                    AuthEvent::EVENT_AFTER_AUTHENTICATION,
+                    function (AuthEvent $event) use ($password) {
+                        $authResult = $event->getAuthenticationResult();
+                        if (!$authResult->isValid()) {
+                            // Return early if authentication process has failed somewhere else
+                            return;
+                        }
 
-                    $identity = $authResult->getIdentity();
-                    $stmt = Application::getInstance()->getDb()->createStatement('UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?');
-                    $stmt->prepare();
-                    $stmt->execute([Crypt::bcrypt($password), $identity->getUserType() == 'user' ? 'tochangepwd' : 'ok', $identity->getUserId()]);
-                    writeLog(sprintf('Password for user %s has been re-encrypted using Bcrypt algorithm', $identity->getUsername()), E_USER_NOTICE);
-                    $identity->getUserType() != 'user' or Daemon::sendRequest();
-                });
+                        $identity = $authResult->getIdentity();
+                        $stmt = Application::getInstance()->getDb()->createStatement(
+                            'UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?'
+                        );
+                        $stmt->prepare();
+                        $stmt->execute([Crypt::bcrypt($password), $identity->getUserType() == 'user' ? 'tochangepwd' : 'ok', $identity->getUserId()]);
+                        writeLog(sprintf('Password hash for user %s has been updated using Bcrypt algorithm', $identity->getUsername()), E_USER_NOTICE);
+                        $identity->getUserType() != 'user' or Daemon::sendRequest();
+                    }
+                );
             }
 
             $event->setAuthenticationResult(new AuthResult(AuthResult::SUCCESS, $identity));

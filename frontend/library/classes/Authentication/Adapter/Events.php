@@ -29,8 +29,13 @@ use Zend\EventManager\EventManagerInterface;
  * Class Event
  *
  * This adapter authenticate users by triggering authentication events.
- * Listeners of these events are authentication handlers which are responsible
- * to implement authentication logic and set authentication result on authentication events.
+ * Listeners of these events are responsible to implement authentication
+ * logic and set authentication result on the authentication events.
+ *
+ * Various authentication listeners can be attached, making possible to
+ * enable multi-factor authentication (MFA). These can also have specific
+ * tasks such as checking an user account, blocking brute force login
+ * attacks and so on...
  *
  * @package iMSCP\Authentication\Adapter
  */
