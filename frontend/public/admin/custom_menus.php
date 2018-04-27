@@ -253,6 +253,8 @@ function admin_deleteMenu($menuId)
     }
 }
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 

@@ -202,7 +202,7 @@ class Login
 
         $identity = $authService->getIdentity();
 
-        if (NULL != $userId && $identity->getUserId() === $userId) {
+        if (NULL != $userId && $identity->getUserId() == $userId) {
             // An user cannot become himself
             View::showBadRequestErrorPage();
         }
@@ -220,14 +220,14 @@ class Login
                 # and that wants become back the previous user
                 $newIdentity = $identity->getSuIdentity();
             } else { // Administrator logged-in as 'reseller' or 'user', Or Reseller logged-in as 'user'
-                if ($identity->getSuUserType() === 'admin') {
-                    if ($identity->getUserType() === 'reseller') { // Administrator logged-in as 'reseller'
+                if ($identity->getSuUserType() == 'admin') {
+                    if ($identity->getUserType() == 'reseller') { // Administrator logged-in as 'reseller'
                         if (NULL !== $userId) { // and that want become a 'user' of that 'reseller'
                             $newIdentity = new SuIdentity($identity, static::getIdentityFromDb($userId));
                         } else { // and that wants become himself
                             $newIdentity = $identity->getSuIdentity();
                         }
-                    } elseif ($identity->getUserType() === 'user') { // Administrator logged-in as 'user'
+                    } elseif ($identity->getUserType() == 'user') { // Administrator logged-in as 'user'
                         if (NULL !== $userId) {
                             // Unsupported use case: An administrator logged-in as 'user' can only become himself
                             View::showBadRequestErrorPage();
@@ -258,7 +258,7 @@ class Login
         } else { // Administrator or Reseller that wants become another user
             $newIdentity = new SuIdentity($identity, static::getIdentityFromDb($userId));
 
-            if ($identity->getUserType() === 'reseller' && $newIdentity->getUserCreatedBy() !== $identity->getUserId()) {
+            if ($identity->getUserType() == 'reseller' && $newIdentity->getUserCreatedBy() != $identity->getUserId()) {
                 // A reseller cannot become an user that have not been created by himself
                 View::showBadRequestErrorPage();
             }

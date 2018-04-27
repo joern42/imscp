@@ -21,15 +21,9 @@
 namespace iMSCP;
 
 use iMSCP\Functions\Login;
-use iMSCP\Functions\View;
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-
-if (!isset(Application::getInstance()->getSession()['logged_from']) || !isset(Application::getInstance()->getSession()['logged_from_id'])
-    || !isset($_GET['action']) || $_GET['action'] != 'go_back'
-) {
-    View::showBadRequestErrorPage();
-}
-
-Login::changeUserInterface(Application::getInstance()->getSession()['user_id'], Application::getInstance()->getSession()['logged_from_id']);
+Login::su($_GET['id'] ?? NULL);

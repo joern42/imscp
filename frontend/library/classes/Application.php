@@ -21,12 +21,14 @@
 namespace iMSCP;
 
 use Composer\Autoload\ClassLoader as Autoloader;
-use iMSCP\Authentication\Adapter\Event as AuthEventAdapter;
+use iMSCP\Authentication\Adapter\Events as AuthEventAdapter;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Authentication\AuthEvent;
 use iMSCP\Config\DbConfig;
 use iMSCP\Container\Registry;
 use iMSCP\Exception;
+use iMSCP\Model\SuIdentityInterface;
 use iMSCP\Plugin\PluginManager;
-use Zend\Authentication\AuthenticationService;
 use Zend\Cache;
 use Zend\Config;
 use Zend\Db\Adapter\Adapter as DbAdapter;
@@ -187,10 +189,94 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             [RemoteAddr::class, HttpUserAgent::class]
         ));
 
+        $this->setUserGuiProps();
+        $this->initLayout();
+
         $this->loadPlugins();
         $this->getEventManager()->trigger(Events::onAfterApplicationBootstrap, $this);
         $this->bootstrapped = true;
         return $this;
+    }
+
+    /**
+     * Set user GUI properties
+     *
+     * @return void
+     */
+    public function setUserGuiProps(): void
+    {
+        if (PHP_SAPI == 'cli') {
+            return;
+        }
+
+        $identity = Application::getInstance()->getAuthService()->getIdentity();
+        $session = $this->getSession();
+
+        if (!$identity || $identity instanceof SuIdentityInterface || (isset($session['user_def_lang']) && isset($session['user_theme']))) {
+            return;
+        }
+
+        $config = $this->getConfig();
+        $stmt = execQuery('SELECT lang, layout FROM user_gui_props WHERE user_id = ?', [$identity->getUserId()]);
+
+        if ($stmt->rowCount()) {
+            $row = $stmt->fetch();
+            if ((empty($row['lang']) && empty($row['layout']))) {
+                list($lang, $theme) = [$config['USER_INITIAL_LANG'], $config['USER_INITIAL_THEME']];
+            } elseif (empty($row['lang'])) {
+                list($lang, $theme) = [$config['USER_INITIAL_LANG'], $row['layout']];
+            } elseif (empty($row['layout'])) {
+                list($lang, $theme) = [$row['lang'], $config['USER_INITIAL_THEME']];
+            } else {
+                list($lang, $theme) = [$row['lang'], $row['layout']];
+            }
+        } else {
+            list($lang, $theme) = [$config['USER_INITIAL_LANG'], $config['USER_INITIAL_THEME']];
+        }
+
+        $session['user_def_lang'] = $lang;
+        $session['user_theme'] = $theme;
+    }
+
+    /**
+     * Initialize layout
+     *
+     * @return void
+     */
+    public function initLayout(): void
+    {
+        if (PHP_SAPI == 'cli' || isXhr()) {
+            return;
+        }
+
+        // Set layout color for the current environment (Must be donne as late as possible)
+        if (!$this->getAuthService()->hasIdentity()) {
+            $this->getEventManager()->attach(Events::onLoginScriptEnd, 'initLayout');
+            $this->getEventManager()->attach(Events::onLostPasswordScriptEnd, 'initLayout');
+            return;
+        }
+
+        $identity = $this->getAuthService()->getIdentity();
+
+        switch ($identity->getUserType()) {
+            case 'admin':
+                $this->getEventManager()->attach(Events::onAdminScriptEnd, 'initLayout');
+                break;
+            case 'reseller':
+                $this->getEventManager()->attach(Events::onResellerScriptEnd, 'initLayout');
+                break;
+            case 'user':
+                $this->getEventManager()->attach(Events::onClientScriptEnd, 'initLayout');
+                break;
+            default:
+                throw  new \RuntimeException('Unknown user type');
+        }
+
+        if ($identity instanceof SuIdentityInterface) {
+            $this->getEventManager()->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, function (AuthEvent $event) {
+                unset($this->getSession()['user_theme_color']);
+            });
+        }
     }
 
     /**
@@ -246,9 +332,13 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                 $this->cache = new Cache\Storage\Adapter\BlackHole();
                 if (PHP_SAPI != 'cli') {
                     $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
-                        $session = $this->getSession();
-                        if (!isXhr()
-                            && ($session['user_type'] == 'admin' || (isset($session['logged_from_type']) && $session['logged_from_type'] == 'admin'))
+                        $identity = $this->getAuthService()->getIdentity();
+
+                        if ($identity && !isXhr()
+                            && (
+                                $identity->getUserType() == 'admin'
+                                || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin')
+                            )
                         ) {
                             setPageMessage(tr('The Apcu extension is not enabled on your system. This can lead to performance issues.', 'static_warning'));
                         }
@@ -302,8 +392,11 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         // a production environment is not a good thing for performances
         // reasons (cache disabled)
         $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
-            $session = $this->getSession();
-            if (!isXhr() && ($session['user_type'] == 'admin' || (isset($session['logged_from_type']) && $session['logged_from_type'] == 'admin'))) {
+            $identity = $this->getAuthService()->getIdentity();
+            if ($identity && !isXhr() && (
+                    $identity->getUserType() == 'admin' || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin')
+                )
+            ) {
                 setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled.'), 'static_warning');
                 setPageMessage(
                     tr('For better performances, you should consider disabling it through the %s configuration file.', CONFIG_FILE_PATH),
@@ -539,8 +632,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             $imscpKEY = $imscpIV = '';
 
             if (!(@include_once $keyFile) || empty($imscpKEY) || empty($imscpIV)) {
-                // FIXME: Provide a tool for regenerating key file without
-                // having to trigger full i-MSCP reconfiguration
+                // FIXME: Provide a tool for regenerating key file without having to trigger full i-MSCP reconfiguration
                 throw new \RuntimeException(sprintf(
                     'Missing or invalid key file. Delete the %s key file if any and run the imscp-reconfigure script.', $keyFile
                 ));
@@ -549,9 +641,12 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             $this->db = new DbAdapter([
                 'driver'         => 'Pdo_Mysql',
                 'driver_options' => [
-                    \PDO::ATTR_CASE               => \PDO::CASE_NATURAL,
-                    \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-                    \PDO::MYSQL_ATTR_INIT_COMMAND => "SET @@session.sql_mode = 'NO_AUTO_CREATE_USER', @@session.group_concat_max_len = 4294967295",
+                    \PDO::ATTR_EMULATE_PREPARES         => false,
+                    \PDO::ATTR_STRINGIFY_FETCHES        => false,
+                    \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+                    \PDO::ATTR_CASE                     => \PDO::CASE_NATURAL,
+                    \PDO::ATTR_DEFAULT_FETCH_MODE       => \PDO::FETCH_ASSOC,
+                    \PDO::MYSQL_ATTR_INIT_COMMAND       => "SET @@session.sql_mode = 'NO_AUTO_CREATE_USER', @@session.group_concat_max_len = 4294967295",
                 ],
                 'hostname'       => $config['DATABASE_HOST'],
                 'port'           => $config['DATABASE_PORT'],

@@ -24,6 +24,8 @@ use iMSCP\Functions\Login;
 use iMSCP\Functions\Support;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 resellerHasFeature('support') && isset($_GET['ticket_id']) or View::showBadRequestErrorPage();
@@ -36,6 +38,8 @@ if (($ticketLevel == 1 && ($status == 1 || $status == 4)) || ($ticketLevel == 2 
     Support::changeTicketStatus($ticketId, 3);
 }
 
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'close') {
         Support::closeTicket($ticketId);
@@ -46,9 +50,7 @@ if (isset($_POST['uaction'])) {
         if (empty($_POST['user_message'])) {
             setPageMessage(tr('Please type your message.'), 'error');
         } else {
-            Support::updateTicket(
-                $ticketId, Application::getInstance()->getSession()['user_id'], $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3
-            );
+            Support::updateTicket($ticketId, $identity->getUserId(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3);
             redirectTo("ticket_view.php?ticket_id=$ticketId");
         }
     }
@@ -74,7 +76,7 @@ $tpl->assign([
     'TR_TICKET_REPLY'     => tr('Send reply')
 ]);
 View::generateNavigation($tpl);
-Support::showTicketContent($tpl, $ticketId, Application::getInstance()->getSession()['user_id']);
+Support::showTicketContent($tpl, $ticketId, $identity->getUserId());
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);

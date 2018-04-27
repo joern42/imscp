@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -54,7 +55,8 @@ function client_addHtaccessUser()
         return;
     }
 
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $domainId = getCustomerMainDomainId($identity->getUserId());
 
     $stmt = execQuery('SELECT id FROM htaccess_users WHERE uname = ? AND dmn_id = ?', [$uname, $domainId]);
     if ($stmt->rowCount()) {
@@ -65,9 +67,11 @@ function client_addHtaccessUser()
     execQuery("INSERT INTO htaccess_users (dmn_id, uname, upass, status) VALUES (?, ?, ?, 'toadd')", [$domainId, $uname, Crypt::bcrypt($passwd)]);
     Daemon::sendRequest();
     setPageMessage(tr('Htaccess user successfully scheduled for addition.'), 'success');
-    writeLog(sprintf('%s added new htaccess user: %s', $uname, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('%s added new htaccess user: %s', $uname, $identity->getUsername()), E_USER_NOTICE);
     redirectTo('protected_user_manage.php');
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

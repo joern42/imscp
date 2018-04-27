@@ -79,13 +79,14 @@ function addCustomer(Form $form)
 {
     global $hpId, $dmnName, $dmnExpire, $dmnUrlForward, $dmnTypeForward, $dmnHostForward, $clientIps, $adminName;
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $session = Application::getInstance()->getSession();
     $formIsValid = TRUE;
 
     if (isset($_POST['domain_client_ips']) && is_array($_POST['domain_client_ips'])) {
-        $stmt = execQuery('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$session['user_id']]);
+        $stmt = execQuery('SELECT reseller_ips FROM reseller_props WHERE reseller_id = ?', [$identity->getUserId()]);
         if (!$stmt->rowCount()) {
-            throw new \Exception(sprintf('Could not find IPs for reseller with ID %s', $session['user_id']));
+            throw new \Exception(sprintf('Could not find IPs for reseller with ID %s', $identity->getUserId()));
         }
 
         $clientIps = array_intersect($_POST['domain_client_ips'], explode(',', $stmt->fetchColumn()));
@@ -119,7 +120,7 @@ function addCustomer(Form $form)
         $props = $session['ch_hpprops'];
         unset($session['ch_hpprops']);
     } else {
-        $stmt = execQuery('SELECT props FROM hosting_plans WHERE reseller_id = ? AND id = ?', [$session['user_id'], $hpId]);
+        $stmt = execQuery('SELECT props FROM hosting_plans WHERE reseller_id = ? AND id = ?', [$identity->getUserId(), $hpId]);
         $props = $stmt->fetchColumn();
     }
 
@@ -149,7 +150,7 @@ function addCustomer(Form $form)
                 )
             ",
             [
-                $adminName, Crypt::bcrypt($form->getValue('admin_pass')), 'user', $session['user_id'], $form->getValue('fname'),
+                $adminName, Crypt::bcrypt($form->getValue('admin_pass')), 'user', $identity->getUserId(), $form->getValue('fname'),
                 $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'),
                 $form->getValue('country'), encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
                 $form->getValue('street1'), $form->getValue('street2'), $form->getValue('gender')
@@ -159,7 +160,7 @@ function addCustomer(Form $form)
         $adminId = $db->getDriver()->getLastGeneratedValue();
 
         Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddDomain, NULL, [
-            'createdBy'     => $session['user_id'],
+            'createdBy'     => $identity->getUserId(),
             'customerId'    => $adminId,
             'customerEmail' => $form->getValue('email'),
             'domainName'    => $dmnName,
@@ -193,7 +194,7 @@ function addCustomer(Form $form)
         $dmnId = $db->getDriver()->getLastGeneratedValue();
 
         $phpini = PhpIni::getInstance();
-        $phpini->loadResellerPermissions($session['user_id']); // Load reseller PHP permissions
+        $phpini->loadResellerPermissions($identity->getUserId()); // Load reseller PHP permissions
         $phpini->loadClientPermissions(); // Load client default PHP permissions
         $phpini->loadIniOptions(); // Load domain default PHP configuration options
         $phpini->setIniOption('phpiniMemoryLimit', $phpiniMemoryLimit); // Must be set before phpiniPostMaxSize
@@ -205,15 +206,15 @@ function addCustomer(Form $form)
 
         Mail::createDefaultMailAccounts($dmnId, $form->getValue('email'), $dmnName);
         Mail::sendWelcomeMail(
-            $session['user_id'], $adminName, $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
+            $identity->getUserId(), $adminName, $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
             $form->getValue('lname'), tr('Customer')
         );
         execQuery('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (?, ?, ?)', [
             $adminId, $cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']
         ]);
-        recalculateResellerAssignments($session['user_id']);
+        recalculateResellerAssignments($identity->getUserId());
         Application::getInstance()->getEventManager()->trigger(Events::onAfterAddDomain, NULL, [
-            'createdBy'     => $session['user_id'],
+            'createdBy'     => $identity->getUserId(),
             'customerId'    => $adminId,
             'customerEmail' => $form->getValue('email'),
             'domainId'      => $dmnId,
@@ -227,7 +228,7 @@ function addCustomer(Form $form)
         ]);
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
-        writeLog(sprintf('A new customer (%s) has been created by: %s:', $adminName, $session['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf('A new customer (%s) has been created by: %s:', $adminName, $identity->getUsername()), E_USER_NOTICE);
         setPageMessage(tr('Customer account successfully scheduled for creation.'), 'success');
         unsetMessages();
         redirectTo('users.php');
@@ -250,9 +251,11 @@ function generatePage(TemplateEngine $tpl, Form $form)
 
     $form->setDefault('admin_name', $dmnName);
     $tpl->form = $form;
-    View::generateResellerIpsList($tpl, Application::getInstance()->getSession()['user_id'], $clientIps ?: []);
+    View::generateResellerIpsList($tpl, Application::getInstance()->getAuthService()->getIdentity()->getUserId(), $clientIps ?: []);
     Application::getInstance()->getSession()['local_data'] = "$dmnName;$hpId";
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

@@ -23,12 +23,14 @@ namespace iMSCP;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 if (isset($_GET['domain_id'])) {
     $domainId = intval($_GET['domain_id']);
-    $resellerId = intval(Application::getInstance()->getSession()['user_id']);
+    $resellerId = intval(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $stmt = execQuery(
         'SELECT admin_id, created_by, domain_status FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE domain_id = ? AND created_by = ?',
         [$domainId, $resellerId]

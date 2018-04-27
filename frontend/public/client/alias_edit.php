@@ -48,7 +48,7 @@ function _client_getAliasData($domainAliasId)
             AND domain_id = ?
             AND alias_status = 'ok'
         ",
-        [$domainAliasId, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])]
+        [$domainAliasId, getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId())]
     );
 
     if (!$stmt->rowCount()) {
@@ -73,6 +73,8 @@ function client_editDomainAlias()
     $domainAliasData = _client_getAliasData($domainAliasId);
     $domainAliasData !== FALSE or View::showBadRequestErrorPage();
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
     // Check for domain alias IP addresses
     $domainAliasIps = [];
     if (!isset($_POST['alias_ips'])) {
@@ -81,7 +83,7 @@ function client_editDomainAlias()
     } elseif (!is_array($_POST['alias_ips'])) {
         View::showBadRequestErrorPage();
     } else {
-        $clientIps = explode(',', getCustomerProperties(Application::getInstance()->getSession()['user_id'])['domain_client_ips']);
+        $clientIps = explode(',', getCustomerProperties($identity->getUserId())['domain_client_ips']);
         $domainAliasIps = array_intersect($_POST['alias_ips'], $clientIps);
         if (count($domainAliasIps) < count($_POST['alias_ips'])) {
             // Situation where unknown IP address identifier has been submitten
@@ -140,7 +142,7 @@ function client_editDomainAlias()
     elseif (isset($_POST['document_root'])) {
         $documentRoot = normalizePath('/' . cleanInput($_POST['document_root']));
         if ($documentRoot !== '') {
-            $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], $domainAliasData['alias_mount'] . '/htdocs');
+            $vfs = new VirtualFileSystem(Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $domainAliasData['alias_mount'] . '/htdocs');
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
                 setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
                 return false;
@@ -176,7 +178,7 @@ function client_editDomainAlias()
         'forwardHost'    => $forwardHost
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('%s updated properties of the %s domain alias', Application::getInstance()->getSession()['user_logged'], $domainAliasData['alias_name_utf8']), E_USER_NOTICE);
+    writeLog(sprintf('%s updated properties of the %s domain alias', $identity->getUsername(), $domainAliasData['alias_name_utf8']), E_USER_NOTICE);
     return true;
 }
 
@@ -195,9 +197,11 @@ function client_generatePage($tpl)
     $domainAliasData !== FALSE or View::showBadRequestErrorPage();
     $domainAliasData['alias_ips'] = explode(',', $domainAliasData['alias_ips']);
     $forwardHost = 'Off';
+    
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     if (empty($_POST)) {
-        View::generateClientIpsList($tpl, Application::getInstance()->getSession()['user_id'], $domainAliasData['alias_ips']);
+        View::generateClientIpsList($tpl, $identity->getUserId(), $domainAliasData['alias_ips']);
 
         $documentRoot = strpos($domainAliasData['alias_document_root'], '/htdocs') !== FALSE
             ? substr($domainAliasData['alias_document_root'], 7) : '';
@@ -218,7 +222,7 @@ function client_generatePage($tpl)
         }
     } else {
         View::generateClientIpsList(
-            $tpl, Application::getInstance()->getSession()['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []
+            $tpl, $identity->getUserId(), isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []
         );
 
         $documentRoot = isset($_POST['document_root']) ? $_POST['document_root'] : '';
@@ -254,7 +258,7 @@ function client_generatePage($tpl)
     // Cover the case where URL forwarding feature is activated and that the
     // default /htdocs directory doesn't exist yet
     if ($domainAliasData['url_forward'] != 'no') {
-        $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], $domainAliasData['alias_mount']);
+        $vfs = new VirtualFileSystem($identity->getUsername(), $domainAliasData['alias_mount']);
         if (!$vfs->exists('/htdocs')) {
             $tpl->assign('DOCUMENT_ROOT_BLOC', '');
             return;
@@ -262,12 +266,14 @@ function client_generatePage($tpl)
     }
 
     # Set parameters for the FTP chooser
-    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
-    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = getCustomerMainDomainId($identity->getUserId());
+    Application::getInstance()->getSession()['ftp_chooser_user'] = $identity->getUsername();
     Application::getInstance()->getSession()['ftp_chooser_root_dir'] = normalizePath($domainAliasData['alias_mount'] . '/htdocs');
     Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
     Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

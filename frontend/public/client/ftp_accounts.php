@@ -32,7 +32,9 @@ use Zend\EventManager\Event;
  */
 function generatePage($tpl)
 {
-    $stmt = execQuery('SELECT userid, status FROM ftp_users WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
+    $stmt = execQuery('SELECT userid, status FROM ftp_users WHERE admin_id = ?', [
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+    ]);
 
     if (!$stmt->rowCount()) {
         setPageMessage(tr('You do not have FTP accounts.'), 'static_info');
@@ -56,6 +58,8 @@ function generatePage($tpl)
         $tpl->parse('FTP_ITEM', '.ftp_item');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

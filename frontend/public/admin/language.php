@@ -23,6 +23,8 @@ namespace iMSCP;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
@@ -45,7 +47,9 @@ if (!empty($_POST)) {
     }
 
     if ($adminCurrentLanguage != $adminNewLanguage) {
-        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [$adminNewLanguage, Application::getInstance()->getSession()['user_id']]);
+        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [
+            $adminNewLanguage, Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+        ]);
         Application::getInstance()->getSession()['user_def_lang'] = $adminNewLanguage;
         setPageMessage(tr('Language has been updated.'), 'success');
     } else {

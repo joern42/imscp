@@ -24,6 +24,8 @@ use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
@@ -35,10 +37,12 @@ $tpl->define([
     'custom_buttons' => 'page'
 ]);
 
+$userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
+
 $selected_on = '';
 $selected_off = '';
-$data_1 = Mail::getLostpasswordActivationEmail(Application::getInstance()->getSession()['user_id']);
-$data_2 = Mail::getLostpasswordEmail(Application::getInstance()->getSession()['user_id']);
+$data_1 = Mail::getLostpasswordActivationEmail($userId);
+$data_2 = Mail::getLostpasswordEmail($userId);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     $error = false;
@@ -61,8 +65,8 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
         return false;
     }
 
-    Mail::setLostpasswordActivationEmail(Application::getInstance()->getSession()['user_id'], $data_1);
-    Mail::setLostpasswordEmail(Application::getInstance()->getSession()['user_id'], $data_2);
+    Mail::setLostpasswordActivationEmail($userId, $data_1);
+    Mail::setLostpasswordEmail($userId, $data_2);
     setPageMessage(tr('Lost password email templates were updated.'), 'success');
 }
 

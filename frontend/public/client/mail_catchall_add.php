@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
@@ -36,7 +37,7 @@ function getCatchallDomain($catchallDomainId, $catchalType)
     switch ($catchalType) {
         case Mail::MT_NORMAL_CATCHALL:
             $stmt = execQuery('SELECT domain_name FROM domain WHERE domain_id = ? AND domain_admin_id = ?', [
-                $catchallDomainId, Application::getInstance()->getSession()['user_id']
+                $catchallDomainId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()
             ]);
             break;
         case Mail::MT_SUBDOM_CATCHALL:
@@ -47,7 +48,7 @@ function getCatchallDomain($catchallDomainId, $catchalType)
                     WHERE subdomain_id = ?
                     AND domain_admin_id = ?
                 ",
-                [$catchallDomainId, Application::getInstance()->getSession()['user_id']]
+                [$catchallDomainId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
             );
             break;
         case Mail::MT_ALIAS_CATCHALL:
@@ -58,7 +59,7 @@ function getCatchallDomain($catchallDomainId, $catchalType)
                     WHERE alias_id = ?
                     AND domain_admin_id = ?
                 ",
-                [$catchallDomainId, Application::getInstance()->getSession()['user_id']]
+                [$catchallDomainId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
             );
             break;
         case Mail::MT_ALSSUB_CATCHALL:
@@ -70,7 +71,7 @@ function getCatchallDomain($catchallDomainId, $catchalType)
                     WHERE subdomain_alias_id = ?
                     AND domain_admin_id = ?
                 ",
-                [$catchallDomainId, Application::getInstance()->getSession()['user_id']]
+                [$catchallDomainId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
             );
             break;
         default:
@@ -96,6 +97,9 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         View::showBadRequestErrorPage();
     }
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $userId = $identity->getUserId();
+
     if ($_POST['catchall_addresses_type'] == 'auto') {
         if (!isset($_POST['automatic_catchall_addresses']) || !is_array($_POST['automatic_catchall_addresses'])) {
             View::showBadRequestErrorPage();
@@ -109,9 +113,7 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         $catchallAddresses = [];
 
         foreach ($_POST['automatic_catchall_addresses'] as $catchallAddressId) {
-            $stmt = execQuery('SELECT mail_addr FROM mail_users WHERE mail_id = ? AND domain_id = ?', [
-                intval($catchallAddressId), getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])
-            ]);
+            $stmt = execQuery('SELECT mail_addr FROM mail_users WHERE mail_id = ? AND domain_id = ?', [intval($catchallAddressId), $userId]);
             $stmt->rowCount() or View::showBadRequestErrorPage();
             $catchallAddresses[] = $stmt->fetchColumn();
         }
@@ -137,7 +139,7 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         }
     }
 
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId($userId);
 
     switch ($catchallType) {
         case Mail::MT_NORMAL_CATCHALL:
@@ -173,7 +175,7 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         'mailCatchallAddresses' => $catchallAddresses
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('A catch-all account has been created by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A catch-all account has been created by %s', $identity->getUsername()), E_USER_NOTICE);
     setPageMessage(tr('Catch-all successfully scheduled for addition.'), 'success');
     redirectTo('mail_catchall.php');
 }
@@ -222,7 +224,9 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
             break;
         case Mail::MT_SUBDOM_CATCHALL:
             $stmt = execQuery("SELECT mail_id, mail_addr FROM mail_users WHERE domain_id AND sub_id = ? AND mail_type RLIKE ? AND status = 'ok'", [
-                getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $catchallDomainId, Mail::MT_SUBDOM_MAIL . '|' . Mail::MT_SUBDOM_FORWARD
+                getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId()),
+                $catchallDomainId,
+                Mail::MT_SUBDOM_MAIL . '|' . Mail::MT_SUBDOM_FORWARD
             ]);
 
             if (!$stmt->rowCount()) {
@@ -254,7 +258,11 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
         case Mail::MT_ALIAS_CATCHALL:
             $stmt = execQuery(
                 "SELECT mail_id, mail_addr FROM mail_users WHERE domain_id = ? AND sub_id = ? AND mail_type RLIKE ? AND status = 'ok'",
-                [getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $catchallDomainId, Mail::MT_ALIAS_MAIL . '|' . Mail::MT_ALIAS_FORWARD]
+                [
+                    getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId()),
+                    $catchallDomainId,
+                    Mail::MT_ALIAS_MAIL . '|' . Mail::MT_ALIAS_FORWARD
+                ]
             );
 
             if (!$stmt->rowCount()) {
@@ -286,7 +294,11 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
         case Mail::MT_ALSSUB_CATCHALL:
             $stmt = execQuery(
                 "SELECT mail_id, mail_addr FROM mail_users WHERE domain_id = ? AND sub_id = ? AND mail_type RLIKE ? AND status = 'ok'",
-                [getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $catchallDomainId, Mail::MT_ALSSUB_MAIL . '|' . Mail::MT_ALSSUB_FORWARD]
+                [
+                    getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId()),
+                    $catchallDomainId,
+                    Mail::MT_ALSSUB_MAIL . '|' . Mail::MT_ALSSUB_FORWARD
+                ]
             );
 
             if (!$stmt->rowCount()) {
@@ -318,6 +330,8 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
             View::showBadRequestErrorPage();
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

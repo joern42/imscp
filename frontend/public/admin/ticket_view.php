@@ -24,6 +24,8 @@ use iMSCP\Functions\Login;
 use iMSCP\Functions\Support;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 Application::getInstance()->getConfig()['IMSCP_SUPPORT_SYSTEM'] && isset($_GET['ticket_id']) or View::showBadRequestErrorPage();
@@ -48,7 +50,12 @@ if (isset($_POST['uaction'])) {
             setPageMessage(tr('Please type your message.'), 'error');
         } else {
             Support::updateTicket(
-                $ticketId, Application::getInstance()->getSession()['user_id'], $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3
+                $ticketId, Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
+                $_POST['urgency'],
+                $_POST['subject'],
+                $_POST['user_message'],
+                2,
+                3
             );
             redirectTo("ticket_view.php?ticket_id=$ticketId");
         }
@@ -75,7 +82,7 @@ $tpl->assign([
     'TR_TICKET_REPLY'     => tr('Send reply')
 ]);
 View::generateNavigation($tpl);
-Support::showTicketContent($tpl, $ticketId, Application::getInstance()->getSession()['user_id']);
+Support::showTicketContent($tpl, $ticketId, Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);

@@ -20,12 +20,12 @@
 
 namespace iMSCP;
 
-use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
+use iMSCP\Model\SuIdentityInterface;
 use Zend\EventManager\Event;
 
 /**
@@ -36,7 +36,9 @@ use Zend\EventManager\Event;
  */
 function send_alias_order_email($aliasName)
 {
-    $stmt = execQuery('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
+    $stmt = execQuery('SELECT admin_name, created_by, fname, lname, email FROM admin WHERE admin_id = ?', [
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+    ]);
     $row = $stmt->fetch();
     $data = Mail::getDomainAliasOrderEmail($row['created_by']);
     $ret = Mail::sendMail([
@@ -75,7 +77,7 @@ function getDomainsList()
     }
 
     $domainsList = [];
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     if ($mainDmnProps['url_forward'] == 'no') {
         $domainsList = [[
@@ -247,8 +249,10 @@ function addDomainAlias()
         }
     }
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
     # See http://youtrack.i-mscp.net/issue/IP-1486
-    $isSuUser = isset(Application::getInstance()->getSession()['logged_from_type']);
+    $isSuIdentity = $identity instanceof SuIdentityInterface;
 
     $db = Application::getInstance()->getDb();
 
@@ -274,7 +278,7 @@ function addDomainAlias()
                 )
             ',
             [
-                $mainDmnProps['domain_id'], $domainAliasNameAscii, $isSuUser ? 'toadd' : 'ordered', $mountPoint, $documentRoot,
+                $mainDmnProps['domain_id'], $domainAliasNameAscii, $isSuIdentity ? 'toadd' : 'ordered', $mountPoint, $documentRoot,
                 implode(',', $domainAliasIps), $forwardUrl, $forwardType, $forwardHost
             ]
         );
@@ -284,22 +288,21 @@ function addDomainAlias()
         // Create the phpini entry for that domain alias
 
         $phpini = PHPini::getInstance();
-        $phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_created_by']);
-        $phpini->loadClientPermissions(Application::getInstance()->getSession()['user_id']);
+        $phpini->loadResellerPermissions($identity->getUserCreatedBy());
+        $phpini->loadClientPermissions($identity->getUserId());
 
         if ($phpini->getClientPermission('phpiniConfigLevel') == 'per_user') {
             // Set INI options, based on custoerm primary domain INI options
-            $phpini->loadIniOptions(Application::getInstance()->getSession()['user_id'], $mainDmnProps['domain_id'], 'dmn');
+            $phpini->loadIniOptions($identity->getUserId(), $mainDmnProps['domain_id'], 'dmn');
         } else {
             $phpini->loadIniOptions(); // Set default INI options
         }
 
-        $phpini->saveIniOptions(Application::getInstance()->getSession()['user_id'], $domainAliasId, 'als');
+        $phpini->saveIniOptions($identity->getUserId(), $domainAliasId, 'als');
 
-        if ($isSuUser) {
+        if ($isSuIdentity) {
             Mail::createDefaultMailAccounts(
-                $mainDmnProps['domain_id'], AuthenticationService::getInstance()->getIdentity()->email, $domainAliasNameAscii, Mail::MT_ALIAS_FORWARD,
-                $domainAliasId
+                $mainDmnProps['domain_id'], $identity->getUserEmail(), $domainAliasNameAscii, Mail::MT_ALIAS_FORWARD, $domainAliasId
             );
         }
 
@@ -317,13 +320,13 @@ function addDomainAlias()
 
         $db->getDriver()->getConnection()->commit();
 
-        if ($isSuUser) {
+        if ($isSuIdentity) {
             Daemon::sendRequest();
-            writeLog(sprintf('A new domain alias (%s) has been created by %s', $domainAliasName, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('A new domain alias (%s) has been created by %s', $domainAliasName, $identity->getSuUsername(), E_USER_NOTICE));
             setPageMessage(tr('Domain alias successfully created.'), 'success');
         } else {
             send_alias_order_email($domainAliasName);
-            writeLog(sprintf('A new domain alias (%s) has been ordered by %s', $domainAliasName, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('A new domain alias (%s) has been ordered by %s', $domainAliasName, $identity->getUsername(), E_USER_NOTICE));
             setPageMessage(tr('Domain alias successfully ordered.'), 'success');
         }
     } catch (\Exception $e) {
@@ -386,15 +389,19 @@ function generatePage(TemplateEngine $tpl)
     }
 
     View::generateClientIpsList(
-        $tpl, Application::getInstance()->getSession()['user_id'], isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []
+        $tpl,
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
+        isset($_POST['alias_ips']) && is_array($_POST['alias_ips']) ? $_POST['alias_ips'] : []
     );
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('domain_aliases') or View::showBadRequestErrorPage();
 
-$mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+$mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 $domainAliasesCount = Counting::getCustomerDomainAliasesCount($mainDmnProps['domain_id']);
 
 if ($mainDmnProps['domain_alias_limit'] != 0 && $domainAliasesCount >= $mainDmnProps['domain_alias_limit']) {

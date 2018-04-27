@@ -24,6 +24,8 @@ use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('protected_areas') && isset($_GET['uname']) or View::showBadRequestErrorPage();
@@ -32,8 +34,9 @@ $db = Application::getInstance()->getDb();
 
 try {
     $db->getDriver()->getConnection()->beginTransaction();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $htuserId = intval($_GET['uname']);
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId($identity->getUserId());
     $stmt = execQuery('SELECT uname FROM htaccess_users WHERE dmn_id = ? AND id = ?', [$domainId, $htuserId]);
     $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
@@ -81,7 +84,7 @@ try {
     $db->getDriver()->getConnection()->commit();
     setPageMessage(tr('User scheduled for deletion.'), 'success');
     Daemon::sendRequest();
-    writeLog(sprintf('%s deletes user ID (protected areas): %s', Application::getInstance()->getSession()['user_logged'], $htuserName), E_USER_NOTICE);
+    writeLog(sprintf('%s deletes user ID (protected areas): %s', $identity->getUsername(), $htuserName), E_USER_NOTICE);
 } catch (\Exception $e) {
     $db->getDriver()->getConnection()->rollBack();
     setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');

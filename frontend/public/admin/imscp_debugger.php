@@ -19,10 +19,12 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
+use iMSCP\Plugin\AbstractPlugin;
 
 /**
  * Get user errors
@@ -519,6 +521,8 @@ function debugger_countRequests($statusField = NULL, $tableName = NULL)
 
     return $nbRequests;
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -65,7 +66,7 @@ function _client_generateHtgroupAction($status)
  */
 function client_generateUsersList($tpl)
 {
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $stmt = execQuery('SELECT * FROM `htaccess_users` WHERE `dmn_id` = ? ORDER BY `dmn_id` DESC', [$domainId]);
 
     if (!$stmt->rowCount()) {
@@ -102,7 +103,7 @@ function client_generateUsersList($tpl)
  */
 function client_generateGroupsList($tpl)
 {
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $stmt = execQuery('SELECT * FROM htaccess_groups WHERE dmn_id = ? ORDER BY dmn_id DESC', [$domainId]);
 
     if (!$stmt->rowCount()) {
@@ -138,6 +139,8 @@ function client_generateGroupsList($tpl)
         $tpl->parse('GROUP_BLOCK', '.group_block');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

@@ -22,6 +22,8 @@ namespace iMSCP\Functions;
 
 use iMSCP\Application;
 use iMSCP\Events;
+use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\UserIdentityInterface;
 use iMSCP\TemplateEngine;
 use Zend\Navigation\Navigation;
 use Zend\Navigation\Page\AbstractPage;
@@ -41,18 +43,26 @@ class View
      */
     public static function generateLoggedFrom(TemplateEngine $tpl): void
     {
-        $session = Application::getInstance()->getSession();
         $tpl->define('logged_from', 'layout');
+        $identity = Application::getInstance()->getAuthService()->getIdentity();
 
-        if (!isset($session['logged_from']) || !isset($session['logged_from_id'])) {
+        if (!($identity instanceof SuIdentityInterface)) {
             $tpl->assign('LOGGED_FROM', '');
             return;
         }
+        
+        if($identity->getSuIdentity() instanceof SuIdentityInterface) {
+            $tpl->assign([
+                'YOU_ARE_LOGGED_AS' => tr('%1$s you are now logged as %2$s, then as %3$s', $identity->getSuUsername(), $identity->getUsername()),
+                'TR_GO_BACK'        => tr('Back')
+            ]);
+        } else {
+            $tpl->assign([
+                'YOU_ARE_LOGGED_AS' => tr('%1$s you are now logged as %2$s', $identity->getSuUsername(), $identity->getUsername()),
+                'TR_GO_BACK'        => tr('Back')
+            ]);
+        }
 
-        $tpl->assign([
-            'YOU_ARE_LOGGED_AS' => tr('%1$s you are now logged as %2$s', $session['logged_from'], $session['user_logged']),
-            'TR_GO_BACK'        => tr('Back')
-        ]);
         $tpl->parse('LOGGED_FROM', 'logged_from');
     }
 
@@ -151,12 +161,13 @@ class View
 
         /** @var $navigation Navigation */
         $navigation = Application::getInstance()->getRegistry()->get('navigation');
-
-        $session = Application::getInstance()->getSession();
+        
+        /** @var UserIdentityInterface $identity */
+        $identity = Application::getInstance()->getAuthService()->getIdentity();
 
         // Dynamic links (only at customer level)
-        if ($session['user_type'] == 'user') {
-            $domainProperties = getCustomerProperties($session['user_id']);
+        if ($identity->getUserType() == 'user') {
+            $domainProperties = getCustomerProperties($identity->getUserId());
             $tpl->assign('WEBSTATS_PATH', 'http://' . decodeIdna($domainProperties['domain_name']) . '/stats/');
 
             if (customerHasFeature('mail')) {
@@ -211,7 +222,7 @@ class View
         }
 
         // Custom menus
-        if (NULL !== $customMenus = static::getCustomMenus($session['user_type'])) {
+        if (NULL !== $customMenus = static::getCustomMenus($identity->getUserType())) {
             foreach ($customMenus as $customMenu) {
                 $navigation->addPage([
                     'order'  => $customMenu['menu_order'],
@@ -229,6 +240,8 @@ class View
         }
 
         $query = !empty($_GET) ? '?' . http_build_query($_GET) : '';
+
+        $session = Application::getInstance()->getSession();
 
         /** @var $page AbstractPage */
         foreach ($navigation as $page) {
@@ -380,17 +393,18 @@ class View
         }
 
         $tpl->assign('ADMINISTRATOR_MESSAGE', '');
-        $cfg = Application::getInstance()->getConfig();
+        $dateFormat = Application::getInstance()->getConfig()['DATE_FORMAT'];
+        $userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
 
         while ($row = $stmt->fetch()) {
             $tpl->assign([
                 'ADMINISTRATOR_USERNAME'   => toHtml($row['admin_name']),
-                'ADMINISTRATOR_CREATED_ON' => toHtml($row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])),
+                'ADMINISTRATOR_CREATED_ON' => toHtml($row['domain_created'] == 0 ? tr('N/A') : date($dateFormat, $row['domain_created'])),
                 'ADMINISTRATPR_CREATED_BY' => toHtml(is_null($row['created_by']) ? tr('System') : $row['created_by']),
                 'ADMINISTRATOR_ID'         => $row['admin_id']
             ]);
 
-            if (is_null($row['created_by']) || $row['admin_id'] == Application::getInstance()->getSession()['user_id']) {
+            if (is_null($row['created_by']) || $row['admin_id'] == $userId) {
                 $tpl->assign('ADMINISTRATOR_DELETE_LINK', '');
             } else {
                 $tpl->parse('ADMINISTRATOR_DELETE_LINK', 'administrator_delete_link');
@@ -424,12 +438,12 @@ class View
         }
 
         $tpl->assign('RESELLER_MESSAGE', '');
-        $cfg = Application::getInstance()->getConfig();
+        $dateFormat = Application::getInstance()->getConfig()['DATE_FORMAT'];
 
         while ($row = $stmt->fetch()) {
             $tpl->assign([
                 'RESELLER_USERNAME'   => toHtml($row['admin_name']),
-                'RESELLER_CREATED_ON' => toHtml($row['domain_created'] == 0 ? tr('N/A') : date($cfg['DATE_FORMAT'], $row['domain_created'])),
+                'RESELLER_CREATED_ON' => toHtml($row['domain_created'] == 0 ? tr('N/A') : date($dateFormat, $row['domain_created'])),
                 'RESELLER_CREATED_BY' => toHtml(is_null($row['created_by']) ? tr('Unknown') : $row['created_by']),
                 'RESELLER_ID'         => $row['admin_id']
             ]);
@@ -454,14 +468,13 @@ class View
         $eLimit = intval($eLimit);
         $where = '';
 
-        $session = Application::getInstance()->getSession();
-        if ($session['user_type'] == 'reseller') {
-            $where .= 'WHERE t2.created_by = ' . intval($session['user_id']);
+        $identity = Application::getInstance()->getAuthService()->getIdentity();
+        if ($identity->getUserType() == 'reseller') {
+            $where .= 'WHERE t2.created_by = ' . $identity->getUserId();
         }
 
         if ($searchStatus !== NULL && $searchStatus != 'anything') {
-            $where .= ($where == '' ? 'WHERE ' : ' AND ') . 't1.domain_status' . (
-                $searchStatus == 'ok' || $searchStatus == 'disabled'
+            $where .= ($where == '' ? 'WHERE ' : ' AND ') . 't1.domain_status' . ($searchStatus == 'ok' || $searchStatus == 'disabled'
                     ? ' = ' . quoteValue($searchStatus)
                     : " NOT IN ('ok', 'disabled', 'toadd', 'tochange', 'toenable', 'torestore', 'todisable', 'todelete')"
                 );
@@ -470,7 +483,7 @@ class View
         if ($searchField !== NULL && $searchField != 'anything') {
             if ($searchField == 'domain_name') {
                 $where .= ($where == '' ? 'WHERE ' : ' AND ') . 't1.domain_name';
-            } elseif ($session['user_type'] == 'admin' && $searchField == 'reseller_name') {
+            } elseif ($identity->getUserType() == 'admin' && $searchField == 'reseller_name') {
                 $where .= ($where == '' ? 'WHERE ' : ' AND ') . 't3.admin_name';
             } elseif (in_array($searchField, ['fname', 'lname', 'firm', 'city', 'state', 'country'], true)) {
                 $where .= ($where == '' ? 'WHERE ' : ' AND ') . "t2.$searchField";

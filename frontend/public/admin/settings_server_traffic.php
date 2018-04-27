@@ -61,7 +61,10 @@ function admin_updateServerTrafficSettings($trafficLimit, $trafficWarning)
         // An Update was been made in the database ?
         if ($updtCount || $newCount) {
             setPageMessage(tr('Monthly server traffic settings successfully updated.', $updtCount), 'success');
-            writeLog(sprintf('Server monthly traffic settings were updated by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf(
+                'Server monthly traffic settings were updated by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+                E_USER_NOTICE
+            );
         } else {
             setPageMessage(tr('Nothing has been changed.'), 'info');
         }
@@ -92,6 +95,8 @@ function admin_generatePage($tpl, $trafficLimit, $trafficWarning)
         'TRAFFIC_WARNING' => toHtml($trafficWarning)
     ]);
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

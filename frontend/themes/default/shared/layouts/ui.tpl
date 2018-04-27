@@ -32,7 +32,7 @@
         </div>
         <ul class="location-menu">
             <!-- BDP: logged_from -->
-            <li><a class="backadmin" href="change_user_interface.php?action=go_back">{YOU_ARE_LOGGED_AS}</a></li>
+            <li><a class="backadmin" href="su.php">{YOU_ARE_LOGGED_AS}</a></li>
             <!-- EDP: logged_from -->
             <li><a class="logout" href="/index.php?action=logout">{TR_MENU_LOGOUT}</a></li>
         </ul>

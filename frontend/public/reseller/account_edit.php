@@ -26,6 +26,7 @@ use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
+use iMSCP\Model\SuIdentityInterface;
 use Zend\EventManager\Event;
 
 /**
@@ -121,7 +122,7 @@ function getClientProperties($clientId)
             AND t1.domain_status <> 'disabled'
             AND t2.created_by = ? 
         ",
-        [$clientId, Application::getInstance()->getSession()['user_id']]
+        [$clientId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     );
 
     $stmt->rowCount() or View::showBadRequestErrorPage();
@@ -189,8 +190,9 @@ function &getData($clientId, $forUpdate = false)
         return $data;
     }
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $clientProps = getClientProperties($clientId);
-    $resellerProps = getResellerProperties(Application::getInstance()->getSession()['user_id']);
+    $resellerProps = getResellerProperties($identity->getUserId());
     $resellerProps['reseller_ips'] = explode(',', $resellerProps['reseller_ips']);
 
     list($subCount, $alsCount, $mailCount, $ftpCount, $sqlDbCount, $sqlUsersCount) = Counting::getCustomerObjectsCounts($clientProps['admin_id']);
@@ -223,7 +225,7 @@ function &getData($clientId, $forUpdate = false)
     $data['fallback_mail_quota'] = $data['mail_quota'];
 
     $phpini = PhpIni::getInstance();
-    $phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_id']); // Load reseller PHP permissions
+    $phpini->loadResellerPermissions($identity->getUserId()); // Load reseller PHP permissions
     $phpini->loadClientPermissions($data['admin_id']); // Load client PHP permissions
     $phpini->loadIniOptions($data['admin_id'], $data['domain_id'], 'dmn'); // Load domain PHP configuration options
 
@@ -679,8 +681,7 @@ function updateClientAccount($clientId)
             }
 
             setPageMessage(tr('Domain successfully updated.'), 'success');
-            $userLogged = isset(Application::getInstance()->getSession()['logged_from']) ? Application::getInstance()->getSession()['logged_from'] : Application::getInstance()->getSession()['user_logged'];
-            writeLog(sprintf('%s account properties were updated by %s', decodeIdna($data['admin_name']), $userLogged), E_USER_NOTICE);
+            writeLog(sprintf('%s account properties were updated by %s', decodeIdna($data['admin_name']), Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
             return true;
         }
 
@@ -780,7 +781,8 @@ function generatePage(TemplateEngine $tpl, $clientId)
         'PHP_NO'                         => $data['domain_php'] != 'yes' ? ' checked' : ''
     ]);
 
-    View::generateResellerIpsList($tpl, Application::getInstance()->getSession()['user_id'], $data['domain_client_ips']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    View::generateResellerIpsList($tpl, $identity->getUserId(), $data['domain_client_ips']);
 
     $phpini = PhpIni::getInstance();
 
@@ -975,13 +977,13 @@ function generatePage(TemplateEngine $tpl, $clientId)
     ]);
 
     list(, $subdomainCount, $domainAliasesCount, $mailsCount, $ftpUsersCount, $sqlDbCount, $sqlUserCount, $trafficUsage, $diskUsage
-        ) = Statistics::getResellerStats(Application::getInstance()->getSession()['user_id']);
+        ) = Statistics::getResellerStats($identity->getUserId());
 
     $tpl->assign([
         'TR_LIMITS'               => toHtml(tr('Limits')),
         'TR_VALUE'                => toHtml(tr('Value')),
         'TR_CUSTOMER_CONSUMPTION' => toHtml(tr('Customer consumption')),
-        'TR_RESELLER_CONSUMPTION' => toHtml(isset(Application::getInstance()->getSession()['logged_from']) ? tr('Reseller consumption') : tr('Your consumption'))
+        'TR_RESELLER_CONSUMPTION' => toHtml($identity instanceof SuIdentityInterface ? tr('Reseller consumption') : tr('Your consumption'))
     ]);
 
     // Subdomains limit
@@ -1089,6 +1091,8 @@ function generatePage(TemplateEngine $tpl, $clientId)
             . ($data['max_disk_amnt'] != 0 ? toHtml(mebibytesHuman($data['max_disk_amnt'])) : '∞')
     ]);
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

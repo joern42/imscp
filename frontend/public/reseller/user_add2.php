@@ -282,7 +282,9 @@ function getHostingPlanData()
         return;
     }
 
-    $stmt = execQuery('SELECT name, props FROM hosting_plans WHERE reseller_id = ? AND id = ?', [Application::getInstance()->getSession()['user_id'], $hpId]);
+    $stmt = execQuery('SELECT name, props FROM hosting_plans WHERE reseller_id = ? AND id = ?', [
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId(), $hpId
+    ]);
     $stmt->rowCount() or View::showBadRequestErrorPage();
 
     $row = $stmt->fetch();
@@ -481,6 +483,8 @@ function checkInputData()
     return true;
 }
 
+require 'application.php';
+
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
@@ -498,8 +502,10 @@ if (!getFirstStepData()) {
     redirectTo('user_add1.php');
 }
 
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+
 $phpini = PHPini::getInstance();
-$phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_id']); // Load reseller PHP permissions
+$phpini->loadResellerPermissions($identity->getUserId()); // Load reseller PHP permissions
 $phpini->loadClientPermissions(); // Load client default PHP permissions
 $phpini->loadIniOptions(); // Load domain default PHP configuration options
 
@@ -521,7 +527,7 @@ if (isset($_POST['uaction']) && 'user_add2_nxt' == $_POST['uaction'] && !isset(A
             $phpini->getIniOption('phpiniMemoryLimit') . ';' .
             $extMail . ';' . $webFolderProtection . ';' . $mailQuota * 1048576;
 
-        if (validateHostingPlanLimits(Application::getInstance()->getSession()['ch_hpprops'], Application::getInstance()->getSession()['user_id'])) {
+        if (validateHostingPlanLimits(Application::getInstance()->getSession()['ch_hpprops'], $identity->getUserId())) {
             redirectTo('user_add3.php');
         }
     }

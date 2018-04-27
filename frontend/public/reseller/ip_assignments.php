@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -39,7 +40,7 @@ function generatePage($tpl)
             WHERE t1.reseller_id = ?
             ORDER BY LENGTH(t2.ip_number), t2.ip_number
         ",
-        [Application::getInstance()->getSession()['user_id']]
+        [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     )->fetchAll();
 
     $sip = isset($_POST['ip_address']) && in_array($_POST['ip_address'], array_column($ips, 'ip_id')) ? $_POST['ip_address'] : $ips[0]['ip_id'];
@@ -82,6 +83,8 @@ function generatePage($tpl)
     ]);
 
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

@@ -23,11 +23,13 @@ namespace iMSCP;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $stmt = execQuery("DELETE FROM domain_aliases WHERE alias_id = ? AND domain_id = ? AND alias_status = 'ordered'", [
-    intval($_GET['id']), getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])
+    intval($_GET['id']), getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId())
 ]);
 $stmt->rowCount() or View::showBadRequestErrorPage();
 setPageMessage(tr('Order successfully canceled.'), 'success');

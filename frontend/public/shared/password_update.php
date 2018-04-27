@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\View;
 
@@ -40,30 +41,32 @@ function updatePassword()
 
         return;
     }
+    
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, null, [
-        'userId'   => Application::getInstance()->getSession()['user_id'],
+        'userId'   => $identity->getUserId(),
         'userData' => [
-            'admin_name' => getUsername(Application::getInstance()->getSession()['user_id']),
+            'admin_name' => $identity->getUsername(),
             'admin_pass' => $form->getValue('admin_pass')
         ]
     ]);
     execQuery("UPDATE admin SET admin_pass = ?, admin_status = IF(admin_type = 'user', 'tochangepwd', admin_status) WHERE admin_id = ?", [
-        Crypt::bcrypt($form->getValue('admin_pass')), Application::getInstance()->getSession()['user_id']
+        Crypt::bcrypt($form->getValue('admin_pass')), $identity->getUserId()
     ]);
     Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, null, [
-        'userId'   => Application::getInstance()->getSession()['user_id'],
+        'userId'   => $identity->getUserId(),
         'userData' => [
-            'admin_name' => getUsername(Application::getInstance()->getSession()['user_id']),
+            'admin_name' => $identity->getUsername(),
             'admin_pass' => $form->getValue('admin_pass')
         ]
     ]);
 
-    if (Application::getInstance()->getSession()['user_type'] == 'user') {
+    if ($identity->getUserType() == 'user') {
         Daemon::sendRequest();
     }
 
-    writeLog(sprintf('Password has been updated for the %s user.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('Password has been updated for the %s user.', $identity->getUsername(), E_USER_NOTICE));
     setPageMessage(tr('Password successfully updated.'), 'success');
     redirectTo('password_update.php');
 }

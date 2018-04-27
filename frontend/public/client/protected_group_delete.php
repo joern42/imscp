@@ -24,6 +24,8 @@ use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('protected_areas') && isset($_GET['gname']) or View::showBadRequestErrorPage();
@@ -33,8 +35,9 @@ $db = Application::getInstance()->getDb();
 try {
     $db->getDriver()->getConnection()->beginTransaction();
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $htgroupId = intval($_GET['gname']);
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId($identity->getUserId());
 
     // Schedule deletion or update of any .htaccess files in which the htgroup was used
     $stmt = execQuery('SELECT * FROM htaccess WHERE dmn_id = ?', [$domainId]);
@@ -64,7 +67,7 @@ try {
     $db->getDriver()->getConnection()->commit();
     setPageMessage(tr('Htaccess group successfully scheduled for deletion.'), 'success');
     Daemon::sendRequest();
-    writeLog(sprintf('%s deleted Htaccess group ID: %s', Application::getInstance()->getSession()['user_logged'], $htgroupId), E_USER_NOTICE);
+    writeLog(sprintf('%s deleted Htaccess group ID: %s', $identity->getUsername(), $htgroupId), E_USER_NOTICE);
 } catch (\Exception $e) {
     $db->getDriver()->getConnection()->rollBack();
     setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');

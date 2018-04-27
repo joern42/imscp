@@ -19,8 +19,10 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
+use iMSCP\Model\SuIdentityInterface;
 
 /**
  * Generate layout color form
@@ -35,7 +37,7 @@ function client_generateLayoutColorForm($tpl)
     if (!empty($POST) && isset($_POST['layoutColor']) && in_array($_POST['layoutColor'], $colors)) {
         $selectedColor = $_POST['layoutColor'];
     } else {
-        $selectedColor = getLayoutColor(Application::getInstance()->getSession()['user_id']);
+        $selectedColor = getLayoutColor(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     }
 
     if (!empty($colors)) {
@@ -51,6 +53,8 @@ function client_generateLayoutColorForm($tpl)
     }
 }
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
@@ -63,10 +67,12 @@ $tpl->define([
     'layout_color_block'  => 'layout_colors_block'
 ]);
 
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'changeLayoutColor' && isset($_POST['layoutColor'])) {
-        if (setLayoutColor(Application::getInstance()->getSession()['user_id'], $_POST['layoutColor'])) {
-            if (!isset(Application::getInstance()->getSession()['logged_from_id'])) {
+        if (setLayoutColor($identity->getUserId(), $_POST['layoutColor'])) {
+            if (!($identity instanceof SuIdentityInterface)) {
                 Application::getInstance()->getSession()['user_theme_color'] = $_POST['layoutColor'];
                 setPageMessage(tr('Layout color successfully updated.'), 'success');
             } else {
@@ -76,14 +82,14 @@ if (isset($_POST['uaction'])) {
             setPageMessage(tr('Unknown layout color.'), 'error');
         }
     } elseif ($_POST['uaction'] == 'changeShowLabels') {
-        setMainMenuLabelsVisibility(Application::getInstance()->getSession()['user_id'], intval($_POST['mainMenuShowLabels']));
+        setMainMenuLabelsVisibility($identity->getUserId(), intval($_POST['mainMenuShowLabels']));
         setPageMessage(tr('Main menu labels visibility successfully updated.'), 'success');
     } else {
         setPageMessage(tr('Unknown action: %s', toHtml($_POST['uaction'])), 'error');
     }
 }
 
-if (isMainMenuLabelsVisible(Application::getInstance()->getSession()['user_id'])) {
+if (isMainMenuLabelsVisible($identity->getUserId())) {
     $tpl->assign([
         'MAIN_MENU_SHOW_LABELS_ON'  => ' selected',
         'MAIN_MENU_SHOW_LABELS_OFF' => ''

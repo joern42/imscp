@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
@@ -53,6 +54,8 @@ function client_hideDisabledFeatures($tpl)
         $tpl->assign('WEBSTATS_FEATURE', '');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

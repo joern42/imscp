@@ -65,6 +65,8 @@ function generatePage(TemplateEngine $tpl)
     }
 }
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 

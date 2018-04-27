@@ -315,7 +315,11 @@ function editIpAddr()
             $ipNetmask, $ipCard, $ipConfigMode, $ipId
         ]);
         Daemon::sendRequest();
-        writeLog(sprintf("Configuration for the %s IP address has been updated by %s", $row['ip_number'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf(
+            "Configuration for the %s IP address has been updated by %s", $row['ip_number'],
+            Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+            E_USER_NOTICE
+        );
         setPageMessage(toHtml(tr('IP address successfully scheduled for modification.')), 'success');
         sendJsonResponse(200);
     } catch (\Exception $e) {
@@ -354,9 +358,11 @@ function addIpAddr()
 
     Daemon::sendRequest();
     setPageMessage(toHtml(tr('IP address successfully scheduled for addition.')), 'success');
-    writeLog(sprintf("An IP address (%s) has been added by %s", $ipAddr, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf("An IP address (%s) has been added by %s", $ipAddr, Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     redirectTo('ip_manage.php');
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

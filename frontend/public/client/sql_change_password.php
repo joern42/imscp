@@ -77,7 +77,7 @@ function updateSqlUserPassword($sqluId)
     }
 
     setPageMessage(tr('SQL user password successfully updated.'), 'success');
-    writeLog(sprintf('%s updated %s@%s SQL user password.', Application::getInstance()->getSession()['user_logged'], $row['sqlu_name'], $row['sqlu_host']), E_USER_NOTICE);
+    writeLog(sprintf('%s updated %s@%s SQL user password.', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $row['sqlu_name'], $row['sqlu_host']), E_USER_NOTICE);
     Application::getInstance()->getEventManager()->trigger(Events::onAfterEditSqlUser, NULL, [
         'sqlUserId'       => $sqluId,
         'sqlUserPassword' => $password
@@ -120,9 +120,11 @@ function checkSqlUserPerms($sqlUserId)
             WHERE t1.sqlu_id = ?
             AND t3.domain_admin_id = ?
         ',
-            [$sqlUserId, Application::getInstance()->getSession()['user_id']]
+            [$sqlUserId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
         )->fetchColumn() > 0;
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

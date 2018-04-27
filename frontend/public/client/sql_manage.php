@@ -32,7 +32,8 @@ use iMSCP\Functions\View;
  */
 function canAddSQLUserForDatabase($sqldId)
 {
-    $domainProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
+    $domainProps = getCustomerProperties($userId);
 
     if ($domainProps['domain_sqlu_limit'] == 0) {
         return true;
@@ -51,7 +52,7 @@ function canAddSQLUserForDatabase($sqldId)
                 AND CONCAT(t1.sqlu_name, t1.sqlu_host) NOT IN(
                 SELECT CONCAT(sqlu_name, sqlu_host) FROM sql_user WHERE sqld_id = ?
             )',
-                [$sqldId, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $sqldId]
+                [$sqldId, getCustomerMainDomainId($userId), $sqldId]
             )->fetchColumn() > 0;
     }
 
@@ -101,7 +102,7 @@ function generateDatabaseSqlUserList(TemplateEngine $tpl, $sqldId)
 function generatePage(TemplateEngine $tpl)
 {
     $stmt = execQuery('SELECT sqld_id, sqld_name FROM sql_database WHERE domain_id = ? ORDER BY sqld_name ', [
-        getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])
+        getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId())
     ]);
 
     if (!$stmt->rowCount()) {
@@ -127,6 +128,8 @@ function generatePage(TemplateEngine $tpl)
         $tpl->parse('SQL_DATABASES_LIST', '.sql_databases_list');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

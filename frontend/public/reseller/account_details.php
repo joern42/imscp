@@ -22,6 +22,8 @@ namespace iMSCP;
 
 use iMSCP\Functions\Login;
 
+require 'application.php';
+
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);

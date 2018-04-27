@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -52,7 +53,7 @@ function client_getHtaccessUsername($htuserId, $domainId)
  */
 function client_generatePage($tpl)
 {
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     if (isset($_GET['uname']) && isNumber($_GET['uname'])) {
         $htuserId = intval($_GET['uname']);
@@ -141,7 +142,7 @@ function client_addHtaccessUserToHtaccessGroup()
         View::showBadRequestErrorPage();
     }
 
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $htuserId = cleanInput($_POST['nadmin_name']);
     $htgroupId = $_POST['groups'];
     $stmt = execQuery('SELECT id, ugroup, members FROM htaccess_groups WHERE dmn_id = ? AND id = ?', [$domainId, $htgroupId]);
@@ -183,7 +184,7 @@ function client_removeHtaccessUserFromHtaccessGroup()
         View::showBadRequestErrorPage();
     }
 
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $htgroupId = intval($_POST['groups_in']);
     $htuserId = cleanInput($_POST['nadmin_name']);
     $stmt = execQuery('SELECT ugroup, members FROM htaccess_groups WHERE id = ? AND dmn_id = ?', [$htgroupId, $domainId]);
@@ -204,6 +205,8 @@ function client_removeHtaccessUserFromHtaccessGroup()
     setPageMessage(tr('Htaccess user successfully deleted from the %s htaccess group ', $row['ugroup']), 'success');
     redirectTo('protected_user_manage.php');
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

@@ -19,9 +19,10 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 
 /**
@@ -40,16 +41,20 @@ function checkMailAccount($mailAccountId)
 {
     return execQuery(
             "
-            SELECT COUNT(t1.mail_id)
-            FROM mail_users AS t1
-            JOIN domain AS t2 USING(domain_id)
-            WHERE t1.mail_id = ?
-            AND t2.domain_admin_id = ?
-            AND t1.mail_type NOT RLIKE ?
-            AND t1.status = 'ok'
-            AND t1.mail_auto_respond = 1
-        ",
-            [$mailAccountId, Application::getInstance()->getSession()['user_id'], Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL]
+                SELECT COUNT(t1.mail_id)
+                FROM mail_users AS t1
+                JOIN domain AS t2 USING(domain_id)
+                WHERE t1.mail_id = ?
+                AND t2.domain_admin_id = ?
+                AND t1.mail_type NOT RLIKE ?
+                AND t1.status = 'ok'
+                AND t1.mail_auto_respond = 1
+            ",
+            [
+                $mailAccountId,
+                Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
+                Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL
+            ]
         )->fetchColumn() > 0;
 }
 
@@ -63,9 +68,11 @@ function deactivateAutoresponder($mailAccountId)
 {
     execQuery("UPDATE mail_users SET status = 'tochange', mail_auto_respond = 0 WHERE mail_id = ?", [$mailAccountId]);
     Daemon::sendRequest();
-    writeLog(sprintf('A mail autoresponder has been deactivated by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A mail autoresponder has been deactivated by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     setPageMessage(tr('Autoresponder has been deactivated.'), 'success');
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

@@ -60,9 +60,10 @@ function updateFtpAccount($userid)
         return false;
     }
 
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $mainDmnProps = getCustomerProperties($identity->getUserId());
 
-    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged']);
+    $vfs = new VirtualFileSystem($identity->getUsername());
     if ($homeDir !== '/' && !$vfs->exists($homeDir, VirtualFileSystem::VFS_TYPE_DIR)) {
         setPageMessage(tr("Directory '%s' doesn't exist.", $homeDir), 'error');
         return false;
@@ -78,11 +79,11 @@ function updateFtpAccount($userid)
 
     if ($passwd !== '') {
         execQuery("UPDATE ftp_users SET passwd = ?, homedir = ?, status = 'tochange' WHERE userid = ? AND admin_id = ?", [
-            Crypt::sha512($passwd), $homeDir, $userid, Application::getInstance()->getSession()['user_id']
+            Crypt::sha512($passwd), $homeDir, $userid, $identity->getUserId()
         ]);
     } else {
         execQuery("UPDATE ftp_users SET homedir = ?, status = 'tochange' WHERE userid = ? AND admin_id = ?", [
-            $homeDir, $userid, Application::getInstance()->getSession()['user_id']
+            $homeDir, $userid, $identity->getUserId()
         ]);
     }
 
@@ -93,7 +94,7 @@ function updateFtpAccount($userid)
     ]);
 
     Daemon::sendRequest();
-    writeLog(sprintf('An FTP account (%s) has been updated by', $userid, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('An FTP account (%s) has been updated by', $userid, $identity->getUsername()), E_USER_NOTICE);
     setPageMessage(tr('FTP account successfully updated.'), 'success');
     return true;
 }
@@ -107,11 +108,12 @@ function updateFtpAccount($userid)
  */
 function generatePage($tpl, $ftpUserId)
 {
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $mainDmnProps = getCustomerProperties($identity->getUserId());
 
     # Set parameters for the FTP chooser
     Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
-    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_user'] = $identity->getUsername();
     Application::getInstance()->getSession()['ftp_chooser_root_dir'] = '/';
     Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
     Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
@@ -136,13 +138,17 @@ function generatePage($tpl, $ftpUserId)
     ]);
 }
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $userid = cleanInput($_GET['id']);
-$stmt = execQuery('SELECT COUNT(admin_id) FROM ftp_users WHERE userid = ? AND admin_id = ?', [$userid, Application::getInstance()->getSession()['user_id']]);
+$stmt = execQuery('SELECT COUNT(admin_id) FROM ftp_users WHERE userid = ? AND admin_id = ?', [
+    $userid, Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+]);
 $stmt->fetchColumn() or View::showBadRequestErrorPage();
 
 if (!empty($_POST)) {

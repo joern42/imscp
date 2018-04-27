@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 
 /**
@@ -29,7 +30,7 @@ use iMSCP\Functions\Login;
 function generateSupportSystemNotices()
 {
     $aCnt = execQuery("SELECT COUNT(ticket_id) FROM tickets WHERE ticket_from = ? AND ticket_status = '2' AND ticket_reply = '0'", [
-        Application::getInstance()->getSession()['user_id']
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
     ])->fetchColumn();
 
     if (!$aCnt) {
@@ -39,10 +40,12 @@ function generateSupportSystemNotices()
     setPageMessage(ntr('You have a new answer to your support ticket.', 'You have %d new answers to your support tickets.', $aCnt, $aCnt), 'static_info');
 }
 
+require 'application.php';
+
 Login::checkLogin('user', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_CLIENT']);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
-$_GET['id'] = Application::getInstance()->getSession()['user_id'];
+$_GET['id'] = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
 generateSupportSystemNotices();
 global $tpl;
 require_once '../shared/account_details.php';

@@ -314,7 +314,7 @@ function generatePage($tpl)
         }
     }
 
-    $dmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $dmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $mainDmnId = $dmnProps['domain_id'];
     $dmnMailAccLimit = $dmnProps['domain_mailacc_limit'];
     $mailAccountsCount = generateMailAccountsList($tpl, $mainDmnId);
@@ -339,6 +339,8 @@ function generatePage($tpl)
     $tpl->assign('MAIL_ACCOUNTS', '');
     setPageMessage(tr('Mail accounts list is empty.'), 'static_info');
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

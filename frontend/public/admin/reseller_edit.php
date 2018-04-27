@@ -623,12 +623,15 @@ function updateResellerUser(Form $form)
             // Send mail to reseller for new password
             if ($form->getValue('admin_pass') !== '') {
                 Mail::sendWelcomeMail(
-                    Application::getInstance()->getSession()['user_id'], $data['admin_name'], $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
-                    $form->getValue('lname'), tr('Reseller')
+                    Application::getInstance()->getAuthService()->getIdentity()->getUserId(), $data['admin_name'], $form->getValue('admin_pass'),
+                    $form->getValue('email'), $form->getValue('fname'), $form->getValue('lname'), tr('Reseller')
                 );
             }
 
-            writeLog(sprintf('The %s reseller has been updated by %s', $form->getValue('admin_name'), Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf(
+                'The %s reseller has been updated by %s', $form->getValue('admin_name'), Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+                E_USER_NOTICE
+            );
             setPageMessage('Reseller has been updated.', 'success');
             redirectTo('users.php');
         } elseif (!empty($errFieldsStack)) {
@@ -726,6 +729,8 @@ function generatePage(TemplateEngine $tpl, Form $form)
     generateLimitsForm($tpl);
     generateFeaturesForm($tpl);
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

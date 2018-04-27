@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -97,6 +98,8 @@ function generatePage(TemplateEngine $tpl)
     ]);
 
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

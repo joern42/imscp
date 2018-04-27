@@ -367,9 +367,9 @@ class Support
      */
     public static function getTicketStatus(int $ticketId): int
     {
-        $session = Application::getInstance()->getSession();
+        $userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
         $stmt = execQuery('SELECT ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)', [
-            $ticketId, $session['user_id'], $session['user_id']
+            $ticketId, $userId, $userId
         ]);
 
         if (!$stmt->rowCount()) {
@@ -397,9 +397,9 @@ class Support
      */
     public static function changeTicketStatus(int $ticketId, int $ticketStatus): bool
     {
-        $session = Application::getInstance()->getSession();
+        $userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
         $stmt = execQuery('UPDATE tickets SET ticket_status = ? WHERE ticket_id = ? OR ticket_reply = ? AND (ticket_from = ? OR ticket_to = ?)', [
-            $ticketStatus, $ticketId, $ticketId, $session['user_id'], $session['user_id']
+            $ticketStatus, $ticketId, $ticketId, $userId, $userId
         ]);
 
         return $stmt->rowCount() > 0;

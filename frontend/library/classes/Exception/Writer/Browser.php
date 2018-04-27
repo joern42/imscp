@@ -57,9 +57,7 @@ class Browser implements WriterInterface
             $debug = 1;
         }
 
-        $session = Application::getInstance()->getSession();
-
-        if ($debug || isset($session['logged_from_type']) && $session['logged_from_type'] == 'admin') {
+        if ($debug) {
             $exception = $event->getException();
             $this->message = 'Exception: ' . preg_replace('/([\t\n]+|<br>)/', ' ', $exception->getMessage()) . "\n";
             $this->message .= "Stack trace:\n:" . $exception->getTraceAsString();

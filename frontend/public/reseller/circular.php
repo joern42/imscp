@@ -77,7 +77,7 @@ function sendCircularToCustomers($senderName, $senderEmail, $subject, $body)
     }
 
     $stmt = execQuery("SELECT MIN(admin_name), MIN(fname), MIN(lname), email FROM admin WHERE created_by = ? GROUP BY email", [
-        Application::getInstance()->getSession()['user_id']
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
     ]);
     while ($rcptToData = $stmt->fetch()) {
         sendCircularMail($senderName, $senderEmail, $subject, $body, $rcptToData);
@@ -163,7 +163,7 @@ function sendCircular()
         'body'         => $body
     ]);
     setPageMessage(tr('Circular successfully sent.'), 'success');
-    writeLog(sprintf('A circular has been sent by a reseller: %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A circular has been sent by a reseller: %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     return true;
 }
 
@@ -182,7 +182,7 @@ function generatePage($tpl)
 
     if ($senderName == '' && $senderEmail == '') {
         $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [
-            Application::getInstance()->getSession()['user_id']
+            Application::getInstance()->getAuthService()->getIdentity()->getUserId()
         ]);
         $row = $stmt->fetch();
 
@@ -215,6 +215,8 @@ function generatePage($tpl)
         'BODY'         => toHtml($body)
     ]);
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

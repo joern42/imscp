@@ -20,7 +20,6 @@
 
 namespace iMSCP;
 
-use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
@@ -41,7 +40,7 @@ function getDomainsList()
         return $domainsList;
     }
 
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $domainsList = [[
         'name'        => $mainDmnProps['domain_name'],
         'id'          => $mainDmnProps['domain_id'],
@@ -242,6 +241,7 @@ function addSubdomain()
         }
     }
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $db = Application::getInstance()->getDb();
 
     try {
@@ -257,7 +257,7 @@ function addSubdomain()
             'forwardUrl'     => $forwardUrl,
             'forwardType'    => $forwardType,
             'forwardHost'    => $forwardHost,
-            'customerId'     => Application::getInstance()->getSession()['user_id']
+            'customerId'     => $identity->getUserId()
         ]);
 
         if ($domainType == 'als') {
@@ -288,26 +288,26 @@ function addSubdomain()
 
         // Create the phpini entry for that subdomain
         $phpini = PHPini::getInstance();
-        $phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_created_by']);
-        $phpini->loadClientPermissions(Application::getInstance()->getSession()['user_id']);
+        $phpini->loadResellerPermissions($identity->getUserCreatedBy());
+        $phpini->loadClientPermissions($identity->getUserId());
 
         if ($phpini->getClientPermission('phpiniConfigLevel') != 'per_site') {
             // Set INI options, based on parent domain
             if ($domainType == 'dmn') {
-                $phpini->loadIniOptions(Application::getInstance()->getSession()['user_id'], $mainDmnProps['domain_id'], 'dmn');
+                $phpini->loadIniOptions($identity->getUserId(), $mainDmnProps['domain_id'], 'dmn');
             } else {
-                $phpini->loadIniOptions(Application::getInstance()->getSession()['user_id'], $domainId, 'als');
+                $phpini->loadIniOptions($identity->getUserId(), $domainId, 'als');
             }
         } else {
             // Set default INI options
             $phpini->loadIniOptions();
         }
 
-        $phpini->saveIniOptions(Application::getInstance()->getSession()['user_id'], $subdomainId, $domainType == 'dmn' ? 'sub' : 'subals');
+        $phpini->saveIniOptions($identity->getUserId(), $subdomainId, $domainType == 'dmn' ? 'sub' : 'subals');
 
         Mail::createDefaultMailAccounts(
             $mainDmnProps['domain_id'],
-            AuthenticationService::getInstance()->getIdentity()->email,
+            $identity->getUserEmail(),
             $subdomainNameAscii,
             $domainType == 'dmn' ? Mail::MT_SUBDOM_FORWARD : Mail::MT_ALSSUB_FORWARD, $subdomainId
         );
@@ -322,13 +322,13 @@ function addSubdomain()
             'forwardUrl'     => $forwardUrl,
             'forwardType'    => $forwardType,
             'forwardHost'    => $forwardHost,
-            'customerId'     => Application::getInstance()->getSession()['user_id'],
+            'customerId'     => $identity->getUserId(),
             'subdomainId'    => $subdomainId
         ]);
 
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
-        writeLog(sprintf('A new subdomain (%s) has been created by %s', $subdomainName, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf('A new subdomain (%s) has been created by %s', $subdomainName, $identity->getUsername()), E_USER_NOTICE);
         return true;
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -400,15 +400,19 @@ function generatePage($tpl)
     }
 
     View::generateClientIpsList(
-        $tpl, Application::getInstance()->getSession()['user_id'], isset($_POST['subdomain_ips']) && is_array($_POST['subdomain_ips']) ? $_POST['subdomain_ips'] : []
+        $tpl,
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
+        isset($_POST['subdomain_ips']) && is_array($_POST['subdomain_ips']) ? $_POST['subdomain_ips'] : []
     );
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('subdomains') or View::showBadRequestErrorPage();
 
-$mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+$mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 $subdomainsCount = Counting::getCustomerSubdomainsCount($mainDmnProps['domain_id']);
 
 if ($mainDmnProps['domain_subd_limit'] != 0 && $subdomainsCount >= $mainDmnProps['domain_subd_limit']) {

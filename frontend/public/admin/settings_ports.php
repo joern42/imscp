@@ -103,7 +103,10 @@ function deleteService($serviceName)
     }
 
     unset($dbConfig[$serviceName]);
-    writeLog(sprintf('A service port (%s) has been removed by %s', $serviceName, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf(
+        'A service port (%s) has been removed by %s', $serviceName, Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+        E_USER_NOTICE
+    );
     setPageMessage(tr('Service port successfully removed.'), 'success');
     return true;
 }
@@ -134,7 +137,7 @@ function addOrUpdateServices($mode = 'add')
         if (validatesService($name, $ip, $port, $protocol, $show)) {
             $dbServiceName = "PORT_$name";
             $dbConfig[$dbServiceName] = "$port;$protocol;$name;$show;$ip";
-            writeLog(sprintf('A service port (%s:%s) has been added by %s', $name, $port, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('A service port (%s:%s) has been added by %s', $name, $port, Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
         }
     } elseif ($mode == 'update') {
         if (!isset($_POST['name']) || !is_array($_POST['name']) || !isset($_POST['var_name']) || !is_array($_POST['var_name']) || !isset($_POST['ip'])
@@ -273,6 +276,8 @@ function generatePage($tpl)
             ? json_encode(Application::getInstance()->getRegistry()->get('errorFieldsIds')) : '[]'
     );
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

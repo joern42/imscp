@@ -41,7 +41,7 @@ function _client_getSubdomainData($subdomainId, $subdomainType)
         return $subdomainData;
     }
 
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $domainId = $mainDmnProps['domain_id'];
     $domainName = $mainDmnProps['domain_name'];
 
@@ -100,6 +100,8 @@ function client_editSubdomain()
     $subdomainType = cleanInput($_GET['type']);
     $subdomainData = _client_getSubdomainData($subdomainId, $subdomainType);
     $subdomainData !== FALSE or View::showBadRequestErrorPage();
+    
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     // Check for subdomain IP addresses
     $subdomainIps = [];
@@ -109,7 +111,7 @@ function client_editSubdomain()
     } elseif (!is_array($_POST['subdomain_ips'])) {
         View::showBadRequestErrorPage();
     } else {
-        $clientIps = explode(',', getCustomerProperties(Application::getInstance()->getSession()['user_id'])['domain_client_ips']);
+        $clientIps = explode(',', getCustomerProperties($identity->getUserId())['domain_client_ips']);
         $subdomainIps = array_intersect($_POST['subdomain_ips'], $clientIps);
         if (count($subdomainIps) < count($_POST['subdomain_ips'])) {
             // Situation where unknown IP address identifier has been submitten
@@ -169,7 +171,7 @@ function client_editSubdomain()
     elseif (isset($_POST['document_root'])) {
         $documentRoot = normalizePath('/' . cleanInput($_POST['document_root']));
         if ($documentRoot !== '') {
-            $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], $subdomainData['subdomain_mount'] . '/htdocs');
+            $vfs = new VirtualFileSystem($identity->getUsername(), $subdomainData['subdomain_mount'] . '/htdocs');
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
                 setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
                 return false;
@@ -221,7 +223,7 @@ function client_editSubdomain()
     ]);
 
     Daemon::sendRequest();
-    writeLog(sprintf('%s updated properties of the %s subdomain', Application::getInstance()->getSession()['user_logged'], $subdomainData['subdomain_name_utf8']), E_USER_NOTICE);
+    writeLog(sprintf('%s updated properties of the %s subdomain', $identity->getUsername(), $subdomainData['subdomain_name_utf8']), E_USER_NOTICE);
     return true;
 }
 
@@ -241,9 +243,11 @@ function client_generatePage($tpl)
     $subdomainData !== FALSE or View::showBadRequestErrorPage();
     $subdomainData['subdomain_ips'] = explode(',', $subdomainData['subdomain_ips']);
     $forwardHost = 'Off';
+    
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     if (empty($_POST)) {
-        View::generateClientIpsList($tpl, Application::getInstance()->getSession()['user_id'], $subdomainData['subdomain_ips']);
+        View::generateClientIpsList($tpl, $identity->getUserId(), $subdomainData['subdomain_ips']);
 
         $documentRoot = strpos($subdomainData['document_root'], '/htdocs') !== FALSE ? substr($subdomainData['document_root'], 7) : '';
         if ($subdomainData['url_forward'] != 'no') {
@@ -262,7 +266,7 @@ function client_generatePage($tpl)
         }
     } else {
         View::generateClientIpsList(
-            $tpl, Application::getInstance()->getSession()['user_id'], isset($_POST['subdomain_ips']) && is_array($_POST['subdomain_ips']) ? $_POST['subdomain_ips'] : []
+            $tpl, $identity->getUserId(), isset($_POST['subdomain_ips']) && is_array($_POST['subdomain_ips']) ? $_POST['subdomain_ips'] : []
         );
 
         $documentRoot = (isset($_POST['document_root'])) ? $_POST['document_root'] : '';
@@ -298,7 +302,7 @@ function client_generatePage($tpl)
     // Cover the case where URL forwarding feature is activated and that the
     // default /htdocs directory doesn't exist yet
     if ($subdomainData['url_forward'] != 'no') {
-        $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], $subdomainData['subdomain_mount']);
+        $vfs = new VirtualFileSystem($identity->getUsername(), $subdomainData['subdomain_mount']);
         if (!$vfs->exists('/htdocs')) {
             $tpl->assign('DOCUMENT_ROOT_BLOC', '');
             return;
@@ -306,12 +310,14 @@ function client_generatePage($tpl)
     }
 
     # Set parameters for the FTP chooser
-    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
-    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_domain_id'] = getCustomerMainDomainId($identity->getUserId());
+    Application::getInstance()->getSession()['ftp_chooser_user'] = $identity->getUsername();
     Application::getInstance()->getSession()['ftp_chooser_root_dir'] = normalizePath($subdomainData['subdomain_mount'] . '/htdocs');
     Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
     Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

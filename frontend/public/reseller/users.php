@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -40,6 +41,8 @@ function check_external_events()
         return;
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

@@ -24,6 +24,8 @@ use iMSCP\Functions\Counting;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 Counting::systemHasAntiRootkits() or View::showBadRequestErrorPage();

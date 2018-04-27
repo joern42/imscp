@@ -70,11 +70,13 @@ function isDomainStatusOk($domainId, $domainType)
  */
 function getDomainData($configLevel)
 {
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    
     $params = [];
 
     // Per user means only primary domain
     $query = "SELECT domain_name, domain_status, domain_id, 'dmn' AS domain_type FROM domain WHERE domain_admin_id = ? AND domain_status <> 'todelete'";
-    $params[] = Application::getInstance()->getSession()['user_id'];
+    $params[] = $identity->getUserId();
 
     # Per domain or per site means also domain aliases
     # FIXME: we should mention that parameters are also for subdomains in the per_domain case
@@ -88,7 +90,7 @@ function getDomainData($configLevel)
             AND t1.url_forward = 'no'
             AND t1.alias_status <> 'todelete'
         ";
-        $params[] = Application::getInstance()->getSession()['user_id'];
+        $params[] = $identity->getUserId();
     }
 
     # Per site also means also subdomains
@@ -108,8 +110,8 @@ function getDomainData($configLevel)
             WHERE domain_admin_id = ?
             AND subdomain_alias_status <> 'todelete'
         ";
-        $params[] = Application::getInstance()->getSession()['user_id'];
-        $params[] = Application::getInstance()->getSession()['user_id'];
+        $params[] = $identity->getUserId();
+        $params[] = $identity->getUserId();
     }
 
     return execQuery($query, $params)->fetchAll();
@@ -124,12 +126,14 @@ function getDomainData($configLevel)
 function updatePhpConfig($phpini)
 {
     global $phpini;
+    
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     if (isset($_POST['domain_id']) && isset($_POST['domain_type'])) {
         $domainId = intval($_POST['domain_id']);
         $domainType = cleanInput($_POST['domain_type']);
     } else {
-        $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+        $domainId = getCustomerMainDomainId($identity->getUserId());
         $domainType = 'dmn';
     }
 
@@ -144,7 +148,7 @@ function updatePhpConfig($phpini)
         return;
     }
 
-    $phpini->loadIniOptions(Application::getInstance()->getSession()['user_id'], $domainId, $domainType);
+    $phpini->loadIniOptions($identity->getUserId(), $domainId, $domainType);
 
     if (isset($_POST['allow_url_fopen'])) {
         $phpini->setIniOption('phpiniAllowUrlFopen', cleanInput($_POST['allow_url_fopen']));
@@ -186,8 +190,8 @@ function updatePhpConfig($phpini)
         $phpini->setIniOption('phpiniDisableFunctions', $phpini->assembleDisableFunctions($disabledFunctions));
     }
 
-    $phpini->saveIniOptions(Application::getInstance()->getSession()['user_id'], $domainId, $domainType);
-    $phpini->updateDomainStatuses(Application::getInstance()->getSession()['user_id'], $domainId, $domainType, true);
+    $phpini->saveIniOptions($identity->getUserId(), $domainId, $domainType);
+    $phpini->updateDomainStatuses($identity->getUserId(), $domainId, $domainType, true);
 
     setPageMessage(tr('PHP configuration successfuly updated.'), 'success');
     redirectTo('domains_manage.php');
@@ -206,7 +210,7 @@ function generatePage($tpl, $phpini)
         $domainId = intval($_GET['domain_id']);
         $domainType = cleanInput($_GET['domain_type']);
     } else {
-        $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+        $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
         $domainType = 'dmn';
     }
 
@@ -229,7 +233,7 @@ function generatePage($tpl, $phpini)
         View::showBadRequestErrorPage();
     }
 
-    $phpini->loadIniOptions(Application::getInstance()->getSession()['user_id'], $domainId, $domainType);
+    $phpini->loadIniOptions(Application::getInstance()->getAuthService()->getIdentity()->getUserId(), $domainId, $domainType);
 
     if ($configLevel != 'per_user') {
         foreach ($dmnsData as $dmnData) {
@@ -339,13 +343,16 @@ function generatePage($tpl, $phpini)
     ]);
 }
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('php_editor') or View::showBadRequestErrorPage();
 
+$identity = Application::getInstance()->getAuthService()->getIdentity();
 $phpini = PHPini::getInstance();
-$phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_created_by']);
-$phpini->loadClientPermissions(Application::getInstance()->getSession()['user_id']);
+$phpini->loadResellerPermissions($identity->getUserCreatedBy());
+$phpini->loadClientPermissions($identity->getUserId());
 
 empty($_POST) or updatePhpConfig($phpini);
 

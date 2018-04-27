@@ -22,6 +22,8 @@ namespace iMSCP;
 
 use iMSCP\Functions\Login;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);

@@ -35,7 +35,9 @@ use Zend\Form\Form;
  */
 function updateUserData(Form $form, $userId)
 {
-    $data = execQuery('SELECT admin_name FROM admin WHERE admin_id = ? AND created_by = ?', [$userId, Application::getInstance()->getSession()['user_id']])->fetch();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
+    $data = execQuery('SELECT admin_name FROM admin WHERE admin_id = ? AND created_by = ?', [$userId, $identity->getUserId()])->fetch();
     $data or View::showBadRequestErrorPage();
 
     if (!$form->isValid($_POST)) {
@@ -94,7 +96,7 @@ function updateUserData(Form $form, $userId)
     }
 
     Daemon::sendRequest();
-    writeLog(sprintf('The %s user has been updated by %s', $data['admin_name'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('The %s user has been updated by %s', $data['admin_name'], $identity->getUsername()), E_USER_NOTICE);
     setPageMessage('User has been updated.', 'success');
 
     if ($ret) {
@@ -130,12 +132,14 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
             WHERE admin_id = ?
             AND created_by = ?
         ",
-        [$userId, Application::getInstance()->getSession()['user_id']]
+        [$userId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     );
 
     $data = $stmt->fetch() or View::showBadRequestErrorPage();
     $form->setDefaults($data);
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
@@ -143,7 +147,7 @@ isset($_GET['client_id']) or View::showBadRequestErrorPage();
 
 $userId = intval($_GET['client_id']);
 
-if ($userId == Application::getInstance()->getSession()['user_id']) {
+if ($userId == Application::getInstance()->getAuthService()->getIdentity()->getUserId()) {
     redirectTo('personal_change.php');
 }
 

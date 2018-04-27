@@ -48,7 +48,7 @@ function _client_getDomainData($domainId)
             AND domain_admin_id = ?
             AND domain_status = 'ok'
         ",
-        [$domainId, Application::getInstance()->getSession()['user_id']]
+        [$domainId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     );
 
     if (!$stmt->rowCount()) {
@@ -125,7 +125,7 @@ function client_generatePage($tpl)
     // Cover the case where URL forwarding feature is activated and that the
     // default /htdocs directory doesn't exist yet
     if ($domainData['url_forward'] != 'no') {
-        $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged']);
+        $vfs = new VirtualFileSystem(Application::getInstance()->getAuthService()->getIdentity()->getUsername());
         if (!$vfs->exists('/htdocs')) {
             $tpl->assign('DOCUMENT_ROOT_BLOC', '');
             return;
@@ -134,7 +134,7 @@ function client_generatePage($tpl)
 
     # Set parameters for the FTP chooser
     Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $domainId;
-    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getAuthService()->getIdentity()->getUsername();
     Application::getInstance()->getSession()['ftp_chooser_root_dir'] = '/htdocs';
     Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
     Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
@@ -217,7 +217,7 @@ function client_editDomain()
         $documentRoot = normalizePath('/' . cleanInput($_POST['document_root']));
 
         if ($documentRoot !== '') {
-            $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], '/htdocs');
+            $vfs = new VirtualFileSystem(Application::getInstance()->getAuthService()->getIdentity()->getUsername(), '/htdocs');
 
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
                 setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
@@ -253,9 +253,11 @@ function client_editDomain()
         'forwardHost'  => $forwardHost
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('The %s domain properties were updated by', Application::getInstance()->getSession()['user_logged'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('The %s domain properties were updated by', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     return true;
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

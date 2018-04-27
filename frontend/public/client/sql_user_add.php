@@ -36,7 +36,7 @@ function checkSqlUserPermissions(TemplateEngine $tpl, $sqldId)
     global $canAddNewSQLUser;
 
     $canAddNewSQLUser = true;
-    $domainProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $domainProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     if ($domainProps['domain_sqlu_limit'] != 0 && Counting::getCustomerSqlUsersCount($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']) {
         setPageMessage(tr("SQL users limit is reached. You cannot add new SQL users."), 'static_info');
@@ -73,7 +73,7 @@ function generateSqlUserList(TemplateEngine $tpl, $sqldId)
             AND CONCAT(t1.sqlu_name, t1.sqlu_host) NOT IN(SELECT CONCAT(sqlu_name, sqlu_host) FROM sql_user WHERE sqld_id = ?)
             GROUP BY t1.sqlu_name, t1.sqlu_host
         ",
-        [$sqldId, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']), $sqldId]
+        [$sqldId, getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId()), $sqldId]
     );
 
     if ($stmt->rowCount()) {
@@ -115,7 +115,8 @@ function addSqlUser($sqldId)
 {
     isset($_POST['uaction']) or View::showBadRequestErrorPage();
 
-    $dmnId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $dmnId = getCustomerMainDomainId($identity->getUserId());
 
     if (!isset($_POST['reuse_sqluser'])) {
         $needUserCreate = true;
@@ -244,7 +245,7 @@ function addSqlUser($sqldId)
         'SqlUserPassword' => isset($password) ? $password : '',
         'SqlDatabaseId'   => $sqldId
     ]);
-    writeLog(sprintf('A SQL user has been added by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A SQL user has been added by %s', $identity->getUsername()), E_USER_NOTICE);
     setPageMessage(tr('SQL user successfully added.'), 'success');
     redirectTo('sql_manage.php');
 }
@@ -308,6 +309,8 @@ function generatePage(TemplateEngine $tpl, $sqldId)
 
     $tpl->assign('SQLD_ID', $sqldId);
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

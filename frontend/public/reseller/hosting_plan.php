@@ -33,7 +33,7 @@ use Zend\EventManager\Event;
 function generatePage($tpl)
 {
     $stmt = execQuery('SELECT id, name, status FROM hosting_plans WHERE reseller_id = ? ORDER BY id', [
-        Application::getInstance()->getSession()['user_id']
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
     ]);
     if (!$stmt->rowCount()) {
         $tpl->assign('HOSTING_PLANS', '');
@@ -64,6 +64,8 @@ function generatePage($tpl)
         $tpl->parse('HOSTING_PLAN', '.hosting_plan');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

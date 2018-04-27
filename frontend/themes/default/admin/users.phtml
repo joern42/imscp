@@ -67,7 +67,7 @@
         <td>{RESELLER_CREATED_ON}</td>
         <td>{RESELLER_CREATED_BY}</td>
         <td>
-            <a class="icon i_details" href="change_user_interface.php?to_id={RESELLER_ID}" title="<?= toHtml(tr('Switch to user interface'), 'htmlAttr'); ?>"><?= toHtml(tr('Switch')); ?></a>
+            <a class="icon i_details" href="su.php?id={RESELLER_ID}" title="<?= toHtml(tr('Switch to reseller interface'), 'htmlAttr'); ?>"><?= toHtml(tr('Switch')); ?></a>
             <a href="reseller_edit.php?edit_id={RESELLER_ID}" class="icon i_user" title="<?= toHtml(tr('Edit this reseller account'), 'htmlAttr'); ?>"><?= toHtml(tr('Edit')); ?></a>
             <a href="user_delete.php?delete_id={RESELLER_ID}" class="icon i_delete" title="<?= toHtml(tr('Delete this reseller, including all its customers'), 'htmlAttr'); ?>" onclick="return action_delete(this)"><?= toHtml(tr('Delete')); ?></a>
         </td>

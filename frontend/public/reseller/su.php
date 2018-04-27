@@ -24,13 +24,6 @@ use iMSCP\Functions\Login;
 
 require 'application.php';
 
-Login::checkLogin('admin');
-Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
-define('SHARED_SCRIPT_NEEDED', true);
-global $tpl;
-include_once '../shared/account_details.php';
-$tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Overview / Account Details')));
-$tpl->parse('LAYOUT_CONTENT', 'page');
-Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
-$tpl->prnt();
-unsetMessages();
+Login::checkLogin('reseller');
+Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
+Login::su($_GET['id'] ?? NULL);

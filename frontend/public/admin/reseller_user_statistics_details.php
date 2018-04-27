@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -127,6 +128,8 @@ function generatePage(TemplateEngine $tpl)
         'ALL_ALL_TRAFFIC'  => toHtml(bytesHuman(array_sum($all)))
     ]);
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

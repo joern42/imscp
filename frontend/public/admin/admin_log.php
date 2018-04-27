@@ -69,28 +69,28 @@ function admin_clearLogs()
     switch ($_POST['uaction_clear']) {
         case 0:
             $query = 'DELETE FROM log';
-            $msg = sprintf('%s deleted the full admin log.', Application::getInstance()->getSession()['user_logged']);
+            $msg = sprintf('%s deleted the full admin log.', Application::getInstance()->getAuthService()->getIdentity()->getUsername());
             break;
         case 2:
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 14 DAY) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than two weeks!', Application::getInstance()->getSession()['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than two weeks!', Application::getInstance()->getAuthService()->getIdentity()->getUsername());
             break;
         case 4:
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 1 MONTH) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than one month.', Application::getInstance()->getSession()['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than one month.', Application::getInstance()->getAuthService()->getIdentity()->getUsername());
             break;
         case 12:
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 3 MONTH) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than three months.', Application::getInstance()->getSession()['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than three months.', Application::getInstance()->getAuthService()->getIdentity()->getUsername());
             break;
 
         case 26:
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 6 MONTH) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than six months.', Application::getInstance()->getSession()['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than six months.', Application::getInstance()->getAuthService()->getIdentity()->getUsername());
             break;
         case 52;
             $query = 'DELETE FROM log WHERE DATE_SUB(CURDATE(), INTERVAL 1 YEAR) >= log_time';
-            $msg = sprintf('%s deleted the admin log older than one year.', Application::getInstance()->getSession()['user_logged']);
+            $msg = sprintf('%s deleted the admin log older than one year.', Application::getInstance()->getAuthService()->getIdentity()->getUsername());
             break;
         default:
             admin_sendJsonResponse(400, ['message' => tr('Bad request.')]);
@@ -234,6 +234,8 @@ function admin_getLogs()
 
     admin_sendJsonResponse(400, ['message' => tr('Bad request.')]);
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

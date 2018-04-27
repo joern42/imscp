@@ -99,7 +99,7 @@ function updateUserData(Form $form, $userId)
 
     $userType != 'user' or Daemon::sendRequest();
 
-    writeLog(sprintf('The %s user has been updated by %s', $data['admin_name'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('The %s user has been updated by %s', $data['admin_name'], Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     setPageMessage('User has been updated.', 'success');
     !$ret or setPageMessage(tr('New login data were sent to the %s user.', decodeIdna($data['admin_name'])), 'success');
     redirectTo("user_edit.php?edit_id=$userId");
@@ -141,12 +141,14 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
     $form->setDefaults($data);
 }
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 isset($_GET['edit_id']) or View::showBadRequestErrorPage();
 
 $userId = intval($_GET['edit_id']);
-$userId != Application::getInstance()->getSession()['user_id'] or redirectTo('personal_change.php');
+$userId != Application::getInstance()->getAuthService()->getIdentity()->getUserId() or redirectTo('personal_change.php');
 
 global $userType;
 

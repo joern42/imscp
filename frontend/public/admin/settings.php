@@ -23,6 +23,8 @@ namespace iMSCP;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
@@ -135,7 +137,7 @@ if (!empty($_POST)) {
         if ($newCount == 0 && $updtCount == 0) {
             setPageMessage(tr('Nothing has been changed.'), 'info');
         } else {
-            writeLog(sprintf('Settings were updated by %s.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf('Settings were updated by %s.', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
         }
     }
 

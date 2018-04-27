@@ -32,7 +32,9 @@ use Zend\EventManager\Event;
  */
 function generatePage($tpl)
 {
-    $stmt = execQuery('SELECT * FROM htaccess WHERE dmn_id = ?', [getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])]);
+    $stmt = execQuery('SELECT * FROM htaccess WHERE dmn_id = ?', [
+        getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId())
+    ]);
 
     if (!$stmt->rowCount()) {
         $tpl->assign('PROTECTED_AREAS', '');
@@ -60,6 +62,8 @@ function generatePage($tpl)
         $tpl->parse('DIR_ITEM', '.dir_item');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

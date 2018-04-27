@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -33,16 +34,18 @@ function scheduleBackupRestoration($userId)
 {
     execQuery("UPDATE domain SET domain_status = ? WHERE domain_admin_id = ?", ['torestore', $userId]);
     Daemon::sendRequest();
-    writeLog(sprintf('A backup restore has been scheduled by %s.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A backup restore has been scheduled by %s.', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     setPageMessage(tr('Backup has been successfully scheduled for restoration.'), 'success');
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('backup') or View::showBadRequestErrorPage();
 
 if (!empty($_POST)) {
-    scheduleBackupRestoration(Application::getInstance()->getSession()['user_id']);
+    scheduleBackupRestoration(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     redirectTo('backup.php');
 }
 

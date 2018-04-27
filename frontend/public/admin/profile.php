@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -30,12 +31,14 @@ use iMSCP\Functions\View;
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $stmt = execQuery('SELECT domain_created FROM admin WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
+    $stmt = execQuery('SELECT domain_created FROM admin WHERE admin_id = ?', [
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+    ]);
     $row = $stmt->fetch();
     $tpl->assign([
         'TR_ACCOUNT_SUMMARY'   => toHtml(tr('Account summary')),
         'TR_USERNAME'          => toHtml(tr('Username')),
-        'USERNAME'             => toHtml(Application::getInstance()->getSession()['user_logged']),
+        'USERNAME'             => toHtml(Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
         'TR_ACCOUNT_TYPE'      => toHtml(tr('Account type')),
         'ACCOUNT_TYPE'         => toHtml(tr('Administrator')),
         'TR_REGISTRATION_DATE' => toHtml(tr('Registration date')),
@@ -43,6 +46,8 @@ function generatePage(TemplateEngine $tpl)
             ? toHtml(date(Application::getInstance()->getConfig()['DATE_FORMAT'], $row['domain_created'])) : toHtml(tr('N/A'))
     ]);
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

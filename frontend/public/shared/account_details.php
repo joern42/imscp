@@ -32,9 +32,8 @@ use iMSCP\Functions\View;
  */
 function generateMailQuotaData($clientId)
 {
-    $clientProps = getCustomerProperties(
-        $clientId, Application::getInstance()->getSession()['user_type'] == 'reseller' ? Application::getInstance()->getSession()['user_id'] : NULL
-    );
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $clientProps = getCustomerProperties($clientId, $identity->getUserType() == 'reseller' ? $identity->getUserId() : NULL);
     $mailQuota = execQuery('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [$clientProps['domain_id']])->fetchColumn();
     return [bytesHuman($mailQuota), $clientProps['mail_quota'] == 0 ? '∞' : bytesHuman($clientProps['mail_quota'])];
 }
@@ -48,6 +47,7 @@ function generateMailQuotaData($clientId)
  */
 function generatePage($tpl, $clientId)
 {
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $stmt = execQuery(
         "
             SELECT t1.*, t2.admin_name, IFNULL(GROUP_CONCAT(t3.ip_number ORDER BY LENGTH(t3.ip_number), t3.ip_number), '0.0.0.0') AS client_ips
@@ -55,9 +55,10 @@ function generatePage($tpl, $clientId)
             JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
             LEFT JOIN server_ips AS t3 ON(FIND_IN_SET(t3.ip_id, t1.domain_client_ips) AND t3.ip_status = 'ok')
             WHERE t1.domain_admin_id = ?
-        " . (Application::getInstance()->getSession()['user_type'] == 'reseller' ? 'AND created_by = ?' : '') . ' GROUP BY domain_admin_id',
-        Application::getInstance()->getSession()['user_type'] == 'reseller'
-            ? [$clientId, Application::getInstance()->getSession()['user_id']] : [$clientId]
+        "
+        . ($identity->getUserType() == 'reseller' ? 'AND created_by = ?' : '')
+        . ' GROUP BY domain_admin_id',
+        $identity->getUserType() == 'reseller' ? [$clientId, $identity->getUserId()] : [$clientId]
     );
 
     $stmt->rowCount() or View::showBadRequestErrorPage();

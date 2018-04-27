@@ -35,7 +35,9 @@ function loadHostingPlan($id)
     global $id, $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $backup, $dns, $extMail,
            $webFolderProtection, $status;
 
-    $stmt = execQuery('SELECT * FROM hosting_plans WHERE id = ? AND reseller_id = ?', [$id, Application::getInstance()->getSession()['user_id']]);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
+    $stmt = execQuery('SELECT * FROM hosting_plans WHERE id = ? AND reseller_id = ?', [$id, $identity->getUserId()]);
     if (!$stmt->rowCount()) {
         return false;
     }
@@ -55,7 +57,7 @@ function loadHostingPlan($id)
     $mailQuota = $mailQuota / 1048576;
 
     $phpini = PHPini::getInstance();
-    $phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_id']);
+    $phpini->loadResellerPermissions($identity->getUserId());
     $phpini->loadClientPermissions();
     $phpini->loadIniOptions();
 
@@ -538,7 +540,7 @@ function updateHostingPlan()
     $props .= ';' . $phpini->getIniOption('phpiniMemoryLimit');
     $props .= ';' . $extMail . ';' . $webFolderProtection . ';' . $mailQuota * 1048576;
 
-    if (!validateHostingPlanLimits($props, Application::getInstance()->getSession()['user_id'])) {
+    if (!validateHostingPlanLimits($props, Application::getInstance()->getAuthService()->getIdentity()->getUserId())) {
         setPageMessage(tr('Hosting plan limits exceed your limits.'), 'error');
         return false;
     }
@@ -546,6 +548,8 @@ function updateHostingPlan()
     execQuery('UPDATE hosting_plans SET name = ?, description = ?, props = ?, status = ? WHERE id = ?', [$name, $description, $props, $status, $id]);
     return true;
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

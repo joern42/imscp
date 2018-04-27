@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -45,6 +46,8 @@ function admin_generateLanguagesList(TemplateEngine $tpl)
         $tpl->parse('LANGUAGE_BLOCK', '.language_block');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

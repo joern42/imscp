@@ -349,6 +349,8 @@ function addResellerUser(Form $form)
         }
 
         if (empty($errFieldsStack) && !$error) {
+            $identity = Application::getInstance()->getAuthService()->getIdentity();
+
             Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddUser, NULL, [
                 'userData' => $form->getValues()
             ]);
@@ -363,11 +365,10 @@ function addResellerUser(Form $form)
                     )
                 ',
                 [
-                    $form->getValue('admin_name'), Crypt::bcrypt($form->getValue('admin_pass')), 'reseller',
-                    Application::getInstance()->getSession()['user_id'], $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'),
-                    $form->getValue('zip'), $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
-                    encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
-                    $form->getValue('street1'), $form->getValue('street2'), $form->getValue('gender')
+                    $form->getValue('admin_name'), Crypt::bcrypt($form->getValue('admin_pass')), 'reseller', $identity->getUserId(),
+                    $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'), $form->getValue('city'),
+                    $form->getValue('state'), $form->getValue('country'), encodeIdna($form->getValue('email')), $form->getValue('phone'),
+                    $form->getValue('fax'), $form->getValue('street1'), $form->getValue('street2'), $form->getValue('gender')
                 ]
             );
 
@@ -415,11 +416,14 @@ function addResellerUser(Form $form)
 
             $db->getDriver()->getConnection()->commit();
             Mail::sendWelcomeMail(
-                Application::getInstance()->getSession()['user_id'], $form->getValue('admin_name'), $form->getValue('admin_pass'),
-                $form->getValue('email'), $form->getValue('fname'),
-                $form->getValue('lname'), tr('Reseller')
+                $identity->getUserId(), $form->getValue('admin_name'), $form->getValue('admin_pass'), $form->getValue('email'),
+                $form->getValue('fname'), $form->getValue('lname'), tr('Reseller')
             );
-            writeLog(sprintf('The %s reseller has been added by %s', $form->getValue('admin_name'), Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+            writeLog(sprintf(
+                'The %s reseller has been added by %s', $form->getValue('admin_name'),
+                Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+                E_USER_NOTICE
+            );
             setPageMessage('Reseller has been added.', 'success');
             redirectTo('users.php');
         } elseif (!empty($errFieldsStack)) {
@@ -446,6 +450,8 @@ function generatePage(TemplateEngine $tpl, Form $form)
     generateLimitsForm($tpl);
     generateFeaturesForm($tpl);
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

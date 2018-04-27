@@ -465,8 +465,10 @@ function addHostingPlan()
     global $name, $description, $sub, $als, $mail, $mailQuota, $ftp, $sqld, $sqlu, $traffic, $diskSpace, $php, $cgi, $dns, $backup, $extMail,
            $webFolderProtection, $status;
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
     $stmt = execQuery('SELECT id FROM hosting_plans WHERE name = ? AND reseller_id = ? LIMIT 1', [
-        $name, Application::getInstance()->getSession()['user_id']
+        $name, $identity->getUserId()
     ]);
 
     if ($stmt->rowCount()) {
@@ -489,17 +491,19 @@ function addHostingPlan()
     $props .= ';' . $phpini->getIniOption('phpiniMemoryLimit');
     $props .= ';' . $extMail . ';' . $webFolderProtection . ';' . $mailQuota * 1048576;
 
-    if (!validateHostingPlanLimits($props, Application::getInstance()->getSession()['user_id'])) {
+    if (!validateHostingPlanLimits($props, $identity->getUserId())) {
         setPageMessage(tr('Hosting plan limits exceed your limits.'), 'error');
         return false;
     }
 
     execQuery('INSERT INTO hosting_plans(reseller_id, name, description, props, status) VALUES (?, ?, ?, ?, ?)', [
-        Application::getInstance()->getSession()['user_id'], $name, $description, $props, $status
+        $identity->getUserId(), $name, $description, $props, $status
     ]);
 
     return true;
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
@@ -514,7 +518,7 @@ $webFolderProtection = '_yes_';
 $status = 1;
 $backup = [];
 $phpini = PHPini::getInstance();
-$phpini->loadResellerPermissions(Application::getInstance()->getSession()['user_id']);
+$phpini->loadResellerPermissions(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 $phpini->loadClientPermissions();
 $phpini->loadIniOptions();
 

@@ -20,7 +20,6 @@
 
 namespace iMSCP;
 
-use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use Zend\Form\Form;
 
@@ -41,11 +40,13 @@ function updatePersonalData(Form $form)
 
         return;
     }
+    
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     $idnaEmail = $form->getValue('email');
 
     Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, null, [
-        'userId'   => Application::getInstance()->getSession()['user_id'],
+        'userId'   => $identity->getUserId(),
         'userData' => $form->getValues()
     ]);
     execQuery(
@@ -59,19 +60,19 @@ function updatePersonalData(Form $form)
             $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'),
             $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
             $idnaEmail, $form->getValue('phone'), $form->getValue('fax'), $form->getValue('street1'),
-            $form->getValue('street2'), $form->getValue('gender'), Application::getInstance()->getSession()['user_id']
+            $form->getValue('street2'), $form->getValue('gender'), $identity->getUserId()
         ]
     );
 
     # We need also update user email in session
-    AuthenticationService::getInstance()->getIdentity()->email = $idnaEmail;
-    Application::getInstance()->getSession()['user_email'] = $idnaEmail; // Only for backward compatibility
+    //AuthenticationService::getInstance()->getIdentity()->email = $idnaEmail;
+    //Application::getInstance()->getSession()['user_email'] = $idnaEmail; // Only for backward compatibility
 
     Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, null, [
-        'userId'   => Application::getInstance()->getSession()['user_id'],
+        'userId'   => $identity->getUserId(),
         'userData' => $form->getValues()
     ]);
-    writeLog(sprintf('The %s user data were updated', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('The %s user data were updated', $identity->getUsername()), E_USER_NOTICE);
     setPageMessage(tr('Personal data were updated.'), 'success');
     redirectTo('personal_change.php');
 }
@@ -98,14 +99,12 @@ function generatePage(TemplateEngine $tpl, Form $form)
             FROM admin
             WHERE admin_id = ?
         ",
-        [Application::getInstance()->getSession()['user_id']]
+        [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     );
 
     $data = $stmt->fetch() or View::showBadRequestErrorPage();
     $form->setDefaults($data);
 }
-
-
 
 defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
 

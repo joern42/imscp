@@ -43,7 +43,7 @@ function generateDomainsList($tpl)
             WHERE domain_admin_id = ?
             ORDER BY domain_name
         ",
-        [Application::getInstance()->getSession()['user_id']]
+        [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     );
 
     while ($row = $stmt->fetch()) {
@@ -129,7 +129,7 @@ function generateDomainAliasesList($tpl)
     global $baseServerVhostUtf8;
     $cfg = Application::getInstance()->getConfig();
 
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $stmt = execQuery(
         "
             SELECT t1.alias_id, t1.alias_name, t1.alias_status, t1.alias_mount, t1.alias_document_root, t1.url_forward, t2.status AS ssl_status
@@ -246,7 +246,7 @@ function generateSubdomainsList($tpl)
 
     global $baseServerVhostUtf8;
     $cfg = Application::getInstance()->getConfig();
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     $stmt = execQuery(
         "
@@ -400,11 +400,14 @@ function generateCustomDnsRecordsList($tpl)
     $stmt = execQuery(
         "
             SELECT t1.*, IFNULL(t3.alias_name, t2.domain_name) zone_name
-            FROM domain_dns AS t1 LEFT JOIN domain AS t2 USING (domain_id)
+            FROM domain_dns AS t1
+            LEFT JOIN domain AS t2 USING (domain_id)
             LEFT JOIN domain_aliases AS t3 USING (alias_id)
-            WHERE t1.domain_id = ? $filterCond ORDER BY t1.domain_id, t1.alias_id, t1.domain_dns, t1.domain_type
+            WHERE t1.domain_id = ?
+            $filterCond
+            ORDER BY t1.domain_id, t1.alias_id, t1.domain_dns, t1.domain_type
         ",
-        [getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])]
+        [getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId())]
     );
 
     if (!$stmt->rowCount()) {
@@ -464,6 +467,8 @@ function generateCustomDnsRecordsList($tpl)
         $tpl->assign('DNS_DELETE_LINK', '');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

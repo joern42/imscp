@@ -34,7 +34,7 @@ use iMSCP\Functions\Counting;
 function admin_generateSupportQuestionsMessage()
 {
     $ticketsCount = execQuery('SELECT COUNT(ticket_id) FROM tickets WHERE ticket_to = ? AND ticket_status IN (1, 2) AND ticket_reply = 0', [
-        Application::getInstance()->getSession()['user_id']
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
     ])->fetchColumn();
 
     if ($ticketsCount > 0) {
@@ -126,6 +126,8 @@ function admin_generateServerTrafficInfo(TemplateEngine $tpl)
     ]);
 }
 
+require 'application.php';
+
 Login::checkLogin('admin', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_ADMIN']);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
@@ -152,7 +154,7 @@ $tpl->assign([
     'TR_SQL_USERS'       => toHtml(tr('SQL users')),
     'TR_SERVER_TRAFFIC'  => toHtml(tr('Monthly server traffic'))
 ]);
-View::generateNavigation($tpl);
+//View::generateNavigation($tpl);
 admin_generateSupportQuestionsMessage();
 admin_generateUpdateMessages();
 admin_getAdminGeneralInfo($tpl);

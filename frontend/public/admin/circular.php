@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
@@ -220,7 +221,7 @@ function admin_sendCircular()
         'body'         => $body
     ]);
     setPageMessage(tr('Circular successfully sent.'), 'success');
-    writeLog(sprintf('A circular has been sent by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A circular has been sent by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     return true;
 }
 
@@ -239,7 +240,9 @@ function generatePage($tpl)
     $body = isset($_POST['body']) ? $_POST['body'] : '';
 
     if ($senderName == '' && $senderEmail == '') {
-        $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
+        $stmt = execQuery('SELECT admin_name, fname, lname, email FROM admin WHERE admin_id = ?', [
+            Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+        ]);
         $row = $stmt->fetch();
 
         if (!empty($row['fname']) && !empty($row['lname'])) {
@@ -306,6 +309,8 @@ function generatePage($tpl)
         $tpl->parse('RCPT_TO_OPTION', '.rcpt_to_option');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

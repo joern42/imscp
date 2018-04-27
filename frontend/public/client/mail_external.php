@@ -35,6 +35,7 @@ use Zend\EventManager\Event;
  */
 function updateExternalMailFeature($action, $domainId, $domainType)
 {
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $db = Application::getInstance()->getDb();
 
     try {
@@ -43,9 +44,9 @@ function updateExternalMailFeature($action, $domainId, $domainType)
         if ($domainType == 'dmn') {
             $stmt = execQuery(
                 "UPDATE domain SET domain_status = 'tochange', external_mail = ?WHERE domain_id = ? AND domain_admin_id = ? AND domain_status = 'ok'",
-                [$action == 'activate' ? 'on' : 'off', $domainId, Application::getInstance()->getSession()['user_id']]
+                [$action == 'activate' ? 'on' : 'off', $domainId, $identity->getUserId()]
             );
-            $stmt->rowCount() or View::showBadRequestErrorPage(); # Cover case where domain_admin_id <> Application::getInstance()->getSession()['user_id']
+            $stmt->rowCount() or View::showBadRequestErrorPage();
             execQuery("UPDATE subdomain SET subdomain_status = 'tochange' WHERE domain_id = ?", [$domainId]);
         } elseif ($domainType == 'als') {
             $stmt = execQuery(
@@ -57,9 +58,9 @@ function updateExternalMailFeature($action, $domainId, $domainType)
                     AND t1.alias_status = 'ok'
                     AND t2.domain_admin_id = ?
                 ",
-                [$action == 'activate' ? 'on' : 'off', $domainId, Application::getInstance()->getSession()['user_id']]
+                [$action == 'activate' ? 'on' : 'off', $domainId, $identity->getUserId()]
             );
-            $stmt->rowCount() or View::showBadRequestErrorPage(); # Cover case where t2.domain_admin_id <> Application::getInstance()->getSession()['user_id']
+            $stmt->rowCount() or View::showBadRequestErrorPage();
             execQuery(
                 "
                     UPDATE subdomain_alias AS t1
@@ -76,12 +77,12 @@ function updateExternalMailFeature($action, $domainId, $domainType)
         $db->getDriver()->getConnection()->commit();
 
         if ($action == 'activate') {
-            writeLog(sprintf('External mail feature has been activared by %s', Application::getInstance()->getSession()['user_logged']));
+            writeLog(sprintf('External mail feature has been activared by %s', $identity->getUsername()));
             setPageMessage(tr('External mail server feature scheduled for activation.'), 'success');
             return;
         }
 
-        writeLog(sprintf('External mail feature has been deactivated by %s', Application::getInstance()->getSession()['user_logged']));
+        writeLog(sprintf('External mail feature has been deactivated by %s', $identity->getUsername()));
         setPageMessage(tr('External mail server feature scheduled for deactivation.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -191,11 +192,13 @@ function generatePage($tpl)
         'TR_CANCEL'     => tr('Cancel')
     ]);
 
-    $domainProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $domainProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $domainId = $domainProps['domain_id'];
     $domainName = $domainProps['domain_name'];
     generateItemList($tpl, $domainId, $domainName);
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

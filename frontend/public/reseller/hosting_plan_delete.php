@@ -23,10 +23,14 @@ namespace iMSCP;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 isset($_GET['id']) or View::showBadRequestErrorPage();
-$stmt = execQuery('DELETE FROM hosting_plans WHERE id = ? AND reseller_id = ?', [intval($_GET['id']), Application::getInstance()->getSession()['user_id']]);
+$stmt = execQuery('DELETE FROM hosting_plans WHERE id = ? AND reseller_id = ?', [
+    intval($_GET['id']), Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+]);
 $stmt->rowCount() or View::showBadRequestErrorPage();
 setPageMessage(tr('Hosting plan successfully deleted.'), 'success');
 redirectTo('hosting_plan.php');

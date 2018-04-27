@@ -23,6 +23,8 @@ namespace iMSCP;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('custom_error_pages') or View::showBadRequestErrorPage();
@@ -35,7 +37,7 @@ $tpl->define([
 ]);
 $tpl->assign([
     'TR_PAGE_TITLE'  => tr('Client / Webtools / Custom Error Pages'),
-    'DOMAIN'         => toHtml('http://www.' . Application::getInstance()->getSession()['user_logged'], 'htmlAttr'),
+    'DOMAIN'         => toHtml('http://www.' . Application::getInstance()->getAuthService()->getIdentity()->getUsername(), 'htmlAttr'),
     'TR_ERROR_401'   => tr('Unauthorized'),
     'TR_ERROR_403'   => tr('Forbidden'),
     'TR_ERROR_404'   => tr('Not Found'),

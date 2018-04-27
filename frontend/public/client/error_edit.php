@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -30,7 +31,7 @@ use iMSCP\Functions\View;
  */
 function writeErrorPage($eid)
 {
-    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], '/errors');
+    $vfs = new VirtualFileSystem(Application::getInstance()->getAuthService()->getIdentity()->getUsername(), '/errors');
     return $vfs->put($eid . '.html', $_POST['error']);
 }
 
@@ -62,10 +63,12 @@ function editErrorPage($eid)
  */
 function generatePage($tpl, $eid)
 {
-    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged'], '/errors');
+    $vfs = new VirtualFileSystem(Application::getInstance()->getAuthService()->getIdentity()->getUsername(), '/errors');
     $errorPageContent = $vfs->get($eid . '.html');
     $tpl->assign('ERROR', ($errorPageContent !== false) ? toHtml($errorPageContent) : '');
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

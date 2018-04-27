@@ -22,6 +22,9 @@ namespace iMSCP;
 
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
+use iMSCP\Model\SuIdentityInterface;
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
@@ -35,8 +38,10 @@ $tpl->define([
     'def_language'        => 'languages_available'
 ]);
 
-if (isset(Application::getInstance()->getSession()['logged_from']) && isset(Application::getInstance()->getSession()['logged_from_id'])) {
-    list($customerCurrentLanguage) = getUserGuiProperties(Application::getInstance()->getSession()['user_id']);
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+
+if ($identity instanceof SuIdentityInterface) {
+    $customerCurrentLanguage = getUserGuiProperties($identity->getUserId())[0];
 } else {
     $customerCurrentLanguage = Application::getInstance()->getSession()['user_def_lang'];
 }
@@ -46,10 +51,11 @@ if (!empty($_POST)) {
     in_array($customerNewLanguage, getAvailableLanguages(true)) or View::showBadRequestErrorPage();
 
     if ($customerCurrentLanguage != $customerNewLanguage) {
-        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [$customerNewLanguage, Application::getInstance()->getSession()['user_id']]);
+        execQuery('UPDATE user_gui_props SET lang = ? WHERE user_id = ?', [
+            $customerNewLanguage, Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+        ]);
 
-        if (!isset(Application::getInstance()->getSession()['logged_from_id'])) {
-            unset(Application::getInstance()->getSession()['user_def_lang']);
+        if (!($identity instanceof SuIdentityInterface)) {
             Application::getInstance()->getSession()['user_def_lang'] = $customerNewLanguage;
         }
 

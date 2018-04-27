@@ -113,11 +113,14 @@ function deleteMailAccount($mailId, $domainId, $config, &$postfixConfig, &$nbDel
     $nbDeletedMails++;
 }
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
 
-$domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+$domainId = getCustomerMainDomainId($identity->getUserId());
 $nbDeletedMails = 0;
 $mailIds = (array)$_REQUEST['id'];
 
@@ -141,10 +144,8 @@ try {
     Daemon::sendRequest();
 
     if ($nbDeletedMails) {
-        writeLog(sprintf('%d mail account(s) were deleted by %s', $nbDeletedMails, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
-        setPageMessage(
-            ntr('Mail account has been scheduled for deletion.', '%d mail accounts were scheduled for deletion.', $nbDeletedMails, $nbDeletedMails), 'success'
-        );
+        writeLog(sprintf('%d mail account(s) were deleted by %s', $nbDeletedMails, $identity->getUsername()), E_USER_NOTICE);
+        setPageMessage(ntr('Mail account has been scheduled for deletion.', '%d mail accounts were scheduled for deletion.', $nbDeletedMails, $nbDeletedMails), 'success');
     } else {
         setPageMessage(tr('No mail account has been deleted.'), 'warning');
     }

@@ -45,7 +45,7 @@ function addAdminUser(Form $form)
         return;
     }
 
-    $session = Application::getInstance()->getSession();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $db = Application::getInstance()->getDb();
 
     try {
@@ -65,7 +65,7 @@ function addAdminUser(Form $form)
                 )
             ",
             [
-                $form->getValue('admin_name'), Crypt::bcrypt($form->getValue('admin_pass')), $session['user_id'],
+                $form->getValue('admin_name'), Crypt::bcrypt($form->getValue('admin_pass')), $identity->getUserId(),
                 $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'),
                 $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
                 encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
@@ -92,13 +92,15 @@ function addAdminUser(Form $form)
     }
 
     Mail::sendWelcomeMail(
-        $session['user_id'], $form->getValue('admin_name'), $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
+        $identity->getUserId(), $form->getValue('admin_name'), $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
         $form->getValue('lname'), tr('Administrator')
     );
-    writeLog(sprintf('The %s administrator has been added by %s', $form->getValue('admin_name'), Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('The %s administrator has been added by %s', $form->getValue('admin_name'), $identity->getUsername()), E_USER_NOTICE);
     setPageMessage('Administrator has been added.', 'success');
     redirectTo('users.php');
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

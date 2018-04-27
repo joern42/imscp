@@ -78,7 +78,7 @@ function setPageMessage(string $message, string $level = 'info'): void
 function generatePageMessage(TemplateEngine $tpl)
 {
     $flashMessenger = Application::getInstance()->getFlashMessenger();
-    
+
     Application::getInstance()->getEventManager()->trigger(Events::onGeneratePageMessages, $flashMessenger);
 
     $tpl->assign('PAGE_MESSAGE', '');
@@ -96,8 +96,6 @@ function generatePageMessage(TemplateEngine $tpl)
             continue;
         }
 
-        print implode("<br>\n", array_unique($messages));
-        continue;
         $tpl->assign([
             'MESSAGE_CLS' => $level,
             'MESSAGE'     => implode("<br>\n", array_unique($messages))
@@ -141,18 +139,18 @@ function getMenuVariables($menuLink)
         return $menuLink;
     }
 
-    $session = Application::getInstance()->getSession();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $row = execQuery('SELECT fname, lname, firm, zip, city, state, country, email, phone, fax, street1, street2 FROM admin WHERE admin_id = ?', [
-        $session['user_id']
+        $identity->getUserId()
     ])->fetch();
 
     $search = [];
     $replace = [];
 
     $search [] = '{uid}';
-    $replace[] = $session['user_id'];
+    $replace[] = $identity->getUserId();
     $search [] = '{uname}';
-    $replace[] = toHtml($session['user_logged']);
+    $replace[] = toHtml($identity->getUsername());
     $search [] = '{fname}';
     $replace[] = toHtml($row['fname']);
     $search [] = '{lname}';
@@ -178,7 +176,7 @@ function getMenuVariables($menuLink)
     $search [] = '{street2}';
     $replace[] = toHtml($row['street2']);
 
-    $row = execQuery('SELECT domain_name, domain_admin_id FROM domain WHERE domain_admin_id = ?', [$session['user_id']])->fetch();
+    $row = execQuery('SELECT domain_name, domain_admin_id FROM domain WHERE domain_admin_id = ?', [$identity->getUserId()])->fetch();
     $search [] = '{domain_name}';
     $replace[] = $row['domain_name'];
     return str_replace($search, $replace, $menuLink);
@@ -260,12 +258,14 @@ function initLayout(Event $event)
         $themesAssetsVersion = $cfg['THEME_ASSETS_VERSION'];
     }
 
+    /** @var \iMSCP\Model\SuIdentityInterface $identity */
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $session = Application::getInstance()->getSession();
 
     if (isset($session['user_theme_color'])) {
         $color = $session['user_theme_color'];
-    } elseif (isset($session['user_id'])) {
-        $userId = isset($session['logged_from_id']) ? $session['logged_from_id'] : $session['user_id'];
+    } elseif ($identity) {
+        $userId = $identity instanceof \iMSCP\Model\SuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
         $color = getLayoutColor($userId);
         $session['user_theme_color'] = $color;
     } else {
@@ -279,7 +279,7 @@ function initLayout(Event $event)
         'THEME_ASSETS_PATH'    => '/themes/' . $cfg['USER_INITIAL_THEME'] . '/assets',
         'THEME_ASSETS_VERSION' => $themesAssetsVersion,
         'THEME_COLOR'          => $color,
-        'ISP_LOGO'             => isset($session['user_id']) ? getUserLogo() : '',
+        'ISP_LOGO'             => $identity ? getUserLogo() : '',
         'JS_TRANSLATIONS'      => getJsTranslations()
     ]);
     $tpl->parse('LAYOUT', $event->getParam('layout') ?: 'layout');
@@ -304,7 +304,9 @@ function setLayoutColor($userId, $color)
 
     $session = Application::getInstance()->getSession();
     $sessionId = $session->getManager()->getId();
-    $stmt = execQuery('SELECT session_id FROM login WHERE user_name = ? AND session_id <> ?', [encodeIdna($sessionId['user_logged']), $sessionId]);
+    $stmt = execQuery('SELECT session_id FROM login WHERE user_name = ? AND session_id <> ?', [
+        Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $sessionId
+    ]);
 
     if (!$stmt->rowCount()) {
         return true;
@@ -338,17 +340,16 @@ function setLayoutColor($userId, $color)
  */
 function getUserLogo($searchForCreator = true, $returnDefault = true)
 {
-    $cfg = Application::getInstance()->getConfig();
-    $session = Application::getInstance()->getSession();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     // On switched level, we want show logo from logged user
-    if (isset($session['logged_from_id']) && $searchForCreator) {
-        $userId = $session['logged_from_id'];
+    if ($identity instanceof \iMSCP\Model\SuIdentityInterface && $searchForCreator) {
+        $userId = $identity->getSuUserId();
         // Customers inherit the logo of their reseller
-    } elseif ($session['user_type'] == 'user') {
-        $userId = $session['user_created_by'];
+    } elseif ($identity->getUserType() == 'user') {
+        $userId = $identity->getUserCreatedBy();
     } else {
-        $userId = $session['user_id'];
+        $userId = $identity->getUserId();
     }
 
     $stmt = execQuery('SELECT logo FROM user_gui_props WHERE user_id= ?', [$userId]);
@@ -361,20 +362,21 @@ function getUserLogo($searchForCreator = true, $returnDefault = true)
     $logo = $stmt->fetchColumn();
 
     // No user logo found
-    if (!$logo || !file_exists($cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . $logo)) {
+    $config = Application::getInstance()->getConfig();
+    if (!$logo || !file_exists($config['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . $logo)) {
         if (!$returnDefault) {
             return '';
         }
 
-        if (file_exists($cfg['ROOT_TEMPLATE_PATH'] . '/assets/images/imscp_logo.png')) {
-            return '/themes/' . $session['user_theme'] . '/assets/images/imscp_logo.png';
+        if (file_exists($config['ROOT_TEMPLATE_PATH'] . '/assets/images/imscp_logo.png')) {
+            return '/themes/' . Application::getInstance()->getSession()['user_theme'] . '/assets/images/imscp_logo.png';
         }
 
         // no logo available, we are using default
-        return $cfg['ISP_LOGO_PATH'] . '/' . 'isp_logo.gif';
+        return $config['ISP_LOGO_PATH'] . '/' . 'isp_logo.gif';
     }
 
-    return $cfg['ISP_LOGO_PATH'] . '/' . $logo;
+    return $config['ISP_LOGO_PATH'] . '/' . $logo;
 }
 
 /**
@@ -386,13 +388,13 @@ function getUserLogo($searchForCreator = true, $returnDefault = true)
  */
 function setUserLogo()
 {
-    $cfg = Application::getInstance()->getConfig();
-    $session = Application::getInstance()->getSession();
+    $config = Application::getInstance()->getConfig();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     // closure that is run before move_uploaded_file() function - See the
     // Utils_UploadFile() function for further information about implementation
     // details
-    $beforeMove = function ($cfg) use ($session) {
+    $beforeMove = function ($config) use ($identity) {
         $tmpFilePath = $_FILES['logoFile']['tmp_name'];
 
         // Checking file mime type
@@ -418,20 +420,20 @@ function setUserLogo()
         }
 
         // Building an unique file name
-        $filename = sha1(Crypt::randomStr(15) . '-' . $session['user_id']) . '.' . $fileExtension;
+        $filename = sha1(Crypt::randomStr(15) . '-' . $identity->getUserId()) . '.' . $fileExtension;
 
         // Return destination file path
-        return $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . $filename;
+        return $config['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . $filename;
     };
 
-    if (($logoPath = uploadFile('logoFile', [$beforeMove, $cfg])) === false) {
+    if (($logoPath = uploadFile('logoFile', [$beforeMove, $config])) === false) {
         return false;
     }
 
-    if ($session['user_type'] == 'admin') {
+    if ($identity->getUserType() == 'admin') {
         $userId = 1;
     } else {
-        $userId = $session['user_id'];
+        $userId = $identity->getUserId();
     }
 
     // We must catch old logo before update
@@ -466,7 +468,8 @@ function deleteUserLogo($logoFilePath = NULL, $onlyFile = false)
         }
     }
 
-    $userId = ($session['user_type'] == 'admin') ? 1 : $session['user_id'];
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $userId = ($identity->getUserType() == 'admin') ? 1 : $identity->getUserId();
     if (!$onlyFile) {
         execQuery('UPDATE user_gui_props SET logo = ? WHERE user_id = ?', [NULL, $userId]);
     }
@@ -551,14 +554,14 @@ function isMainMenuLabelsVisible($userId)
  * @param int $visibility (0|1)
  * @return void
  */
-function setMainMenuLabelsVisibility($userId, $visibility)
+function setMainMenuLabelsVisibility(int $userId, int $visibility)
 {
-    $visibility = ($visibility) ? 1 : 0;
+    $visibility = $visibility ? 1 : 0;
     execQuery('UPDATE user_gui_props SET show_main_menu_labels = ? WHERE user_id = ?', [$visibility, $userId]);
 
-    $session = Application::getInstance()->getSession();
-    if (!isset($session['logged_from_id'])) {
-        $session['show_main_menu_labels'] = $visibility;
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    if (!($identity instanceof \iMSCP\Model\SuIdentityInterface)) {
+        Application::getInstance()->getSession()['show_main_menu_labels'] = $visibility;
     }
 }
 
@@ -570,8 +573,11 @@ function setMainMenuLabelsVisibility($userId, $visibility)
 function setMainMenuLabelsVisibilityEvt()
 {
     $session = Application::getInstance()->getSession();
-    if (!isset($session['show_main_menu_labels']) && isset($session['user_type'])) {
-        $userId = isset($session['logged_from_id']) ? $session['logged_from_id'] : $session['user_id'];
+    /** @var \iMSCP\Model\SuIdentityInterface $identity */
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
+    if (!isset($session['show_main_menu_labels']) && $identity) {
+        $userId = $identity instanceof \iMSCP\Model\SuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
         $session['show_main_menu_labels'] = isMainMenuLabelsVisible($userId);
     }
 }

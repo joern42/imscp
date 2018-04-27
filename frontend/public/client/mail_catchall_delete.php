@@ -24,18 +24,21 @@ use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $catchallId = intval($_GET['id']);
+$identity = Application::getInstance()->getAuthService()->getIdentity();
 $stmt = execQuery('SELECT COUNT(mail_id) FROM mail_users JOIN domain USING(domain_id) WHERE mail_id = ? AND domain_admin_id = ?', [
-    $catchallId, Application::getInstance()->getSession()['user_id']
+    $catchallId, $identity->getUserId()
 ]);
 $stmt->fetchColumn() or View::showBadRequestErrorPage();
 Application::getInstance()->getEventManager()->trigger(Events::onBeforeDeleteMailCatchall, NULL, ['mailCatchallId' => $catchallId]);
 execQuery("UPDATE mail_users SET status = 'todelete' WHERE mail_id = ?", [$catchallId]);
 Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteMailCatchall, NULL, ['mailCatchallId' => $catchallId]);
 Daemon::sendRequest();
-writeLog(sprintf('A catch-all account has been deleted by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+writeLog(sprintf('A catch-all account has been deleted by %s', $identity->getUsername()), E_USER_NOTICE);
 setPageMessage(tr('Catch-all account successfully scheduled for deletion.'), 'success');
 redirectTo('mail_catchall.php');

@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -494,7 +495,7 @@ function client_decodeDnsRecordData($data)
 function client_saveDnsRecord($dnsRecordId)
 {
     $error = false;
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $mainDmnId = $mainDmnProps['domain_id'];
     $errorString = '';
     $dnsRecordClass = client_getPost('class');
@@ -802,7 +803,7 @@ function client_saveDnsRecord($dnsRecordId)
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
         writeLog(
-            sprintf('DNS resource record has been scheduled for %s by %s', $dnsRecordId ? tr('update') : tr('addition'), Application::getInstance()->getSession()['user_logged']),
+            sprintf('DNS resource record has been scheduled for %s by %s', $dnsRecordId ? tr('update') : tr('addition'), Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
             E_USER_NOTICE
         );
     } catch (\Exception $e) {
@@ -827,7 +828,7 @@ function client_saveDnsRecord($dnsRecordId)
  */
 function generatePage($tpl, $dnsRecordId)
 {
-    $mainDomainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $mainDomainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     // Add DNS record
     if ($dnsRecordId == 0) {
@@ -889,6 +890,8 @@ function generatePage($tpl, $dnsRecordId)
         'DNS_TXT_DATA'            => toHtml(client_getPost('dns_txt_data', $txt))
     ]);
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

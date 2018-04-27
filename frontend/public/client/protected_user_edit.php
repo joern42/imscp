@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -51,16 +52,18 @@ function client_updateHtaccessUser($domainId, $htuserId)
         Crypt::bcrypt($_POST['pass']), 'tochange', $htuserId, $domainId
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('%s updated htaccess user ID: %s', Application::getInstance()->getSession()['user_logged'], $htuserId), E_USER_NOTICE);
+    writeLog(sprintf('%s updated htaccess user ID: %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $htuserId), E_USER_NOTICE);
     redirectTo('protected_user_manage.php');
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('protected_areas') && isset($_REQUEST['uname']) or View::showBadRequestErrorPage();
 
 $htuserId = intval($_REQUEST['uname']);
-$domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+$domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 $stmt = execQuery('SELECT uname FROM htaccess_users WHERE id = ? AND dmn_id = ?', [$htuserId, $domainId]);
 $stmt->rowCount() or View::showBadRequestErrorPage();
 $row = $stmt->fetch();

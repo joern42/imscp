@@ -73,12 +73,16 @@ function _generateUserStatistics(TemplateEngine $tpl, $adminId)
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $stmt = execQuery('SELECT admin_id FROM admin WHERE created_by = ?', [Application::getInstance()->getSession()['user_id']]);
+    $stmt = execQuery('SELECT admin_id FROM admin WHERE created_by = ?', [
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
+    );
     while ($row = $stmt->fetch()) {
         _generateUserStatistics($tpl, $row['admin_id']);
         $tpl->parse('USER_STATISTICS_ENTRY_BLOCK', '.user_statistics_entry_block');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

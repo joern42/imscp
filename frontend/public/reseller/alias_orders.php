@@ -37,6 +37,8 @@ function rejectDomainAliasOrder()
     isset($_GET['id']) or View::showBadRequestErrorPage();
     $domainAliasId = intval($_GET['id']);
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    
     $stmt = execQuery(
         "
             SELECT t1.alias_id
@@ -47,7 +49,7 @@ function rejectDomainAliasOrder()
             AND t1.alias_status = 'ordered'
             AND t3.created_by = ?
         ",
-        [$domainAliasId, Application::getInstance()->getSession()['user_id']]
+        [$domainAliasId, $identity->getUserId()]
     );
     $stmt->rowCount() or View::showBadRequestErrorPage();
 
@@ -58,7 +60,7 @@ function rejectDomainAliasOrder()
         execQuery("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'als'", [$domainAliasId]);
         execQuery('DELETE FROM domain_aliases WHERE alias_id = ?', [$domainAliasId]);
         $db->getDriver()->getConnection()->commit();
-        writeLog(sprintf('A domain alias order has been rejected by %s.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf('A domain alias order has been rejected by %s.', $identity->getUsername()), E_USER_NOTICE);
         setPageMessage(toHtml(tr('Domain alias order successfully rejected.')), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -77,6 +79,8 @@ function approveDomainAliasOrder()
     isset($_GET['id']) or View::showBadRequestErrorPage();
     $domainAliasId = intval($_GET['id']);
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    
     $stmt = execQuery(
         "
             SELECT t1.*, t2.domain_client_ips, t3.email
@@ -87,7 +91,7 @@ function approveDomainAliasOrder()
             AND t1.alias_status = 'ordered'
             AND t3.created_by = ?
         ",
-        [$domainAliasId, Application::getInstance()->getSession()['user_id']]
+        [$domainAliasId, $identity->getUserId()]
     );
     $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
@@ -137,7 +141,7 @@ function approveDomainAliasOrder()
         ]);
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
-        writeLog(sprintf('A domain alias order has been approved by %s.', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf('A domain alias order has been approved by %s.', $identity->getUsername()), E_USER_NOTICE);
         setPageMessage(toHtml(tr('Order successfully approved.')), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -153,6 +157,7 @@ function approveDomainAliasOrder()
  */
 function generatePage()
 {
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $columns = ['alias_name', 'alias_mount', 'url_forward', 'admin_name'];
     $columnAliases = ['t1.alias_name', 't1.alias_mount', 't1.url_forward', 't3.admin_name'];
     $nbColumns = count($columns);
@@ -186,7 +191,7 @@ function generatePage()
     }
 
     /* Filtering */
-    $where = 'WHERE t3.created_by = ' . quoteValue(Application::getInstance()->getSession()['user_id']) . " AND t1.alias_status = 'ordered'";
+    $where = 'WHERE t3.created_by = ' . $identity->getUserId() . " AND t1.alias_status = 'ordered'";
     if (isset($_GET['sSearch']) && $_GET['sSearch'] != '') {
         $where .= ' AND (';
         for ($i = 0; $i < $nbColumns; $i++) {
@@ -226,7 +231,7 @@ function generatePage()
             WHERE t3.created_by = ?
             AND t1.alias_status = 'ordered'
         ",
-        [Application::getInstance()->getSession()['user_id']]
+        [$identity->getUserId()]
     )->fetchColumn();
 
     /* Output */
@@ -263,6 +268,8 @@ function generatePage()
 
     return $output;
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

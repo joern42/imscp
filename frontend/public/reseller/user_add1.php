@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -47,9 +48,11 @@ function reseller_checkData()
         $dmnName = substr($dmnName, 4);
     }
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    
     $asciiDmnName = encodeIdna($dmnName);
 
-    if (isKnownDomain($asciiDmnName, Application::getInstance()->getSession()['user_id'])) {
+    if (isKnownDomain($asciiDmnName, $identity->getUserId())) {
         setPageMessage(tr('Domain %s is unavailable.', "<strong>$dmnName</strong>"), 'error');
         return;
     }
@@ -129,7 +132,7 @@ function reseller_checkData()
         redirectTo('user_add2.php');
     }
 
-    if (!validateHostingPlanLimits($hpId, Application::getInstance()->getSession()['user_id'])) {
+    if (!validateHostingPlanLimits($hpId, $identity->getUserId())) {
         setPageMessage(tr('Hosting plan limits exceed reseller limits.'), 'error');
         return;
     }
@@ -177,7 +180,9 @@ function reseller_generatePage($tpl)
         'CHTPL2_VAL'           => isset($_POST['chtpl']) && $_POST['chtpl'] == '_yes_' ? '' : ' checked'
     ]);
 
-    $stmt = execQuery("SELECT id, name FROM hosting_plans WHERE reseller_id = ? AND status = 1 ORDER BY name", [Application::getInstance()->getSession()['user_id']]);
+    $stmt = execQuery("SELECT id, name FROM hosting_plans WHERE reseller_id = ? AND status = 1 ORDER BY name", [
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+    ]);
 
     if (!$stmt->rowCount()) {
         $tpl->assign('HOSTING_PLAN_ENTRIES_BLOCK', '');
@@ -194,6 +199,8 @@ function reseller_generatePage($tpl)
         $tpl->parse('HOSTING_PLAN_ENTRY_BLOCK', '.hosting_plan_entry_block');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

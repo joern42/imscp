@@ -19,8 +19,10 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
+use iMSCP\Model\SuIdentityInterface;
 
 /**
  * Generate layout color form
@@ -51,6 +53,8 @@ function admin_generateLayoutColorForm(TemplateEngine $tpl)
     }
 }
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
@@ -64,9 +68,6 @@ $tpl->define([
     'layout_color_block'  => 'layout_colors_block'
 ]);
 
-/**
- * Dispatches request
- */
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'updateIspLogo') {
         if (setUserLogo()) {
@@ -77,12 +78,12 @@ if (isset($_POST['uaction'])) {
             setPageMessage(tr('Logo successfully removed.'), 'success');
         }
     } elseif ($_POST['uaction'] == 'changeShowLabels') {
-        setMainMenuLabelsVisibility(Application::getInstance()->getSession()['user_id'], intval($_POST['mainMenuShowLabels']));
+        setMainMenuLabelsVisibility(Application::getInstance()->getAuthService()->getIdentity()->getUserId(), intval($_POST['mainMenuShowLabels']));
         setPageMessage(tr('Main menu labels visibility successfully updated.'), 'success');
-
     } elseif ($_POST['uaction'] == 'changeLayoutColor' && isset($_POST['layoutColor'])) {
-        $userId = isset(Application::getInstance()->getSession()['logged_from_id']) ? Application::getInstance()->getSession()['logged_from_id'] : Application::getInstance()->getSession()['user_id'];
-
+        /** @var SuIdentityInterface $identity */
+        $identity = Application::getInstance()->getAuthService()->getIdentity();
+        $userId = $identity instanceof SuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
         if (setLayoutColor($userId, $_POST['layoutColor'])) {
             Application::getInstance()->getSession()['user_theme_color'] = $_POST['layoutColor'];
             setPageMessage(tr('Layout color successfully updated.'), 'success');

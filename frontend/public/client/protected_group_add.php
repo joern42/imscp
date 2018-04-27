@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -43,7 +44,8 @@ function client_addHtaccessGroup()
         return;
     }
 
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $domainId = getCustomerMainDomainId($identity->getUserId());
 
     $stmt = execQuery('SELECT id FROM htaccess_groups WHERE ugroup = ? AND dmn_id = ?', [$htgroupName, $domainId]);
     if ($stmt->rowCount()) {
@@ -53,9 +55,11 @@ function client_addHtaccessGroup()
     execQuery("INSERT INTO htaccess_groups (dmn_id, ugroup, status) VALUES (?, ?, 'toadd')", [$domainId, $htgroupName]);
     Daemon::sendRequest();
     setPageMessage(tr('Htaccess group successfully scheduled for addition.'), 'success');
-    writeLog(sprintf('%s added htaccess group: %s', Application::getInstance()->getSession()['user_logged'], $htgroupName), E_USER_NOTICE);
+    writeLog(sprintf('%s added htaccess group: %s', $identity->getUsername(), $htgroupName), E_USER_NOTICE);
     redirectTo('protected_user_manage.php');
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

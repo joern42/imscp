@@ -89,6 +89,8 @@ function generatePage(TemplateEngine $tpl, $resellerId)
     }
 }
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 

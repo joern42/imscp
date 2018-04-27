@@ -24,6 +24,8 @@ use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
@@ -33,6 +35,8 @@ $tpl->define([
     'page'         => 'reseller/settings_welcome_mail.tpl',
     'page_message' => 'layout'
 ]);
+
+$userId = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'email_setup') {
     $data['subject'] = (isset($_POST['auto_subject'])) ? cleanInput($_POST['auto_subject']) : '';
@@ -50,13 +54,13 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'email_setup') {
     }
 
     if (!$error) {
-        Mail::setWelcomeEmail(Application::getInstance()->getSession()['user_id'], $data);
+        Mail::setWelcomeEmail($userId, $data);
         setPageMessage(tr('Welcome email template has been updated.'), 'success');
         redirectTo('settings_welcome_mail.php');
     }
 }
 
-$data = Mail::getWelcomeEmail(Application::getInstance()->getSession()['user_id']);
+$data = Mail::getWelcomeEmail($userId);
 
 $tpl->assign([
     'TR_PAGE_TITLE'               => tr('Reseller / Customers / Welcome Email'),

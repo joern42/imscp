@@ -41,7 +41,9 @@ function client_getEmailAccountData($mailId)
         return $mailData;
     }
 
-    $stmt = execQuery('SELECT * FROM mail_users WHERE mail_id = ? AND domain_id = ?', [$mailId, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])]);
+    $stmt = execQuery('SELECT * FROM mail_users WHERE mail_id = ? AND domain_id = ?', [
+        $mailId, getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId())
+    ]);
     $stmt->rowCount() or View::showBadRequestErrorPage();
     return $stmt->fetch();
 }
@@ -59,8 +61,9 @@ function client_editMailAccount()
         View::showBadRequestErrorPage();
     }
 
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
     $mailData = client_getEmailAccountData(cleanInput($_GET['id']));
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties($identity->getUserId());
     $password = $forwardList = '_no_';
     $mailType = '';
     $mailQuotaLimitBytes = NULL;
@@ -214,7 +217,7 @@ function client_editMailAccount()
 
     Application::getInstance()->getEventManager()->trigger(Events::onAfterEditMail, NULL, ['mailId' => $mailData['mail_id']]);
     Daemon::sendRequest();
-    writeLog(sprintf('A mail account (%s) has been edited by %s', decodeIdna($mailAddr), Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A mail account (%s) has been edited by %s', decodeIdna($mailAddr), $identity->getUsername()), E_USER_NOTICE);
     setPageMessage(tr('Mail account successfully scheduled for update.'), 'success');
     return true;
 }
@@ -227,7 +230,7 @@ function client_editMailAccount()
 function client_generatePage($tpl)
 {
     $mailId = cleanInput($_GET['id']);
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $mailData = client_getEmailAccountData($mailId);
     list($username, $domainName) = explode('@', $mailData['mail_addr']);
 
@@ -306,6 +309,8 @@ function client_generatePage($tpl)
         }
     );
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

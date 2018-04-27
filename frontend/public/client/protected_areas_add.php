@@ -95,13 +95,15 @@ function handleProtectedArea()
         return;
     }
 
-    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    
+    $vfs = new VirtualFileSystem($identity->getUsername());
     if ($protectedAreaPath !== '/' && !$vfs->exists($protectedAreaPath, VirtualFileSystem::VFS_TYPE_DIR)) {
         setPageMessage(tr("Directory '%s' doesn't exist.", $protectedAreaPath), 'error');
         return;
     }
 
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties($identity->getUserId());
 
     if ($protectionType === 'user') {
         $stmt = execQuery(
@@ -172,11 +174,12 @@ function generatePage($tpl)
 {
     global $mountpoints;
 
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $mainDmnProps = getCustomerProperties($identity->getUserId());
 
     # Set parameters for the FTP chooser
     Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
-    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_user'] = $identity->getUsername();
     Application::getInstance()->getSession()['ftp_chooser_root_dir'] = '/';
     Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = ['00_private', 'backups', 'errors', 'logs', 'phptmp'];
     Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = $mountpoints;
@@ -262,11 +265,13 @@ function generatePage($tpl)
     }
 }
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 
-$mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+$mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
 global $mountpoints;
 $mountpoints = getMountpoints($mainDmnProps['domain_id']);
@@ -297,7 +302,6 @@ $tpl->assign([
     'TR_PROTECT_IT'          => (isset($_REQUEST['id']) && $_REQUEST['id'] > 0) ? tr('Edit protected area') : tr('Add protected area'),
     'TR_CANCEL'              => tr('Cancel')
 ]);
-
 Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
     $translations = $e->getParam('translations');
     $translations['core']['close'] = tr('Close');

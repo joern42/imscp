@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -38,7 +39,8 @@ function addSqlDb()
         return;
     }
 
-    $mainDmnId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $mainDmnId = getCustomerMainDomainId($identity->getUserId());
 
     if (isset($_POST['use_dmn_id']) && $_POST['use_dmn_id'] == 'on') {
         if (isset($_POST['id_pos']) && $_POST['id_pos'] == 'start') {
@@ -69,9 +71,7 @@ function addSqlDb()
             'dbName' => $dbName
         ]);
         setPageMessage(tr('SQL database successfully created.'), 'success');
-        writeLog(
-            sprintf('A new database (%s) has been created by %s', $dbName, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE
-        );
+        writeLog(sprintf('A new database (%s) has been created by %s', $dbName, $identity->getUsername()), E_USER_NOTICE);
     } catch (\Exception $e) {
         writeLog(sprintf("Couldn't create the %s database: %s", $dbName, $e->getMessage()));
         setPageMessage(tr("Couldn't create the %s database.", $dbName), 'error');
@@ -120,6 +120,8 @@ function generatePage(TemplateEngine $tpl)
         'END_ID_POS_SELECTED'   => isset($_POST['id_pos']) && $_POST['id_pos'] === 'end' ? ' checked' : ''
     ]);
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

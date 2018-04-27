@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -67,7 +68,7 @@ function _client_getDomainName($domainId, $domainType)
                 ";
         }
 
-        $stmt = execQuery($query, [$domainId, Application::getInstance()->getSession()['user_id']]);
+        $stmt = execQuery($query, [$domainId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]);
 
         if (!$stmt->rowCount()) {
             return false;
@@ -176,7 +177,7 @@ EOF
 
     $tpl->parse('OPENSSL', 'openssl');
 
-    $opensslConfFile = @tempnam(sys_get_temp_dir(), Application::getInstance()->getSession()['user_id'] . '-openssl.cnf');
+    $opensslConfFile = @tempnam(sys_get_temp_dir(), Application::getInstance()->getAuthService()->getIdentity()->getUserId() . '-openssl.cnf');
     if ($opensslConfFile === false) {
         writeLog("Couldn't create temporary openssl configuration file.", E_USER_ERROR);
         return false;
@@ -202,7 +203,8 @@ EOF
  */
 function client_generateSelfSignedCert($domainName)
 {
-    $stmt = execQuery('SELECT firm, city, state, country, email FROM admin WHERE admin_id = ?', [Application::getInstance()->getSession()['user_id']]);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $stmt = execQuery('SELECT firm, city, state, country, email FROM admin WHERE admin_id = ?', [$identity->getUserId()]);
 
     if (!$stmt->rowCount()) {
         return false;
@@ -236,7 +238,7 @@ function client_generateSelfSignedCert($domainName)
         return false;
     }
 
-    $cert = @openssl_csr_sign($csr, NULL, $pkeyStr, 365, $sslConfig, (int)(Application::getInstance()->getSession()['user_id'] . time()));
+    $cert = @openssl_csr_sign($csr, NULL, $pkeyStr, 365, $sslConfig, (int)($identity->getUserId() . time()));
     if (!is_resource($cert)) {
         writeLog(sprintf("Couldn't generate SSL certificate: %s", openssl_error_string()));
         return false;
@@ -316,7 +318,7 @@ function client_addSslCert($domainId, $domainType)
             return;
         }
 
-        $tmpfname = @tempnam(sys_get_temp_dir(), Application::getInstance()->getSession()['user_id'] . 'ssl-ca');
+        $tmpfname = @tempnam(sys_get_temp_dir(), Application::getInstance()->getAuthService()->getIdentity()->getUserId() . 'ssl-ca');
         if ($tmpfname === false) {
             writeLog("Couldn't create temporary file for CA bundle.", E_USER_ERROR);
             setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
@@ -413,10 +415,10 @@ function client_addSslCert($domainId, $domainType)
 
         if ($certId == 0) {
             setPageMessage(tr('SSL certificate successfully scheduled for addition.'), 'success');
-            writeLog(sprintf('%s added a new SSL certificate for the %s domain', Application::getInstance()->getSession()['user_logged'], decodeIdna($domainName)), E_USER_NOTICE);
+            writeLog(sprintf('%s added a new SSL certificate for the %s domain', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), decodeIdna($domainName)), E_USER_NOTICE);
         } else {
             setPageMessage(tr('SSL certificate successfully scheduled for update.'), 'success');
-            writeLog(sprintf('%s updated an SSL certificate for the %s domain', Application::getInstance()->getSession()['user_logged'], $domainName), E_USER_NOTICE);
+            writeLog(sprintf('%s updated an SSL certificate for the %s domain', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $domainName), E_USER_NOTICE);
         }
 
         redirectTo("cert_view.php?id=$domainId&type=$domainType");
@@ -454,7 +456,7 @@ function client_deleteSslCert($domainId, $domainType)
 
         Daemon::sendRequest();
         setPageMessage(tr('SSL certificate successfully scheduled for deletion.'), 'success');
-        writeLog(sprintf('%s deleted SSL certificate for the %s domain.', Application::getInstance()->getSession()['user_logged'], decodeIdna($domainName)), E_USER_NOTICE);
+        writeLog(sprintf('%s deleted SSL certificate for the %s domain.', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), decodeIdna($domainName)), E_USER_NOTICE);
         redirectTo('domains_manage.php');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -549,6 +551,8 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
         }
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

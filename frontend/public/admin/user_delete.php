@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -98,7 +99,7 @@ function admin_deleteUser($userId)
 
         $userTr = $userType == 'reseller' ? tr('Reseller') : tr('Admin');
         setPageMessage(tr('%s account successfully deleted.', $userTr), 'success');
-        writeLog(Application::getInstance()->getSession()['user_logged'] . ": deletes user " . $userId, E_USER_NOTICE);
+        writeLog(Application::getInstance()->getAuthService()->getIdentity()->getUsername() . ": deletes user " . $userId, E_USER_NOTICE);
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         throw $e;
@@ -143,6 +144,8 @@ function admin_validateUserDeletion($userId)
     return true;
 }
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
@@ -156,21 +159,10 @@ if (isset($_GET['id'])) { # admin/reseller deletion
     try {
         deleteCustomer($userId) or View::showBadRequestErrorPage();
         setPageMessage(tr('Customer account successfully scheduled for deletion.'), 'success');
-        writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', Application::getInstance()->getSession()['user_logged'], $userId), E_USER_NOTICE);
+        writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $userId), E_USER_NOTICE);
     } catch (\Exception $e) {
-        if (($previous = $e->getPrevious()) && $previous instanceof iMSCP_Exception_Database) {
-            $queryMsgPart = ' Query was: ' . $previous->getQuery();
-        } elseif ($e instanceof iMSCP_Exception_Database) {
-            $queryMsgPart = ' Query was: ' . $e->getQuery();
-        } else {
-            $queryMsgPart = '';
-        }
-
-        setPageMessage(tr('Unable to schedule deletion of the customer account. Please consult admin logs or your mail for more information.'), 'error');
-        writeLog(
-            sprintf("System was unable to schedule deletion of customer account with ID %s. Message was: %s.", $userId, $e->getMessage() . $queryMsgPart),
-            E_USER_ERROR
-        );
+        setPageMessage(tr('Unable to schedule deletion of the customer account.'), 'error');
+        writeLog(sprintf("System was unable to schedule deletion of customer account with ID %s: %s.", $userId, $e->getMessage()), E_USER_ERROR);
     }
 }
 

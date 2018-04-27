@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -242,6 +243,8 @@ function generatePage(TemplateEngine $tpl)
     $tpl->assign('SERVER_STATS_BY_MONTH', '');
     generateServerStatsByDay($tpl, $day, $month, $year);
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

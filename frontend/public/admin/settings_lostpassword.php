@@ -24,6 +24,8 @@ use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
@@ -51,8 +53,9 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
         redirectTo('settings_lostpassword.php');
     }
 } else {
-    $activationEmailData = Mail::getLostpasswordActivationEmail(Application::getInstance()->getSession()['user_id']);
-    $passwordEmailData = Mail::getLostpasswordEmail(Application::getInstance()->getSession()['user_id']);
+    $userId = $identity = Application::getInstance()->getAuthService()->getIdentity()->getUserId();
+    $activationEmailData = Mail::getLostpasswordActivationEmail($userId);
+    $passwordEmailData = Mail::getLostpasswordEmail($userId);
 }
 
 $tpl = new TemplateEngine();

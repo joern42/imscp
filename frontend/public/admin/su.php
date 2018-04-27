@@ -23,7 +23,9 @@ namespace iMSCP;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 isset($_GET['id']) or View::showBadRequestErrorPage();
-Login::changeUserInterface(Application::getInstance()->getSession()['user_id'], intval($_GET['id']));
+Login::su(intval($_GET['id']));

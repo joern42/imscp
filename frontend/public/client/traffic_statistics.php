@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -65,7 +66,7 @@ function getUserTraffic($domainId, $startDate, $endDate)
  */
 function generatePage(TemplateEngine $tpl)
 {
-    $domainId = getCustomerMainDomainId(Application::getInstance()->getSession()['user_id']);
+    $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $month = isset($_GET['month']) ? filterDigits($_GET['month']) : date('n');
     $year = isset($_GET['year']) ? filterDigits($_GET['year']) : date('Y');
     $stmt = execQuery('SELECT dtraff_time FROM domain_traffic WHERE domain_id = ? ORDER BY dtraff_time ASC LIMIT 1', [$domainId]);
@@ -116,6 +117,8 @@ function generatePage(TemplateEngine $tpl)
     ]);
 
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

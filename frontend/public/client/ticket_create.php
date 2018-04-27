@@ -24,6 +24,8 @@ use iMSCP\Functions\Login;
 use iMSCP\Functions\Support;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('support') or View::showBadRequestErrorPage();
@@ -34,8 +36,8 @@ if (isset($_POST['uaction'])) {
     } elseif (empty($_POST['user_message'])) {
         setPageMessage(tr('Please type your message.'), 'error');
     } else {
-        $session = Application::getInstance()->getSession();
-        Support::createTicket($session['user_id'], $session['user_created_by'], $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 1);
+        $identity = Application::getInstance()->getAuthService()->getIdentity();
+        Support::createTicket($identity->getUserId(), $identity->getUserCreatedBy(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 1);
         redirectTo('ticket_system.php');
     }
 }

@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -134,6 +135,8 @@ function generatePage(TemplateEngine $tpl)
         $tpl->parse('FROM_ADMINISTRATOR_RESELLER_ITEM', '.from_administrator_reseller_item');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

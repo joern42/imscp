@@ -24,15 +24,18 @@ use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('protected_areas') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $id = intval($_GET['id']);
+$identity = Application::getInstance()->getAuthService()->getIdentity();
 $stmt = execQuery("UPDATE htaccess SET status = 'todelete' WHERE id = ? AND dmn_id = ? AND status = 'ok'", [
-    $id, getCustomerMainDomainId(Application::getInstance()->getSession()['user_id'])
+    $id, getCustomerMainDomainId($identity->getUserId())
 ]);
 $stmt->rowCount() or View::showBadRequestErrorPage();
 Daemon::sendRequest();
-writeLog(sprintf('%s deleted protected area with ID %s', Application::getInstance()->getSession()['user_logged'], $id), E_USER_NOTICE);
+writeLog(sprintf('%s deleted protected area with ID %s', $identity->getUsername(), $id), E_USER_NOTICE);
 setPageMessage(tr('Protected area successfully scheduled for deletion.'), 'success');
 redirectTo('protected_areas.php');

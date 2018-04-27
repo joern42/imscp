@@ -697,9 +697,10 @@ class Counting
         static $customerCount = NULL;
 
         if (NULL === $customerCount) {
-            $customerCount = execQuery("SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND created_by = ? AND admin_status <> 'todelete'", [
-                Application::getInstance()->getSession()['user_id']
-            ])->fetchColumn();
+            $customerCount = execQuery(
+                "SELECT COUNT(admin_id) FROM admin WHERE admin_type = 'user' AND created_by = ? AND admin_status <> 'todelete'",
+                [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
+            )->fetchColumn();
         }
 
         return $customerCount >= $minNbCustomers;

@@ -141,7 +141,9 @@ function addAccount()
     $passwdRepeat = cleanInput($_POST['password_repeat']);
     $homeDir = normalizePath('/' . cleanInput($_POST['home_dir']));
 
-    customerHasDomain($dmnName, Application::getInstance()->getSession()['user_id']) or View::showBadRequestErrorPage();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    
+    customerHasDomain($dmnName, $identity->getUserId()) or View::showBadRequestErrorPage();
 
     if (!validateUsername($username)) {
         setPageMessage(tr('Invalid FTP username.'), 'error');
@@ -164,9 +166,9 @@ function addAccount()
         return false;
     }
 
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties($identity->getUserId());
 
-    $vfs = new VirtualFileSystem(Application::getInstance()->getSession()['user_logged']);
+    $vfs = new VirtualFileSystem($identity->getUsername());
     if ($homeDir !== '/' && !$vfs->exists($homeDir, VirtualFileSystem::VFS_TYPE_DIR)) {
         setPageMessage(tr("Directory '%s' doesn't exist.", $homeDir), 'error');
         return false;
@@ -182,7 +184,7 @@ function addAccount()
             LEFT JOIN quotalimits AS t3 ON (t3.name = t1.admin_name)
             WHERE t1.admin_id = ?
         ',
-        [Application::getInstance()->getSession()['user_id']]
+        [$identity->getUserId()]
     );
     $row1 = $stmt->fetch();
 
@@ -207,7 +209,7 @@ function addAccount()
                     ?, ?, ?, ?, ?, '/bin/sh', ?, 'toadd'
                 )
             ",
-            [$username, Application::getInstance()->getSession()['user_id'], Crypt::sha512($passwd), $row1['admin_sys_uid'], $row1['admin_sys_gid'], $homeDir]
+            [$username, $identity->getUserId(), Crypt::sha512($passwd), $row1['admin_sys_uid'], $row1['admin_sys_gid'], $homeDir]
         );
         execQuery(
             "INSERT INTO ftp_group (groupname, gid, members) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE members = CONCAT(members, ',', ?)",
@@ -239,7 +241,7 @@ function addAccount()
 
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
-        writeLog(sprintf('A new FTP account (%s) has been created by %s', $username, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf('A new FTP account (%s) has been created by %s', $username, $identity->getUsername()), E_USER_NOTICE);
         setPageMessage(tr('FTP account successfully added.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -262,11 +264,12 @@ function addAccount()
  */
 function generatePage($tpl)
 {
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $mainDmnProps = getCustomerProperties($identity->getUserId());
 
     # Set parameters for the FTP chooser
     Application::getInstance()->getSession()['ftp_chooser_domain_id'] = $mainDmnProps['domain_id'];
-    Application::getInstance()->getSession()['ftp_chooser_user'] = Application::getInstance()->getSession()['user_logged'];
+    Application::getInstance()->getSession()['ftp_chooser_user'] = $identity->getUsername();
     Application::getInstance()->getSession()['ftp_chooser_root_dir'] = '/';
     Application::getInstance()->getSession()['ftp_chooser_hidden_dirs'] = [];
     Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
@@ -293,11 +296,14 @@ function generatePage($tpl)
     }
 }
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('ftp') or View::showBadRequestErrorPage();
 
-$mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+$mainDmnProps = getCustomerProperties($identity->getUserId());
 
 if (isXhr() && isset($_POST['domain_type'])) {
     echo json_encode(getDomainList($mainDmnProps['domain_name'], $mainDmnProps['domain_id'], cleanInput($_POST['domain_type'])));
@@ -305,7 +311,7 @@ if (isXhr() && isset($_POST['domain_type'])) {
 }
 
 if (!empty($_POST)) {
-    $nbFtpAccounts = Counting::getCustomerFtpUsersCount(Application::getInstance()->getSession()['user_id']);
+    $nbFtpAccounts = Counting::getCustomerFtpUsersCount($identity->getUserId());
 
     if ($mainDmnProps['domain_ftpacc_limit'] && $nbFtpAccounts >= $mainDmnProps['domain_ftpacc_limit']) {
         setPageMessage(tr('FTP account limit reached.'), 'error');

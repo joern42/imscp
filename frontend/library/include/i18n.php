@@ -251,10 +251,9 @@ function changeDefaultLanguage(): bool
 
     // Ensures language change on next load for current user in case he has not yet his frontend properties explicitly
     // set (eg. for the first admin user when i-MSCP was just installed
-    $session = Application::getInstance()->getSession();
-    $stmt = execQuery('SELECT lang FROM user_gui_props WHERE user_id = ?', [$session['user_id']]);
+    $stmt = execQuery('SELECT lang FROM user_gui_props WHERE user_id = ?', [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]);
     if ($stmt->fetchColumn() == NULL) {
-        unset($session['user_def_lang']);
+        unset(Application::getInstance()->getSession()['user_def_lang']);
     }
 
     return true;

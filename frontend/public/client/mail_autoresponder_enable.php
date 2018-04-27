@@ -19,9 +19,10 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
+use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 
 /**
@@ -46,7 +47,11 @@ function checkMailAccount($mailAccountId)
             WHERE t1.mail_id = ? AND t2.domain_admin_id = ? AND t1.mail_type NOT RLIKE ? AND t1.status = 'ok'
             AND t1.mail_auto_respond = 0
         ",
-        [$mailAccountId, Application::getInstance()->getSession()['user_id'], Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL]
+        [
+            $mailAccountId,
+            Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
+            Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL
+        ]
     )->fetchColumn();
 }
 
@@ -68,7 +73,7 @@ function activateAutoresponder($mailAccountId, $autoresponderMessage)
         $autoresponderMessage, $mailAccountId
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('A mail autoresponder has been activated by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('A mail autoresponder has been activated by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     setPageMessage(tr('Autoresponder has been activated.'), 'success');
 }
 
@@ -85,6 +90,8 @@ function generatePage($tpl, $mailAccountId)
     $row = $stmt->fetch();
     $tpl->assign('AUTORESPONDER_MESSAGE', toHtml($row['mail_auto_respond_text']));
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

@@ -72,6 +72,8 @@ function admin_generatePage(TemplateEngine $tpl)
     }
 }
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 stripos(Application::getInstance()->getConfig()['Version'], 'git') === false or View::showBadRequestErrorPage();

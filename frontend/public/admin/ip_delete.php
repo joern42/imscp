@@ -24,6 +24,8 @@ use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 isset($_GET['id']) or View::showBadRequestErrorPage();
@@ -61,6 +63,9 @@ Application::getInstance()->getEventManager()->trigger(Events::onDeleteIpAddr, N
 ]);
 execQuery("UPDATE server_ips SET ip_status = 'todelete' WHERE ip_id = ?", $row['ip_id']);
 Daemon::sendRequest();
-writeLog(sprintf("The %s IP address has been deleted by %s", $row['ip_number'], Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+writeLog(sprintf(
+    "The %s IP address has been deleted by %s", $row['ip_number'], Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+    E_USER_NOTICE
+);
 setPageMessage(tr('IP address successfully scheduled for deletion.'), 'success');
 redirectTo('ip_manage.php');

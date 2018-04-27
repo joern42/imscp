@@ -119,7 +119,7 @@
         <td>{CLIENT_EXPIRY_DATE}</td>
         <td>
             <a class="icon i_identity" href="account_details.php?id={CLIENT_ID}" title="<?= toHtml(tr('Customer account details'), 'htmlAttr'); ?>"><?= toHtml(tr('Details')); ?></a>
-            <a class="icon i_details" href="change_user_interface.php?id={CLIENT_ID}" title="<?= toHtml(tr('Switch to customer interface'), 'htmlAttr'); ?>"><?= toHtml(tr('Switch')); ?></a>
+            <a class="icon i_details" href="su.php?id={CLIENT_ID}" title="<?= toHtml(tr('Switch to customer interface'), 'htmlAttr'); ?>"><?= toHtml(tr('Switch')); ?></a>
             <a class="icon i_user" href="user_edit.php?id={CLIENT_ID}" title="<?= toHtml(tr('Edit this user account'), 'htmlAttr'); ?>"><?= toHtml(tr('Edit')); ?></a>
             <!-- BDP: client_restricted_links -->
 <? if($_SESSION['user_type'] == 'reseller'): ?>

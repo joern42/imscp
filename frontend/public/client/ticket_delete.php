@@ -24,11 +24,14 @@ use iMSCP\Functions\Login;
 use iMSCP\Functions\Support;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('support') or View::showBadRequestErrorPage();
 
-$userId = Application::getInstance()->getSession()['user_id'];
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+$userId = $identity->getUserId();
 $previousPage = 'ticket_system';
 
 if (isset($_GET['ticket_id'])) {
@@ -47,15 +50,15 @@ if (isset($_GET['ticket_id'])) {
 
     Support::deleteTicket($ticketId);
     setPageMessage(tr('Ticket successfully deleted.'), 'success');
-    writeLog(sprintf("%s: deleted ticket %d", Application::getInstance()->getSession()['user_logged'], $ticketId), E_USER_NOTICE);
+    writeLog(sprintf('%s: deleted ticket %d', $identity->getUsername(), $ticketId), E_USER_NOTICE);
 } elseif (isset($_GET['delete']) && $_GET['delete'] == 'open') {
     Support::deleteTickets('open', $userId);
     setPageMessage(tr('All open tickets were successfully deleted.'), 'success');
-    writeLog(sprintf("%s: deleted all open tickets.", Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('%s: deleted all open tickets.', $identity->getUsername()), E_USER_NOTICE);
 } elseif (isset($_GET['delete']) && $_GET['delete'] == 'closed') {
     Support::deleteTickets('closed', $userId);
     setPageMessage(tr('All closed tickets were successfully deleted.'), 'success');
-    writeLog(sprintf("%s: deleted all closed tickets.", Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+    writeLog(sprintf('%s: deleted all closed tickets.', $identity->getUsername()), E_USER_NOTICE);
     $previousPage = 'ticket_closed';
 } else {
     setPageMessage(tr('Unknown action requested.'), 'error');

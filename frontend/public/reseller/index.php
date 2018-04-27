@@ -36,7 +36,7 @@ function generateSupportQuestionsMessage()
 {
     $ticketsCount = execQuery(
         'SELECT count(ticket_id) FROM tickets WHERE ticket_to = ? AND ticket_status IN (1, 4) AND ticket_reply = 0', [
-            Application::getInstance()->getSession()['user_id']
+            Application::getInstance()->getAuthService()->getIdentity()->getUserId()
     ])->fetchColumn();
 
     if ($ticketsCount > 0) {
@@ -60,7 +60,7 @@ function generateOrdersAliasesMessage()
             WHERE alias_status = 'ordered'
             AND created_by = ?
         ",
-        [Application::getInstance()->getSession()['user_id']]
+        [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     )->fetchColumn();
 
     if ($countAliasOrders > 0) {
@@ -131,10 +131,10 @@ function generatePage($tpl, $resellerId, $resellerName)
     $ftpUsersCount = Counting::getResellerFtpUsersCount($resellerId);
     $sqlDatabasesCount = Counting::getResellerSqlDatabasesCount($resellerId);
     $sqlUsersCount = Counting::getResellerSqlUsersCount($resellerId);
-
-    $domainIds = execQuery(
-        'SELECT domain_id FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [Application::getInstance()->getSession()['user_id']]
-    )->fetchAll(\PDO::FETCH_COLUMN);
+    
+    $domainIds = execQuery('SELECT domain_id FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [
+        $resellerId
+    ])->fetchAll(\PDO::FETCH_COLUMN);
 
     $totalConsumedMonthlyTraffic = 0;
 
@@ -182,7 +182,7 @@ function generatePage($tpl, $resellerId, $resellerName)
             JOIN admin AS t2 ON(t2.admin_id = t1.domain_admin_id)
             WHERE created_by = ?
         ',
-        [Application::getInstance()->getSession()['user_id']]
+        [$resellerId]
     )->fetchColumn();
     $diskUsageLimit = $resellerProperties['max_disk_amnt'] * 1048576;
     generateDiskUsageBar($tpl, $totalDiskUsage, $diskUsageLimit);
@@ -237,6 +237,8 @@ function generatePage($tpl, $resellerId, $resellerName)
     ]);
 }
 
+require 'application.php';
+
 Login::checkLogin('reseller', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_RESELLER']);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
@@ -250,7 +252,8 @@ $tpl->define([
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Reseller / General / Overview')));
 View::generateNavigation($tpl);
-generatePage($tpl, Application::getInstance()->getSession()['user_id'], Application::getInstance()->getSession()['user_logged']);
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+generatePage($tpl, $identity->getUserId(), $identity->getUsername());
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);

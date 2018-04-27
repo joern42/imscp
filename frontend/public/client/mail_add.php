@@ -37,7 +37,7 @@ function getDomainsList()
     static $domainsList = NULL;
 
     if (NULL === $domainsList) {
-        $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+        $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
         $domainsList = [[
             'name' => $mainDmnProps['domain_name'],
             'id'   => $mainDmnProps['domain_id'],
@@ -87,7 +87,9 @@ function addMailAccount()
         View::showBadRequestErrorPage();
     }
 
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    
+    $mainDmnProps = getCustomerProperties($identity->getUserId());
     $password = $forwardList = '_no_';
     $mailType = $subId = '';
     $mailTypeNormal = in_array($_POST['account_type'], ['1', '3']);
@@ -273,7 +275,7 @@ function addMailAccount()
             'mailAddress'  => $mailAddr
         ]);
         Daemon::sendRequest();
-        writeLog(sprintf('A mail account has been added by %s', Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf('A mail account has been added by %s', $identity->getUsername()), E_USER_NOTICE);
         setPageMessage(tr('Mail account successfully scheduled for addition.'), 'success');
     } catch (\Exception $e) {
         if ($e->getCode() == 23000) {
@@ -292,7 +294,7 @@ function addMailAccount()
  */
 function generatePage($tpl)
 {
-    $mainDmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     $customerMailboxesQuotaSumBytes = execQuery('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE domain_id = ?', [
         $mainDmnProps['domain_id']
     ])->fetchColumn();
@@ -337,9 +339,9 @@ function generatePage($tpl)
 
     $tpl->assign([
         'USERNAME'               => isset($_POST['username']) ? toHtml($_POST['username']) : '',
-        'NORMAL_CHECKED'         => ($mailType == '1') ? ' checked' : '',
-        'FORWARD_CHECKED'        => ($mailType == '2') ? ' checked' : '',
-        'NORMAL_FORWARD_CHECKED' => ($mailType == '3') ? ' checked' : '',
+        'NORMAL_CHECKED'         => $mailType == '1' ? ' checked' : '',
+        'FORWARD_CHECKED'        => $mailType == '2' ? ' checked' : '',
+        'NORMAL_FORWARD_CHECKED' => $mailType == '3' ? ' checked' : '',
         'FORWARD_LIST'           => isset($_POST['forward_list']) ? toHtml($_POST['forward_list']) : '',
     ]);
 
@@ -360,11 +362,13 @@ function generatePage($tpl)
     );
 }
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('mail') or View::showBadRequestErrorPage();
 
-$dmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+$dmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 $emailAccountsLimit = $dmnProps['domain_mailacc_limit'];
 
 if ($emailAccountsLimit != '0') {

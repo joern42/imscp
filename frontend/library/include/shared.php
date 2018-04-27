@@ -361,10 +361,10 @@ function changeDomainStatus($customerId, $action)
         \iMSCP\Functions\Daemon::sendRequest();
 
         if ($action == 'deactivate') {
-            writeLog(sprintf('%s: scheduled deactivation of customer account: %s', Application::getInstance()->getSession()['user_logged'], $adminName), E_USER_NOTICE);
+            writeLog(sprintf('%s: scheduled deactivation of customer account: %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $adminName), E_USER_NOTICE);
             setPageMessage(tr('Customer account successfully scheduled for deactivation.'), 'success');
         } else {
-            writeLog(sprintf('%s: scheduled activation of customer account: %s', Application::getInstance()->getSession()['user_logged'], $adminName), E_USER_NOTICE);
+            writeLog(sprintf('%s: scheduled activation of customer account: %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $adminName), E_USER_NOTICE);
             setPageMessage(tr('Customer account successfully scheduled for activation.'), 'success');
         }
     } catch (\Exception $e) {
@@ -484,7 +484,7 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
 
     if ($checkCreatedBy) {
         $query .= ' AND created_by = ?';
-        $stmt = execQuery($query, [$customerId, Application::getInstance()->getSession()['user_id']]);
+        $stmt = execQuery($query, [$customerId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]);
     } else {
         $stmt = execQuery($query, [$customerId]);
     }
@@ -753,7 +753,7 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
         $db->getDriver()->getConnection()->commit();
 
         \iMSCP\Functions\Daemon::sendRequest();
-        writeLog(sprintf('%s scheduled deletion of the %s domain alias', Application::getInstance()->getSession()['user_logged'], $aliasName), E_USER_NOTICE);
+        writeLog(sprintf('%s scheduled deletion of the %s domain alias', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $aliasName), E_USER_NOTICE);
         setPageMessage(tr('Domain alias successfully scheduled for deletion.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -1503,7 +1503,7 @@ function unsetMessages()
     );
 
     $session = Application::getInstance()->getSession();
-    $session->exchangeArray(array_diff_key($session, array_fill_keys(
+    $session->exchangeArray(array_diff_key($session->getArrayCopy(), array_fill_keys(
         [
             'dmn_name', 'dmn_tpl', 'chtpl', 'step_one', 'step_two_data', 'ch_hpprops', 'local_data', 'dmn_expire', 'dmn_url_forward',
             'dmn_type_forward', 'dmn_host_forward'
@@ -1906,8 +1906,8 @@ function resellerHasFeature(string $featureName, bool $forceReload = false): boo
     $featureName = strtolower($featureName);
 
     if (NULL == $availableFeatures || $forceReload) {
-        $cfg = Application::getInstance()->getConfig();
-        $resellerProps = getResellerProperties(Application::getInstance()->getSession()['user_id']);
+        $config = Application::getInstance()->getConfig();
+        $resellerProps = getResellerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
         $availableFeatures = [
             'domains'            => $resellerProps['max_dmn_cnt'] != '-1',
             'subdomains'         => $resellerProps['max_sub_cnt'] != '-1',
@@ -1920,10 +1920,10 @@ function resellerHasFeature(string $featureName, bool $forceReload = false): boo
             'php'                => true,
             'php_editor'         => $resellerProps['php_ini_system'] == 'yes',
             'cgi'                => true,
-            'custom_dns_records' => $cfg['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+            'custom_dns_records' => $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
             'external_mail'      => true,
-            'backup'             => $cfg['BACKUP_DOMAINS'] != 'no',
-            'support'            => $cfg['IMSCP_SUPPORT_SYSTEM'] && $resellerProps['support_system'] == 'yes'
+            'backup'             => $config['BACKUP_DOMAINS'] != 'no',
+            'support'            => $config['IMSCP_SUPPORT_SYSTEM'] && $resellerProps['support_system'] == 'yes'
         ];
     }
 
@@ -1947,10 +1947,10 @@ function customerHasFeature(string $featureNames, bool $forceReload = false): bo
     static $debug = false;
 
     if (NULL === $availableFeatures || $forceReload) {
-        $session = Application::getInstance()->getSession();
-        $cfg = Application::getInstance()->getConfig();
-        $debug = (bool)$cfg['DEBUG'];
-        $dmnProps = getCustomerProperties($session['user_id']);
+        $identity = Application::getInstance()->getAuthService()->getIdentity();
+        $config = Application::getInstance()->getConfig();
+        $debug = (bool)$config['DEBUG'];
+        $dmnProps = getCustomerProperties($identity->getUserId());
         $availableFeatures = [
             /*'domain' => ($dmnProps['domain_alias_limit'] != '-1'
                 || $dmnProps['domain_subd_limit'] != '-1'
@@ -1968,16 +1968,16 @@ function customerHasFeature(string $featureNames, bool $forceReload = false): bo
             'mail'               => $dmnProps['domain_mailacc_limit'] != '-1',
             'subdomains'         => $dmnProps['domain_subd_limit'] != '-1',
             'domain_aliases'     => $dmnProps['domain_alias_limit'] != '-1',
-            'custom_dns_records' => $dmnProps['domain_dns'] != 'no' && $cfg['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
-            'webstats'           => $cfg['WEBSTATS'] != 'no',
-            'backup'             => $cfg['BACKUP_DOMAINS'] != 'no' && $dmnProps['allowbackup'] != '',
+            'custom_dns_records' => $dmnProps['domain_dns'] != 'no' && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+            'webstats'           => $config['WEBSTATS'] != 'no',
+            'backup'             => $config['BACKUP_DOMAINS'] != 'no' && $dmnProps['allowbackup'] != '',
             'protected_areas'    => true,
             'custom_error_pages' => true,
-            'ssl'                => $cfg['ENABLE_SSL'] == 1
+            'ssl'                => $config['ENABLE_SSL'] == 1
         ];
 
-        if ($cfg['IMSCP_SUPPORT_SYSTEM']) {
-            $stmt = execQuery('SELECT support_system FROM reseller_props WHERE reseller_id = ?', [$session['user_created_by']]);
+        if ($config['IMSCP_SUPPORT_SYSTEM']) {
+            $stmt = execQuery('SELECT support_system FROM reseller_props WHERE reseller_id = ?', [$identity->getUserCreatedBy()]);
             $availableFeatures['support'] = $stmt->fetchColumn() == 'yes';
         } else {
             $availableFeatures['support'] = false;
@@ -2239,7 +2239,7 @@ function deleteSubdomain(int $id): void
     ignore_user_abort(true);
     set_time_limit(0);
 
-    $session = Application::getInstance()->getSession();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     $stmt = execQuery(
         "
@@ -2249,7 +2249,7 @@ function deleteSubdomain(int $id): void
             WHERE t1.subdomain_id = ?
             AND t2.domain_admin_id = ?
         ",
-        [$id, $session['user_id']]
+        [$id, $identity->getUserId()]
     );
     $stmt->rowCount() or \iMSCP\Functions\View::showBadRequestErrorPage();
     $row = $stmt->fetch();
@@ -2315,8 +2315,7 @@ function deleteSubdomain(int $id): void
         \iMSCP\Functions\Daemon::sendRequest();
         writeLog(
             sprintf(
-                'Deletion of the %s subdomain has been scheduled by %s', decodeIdna($row['subdomain_alias_name']),
-                decodeIdna($session['user_logged'])
+                'Deletion of the %s subdomain has been scheduled by %s', decodeIdna($row['subdomain_alias_name']), decodeIdna($identity->getUsername())
             ),
             E_USER_NOTICE
         );
@@ -2339,8 +2338,8 @@ function deleteSubdomainAlias(int $id): void
     ignore_user_abort(true);
     set_time_limit(0);
 
-    $session = Application::getInstance()->getSession();
-    $domainId = getCustomerMainDomainId($session['user_id']);
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $domainId = getCustomerMainDomainId($identity->getUserId());
     $stmt = execQuery(
         "
             SELECT CONCAT(t1.subdomain_alias_name, '.', t2.alias_name) AS subdomain_alias_name, t1.subdomain_alias_mount
@@ -2420,7 +2419,7 @@ function deleteSubdomainAlias(int $id): void
         \iMSCP\Functions\Daemon::sendRequest();
         writeLog(
             sprintf(
-                'Deletion of the %s subdomain has been scheduled by %s', decodeIdna($row['subdomain_alias_name']), decodeIdna($session['user_logged'])
+                'Deletion of the %s subdomain has been scheduled by %s', decodeIdna($row['subdomain_alias_name']), decodeIdna($identity->getUsername())
             ),
             E_USER_NOTICE
         );
@@ -2440,7 +2439,7 @@ function deleteSubdomainAlias(int $id): void
  */
 function customerSqlDbLimitIsReached(): bool
 {
-    $domainProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $domainProps = getCustomerProperties($identity = Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     if ($domainProps['domain_sqld_limit'] == 0
         || \iMSCP\Functions\Counting::getCustomerSqlDatabasesCount($domainProps['domain_id']) < $domainProps['domain_sqld_limit']
     ) {

@@ -24,6 +24,8 @@ use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
@@ -56,7 +58,7 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'email_setup') {
     }
 }
 
-$data = Mail::getWelcomeEmail(Application::getInstance()->getSession()['user_id']);
+$data = Mail::getWelcomeEmail(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
 $tpl->assign([
     'TR_PAGE_TITLE'               => toHtml(tr('Admin / Settings / Welcome Email')),

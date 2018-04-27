@@ -20,7 +20,6 @@
 
 namespace iMSCP;
 
-use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
@@ -34,37 +33,43 @@ function kill_session()
     if (isset($_GET['kill']) && $_GET['kill'] !== '' && isset($_GET['username'])) {
         $username = cleanInput($_GET['username']);
         $sessionId = cleanInput($_GET['kill']);
+
+        $session = Application::getInstance()->getSession();
+
         // Getting current session id
-        $currentSessionId = session_id();
+        $currentSessionId = $session->getManager()->getId();
 
         // Close current session
-        session_write_close();
+        $session->getManager()->writeClose();
 
         // Switch to session to handle
-        session_id($sessionId);
-        session_start();
+        $session->getManager()->setId($sessionId);
+        $session->getManager()->start();
 
         if (isset($_GET['logout_only'])) {
-            AuthenticationService::getInstance()->unsetIdentity();
-            session_write_close();
+            Application::getInstance()->getAuthService()->clearIdentity();
+            $session->getManager()->writeClose();
             $message = tr('User successfully disconnected.');
         } else {
-            AuthenticationService::getInstance()->unsetIdentity();
-            session_destroy();
+            Application::getInstance()->getAuthService()->clearIdentity();
+            $session->getManager()->destroy();
             $message = tr('User session successfully destroyed.');
         }
 
-        session_id($currentSessionId);
-        session_start();
+        $session->getManager()->setId($currentSessionId);
+        $session->getManager()->start();
         setPageMessage($message, 'success');
-        writeLog(sprintf('The session of the %s user has been disconnected/destroyed by %s', $username, Application::getInstance()->getSession()['user_logged']), E_USER_NOTICE);
+        writeLog(sprintf(
+            'The session of the %s user has been destroyed by %s', $username, Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+            E_USER_NOTICE
+        );
     } elseif (isset($_GET['own'])) {
         setPageMessage(tr("You are not allowed to act on your own session."), 'warning');
     }
 }
 
 /**
- * Generates users sessoion list.
+ * Generates users sessoion list
  *
  * @param TemplateEngine $tpl Template engine
  * @return void
@@ -86,7 +91,8 @@ function client_generatePage($tpl)
         } else {
             $tpl->assign([
                 'ADMIN_USERNAME' => $username
-                    . (($username == Application::getInstance()->getSession()['user_logged'] && $currentUserSessionId !== $sessionId) ? ' (' . tr('from other browser') . ')' : ''),
+                    . (($username == Application::getInstance()->getAuthService()->getIdentity()->getUsername() && $currentUserSessionId !== $sessionId)
+                        ? ' (' . tr('from other browser') . ')' : ''),
                 'LOGIN_TIME'     => date('G:i:s', $row['lastaccess'])
             ]);
         }
@@ -106,6 +112,8 @@ function client_generatePage($tpl)
         $tpl->parse('USER_SESSION', '.user_session');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);

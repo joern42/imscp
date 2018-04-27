@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -67,9 +68,16 @@ function getUserTraffic($domainId, $startDate, $endDate)
 function generatePage(TemplateEngine $tpl)
 {
     $userId = intval($_GET['user_id']);
-    $stmt = execQuery('SELECT admin_name, domain_id FROM admin JOIN domain ON(domain_admin_id = admin_id) WHERE admin_id = ? AND created_by = ?', [
-        $userId, Application::getInstance()->getSession()['user_id']
-    ]);
+    $stmt = execQuery(
+        '
+            SELECT t1.admin_name, t2.domain_id
+            FROM admin AS t1
+            JOIN domain AS t2 ON(t2.domain_admin_id = t1.admin_id)
+            WHERE t1.admin_id = ?
+            AND t1.created_by = ?
+        ',
+        [$userId, Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
+    );
     $stmt->rowCount() or View::showBadRequestErrorPage();
     $row = $stmt->fetch();
     $domainId = $row['domain_id'];
@@ -129,6 +137,8 @@ function generatePage(TemplateEngine $tpl)
         'ALL_ALL_TRAFFIC'  => toHtml(bytesHuman(array_sum($all)))
     ]);
 }
+
+require 'application.php';
 
 Login::checkLogin('reseller');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);

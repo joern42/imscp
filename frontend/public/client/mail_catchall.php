@@ -19,6 +19,7 @@
  */
 
 namespace iMSCP;
+
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
@@ -82,7 +83,7 @@ function generateCatchallItem($tpl, $domainName, $mailId, $mailAcc, $domainId, $
  */
 function generatePage($tpl)
 {
-    $dmnProps = getCustomerProperties(Application::getInstance()->getSession()['user_id']);
+    $dmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     // Normal catch-all account
 
@@ -183,6 +184,8 @@ function generatePage($tpl)
         $tpl->parse('CATCHALL_ITEM', '.catchall_item');
     }
 }
+
+require 'application.php';
 
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);

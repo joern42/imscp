@@ -513,6 +513,8 @@ function updatePluginList(PluginManager $pluginManager)
     );
 }
 
+require 'application.php';
+
 Login::checkLogin('admin');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 

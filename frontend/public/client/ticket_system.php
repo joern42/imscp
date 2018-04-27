@@ -24,6 +24,8 @@ use iMSCP\Functions\Login;
 use iMSCP\Functions\Support;
 use iMSCP\Functions\View;
 
+require 'application.php';
+
 Login::checkLogin('user');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 customerHasFeature('support') or View::showBadRequestErrorPage();
@@ -69,7 +71,12 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 Support::generateTicketList(
-    $tpl, Application::getInstance()->getSession()['user_id'], $start, Application::getInstance()->getConfig()['DOMAIN_ROWS_PER_PAGE'], 'client', 'open'
+    $tpl,
+    Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
+    $start,
+    Application::getInstance()->getConfig()['DOMAIN_ROWS_PER_PAGE'],
+    'client',
+    'open'
 );
 generatePageMessage($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
