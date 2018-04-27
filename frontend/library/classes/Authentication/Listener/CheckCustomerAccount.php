@@ -20,6 +20,7 @@
 
 namespace iMSCP\Authentication\Listener;
 
+use iMSCP\Application;
 use iMSCP\Authentication\AuthEvent;
 use iMSCP\Authentication\AuthResult;
 
@@ -48,17 +49,17 @@ class CheckCustomerAccount implements AuthenticationListenerInterface
             return;
         }
 
-        $stmt = execQuery(
+        $stmt = Application::getInstance()->getDb()->createStatement(
             '
                 SELECT t1.domain_expires, t1.domain_status, t2.admin_status
                 FROM domain AS t1
                 JOIN admin AS t2. ON(t2.admin_id = t2.domain_admin_id)
                 WHERE domain_admin_id = ?
-            ',
-            [$identity->getUserId()]
+            '
         );
+        $result = $stmt->execute([$identity->getUserId()])->getResource();
 
-        if (!$stmt->rowCount()) {
+        if (!$result->rowCount()) {
             writeLog(sprintf('Account data not found in database for the %s user', $identity->getUsername()), E_USER_ERROR);
             $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE, $identity, [
                 tr('An unexpected error occurred. Please contact your reseller.')
@@ -66,7 +67,7 @@ class CheckCustomerAccount implements AuthenticationListenerInterface
             return;
         }
 
-        $row = $stmt->fetch();
+        $row = $result->fetch();
 
         if ($row['admin_status'] == 'disabled' || $row['domain_status'] == 'disabled') {
             $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, $identity, [

@@ -65,9 +65,9 @@ class CheckCredentials implements AuthenticationListenerInterface
             return;
         }
 
-        $db = Application::getInstance()->getDb();
-        $stmt = $db->createStatement('SELECT admin_id, admin_name, admin_pass, admin_type, email, created_by FROM admin WHERE admin_name = ?');
-        $stmt->prepare();
+        $stmt = Application::getInstance()->getDb()->createStatement(
+            'SELECT admin_id, admin_name, admin_pass, admin_type, email, created_by FROM admin WHERE admin_name = ?'
+        );
         $result = $stmt->execute([$username]);
 
         if ($result instanceof ResultInterface && $result->isQueryResult()) {
@@ -103,7 +103,6 @@ class CheckCredentials implements AuthenticationListenerInterface
                         $stmt = Application::getInstance()->getDb()->createStatement(
                             'UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?'
                         );
-                        $stmt->prepare();
                         $stmt->execute([Crypt::bcrypt($password), $identity->getUserType() == 'user' ? 'tochangepwd' : 'ok', $identity->getUserId()]);
                         writeLog(sprintf('Password hash for user %s has been updated using Bcrypt algorithm', $identity->getUsername()), E_USER_NOTICE);
                         $identity->getUserType() != 'user' or Daemon::sendRequest();

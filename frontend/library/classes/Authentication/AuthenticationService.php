@@ -259,10 +259,10 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     }
 
     /**
-     * Redirect to user UI, that is, the interface of the logged-in user, out of any SU identity consideration
+     * Redirect to user UI
      *
      * Redirect the current logged-in user onto his interface, out of any SU
-     * identity consideration. If no identity is found, redirect to login page.
+     * identity consideration. If no identity is found, show a Bad Request error page.
      *
      * @return void
      */
