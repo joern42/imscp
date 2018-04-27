@@ -20,7 +20,6 @@
 
 namespace iMSCP\Authentication;
 
-use Zend\Authentication\Result as AuthResult;
 use Zend\EventManager\Event;
 
 /**
