@@ -65,7 +65,7 @@ class SessionHandler extends \SessionHandler implements SaveHandlerInterface
         try {
             Application::getInstance()->getDb()->createStatement('DELETE FROM login WHERE session_id = ?')->execute([$session_id]);
         } catch (\Throwable $e) {
-            writeLog(sprintf("Couldn't remove %s session identifier from database: %s", $session_id, $e->getMessage()));
+            writeLog(sprintf("Couldn't remove '%s' session data from database: %s", $session_id, $e->getMessage()));
         }
 
         return parent::destroy($session_id);
@@ -77,13 +77,13 @@ class SessionHandler extends \SessionHandler implements SaveHandlerInterface
     public function gc($maxlifetime)
     {
         try {
-            // We need discard rows for wich user_name field is empty as this denote data stored by 3rd-party components such as
-            // the Bruteforce plugin.
+            // We need ignore rows for which 'user_name' field is empty as this denote
+            // data stored by 3rd-party components such as the Bruteforce plugin.
             Application::getInstance()->getDb()->createStatement('DELETE FROM login WHERE lastaccess < ? AND user_name IS NOT NULL')->execute(
                 [$maxlifetime]
             );
         } catch (\Throwable $e) {
-            writeLog(sprintf("Couldn't cleanup old session in database: %s", $e->getMessage()));
+            writeLog(sprintf("Couldn't cleanup old session data in database: %s", $e->getMessage()));
         }
 
         return parent::gc($maxlifetime);
