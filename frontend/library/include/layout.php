@@ -511,26 +511,40 @@ function isUserLogo($logoPath)
  */
 function loadNavigation()
 {
-    $session = Application::getInstance()->getSession();
-
-    if (!isset($session['user_type'])) {
+    if (!Application::getInstance()->getAuthService()->hasIdentity()) {
         return;
     }
 
-    switch ($session['user_type']) {
+    switch (Application::getInstance()->getAuthService()->getIdentity()->getUserType()) {
         case 'admin':
             $userLevel = 'admin';
             break;
         case 'reseller':
             $userLevel = 'reseller';
             break;
-        default:
+        case 'user':
             $userLevel = 'client';
+            break;
+        default:
+            \iMSCP\Functions\View::showBadRequestErrorPage();
+            exit;
     }
 
-    Application::getInstance()->getRegistry()->set(
-        'navigation', new Navigation(include(Application::getInstance()->getConfig()['ROOT_TEMPLATE_PATH'] . "/$userLevel/navigation.php"))
-    );
+    $pages = include(Application::getInstance()->getConfig()['ROOT_TEMPLATE_PATH'] . "/$userLevel/navigation.php");
+
+    // Inject Request object into all pages recursively
+    $requestInjector = function (&$pages, $request) use (&$requestInjector) {
+        foreach ($pages as &$page) {
+            $page['request'] = $request;
+            if (isset($page['pages'])) {
+                $page['pages'] = $requestInjector($page['pages'], $request);
+            }
+        }
+        return $pages;
+    };
+
+    $requestInjector($pages, Application::getInstance()->getRequest());
+    Application::getInstance()->getRegistry()->set('navigation', new Navigation($pages));
 
     // Set main menu labels visibility for the current environment
     Application::getInstance()->getEventManager()->attach(Events::onBeforeGenerateNavigation, 'setMainMenuLabelsVisibilityEvt');
