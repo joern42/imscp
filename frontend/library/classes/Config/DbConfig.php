@@ -127,8 +127,11 @@ class DbConfig extends \ArrayObject
                 $this->updateStmt->prepare();
             }
 
-            $this->updateStmt->execute([$value, $key]);
-            $this->updateQueriesCounter++;
+            $result = $this->updateStmt->execute([$value, $key]);
+
+            if (count($result)) {
+                $this->updateQueriesCounter++;
+            }
         }
 
         parent::offsetSet($key, $value);
@@ -148,8 +151,11 @@ class DbConfig extends \ArrayObject
             $this->deleteStmt->prepare();
         }
 
-        $this->deleteStmt->execute([$key]);
-        $this->deleteQueriesCounter++;
+        $result = $this->deleteStmt->execute([$key]);
+
+        if (count($result)) {
+            $this->deleteQueriesCounter++;
+        }
 
         if ($this->offsetExists($key)) { // Avoid notice for undefined index...
             parent::offsetUnset($key);
