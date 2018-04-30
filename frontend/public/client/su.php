@@ -20,10 +20,24 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Model\SuIdentityInterface;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Login::su($_GET['id'] ?? NULL);
+Application::getInstance()->getAuthService()->su(Application::getInstance()->getRequest()->getQuery('id'));
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+
+if (Application::getInstance()->getRequest()->getQuery('id')) {
+    $log = sprintf("%s switched onto %s's interface", $identity->getSuUsername(), $identity->getUsername());
+} elseif ($identity instanceof SuIdentityInterface) {
+    $log = sprintf("%s switched back onto %s's interface", $identity->getSuUsername(), $identity->getUsername());
+} else {
+    $log = sprintf("%s switched back onto it interface", $identity->getUsername());
+}
+
+writeLog($log, E_USER_NOTICE);
+unsetMessages();
+Application::getInstance()->getAuthService()->redirectToUserUi('users.php');

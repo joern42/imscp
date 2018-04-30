@@ -91,7 +91,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
                 || ($identity->getSuUserType() != self::ADMIN_CHECK_AUTH_TYPE && !($identity->getSuIdentity() instanceof SuIdentityInterface))))
         ) {
             $this->clearIdentity();
-            setPageMessage(tr('You have been automatically disconnected due to maintenance task.'), 'info');
+            View::setPageMessage(tr('You have been automatically disconnected due to maintenance task.'), 'info');
             redirectTo('/index.php');
         }
 
@@ -260,9 +260,10 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
      * Redirect the current logged-in user onto his interface, out of any SU
      * identity consideration. Return early if no identity is found.
      *
+     * @param string $location Location to which redirect, relative to current user's interface
      * @return void
      */
-    public function redirectToUserUi(): void
+    public function redirectToUserUi(string $location = 'index.php'): void
     {
         $authService = Application::getInstance()->getAuthService();
         if (!$authService->hasIdentity()) {
@@ -284,6 +285,6 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
                 exit;
         }
 
-        redirectTo('/' . $userType . '/index.php');
+        redirectTo('/' . $userType . '/' . $location);
     }
 }

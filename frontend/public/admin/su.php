@@ -20,12 +20,16 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 isset($_GET['id']) or View::showBadRequestErrorPage();
-Login::su(intval($_GET['id']));
+Application::getInstance()->getAuthService()->su(Application::getInstance()->getRequest()->getQuery('id'));
+$identity = Application::getInstance()->getAuthService()->getIdentity();
+writeLog(sprintf("%s switched onto %s's interface", $identity->getSuUsername(), $identity->getUsername()), E_USER_NOTICE);
+unsetMessages();
+Application::getInstance()->getAuthService()->redirectToUserUi($identity->getUserType() == 'reseller' ? 'users.php' : 'domains_manage.php');
