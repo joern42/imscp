@@ -1,5 +1,5 @@
 
-<form action="settings_maintenance_mode.php" method="post" name="maintenancemode_frm" id="maintenancemode_frm">
+<form action="settings_maintenance_mode.php" method="post">
     <table class="firstColFixed">
         <thead>
         <tr>
@@ -24,6 +24,5 @@
     </table>
     <div class="buttons">
         <input name="Submit" type="submit" value="{TR_APPLY}">
-        <input type="hidden" name="uaction" value="apply">
     </div>
 </form>

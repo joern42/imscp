@@ -20,13 +20,32 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
+
+$request = Application::getInstance()->getRequest();
+
+if ($request->isPost()) {
+    $dbConfig = Application::getInstance()->getDbConfig();
+    $dbConfig['MAINTENANCEMODE'] = intval($request->getPost('maintenancemode', 0));
+    $dbConfig['MAINTENANCEMODE_MESSAGE'] = cleanHtml($request->getPost('maintenancemode_message', ''));
+    Application::getInstance()->getCache()->removeItem('merged_config'); // Force new merge;
+    setPageMessage(toHtml(tr('Settings saved.')), 'success');
+    redirectTo('settings_maintenance_mode.php');
+}
+
+$config = Application::getInstance()->getConfig();
+
+if ($config['MAINTENANCEMODE']) {
+    setPageMessage(toHtml(tr('Maintenance mode is currently activated. In this mode, only administrators can sign in.')), 'static_info');
+} else {
+    setPageMessage(toHtml(tr('In maintenance mode, only administrators can sign in.')), 'static_info');
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -34,38 +53,13 @@ $tpl->define([
     'page'         => 'admin/settings_maintenance_mode.tpl',
     'page_message' => 'layout'
 ]);
-
-$cfg = Application::getInstance()->getConfig();
-
-if (isset($_POST['uaction']) and $_POST['uaction'] == 'apply') {
-    $maintenancemode = $_POST['maintenancemode'];
-    $maintenancemode_message = cleanInput($_POST['maintenancemode_message']);
-    $db_cfg = Application::getInstance()->getRegistry()->get('dbConfig');
-    $db_cfg->MAINTENANCEMODE = $maintenancemode;
-    $db_cfg->MAINTENANCEMODE_MESSAGE = $maintenancemode_message;
-    $cfg->merge($db_cfg);
-    setPageMessage(tr('Settings saved.'), 'success');
-}
-
-$selected_on = '';
-$selected_off = '';
-
-if ($cfg['MAINTENANCEMODE']) {
-    $selected_on = ' selected';
-    setPageMessage(tr('Maintenance mode is activated. In this mode, only administrators can login.'), 'static_info');
-} else {
-    $selected_off = ' selected';
-    setPageMessage(tr('In maintenance mode, only administrators can login.'), 'static_info');
-}
-
 $tpl->assign([
     'TR_PAGE_TITLE'          => toHtml(tr('Admin / System Tools / Maintenance Settings')),
     'TR_MAINTENANCEMODE'     => toHtml(tr('Maintenance mode')),
     'TR_MESSAGE'             => toHtml(tr('Message')),
-    'MESSAGE_VALUE'          => isset($cfg['MAINTENANCEMODE_MESSAGE'])
-        ? toHtml($cfg['MAINTENANCEMODE_MESSAGE']) : toHtml(tr("We are sorry, but the system is currently under maintenance.")),
-    'SELECTED_ON'            => $selected_on,
-    'SELECTED_OFF'           => $selected_off,
+    'MESSAGE_VALUE'          => toHtml($config['MAINTENANCEMODE_MESSAGE'] ?? tr('Service currently under maintenance. Only administrators can sign in.')),
+    'SELECTED_ON'            => $config['MAINTENANCEMODE'] ? ' selected' : '',
+    'SELECTED_OFF'           => $config['MAINTENANCEMODE'] ? '' : ' selected',
     'TR_ENABLED'             => toHtml(tr('Enabled')),
     'TR_DISABLED'            => toHtml(tr('Disabled')),
     'TR_APPLY'               => toHtml(tr('Apply')),
