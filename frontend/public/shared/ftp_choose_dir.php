@@ -136,7 +136,7 @@ function generateDirectoryList($tpl)
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ANY_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ANY_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onSharedScriptStart);
 
 $tpl = new TemplateEngine();

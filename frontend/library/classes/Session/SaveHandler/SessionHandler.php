@@ -29,7 +29,7 @@ use Zend\Session\SaveHandler\SaveHandlerInterface;
  * Class SessionHandler
  *
  * This session handler class is meant to override default write(), destroy()
- * and gc() methods as we want be able to track sessions of logged--in users
+ * and gc() methods as we want be able to track sessions of logged-in users
  * by storing their identifiers in database.
  *
  * @package iMSCP\Session\SaveHandler
@@ -60,7 +60,6 @@ class SessionHandler extends \SessionHandler implements SaveHandlerInterface
                     )->execute([$sessionId, getIpAddr(), $identity->getUsername()]);
                 }
             }
-
         } catch (\Throwable $e) {
             writeLog(sprintf("Couldn't write '%s' user session identifier in database: %s", $identity->getUsername(), $e->getMessage()));
             return false;

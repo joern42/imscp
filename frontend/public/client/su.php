@@ -25,7 +25,7 @@ use iMSCP\Model\SuIdentityInterface;
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 Application::getInstance()->getAuthService()->su(Application::getInstance()->getRequest()->getQuery('id'));
 $identity = Application::getInstance()->getAuthService()->getIdentity();
@@ -35,7 +35,7 @@ if (Application::getInstance()->getRequest()->getQuery('id')) {
 } elseif ($identity instanceof SuIdentityInterface) {
     $log = sprintf("%s switched back onto %s's interface", $identity->getSuUsername(), $identity->getUsername());
 } else {
-    $log = sprintf("%s switched back onto it interface", $identity->getUsername());
+    $log = sprintf("%s switched back into its interface", $identity->getUsername());
 }
 
 writeLog($log, E_USER_NOTICE);

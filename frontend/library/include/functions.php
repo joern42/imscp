@@ -19,11 +19,1293 @@
  */
 
 use iMSCP\Application;
+use iMSCP\Crypt;
 use iMSCP\Events;
 use iMSCP\Functions\View;
+use iMSCP\i18n\GettextParser;
 use iMSCP\Model\SuIdentityInterface;
 use iMSCP\Model\UserIdentityInterface;
+use iMSCP\TemplateEngine;
+use iMSCP\Utility\OpcodeCache;
 use Mso\IdnaConvert\IdnaConvert;
+use Zend\Escaper\Escaper;
+use Zend\EventManager\Event;
+use Zend\Filter\Digits;
+use Zend\Form\Form;
+use Zend\Navigation\Navigation;
+use Zend\Validator\File\MimeType;
+
+/**
+ * Translates the given string
+ *
+ * @param string $messageId Translation string
+ * @param string ...$params
+ * @return string
+ */
+function tr(string $messageId, string ...$params): string
+{
+    return empty($params)
+        ? Application::getInstance()->getTranslator()->translate($messageId)
+        : vsprintf(Application::getInstance()->getTranslator()->translate($messageId), $params);
+}
+
+/**
+ * Translates the given string using plural notations
+ *
+ * @param string $singular Singular translation string
+ * @param string $plural Plural translation string
+ * @param integer $number Number for detecting the correct plural
+ * @param string ...$params
+ * @return string
+ */
+function ntr(string $singular, string $plural, int $number, string ...$params): string
+{
+    return empty($params)
+        ? Application::getInstance()->getTranslator()->translatePlural($singular, $plural, $number)
+        : vsprintf(Application::getInstance()->getTranslator()->translatePlural($singular, $plural, $number), $params);
+}
+
+/**
+ * Build languages index from machine object files
+ *
+ * @return void
+ */
+function buildLanguagesIndex(): void
+{
+    $cfg = Application::getInstance()->getConfig();
+
+    // Clear translation cache
+    $translator = Application::getInstance()->getTranslator();
+
+    /** @var \Zend\Cache\Storage\Adapter\Apcu $cache */
+    if ($cache = $translator->getCache()) {
+        $cache->clearByNamespace('Zend_I18n_Translator_Messages');
+    }
+
+    # Clear opcode cache if any
+    OpcodeCache::clearAllActive();
+
+    $iterator = new \RecursiveIteratorIterator(
+        new \RecursiveDirectoryIterator($cfg['FRONTEND_ROOT_DIR'] . '/i18n/locales/', \FilesystemIterator::SKIP_DOTS)
+    );
+
+    $availableLanguages = [];
+
+    /** @var $item \SplFileInfo */
+    foreach ($iterator as $item) {
+        if (!$item->isReadable()) {
+            continue;
+        }
+
+        $basename = $item->getBasename();
+        $parser = new GettextParser($item->getPathname());
+        $translationTable = $parser->getTranslationTable();
+
+        if (!empty($translationTable)) {
+            $poCreationDate = \DateTime::createFromFormat('Y-m-d H:i O', $parser->getPotCreationDate());
+            $availableLanguages[$basename] = [
+                'locale'            => $parser->getLanguage(),
+                'creation'          => $poCreationDate->format('Y-m-d H:i'),
+                'translatedStrings' => $parser->getNumberOfTranslatedStrings(),
+                'lastTranslator'    => $parser->getLastTranslator()
+            ];
+
+            if (isset($translationTable['_: Localised language'])) {
+                $availableLanguages[$basename]['language'] = $translationTable['_: Localised language'];
+            } else {
+                $availableLanguages[$basename]['language'] = tr('Unknown');
+            }
+
+            continue;
+        }
+
+        if (PHP_SAPI != 'cli') {
+            View::setPageMessage(tr('The %s translation file has been ignored: Translation table is empty.', $basename), 'warning');
+        }
+    }
+
+    $dbConfig = Application::getInstance()->getDbConfig();
+    sort($availableLanguages);
+    $serializedData = serialize($availableLanguages);
+    $dbConfig['AVAILABLE_LANGUAGES'] = $serializedData;
+    $cfg['AVAILABLE_LANGUAGES'] = $serializedData;
+}
+
+/**
+ * Returns list of available languages
+ *
+ * @param bool $localesOnly Flag indicating whether or not only list of locales must be returned
+ * @return array Array that contains information about available languages
+ */
+function getAvailableLanguages(bool $localesOnly = false): array
+{
+    $cfg = Application::getInstance()->getConfig();
+
+    if (!isset($cfg['AVAILABLE_LANGUAGES']) || !isSerialized($cfg['AVAILABLE_LANGUAGES'])) {
+        buildLanguagesIndex();
+    }
+
+    $languages = unserialize($cfg['AVAILABLE_LANGUAGES']);
+
+    if ($localesOnly) {
+        $locales = [\Locale::getDefault()];
+
+        foreach ($languages as $language) {
+            $locales[] = $language['locale'];
+        }
+
+        return $locales;
+    }
+
+    array_unshift($languages, [
+        'locale'            => \Locale::getDefault(),
+        'creation'          => tr('N/A'),
+        'translatedStrings' => tr('N/A'),
+        'lastTranslator'    => tr('N/A'),
+        'language'          => tr('Auto (Browser language)')
+    ]);
+
+    return $languages;
+}
+
+/**
+ * Import Machine object file in languages directory
+ *
+ * @return bool TRUE on success, FALSE otherwise
+ */
+function importMachineObjectFile(): bool
+{
+    // closure that is run before move_uploaded_file() function - See the Utils_UploadFile() function for further
+    // information about implementation details
+    $beforeMove = function () {
+        $localesDirectory = Application::getInstance()->getConfig()['FRONTEND_ROOT_DIR'] . '/i18n/locales';
+        $filePath = $_FILES['languageFile']['tmp_name'];
+
+        if (!is_readable($filePath)) {
+            View::setPageMessage(tr('File is not readable.'), 'error');
+            return false;
+        }
+
+        try {
+            $parser = new GettextParser($filePath);
+            $encoding = $parser->getContentType();
+            $locale = $parser->getLanguage();
+            $creation = $parser->getPotCreationDate();
+            $translationTable = $parser->getTranslationTable();
+        } catch (\Exception $e) {
+            View::setPageMessage(tr('Only gettext Machine Object files (MO files) are accepted.'), 'error');
+            return false;
+        }
+
+        $language = isset($translationTable['_: Localised language']) ? $translationTable['_: Localised language'] : '';
+
+        if (empty($encoding) || empty($locale) || empty($creation) || empty($lastTranslator) || empty($language)) {
+            View::setPageMessage(tr("%s is not a valid i-MSCP language file.", toHtml($_FILES['languageFile']['name'])), 'error');
+            return false;
+        }
+
+        if (!is_dir("$localesDirectory/$locale")) {
+            if (!@mkdir("$localesDirectory/$locale", 0700)) {
+                View::setPageMessage(tr("Unable to create '%s' directory for language file.", toHtml($locale)), 'error');
+                return false;
+            }
+        }
+
+        if (!is_dir("$localesDirectory/$locale/LC_MESSAGES")) {
+            if (!@mkdir("$localesDirectory/$locale/LC_MESSAGES", 0700)) {
+                View::setPageMessage(tr("Unable to create 'LC_MESSAGES' directory for language file."), 'error');
+                return false;
+            }
+        }
+
+        // Return destination file path
+        return "$localesDirectory/$locale/LC_MESSAGES/$locale.mo";
+    };
+
+    if (uploadFile('languageFile', [$beforeMove]) === false) {
+        return false;
+    }
+
+    // Rebuild language index
+    buildLanguagesIndex();
+    return true;
+}
+
+/**
+ * Change panel default language
+ *
+ * @return bool TRUE if language name is valid, FALSE otherwise
+ */
+function changeDefaultLanguage(): bool
+{
+    if (!isset($_POST['defaultLanguage'])) {
+        return false;
+    }
+
+    $defaultLanguage = cleanInput($_POST['defaultLanguage']);
+    $availableLanguages = getAvailableLanguages();
+
+    // Check for language availability
+    $isValidLanguage = false;
+    foreach ($availableLanguages as $languageDefinition) {
+        if ($languageDefinition['locale'] == $defaultLanguage) {
+            $isValidLanguage = true;
+        }
+    }
+
+    if (!$isValidLanguage) {
+        return false;
+    }
+
+    $dbConfig = Application::getInstance()->getDbConfig();
+    $dbConfig['USER_INITIAL_LANG'] = $defaultLanguage;
+    Application::getInstance()->getConfig()['USER_INITIAL_LANG'] = $defaultLanguage;
+
+    // Ensures language change on next load for current user in case he has not yet his frontend properties explicitly
+    // set (eg. for the first admin user when i-MSCP was just installed
+    $stmt = execQuery('SELECT lang FROM user_gui_props WHERE user_id = ?', [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]);
+    if ($stmt->fetchColumn() == NULL) {
+        unset(Application::getInstance()->getSession()['user_def_lang']);
+    }
+
+    return true;
+}
+
+/**
+ * Get JS translations strings
+ *
+ * Note: Plugins can register their own JS translation strings by listening on
+ * the onGetJsTranslations event, and add them to the translations ArrayObject
+ * which is a parameter of that event.
+ *
+ * For instance:
+ *
+ * use iMSCP_Events as Events;
+ * use iMSCP_Events_Event as Event;
+ *
+ * Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function(Event $e) {
+ *    $e->getParam('translations')->my_namespace = array(
+ *        'first_translation_string_identifier' => tr('my first translation string'),
+ *        'second_translation_string_identifier' => tr('my second translation string')
+ *    );
+ * });
+ *
+ * Then, in your JS script, you can access your translation strings as follow:
+ *
+ * imscp_i18n.my_namespace.first_translation_string_identifier
+ * imscp_i18n.my_namespace.second_translation_string_identifier
+ * ...
+ *
+ * @return string JS object as string
+ */
+function getJsTranslations(): string
+{
+    $translations = new \ArrayObject([
+        // Core translation strings
+        'core' => [
+            'ok'                      => tr('Ok'),
+            'warning'                 => tr('Warning!'),
+            'yes'                     => tr('Yes'),
+            'no'                      => tr('No'),
+            'confirmation_required'   => tr('Confirmation required'),
+            'close'                   => tr('Close'),
+            'generate'                => tr('Generate'),
+            'show'                    => tr('Show'),
+            'your_new_password'       => tr('Your new password'),
+            'password_generate_alert' => tr('You must first generate a password by clicking on the generate button.'),
+            'password_length'         => Application::getInstance()->getConfig()['PASSWD_CHARS']
+        ]],
+        \ArrayObject::ARRAY_AS_PROPS
+    );
+
+    Application::getInstance()->getEventManager()->trigger(Events::onGetJsTranslations, NULL, ['translations' => $translations]);
+    return json_encode($translations, JSON_FORCE_OBJECT);
+}
+
+global $ESCAPER;
+
+$ESCAPER = new Escaper('UTF-8');
+
+/**
+ * Clean input
+ *
+ * @param string $input input data (eg. post-var) to be cleaned
+ * @return string space trimmed input string
+ */
+function cleanInput($input)
+{
+    return trim($input, "\x20");
+}
+
+/**
+ * Filter digits from the given string
+ *
+ * In case filtering lead to an empty string and if there is no $default value
+ * defined, a bad request error (400) is raised.
+ *
+ * @param string $input String to filter
+ * @param string $default Default value if $input is empty after filtering
+ * @return string containing only digits
+ *
+ */
+function filterDigits($input, $default = NULL)
+{
+    static $filter = NULL;
+
+    if (NULL === $filter) {
+        $filter = new Digits();
+    }
+
+    $input = $filter->filter(cleanInput($input));
+
+    if ($input === '') {
+        if (NULL === $default) {
+            \iMSCP\Functions\View::showBadRequestErrorPage();
+        }
+
+        $input = $default;
+    }
+
+    return $input;
+}
+
+/**
+ * clean_html replaces up defined inputs
+ *
+ * @param string $text text string to be cleaned
+ * @return string cleared text string
+ */
+function cleanHtml($text)
+{
+    return strip_tags(preg_replace(
+        [
+            '@<script[^>]*?>.*?</script[\s]*>@si', // remove JavaScript
+            '@<[\/\!]*?[^<>]*?>@si', // remove HTML tags
+            '@([\r\n])[\s]+@', // remove spaces
+            '@&(quot|#34|#034);@i', // change HTML entities
+            '@&(apos|#39|#039);@i', // change HTML entities
+            '@&(amp|#38);@i',
+            '@&(lt|#60);@i',
+            '@&(gt|#62);@i',
+            '@&(nbsp|#160);@i',
+            '@&(iexcl|#161);@i',
+            '@&(cent|#162);@i',
+            '@&(pound|#163);@i',
+            '@&(copy|#169);@i'
+            /*'@&#(\d+);@e'*/
+        ],
+        ['', '', '\1', '"', "'", '&', '<', '>', ' ', chr(161), chr(162), chr(163), chr(169)],
+        $text
+    ));
+}
+
+/**
+ * Replaces special encoded strings back to their original signs
+ *
+ * @param string $string String to replace chars
+ * @return String with replaced chars
+ */
+function replaceHtml($string)
+{
+    $pattern = [
+        '#&lt;[ ]*b[ ]*&gt;#i', '#&lt;[ ]*/[ ]*b[ ]*&gt;#i',
+        '#&lt;[ ]*strong[ ]*&gt;#i', '#&lt;[ ]*/[ ]*strong[ ]*&gt;#i',
+        '#&lt;[ ]*em[ ]*&gt;#i', '#&lt;[ ]*/[ ]*em[ ]*&gt;#i',
+        '#&lt;[ ]*i[ ]*&gt;#i', '#&lt;[ ]*/[ ]*i[ ]*&gt;#i',
+        '#&lt;[ ]*small[ ]*&gt;#i', '#&lt;[ ]*/[ ]*small[ ]*&gt;#i',
+        '#&lt;[ ]*br[ ]*(/|)[ ]*&gt;#i'
+    ];
+    $replacement = ['<b>', '</b>', '<strong>', '</strong>', '<em>', '</em>', '<i>', '</i>', '<small>', '</small>', '<br>'];
+
+    return preg_replace($pattern, $replacement, $string);
+}
+
+/**
+ * Escape a string for the HTML Body context
+ *
+ * @param string $string String to be converted
+ * @param string $escapeType Escape type (html|htmlAttr)
+ * @return string HTML entitied text
+ */
+function toHtml($string, $escapeType = 'html')
+{
+    global $ESCAPER;
+
+    $string = (string)$string;
+
+    if ($escapeType == 'html') {
+        return $ESCAPER->escapeHtml($string);
+    }
+
+    if ($escapeType == 'htmlAttr') {
+        return $ESCAPER->escapeHtmlAttr($string);
+    }
+
+    throw new \Exception(sprintf('Unknown escape type: %s', $escapeType));
+}
+
+/**
+ * Escape a string for the Javascript context
+ *
+ * @param string $string String to be converted
+ * @return string
+ */
+function toJs($string)
+{
+    global $ESCAPER;
+    return $ESCAPER->escapeJs($string);
+}
+
+/**
+ * Escape a string for the URI or Parameter contexts.
+ *
+ * @param string $string String to be converted
+ * @return string
+ */
+function toUrl($string)
+{
+    global $ESCAPER;
+    return $ESCAPER->escapeUrl($string);
+}
+
+/**
+ * Checks if the syntax of the given password is valid
+ *
+ * @param string $password username to be checked
+ * @param string $unallowedChars RegExp for unallowed characters
+ * @param bool $noErrorMsg Whether or not error message should be discarded
+ * @return bool TRUE if the password is valid, FALSE otherwise
+ */
+function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noErrorMsg = false)
+{
+    $cfg = Application::getInstance()->getConfig();
+    $ret = true;
+    $passwordLength = strlen($password);
+
+    if ($cfg['PASSWD_CHARS'] < 6) {
+        $cfg['PASSWD_CHARS'] = 6;
+    } elseif ($cfg['PASSWD_CHARS'] > 30) {
+        $cfg['PASSWD_CHARS'] = 30;
+    }
+
+    if ($passwordLength < $cfg['PASSWD_CHARS'] || $passwordLength > 30) {
+        if (!$noErrorMsg) {
+            View::setPageMessage(tr('The password must be between %d and %d characters.', $cfg['PASSWD_CHARS'], 30), 'error');
+        }
+
+        $ret = false;
+    }
+
+    if (!empty($unallowedChars) && preg_match($unallowedChars, $password)) {
+        if (!$noErrorMsg) {
+            View::setPageMessage(tr('Password contains unallowed characters.'), 'error');
+        }
+
+        $ret = false;
+    }
+
+    if ($cfg['PASSWD_STRONG'] && !(preg_match('/[0-9]/', $password) && preg_match('/[a-zA-Z]/', $password))) {
+        if (!$noErrorMsg) {
+            View::setPageMessage(tr('Password must contain letters and digits.'), 'error');
+        }
+
+        $ret = false;
+    }
+
+    return $ret;
+}
+
+/**
+ * Validate the given username
+ *
+ * This function validates syntax of usernames. The characters allowed are all
+ * alphanumeric in upper or lower case, the hyphen , the low dash and  the dot,
+ * the three latter being forbidden at the beginning and end of string.
+ *
+ * Successive instances of a dot or underscore are prohibited
+ *
+ * @param string $username the username to be checked
+ * @param int $min_char number of min. chars
+ * @param int $max_char number min. chars
+ * @return boolean True if the username is valid, FALSE otherwise
+ */
+function validateUsername($username, $min_char = 2, $max_char = 30)
+{
+    $pattern = '@^[[:alnum:]](?:(?<![-_])(?:-*|[_.])?(?![-_])[[:alnum:]]*)*?(?<![-_.])$@';
+    return (bool)(preg_match($pattern, $username) && strlen($username) >= $min_char && strlen($username) <= $max_char);
+}
+
+/**
+ * Validate the given email address
+ *
+ * @param string $email Email addresse to check
+ * @param array $options Validator options
+ * @return bool
+ */
+function ValidateEmail($email, $options)
+{
+    $validator = new \Zend\Validator\EmailAddress($options);
+    return $validator->isValid($email);
+}
+
+/**
+ * Validate a domain name
+ *
+ * @param string $domainName Domain name
+ * @return bool TRUE if the given domain name is valid, FALSE otherwise
+ */
+function validateDomainName($domainName)
+{
+    global $dmnNameValidationErrMsg;
+
+    if (strpos($domainName, '.') === 0 || substr($domainName, -1) == '.') {
+        $dmnNameValidationErrMsg = tr('Domain name cannot start nor end with dot.');
+        return false;
+    }
+
+    if (($asciiDomainName = encodeIdna($domainName)) === false) {
+        $dmnNameValidationErrMsg = tr('Invalid domain name.');
+        return false;
+    }
+
+    $asciiDomainName = strtolower($asciiDomainName);
+
+    if (strlen($asciiDomainName) > 255) {
+        $dmnNameValidationErrMsg = tr('Domain name (ASCII form) cannot be greater than 255 characters.');
+        return false;
+    }
+
+    if (preg_match('/([^a-z0-9\-\.])/', $asciiDomainName, $m)) {
+        $dmnNameValidationErrMsg = tr('Domain name contains an invalid character: %s', $m[1]);
+        return false;
+    }
+
+    if (strpos($asciiDomainName, '..') !== false) {
+        $dmnNameValidationErrMsg = tr('Usage of dot in domain name labels is prohibited.');
+        return false;
+    }
+
+    $labels = explode('.', $asciiDomainName);
+
+    if (sizeof($labels) < 2) {
+        $dmnNameValidationErrMsg = tr('Invalid domain name.');
+        return false;
+    }
+
+    foreach ($labels as $label) {
+        if (strlen($label) > 63) {
+            $dmnNameValidationErrMsg = tr('Domain name labels cannot be greater than 63 characters.');
+            return false;
+        }
+
+        # Already done on full domain name above
+        #if (preg_match('/([^a-z0-9\-])/', $label, $m)) {
+        #    $dmnNameValidationErrMsg = tr("Domain name label '%s' contain an invalid character: %s", $label, $m[1]);
+        #    return false;
+        #}
+
+        if (preg_match('/^[\-]|[\-]$/', $label)) {
+            $dmnNameValidationErrMsg = tr('Domain name labels cannot start nor end with hyphen.');
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Function for checking i-MSCP limits syntax.
+ *
+ * @param string $data Limit field data (by default valids are numbers greater equal 0)
+ * @param mixed $extra single extra permitted value or array of permitted values
+ * @return bool false incorrect syntax (ranges) true correct syntax (ranges)
+ */
+function validateLimit($data, $extra = -1)
+{
+    if ($extra !== NULL && !is_bool($extra)) {
+        if (is_array($extra)) {
+            $nextra = '';
+            $max = count($extra);
+
+            foreach ($extra as $n => $element) {
+                $nextra = $element . ($n < $max) ? '|' : '';
+            }
+
+            $extra = $nextra;
+        } else {
+            $extra .= '|';
+        }
+    } else {
+        $extra = '';
+    }
+
+    return (bool)preg_match("/^(${extra}0|[1-9][0-9]*)$/D", $data);
+}
+
+/**
+ * Checks if a file match the given mimetype(s)
+ *
+ * @param  string $pathFile File to check for mimetype
+ * @param  array|string $mimeTypes Accepted mimetype(s)
+ * @return bool TRUE if the file match the givem mimetype(s), FALSE otherwise
+ */
+function validateMimeType($pathFile, array $mimeTypes)
+{
+    $mimeTypes['headerCheck'] = true;
+    $validator = new MimeType($mimeTypes);
+
+    if ($validator->isValid($pathFile)) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Get user login data form
+ *
+ * @param bool $usernameRequired Flag indicating whether username is required
+ * @param bool $passwordRequired Flag indicating whether password is required
+ * @return Form
+ */
+function getUserLoginDataForm($usernameRequired = true, $passwordRequired = true)
+{
+    $cfg = Application::getInstance()->getConfig();
+    $minPasswordLength = intval($cfg['PASSWD_CHARS']);
+
+    if ($minPasswordLength < 6) {
+        $minPasswordLength = 6;
+    }
+
+    $form = new Form(['elements' => [
+        'admin_name'              => ['text', [
+            'validators' => [
+                ['NotEmpty', true, ['type' => 'string', 'messages' => tr('The username cannot be empty.')]],
+                ['Regex', true, '/^[[:alnum:]](?:(?<![-_])(?:-*|[_.])?(?![-_])[[:alnum:]]*)*?(?<![-_.])$/', 'messages' => tr('Invalid username.')],
+                ['StringLength', true, ['min' => 2, 'max' => 30, 'messages' => tr('The username must be between %d and %d characters.', 2, 30)]],
+                ['Callback', true, [
+                    function ($username) {
+                        return execQuery(
+                                'SELECT COUNT(admin_id) FROM admin WHERE admin_name = ?', [$username]
+                            )->fetchColumn() == 0;
+                    },
+                    'messages' => tr("The '%value%' username is not available.")
+                ]]
+            ],
+            'Required'   => true
+        ]],
+        'admin_pass'              => ['password', [
+            'validators' => [
+                ['NotEmpty', true, ['type' => 'string', 'messages' => tr('The password cannot be empty.')]],
+                [
+                    'StringLength',
+                    true,
+                    [
+                        'min'      => $minPasswordLength,
+                        'max'      => 30,
+                        'messages' => tr('The password must be between %d and %d characters.', $minPasswordLength, 30)
+                    ]
+                ],
+                ['Regex', true, ['/^[\x21-\x7e]+$/', 'messages' => tr('The password contains unallowed characters.')]]
+            ],
+            'Required'   => true
+        ]],
+        'admin_pass_confirmation' => ['password', ['validators' => [['Identical', true, ['admin_pass', 'messages' => tr('Passwords do not match.')]]]]]]
+    ]);
+
+    if ($cfg['PASSWD_STRONG']) {
+        $form->get('admin_pass')->addValidator('Callback', true, [
+            function ($password) {
+                return preg_match('/[0-9]/', $password) && preg_match('/[a-zA-Z]/', $password);
+            },
+            'messages' => tr('The password must contain letters and digits.'),
+        ]);
+    }
+
+    if (!$usernameRequired) {
+        $form->getElement('admin_name')->removeValidator('NoEmpty')->setRequired(false);
+    }
+
+    if (!$passwordRequired) {
+        $form->getElement('admin_pass')->removeValidator('NoEmpty')->setRequired(false);
+    }
+
+    $form->setElementFilters(['StripTags', 'StringTrim']);
+    return $form;
+}
+
+/**
+ * Get user personal data form
+ *
+ * @return Form
+ */
+function getUserPersonalDataForm()
+{
+    $form = new Form([
+        'elementPrefixPath' => ['validate' => ['prefix' => 'iMSCP_Validate', 'path' => 'iMSCP/Validate/']],
+        'elements'          => [
+            'fname'   => ['text', ['validators' => [
+                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid first name.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The first name must be between %d and %d characters.', 1, 200)]]
+            ]]],
+            'lname'   => ['text', ['validators' => [
+                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid last name.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The last name must be between %d and %d characters.', 1, 200)]]
+            ]]],
+            'gender'  => ['select', ['validators' => [
+                ['InArray', true, ['haystack' => ['M', 'F', 'U'], 'strict' => true, 'messages' => tr('Invalid gender.')]],
+            ]]],
+            'firm'    => ['text', ['validators' => [
+                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid company.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The company name must be between %d and %d characters.', 1, 200)]]
+            ]]],
+            'street1' => ['text', ['validators' => [
+                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid street 1.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The street 1 name must be between %d and %d characters', 1, 200)]]
+            ]]],
+            'street2' => ['text', ['validators' => [
+                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid street 2.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The street 2 name must be between %d and %d characters.', 1, 200)]]
+            ]]],
+            'zip'     => ['text', ['validators' => [
+                //['Alnum', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid zipcode.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 10, 'messages' => tr('The zipcode must be between %d and %d characters.', 1, 10)]]
+            ]]],
+            'city'    => ['text', ['validators' => [
+                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid city.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The city name must be between %d and %d characters.', 1, 200)]]
+            ]]],
+            'state'   => ['text', ['validators' => [
+                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid state/province.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The state/province name must be between %d and %d characters.', 1, 200)]]
+            ]]],
+            'country' => ['text', ['validators' => [
+                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid country.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The country name must be between %d and %d characters.', 1, 200)]]
+            ]]],
+            'email'   => ['text', [
+                'validators' => [
+                    ['NotEmpty', true, ['type' => 'string', 'messages' => tr('The email address cannot be empty.')]],
+                    ['EmailAddress', true, ['messages' => tr('Invalid email address.')]]
+                ],
+                'Required'   => true
+            ]],
+            'phone'   => ['text', ['validators' => [
+                ['Regex', true, ['/^[0-9()\s.+-]+$/', 'messages' => tr('Invalid phone.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The phone number must be between %d and %d characters.', 1, 200)]]
+            ]
+            ]],
+            'fax'     => ['text', ['validators' => [
+                ['Regex', true, ['/^[0-9()\s.+]+$/', 'messages' => tr('Invalid phone.')]],
+                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The fax number must be between %d and %d characters.', 1, 200)]]
+            ]]]
+        ]
+    ]);
+
+    $form->setElementFilters(['StripTags', 'StringTrim']);
+    $form->getElement('email')->addFilter('stringToLower');
+    return $form;
+}
+
+/**
+ * Retrieve GUI properties of the given user
+ *
+ * @param  int $userId User unique identifier
+ * @return array
+ */
+function getUserGuiProperties($userId)
+{
+    $cfg = \iMSCP\Application::getInstance()->getConfig();
+    $stmt = execQuery('SELECT lang, layout FROM user_gui_props WHERE user_id = ?', [$userId]);
+
+    if (!$stmt->rowCount()) {
+        return [$cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']];
+    }
+
+    $row = $stmt->fetch();
+
+    if (empty($row['lang']) && empty($row['layout'])) {
+        return [$cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']];
+    }
+
+    if (empty($row['lang'])) {
+        return [$cfg['USER_INITIAL_LANG'], $row['layout']];
+    }
+
+    if (empty($row['layout'])) {
+        return [$row['lang'], $cfg['USER_INITIAL_THEME']];
+    }
+
+    return [$row['lang'], $row['layout']];
+}
+
+/**
+ * Gets menu variables
+ *
+ * @param  string $menuLink Menu link
+ * @return mixed
+ */
+function getMenuVariables($menuLink)
+{
+    if (strpos($menuLink, '}') === false || strpos($menuLink, '}') === false) {
+        return $menuLink;
+    }
+
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $row = execQuery('SELECT fname, lname, firm, zip, city, state, country, email, phone, fax, street1, street2 FROM admin WHERE admin_id = ?', [
+        $identity->getUserId()
+    ])->fetch();
+
+    $search = [];
+    $replace = [];
+
+    $search [] = '{uid}';
+    $replace[] = $identity->getUserId();
+    $search [] = '{uname}';
+    $replace[] = toHtml($identity->getUsername());
+    $search [] = '{fname}';
+    $replace[] = toHtml($row['fname']);
+    $search [] = '{lname}';
+    $replace[] = toHtml($row['lname']);
+    $search [] = '{company}';
+    $replace[] = toHtml($row['firm']);
+    $search [] = '{zip}';
+    $replace[] = toHtml($row['zip']);
+    $search [] = '{city}';
+    $replace[] = toHtml($row['city']);
+    $search [] = '{state}';
+    $replace[] = toHtml($row['state']);
+    $search [] = '{country}';
+    $replace[] = toHtml($row['country']);
+    $search [] = '{email}';
+    $replace[] = toHtml($row['email']);
+    $search [] = '{phone}';
+    $replace[] = toHtml($row['phone']);
+    $search [] = '{fax}';
+    $replace[] = toHtml($row['fax']);
+    $search [] = '{street1}';
+    $replace[] = toHtml($row['street1']);
+    $search [] = '{street2}';
+    $replace[] = toHtml($row['street2']);
+
+    $row = execQuery('SELECT domain_name, domain_admin_id FROM domain WHERE domain_admin_id = ?', [$identity->getUserId()])->fetch();
+    $search [] = '{domain_name}';
+    $replace[] = $row['domain_name'];
+    return str_replace($search, $replace, $menuLink);
+}
+
+/**
+ * Returns colors set for current layout
+ *
+ * @return array
+ */
+function getLayoutColorsSet()
+{
+    static $colorSet = NULL;
+
+    if (NULL !== $colorSet) {
+        return $colorSet;
+    }
+
+    $cfg = Application::getInstance()->getConfig();
+    if (file_exists($cfg['ROOT_TEMPLATE_PATH'] . '/info.php')) {
+        $themeInfo = include_once($cfg['ROOT_TEMPLATE_PATH'] . '/info.php');
+        if (is_array($themeInfo)) {
+            $colorSet = (array)$themeInfo['theme_color_set'];
+        } else {
+            throw new RuntimeException(sprintf("'theme_color'_set parameter missing in %s file", $cfg['ROOT_TEMPLATE_PATH'] . '/info.php'));
+        }
+    } else {
+        throw new RuntimeException(sprintf("Couldn't read %s file", $cfg['ROOT_TEMPLATE_PATH'] . '/info.php'));
+    }
+
+    return $colorSet;
+}
+
+/**
+ * Returns layout color for given user
+ *
+ * @param int $userId user unique identifier
+ * @return string User layout color
+ */
+function getLayoutColor($userId)
+{
+    static $layoutColor = NULL;
+
+    if (NULL !== $layoutColor) {
+        return $layoutColor;
+    }
+
+    $session = Application::getInstance()->getSession();
+
+    if (isset($session['user_theme_color'])) {
+        $layoutColor = $session['user_theme_color'];
+        return $layoutColor;
+    }
+
+    $allowedColors = getLayoutColorsSet();
+    $layoutColor = execQuery('SELECT layout_color FROM user_gui_props WHERE user_id = ?', [$userId])->fetchColumn();
+
+    if (!$layoutColor || !in_array($layoutColor, $allowedColors)) {
+        $layoutColor = array_shift($allowedColors);
+    }
+
+    return $layoutColor;
+}
+
+/**
+ * Init layout
+ *
+ * @param Event $event
+ * @return void
+ * @todo Use cookies to store user UI properties (Remember me implementation?)
+ */
+function initLayout(Event $event)
+{
+    $cfg = Application::getInstance()->getConfig();
+
+    if ($cfg['DEBUG']) {
+        $themesAssetsVersion = time();
+    } else {
+        $themesAssetsVersion = $cfg['THEME_ASSETS_VERSION'];
+    }
+
+    /** @var \iMSCP\Model\SuIdentityInterface $identity */
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $session = Application::getInstance()->getSession();
+
+    if (isset($session['user_theme_color'])) {
+        $color = $session['user_theme_color'];
+    } elseif ($identity) {
+        $userId = $identity instanceof \iMSCP\Model\SuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
+        $color = getLayoutColor($userId);
+        $session['user_theme_color'] = $color;
+    } else {
+        $color = getLayoutColorsSet()[0];
+    }
+
+    /** @var $tpl TemplateEngine */
+    $tpl = $event->getParam('templateEngine');
+    $tpl->assign([
+        'THEME_CHARSET'        => 'UTF-8',
+        'THEME_ASSETS_PATH'    => '/themes/' . $cfg['USER_INITIAL_THEME'] . '/assets',
+        'THEME_ASSETS_VERSION' => $themesAssetsVersion,
+        'THEME_COLOR'          => $color,
+        'ISP_LOGO'             => $identity ? getUserLogo() : '',
+        'JS_TRANSLATIONS'      => getJsTranslations()
+    ]);
+    $tpl->parse('LAYOUT', $event->getParam('layout') ?: 'layout');
+}
+
+/**
+ * Sets given layout color for given user
+ *
+ * @param int $userId User unique identifier
+ * @param string $color Layout color
+ * @return bool TRUE on success false otherwise
+ */
+function setLayoutColor($userId, $color)
+{
+    if (!in_array($color, getLayoutColorsSet())) {
+        return false;
+    }
+
+    execQuery('UPDATE user_gui_props SET layout_color = ? WHERE user_id = ?', [$color, $userId]);
+
+    // Dealing with sessions across multiple browsers for same user identifier - Begin
+
+    $session = Application::getInstance()->getSession();
+    $sessionId = $session->getManager()->getId();
+    $stmt = execQuery('SELECT session_id FROM login WHERE user_name = ? AND session_id <> ?', [
+        Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $sessionId
+    ]);
+
+    if (!$stmt->rowCount()) {
+        return true;
+    }
+
+    foreach ($stmt->fetchAll(\PDO::FETCH_COLUMN) as $otherSessionId) {
+        $session->getManager()->writeClose();
+        $session->getManager()->setId($otherSessionId);
+        $sessionId['user_theme_color'] = $color; // Update user layout color
+    }
+
+    // Return back to the previous session
+    $session->getManager()->writeClose();
+    $session->getManager()->setId($sessionId);
+
+    // Dealing with data across multiple sessions - End
+    return true;
+}
+
+/**
+ * Get user logo path
+ *
+ * Only administrators and resellers can have their own logo.
+ *
+ * Search is done in the following order: user logo -> user's creator logo -> theme logo --> isp logo
+ *
+ * @param bool $searchForCreator Tell whether or not search must be done for user's creator in case no logo is found for user
+ * @param bool $returnDefault Tell whether or not default logo must be returned
+ * @return string User logo path.
+ * @todo cache issues
+ */
+function getUserLogo($searchForCreator = true, $returnDefault = true)
+{
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
+    // On switched level, we want show logo from logged user
+    if ($identity instanceof \iMSCP\Model\SuIdentityInterface && $searchForCreator) {
+        $userId = $identity->getSuUserId();
+        // Customers inherit the logo of their reseller
+    } elseif ($identity->getUserType() == 'user') {
+        $userId = $identity->getUserCreatedBy();
+    } else {
+        $userId = $identity->getUserId();
+    }
+
+    $stmt = execQuery('SELECT logo FROM user_gui_props WHERE user_id= ?', [$userId]);
+
+    // No logo is found for the user, let see for it creator
+    if (!$stmt->rowCount() && $searchForCreator && $userId != 1) {
+        $stmt = execQuery('SELECT b.logo FROM admin a LEFT JOIN user_gui_props b ON (b.user_id = a.created_by) WHERE a.admin_id= ?', [$userId]);
+    }
+
+    $logo = $stmt->fetchColumn();
+
+    // No user logo found
+    $config = Application::getInstance()->getConfig();
+    if (!$logo || !file_exists($config['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . $logo)) {
+        if (!$returnDefault) {
+            return '';
+        }
+
+        if (file_exists($config['ROOT_TEMPLATE_PATH'] . '/assets/images/imscp_logo.png')) {
+            return '/themes/' . Application::getInstance()->getSession()['user_theme'] . '/assets/images/imscp_logo.png';
+        }
+
+        // no logo available, we are using default
+        return $config['ISP_LOGO_PATH'] . '/' . 'isp_logo.gif';
+    }
+
+    return $config['ISP_LOGO_PATH'] . '/' . $logo;
+}
+
+/**
+ * Set user logo
+ *
+ * Note: Only administrators and resellers can have their own logo.
+ *
+ * @return bool TRUE on success, FALSE otherwise
+ */
+function setUserLogo()
+{
+    $config = Application::getInstance()->getConfig();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
+    // closure that is run before move_uploaded_file() function - See the
+    // Utils_UploadFile() function for further information about implementation
+    // details
+    $beforeMove = function ($config) use ($identity) {
+        $tmpFilePath = $_FILES['logoFile']['tmp_name'];
+
+        // Checking file mime type
+        if (!($fileMimeType = validateMimeType($tmpFilePath, ['image/gif', 'image/jpeg', 'image/pjpeg', 'image/png']))) {
+            View::setPageMessage(tr('You can only upload images.'), 'error');
+            return false;
+        }
+
+        // Retrieving file extension (gif|jpeg|png)
+        if ($fileMimeType == 'image/pjpeg' || $fileMimeType == 'image/jpeg') {
+            $fileExtension = 'jpeg';
+        } else {
+            $fileExtension = substr($fileMimeType, -3);
+        }
+
+        // Getting the image size
+        list($imageWidth, $imageHeight) = getimagesize($tmpFilePath);
+
+        // Checking image size
+        if ($imageWidth > 500 || $imageHeight > 90) {
+            View::setPageMessage(tr('Images have to be smaller than 500 x 90 pixels.'), 'error');
+            return false;
+        }
+
+        // Building an unique file name
+        $filename = sha1(Crypt::randomStr(15) . '-' . $identity->getUserId()) . '.' . $fileExtension;
+
+        // Return destination file path
+        return $config['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . $filename;
+    };
+
+    if (($logoPath = uploadFile('logoFile', [$beforeMove, $config])) === false) {
+        return false;
+    }
+
+    if ($identity->getUserType() == 'admin') {
+        $userId = 1;
+    } else {
+        $userId = $identity->getUserId();
+    }
+
+    // We must catch old logo before update
+    $oldLogoFile = getUserLogo(false, false);
+
+    execQuery('UPDATE user_gui_props SET logo = ? WHERE user_id = ?', [basename($logoPath), $userId]);
+
+    // Deleting old logo (we are safe here) - We don't return FALSE on failure.
+    // The administrator will be warned through logs.
+    deleteUserLogo($oldLogoFile, true);
+    return true;
+}
+
+/**
+ * Deletes user logo
+ *
+ * @param string $logoFilePath OPTIONAL Logo file path
+ * @param bool $onlyFile OPTIONAL Tell whether or not only logo file must be
+ *                       deleted
+ * @return bool TRUE on success, FALSE otherwise
+ */
+function deleteUserLogo($logoFilePath = NULL, $onlyFile = false)
+{
+    $cfg = Application::getInstance()->getConfig();
+    $session = Application::getInstance()->getSession();
+
+    if (NULL === $logoFilePath) {
+        if ($session['user_type'] == 'admin') {
+            $logoFilePath = getUserLogo(true);
+        } else {
+            $logoFilePath = getUserLogo(false);
+        }
+    }
+
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $userId = ($identity->getUserType() == 'admin') ? 1 : $identity->getUserId();
+    if (!$onlyFile) {
+        execQuery('UPDATE user_gui_props SET logo = ? WHERE user_id = ?', [NULL, $userId]);
+    }
+
+    if (strpos($logoFilePath, $cfg['ISP_LOGO_PATH']) === false) {
+        return true;
+    }
+
+    $logoFilePath = $cfg['FRONTEND_ROOT_DIR'] . '/data/persistent/ispLogos/' . basename($logoFilePath);
+    if (file_exists($logoFilePath) && !@unlink($logoFilePath)) {
+        writeLog(sprintf("Couldn't remove the %s file.", $logoFilePath), E_USER_WARNING);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Is user logo?
+ *
+ * @param string $logoPath Logo path to match against
+ * @return bool TRUE if $logoPath is a user's logo, FALSE otherwise
+ */
+function isUserLogo($logoPath)
+{
+    if ($logoPath == '/themes/' . Application::getInstance()->getSession()['user_theme'] . '/assets/images/imscp_logo.png'
+        || $logoPath == Application::getInstance()->getConfig()['ISP_LOGO_PATH'] . '/' . 'isp_logo.gif'
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Load navigation file for current UI level
+ *
+ * @return void
+ */
+function loadNavigation()
+{
+    if (!Application::getInstance()->getAuthService()->hasIdentity()) {
+        return;
+    }
+
+    switch (Application::getInstance()->getAuthService()->getIdentity()->getUserType()) {
+        case 'admin':
+            $userLevel = 'admin';
+            break;
+        case 'reseller':
+            $userLevel = 'reseller';
+            break;
+        case 'user':
+            $userLevel = 'client';
+            break;
+        default:
+            \iMSCP\Functions\View::showBadRequestErrorPage();
+            exit;
+    }
+
+    $pages = include(Application::getInstance()->getConfig()['ROOT_TEMPLATE_PATH'] . "/$userLevel/navigation.php");
+
+    // Inject Request object into all pages recursively
+    $requestInjector = function (&$pages, $request) use (&$requestInjector) {
+        foreach ($pages as &$page) {
+            $page['request'] = $request;
+            if (isset($page['pages'])) {
+                $requestInjector($page['pages'], $request);
+            }
+        }
+    };
+
+    $requestInjector($pages, Application::getInstance()->getRequest());
+    unset($requestInjector);
+    Application::getInstance()->getRegistry()->set('navigation', new Navigation($pages));
+
+    // Set main menu labels visibility for the current environment
+    Application::getInstance()->getEventManager()->attach(Events::onBeforeGenerateNavigation, 'setMainMenuLabelsVisibilityEvt');
+}
+
+/**
+ * Tells whether or not main menu labels are visible for the given user
+ *
+ * @param int $userId User unique identifier
+ * @return bool
+ */
+function isMainMenuLabelsVisible($userId)
+{
+    return (bool)execQuery('SELECT show_main_menu_labels FROM user_gui_props WHERE user_id = ?', [$userId])->fetchColumn();
+}
+
+/**
+ * Sets main menu label visibility for the given user
+ *
+ * @param int $userId User unique identifier
+ * @param int $visibility (0|1)
+ * @return void
+ */
+function setMainMenuLabelsVisibility(int $userId, int $visibility)
+{
+    $visibility = $visibility ? 1 : 0;
+    execQuery('UPDATE user_gui_props SET show_main_menu_labels = ? WHERE user_id = ?', [$visibility, $userId]);
+
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    if (!($identity instanceof \iMSCP\Model\SuIdentityInterface)) {
+        Application::getInstance()->getSession()['show_main_menu_labels'] = $visibility;
+    }
+}
+
+/**
+ * Sets main menu visibility for current environment
+ *
+ * @return void
+ */
+function setMainMenuLabelsVisibilityEvt()
+{
+    $session = Application::getInstance()->getSession();
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+
+    if (!isset($session['show_main_menu_labels']) && $identity) {
+        $userId = $identity instanceof \iMSCP\Model\SuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
+        $session['show_main_menu_labels'] = isMainMenuLabelsVisible($userId);
+    }
+}
 
 /**
  * Returns name of user matching the identifier

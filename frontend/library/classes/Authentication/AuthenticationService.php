@@ -50,10 +50,10 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     public const EVENT_BEFORE_SIGN_OUT = 'onBeforeSignOut';
     public const EVENT_AFTER_SIGN_OUT = 'onAfterSignOut';
 
-    public const ANY_CHECK_AUTH_TYPE = 'any';
-    public const ADMIN_CHECK_AUTH_TYPE = 'admin';
-    public const RESELLER_CHECK_AUTH_TYPE = 'reseller';
-    public const USER_CHECK_AUTH_TYPE = 'user';
+    public const ANY_IDENTITY_TYPE = 'any';
+    public const ADMIN_IDENTITY_TYPE = 'admin';
+    public const RESELLER_IDENTITY_TYPE = 'reseller';
+    public const USER_IDENTITY_TYPE = 'user';
 
     use ListenerAggregateTrait;
 
@@ -87,6 +87,9 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
      */
     public function signIn(): bool
     {
+        // Attach authentication listeners
+        $this->attach(Application::getInstance()->getEventManager());
+
         Application::getInstance()->getEventManager()->trigger(self::EVENT_BEFORE_SIGN_IN, $this);
 
         $ret = true;
@@ -109,19 +112,9 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     }
 
     /**
-     * Returns the identity from storage or null if no identity is available
-     *
-     * Note: Only for IDE type hinting
-     *
-     * @return UserIdentityInterface|SuIdentityInterface|null
-     */
-    public function getIdentity()
-    {
-        return parent::getIdentity();
-    }
-
-    /**
      * Sign out user
+     * 
+     * @return void
      */
     public function signOut(): void
     {
@@ -140,13 +133,13 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     }
 
     /**
-     * Check authentication
+     * Check if current identity is allowed to access the current page
      *
      * @param string $userType User type
      * @param bool $preventExternalLogin If TRUE, external login is disallowed
      * @return void
      */
-    public function checkAuthentication(string $userType = self::ANY_CHECK_AUTH_TYPE, bool $preventExternalLogin = true): void
+    public function checkIdentity(string $userType = self::ANY_IDENTITY_TYPE, bool $preventExternalLogin = true): void
     {
         if (!$this->hasIdentity()) {
             !isXhr() or View::showForbiddenErrorPage();
@@ -156,9 +149,9 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         $identity = $this->getIdentity();
 
         // When the panel is in maintenance mode, only administrators can access the interface
-        if (Application::getInstance()->getConfig()['MAINTENANCEMODE'] && $identity->getUserType() != self::ADMIN_CHECK_AUTH_TYPE
+        if (Application::getInstance()->getConfig()['MAINTENANCEMODE'] && $identity->getUserType() != self::ADMIN_IDENTITY_TYPE
             && ((!($identity instanceof SuIdentityInterface)
-                || ($identity->getSuUserType() != self::ADMIN_CHECK_AUTH_TYPE && !($identity->getSuIdentity() instanceof SuIdentityInterface))))
+                || ($identity->getSuUserType() != self::ADMIN_IDENTITY_TYPE && !($identity->getSuIdentity() instanceof SuIdentityInterface))))
         ) {
             $this->clearIdentity();
             View::setPageMessage(tr('You have been automatically signed out due to maintenance tasks.'), 'info');
@@ -166,7 +159,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         }
 
         // Check user type
-        if (empty($userType) || ($userType != self::ANY_CHECK_AUTH_TYPE && $identity->getUserType() != $userType)) {
+        if (empty($userType) || ($userType != self::ANY_IDENTITY_TYPE && $identity->getUserType() != $userType)) {
             $this->clearIdentity();
             redirectTo('/index.php');
         }
@@ -181,63 +174,60 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     }
 
     /**
-     * Become another user or switch back to previous user during a login session.
+     * Become another identity or switch back to previous identity during a login session.
      *
-     * @param int|null $userId Unique identifier of user to become, NULL to switch back to previous user
+     * @param int|null $userId Unique identifier of identity to become, NULL to switch back to previous identity
      * @return void
      */
     public function su(int $userId = NULL): void
     {
         if (!$this->hasIdentity()) {
-            // Guest users cannot become another user
+            // Guests cannot become another identity
             View::showBadRequestErrorPage();
         }
 
         $identity = $this->getIdentity();
-
         if (NULL != $userId && $identity->getUserId() == $userId) {
             // An user cannot become himself
             View::showBadRequestErrorPage();
         }
 
         $newIdentity = NULL;
-
-        if ($identity instanceof SuIdentityInterface) { // Administrator or Reseller logged-in as another user
-            if ($identity->getSuIdentity() instanceof SuIdentityInterface) { // Administrator logged-in as 'reseller', then logged-in as 'user'
+        // Administrator or reseller signed in as another user identity
+        if ($identity instanceof SuIdentityInterface) {
+            // Administrator signed in as 'reseller' identity then signed in as 'user' identity
+            if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
                 if (NULL !== $userId) {
-                    // When logged-in as 'reseller', then logged-in as 'user', an administrator
-                    // can only become the previous user, that is, a 'reseller'.
+                    // When signed in as 'reseller' identity, then signed in as 'user' identity, an administrator
+                    // can only become the previous identity, that is, a 'reseller' identity.
                     View::showBadRequestErrorPage();
                 }
-
-                # and that wants become back the previous user
+                // and that wants become back the previous identity
                 $newIdentity = $identity->getSuIdentity();
-            } else { // Administrator logged-in as 'reseller' or 'user', Or Reseller logged-in as 'user'
+            } else { // Administrator signed in as 'reseller' or 'user' identity, or reseller signed in as 'user'identity
                 if ($identity->getSuUserType() == 'admin') {
-                    if ($identity->getUserType() == 'reseller') { // Administrator logged-in as 'reseller'
-                        if (NULL !== $userId) { // and that want become a 'user' of that 'reseller'
+                    if ($identity->getUserType() == 'reseller') { // Administrator signed in as 'reseller' identity
+                        if (NULL !== $userId) { // and that want become a 'user' identity of that 'reseller' identity
                             $newIdentity = new SuIdentity($identity, $this->getIdentityFromDb($userId));
-                        } else { // and that wants become himself
+                        } else { // and that wants become back to himself
                             $newIdentity = $identity->getSuIdentity();
                         }
-                    } elseif ($identity->getUserType() == 'user') { // Administrator logged-in as 'user'
+                    } elseif ($identity->getUserType() == 'user') { // Administrator signed in as 'user' identity
                         if (NULL !== $userId) {
-                            // Unsupported use case: An administrator logged-in as 'user' can only become himself
+                            // Unsupported use case: An administrator signed in as 'user' identity can only become back to himself
                             View::showBadRequestErrorPage();
                         }
-
                         // and that wants become back to himself
                         $newIdentity = $identity->getSuIdentity();
                     } else {
                         // Unsupported use case: Unknown user identity type
                         View::showBadRequestErrorPage();
                     }
-                } elseif ($identity->getSuUserType() == 'reseller') { // Reseller logged-in as user
+                } elseif ($identity->getSuUserType() == 'reseller') { // Reseller signed in as 'user' identity
                     if (NULL !== $userId) {
-                        // Unsupported use case: A reseller logged-in as user can only become himself
+                        // Unsupported use case: A reseller signed in as user identity can only become back to himself
                         View::showBadRequestErrorPage();
                     }
-
                     // and that wants become back to himself
                     $newIdentity = $identity->getSuIdentity();
                 } else {
@@ -246,18 +236,29 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
                 }
             }/**/
         } elseif (NULL === $userId || $identity->getUserType() == 'user') {
-            // Unsupported use case: A non SU identity cannot become back to himself and an 'user' identity cannot become another user
+            // Unsupported use case: A non SU identity cannot become back to himself and an 'user' identity cannot become another user identity
             View::showBadRequestErrorPage();
-        } else { // Administrator or Reseller that wants become another user
+        } else { // Administrator or reseller that wants become another user identity
             $newIdentity = new SuIdentity($identity, $this->getIdentityFromDb($userId));
-
             if ($identity->getUserType() == 'reseller' && $newIdentity->getUserCreatedBy() != $identity->getUserId()) {
-                // A reseller cannot become an user that have not been created by himself
+                // A reseller cannot become an user identity that have not been created by himself
                 View::showBadRequestErrorPage();
             }
         }
 
         $this->setIdentity($newIdentity);
+    }
+
+    /**
+     * Returns the identity from storage or null if no identity is available
+     *
+     * Note: Only for IDE type hinting
+     *
+     * @return UserIdentityInterface|SuIdentityInterface|null
+     */
+    public function getIdentity()
+    {
+        return parent::getIdentity();
     }
 
     /**
@@ -346,7 +347,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     }
 
     /**
-     * Clear identity data from database
+     * Clear identity data from login database table
      *
      * @return void
      */

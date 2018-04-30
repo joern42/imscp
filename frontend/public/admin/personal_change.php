@@ -24,7 +24,7 @@ use iMSCP\Authentication\AuthenticationService;
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
 global $tpl;

@@ -255,7 +255,7 @@ function admin_deleteMenu($menuId)
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction'])) {

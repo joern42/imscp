@@ -364,7 +364,7 @@ function addIpAddr()
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (Application::getInstance()->getRequest()->isPost()) {

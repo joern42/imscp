@@ -271,7 +271,7 @@ function generatePage()
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 Counting::resellerHasFeature('domain_aliases') && Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
 

@@ -555,7 +555,7 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 isset($_GET['id']) && isset($_GET['type']) && in_array($_GET['type'], ['dmn', 'als', 'sub', 'alssub']) or View::showBadRequestErrorPage();
 

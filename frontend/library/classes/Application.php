@@ -213,11 +213,13 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             'gc_maxlifetime'         => $config['PHP_SESSION_GC_MAXLIFETIME'] ?? 1440,
             'save_path'              => FRONTEND_ROOT_DIR . '/data/sessions',
             'use_strict_mode'        => true,
-            'sid_bits_per_character' => 5
+            'sid_bits_per_character' => 5,
         ]);
 
         SessionContainer::setDefaultManager(
-            new SessionManager($sessionConfig, new SessionStorage(), new SessionHandler(), [RemoteAddr::class, HttpUserAgent::class])
+            new SessionManager($sessionConfig, new SessionStorage(), new SessionHandler(), [RemoteAddr::class, HttpUserAgent::class], [
+                'clear_storage' => true
+            ])
         );
     }
 
@@ -314,10 +316,6 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                 new AuthenticationStorage\Session('iMSCP_Session', NULL, SessionContainer::getDefaultManager()),
                 new AuthEventAdapter($this->getEventManager())
             );
-
-            if (!$this->authService->hasIdentity() && $this->getRequest()->isPost()) {
-                $this->authService->attach($this->getEventManager());
-            }
         }
 
         return $this->authService;
@@ -371,7 +369,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                 $this->cache = new Cache\Storage\Adapter\BlackHole();
                 if (PHP_SAPI != 'cli') {
                     $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
-                        if (null !== ($identity = $this->getAuthService()->getIdentity()) && !isXhr()
+                        if (NULL !== ($identity = $this->getAuthService()->getIdentity()) && !isXhr()
                             && (
                                 $identity->getUserType() == 'admin'
                                 || ($identity instanceof SuIdentityInterface && (
@@ -436,8 +434,11 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         // reasons (cache disabled)
         $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
             $identity = $this->getAuthService()->getIdentity();
-            if ($identity && !isXhr() && (
-                    $identity->getUserType() == 'admin' || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin')
+            if (NULL !== $identity
+                && !isXhr()
+                && ($identity->getUserType() == 'admin'
+                    || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin')
+                    || $identity->getSuIdentity() instanceof SuIdentityInterface
                 )
             ) {
                 View::setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled.'), 'static_warning');
@@ -644,10 +645,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     public function loadFunctions()
     {
         // TODO Replace by classes with static methods and with better separation concerns
-        require_once 'input.php';
-        require_once 'i18n.php';
-        require_once 'layout.php';
-        require_once 'shared.php';
+        require_once 'functions.php';
     }
 
     /**

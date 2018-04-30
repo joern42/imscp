@@ -240,8 +240,8 @@ function generatePage(TemplateEngine $tpl)
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(
-    AuthenticationService::RESELLER_CHECK_AUTH_TYPE, Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_RESELLER']
+Application::getInstance()->getAuthService()->checkIdentity(
+    AuthenticationService::RESELLER_IDENTITY_TYPE, Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_RESELLER']
 );
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 

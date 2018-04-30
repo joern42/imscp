@@ -42,8 +42,8 @@ function generateSupportSystemNotices()
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(
-    AuthenticationService::USER_CHECK_AUTH_TYPE, Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_CLIENT']
+Application::getInstance()->getAuthService()->checkIdentity(
+    AuthenticationService::USER_IDENTITY_TYPE, Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_CLIENT']
 );
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);

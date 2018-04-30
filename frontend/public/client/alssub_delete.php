@@ -26,7 +26,7 @@ use iMSCP\Functions\View;
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 Counting::customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
 deleteSubdomainAlias(intval($_GET['id']));

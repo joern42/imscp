@@ -25,17 +25,26 @@ use iMSCP\Model\SuIdentityInterface;
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 Application::getInstance()->getAuthService()->su(Application::getInstance()->getRequest()->getQuery('id'));
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 
 if (Application::getInstance()->getRequest()->getQuery('id')) {
-    $log = sprintf("%s switched onto %s's interface", $identity->getSuUsername(), $identity->getUsername());
+    if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
+        $log = sprintf(
+            "%s signed in as %s switched onto %s's interface",
+            $identity->getSuIdentity()->getSuUsername(),
+            $identity->getSuUsername(),
+            $identity->getUsername()
+        );
+    } else {
+        $log = sprintf("%s switched onto %s's interface", $identity->getSuUsername(), $identity->getUsername());
+    }
 } elseif ($identity instanceof SuIdentityInterface) {
     $log = sprintf("%s switched back onto %s's interface", $identity->getSuUsername(), $identity->getUsername());
 } else {
-    $log = sprintf("%s switched back onto it interface", $identity->getUsername());
+    $log = sprintf("%s switched back into its interface", $identity->getUsername());
 }
 
 writeLog($log, E_USER_NOTICE);

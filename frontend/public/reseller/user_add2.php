@@ -486,7 +486,7 @@ function checkInputData()
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::RESELLER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 // Initialize global variables

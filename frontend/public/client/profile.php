@@ -48,7 +48,7 @@ function generatePage($tpl)
 
 require_once 'application.php';
 
-Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
+Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 $tpl = new TemplateEngine();
