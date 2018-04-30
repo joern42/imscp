@@ -95,7 +95,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
             redirectTo('/index.php');
         }
 
-        // Check user level
+        // Check user type
         if (empty($userType) || ($userType != self::ANY_CHECK_AUTH_TYPE && $identity->getUserType() != $userType)) {
             $this->clearIdentity();
             redirectTo('/index.php');
@@ -203,38 +203,6 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     }
 
     /**
-     * Return hydrated UserIdentityInterface object using data from the database
-     *
-     * @param int $identityId Identity unique identifier
-     * @return UserIdentityInterface
-     */
-    protected function getIdentityFromDb(int $identityId): UserIdentityInterface
-    {
-        $stmt = Application::getInstance()->getDb()->createStatement(
-            'SELECT admin_id, admin_name, admin_pass, admin_type, email, created_by FROM admin WHERE admin_id = ?'
-        );
-        $stmt->prepare();
-        $result = $stmt->execute([$identityId]);
-
-        if ($result instanceof ResultInterface && $result->isQueryResult()) {
-            $resultSet = new HydratingResultSet(new ReflectionHydrator, new UserIdentity());
-            $resultSet->initialize($result);
-
-            if (count($resultSet) < 1) {
-                View::showBadRequestErrorPage();
-            }
-
-            /** @var UserIdentityInterface $identity */
-            $identity = $resultSet->current();
-            return $identity;
-        }
-
-        // Something else went wrong...
-        View::showInternalServerError();
-        exit;
-    }
-
-    /**
      * Set the identity
      *
      * Not part of default ZF implementation but we need it for the SU logic
@@ -286,5 +254,37 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         }
 
         redirectTo('/' . $userType . '/' . $location);
+    }
+
+    /**
+     * Return hydrated UserIdentityInterface object using data from the database
+     *
+     * @param int $identityId Identity unique identifier
+     * @return UserIdentityInterface
+     */
+    protected function getIdentityFromDb(int $identityId): UserIdentityInterface
+    {
+        $stmt = Application::getInstance()->getDb()->createStatement(
+            'SELECT admin_id, admin_name, admin_type, email, created_by FROM admin WHERE admin_id = ?'
+        );
+        $stmt->prepare();
+        $result = $stmt->execute([$identityId]);
+
+        if ($result instanceof ResultInterface && $result->isQueryResult()) {
+            $resultSet = new HydratingResultSet(new ReflectionHydrator, new UserIdentity());
+            $resultSet->initialize($result);
+
+            if (count($resultSet) < 1) {
+                View::showBadRequestErrorPage();
+            }
+
+            /** @var UserIdentityInterface $identity */
+            $identity = $resultSet->current();
+            return $identity;
+        }
+
+        // Something else went wrong...
+        View::showInternalServerError();
+        exit;
     }
 }
