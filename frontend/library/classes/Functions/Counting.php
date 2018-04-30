@@ -25,7 +25,7 @@ use iMSCP\Application;
 /**
  * Class Counting
  * 
- * Provide couting and similar function which return integer or boolean.
+ * Provide counting and similar functions which return integer or boolean.
  * 
  * @package iMSCP\Functions
  */
