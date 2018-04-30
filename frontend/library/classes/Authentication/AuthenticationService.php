@@ -91,7 +91,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
                 || ($identity->getSuUserType() != self::ADMIN_CHECK_AUTH_TYPE && !($identity->getSuIdentity() instanceof SuIdentityInterface))))
         ) {
             $this->clearIdentity();
-            View::setPageMessage(tr('You have been automatically disconnected due to maintenance task.'), 'info');
+            View::setPageMessage(tr('You have been automatically signed out due to maintenance tasks.'), 'info');
             redirectTo('/index.php');
         }
 
