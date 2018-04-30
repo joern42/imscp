@@ -73,13 +73,19 @@ class UserIdentity implements UserIdentityInterface
     }
 
     /**
-     * Get user password (hashed)
-     *
-     * @return string
+     * @inheritdoc
      */
     public function getUserPassword(): string
     {
         return $this->admin_pass;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function clearUserPassword(): void
+    {
+        $this->admin_pass = NULL;
     }
 
     /**

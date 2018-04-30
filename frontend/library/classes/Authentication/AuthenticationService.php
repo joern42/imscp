@@ -46,7 +46,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
 {
     const ANY_CHECK_AUTH_TYPE = 'any';
     const ADMIN_CHECK_AUTH_TYPE = 'admin';
-    const RESELLER_CHECK_AUTH_TYPE = 'client';
+    const RESELLER_CHECK_AUTH_TYPE = 'reseller';
     const USER_CHECK_AUTH_TYPE = 'user';
 
     use ListenerAggregateTrait;
@@ -72,7 +72,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     /**
      * Check authentication
      *
-     * @param string $userType User type (any|admin|reseller|user)
+     * @param string $userType User type
      * @param bool $preventExternalLogin If TRUE, external login is disallowed
      * @return void
      */
@@ -86,9 +86,9 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         $identity = $this->getIdentity();
 
         // When the panel is in maintenance mode, only administrators can access the interface
-        if (Application::getInstance()->getConfig()['MAINTENANCEMODE'] && $identity->getUserType() != 'admin'
+        if (Application::getInstance()->getConfig()['MAINTENANCEMODE'] && $identity->getUserType() != self::ADMIN_CHECK_AUTH_TYPE
             && ((!($identity instanceof SuIdentityInterface)
-                || ($identity->getSuUserType() != 'admin' && !($identity->getSuIdentity() instanceof SuIdentityInterface))))
+                || ($identity->getSuUserType() != self::ADMIN_CHECK_AUTH_TYPE && !($identity->getSuIdentity() instanceof SuIdentityInterface))))
         ) {
             $this->clearIdentity();
             setPageMessage(tr('You have been automatically disconnected due to maintenance task.'), 'info');
@@ -96,12 +96,12 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         }
 
         // Check user level
-        if (empty($userType) || ($userType !== 'all' && $identity->getUserType() != $userType)) {
+        if (empty($userType) || ($userType != self::ANY_CHECK_AUTH_TYPE && $identity->getUserType() != $userType)) {
             $this->clearIdentity();
             redirectTo('/index.php');
         }
 
-        // Prevent external login / check for referer
+        // Prevent external login if needed
         if ($preventExternalLogin && !empty($_SERVER['HTTP_REFERER']) && ($fromHost = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST))
             && $fromHost !== getRequestHost()
         ) {

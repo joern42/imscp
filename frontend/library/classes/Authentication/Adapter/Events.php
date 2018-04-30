@@ -59,7 +59,7 @@ class Events extends AbstractAdapter
     /**
      * @inheritdoc
      */
-    public function authenticate()
+    public function authenticate(): AuthResult
     {
         $authEvent = new AuthEvent();
         $authEvent->setTarget($this);
@@ -81,6 +81,6 @@ class Events extends AbstractAdapter
             Application::getInstance()->getSession()->getManager()->regenerateId();
         }
 
-        return $authEvent->getAuthenticationResult();
+        return $authResult;
     }
 }

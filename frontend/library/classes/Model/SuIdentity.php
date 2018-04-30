@@ -62,9 +62,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get user unique identifier
-     *
-     * @return int
+     * @inheritdoc
      */
     public function getUserId(): int
     {
@@ -72,9 +70,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get user name
-     *
-     * @return string
+     * @inheritdoc
      */
     public function getUsername(): string
     {
@@ -82,8 +78,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get user password (hashed)
-     * @return string
+     * @inheritdoc
      */
     public function getUserPassword(): string
     {
@@ -91,9 +86,15 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get user email address
-     *
-     * @return string
+     * @inheritdoc
+     */
+    public function clearUserPassword(): void
+    {
+        $this->userIdentity->clearUserPassword();
+    }
+
+    /**
+     * @inheritdoc
      */
     public function getUserEmail(): string
     {
@@ -101,9 +102,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get user type
-     *
-     * @return string
+     * @inheritdoc
      */
     public function getUserType(): string
     {
@@ -111,9 +110,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get user creator unique identifier
-     *
-     * @return int
+     * @inheritdoc
      */
     public function getUserCreatedBy(): int
     {
@@ -121,9 +118,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * get SU user unique identitfier
-     *
-     * @return int
+     * @inheritdoc
      */
     public function getSuUserId(): int
     {
@@ -131,9 +126,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get SU user name
-     *
-     * @return string
+     * @inheritdoc
      */
     public function getSuUsername(): string
     {
@@ -141,9 +134,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get SU user email
-     *
-     * @return string
+     * @inheritdoc
      */
     public function getSuUserEmail(): string
     {
@@ -151,9 +142,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * get SU user type
-     *
-     * @return string
+     * @inheritdoc
      */
     public function getSuUserType(): string
     {
@@ -161,9 +150,7 @@ class SuIdentity implements SuIdentityInterface
     }
 
     /**
-     * Get SU user creator unique identifier
-     *
-     * @return int
+     * @inheritdoc
      */
     public function getSuUserCreatedBy(): int
     {

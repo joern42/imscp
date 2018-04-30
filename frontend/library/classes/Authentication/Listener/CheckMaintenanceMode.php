@@ -41,7 +41,7 @@ class CheckMaintenanceMode implements AuthenticationListenerInterface
     public function __invoke(AuthEvent $event): void
     {
         if (!$event->hasAuthenticationResult() || !$event->getAuthenticationResult()->isValid()) {
-            // Return early if no authentication result has been set of if it
+            // Return early if no authentication result has been set or if it
             // is not valid
             return;
         }

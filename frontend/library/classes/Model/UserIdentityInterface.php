@@ -42,9 +42,17 @@ interface UserIdentityInterface
 
     /**
      * Get user password (hashed)
+     *
      * @return string
      */
     public function getUserPassword(): string;
+
+    /**
+     * Clear user password (hashed)
+     *
+     * @return void
+     */
+    public function clearUserPassword(): void;
 
     /**
      * Get user email address
