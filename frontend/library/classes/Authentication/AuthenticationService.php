@@ -44,38 +44,39 @@ use Zend\Hydrator\Reflection as ReflectionHydrator;
  */
 class AuthenticationService extends \Zend\Authentication\AuthenticationService implements ListenerAggregateInterface
 {
+    const ANY_CHECK_AUTH_TYPE = 'any';
+    const ADMIN_CHECK_AUTH_TYPE = 'admin';
+    const RESELLER_CHECK_AUTH_TYPE = 'client';
+    const USER_CHECK_AUTH_TYPE = 'user';
+
     use ListenerAggregateTrait;
 
     /**
-     * Attach default authentication listeners
-     *
-     * @param EventManagerInterface $events
-     * @param int $priority
-     * @return void
+     * @inheritdoc
      */
-    public function attach(EventManagerInterface $events, $priority = 1)
+    public function attach(EventManagerInterface $events, $priority = 99)
     {
         if (Application::getInstance()->getConfig()['BRUTEFORCE']) {
-            $bruteforce = new Bruteforce(Application::getInstance()->getPluginManager());
+            $bruteforce = new Bruteforce(Application::getInstance()->getPluginManager(), Bruteforce::LOGIN_TARGET);
             $bruteforce->attach($events, $priority);
         }
 
         // Attach default credentials authentication listener
-        $this->listeners[] = $events->attach(AuthEvent::EVENT_AUTHENTICATION, new CheckCredentials(), $priority);
-        // Attach listener that is responsible to check customer account
-        $this->listeners[] = $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new CheckCustomerAccount(), $priority);
+        $events->attach(AuthEvent::EVENT_AUTHENTICATION, new CheckCredentials(), $priority);
         // Attach listener that is responsible to check for maintenance mode
-        $this->listeners[] = $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new CheckMaintenanceMode(), $priority);
+        $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new CheckMaintenanceMode(), $priority);
+        // Attach listener that is responsible to check customer account
+        $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new CheckCustomerAccount(), $priority);
     }
 
     /**
      * Check authentication
      *
-     * @param string $userLevel User level (admin|reseller|user)
+     * @param string $userType User type (any|admin|reseller|user)
      * @param bool $preventExternalLogin If TRUE, external login is disallowed
      * @return void
      */
-    public function checkAuthentication(string $userLevel, bool $preventExternalLogin = true): void
+    public function checkAuthentication(string $userType = self::ANY_CHECK_AUTH_TYPE, bool $preventExternalLogin = true): void
     {
         if (!$this->hasIdentity()) {
             !isXhr() or View::showForbiddenErrorPage();
@@ -95,30 +96,24 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         }
 
         // Check user level
-        if (empty($userLevel) || ($userLevel !== 'all' && $identity->getUserType() != $userLevel)) {
+        if (empty($userType) || ($userType !== 'all' && $identity->getUserType() != $userType)) {
             $this->clearIdentity();
             redirectTo('/index.php');
         }
 
-        // prevent external login / check for referer
+        // Prevent external login / check for referer
         if ($preventExternalLogin && !empty($_SERVER['HTTP_REFERER']) && ($fromHost = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST))
             && $fromHost !== getRequestHost()
         ) {
             $this->clearIdentity();
             View::showForbiddenErrorPage();
         }
-
-        // If all condition are meet, update session and last access
-        // FIXME: Shouldn't be done while session write-close?
-        execQuery('UPDATE login SET lastaccess = ? WHERE session_id = ? AND ipaddr = ?', [
-            time(), Application::getInstance()->getSession()->getManager()->getId(), getIpAddr()
-        ]);
     }
 
     /**
      * Returns the identity from storage or null if no identity is available
      *
-     * Note: Only for type hinting
+     * Note: Only for IDE type hinting
      *
      * @return UserIdentityInterface|SuIdentityInterface|null
      */
@@ -205,11 +200,10 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         }
 
         $this->setIdentity($newIdentity);
-        //$this->>redirectToUserUi()
     }
 
     /**
-     * Get an identity from the database
+     * Return hydrated UserIdentityInterface object using data from the database
      *
      * @param int $identityId Identity unique identifier
      * @return UserIdentityInterface
@@ -243,6 +237,8 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     /**
      * Set the identity
      *
+     * Not part of default ZF implementation but we need it for the SU logic
+     *
      * @param UserIdentityInterface $identity
      */
     public function setIdentity(UserIdentityInterface $identity)
@@ -262,7 +258,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
      * Redirect to user UI
      *
      * Redirect the current logged-in user onto his interface, out of any SU
-     * identity consideration. If no identity is found, show a Bad Request error page.
+     * identity consideration. Return early if no identity is found.
      *
      * @return void
      */
@@ -270,7 +266,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     {
         $authService = Application::getInstance()->getAuthService();
         if (!$authService->hasIdentity()) {
-            View::showBadRequestErrorPage();
+            return;
         }
 
         switch ($authService->getIdentity()->getUserType()) {

@@ -26,6 +26,7 @@ use iMSCP\Authentication\AuthResult;
 use iMSCP\Crypt;
 use iMSCP\Functions\Daemon;
 use iMSCP\Model\UserIdentity;
+use iMSCP\Model\UserIdentityInterface;
 use Zend\Db\Adapter\Driver\ResultInterface;
 use Zend\Db\ResultSet\HydratingResultSet;
 use Zend\Hydrator\Reflection as ReflectionHydrator;
@@ -45,23 +46,17 @@ class CheckCredentials implements AuthenticationListenerInterface
      */
     public function __invoke(AuthEvent $event): void
     {
-        $username = !empty($_POST['admin_name']) ? encodeIdna(cleanInput($_POST['admin_name'])) : '';
-        $password = !empty($_POST['admin_pass']) ? cleanInput($_POST['admin_pass']) : '';
+        if ($event->hasAuthenticationResult() && !$event->getAuthenticationResult()->isValid()) {
+            // Return early if an authentication result is already set and is not valid
+            return;
+        }
+
+        $request = Application::getInstance()->getRequest();
+        $username = encodeIdna(cleanInput($request->getPost('admin_name', '')));
+        $password = cleanInput($request->getPost('admin_pass', ''));
 
         if ($username === '' || $password === '') {
-            $messages = [];
-
-            if (empty($username)) {
-                $message[] = tr('The username field is empty.');
-            }
-
-            if (empty($password)) {
-                $message[] = tr('The password field is empty.');
-            }
-
-            $event->setAuthenticationResult(new AuthResult(
-                count($messages) == 2 ? AuthResult::FAILURE : AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, $messages
-            ));
+            $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, [tr('Invalid credentials.')]));
             return;
         }
 
@@ -75,21 +70,19 @@ class CheckCredentials implements AuthenticationListenerInterface
             $resultSet->initialize($result);
 
             if (count($resultSet) < 1) {
-                $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_IDENTITY_NOT_FOUND, NULL, [tr('Unknown username.')]));
+                $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, [tr('Invalid credentials.')]));
                 return;
             }
 
+            /** @var UserIdentityInterface $identity */
             $identity = $resultSet->current();
-
             if (!Crypt::verify($password, $identity->getUserPassword())) {
-                $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, [tr('Bad password.')]));
+                $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_CREDENTIAL_INVALID, NULL, [tr('Invalid credentials.')]));
                 return;
             }
 
             // If not a Bcrypt hashed password, we need recreate the hash
             if (strpos($identity->getUserPassword(), '$2a$') !== 0) {
-                // We must defer password hash update to handle cases where the authentication
-                // process has failed later on (case of a multi-factor authentication process)
                 Application::getInstance()->getEventManager()->attach(
                     AuthEvent::EVENT_AFTER_AUTHENTICATION,
                     function (AuthEvent $event) use ($password) {
@@ -100,15 +93,17 @@ class CheckCredentials implements AuthenticationListenerInterface
                         }
 
                         $identity = $authResult->getIdentity();
-                        $stmt = Application::getInstance()->getDb()->createStatement(
-                            'UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?'
-                        );
+                        $stmt = Application::getInstance()->getDb()->createStatement('UPDATE admin SET admin_pass = ?, admin_status = ? WHERE admin_id = ?');
                         $stmt->execute([Crypt::bcrypt($password), $identity->getUserType() == 'user' ? 'tochangepwd' : 'ok', $identity->getUserId()]);
                         writeLog(sprintf('Password hash for user %s has been updated using Bcrypt algorithm', $identity->getUsername()), E_USER_NOTICE);
                         $identity->getUserType() != 'user' or Daemon::sendRequest();
-                    }
+                    },
+                    -99
                 );
             }
+
+            // We do not want store password hash in session
+            $identity->clearUserPassword();
 
             $event->setAuthenticationResult(new AuthResult(AuthResult::SUCCESS, $identity));
         }

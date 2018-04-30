@@ -27,8 +27,8 @@ use iMSCP\Authentication\AuthResult;
 /**
  * Class CheckMaintenanceMode
  *
- * In maintenance mode, only administrators can login.
- * Other users are immediately disconnected and an explanation message is provided to them.
+ * In maintenance mode, only administrators can login. Other users are
+ * immediately signed out and an explanation message is provided to them.
  * Expects to listen on the AuthEvent::EVENT_AFTER_AUTHENTICATION
  *
  * @package iMSCP\Authentication\Listener
@@ -40,12 +40,13 @@ class CheckMaintenanceMode implements AuthenticationListenerInterface
      */
     public function __invoke(AuthEvent $event): void
     {
-        $authResult = $event->getAuthenticationResult();
-        if (!$authResult->isValid()) {
+        if (!$event->hasAuthenticationResult() || !$event->getAuthenticationResult()->isValid()) {
+            // Return early if no authentication result has been set of if it
+            // is not valid
             return;
         }
 
-        $identity = $authResult->getIdentity();
+        $identity = $event->getAuthenticationResult()->getIdentity();
         if ($identity->getUserType() == 'admin') {
             return;
         }
@@ -56,7 +57,7 @@ class CheckMaintenanceMode implements AuthenticationListenerInterface
         }
 
         $message = preg_replace('/\s\s+/', '', nl2br(toHtml(
-            $config['MAINTENANCEMODE_MESSAGE'] ?? tr('We are sorry, but the system is currently under maintenance.')
+            $config['MAINTENANCEMODE_MESSAGE'] ?? tr('We are sorry, but the system is currently under maintenance. In that mode, only administrators can sign in.')
         )));
 
         $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, $identity, [$message]));

@@ -20,13 +20,14 @@
 
 namespace iMSCP\Authentication\Adapter;
 
+use iMSCP\Application;
 use iMSCP\Authentication\AuthEvent;
 use iMSCP\Authentication\AuthResult;
 use Zend\Authentication\Adapter\AbstractAdapter;
 use Zend\EventManager\EventManagerInterface;
 
 /**
- * Class Event
+ * Class Events
  *
  * This adapter authenticate users by triggering authentication events.
  * Listeners of these events are responsible to implement authentication
@@ -62,28 +63,24 @@ class Events extends AbstractAdapter
     {
         $authEvent = new AuthEvent();
         $authEvent->setTarget($this);
-        $authEvent->setName(AuthEvent::EVENT_BEFORE_AUTHENTICATION);
 
-        $responses = $this->events->triggerEvent($authEvent);
-        if (!$responses->stopped()) {
-            $authEvent->setName(AuthEvent::EVENT_AUTHENTICATION);
+        foreach ([AuthEvent::EVENT_BEFORE_AUTHENTICATION, AuthEvent::EVENT_AUTHENTICATION, AuthEvent::EVENT_AFTER_AUTHENTICATION] as $event) {
+            $authEvent->setName($event);
             $this->events->triggerEvent($authEvent);
+        }
 
-            if (!$authEvent->hasAuthenticationResult()) {
-                $authResult = new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, NULL, [tr('Unknown reason.')]);
-                $authEvent->setAuthenticationResult($authResult);
-            } else {
-                $authResult = $authEvent->getAuthenticationResult();
-            }
+        if ($authEvent->hasAuthenticationResult()) {
+            $authResult = $authEvent->getAuthenticationResult();
         } else {
-            $authResult = new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, NULL, [$responses->last()]);
+            // Cover case where none of attached authentication listeners has set an authentication result
+            $authResult = new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, NULL, [tr('Unhandled authentication')]);
             $authEvent->setAuthenticationResult($authResult);
         }
 
-        $authEvent->setTarget($this);
-        $authEvent->setName(AuthEvent::EVENT_AFTER_AUTHENTICATION);
-        $this->events->triggerEvent($authEvent);
+        if ($authResult->isValid()) {
+            Application::getInstance()->getSession()->getManager()->regenerateId();
+        }
 
-        return $authResult;
+        return $authEvent->getAuthenticationResult();
     }
 }

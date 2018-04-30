@@ -39,12 +39,13 @@ class CheckCustomerAccount implements AuthenticationListenerInterface
      */
     public function __invoke(AuthEvent $event): void
     {
-        $authResult = $event->getAuthenticationResult();
-        if (!$authResult->isValid()) {
+        if (!$event->hasAuthenticationResult() || !$event->getAuthenticationResult()->isValid()) {
+            // Return early if no authentication result has been set of if it
+            // is not valid
             return;
         }
 
-        $identity = $authResult->getIdentity();
+        $identity = $event->getAuthenticationResult()->getIdentity();
         if ($identity->getUserType() !== 'user') {
             return;
         }
@@ -71,15 +72,14 @@ class CheckCustomerAccount implements AuthenticationListenerInterface
 
         if ($row['admin_status'] == 'disabled' || $row['domain_status'] == 'disabled') {
             $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, $identity, [
-                tr('Your account has been disabled. Please, contact your reseller.')
+                tr('Your account has been suspended. Please contact your reseller.')
             ]));
             return;
         }
 
-        // We prevent login for accounts which are already expired or which will expire in less than one hour
-        if ($row['domain_expires'] > 0 && ($row['domain_expires'] - 3599) < time()) {
+        if ($row['domain_expires'] > 0 && $row['domain_expires'] < time()) {
             $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, $identity, [
-                tr('Your account is expired or will expire in less than one hour. Please contact your reseller.')
+                tr('Your account is expired. Please contact your reseller.')
             ]));
         }
     }
