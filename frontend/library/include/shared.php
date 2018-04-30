@@ -2253,7 +2253,7 @@ function getProcessorUsername(UserIdentityInterface $identity): string
 {
     static $username = NULL;
 
-    if (NULL == $username) {
+    if (NULL === $username) {
         if ($identity instanceof SuIdentityInterface) {
             if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
                 $username = $identity->getSuIdentity()->getSuUsername();
