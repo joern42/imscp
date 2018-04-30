@@ -20,6 +20,9 @@
 
 use iMSCP\Application;
 use iMSCP\Events;
+use iMSCP\Functions\View;
+use iMSCP\Model\SuIdentityInterface;
+use iMSCP\Model\UserIdentityInterface;
 use Mso\IdnaConvert\IdnaConvert;
 
 /**
@@ -362,10 +365,10 @@ function changeDomainStatus($customerId, $action)
 
         if ($action == 'deactivate') {
             writeLog(sprintf('%s: scheduled deactivation of customer account: %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $adminName), E_USER_NOTICE);
-            setPageMessage(tr('Customer account successfully scheduled for deactivation.'), 'success');
+            View::setPageMessage(tr('Customer account successfully scheduled for deactivation.'), 'success');
         } else {
             writeLog(sprintf('%s: scheduled activation of customer account: %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $adminName), E_USER_NOTICE);
-            setPageMessage(tr('Customer account successfully scheduled for activation.'), 'success');
+            View::setPageMessage(tr('Customer account successfully scheduled for activation.'), 'success');
         }
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -754,11 +757,11 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
 
         \iMSCP\Functions\Daemon::sendRequest();
         writeLog(sprintf('%s scheduled deletion of the %s domain alias', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $aliasName), E_USER_NOTICE);
-        setPageMessage(tr('Domain alias successfully scheduled for deletion.'), 'success');
+        View::setPageMessage(tr('Domain alias successfully scheduled for deletion.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to remove a domain alias: %s', $e->getMessage()), E_ERROR);
-        setPageMessage(tr("Couldn't delete domain alias. An unexpected error occurred."), 'error');
+        View::setPageMessage(tr("Couldn't delete domain alias. An unexpected error occurred."), 'error');
     }
 }
 
@@ -907,7 +910,7 @@ function uploadFile($inputFieldName, $destPath)
         $tmpFilePath = $_FILES[$inputFieldName]['tmp_name'];
 
         if (!is_readable($tmpFilePath)) {
-            setPageMessage(tr('File is not readable.'), 'error');
+            View::setPageMessage(tr('File is not readable.'), 'error');
             return false;
         }
 
@@ -918,32 +921,32 @@ function uploadFile($inputFieldName, $destPath)
         }
 
         if (!@move_uploaded_file($tmpFilePath, $destPath)) {
-            setPageMessage(tr('Unable to move file.'), 'error');
+            View::setPageMessage(tr('Unable to move file.'), 'error');
             return false;
         }
     } else {
         switch ($_FILES[$inputFieldName]['error']) {
             case UPLOAD_ERR_INI_SIZE:
             case UPLOAD_ERR_FORM_SIZE:
-                setPageMessage(tr('File exceeds the size limit.'), 'error');
+                View::setPageMessage(tr('File exceeds the size limit.'), 'error');
                 break;
             case UPLOAD_ERR_PARTIAL:
-                setPageMessage(tr('The uploaded file was only partially uploaded.'), 'error');
+                View::setPageMessage(tr('The uploaded file was only partially uploaded.'), 'error');
                 break;
             case UPLOAD_ERR_NO_FILE:
-                setPageMessage(tr('No file was uploaded.'), 'error');
+                View::setPageMessage(tr('No file was uploaded.'), 'error');
                 break;
             case UPLOAD_ERR_NO_TMP_DIR:
-                setPageMessage(tr('Temporary folder not found.'), 'error');
+                View::setPageMessage(tr('Temporary folder not found.'), 'error');
                 break;
             case UPLOAD_ERR_CANT_WRITE:
-                setPageMessage(tr('Failed to write file to disk.'), 'error');
+                View::setPageMessage(tr('Failed to write file to disk.'), 'error');
                 break;
             case UPLOAD_ERR_EXTENSION:
-                setPageMessage(tr('A PHP extension stopped the file upload.'), 'error');
+                View::setPageMessage(tr('A PHP extension stopped the file upload.'), 'error');
                 break;
             default:
-                setPageMessage(tr('An unknown error occurred during file upload: %s', $_FILES[$inputFieldName]['error']), 'error');
+                View::setPageMessage(tr('An unknown error occurred during file upload: %s', $_FILES[$inputFieldName]['error']), 'error');
         }
 
         return false;
@@ -1730,6 +1733,14 @@ function getFilemanagerList(): array
  */
 function getIpAddr(): string
 {
+    static $remoteIp = NULL;
+
+    if (NULL === $remoteIp) {
+        $remoteIp = new Zend\Http\PhpEnvironment\RemoteAddress;
+        $remoteIp->setUseProxy();
+        $remoteIp = $remoteIp->getIpAddress();
+    }
+    /*
     $ipAddr = !empty($_SERVER['HTTP_CLIENT_IP']) ? $_SERVER['HTTP_CLIENT_IP'] : false;
 
     if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
@@ -1750,6 +1761,8 @@ function getIpAddr(): string
     }
 
     return $ipAddr ? $ipAddr : (isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : tr('Unknown'));
+    */
+    return $remoteIp;
 }
 
 /**
@@ -1803,89 +1816,89 @@ function validateHostingPlanLimits($hp, int $resellerId): bool
     $maxDiskspaceLimit = $data['max_disk_amnt'];
 
     if ($maxDmnLimit != 0 && $currentDmnLimit + 1 > $maxDmnLimit) {
-        setPageMessage(tr('You have reached your domains limit. You cannot add more domains.'), 'error');
+        View::setPageMessage(tr('You have reached your domains limit. You cannot add more domains.'), 'error');
         $ret = false;
     }
 
     if ($maxSubLimit != 0 && $newSubLimit != -1) {
         if ($newSubLimit == 0) {
-            setPageMessage(tr('You have a subdomains limit. You cannot add a user with unlimited subdomains.'), 'error');
+            View::setPageMessage(tr('You have a subdomains limit. You cannot add a user with unlimited subdomains.'), 'error');
             $ret = false;
         } else if ($currentSubLimit + $newSubLimit > $maxSubLimit) {
-            setPageMessage(tr('You are exceeding your subdomains limit.'), 'error');
+            View::setPageMessage(tr('You are exceeding your subdomains limit.'), 'error');
             $ret = false;
         }
     }
 
     if ($maxAlsLimit != 0 && $newAlsLimit != -1) {
         if ($newAlsLimit == 0) {
-            setPageMessage(tr('You have a domain aliases limit. You cannot add a user with unlimited domain aliases.'), 'error');
+            View::setPageMessage(tr('You have a domain aliases limit. You cannot add a user with unlimited domain aliases.'), 'error');
             $ret = false;
         } else if ($currentAlsLimit + $newAlsLimit > $maxAlsLimit) {
-            setPageMessage(tr('You are exceeding you domain aliases limit.'), 'error');
+            View::setPageMessage(tr('You are exceeding you domain aliases limit.'), 'error');
             $ret = false;
         }
     }
 
     if ($maxMailLimit != 0) {
         if ($newMailLimit == 0) {
-            setPageMessage(tr('You have a mail accounts limit. You cannot add a user with unlimited mail accounts.'), 'error');
+            View::setPageMessage(tr('You have a mail accounts limit. You cannot add a user with unlimited mail accounts.'), 'error');
             $ret = false;
         } else if ($currentMailLimit + $newMailLimit > $maxMailLimit) {
-            setPageMessage(tr('You are exceeding your mail accounts limit.'), 'error');
+            View::setPageMessage(tr('You are exceeding your mail accounts limit.'), 'error');
             $ret = false;
         }
     }
 
     if ($ftpMaxLimit != 0) {
         if ($newFtpLimit == 0) {
-            setPageMessage(tr('You have a FTP accounts limit. You cannot add a user with unlimited FTP accounts.'), 'error');
+            View::setPageMessage(tr('You have a FTP accounts limit. You cannot add a user with unlimited FTP accounts.'), 'error');
             $ret = false;
         } else if ($currentFtpLimit + $newFtpLimit > $ftpMaxLimit) {
-            setPageMessage(tr('You are exceeding your FTP accounts limit.'), 'error');
+            View::setPageMessage(tr('You are exceeding your FTP accounts limit.'), 'error');
             $ret = false;
         }
     }
 
     if ($maxSqlDbLimit != 0 && $newSqlDbLimit != -1) {
         if ($newSqlDbLimit == 0) {
-            setPageMessage(tr('You have a SQL databases limit. You cannot add a user with unlimited SQL databases.'), 'error');
+            View::setPageMessage(tr('You have a SQL databases limit. You cannot add a user with unlimited SQL databases.'), 'error');
             $ret = false;
         } else if ($currentSqlDbLimit + $newSqlDbLimit > $maxSqlDbLimit) {
-            setPageMessage(tr('You are exceeding your SQL databases limit.'), 'error');
+            View::setPageMessage(tr('You are exceeding your SQL databases limit.'), 'error');
             $ret = false;
         }
     }
 
     if ($maxSqlUserLimit != 0 && $newSqlUserLimit != -1) {
         if ($newSqlUserLimit == 0) {
-            setPageMessage(tr('You have a SQL users limit. You cannot add a user with unlimited SQL users.'), 'error');
+            View::setPageMessage(tr('You have a SQL users limit. You cannot add a user with unlimited SQL users.'), 'error');
             $ret = false;
         } elseif ($newSqlDbLimit == -1) {
-            setPageMessage(tr('You have disabled SQL databases for this user. You cannot have SQL users here.'), 'error');
+            View::setPageMessage(tr('You have disabled SQL databases for this user. You cannot have SQL users here.'), 'error');
             $ret = false;
         } elseif ($currentSqlUserLimit + $newSqlUserLimit > $maxSqlUserLimit) {
-            setPageMessage(tr('You are exceeding your SQL users limit.'), 'error');
+            View::setPageMessage(tr('You are exceeding your SQL users limit.'), 'error');
             $ret = false;
         }
     }
 
     if ($maxTrafficLimit != 0) {
         if ($newTrafficLimit == 0) {
-            setPageMessage(tr('You have a monthly traffic limit. You cannot add a user with unlimited monthly traffic.'), 'error');
+            View::setPageMessage(tr('You have a monthly traffic limit. You cannot add a user with unlimited monthly traffic.'), 'error');
             $ret = false;
         } elseif ($currentTrafficLimit + $newTrafficLimit > $maxTrafficLimit) {
-            setPageMessage(tr('You are exceeding your monthly traffic limit.'), 'error');
+            View::setPageMessage(tr('You are exceeding your monthly traffic limit.'), 'error');
             $ret = false;
         }
     }
 
     if ($maxDiskspaceLimit != 0) {
         if ($newDiskspaceLimit == 0) {
-            setPageMessage(tr('You have a disk space limit. You cannot add a user with unlimited disk space.'), 'error');
+            View::setPageMessage(tr('You have a disk space limit. You cannot add a user with unlimited disk space.'), 'error');
             $ret = false;
         } elseif ($currentDiskspaceLimit + $newDiskspaceLimit > $maxDiskspaceLimit) {
-            setPageMessage(tr('You are exceeding your disk space limit.'), 'error');
+            View::setPageMessage(tr('You are exceeding your disk space limit.'), 'error');
             $ret = false;
         }
     }
@@ -1893,182 +1906,6 @@ function validateHostingPlanLimits($hp, int $resellerId): bool
     return $ret;
 }
 
-/**
- * Tells whether or not the given feature is available for the reseller
- *
- * @param string $featureName Feature name
- * @param bool $forceReload If true force data to be reloaded
- * @return bool TRUE if $featureName is available for reseller, FALSE otherwise
- */
-function resellerHasFeature(string $featureName, bool $forceReload = false): bool
-{
-    static $availableFeatures = NULL;
-    $featureName = strtolower($featureName);
-
-    if (NULL == $availableFeatures || $forceReload) {
-        $config = Application::getInstance()->getConfig();
-        $resellerProps = getResellerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
-        $availableFeatures = [
-            'domains'            => $resellerProps['max_dmn_cnt'] != '-1',
-            'subdomains'         => $resellerProps['max_sub_cnt'] != '-1',
-            'domain_aliases'     => $resellerProps['max_als_cnt'] != '-1',
-            'mail'               => $resellerProps['max_mail_cnt'] != '-1',
-            'ftp'                => $resellerProps['max_ftp_cnt'] != '-1',
-            'sql'                => $resellerProps['max_sql_db_cnt'] != '-1', // TODO to be removed
-            'sql_db'             => $resellerProps['max_sql_db_cnt'] != '-1',
-            'sql_user'           => $resellerProps['max_sql_user_cnt'] != '-1',
-            'php'                => true,
-            'php_editor'         => $resellerProps['php_ini_system'] == 'yes',
-            'cgi'                => true,
-            'custom_dns_records' => $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
-            'external_mail'      => true,
-            'backup'             => $config['BACKUP_DOMAINS'] != 'no',
-            'support'            => $config['IMSCP_SUPPORT_SYSTEM'] && $resellerProps['support_system'] == 'yes'
-        ];
-    }
-
-    if (!array_key_exists($featureName, $availableFeatures)) {
-        throw new \Exception(sprintf("Feature %s is not known by the resellerHasFeature() function.", $featureName));
-    }
-
-    return $availableFeatures[$featureName];
-}
-
-/**
- * Tells whether or not the current customer can access to the given feature(s)
- *
- * @param array|string $featureNames Feature name(s) (insensitive case)
- * @param bool $forceReload If true force data to be reloaded
- * @return bool TRUE if $featureName is available for customer, FALSE otherwise
- */
-function customerHasFeature(string $featureNames, bool $forceReload = false): bool
-{
-    static $availableFeatures = NULL;
-    static $debug = false;
-
-    if (NULL === $availableFeatures || $forceReload) {
-        $identity = Application::getInstance()->getAuthService()->getIdentity();
-        $config = Application::getInstance()->getConfig();
-        $debug = (bool)$config['DEBUG'];
-        $dmnProps = getCustomerProperties($identity->getUserId());
-        $availableFeatures = [
-            /*'domain' => ($dmnProps['domain_alias_limit'] != '-1'
-                || $dmnProps['domain_subd_limit'] != '-1'
-                || $dmnProps['domain_dns'] == 'yes'
-                || $dmnProps['phpini_perm_system'] == 'yes'
-                || $cfg['ENABLE_SSL']) ? true : false,
-            */
-            'external_mail'      => $dmnProps['domain_external_mail'] == 'yes',
-            'php'                => $dmnProps['domain_php'] == 'yes',
-            'php_editor'         => $dmnProps['phpini_perm_system'] == 'yes' && $dmnProps['phpini_perm_allow_url_fopen'] == 'yes'
-                || $dmnProps['phpini_perm_display_errors'] == 'yes' || in_array($dmnProps['phpini_perm_disable_functions'], ['yes', 'exec']),
-            'cgi'                => $dmnProps['domain_cgi'] == 'yes',
-            'ftp'                => $dmnProps['domain_ftpacc_limit'] != '-1',
-            'sql'                => $dmnProps['domain_sqld_limit'] != '-1',
-            'mail'               => $dmnProps['domain_mailacc_limit'] != '-1',
-            'subdomains'         => $dmnProps['domain_subd_limit'] != '-1',
-            'domain_aliases'     => $dmnProps['domain_alias_limit'] != '-1',
-            'custom_dns_records' => $dmnProps['domain_dns'] != 'no' && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
-            'webstats'           => $config['WEBSTATS'] != 'no',
-            'backup'             => $config['BACKUP_DOMAINS'] != 'no' && $dmnProps['allowbackup'] != '',
-            'protected_areas'    => true,
-            'custom_error_pages' => true,
-            'ssl'                => $config['ENABLE_SSL'] == 1
-        ];
-
-        if ($config['IMSCP_SUPPORT_SYSTEM']) {
-            $stmt = execQuery('SELECT support_system FROM reseller_props WHERE reseller_id = ?', [$identity->getUserCreatedBy()]);
-            $availableFeatures['support'] = $stmt->fetchColumn() == 'yes';
-        } else {
-            $availableFeatures['support'] = false;
-        }
-    }
-
-    $canAccess = true;
-    foreach ((array)$featureNames as $featureName) {
-        $featureName = strtolower($featureName);
-
-        if ($debug && !array_key_exists($featureName, $availableFeatures)) {
-            throw new \Exception(sprintf("Feature %s is not known by the customerHasFeature() function.", $featureName));
-        }
-
-        if (!$availableFeatures[$featureName]) {
-            $canAccess = false;
-            break;
-        }
-    }
-
-    return $canAccess;
-}
-
-/**
- * Tells whether or not the current customer can access the mail or external mail feature.
- * @return bool
- */
-function customerHasMailOrExtMailFeatures(): bool
-{
-    return customerHasFeature('mail') || customerHasFeature('external_mail');
-}
-
-/**
- * Does the given customer is the owner of the given domain?
- *
- * @param string $domainName Domain name (dmn,sub,als,alssub)
- * @param int $customerId Customer unique identifier
- * @return bool TRUE if the given customer is the owner of the given domain, FALSE otherwise
- * TODO add admin_id as foreign key in all domain tables too avoid too many jointures
- */
-function customerHasDomain(string $domainName, int $customerId): bool
-{
-    $domainName = encodeIdna($domainName);
-
-    // Check in domain table
-    $stmt = execQuery("SELECT 1 FROM domain WHERE domain_admin_id = ? AND domain_name = ?", [$customerId, $domainName]);
-
-    if ($stmt->rowCount()) {
-        return true;
-    }
-
-    // Check in domain_aliases table
-    $stmt = execQuery(
-        "SELECT 1 FROM domain AS t1 JOIN domain_aliases AS t2 ON(t2.domain_id = t1.domain_id) WHERE t1.domain_admin_id = ? AND t2.alias_name = ?",
-        [$customerId, $domainName]
-    );
-
-    if ($stmt->rowCount()) {
-        return true;
-    }
-
-    // Check in subdomain table
-    $stmt = execQuery(
-        "
-            SELECT 1
-            FROM domain AS t1
-            JOIN subdomain AS t2 ON (t2.domain_id = t1.domain_id)
-            WHERE t1.domain_admin_id = ?
-            AND CONCAT(t2.subdomain_name, '.', t1.domain_name) = ?
-        ",
-        [$customerId, $domainName]
-    );
-
-    if ($stmt->rowCount()) {
-        return true;
-    }
-
-    // Check in subdomain_alias table
-    $stmt = execQuery(
-        "
-            SELECT 1
-            FROM domain AS t1
-            JOIN domain_aliases AS t2 ON(t2.domain_id = t1.domain_id)
-            JOIN subdomain_alias AS t3 ON(t3.alias_id = t2.alias_id)
-            WHERE t1.domain_admin_id = ? AND CONCAT(t3.subdomain_alias_name, '.', t2.alias_name) = ?
-        ",
-        [$customerId, $domainName]
-    );
-
-    return (bool)$stmt->rowCount();
-}
 
 /**
  * Get mount points
@@ -2157,76 +1994,6 @@ function getDomainMountpoint(int $domainId, string $domainType, int $ownerId): a
     return $stmt->fetch(\PDO::FETCH_NUM);
 }
 
-/**
- * Parse data from the given maildirsize file
- *
- * Because processing several maildirsize files can be time consuming, the data are stored in session for next 5 minutes.
- * It is possible to refresh data by changing the $refreshData flag value to TRUE
- *
- * @see http://www.courier-mta.org/imap/README.maildirquota.html
- * @param string $maildirsizeFilePath
- * @param bool $refreshData Flag indicating if data must be refreshed
- * @return array|bool Array containing maildirsize data, FALSE on failure
- */
-function parseMaildirsize(string $maildirsizeFilePath, bool $refreshData = false)
-{
-    $session = Application::getInstance()->getSession();
-
-    if (!$refreshData && !empty($session['maildirsize'][$maildirsizeFilePath])
-        && $session['maildirsize'][$maildirsizeFilePath]['timestamp'] < (time() + 300)
-    ) {
-        return $session['maildirsize'][$maildirsizeFilePath];
-    }
-
-    unset($session['maildirsize'][$maildirsizeFilePath]);
-
-    $fh = @fopen($maildirsizeFilePath, 'r');
-    if (!$fh) {
-        return false;
-    }
-
-    $maildirsize = [
-        'quota_bytes'    => 0,
-        'quota_messages' => 0,
-        'byte_count'     => 0,
-        'file_count'     => 0,
-        'timestamp'      => time()
-    ];
-
-    // Parse quota definition
-
-    if (($line = fgets($fh)) === false) {
-        fclose($fh);
-        return false;
-    }
-
-    $quotaDefinition = explode(',', $line, 2);
-
-    if (!isset($quotaDefinition[0]) || !preg_match('/(\d+)S/i', $quotaDefinition[0], $m)) {
-        // No quota definition. Skip processing...
-        fclose($fh);
-        return false;
-    }
-
-    $maildirsize['quota_bytes'] = $m[1];
-
-    if (isset($quotaDefinition[1]) && preg_match('/(\d+)C/i', $quotaDefinition[1], $m)) {
-        $maildirsize['quota_messages'] = $m[1];
-    }
-
-    // Parse byte and file counts
-
-    while (($line = fgets($fh)) !== false) {
-        if (preg_match('/^\s*(-?\d+)\s+(-?\d+)\s*$/', $line, $m)) {
-            $maildirsize['byte_count'] += $m[1];
-            $maildirsize['file_count'] += $m[2];
-        }
-    }
-
-    fclose($fh);
-    Application::getInstance()->getSession()['maildirsize'][$maildirsizeFilePath] = $maildirsize;
-    return $maildirsize;
-}
 
 /**
  * Delete the given subdomain, including any entity that belong to it
@@ -2319,11 +2086,11 @@ function deleteSubdomain(int $id): void
             ),
             E_USER_NOTICE
         );
-        setPageMessage(tr('Subdomain scheduled for deletion.'), 'success');
+        View::setPageMessage(tr('Subdomain scheduled for deletion.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to remove a subdomain: %s', $e->getMessage()), E_ERROR);
-        setPageMessage(tr("Couldn't delete subdomain. An unexpected error occurred."), 'error');
+        View::setPageMessage(tr("Couldn't delete subdomain. An unexpected error occurred."), 'error');
     }
 }
 
@@ -2423,11 +2190,11 @@ function deleteSubdomainAlias(int $id): void
             ),
             E_USER_NOTICE
         );
-        setPageMessage(tr('Subdomain scheduled for deletion.'), 'success');
+        View::setPageMessage(tr('Subdomain scheduled for deletion.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to remove a subdomain: %s', $e->getMessage()), E_ERROR);
-        setPageMessage(tr("Couldn't delete subdomain. An unexpected error occurred."), 'error');
+        View::setPageMessage(tr("Couldn't delete subdomain. An unexpected error occurred."), 'error');
         redirectTo('domains_manage.php');
     }
 }
@@ -2450,12 +2217,12 @@ function customerSqlDbLimitIsReached(): bool
 }
 
 /**
- * Load the given configuration file
+ * Load the given i-MSCP service configuration file (<service>.data file)
  *
  * @param string $configFilePath Configuration file path
  * @return array
  */
-function loadConfigFile(string $configFilePath): array
+function loadServiceConfigFile(string $configFilePath): array
 {
     $configFilePath = normalizePath($configFilePath);
     $id = md5($configFilePath);
@@ -2464,10 +2231,39 @@ function loadConfigFile(string $configFilePath): array
         return Application::getInstance()->getCache()->getItem($id);
     }
 
-    \Zend\Config\Factory::registerReader('conf', \Zend\Config\Reader\JavaProperties::class);
-    $config = new \Zend\Config\Reader\JavaProperties('=', \Zend\Config\Reader\JavaProperties::WHITESPACE_TRIM);
-    $config = $config->fromFile($configFilePath);
+    // Setup reader for Java .properties configuration file
+    \Zend\Config\Factory::registerReader('data', \Zend\Config\Reader\JavaProperties::class);
+    $reader = new \Zend\Config\Reader\JavaProperties('=', \Zend\Config\Reader\JavaProperties::WHITESPACE_TRIM);
+    $config = $reader->fromFile($configFilePath);
 
     Application::getInstance()->getCache()->setItem($id, $config);
     return $config;
+}
+
+/**
+ * Retrieve username of current processor
+ *
+ * An identity can be "usurped" either by administrators or resellers.
+ * This method make it possible to retrieve the real processor of current request.
+ *
+ * @param UserIdentityInterface $identity
+ * @return string
+ */
+function getProcessorUsername(UserIdentityInterface $identity): string
+{
+    static $username = NULL;
+
+    if (NULL == $username) {
+        if ($identity instanceof SuIdentityInterface) {
+            if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
+                $username = $identity->getSuIdentity()->getSuUsername();
+            } else {
+                $username = $identity->getSuUsername();
+            }
+        } else {
+            $username = decodeIdna($identity->getUsername());
+        }
+    }
+
+    return $username;
 }
