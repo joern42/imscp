@@ -28,9 +28,9 @@ use Zend\EventManager\Event;
  */
 class AuthEvent extends Event
 {
-    const EVENT_BEFORE_AUTHENTICATION = 'onBeforeAuthentication';
-    const EVENT_AUTHENTICATION = 'onAuthentication';
-    const EVENT_AFTER_AUTHENTICATION = 'onAfterAuthentication';
+    public const EVENT_BEFORE_AUTHENTICATION = 'onBeforeAuthentication';
+    public const EVENT_AUTHENTICATION = 'onAuthentication';
+    public const EVENT_AFTER_AUTHENTICATION = 'onAfterAuthentication';
 
     /**
      * @var AuthResult
@@ -50,7 +50,7 @@ class AuthEvent extends Event
     /**
      * Get authentication result
      *
-     * @return AuthResult
+     * @return AuthResult|null
      */
     public function getAuthenticationResult(): ?AuthResult
     {

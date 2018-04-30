@@ -39,9 +39,9 @@ class AuthResult extends Result
     /**
      * Sets the result code, identity, and failure messages
      *
-     * @param  int $code
-     * @param  UserIdentityInterface $identity
-     * @param  array $messages
+     * @param int $code
+     * @param UserIdentityInterface $identity
+     * @param array $messages
      */
     public function __construct(int $code, UserIdentityInterface $identity = NULL, array $messages = [])
     {
@@ -53,9 +53,9 @@ class AuthResult extends Result
     /**
      * Returns the identity used in the authentication attempt
      *
-     * @return UserIdentityInterface
+     * @return UserIdentityInterface|null
      */
-    public function getIdentity(): UserIdentityInterface
+    public function getIdentity(): ?UserIdentityInterface
     {
         return $this->identity;
     }

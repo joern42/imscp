@@ -20,7 +20,6 @@
 
 namespace iMSCP;
 
-use iMSCP\Authentication\AuthResult;
 use iMSCP\Functions\View;
 
 require_once 'application.php';
@@ -30,49 +29,28 @@ Application::getInstance()->getEventManager()->trigger(Events::onLoginScriptStar
 $authService = Application::getInstance()->getAuthService();
 
 if (Application::getInstance()->getRequest()->isPost()) {
-    $authResult = $authService->authenticate();
-    if ($authResult->isValid()) {
-        writeLog(sprintf('%s signed in.', $authService->getIdentity()->getUsername()), E_USER_NOTICE);
-    } elseif ($messages = $authResult->getMessages()) {
-        // AuthResult::FAILURE_UNCATEGORIZED is used to denote failures that we do not want log
-        if ($authResult->getCode() != AuthResult::FAILURE_UNCATEGORIZED) {
-            writeLog(sprintf('Authentication failed. Reason: %s', View::FormatPageMessages($messages)), E_USER_NOTICE);
-
-            if(Application::getInstance()->getConfig()['LOSTPASSWORD']) {
-                $messages[] = '<b><a href="/lostpassword.php">' . tr('Password lost?') . '</a></b>';
-            }
-        }
-
-        View::setPageMessage(View::FormatPageMessages($messages), 'static_error');
-    }
+    $authService->signIn();
 } elseif (Application::getInstance()->getRequest()->getQuery('signout')) {
-    if ($authService->hasIdentity()) {
-        $adminName = $authService->getIdentity()->getUsername();
-        $authService->clearIdentity();
-        View::setPageMessage(tr('You have been successfully signed out.'), 'success');
-        writeLog(sprintf('%s signed out.', decodeIdna($adminName)), E_USER_NOTICE);
-    }
-
+    $authService->signOut();
     redirectTo('/index.php');
 }
 
-// Must be done here because an already logged-in user
-// must be redirected to it UI
+// Covers newly signed in users and already signed in users
 $authService->redirectToUserUi();
 
 $tpl = new TemplateEngine();
 $tpl->define([
-    'layout'              => 'shared/layouts/simple.tpl',
-    'page_message'        => 'layout',
-    'page'                => 'index.tpl',
-    'ssl_block'           => 'page'
+    'layout'       => 'shared/layouts/simple.tpl',
+    'page_message' => 'layout',
+    'page'         => 'index.tpl',
+    'ssl_block'    => 'page'
 ]);
 $tpl->assign([
     'productLongName'  => toHtml(tr('internet Multi Server Control Panel')),
     'productLink'      => toHtml('https://www.i-mscp.net', 'htmlAttr'),
     'productCopyright' => toHtml(tr('© 2010-2018 i-MSCP - All Rights Reserved')),
     'TR_PAGE_TITLE'    => toHtml(tr('i-MSCP - Multi Server Control Panel / Login')),
-    'TR_SIGN_IN'        => toHtml(tr('Sign in')),
+    'TR_SIGN_IN'       => toHtml(tr('Sign in')),
     'TR_USERNAME'      => toHtml(tr('Username')),
     'UNAME'            => toHtml(Application::getInstance()->getRequest()->getPost('admin_name', ''), 'htmlAttr'),
     'TR_PASSWORD'      => toHtml(tr('Password'))

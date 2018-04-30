@@ -27,7 +27,7 @@ use iMSCP\Authentication\AuthResult;
 use iMSCP\Functions\View;
 
 /**
- * Class LostPasswordLink
+ * Class PasswordRecovery
  *
  * Show link for password recovery if the lost password feature is enabled and
  * if authentication result isn't valid due to invalid credentials.
@@ -60,7 +60,7 @@ class PasswordRecovery implements AuthenticationListenerInterface
         }
 
         Application::getInstance()->getEventManager()->attach(AuthenticationService::EVENT_AFTER_SIGN_IN, function () {
-            View::setPageMessage('<strong><a href="/lostpassword.php">' . tr('Password lost?') . '</a></strong>', 'static_error');
+            View::setPageMessage('<strong><a href="/lostpassword.php">' . toHtml(tr('Password lost?')) . '</a></strong>', 'static_error');
         }, -99);
     }
 }

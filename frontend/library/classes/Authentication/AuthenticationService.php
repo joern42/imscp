@@ -24,6 +24,7 @@ use iMSCP\Application;
 use iMSCP\Authentication\Listener\CheckCredentials;
 use iMSCP\Authentication\Listener\CheckCustomerAccount;
 use iMSCP\Authentication\Listener\CheckMaintenanceMode;
+use iMSCP\Authentication\Listener\PasswordRecovery;
 use iMSCP\Functions\View;
 use iMSCP\Model\SuIdentity;
 use iMSCP\Model\SuIdentityInterface;
@@ -44,10 +45,15 @@ use Zend\Hydrator\Reflection as ReflectionHydrator;
  */
 class AuthenticationService extends \Zend\Authentication\AuthenticationService implements ListenerAggregateInterface
 {
-    const ANY_CHECK_AUTH_TYPE = 'any';
-    const ADMIN_CHECK_AUTH_TYPE = 'admin';
-    const RESELLER_CHECK_AUTH_TYPE = 'reseller';
-    const USER_CHECK_AUTH_TYPE = 'user';
+    public const EVENT_BEFORE_SIGN_IN = 'onBeforeSignIn';
+    public const EVENT_AFTER_SIGN_IN = 'onAfterSignIn';
+    public const EVENT_BEFORE_SIGN_OUT = 'onBeforeSignOut';
+    public const EVENT_AFTER_SIGN_OUT = 'onAfterSignOut';
+
+    public const ANY_CHECK_AUTH_TYPE = 'any';
+    public const ADMIN_CHECK_AUTH_TYPE = 'admin';
+    public const RESELLER_CHECK_AUTH_TYPE = 'reseller';
+    public const USER_CHECK_AUTH_TYPE = 'user';
 
     use ListenerAggregateTrait;
 
@@ -63,10 +69,74 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
 
         // Attach default credentials authentication listener
         $events->attach(AuthEvent::EVENT_AUTHENTICATION, new CheckCredentials(), $priority);
+
         // Attach listener that is responsible to check for maintenance mode
         $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new CheckMaintenanceMode(), $priority);
+
         // Attach listener that is responsible to check customer account
         $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new CheckCustomerAccount(), $priority);
+
+        // Attach listener that is responsible to show link for password recovery
+        $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new PasswordRecovery(), -99);
+    }
+
+    /**
+     * Sign in user
+     *
+     * @return boolean TRUE on success, FALSE on failure
+     */
+    public function signIn(): bool
+    {
+        Application::getInstance()->getEventManager()->trigger(self::EVENT_BEFORE_SIGN_IN, $this);
+
+        $ret = true;
+        $authResult = $this->authenticate();
+
+        if ($authResult->isValid()) {
+            writeLog(sprintf('%s signed in.', $this->getIdentity()->getUsername()), E_USER_NOTICE);
+        } elseif ($messages = $authResult->getMessages()) {
+            // AuthResult::FAILURE_UNCATEGORIZED is used to denote failures that we do not want log
+            if ($authResult->getCode() != AuthResult::FAILURE_UNCATEGORIZED) {
+                writeLog(sprintf('Authentication failed. Reason: %s', View::FormatPageMessages($messages)), E_USER_NOTICE);
+            }
+
+            View::setPageMessage(View::FormatPageMessages($messages), 'static_error');
+            $ret = false;
+        }
+
+        Application::getInstance()->getEventManager()->trigger(self::EVENT_AFTER_SIGN_IN, $this);
+        return $ret;
+    }
+
+    /**
+     * Returns the identity from storage or null if no identity is available
+     *
+     * Note: Only for IDE type hinting
+     *
+     * @return UserIdentityInterface|SuIdentityInterface|null
+     */
+    public function getIdentity()
+    {
+        return parent::getIdentity();
+    }
+
+    /**
+     * Sign out user
+     */
+    public function signOut(): void
+    {
+        if (!$this->hasIdentity()) {
+            return;
+        }
+
+        Application::getInstance()->getEventManager()->trigger(self::EVENT_BEFORE_SIGN_OUT, $this);
+        $adminName = $this->getIdentity()->getUsername();
+        $this->clearIdentity();
+        $this->clearIdentityFromDb();
+        Application::getInstance()->getEventManager()->trigger(self::EVENT_AFTER_SIGN_OUT, $this);
+        View::setPageMessage(tr('You have been successfully signed out.'), 'success');
+        writeLog(sprintf('%s signed out.', decodeIdna($adminName)), E_USER_NOTICE);
+        redirectTo('/index.php');
     }
 
     /**
@@ -108,18 +178,6 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
             $this->clearIdentity();
             View::showForbiddenErrorPage();
         }
-    }
-
-    /**
-     * Returns the identity from storage or null if no identity is available
-     *
-     * Note: Only for IDE type hinting
-     *
-     * @return UserIdentityInterface|SuIdentityInterface|null
-     */
-    public function getIdentity()
-    {
-        return parent::getIdentity();
     }
 
     /**
@@ -233,12 +291,11 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
      */
     public function redirectToUserUi(string $location = 'index.php'): void
     {
-        $authService = Application::getInstance()->getAuthService();
-        if (!$authService->hasIdentity()) {
+        if (!$this->hasIdentity()) {
             return;
         }
 
-        switch ($authService->getIdentity()->getUserType()) {
+        switch ($this->getIdentity()->getUserType()) {
             case 'user':
                 $userType = 'client';
                 break;
@@ -286,5 +343,17 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         // Something else went wrong...
         View::showInternalServerError();
         exit;
+    }
+
+    /**
+     * Clear identity data from database
+     *
+     * @return void
+     */
+    protected function clearIdentityFromDb(): void
+    {
+        Application::getInstance()->getDb()->createStatement('DELETE FROM login WHERE session_id = ?')->execute([
+            Application::getInstance()->getSession()->getManager()->getId()
+        ]);
     }
 }

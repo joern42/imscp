@@ -49,11 +49,12 @@ class CheckMaintenanceMode implements AuthenticationListenerInterface
 
         $config = Application::getInstance()->getConfig();
         if (!$config['MAINTENANCEMODE']) {
+            // Return early if maintenance mode is disabled
             return;
         }
 
         $identity = $event->getAuthenticationResult()->getIdentity();
-        if ($identity->getUserType() == 'admin') {
+        if (NULL !== $identity && $identity->getUserType() == 'admin') {
             View::setPageMessage(toHtml(tr('Reminder: Maintenance mode is currently enabled. Only administrators can sign in.')), 'info');
             return;
         }
