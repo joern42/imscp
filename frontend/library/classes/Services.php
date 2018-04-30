@@ -111,7 +111,7 @@ class Services implements \iterator, \countable
         if ($refresh || !$this->cache->hasItem($identifier)) {
             $ip = $this->getIp();
 
-            if (Net::getVersion() == 6) {
+            if (Net::getVersion($ip) == 6) {
                 $ip = '[' . $ip . ']';
             }
 
@@ -121,7 +121,11 @@ class Services implements \iterator, \countable
                 $status = true;
             }
 
-            $this->cache->setItem($identifier, $status, [], 1200);
+            // A bit messy... See https://github.com/zendframework/zendframework/pull/5386
+            $ttl = $this->cache->getOptions()->getTtl();
+            $this->cache->getOptions()->setTtl(300);
+            $this->cache->setItem($identifier, $status);
+            $this->cache->getOptions()->setTtl($ttl);
         } else {
             $status = $this->cache->getItem($identifier);
         }
