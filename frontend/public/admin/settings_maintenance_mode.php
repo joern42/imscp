@@ -35,16 +35,16 @@ if ($request->isPost()) {
     $dbConfig['MAINTENANCEMODE'] = intval($request->getPost('maintenancemode', 0));
     $dbConfig['MAINTENANCEMODE_MESSAGE'] = cleanHtml($request->getPost('maintenancemode_message', ''));
     Application::getInstance()->getCache()->removeItem('merged_config'); // Force new merge;
-    setPageMessage(toHtml(tr('Settings saved.')), 'success');
+    View::setPageMessage(toHtml(tr('Settings saved.')), 'success');
     redirectTo('settings_maintenance_mode.php');
 }
 
 $config = Application::getInstance()->getConfig();
 
 if ($config['MAINTENANCEMODE']) {
-    setPageMessage(toHtml(tr('Maintenance mode is currently activated. In this mode, only administrators can sign in.')), 'static_info');
+    View::setPageMessage(toHtml(tr('Maintenance mode is currently activated. In this mode, only administrators can sign in.')), 'static_info');
 } else {
-    setPageMessage(toHtml(tr('In maintenance mode, only administrators can sign in.')), 'static_info');
+    View::setPageMessage(toHtml(tr('In maintenance mode, only administrators can sign in.')), 'static_info');
 }
 
 $tpl = new TemplateEngine();
@@ -66,7 +66,7 @@ $tpl->assign([
     'TR_MAINTENANCE_MESSAGE' => toHtml(tr('Maintenance message'))
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

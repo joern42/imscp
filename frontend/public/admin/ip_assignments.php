@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -99,9 +99,9 @@ function generatePage(TemplateEngine $tpl)
 
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 Counting::systemHasCustomers() or View::showBadRequestErrorPage();
 
@@ -121,7 +121,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

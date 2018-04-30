@@ -24,6 +24,7 @@ use iMSCP\Events;
 use iMSCP\TemplateEngine;
 use Zend\EventManager\Event;
 use Zend\Navigation\Navigation;
+use iMSCP\Functions\View;
 
 /**
  * Retrieve GUI properties of the given user
@@ -55,76 +56,6 @@ function getUserGuiProperties($userId)
     }
 
     return [$row['lang'], $row['layout']];
-}
-
-/**
- * Sets a page message to display on client browser
- *
- * @param string $message $message Message to display
- * @param string $level Message level (static_)?(info|warning|error|success)
- * @return void
- */
-function setPageMessage(string $message, string $level = 'info'): void
-{
-    Application::getInstance()->getFlashMessenger()->addMessage($message, strtolower($level));
-}
-
-/**
- * Generates page messages
- *
- * @param TemplateEngine $tpl
- * @return void
- */
-function generatePageMessage(TemplateEngine $tpl)
-{
-    $flashMessenger = Application::getInstance()->getFlashMessenger();
-
-    Application::getInstance()->getEventManager()->trigger(Events::onGeneratePageMessages, $flashMessenger);
-
-    $tpl->assign('PAGE_MESSAGE', '');
-
-    foreach (['success', 'error', 'warning', 'info', 'static_success', 'static_error', 'static_warning', 'static_info'] as $level) {
-        // Get messages that have been added to the current namespace within this request and remove them from the flash messenger
-        $messages = $flashMessenger->getCurrentMessages($level);
-        $flashMessenger->clearCurrentMessages($level);
-
-        //
-        $messages = array_merge($messages, $flashMessenger->getMessages($level));
-        $flashMessenger->clearMessages($level);
-
-        if (empty($messages)) {
-            continue;
-        }
-
-        $tpl->assign([
-            'MESSAGE_CLS' => $level,
-            'MESSAGE'     => implode("<br>\n", array_unique($messages))
-        ]);
-        $tpl->parse('PAGE_MESSAGE', '.page_message');
-    }
-}
-
-/**
- * format message(s) to be displayed on client browser as page message
- *
- * @param  string|array $messages Message or stack of messages to be concatenated
- * @return string Concatenated messages
- */
-function formatMessage($messages)
-{
-    $string = '';
-
-    if (is_array($messages)) {
-        foreach ($messages as $message) {
-            $string .= $message . "<br>\n";
-        }
-    } elseif (is_string($messages)) {
-        $string = $messages;
-    } else {
-        throw new \Exception('set_page_message() expects a string or an array for $messages.');
-    }
-
-    return $string;
 }
 
 /**
@@ -399,7 +330,7 @@ function setUserLogo()
 
         // Checking file mime type
         if (!($fileMimeType = validateMimeType($tmpFilePath, ['image/gif', 'image/jpeg', 'image/pjpeg', 'image/png']))) {
-            setPageMessage(tr('You can only upload images.'), 'error');
+            View::setPageMessage(tr('You can only upload images.'), 'error');
             return false;
         }
 
@@ -415,7 +346,7 @@ function setUserLogo()
 
         // Checking image size
         if ($imageWidth > 500 || $imageHeight > 90) {
-            setPageMessage(tr('Images have to be smaller than 500 x 90 pixels.'), 'error');
+            View::setPageMessage(tr('Images have to be smaller than 500 x 90 pixels.'), 'error');
             return false;
         }
 
@@ -537,13 +468,13 @@ function loadNavigation()
         foreach ($pages as &$page) {
             $page['request'] = $request;
             if (isset($page['pages'])) {
-                $page['pages'] = $requestInjector($page['pages'], $request);
+                $requestInjector($page['pages'], $request);
             }
         }
-        return $pages;
     };
 
     $requestInjector($pages, Application::getInstance()->getRequest());
+    unset($requestInjector);
     Application::getInstance()->getRegistry()->set('navigation', new Navigation($pages));
 
     // Set main menu labels visibility for the current environment
@@ -587,7 +518,6 @@ function setMainMenuLabelsVisibility(int $userId, int $visibility)
 function setMainMenuLabelsVisibilityEvt()
 {
     $session = Application::getInstance()->getSession();
-    /** @var \iMSCP\Model\SuIdentityInterface $identity */
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     if (!isset($session['show_main_menu_labels']) && $identity) {

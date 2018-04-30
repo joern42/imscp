@@ -23,6 +23,7 @@ namespace iMSCP\Authentication\Listener;
 use iMSCP\Application;
 use iMSCP\Authentication\AuthEvent;
 use iMSCP\Authentication\AuthResult;
+use iMSCP\Functions\View;
 
 /**
  * Class CheckMaintenanceMode
@@ -53,7 +54,7 @@ class CheckMaintenanceMode implements AuthenticationListenerInterface
 
         $identity = $event->getAuthenticationResult()->getIdentity();
         if ($identity->getUserType() == 'admin') {
-            setPageMessage(toHtml(tr('Reminder: Maintenance mode is currently enabled. Only administrators can sign in.')), 'info');
+            View::setPageMessage(toHtml(tr('Reminder: Maintenance mode is currently enabled. Only administrators can sign in.')), 'info');
             return;
         }
 

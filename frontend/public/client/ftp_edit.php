@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -42,7 +43,7 @@ function updateFtpAccount($userid)
 
     if ($passwd !== '') {
         if ($passwd !== $passwdRepeat) {
-            setPageMessage(tr('Passwords do not match.'), 'error');
+            View::setPageMessage(tr('Passwords do not match.'), 'error');
             $error = true;
         }
 
@@ -52,7 +53,7 @@ function updateFtpAccount($userid)
     }
 
     if ($homeDir === '') {
-        setPageMessage(tr('FTP home directory cannot be empty.'), 'error');
+        View::setPageMessage(tr('FTP home directory cannot be empty.'), 'error');
         $error = true;
     }
 
@@ -65,7 +66,7 @@ function updateFtpAccount($userid)
 
     $vfs = new VirtualFileSystem($identity->getUsername());
     if ($homeDir !== '/' && !$vfs->exists($homeDir, VirtualFileSystem::VFS_TYPE_DIR)) {
-        setPageMessage(tr("Directory '%s' doesn't exist.", $homeDir), 'error');
+        View::setPageMessage(tr("Directory '%s' doesn't exist.", $homeDir), 'error');
         return false;
     }
 
@@ -94,8 +95,8 @@ function updateFtpAccount($userid)
     ]);
 
     Daemon::sendRequest();
-    writeLog(sprintf('An FTP account (%s) has been updated by', $userid, $identity->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('FTP account successfully updated.'), 'success');
+    writeLog(sprintf('An FTP account (%s) has been updated by', $userid, getProcessorUsername($identity)), E_USER_NOTICE);
+    View::setPageMessage(tr('FTP account successfully updated.'), 'success');
     return true;
 }
 
@@ -138,12 +139,11 @@ function generatePage($tpl, $ftpUserId)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-
-customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $userid = cleanInput($_GET['id']);
 $stmt = execQuery('SELECT COUNT(admin_id) FROM ftp_users WHERE userid = ? AND admin_id = ?', [
@@ -151,7 +151,7 @@ $stmt = execQuery('SELECT COUNT(admin_id) FROM ftp_users WHERE userid = ? AND ad
 ]);
 $stmt->fetchColumn() or View::showBadRequestErrorPage();
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     if (updateFtpAccount($userid)) {
         redirectTo('ftp_accounts.php');
     }
@@ -182,7 +182,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 
 View::generateNavigation($tpl);
 generatePage($tpl, $userid);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

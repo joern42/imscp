@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
@@ -43,7 +43,7 @@ function getFormData()
     if ($stmt->rowCount()) {
         $data['server_ips'] = $stmt->fetchAll();
     } else {
-        setPageMessage(tr('Unable to get the IP address list. Please fix this problem.'), 'error');
+        View::setPageMessage(tr('Unable to get the IP address list. Please fix this problem.'), 'error');
         redirectTo('users.php');
     }
 
@@ -210,7 +210,7 @@ function generateFeaturesForm(TemplateEngine $tpl)
     });
 
     if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
+        $apacheConfig = loadServiceConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -251,7 +251,7 @@ function addResellerUser(Form $form)
             foreach ($form->getMessages() as $fieldname => $msgsStack) {
                 $errFieldsStack[] = $fieldname;
                 foreach ($msgsStack as $msg) {
-                    setPageMessage(toHtml($msg), 'error');
+                    View::setPageMessage(toHtml($msg), 'error');
                 }
             }
         }
@@ -262,7 +262,7 @@ function addResellerUser(Form $form)
 
         $resellerIps = array_intersect($data['reseller_ips'], array_column($data['server_ips'], 'ip_id'));
         if (empty($resellerIps)) {
-            setPageMessage(tr('You must assign at least one IP to this reseller.'), 'error');
+            View::setPageMessage(tr('You must assign at least one IP to this reseller.'), 'error');
             $error = true;
         } else {
             sort($resellerIps, SORT_NUMERIC);
@@ -270,61 +270,61 @@ function addResellerUser(Form $form)
 
         // Check for max domains limit
         if (!validateLimit($data['max_dmn_cnt'], NULL)) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('domain')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('domain')), 'error');
             $errFieldsStack[] = 'max_dmn_cnt';
         }
 
         // Check for max subdomains limit
         if (!validateLimit($data['max_sub_cnt'])) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('subdomains')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('subdomains')), 'error');
             $errFieldsStack[] = 'max_sub_cnt';
         }
 
         // check for max domain aliases limit
         if (!validateLimit($data['max_als_cnt'])) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('domain aliases')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('domain aliases')), 'error');
             $errFieldsStack[] = 'max_als_cnt';
         }
 
         // Check for max mail accounts limit
         if (!validateLimit($data['max_mail_cnt'])) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('mail accounts')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('mail accounts')), 'error');
             $errFieldsStack[] = 'max_mail_cnt';
         }
 
         // Check for max ftp accounts limit
         if (!validateLimit($data['max_ftp_cnt'])) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('Ftp accounts')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('Ftp accounts')), 'error');
             $errFieldsStack[] = 'max_ftp_cnt';
         }
 
         // Check for max Sql databases limit
         if (!validateLimit($data['max_sql_db_cnt'])) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('SQL databases')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('SQL databases')), 'error');
             $errFieldsStack[] = 'max_sql_db_cnt';
         } elseif ($_POST['max_sql_db_cnt'] == -1 && $_POST['max_sql_user_cnt'] != -1) {
-            setPageMessage(tr('SQL database limit is disabled but SQL user limit is not.'), 'error');
+            View::setPageMessage(tr('SQL database limit is disabled but SQL user limit is not.'), 'error');
             $errFieldsStack[] = 'max_sql_db_cnt';
         }
 
         // Check for max Sql users limit
         if (!validateLimit($data['max_sql_user_cnt'])) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('SQL users')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('SQL users')), 'error');
             $errFieldsStack[] = 'max_sql_user_cnt';
         } elseif ($_POST['max_sql_user_cnt'] == -1 && $_POST['max_sql_db_cnt'] != -1) {
-            setPageMessage(tr('SQL user limit is disabled but SQL database limit is not.'), 'error');
+            View::setPageMessage(tr('SQL user limit is disabled but SQL database limit is not.'), 'error');
             $errFieldsStack[] = 'max_sql_user_cnt';
         }
 
         // Check for max monthly traffic limit
         if (!validateLimit($data['max_traff_amnt'], NULL)) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('traffic')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('traffic')), 'error');
             $errFieldsStack[] = 'max_traff_amnt';
         }
 
         // Check for max disk space limit
         if (!validateLimit($data['max_disk_amnt'], NULL)) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('Disk space')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('Disk space')), 'error');
             $errFieldsStack[] = 'max_disk_amnt';
         }
 
@@ -424,7 +424,7 @@ function addResellerUser(Form $form)
                 Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
                 E_USER_NOTICE
             );
-            setPageMessage('Reseller has been added.', 'success');
+            View::setPageMessage('Reseller has been added.', 'success');
             redirectTo('users.php');
         } elseif (!empty($errFieldsStack)) {
             Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
@@ -451,9 +451,9 @@ function generatePage(TemplateEngine $tpl, Form $form)
     generateFeaturesForm($tpl);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $phpini = PhpIni::getInstance();
@@ -462,7 +462,9 @@ $phpini->loadResellerPermissions();
 $form = getUserLoginDataForm(true, true)->addElements(getUserPersonalDataForm()->getElements());
 $form->setDefault('gender', 'U');
 
-empty($_POST) or addResellerUser($form);
+if(Application::getInstance()->getRequest()->isPost()) {
+ addResellerUser($form);
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -476,7 +478,7 @@ $tpl->define([
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Add Reseller')));
 View::generateNavigation($tpl);
 generatePage($tpl, $form);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

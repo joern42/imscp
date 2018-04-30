@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Config\DbConfig;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -36,17 +36,17 @@ function admin_updateServerTrafficSettings($trafficLimit, $trafficWarning)
     $retVal = true;
 
     if (!is_numeric($trafficLimit)) {
-        setPageMessage(tr('Monthly traffic limit must be a number.'), 'error');
+        View::setPageMessage(tr('Monthly traffic limit must be a number.'), 'error');
         $retVal = false;
     }
 
     if (!is_numeric($trafficWarning)) {
-        setPageMessage(tr('Monthly traffic warning must be a number.'), 'error');
+        View::setPageMessage(tr('Monthly traffic warning must be a number.'), 'error');
         $retVal = false;
     }
 
     if ($retVal && $trafficWarning > $trafficLimit) {
-        setPageMessage(tr('Monthly traffic warning cannot be bigger than monthly traffic limit.'), 'error');
+        View::setPageMessage(tr('Monthly traffic warning cannot be bigger than monthly traffic limit.'), 'error');
         $retVal = false;
     }
 
@@ -55,18 +55,18 @@ function admin_updateServerTrafficSettings($trafficLimit, $trafficWarning)
         $dbConfig['SERVER_TRAFFIC_LIMIT'] = $trafficLimit;
         $dbConfig['SERVER_TRAFFIC_WARN'] = $trafficWarning;
         // gets the number of queries that were been executed
-        $updtCount = $dbConfig->countQueries('update');
-        $newCount = $dbConfig->countQueries('insert');
+        $updtCount = $dbConfig->countQueries(DbConfig::UPDATE_QUERY_COUNTER);
+        $newCount = $dbConfig->countQueries(DbConfig::INSERT_QUERY_COUNTER);
 
         // An Update was been made in the database ?
         if ($updtCount || $newCount) {
-            setPageMessage(tr('Monthly server traffic settings successfully updated.', $updtCount), 'success');
+            View::setPageMessage(tr('Monthly server traffic settings successfully updated.', $updtCount), 'success');
             writeLog(sprintf(
                 'Server monthly traffic settings were updated by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
                 E_USER_NOTICE
             );
         } else {
-            setPageMessage(tr('Nothing has been changed.'), 'info');
+            View::setPageMessage(tr('Nothing has been changed.'), 'info');
         }
     }
 
@@ -85,7 +85,7 @@ function admin_generatePage($tpl, $trafficLimit, $trafficWarning)
 {
     $cfg = Application::getInstance()->getConfig();
 
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         $trafficLimit = $cfg['SERVER_TRAFFIC_LIMIT'];
         $trafficWarning = $cfg['SERVER_TRAFFIC_WARN'];
     }
@@ -96,14 +96,14 @@ function admin_generatePage($tpl, $trafficLimit, $trafficWarning)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $trafficLimit = $trafficWarning = 0;
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     $trafficLimit = !isset($_POST['max_traffic']) ?: cleanInput($_POST['max_traffic']);
     $trafficWarning = !isset($_POST['traffic_warning']) ?: cleanInput($_POST['traffic_warning']);
     admin_updateServerTrafficSettings($trafficLimit, $trafficWarning);
@@ -126,7 +126,7 @@ $tpl->assign([
 
 View::generateNavigation($tpl);
 admin_generatePage($tpl, $trafficLimit, $trafficWarning);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

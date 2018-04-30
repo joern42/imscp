@@ -34,18 +34,18 @@ function updatePersonalData(Form $form)
     if (!$form->isValid($_POST)) {
         foreach ($form->getMessages() as $msgsStack) {
             foreach ($msgsStack as $msg) {
-                setPageMessage(toHtml($msg), 'error');
+                View::setPageMessage(toHtml($msg), 'error');
             }
         }
 
         return;
     }
-    
+
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     $idnaEmail = $form->getValue('email');
 
-    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, null, [
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, NULL, [
         'userId'   => $identity->getUserId(),
         'userData' => $form->getValues()
     ]);
@@ -68,12 +68,12 @@ function updatePersonalData(Form $form)
     //AuthenticationService::getInstance()->getIdentity()->email = $idnaEmail;
     //Application::getInstance()->getSession()['user_email'] = $idnaEmail; // Only for backward compatibility
 
-    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, null, [
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, NULL, [
         'userId'   => $identity->getUserId(),
         'userData' => $form->getValues()
     ]);
     writeLog(sprintf('The %s user data were updated', $identity->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('Personal data were updated.'), 'success');
+    View::setPageMessage(tr('Personal data were updated.'), 'success');
     redirectTo('personal_change.php');
 }
 
@@ -88,7 +88,7 @@ function generatePage(TemplateEngine $tpl, Form $form)
 {
     $tpl->form = $form;
 
-    if (!empty($_POST)) {
+    if (Application::getInstance()->getRequest()->isPost()) {
         return;
     }
 
@@ -106,11 +106,15 @@ function generatePage(TemplateEngine $tpl, Form $form)
     $form->setDefaults($data);
 }
 
+require_once 'application.php';
+
 defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
 
 $form = getUserPersonalDataForm();
 
-empty($_POST) or updatePersonalData($form);
+if(Application::getInstance()->getRequest()->isPost()) {
+    updatePersonalData($form);
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -120,4 +124,4 @@ $tpl->define([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl, $form);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);

@@ -20,15 +20,16 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('protected_areas') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('protected_areas') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $id = intval($_GET['id']);
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 $stmt = execQuery("UPDATE htaccess SET status = 'todelete' WHERE id = ? AND dmn_id = ? AND status = 'ok'", [
@@ -36,6 +37,6 @@ $stmt = execQuery("UPDATE htaccess SET status = 'todelete' WHERE id = ? AND dmn_
 ]);
 $stmt->rowCount() or View::showBadRequestErrorPage();
 Daemon::sendRequest();
-writeLog(sprintf('%s deleted protected area with ID %s', $identity->getUsername(), $id), E_USER_NOTICE);
-setPageMessage(tr('Protected area successfully scheduled for deletion.'), 'success');
+writeLog(sprintf('%s deleted protected area with ID %s', getProcessorUsername($identity), $id), E_USER_NOTICE);
+View::setPageMessage(tr('Protected area successfully scheduled for deletion.'), 'success');
 redirectTo('protected_areas.php');

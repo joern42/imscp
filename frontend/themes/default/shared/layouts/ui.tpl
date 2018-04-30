@@ -31,10 +31,13 @@
             <h1 class="{SECTION_TITLE_CLASS}">{TR_SECTION_TITLE}</h1>
         </div>
         <ul class="location-menu">
-            <!-- BDP: logged_from -->
-            <li><a class="backadmin" href="su.php">{YOU_ARE_LOGGED_AS}</a></li>
-            <!-- EDP: logged_from -->
-            <li><a class="logout" href="/index.php?action=logout">{TR_MENU_LOGOUT}</a></li>
+            <!-- BDP: signed_in -->
+            <li><span>{YOU_ARE_SIGNED_IN_AS}</span></li>
+            <!-- EDP: signed_in -->
+            <!-- BDP: signed_in_from -->
+            <li><a class="su_back" href="su.php" title="{TR_SIGN_IN_BACK_TOOLTIP}">{YOU_ARE_SIGNED_IN_AS}</a></li>
+            <!-- EDP: signed_in_from -->
+            <li><a class="logout" href="/index.php?signout=1" title="{TR_SIGN_OUT_TOOLTIP}">{TR_SIGN_OUT}</a></li>
         </ul>
         <!-- INCLUDE shared/partials/navigation/breadcrumbs.tpl -->
     </div>

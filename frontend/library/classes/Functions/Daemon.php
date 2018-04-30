@@ -55,13 +55,13 @@ class Daemon
         }
 
         $version = Application::getInstance()->getConfig()['Version'];
-        if (static::readAnswer($socket) && // Read Welcome message from i-MSCP daemon
-            static::sendCommand($socket, "helo $version") && // Send helo command to i-MSCP daemon
-            static::readAnswer($socket) && // Read answer from i-MSCP daemon
-            static::sendCommand($socket, 'execute query') && // Send execute query command to i-MSCP daemon
-            static::readAnswer($socket) && // Read answer from i-MSCP daemon
-            static::sendCommand($socket, 'bye') && // Send bye command to i-MSCP daemon
-            static::readAnswer($socket) // Read answer from i-MSCP daemon
+        if (static::readAnswer($socket) // Read Welcome message from i-MSCP daemon
+            && static::sendCommand($socket, "helo $version") // Send helo command to i-MSCP daemon
+            && static::readAnswer($socket) // Read answer from i-MSCP daemon
+            && static::sendCommand($socket, 'execute backend command') // Send execute request command to i-MSCP daemon
+            && static::readAnswer($socket) // Read answer from i-MSCP daemon
+            && static::sendCommand($socket, 'bye') // Send bye command to i-MSCP daemon
+            && static::readAnswer($socket) // Read answer from i-MSCP daemon
         ) {
             static::$isSent = $ret = true;
         } else {

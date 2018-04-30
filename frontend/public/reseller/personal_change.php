@@ -20,11 +20,11 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
 global $tpl;

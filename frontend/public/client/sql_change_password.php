@@ -20,7 +20,8 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
 
 /**
@@ -41,17 +42,17 @@ function updateSqlUserPassword($sqluId)
     $passwordConf = cleanInput($_POST['password_confirmation']);
 
     if ($password == '') {
-        setPageMessage(tr('The password cannot be empty.'), 'error');
+        View::setPageMessage(tr('The password cannot be empty.'), 'error');
         return;
     }
 
     if ($passwordConf == '') {
-        setPageMessage(tr('Please confirm the password.'), 'error');
+        View::setPageMessage(tr('Please confirm the password.'), 'error');
         return;
     }
 
     if ($password !== $passwordConf) {
-        setPageMessage(tr('Passwords do not match.'), 'error');
+        View::setPageMessage(tr('Passwords do not match.'), 'error');
         return;
     }
 
@@ -67,17 +68,17 @@ function updateSqlUserPassword($sqluId)
     // Here we cannot use transaction due to statements that cause an implicit commit. Thus we execute
     // those statements first to let the i-MSCP database in clean state if one of them fails.
     // See https://dev.mysql.com/doc/refman/5.7/en/implicit-commit.html for more details
-    
+
     // Update SQL user password in the mysql system tables;
-    $mysqlConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data');
+    $mysqlConfig = loadServiceConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data');
     if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
         execQuery('SET PASSWORD FOR ?@? = PASSWORD(?)', [$row['sqlu_name'], $row['sqlu_host'], $password]);
     } else {
         execQuery('ALTER USER ?@? IDENTIFIED BY ? PASSWORD EXPIRE NEVER', [$row['sqlu_name'], $row['sqlu_host'], $password]);
     }
 
-    setPageMessage(tr('SQL user password successfully updated.'), 'success');
-    writeLog(sprintf('%s updated %s@%s SQL user password.', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $row['sqlu_name'], $row['sqlu_host']), E_USER_NOTICE);
+    View::setPageMessage(tr('SQL user password successfully updated.'), 'success');
+    writeLog(sprintf('%s updated %s@%s SQL user password.', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity()), $row['sqlu_name'], $row['sqlu_host']), E_USER_NOTICE);
     Application::getInstance()->getEventManager()->trigger(Events::onAfterEditSqlUser, NULL, [
         'sqlUserId'       => $sqluId,
         'sqlUserPassword' => $password
@@ -124,17 +125,19 @@ function checkSqlUserPerms($sqlUserId)
         )->fetchColumn() > 0;
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('sql') && isset($_REQUEST['sqlu_id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('sql') && isset($_REQUEST['sqlu_id']) or View::showBadRequestErrorPage();
 
 $sqluId = intval($_REQUEST['sqlu_id']);
 
 checkSqlUserPerms($sqluId) or View::showBadRequestErrorPage();
 
-empty($_POST) or updateSqlUserPassword($sqluId);
+if(Application::getInstance()->getRequest()->isPost()) {
+    updateSqlUserPassword($sqluId);
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -153,7 +156,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl, $sqluId);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

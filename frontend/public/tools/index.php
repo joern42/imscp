@@ -18,4 +18,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-die('Nothing to see here...');
+namespace iMSCP;
+
+use iMSCP\Functions\View;
+
+require_once 'application.php';
+
+View::showNotFoundErrorPage();

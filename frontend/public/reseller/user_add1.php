@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
 /**
@@ -31,7 +31,7 @@ use iMSCP\Functions\View;
 function reseller_checkData()
 {
     if (!isset($_POST['dmn_name']) || $_POST['dmn_name'] == '') {
-        setPageMessage(tr('Domain name cannot be empty.'), 'error');
+        View::setPageMessage(tr('Domain name cannot be empty.'), 'error');
         return;
     }
 
@@ -39,7 +39,7 @@ function reseller_checkData()
 
     global $dmnNameValidationErrMsg;
     if (!validateDomainName($dmnName)) {
-        setPageMessage($dmnNameValidationErrMsg, 'error');
+        View::setPageMessage($dmnNameValidationErrMsg, 'error');
         return;
     }
 
@@ -49,11 +49,11 @@ function reseller_checkData()
     }
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    
+
     $asciiDmnName = encodeIdna($dmnName);
 
     if (isKnownDomain($asciiDmnName, $identity->getUserId())) {
-        setPageMessage(tr('Domain %s is unavailable.', "<strong>$dmnName</strong>"), 'error');
+        View::setPageMessage(tr('Domain %s is unavailable.', "<strong>$dmnName</strong>"), 'error');
         return;
     }
 
@@ -101,19 +101,19 @@ function reseller_checkData()
 
             $forwardUrl = $uri->getUri();
         } catch (\Exception $e) {
-            setPageMessage($e->getMessage(), 'error');
+            View::setPageMessage($e->getMessage(), 'error');
             return;
         }
     }
 
     if ((!isset($_POST['datepicker']) || $_POST['datepicker'] == '') && !isset($_POST['never_expire'])) {
-        setPageMessage(tr('Domain expiration date must be filled.'), 'error');
+        View::setPageMessage(tr('Domain expiration date must be filled.'), 'error');
         return;
     }
 
     $dmnExpire = (isset($_POST['datepicker'])) ? @strtotime(cleanInput($_POST['datepicker'])) : 0;
     if ($dmnExpire == false) {
-        setPageMessage('Invalid expiration date.', 'error');
+        View::setPageMessage('Invalid expiration date.', 'error');
         return;
     }
 
@@ -133,7 +133,7 @@ function reseller_checkData()
     }
 
     if (!validateHostingPlanLimits($hpId, $identity->getUserId())) {
-        setPageMessage(tr('Hosting plan limits exceed reseller limits.'), 'error');
+        View::setPageMessage(tr('Hosting plan limits exceed reseller limits.'), 'error');
         return;
     }
 
@@ -200,12 +200,14 @@ function reseller_generatePage($tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
-empty($_POST) or reseller_checkData();
+if(Application::getInstance()->getRequest()->isPost()) {
+    reseller_checkData();
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -243,7 +245,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 reseller_generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

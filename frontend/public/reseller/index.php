@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
 
@@ -36,11 +36,11 @@ function generateSupportQuestionsMessage()
 {
     $ticketsCount = execQuery(
         'SELECT count(ticket_id) FROM tickets WHERE ticket_to = ? AND ticket_status IN (1, 4) AND ticket_reply = 0', [
-            Application::getInstance()->getAuthService()->getIdentity()->getUserId()
+        Application::getInstance()->getAuthService()->getIdentity()->getUserId()
     ])->fetchColumn();
 
     if ($ticketsCount > 0) {
-        setPageMessage(ntr('You have a new support ticket.', 'You have %d new support tickets.', $ticketsCount, $ticketsCount), 'static_info');
+        View::setPageMessage(ntr('You have a new support ticket.', 'You have %d new support tickets.', $ticketsCount, $ticketsCount), 'static_info');
     }
 }
 
@@ -64,7 +64,7 @@ function generateOrdersAliasesMessage()
     )->fetchColumn();
 
     if ($countAliasOrders > 0) {
-        setPageMessage(ntr('You have a new domain alias order.', 'You have %d new domain alias orders', $countAliasOrders, $countAliasOrders), 'static_info');
+        View::setPageMessage(ntr('You have a new domain alias order.', 'You have %d new domain alias orders', $countAliasOrders, $countAliasOrders), 'static_info');
     }
 }
 
@@ -114,14 +114,15 @@ function generateDiskUsageBar($tpl, $diskspaceUsageBytes, $diskspaceLimitBytes)
  * Generates page
  *
  * @param TemplateEngine $tpl Template engine
- * @param int $resellerId Reseller unique identifier
- * @param string $resellerName Reseller name
  * @return void
  */
-function generatePage($tpl, $resellerId, $resellerName)
+function generatePage(TemplateEngine $tpl)
 {
     generateSupportQuestionsMessage();
     generateOrdersAliasesMessage();
+
+    $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $resellerId = $identity->getUserId();
 
     $resellerProperties = getResellerProperties($resellerId);
     $domainsCount = Counting::getResellerDomainsCount($resellerId);
@@ -131,7 +132,7 @@ function generatePage($tpl, $resellerId, $resellerName)
     $ftpUsersCount = Counting::getResellerFtpUsersCount($resellerId);
     $sqlDatabasesCount = Counting::getResellerSqlDatabasesCount($resellerId);
     $sqlUsersCount = Counting::getResellerSqlUsersCount($resellerId);
-    
+
     $domainIds = execQuery('SELECT domain_id FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [
         $resellerId
     ])->fetchAll(\PDO::FETCH_COLUMN);
@@ -143,25 +144,25 @@ function generatePage($tpl, $resellerId, $resellerName)
         $lastDayOfMonth = getLastDayOfMonth();
         $stmt = Application::getInstance()->getDb()->createStatement(
             '
-                SELECT
-                    IFNULL(SUM(dtraff_web), 0) +
-                    IFNULL(SUM(dtraff_ftp), 0) +
-                    IFNULL(SUM(dtraff_mail), 0) +
-                    IFNULL(SUM(dtraff_pop), 0)
+                SELECT IFNULL(SUM(dtraff_web), 0) + IFNULL(SUM(dtraff_ftp), 0) + IFNULL(SUM(dtraff_mail), 0) + IFNULL(SUM(dtraff_pop), 0)
                 FROM domain_traffic
                 WHERE domain_id = ?
                 AND dtraff_time BETWEEN ? AND ?
             '
         );
         $stmt->prepare();
-        $stmt->bindParam(1, $domainId);
-        $stmt->bindParam(2, $firstDayOfMonth);
-        $stmt->bindParam(3, $lastDayOfMonth);
+
+        /** @var \PDOStatement $resource */
+        $resource = $stmt->getResource();
+        $resource->bindParam(1, $domainId);
+        $resource->bindParam(2, $firstDayOfMonth);
+        $resource->bindParam(3, $lastDayOfMonth);
+        unset($resource);
 
         /** @noinspection PhpUnusedLocalVariableInspection $domainId */
         foreach ($domainIds as $domainId) {
-            $stmt->execute();
-            $totalConsumedMonthlyTraffic += $stmt->fetchColumn();
+            $result = $stmt->execute()->getResource();
+            $totalConsumedMonthlyTraffic += $result->fetchColumn();
         }
     }
 
@@ -203,7 +204,7 @@ function generatePage($tpl, $resellerId, $resellerName)
         'TR_FTP_ACCOUNTS'   => toHtml(tr('FTP accounts')),
         'SQL_DATABASES'     => toHtml(tr('SQL databases')),
         'SQL_USERS'         => toHtml(tr('SQL users')),
-        'RESELLER_NAME'     => toHtml($resellerName),
+        'RESELLER_NAME'     => toHtml($identity->getUsername()),
         'DMN_MSG'           => toHtml(($resellerProperties['max_dmn_cnt'])
             ? sprintf('%s / %s', $domainsCount, $resellerProperties['max_dmn_cnt']) : sprintf('%s / ∞', $domainsCount)),
         'SUB_MSG'           => toHtml(($resellerProperties['max_sub_cnt'] > 0)
@@ -237,9 +238,11 @@ function generatePage($tpl, $resellerId, $resellerName)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_RESELLER']);
+Application::getInstance()->getAuthService()->checkAuthentication(
+    AuthenticationService::RESELLER_CHECK_AUTH_TYPE, Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_RESELLER']
+);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
@@ -252,9 +255,9 @@ $tpl->define([
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Reseller / General / Overview')));
 View::generateNavigation($tpl);
-$identity = Application::getInstance()->getAuthService()->getIdentity();
-generatePage($tpl, $identity->getUserId(), $identity->getUsername());
-generatePageMessage($tpl);
+
+generatePage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

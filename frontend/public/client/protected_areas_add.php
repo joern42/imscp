@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -66,20 +67,20 @@ function handleProtectedArea()
     $error = false;
 
     if ($_POST['protected_area_name'] === '') {
-        setPageMessage(tr('Please enter a name for the protected area.'), 'error');
+        View::setPageMessage(tr('Please enter a name for the protected area.'), 'error');
         $error = true;
     }
 
     if ($_POST['protected_area_path'] === '') {
-        setPageMessage(tr('Please enter protected area path.'), 'error');
+        View::setPageMessage(tr('Please enter protected area path.'), 'error');
         $error = true;
     }
 
     if ($protectionType == 'user' && empty($_POST['users'])) {
-        setPageMessage(tr('Please choose at least one htaccess user.'), 'error');
+        View::setPageMessage(tr('Please choose at least one htaccess user.'), 'error');
         $error = true;
     } elseif ($protectionType == 'group' && empty($_POST['groups'])) {
-        setPageMessage(tr('Please choose at least one htaccess user/group.'), 'error');
+        View::setPageMessage(tr('Please choose at least one htaccess user/group.'), 'error');
         $error = true;
     }
 
@@ -91,15 +92,15 @@ function handleProtectedArea()
     $protectedAreaPath = normalizePath('/' . cleanInput($_POST['protected_area_path']));
 
     if (!isAllowedDir($protectedAreaPath)) {
-        setPageMessage(tr("Directory '%s' is not allowed or invalid.", $protectedAreaPath), 'error');
+        View::setPageMessage(tr("Directory '%s' is not allowed or invalid.", $protectedAreaPath), 'error');
         return;
     }
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    
+
     $vfs = new VirtualFileSystem($identity->getUsername());
     if ($protectedAreaPath !== '/' && !$vfs->exists($protectedAreaPath, VirtualFileSystem::VFS_TYPE_DIR)) {
-        setPageMessage(tr("Directory '%s' doesn't exist.", $protectedAreaPath), 'error');
+        View::setPageMessage(tr("Directory '%s' doesn't exist.", $protectedAreaPath), 'error');
         return;
     }
 
@@ -156,9 +157,9 @@ function handleProtectedArea()
     Daemon::sendRequest();
 
     if (isset($_REQUEST['id']) && $_REQUEST['id'] > 0) {
-        setPageMessage(tr('Protected area successfully scheduled for update.'), 'success');
+        View::setPageMessage(tr('Protected area successfully scheduled for update.'), 'success');
     } else {
-        setPageMessage(tr('Protected area successfully scheduled for addition.'), 'success');
+        View::setPageMessage(tr('Protected area successfully scheduled for addition.'), 'success');
     }
 
     redirectTo('protected_areas.php');
@@ -227,7 +228,7 @@ function generatePage($tpl)
 
     $stmt = execQuery('SELECT * FROM htaccess_users WHERE dmn_id = ?', [$mainDmnProps['domain_id']]);
     if (!$stmt->rowCount()) {
-        setPageMessage(tr('You must first create a user.'), 'error');
+        View::setPageMessage(tr('You must first create a user.'), 'error');
         redirectTo('protected_areas.php');
     }
 
@@ -265,18 +266,20 @@ function generatePage($tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 
 $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
 global $mountpoints;
 $mountpoints = getMountpoints($mainDmnProps['domain_id']);
 
-empty($_POST) or handleProtectedArea();
+if(Application::getInstance()->getRequest()->isPost()) {
+    handleProtectedArea();
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -309,7 +312,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

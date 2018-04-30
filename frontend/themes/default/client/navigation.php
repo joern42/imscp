@@ -18,6 +18,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\View;
+use iMSCP\Model\SuIdentityInterface;
+
 return [
     'general'    => [
         'label' => tr('General'),
@@ -74,12 +80,12 @@ return [
                 ]
             ],
             'add_domain_alias'      => [
-                'label'              => \iMSCP\Application::getInstance()->getAuthService()->getIdentity() instanceof \iMSCP\Model\SuIdentityInterface
+                'label'              => Application::getInstance()->getAuthService()->getIdentity() instanceof SuIdentityInterface
                     ? tr('Add domain alias') : tr('Order domain alias'),
                 'uri'                => '/client/alias_add.php',
                 'title_class'        => 'domains',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'domain_aliases'
                 ]
             ],
@@ -88,7 +94,7 @@ return [
                 'uri'                => '/client/subdomain_add.php',
                 'title_class'        => 'domains',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'subdomains'
                 ]
             ],
@@ -97,7 +103,7 @@ return [
                 'uri'                => '/client/dns_add.php',
                 'title_class'        => 'domains',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'custom_dns_records'
                 ]
             ],
@@ -106,7 +112,7 @@ return [
                 'uri'                => '/client/phpini.php',
                 'title_class'        => 'domains',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'php_editor'
                 ]
             ]
@@ -117,7 +123,7 @@ return [
         'uri'                => '/client/ftp_accounts.php',
         'class'              => 'ftp',
         'privilege_callback' => [
-            'name'  => 'customerHasFeature',
+            'name'  => [Counting::class, 'customerHasFeature'],
             'param' => 'ftp'
         ],
         'pages'              => [
@@ -156,7 +162,7 @@ return [
         'uri'                => '/client/sql_manage.php',
         'class'              => 'database',
         'privilege_callback' => [
-            'name'  => 'customerHasFeature',
+            'name'  => [Counting::class, 'customerHasFeature'],
             'param' => 'sql'
         ],
         'pages'              => [
@@ -186,8 +192,8 @@ return [
                 'privilege_callback' => [
                     'name' => function () {
                         if (customerSqlDbLimitIsReached()) {
-                            if (\iMSCP\Application::getInstance()->getRegistry()->get('navigation')->findOneBy('uri', '/client/sql_manage.php')->isActive()) {
-                                setPageMessage(tr("SQL databases limit is reached. You cannot add new SQL databases."), 'static_info');
+                            if (Application::getInstance()->getRegistry()->get('navigation')->findOneBy('uri', '/client/sql_manage.php')->isActive()) {
+                                View::setPageMessage(tr("SQL databases limit is reached. You cannot add new SQL databases."), 'static_info');
                             }
 
                             return false;
@@ -210,7 +216,7 @@ return [
         'uri'                => '/client/mail_accounts.php',
         'class'              => 'email',
         'privilege_callback' => [
-            'name' => 'customerHasMailOrExtMailFeatures'
+            'name' => [Counting::class, 'customerHasMailOrExtMailFeatures']
         ],
         'pages'              => [
             'overview'              => [
@@ -243,7 +249,7 @@ return [
                 'uri'                => '/client/mail_add.php',
                 'title_class'        => 'email',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'mail'
                 ],
             ],
@@ -252,7 +258,7 @@ return [
                 'uri'                => '/client/mail_catchall.php',
                 'title_class'        => 'email',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'mail'
                 ],
                 'pages'              => [
@@ -269,7 +275,7 @@ return [
                 'uri'                => '/client/mail_external.php',
                 'title_class'        => 'email',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'external_mail'
                 ]
             ]
@@ -290,7 +296,7 @@ return [
                 'uri'                => '{WEBSTATS_PATH}',
                 'target'             => '_blank',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'webstats'
                 ]
             ]
@@ -311,7 +317,7 @@ return [
                 'uri'                => '/client/protected_areas.php',
                 'title_class'        => 'htaccess',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'protected_areas'
                 ],
                 'pages'              => [
@@ -360,7 +366,7 @@ return [
                 'uri'                => '/client/error_pages.php',
                 'title_class'        => 'errors',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'custom_error_pages'
                 ],
                 'pages'              => [
@@ -377,7 +383,7 @@ return [
                 'uri'                => '/client/backup.php',
                 'title_class'        => 'hdd',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'backup'
                 ],
             ],
@@ -386,7 +392,7 @@ return [
                 'uri'                => '/ftp/',
                 'target'             => '_blank',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'ftp'
                 ],
             ],
@@ -396,7 +402,7 @@ return [
                 'uri'                => '/phpmyadmin/',
                 'target'             => '_blank',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'sql'
                 ]
             ],
@@ -405,7 +411,7 @@ return [
                 'uri'                => '{WEBSTATS_PATH}',
                 'target'             => '_blank',
                 'privilege_callback' => [
-                    'name'  => 'customerHasFeature',
+                    'name'  => [Counting::class, 'customerHasFeature'],
                     'param' => 'webstats'
                 ]
             ]
@@ -417,7 +423,7 @@ return [
         'target'             => '{SUPPORT_SYSTEM_TARGET}',
         'class'              => 'support',
         'privilege_callback' => [
-            'name'  => 'customerHasFeature',
+            'name'  => [Counting::class, 'customerHasFeature'],
             'param' => 'support'
         ],
         'pages'              => [

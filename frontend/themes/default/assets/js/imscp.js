@@ -32,7 +32,7 @@
     // Function to initialize tooltips
     var initTooltips = function (context) {
         if (context == "simple") {
-            $("a").tooltip(
+            $("a, img").tooltip(
                 {
                     tooltipClass: "ui-tooltip-notice",
                     track: true,
@@ -44,7 +44,7 @@
             );
         } else {
             $(".main_menu a").tooltip({ track: true });
-            $(".body a, .body span, .body input, .dataTables_paginate div").tooltip(
+            $(".location a, .body a, .body span, .body input, .dataTables_paginate div").tooltip(
                 {
                     tooltipClass: "ui-tooltip-notice",
                     track: true,

@@ -20,15 +20,16 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('protected_areas') && isset($_GET['uname']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('protected_areas') && isset($_GET['uname']) or View::showBadRequestErrorPage();
 
 $db = Application::getInstance()->getDb();
 
@@ -82,12 +83,12 @@ try {
     // Schedule htuser deletion
     execQuery("UPDATE htaccess_users SET status = 'todelete' WHERE id = ? AND dmn_id = ?", [$htuserId, $domainId]);
     $db->getDriver()->getConnection()->commit();
-    setPageMessage(tr('User scheduled for deletion.'), 'success');
+    View::setPageMessage(tr('User scheduled for deletion.'), 'success');
     Daemon::sendRequest();
-    writeLog(sprintf('%s deletes user ID (protected areas): %s', $identity->getUsername(), $htuserName), E_USER_NOTICE);
+    writeLog(sprintf('%s deletes user ID (protected areas): %s', getProcessorUsername($identity), $htuserName), E_USER_NOTICE);
 } catch (\Exception $e) {
     $db->getDriver()->getConnection()->rollBack();
-    setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
+    View::setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     writeLog(sprintf('Could not delete htaccess user: %s', $e->getMessage()));
 }
 

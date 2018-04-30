@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -31,7 +32,7 @@ use iMSCP\Functions\View;
  */
 function client_addHtaccessUser()
 {
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         return;
     }
 
@@ -40,14 +41,14 @@ function client_addHtaccessUser()
     $uname = cleanInput($_POST['username']);
 
     if (!validateUsername($_POST['username'])) {
-        setPageMessage(tr('Wrong username.'), 'error');
+        View::setPageMessage(tr('Wrong username.'), 'error');
         return;
     }
 
     $passwd = cleanInput($_POST['pass']);
 
     if ($passwd !== $_POST['pass_rep']) {
-        setPageMessage(tr('Passwords do not match.'), 'error');
+        View::setPageMessage(tr('Passwords do not match.'), 'error');
         return;
     }
 
@@ -60,22 +61,22 @@ function client_addHtaccessUser()
 
     $stmt = execQuery('SELECT id FROM htaccess_users WHERE uname = ? AND dmn_id = ?', [$uname, $domainId]);
     if ($stmt->rowCount()) {
-        setPageMessage(tr('This htaccess user already exist.'), 'error');
+        View::setPageMessage(tr('This htaccess user already exist.'), 'error');
         return;
     }
 
     execQuery("INSERT INTO htaccess_users (dmn_id, uname, upass, status) VALUES (?, ?, ?, 'toadd')", [$domainId, $uname, Crypt::bcrypt($passwd)]);
     Daemon::sendRequest();
-    setPageMessage(tr('Htaccess user successfully scheduled for addition.'), 'success');
-    writeLog(sprintf('%s added new htaccess user: %s', $uname, $identity->getUsername()), E_USER_NOTICE);
+    View::setPageMessage(tr('Htaccess user successfully scheduled for addition.'), 'success');
+    writeLog(sprintf('%s added new htaccess user: %s', $uname, getProcessorUsername($identity)), E_USER_NOTICE);
     redirectTo('protected_user_manage.php');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 client_addHtaccessUser();
 
 $tpl = new TemplateEngine();
@@ -95,7 +96,7 @@ $tpl->assign([
     'TR_CANCEL'          => tr('Cancel')
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

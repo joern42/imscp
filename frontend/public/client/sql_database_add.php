@@ -20,7 +20,8 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
 
 /**
@@ -35,7 +36,7 @@ function addSqlDb()
     $dbName = cleanInput($_POST['db_name']);
 
     if ($_POST['db_name'] == '') {
-        setPageMessage(tr('Please type database name.'), 'error');
+        View::setPageMessage(tr('Please type database name.'), 'error');
         return;
     }
 
@@ -51,14 +52,14 @@ function addSqlDb()
     }
 
     if (strlen($dbName) > 64) {
-        setPageMessage(tr('Database name is too long.'), 'error');
+        View::setPageMessage(tr('Database name is too long.'), 'error');
         return;
     }
 
     if (in_array($dbName, ['information_schema', 'mysql', 'performance_schema', 'sys', 'test'])
         || execQuery('SHOW DATABASES LIKE ?', $dbName)->rowCount() > 0
     ) {
-        setPageMessage(tr('Database name is unavailable or unallowed.'), 'error');
+        View::setPageMessage(tr('Database name is unavailable or unallowed.'), 'error');
         return;
     }
 
@@ -70,11 +71,11 @@ function addSqlDb()
             'dbId'   => Application::getInstance()->getDb()->getDriver()->getLastGeneratedValue(),
             'dbName' => $dbName
         ]);
-        setPageMessage(tr('SQL database successfully created.'), 'success');
-        writeLog(sprintf('A new database (%s) has been created by %s', $dbName, $identity->getUsername()), E_USER_NOTICE);
+        View::setPageMessage(tr('SQL database successfully created.'), 'success');
+        writeLog(sprintf('A new database (%s) has been created by %s', $dbName, getProcessorUsername($identity)), E_USER_NOTICE);
     } catch (\Exception $e) {
         writeLog(sprintf("Couldn't create the %s database: %s", $dbName, $e->getMessage()));
-        setPageMessage(tr("Couldn't create the %s database.", $dbName), 'error');
+        View::setPageMessage(tr("Couldn't create the %s database.", $dbName), 'error');
     }
 
     redirectTo('sql_manage.php');
@@ -121,13 +122,15 @@ function generatePage(TemplateEngine $tpl)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('sql') && !customerSqlDbLimitIsReached() or View::showBadRequestErrorPage();
+Counting::customerHasFeature('sql') && !customerSqlDbLimitIsReached() or View::showBadRequestErrorPage();
 
-empty($_POST) or addSqlDb();
+if(Application::getInstance()->getRequest()->isPost()) {
+    addSqlDb();
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -152,7 +155,7 @@ $tpl->assign([
 ]);
 generatePage($tpl);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

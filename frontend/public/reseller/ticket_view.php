@@ -20,37 +20,38 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
-use iMSCP\Functions\Support;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\HelpDesk;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-resellerHasFeature('support') && isset($_GET['ticket_id']) or View::showBadRequestErrorPage();
+Counting::resellerHasFeature('support') && isset($_GET['ticket_id']) or View::showBadRequestErrorPage();
 
 $ticketId = intval($_GET['ticket_id']);
-$status = Support::getTicketStatus($ticketId);
-$ticketLevel = Support::getUserLevel($ticketId);
+$status = HelpDesk::getTicketStatus($ticketId);
+$ticketLevel = HelpDesk::getUserLevel($ticketId);
 
 if (($ticketLevel == 1 && ($status == 1 || $status == 4)) || ($ticketLevel == 2 && $status == 2)) {
-    Support::changeTicketStatus($ticketId, 3);
+    HelpDesk::changeTicketStatus($ticketId, 3);
 }
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'close') {
-        Support::closeTicket($ticketId);
+        HelpDesk::closeTicket($ticketId);
         redirectTo('ticket_system.php');
     }
 
     if (isset($_POST['user_message'])) {
         if (empty($_POST['user_message'])) {
-            setPageMessage(tr('Please type your message.'), 'error');
+            View::setPageMessage(tr('Please type your message.'), 'error');
         } else {
-            Support::updateTicket($ticketId, $identity->getUserId(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3);
+            HelpDesk::updateTicket($ticketId, $identity->getUserId(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 2, 3);
             redirectTo("ticket_view.php?ticket_id=$ticketId");
         }
     }
@@ -76,8 +77,8 @@ $tpl->assign([
     'TR_TICKET_REPLY'     => tr('Send reply')
 ]);
 View::generateNavigation($tpl);
-Support::showTicketContent($tpl, $ticketId, $identity->getUserId());
-generatePageMessage($tpl);
+HelpDesk::showTicketContent($tpl, $ticketId, $identity->getUserId());
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

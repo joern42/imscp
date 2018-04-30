@@ -20,9 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -142,23 +142,23 @@ function addAccount()
     $homeDir = normalizePath('/' . cleanInput($_POST['home_dir']));
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    
-    customerHasDomain($dmnName, $identity->getUserId()) or View::showBadRequestErrorPage();
+
+    Counting::customerHasDomain($dmnName, $identity->getUserId()) or View::showBadRequestErrorPage();
 
     if (!validateUsername($username)) {
-        setPageMessage(tr('Invalid FTP username.'), 'error');
+        View::setPageMessage(tr('Invalid FTP username.'), 'error');
         $error = true;
     }
 
     if ($passwd !== $passwdRepeat) {
-        setPageMessage(tr('Passwords do not match.'), 'error');
+        View::setPageMessage(tr('Passwords do not match.'), 'error');
         $error = true;
     } elseif (!checkPasswordSyntax($passwd)) {
         $error = true;
     }
 
     if ($homeDir == '') {
-        setPageMessage(tr('FTP home directory cannot be empty.'), 'error');
+        View::setPageMessage(tr('FTP home directory cannot be empty.'), 'error');
         $error = true;
     }
 
@@ -170,7 +170,7 @@ function addAccount()
 
     $vfs = new VirtualFileSystem($identity->getUsername());
     if ($homeDir !== '/' && !$vfs->exists($homeDir, VirtualFileSystem::VFS_TYPE_DIR)) {
-        setPageMessage(tr("Directory '%s' doesn't exist.", $homeDir), 'error');
+        View::setPageMessage(tr("Directory '%s' doesn't exist.", $homeDir), 'error');
         return false;
     }
 
@@ -241,12 +241,12 @@ function addAccount()
 
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
-        writeLog(sprintf('A new FTP account (%s) has been created by %s', $username, $identity->getUsername()), E_USER_NOTICE);
-        setPageMessage(tr('FTP account successfully added.'), 'success');
+        writeLog(sprintf('A new FTP account (%s) has been created by %s', $username, getProcessorUsername($identity)), E_USER_NOTICE);
+        View::setPageMessage(tr('FTP account successfully added.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         if ($e->getCode() == 23000) {
-            setPageMessage(tr('FTP account already exists.'), 'error');
+            View::setPageMessage(tr('FTP account already exists.'), 'error');
             return false;
         }
 
@@ -296,11 +296,11 @@ function generatePage($tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('ftp') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('ftp') or View::showBadRequestErrorPage();
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 $mainDmnProps = getCustomerProperties($identity->getUserId());
@@ -310,11 +310,11 @@ if (isXhr() && isset($_POST['domain_type'])) {
     return;
 }
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     $nbFtpAccounts = Counting::getCustomerFtpUsersCount($identity->getUserId());
 
     if ($mainDmnProps['domain_ftpacc_limit'] && $nbFtpAccounts >= $mainDmnProps['domain_ftpacc_limit']) {
-        setPageMessage(tr('FTP account limit reached.'), 'error');
+        View::setPageMessage(tr('FTP account limit reached.'), 'error');
         redirectTo('ftp_accounts.php');
     }
 
@@ -351,7 +351,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

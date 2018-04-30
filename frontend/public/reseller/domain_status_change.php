@@ -20,12 +20,12 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 if (isset($_GET['domain_id'])) {

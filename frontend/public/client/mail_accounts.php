@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -199,7 +200,7 @@ function generateMailAccountsList($tpl, $domainId)
         return 0;
     }
 
-    $postfixConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
+    $postfixConfig = loadServiceConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
     $syncQuotaInfo = isset($_GET['sync_quota_info']);
     $hasMailboxes = $overQuota = false;
 
@@ -231,7 +232,7 @@ function generateMailAccountsList($tpl, $domainId)
             list($user, $domain) = explode('@', $row['mail_addr']);
 
             $maildirsize = ($row['quota'])
-                ? parseMaildirsize(normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize"), $syncQuotaInfo)
+                ? Mail::parseMaildirsize(normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize"), $syncQuotaInfo)
                 : false;
 
             if ($maildirsize === false) {
@@ -246,10 +247,7 @@ function generateMailAccountsList($tpl, $domainId)
             }
 
             $mailQuotaInfo = sprintf(
-                '%s / %s (%.0f%%)',
-                bytesHuman($maildirsize['byte_count']),
-                bytesHuman($maildirsize['quota_bytes']),
-                $quotaPercent
+                '%s / %s (%.0f%%)', bytesHuman($maildirsize['byte_count']), bytesHuman($maildirsize['quota_bytes']), $quotaPercent
             );
         }
 
@@ -274,7 +272,7 @@ function generateMailAccountsList($tpl, $domainId)
     }
 
     if ($syncQuotaInfo) {
-        setPageMessage(tr('Mailboxes quota info were synced.'), 'success');
+        View::setPageMessage(tr('Mailboxes quota info were synced.'), 'success');
         redirectTo('mail_accounts.php');
     }
 
@@ -286,7 +284,7 @@ function generateMailAccountsList($tpl, $domainId)
     }
 
     if ($overQuota) {
-        setPageMessage(tr('At least one of your mailboxes is over quota.'), 'static_warning');
+        View::setPageMessage(tr('At least one of your mailboxes is over quota.'), 'static_warning');
     }
 
     return $rowCount;
@@ -300,9 +298,9 @@ function generateMailAccountsList($tpl, $domainId)
  */
 function generatePage($tpl)
 {
-    if (!customerHasFeature('mail')) {
+    if (!Counting::customerHasFeature('mail')) {
         $tpl->assign('MAIL_FEATURE', '');
-        setPageMessage(tr('Mail feature is disabled.'), 'static_info');
+        View::setPageMessage(tr('Mail feature is disabled.'), 'static_info');
         return;
     }
 
@@ -337,14 +335,14 @@ function generatePage($tpl)
     }
 
     $tpl->assign('MAIL_ACCOUNTS', '');
-    setPageMessage(tr('Mail accounts list is empty.'), 'static_info');
+    View::setPageMessage(tr('Mail accounts list is empty.'), 'static_info');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasMailOrExtMailFeatures() or View::showBadRequestErrorPage();
+Counting::customerHasMailOrExtMailFeatures() or View::showBadRequestErrorPage();
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -373,7 +371,7 @@ $tpl->define([
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Client / Mail / Overview')));
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

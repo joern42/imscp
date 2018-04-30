@@ -20,13 +20,13 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 Counting::systemHasAntiRootkits() or View::showBadRequestErrorPage();
 
@@ -65,9 +65,9 @@ if (!empty($antiRootkitLogFiles)) {
 
     foreach ($antiRootkitLogFiles AS $antiRootkit => $logVar) {
         $logFile = $config[$logVar];
-        $cacheId = 'iMSCP_Rootkit_' . pathinfo($logFile, PATHINFO_FILENAME);
+        $keyId = 'iMSCP_Rootkit_' . pathinfo($logFile, PATHINFO_FILENAME);
 
-        if (NULL === $content = $cache->getItem($cacheId)) {
+        if (!$cache->hasItem($keyId)) {
             if (@is_readable($logFile) && @filesize($logFile) > 0) {
                 $handle = fopen($logFile, 'r');
                 $log = fread($handle, filesize($logFile));
@@ -126,7 +126,13 @@ if (!empty($antiRootkitLogFiles)) {
                 $content = '<strong style="color:red">' . tr("%s doesn't exist or is empty.", $logFile) . '</strong>';
             }
 
-            $cache->addItem($content, $cacheId, [], 86400);
+            // A bit messy... See https://github.com/zendframework/zendframework/pull/5386
+            $ttl = $cache->getOptions()->getTtl();
+            $cache->getOptions()->setTtl(86400);
+            $cache->setItems($keyId, $content);
+            $cache->getOptions()->setTtl($ttl);
+        } else {
+            $content = $cache->getItem($keyId);
         }
 
         $tpl->assign([
@@ -139,11 +145,11 @@ if (!empty($antiRootkitLogFiles)) {
     $tpl->assign('NB_LOG', sizeof($antiRootkitLogFiles));
 } else {
     $tpl->assign('ANTIROOTKITS_LOG', '');
-    setPageMessage(tr('No anti-rootkits logs'), 'static_info');
+    View::setPageMessage(tr('No anti-rootkits logs'), 'static_info');
 }
 
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

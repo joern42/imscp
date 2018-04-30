@@ -20,9 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 use iMSCP\Model\SuIdentityInterface;
@@ -137,7 +137,7 @@ function addDomainAlias()
 
     // Check for domain alias name
     if ($domainAliasName == '') {
-        setPageMessage(tr('You must enter a domain alias name.'), 'error');
+        View::setPageMessage(tr('You must enter a domain alias name.'), 'error');
         $ret = false;
     } else {
         // www is considered as an alias of the domain alias
@@ -148,11 +148,11 @@ function addDomainAlias()
         // Check for domain alias name syntax
         global $dmnNameValidationErrMsg;
         if (!validateDomainName($domainAliasName)) {
-            setPageMessage(toHtml($dmnNameValidationErrMsg), 'error');
+            View::setPageMessage(toHtml($dmnNameValidationErrMsg), 'error');
             $ret = false;
         } elseif (isKnownDomain($domainAliasName, Application::getInstance()->getSession()['user_created_by'])) {
             // Check for domain alias existence
-            setPageMessage(tr('Domain %s is unavailable.', "<strong>$domainAliasName</strong>"), 'error');
+            View::setPageMessage(tr('Domain %s is unavailable.', "<strong>$domainAliasName</strong>"), 'error');
             $ret = false;
         }
     }
@@ -160,7 +160,7 @@ function addDomainAlias()
     // Check for domain alias IP addresses
     $domainAliasIps = [];
     if (!isset($_POST['alias_ips'])) {
-        setPageMessage(toHtml(tr('You must assign at least one IP address to that domain alias.')), 'error');
+        View::setPageMessage(toHtml(tr('You must assign at least one IP address to that domain alias.')), 'error');
         $ret = false;
     } elseif (!is_array($_POST['alias_ips'])) {
         View::showBadRequestErrorPage();
@@ -244,7 +244,7 @@ function addDomainAlias()
 
             $forwardUrl = $uri->getUri();
         } catch (\Exception $e) {
-            setPageMessage($e->getMessage(), 'error');
+            View::setPageMessage($e->getMessage(), 'error');
             return false;
         }
     }
@@ -322,17 +322,17 @@ function addDomainAlias()
 
         if ($isSuIdentity) {
             Daemon::sendRequest();
-            writeLog(sprintf('A new domain alias (%s) has been created by %s', $domainAliasName, $identity->getSuUsername(), E_USER_NOTICE));
-            setPageMessage(tr('Domain alias successfully created.'), 'success');
+            writeLog(sprintf('A new domain alias (%s) has been created by %s', $domainAliasName, getProcessorUsername($identity), E_USER_NOTICE));
+            View::setPageMessage(tr('Domain alias successfully created.'), 'success');
         } else {
             send_alias_order_email($domainAliasName);
             writeLog(sprintf('A new domain alias (%s) has been ordered by %s', $domainAliasName, $identity->getUsername(), E_USER_NOTICE));
-            setPageMessage(tr('Domain alias successfully ordered.'), 'success');
+            View::setPageMessage(tr('Domain alias successfully ordered.'), 'success');
         }
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to create the %s domain alias: %s', $domainAliasName, $e->getMessage()), E_USER_ERROR);
-        setPageMessage(tr('Could not create domain alias. An unexpected error occurred.'), 'error');
+        View::setPageMessage(tr('Could not create domain alias. An unexpected error occurred.'), 'error');
         return false;
     }
 
@@ -395,21 +395,21 @@ function generatePage(TemplateEngine $tpl)
     );
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('domain_aliases') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('domain_aliases') or View::showBadRequestErrorPage();
 
 $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 $domainAliasesCount = Counting::getCustomerDomainAliasesCount($mainDmnProps['domain_id']);
 
 if ($mainDmnProps['domain_alias_limit'] != 0 && $domainAliasesCount >= $mainDmnProps['domain_alias_limit']) {
-    setPageMessage(tr('You have reached the maximum number of domain aliases allowed by your subscription.'), 'warning');
+    View::setPageMessage(tr('You have reached the maximum number of domain aliases allowed by your subscription.'), 'warning');
     redirectTo('domains_manage.php');
 }
 
-if (!empty($_POST) && addDomainAlias()) {
+if (Application::getInstance()->getRequest()->isPost() && addDomainAlias()) {
     redirectTo('domains_manage.php');
 }
 
@@ -454,7 +454,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

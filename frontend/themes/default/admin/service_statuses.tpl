@@ -32,7 +32,7 @@
     <tbody>
     <tr style="background-color:#b0def5">
         <td colspan="4" class="buttons">
-            <button type="button" onclick="window.location.href = window.location.href.replace(/[\?#].*|$/, '?refresh');">{TR_FORCE_REFRESH}</button>
+            <button type="button" onclick="window.location.href = window.location.href.replace(/[\?#].*|$/, '?refresh=1');">{TR_REFRESH}</button>
         </td>
     </tr>
     </tbody>

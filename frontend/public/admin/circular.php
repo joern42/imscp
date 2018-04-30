@@ -20,9 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -138,25 +138,25 @@ function admin_isValidCircular($senderName, $senderEmail, $subject, $body)
 {
     $ret = true;
     if ($senderName == '') {
-        setPageMessage(tr('Sender name is missing.'), 'error');
+        View::setPageMessage(tr('Sender name is missing.'), 'error');
         $ret = false;
     }
 
     if ($senderEmail == '') {
-        setPageMessage(tr('Reply-To email is missing.'), 'error');
+        View::setPageMessage(tr('Reply-To email is missing.'), 'error');
         $ret = false;
     } elseif (!ValidateEmail($senderEmail)) {
-        setPageMessage(tr("Incorrect email length or syntax."), 'error');
+        View::setPageMessage(tr("Incorrect email length or syntax."), 'error');
         $ret = false;
     }
 
     if ($subject == '') {
-        setPageMessage(tr('Subject is missing.'), 'error');
+        View::setPageMessage(tr('Subject is missing.'), 'error');
         $ret = false;
     }
 
     if ($body == '') {
-        setPageMessage(tr('Body is missing.'), 'error');
+        View::setPageMessage(tr('Body is missing.'), 'error');
         $ret = false;
     }
 
@@ -220,7 +220,7 @@ function admin_sendCircular()
         'subject'      => $subject,
         'body'         => $body
     ]);
-    setPageMessage(tr('Circular successfully sent.'), 'success');
+    View::setPageMessage(tr('Circular successfully sent.'), 'success');
     writeLog(sprintf('A circular has been sent by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     return true;
 }
@@ -310,13 +310,13 @@ function generatePage($tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 Counting::systemHasAdminsOrResellersOrCustomers() or View::showBadRequestErrorPage();
 
-if (!empty($_POST) && admin_sendCircular()) {
+if (Application::getInstance()->getRequest()->isPost() && admin_sendCircular()) {
     redirectTo('users.php');
 }
 
@@ -340,7 +340,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

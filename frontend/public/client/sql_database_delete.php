@@ -20,24 +20,25 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('sql') && isset($_GET['sqld_id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('sql') && isset($_GET['sqld_id']) or View::showBadRequestErrorPage();
 
 $sqldId = intval($_GET['sqld_id']);
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 
 if (!deleteSqlDatabase(getCustomerMainDomainId($identity->getUserId()), $sqldId)) {
     writeLog(sprintf('Could not delete SQL database with ID %s. An unexpected error occurred.', $sqldId), E_USER_NOTICE);
-    setPageMessage(tr('Could not delete SQL database. An unexpected error occurred.'), 'error');
+    View::setPageMessage(tr('Could not delete SQL database. An unexpected error occurred.'), 'error');
     redirectTo('sql_manage.php');
 }
 
-setPageMessage(tr('SQL database successfully deleted.'), 'success');
-writeLog(sprintf('%s deleted SQL database with ID %s', $identity->getUsername(), $sqldId), E_USER_NOTICE);
+View::setPageMessage(tr('SQL database successfully deleted.'), 'success');
+writeLog(sprintf('%s deleted SQL database with ID %s', getProcessorUsername($identity), $sqldId), E_USER_NOTICE);
 redirectTo('sql_manage.php');

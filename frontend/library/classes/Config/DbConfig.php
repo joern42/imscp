@@ -21,7 +21,7 @@
 namespace iMSCP\Config;
 
 use iMSCP\Application;
-use Zend\Db\Adapter\Adapter;
+use Zend\Db\Adapter\Adapter as DbAdapter;
 use Zend\Db\Adapter\Driver\StatementInterface;
 
 /**
@@ -30,61 +30,65 @@ use Zend\Db\Adapter\Driver\StatementInterface;
  */
 class DbConfig extends \ArrayObject
 {
-    /**
-     * @var Adapter
-     */
-    protected $db;
-
-    /**
-     * @var StatementInterface to insert a configuration parameter in the database
-     */
-    protected $insertStmt;
-
-    /**
-     * @var StatementInterface to update a configuration parameter in the database
-     */
-    protected $updateStmt;
-
-    /**
-     * @var StatementInterface PDOStatement to delete a configuration parameter in the database
-     */
-    protected $deleteStmt;
-
-    /**
-     * @var int Counter for SQL update queries
-     */
-    protected $insertQueriesCounter = 0;
-
-    /**
-     * @var int Counter for SQL insert queries
-     */
-    protected $updateQueriesCounter = 0;
-
-    /**
-     * @var int Counter for SQL delete queries
-     */
-    protected $deleteQueriesCounter = 0;
+    const INSERT_QUERY_COUNTER = 'insert';
+    const UPDATE_QUERY_COUNTER = 'update';
+    const DELETE_QUERY_COUNTER = 'delete';
 
     /**
      * @var string Database table name for configuration parameters
      */
-    static $tableName = 'config';
+    public static $tableName = 'config';
 
     /**
-     * @var string Database column name for configuration parameters keys
+     * @var string Database column name for parameter keys
      */
-    static $keyColumn = 'name';
+    public static $keyColumn = 'name';
 
     /**
-     * @var string Database column name for configuration parameters values
+     * @var string Database column name for parameter values
      */
-    static $valueColumn = 'value';
+    public static $valueColumn = 'value';
+
+    /**
+     * @var DbAdapter
+     */
+    protected $db;
+
+    /**
+     * @var StatementInterface for insert queries
+     */
+    protected $insertStmt;
+
+    /**
+     * @var StatementInterface for update queries
+     */
+    protected $updateStmt;
+
+    /**
+     * @var StatementInterface for delete queries
+     */
+    protected $deleteStmt;
+
+    /**
+     * @var int Counter for update queries
+     */
+    protected $insertQueriesCounter = 0;
+
+    /**
+     * @var int Counter for insert queries
+     */
+    protected $updateQueriesCounter = 0;
+
+    /**
+     * @var int Counter for delete queries
+     */
+    protected $deleteQueriesCounter = 0;
 
     /**
      * DbConfig constructor
-     * @param Adapter $db
+     * @param DbAdapter $db
      */
-    public function __construct(Adapter $db)
+    public function __construct(DbAdapter $db)
     {
         $this->db = $db;
 
@@ -95,7 +99,7 @@ class DbConfig extends \ArrayObject
             $this->db->getPlatform()->quoteIdentifier(static::$tableName)
         ))->execute();
 
-        parent::__construct($stmt->getResource()->fetchAll(\PDO::FETCH_KEY_PAIR), \ArrayObject::STD_PROP_LIST | \ArrayObject::ARRAY_AS_PROPS);
+        parent::__construct($stmt->getResource()->fetchAll(\PDO::FETCH_KEY_PAIR), \ArrayObject::ARRAY_AS_PROPS);
     }
 
     /**
@@ -165,48 +169,49 @@ class DbConfig extends \ArrayObject
     /**
      * Returns the count of SQL queries that were executed
      *
-     * This method returns the count of queries that were executed since the last call of {@link reset_queries_counter()} method.
+     * This method returns the count of queries that were executed since the
+     * last call of {@link resetQueriesCounter()} method.
      *
-     * @param string $queriesCounterType Query counter type (insert|update)
+     * @param string $queriesCounterType Query counter type
      * @return int
      */
     public function countQueries(string $queriesCounterType): int
     {
         switch ($queriesCounterType) {
-            case 'update':
-                return $this->updateQueriesCounter;
-                break;
-            case 'insert':
+            case self::INSERT_QUERY_COUNTER:
                 return $this->insertQueriesCounter;
                 break;
-            case 'delete':
+            case self::UPDATE_QUERY_COUNTER:
+                return $this->updateQueriesCounter;
+                break;
+            case self::DELETE_QUERY_COUNTER:
                 return $this->deleteQueriesCounter;
                 break;
             default:
-                throw new \Exception('Unknown queries counter.');
+                throw new \InvalidArgumentException('Unknown queries counter.');
         }
     }
 
     /**
      * Reset a counter of queries
      *
-     * @param string $queriesCounterType Query counter (insert|update|delete)
+     * @param string $queriesCounterType Query counter
      * @return void
      */
     public function resetQueriesCounter(string $queriesCounterType): void
     {
         switch ($queriesCounterType) {
-            case 'update':
-                $this->updateQueriesCounter = 0;
-                break;
-            case 'insert':
+            case self::INSERT_QUERY_COUNTER:
                 $this->insertQueriesCounter = 0;
                 break;
-            case 'delete':
+            case self::UPDATE_QUERY_COUNTER:
+                $this->updateQueriesCounter = 0;
+                break;
+            case self::DELETE_QUERY_COUNTER:
                 $this->deleteQueriesCounter = 0;
                 break;
             default:
-                throw new \Exception('Unknown queries counter.');
+                throw new \InvalidArgumentException('Unknown queries counter.');
         }
     }
 
@@ -215,6 +220,9 @@ class DbConfig extends \ArrayObject
      */
     public function serialize()
     {
+        $this->resetQueriesCounter(self::INSERT_QUERY_COUNTER);
+        $this->resetQueriesCounter(self::UPDATE_QUERY_COUNTER);
+        $this->resetQueriesCounter(self::DELETE_QUERY_COUNTER);
         unset($this->db, $this->insertStmt, $this->updateStmt, $this->deleteStmt);
         return parent::serialize();
     }

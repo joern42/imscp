@@ -20,11 +20,11 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
-use Zend\Config;
 use Zend\EventManager\Event;
 
 /**
@@ -86,7 +86,7 @@ function client_editMailAccount()
         # parameters. See http://www.postfix.org/VIRTUAL_README.html#canonical
         # This necessarily means that Postfix canonical domains cannot have
         # virtual mailboxes, hence their prohibition.
-        setPageMessage(tr('You cannot create new mailboxes for that domain. Only forwarded mail accounts are allowed.'), 'warning');
+        View::setPageMessage(tr('You cannot create new mailboxes for that domain. Only forwarded mail accounts are allowed.'), 'warning');
         return false;
     }
 
@@ -98,17 +98,17 @@ function client_editMailAccount()
 
         if ($mailData['mail_pass'] == '_no_' || $password != '' || $passwordRep != '') {
             if ($password == '') {
-                setPageMessage(tr('Password is missing.'), 'error');
+                View::setPageMessage(tr('Password is missing.'), 'error');
                 return false;
             }
 
             if ($passwordRep == '') {
-                setPageMessage(tr('You must confirm your password.'), 'error');
+                View::setPageMessage(tr('You must confirm your password.'), 'error');
                 return false;
             }
 
             if ($password !== $passwordRep) {
-                setPageMessage(tr('Passwords do not match.'), 'error');
+                View::setPageMessage(tr('Passwords do not match.'), 'error');
                 return false;
             }
 
@@ -128,7 +128,7 @@ function client_editMailAccount()
 
         if ($customerEmailQuotaLimitBytes > 0) {
             if ($mailQuotaLimitBytes < 1) {
-                setPageMessage(tr('Incorrect mail quota.'), 'error');
+                View::setPageMessage(tr('Incorrect mail quota.'), 'error');
                 return false;
             }
 
@@ -141,7 +141,7 @@ function client_editMailAccount()
             }
 
             if ($mailQuotaLimitBytes > $customerEmailQuotaLimitBytes - $customerMailboxesQuotaSumBytes) {
-                setPageMessage(tr('Mail quota cannot be bigger than %s', bytesHuman($mailQuotaLimitBytes)), 'error');
+                View::setPageMessage(tr('Mail quota cannot be bigger than %s', bytesHuman($mailQuotaLimitBytes)), 'error');
                 return false;
             }
         }
@@ -164,7 +164,7 @@ function client_editMailAccount()
     if ($mailTypeForward) {
         $forwardList = cleanInput($_POST['forward_list']);
         if ($forwardList == '') {
-            setPageMessage(tr('Forward list is empty.'), 'error');
+            View::setPageMessage(tr('Forward list is empty.'), 'error');
             return false;
         }
 
@@ -173,18 +173,18 @@ function client_editMailAccount()
             $forwardEmailAddr = encodeIdna(mb_strtolower($forwardEmailAddr));
 
             if (!ValidateEmail($forwardEmailAddr)) {
-                setPageMessage(tr('Bad email address in forward list field.'), 'error');
+                View::setPageMessage(tr('Bad email address in forward list field.'), 'error');
                 return false;
             }
 
             if ($forwardEmailAddr == $mailAddr) {
-                setPageMessage(tr('You cannot forward %s on itself.', $mailAddr), 'error');
+                View::setPageMessage(tr('You cannot forward %s on itself.', $mailAddr), 'error');
                 return false;
             }
         }
 
         if (empty($forwardList)) {
-            setPageMessage(tr('Forward list is empty.'), 'error');
+            View::setPageMessage(tr('Forward list is empty.'), 'error');
             return false;
         }
 
@@ -211,14 +211,14 @@ function client_editMailAccount()
     );
 
     # Force synching of quota info on next load (or remove cached data in case of normal account changed to forward account)
-    $postfixConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
+    $postfixConfig = loadServiceConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
     list($user, $domain) = explode('@', $mailAddr);
     unset(Application::getInstance()->getSession()['maildirsize'][normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")]);
 
     Application::getInstance()->getEventManager()->trigger(Events::onAfterEditMail, NULL, ['mailId' => $mailData['mail_id']]);
     Daemon::sendRequest();
-    writeLog(sprintf('A mail account (%s) has been edited by %s', decodeIdna($mailAddr), $identity->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('Mail account successfully scheduled for update.'), 'success');
+    writeLog(sprintf('A mail account (%s) has been edited by %s', decodeIdna($mailAddr), getProcessorUsername($identity)), E_USER_NOTICE);
+    View::setPageMessage(tr('Mail account successfully scheduled for update.'), 'success');
     return true;
 }
 
@@ -257,8 +257,8 @@ function client_generatePage($tpl)
                 ? $mailData['quota'] / 1048576 : min(10, $mailMaxQuotaLimitMib);
             $mailTypeForwardOnly = false;
         } else {
-            setPageMessage(tr('You cannot make this account a normal mail account because you have already assigned all your mail quota. If you want make this account a normal mail account, you must first lower the quota assigned to one of your other mail account.'), 'static_info');
-            setPageMessage(tr('For the time being, you can only edit your forwarded mail account.'), 'static_info');
+            View::setPageMessage(tr('You cannot make this account a normal mail account because you have already assigned all your mail quota. If you want make this account a normal mail account, you must first lower the quota assigned to one of your other mail account.'), 'static_info');
+            View::setPageMessage(tr('For the time being, you can only edit your forwarded mail account.'), 'static_info');
             $mailQuotaLimitBytes = 1048576; // Only for sanity. Customer won't be able to switch to normal mail account
             $mailMaxQuotaLimitMib = 1;
             $mailQuotaLimitMiB = 1;
@@ -310,13 +310,13 @@ function client_generatePage($tpl)
     );
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
-if (!empty($_POST) && client_editMailAccount()) {
+if (Application::getInstance()->getRequest()->isPost() && client_editMailAccount()) {
     redirectTo('mail_accounts.php');
 }
 
@@ -344,7 +344,7 @@ $tpl->assign([
 ]);
 client_generatePage($tpl);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

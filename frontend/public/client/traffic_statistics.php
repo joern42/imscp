@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
 /**
@@ -79,7 +79,7 @@ function generatePage(TemplateEngine $tpl)
     ]);
 
     if (!$stmt->rowCount()) {
-        setPageMessage(tr('No statistics found for the given period. Try another period.'), 'static_info');
+        View::setPageMessage(tr('No statistics found for the given period. Try another period.'), 'static_info');
         $tpl->assign('STATISTICS_BLOCK', '');
         return;
     }
@@ -118,9 +118,9 @@ function generatePage(TemplateEngine $tpl)
 
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 $tpl = new TemplateEngine();
@@ -149,7 +149,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

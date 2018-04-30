@@ -20,13 +20,13 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
@@ -52,12 +52,12 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     $data_2['message'] = cleanInput($_POST['message2']);
 
     if (empty($data_1['subject']) || empty($data_2['subject'])) {
-        setPageMessage(tr('You must specify a subject.'), 'error');
+        View::setPageMessage(tr('You must specify a subject.'), 'error');
         $error = true;
     }
 
     if (empty($data_1['message']) || empty($data_2['message'])) {
-        setPageMessage(tr('You must specify a message.'), 'error');
+        View::setPageMessage(tr('You must specify a message.'), 'error');
         $error = true;
     }
 
@@ -67,7 +67,7 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
 
     Mail::setLostpasswordActivationEmail($userId, $data_1);
     Mail::setLostpasswordEmail($userId, $data_2);
-    setPageMessage(tr('Lost password email templates were updated.'), 'success');
+    View::setPageMessage(tr('Lost password email templates were updated.'), 'success');
 }
 
 View::generateNavigation($tpl);
@@ -97,7 +97,7 @@ $tpl->assign([
     'TR_BASE_SERVER_VHOST_PORT'   => tr('URL port'),
     'TR_CANCEL'                   => tr('Cancel')
 ]);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

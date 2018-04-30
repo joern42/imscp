@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
 /**
@@ -46,9 +46,9 @@ function generatePage($tpl)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
@@ -60,7 +60,7 @@ $tpl->define([
 $tpl->assign('TR_PAGE_TITLE', tr('Reseller / Profile / Account Summary'));
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

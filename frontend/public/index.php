@@ -20,109 +20,85 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthResult;
+use iMSCP\Functions\View;
 
 require_once 'application.php';
 
 Application::getInstance()->getEventManager()->trigger(Events::onLoginScriptStart);
 
-if (isset($_REQUEST['action'])) {
-    Login::initLogin();
-    $authService = Application::getInstance()->getAuthService();
+$authService = Application::getInstance()->getAuthService();
 
-    switch ($_REQUEST['action']) {
-        case 'login':
-            $authResult = $authService->authenticate();
-            if ($authResult->isValid()) {
-                writeLog(sprintf("%s logged in", $authService->getIdentity()->admin_name), E_USER_NOTICE);
-            } elseif (($messages = $authResult->getMessages())) {
-                $messages = formatMessage($messages);
-                setPageMessage($messages, 'error');
-                writeLog(sprintf('Authentication failed. Reason: %s', $messages), E_USER_NOTICE);
-            }
-            break;
-        case 'logout':
-            if ($authService->hasIdentity()) {
-                $adminName = $authService->getIdentity()->admin_name;
-                $authService->clearIdentity();
-                setPageMessage(tr('You have been successfully logged out.'), 'success');
-                writeLog(sprintf('%s logged out', decodeIdna($adminName)), E_USER_NOTICE);
-            }
+if (Application::getInstance()->getRequest()->isPost()) {
+    $authResult = $authService->authenticate();
+    if ($authResult->isValid()) {
+        writeLog(sprintf('%s signed in.', $authService->getIdentity()->getUsername()), E_USER_NOTICE);
+    } elseif ($messages = $authResult->getMessages()) {
+        // AuthResult::FAILURE_UNCATEGORIZED is used to denote failures that we do not want log
+        if ($authResult->getCode() != AuthResult::FAILURE_UNCATEGORIZED) {
+            writeLog(sprintf('Authentication failed. Reason: %s', View::FormatPageMessages($messages)), E_USER_NOTICE);
 
-            redirectTo('index.php');
+            if(Application::getInstance()->getConfig()['LOSTPASSWORD']) {
+                $messages[] = '<b><a href="/lostpassword.php">' . tr('Password lost?') . '</a></b>';
+            }
+        }
+
+        View::setPageMessage(View::FormatPageMessages($messages), 'static_error');
     }
+} elseif (Application::getInstance()->getRequest()->getQuery('signout')) {
+    if ($authService->hasIdentity()) {
+        $adminName = $authService->getIdentity()->getUsername();
+        $authService->clearIdentity();
+        View::setPageMessage(tr('You have been successfully signed out.'), 'success');
+        writeLog(sprintf('%s signed out.', decodeIdna($adminName)), E_USER_NOTICE);
+    }
+
+    redirectTo('/index.php');
 }
 
-Login::redirectToUiLevel();
+// Must be done here because an already logged-in user
+// must be redirected to it UI
+$authService->redirectToUserUi();
 
 $tpl = new TemplateEngine();
 $tpl->define([
-    'layout'         => 'shared/layouts/simple.tpl',
-    'page_message'   => 'layout',
-    'lostpwd_button' => 'page'
+    'layout'              => 'shared/layouts/simple.tpl',
+    'page_message'        => 'layout',
+    'page'                => 'index.tpl',
+    'ssl_block'           => 'page'
 ]);
 $tpl->assign([
     'productLongName'  => toHtml(tr('internet Multi Server Control Panel')),
     'productLink'      => toHtml('https://www.i-mscp.net', 'htmlAttr'),
-    'productCopyright' => tr('© 2010-2018 i-MSCP Team<br>All Rights Reserved')
+    'productCopyright' => toHtml(tr('© 2010-2018 i-MSCP - All Rights Reserved')),
+    'TR_PAGE_TITLE'    => toHtml(tr('i-MSCP - Multi Server Control Panel / Login')),
+    'TR_SIGN_IN'        => toHtml(tr('Sign in')),
+    'TR_USERNAME'      => toHtml(tr('Username')),
+    'UNAME'            => toHtml(Application::getInstance()->getRequest()->getPost('admin_name', ''), 'htmlAttr'),
+    'TR_PASSWORD'      => toHtml(tr('Password'))
 ]);
 
-$cfg = Application::getInstance()->getConfig();
+$config = Application::getInstance()->getConfig();
 
-if ($cfg['MAINTENANCEMODE'] && !isset($_GET['admin'])) {
-    $tpl->define('page', 'message.tpl');
+if ($config['PANEL_SSL_ENABLED'] == 'yes' && $config['BASE_SERVER_VHOST_PREFIX'] != 'https://') {
+    $isSecure = isSecureRequest() ? true : false;
+    $uri = [
+        ($isSecure ? 'http' : 'https') . '://', getRequestHost(), $isSecure
+            ? (getRequestPort() != 443 ? ':' . $config['BASE_SERVER_VHOST_HTTP_PORT'] : '')
+            : (getRequestPort() != 80 ? ':' . $config['BASE_SERVER_VHOST_HTTPS_PORT'] : '')
+    ];
     $tpl->assign([
-        'TR_PAGE_TITLE'           => toHtml(tr('i-MSCP - Multi Server Control Panel / Maintenance')),
-        'HEADER_BLOCK'            => '',
-        'BOX_MESSAGE_TITLE'       => toHtml(tr('System under maintenance')),
-        'BOX_MESSAGE'             => isset($cfg['MAINTENANCEMODE_MESSAGE'])
-            ? preg_replace('/\s\s+/', '', nl2br(toHtml($cfg['MAINTENANCEMODE_MESSAGE'])))
-            : toHtml(tr('We are sorry, but the system is currently under maintenance.')),
-        'TR_BACK'                 => toHtml(tr('Administrator login'))
+        'SSL_LINK'           => toHtml(implode('', $uri), 'htmlAttr'),
+        'SSL_IMAGE_CLASS'    => $isSecure ? 'i_unlock' : 'i_lock',
+        'TR_SSL'             => $isSecure ? toHtml(tr('Normal connection')) : toHtml(tr('Secure connection')),
+        'TR_SSL_DESCRIPTION' => $isSecure
+            ? toHtml(tr('Use normal connection (No SSL)'), 'htmlAttr') : toHtml(tr('Use secure connection (SSL)'), 'htmlAttr')
     ]);
 } else {
-    $tpl->define([
-        'page'                  => 'index.tpl',
-        'lost_password_support' => 'page',
-        'ssl_support'           => 'page'
-    ]);
-    $tpl->assign([
-        'TR_PAGE_TITLE' => toHtml(tr('i-MSCP - Multi Server Control Panel / Login')),
-        'TR_LOGIN'      => toHtml(tr('Login')),
-        'TR_USERNAME'   => toHtml(tr('Username')),
-        'UNAME'         => isset($_POST['uname']) ? toHtml($_POST['uname'], 'htmlAttr') : '',
-        'TR_PASSWORD'   => toHtml(tr('Password'))
-    ]);
-
-    if ($cfg['PANEL_SSL_ENABLED'] == 'yes' && $cfg['BASE_SERVER_VHOST_PREFIX'] != 'https://') {
-        $isSecure = isSecureRequest() ? true : false;
-        $uri = [
-            ($isSecure ? 'http' : 'https') . '://',
-            getRequestHost(),
-            $isSecure
-                ? (getRequestPort() != 443 ? ':' . $cfg['BASE_SERVER_VHOST_HTTP_PORT'] : '')
-                : (getRequestPort() != 80 ? ':' . $cfg['BASE_SERVER_VHOST_HTTPS_PORT'] : '')
-        ];
-
-        $tpl->assign([
-            'SSL_LINK'           => toHtml(implode('', $uri), 'htmlAttr'),
-            'SSL_IMAGE_CLASS'    => $isSecure ? 'i_unlock' : 'i_lock',
-            'TR_SSL'             => $isSecure ? toHtml(tr('Normal connection')) : toHtml(tr('Secure connection')),
-            'TR_SSL_DESCRIPTION' => $isSecure
-                ? toHtml(tr('Use normal connection (No SSL)'), 'htmlAttr') : toHtml(tr('Use secure connection (SSL)'), 'htmlAttr')
-        ]);
-    } else {
-        $tpl->assign('SSL_SUPPORT', '');
-    }
-
-    if ($cfg['LOSTPASSWORD']) {
-        $tpl->assign('TR_LOSTPW', toHtml(tr('Lost password')));
-    } else {
-        $tpl->assign('LOST_PASSWORD_SUPPORT', '');
-    }
+    $tpl->assign('SSL_BLOCK', '');
 }
 
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Application::getInstance()->getEventManager()->trigger(Events::onLoginScriptEnd, null, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onLoginScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

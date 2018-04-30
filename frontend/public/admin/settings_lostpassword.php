@@ -20,13 +20,13 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
@@ -45,11 +45,11 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'apply') {
     }
 
     if (!empty($errorMessage)) {
-        setPageMessage($errorMessage, 'error');
+        View::setPageMessage($errorMessage, 'error');
     } else {
         Mail::setLostpasswordActivationEmail(0, $activationEmailData);
         Mail::setLostpasswordEmail(0, $passwordEmailData);
-        setPageMessage(tr('Lost password email templates were updated.'), 'success');
+        View::setPageMessage(tr('Lost password email templates were updated.'), 'success');
         redirectTo('settings_lostpassword.php');
     }
 } else {
@@ -91,7 +91,7 @@ $tpl->assign([
     'TR_BASE_SERVER_VHOST_PORT'   => tr('URL port')
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

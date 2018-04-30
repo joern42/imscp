@@ -23,6 +23,7 @@ namespace iMSCP\Plugin;
 use iMSCP\Application;
 use iMSCP\Events;
 use iMSCP\Functions\Daemon;
+use iMSCP\Functions\View;
 use iMSCP\Json\LazyDecoder;
 use iMSCP\Utility\OpcodeCache;
 use Zend\Cache\Storage\StorageInterface;
@@ -996,7 +997,7 @@ class PluginManager implements EventManagerAwareInterface
         }
 
         if ($this->pluginIsLocked($pluginName)) {
-            setPageMessage(tr('Plugin Manager: Could not uninstall the %s plugin. Plugin has been locked by another plugin.', $pluginName), 'warning');
+            View::setPageMessage(tr('Plugin Manager: Could not uninstall the %s plugin. Plugin has been locked by another plugin.', $pluginName), 'warning');
             return self::ACTION_FAILURE;
         }
 
@@ -1096,7 +1097,7 @@ class PluginManager implements EventManagerAwareInterface
 
             if (is_dir($pluginDir) && !removeDirectory($pluginDir)) {
                 writeLog(sprintf("Plugin Manager: Couldn't delete %s plugin files", $pluginName), E_USER_WARNING);
-                setPageMessage(tr('Plugin Manager: Could not delete %s plugin files. You should run the set-frontend-permissions.pl script and try again.', $pluginName), 'warning');
+                View::setPageMessage(tr('Plugin Manager: Could not delete %s plugin files. You should run the set-frontend-permissions.pl script and try again.', $pluginName), 'warning');
             }
 
             $this->getEventManager()->trigger(Events::onAfterDeletePlugin, $this, [
@@ -1185,7 +1186,7 @@ class PluginManager implements EventManagerAwareInterface
 
             if (@file_put_contents($file, "$content\n", LOCK_EX) === false) {
                 writeLog(sprintf("Plugin Manager: Couldn't write the %s file for protected plugins.", $file));
-                setPageMessage(tr('Plugin Manager: Could not write the %s file for protected plugins.', $file), 'error');
+                View::setPageMessage(tr('Plugin Manager: Could not write the %s file for protected plugins.', $file), 'error');
                 return false;
             }
 
@@ -1278,7 +1279,7 @@ class PluginManager implements EventManagerAwareInterface
             $pluginName = $file->getBasename();
 
             if (!($plugin = $this->pluginLoad($pluginName))) {
-                setPageMessage(tr('Plugin Manager: Could not load plugin %s', $pluginName), 'error');
+                View::setPageMessage(tr('Plugin Manager: Could not load plugin %s', $pluginName), 'error');
                 continue;
             }
 
@@ -1289,7 +1290,7 @@ class PluginManager implements EventManagerAwareInterface
             $info['version'] = $infoPrev['version'];
 
             if (version_compare($info['__nversion__'], $info['version'], '<')) {
-                setPageMessage(tr('Plugin Manager: Downgrade of %s plugin is not allowed.', $pluginName), 'error');
+                View::setPageMessage(tr('Plugin Manager: Downgrade of %s plugin is not allowed.', $pluginName), 'error');
                 continue;
             }
 
@@ -1378,7 +1379,7 @@ class PluginManager implements EventManagerAwareInterface
                         $pluginName,
                         $ret == self::ACTION_FAILURE ? tr('Action has failed.') : tr('Action has been stopped.')
                     );
-                    setPageMessage($message, 'error');
+                    View::setPageMessage($message, 'error');
                     $returnInfo['updated']--;
                 }
             } elseif (in_array($pluginName, $toChangePlugins)) {
@@ -1389,7 +1390,7 @@ class PluginManager implements EventManagerAwareInterface
                         $pluginName,
                         $ret == self::ACTION_FAILURE ? tr('Action has failed.') : tr('Action has been stopped.')
                     );
-                    setPageMessage($message, 'error');
+                    View::setPageMessage($message, 'error');
                     $returnInfo['changed']--;
                 }
             }

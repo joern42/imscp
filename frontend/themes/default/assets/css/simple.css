@@ -74,11 +74,13 @@ a,
 a:hover.link_as_button {
     color: #ffffff;
     text-decoration: none;
+    font-weight: bold;
 }
 
 a:hover,
 .active a {
     color: #5cbada;
+    font-weight: bold;
 }
 
 /*-----------LAYOUT-----------*/
@@ -121,7 +123,7 @@ a:hover,
 }
 
 #logo {
-    background: transparent url('../images/imscp_logo32.png') no-repeat .5em center;
+    background: transparent url('../images/imscp_logo32.png') no-repeat .5em  center;
     height: 50px;
     padding-left: 100px;
     line-height: 50px;
@@ -130,8 +132,8 @@ a:hover,
 #copyright {
     position: absolute;
     right: .5em;
-    line-height: 1;
-    top: 25%;
+    line-height: 50px;
+    top: 0;
     text-align: right
 }
 
@@ -154,6 +156,10 @@ a:hover,
     z-index: 3000;
 }
 
+.static_warning,
+.static_success,
+.static_error,
+.static_info,
 .warning,
 .success,
 .error,
@@ -168,6 +174,7 @@ a:hover,
     border-radius: 4px;
 }
 
+.static_warning,
 .warning {
     color: #954a00;
     border-color: #954a00;
@@ -175,6 +182,7 @@ a:hover,
     background-image: url(../images/messages/warning.png);
 }
 
+.static_success,
 .success {
     color: #3d7a15;
     border-color: #3d7a15;
@@ -182,6 +190,7 @@ a:hover,
     background-image: url(../images/messages/success.png);
 }
 
+.static_error,
 .error {
     color: #ca1d11;
     border-color: #ca1d11;
@@ -189,6 +198,7 @@ a:hover,
     background-image: url(../images/messages/error.png);
 }
 
+.static_info,
 .info {
     color: #0f3d87;
     border-color: #0f3d87;
@@ -489,6 +499,13 @@ textarea {
     width: auto;
     text-align: right;
     padding: .5em;
+    font-weight: bold!important;
+}
+
+button
+{
+    min-width: 100px;
+    font-weight: normal;
 }
 
 /*-----------ODD/EVENT--------*/

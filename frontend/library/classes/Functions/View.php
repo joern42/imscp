@@ -23,10 +23,8 @@ namespace iMSCP\Functions;
 use iMSCP\Application;
 use iMSCP\Events;
 use iMSCP\Model\SuIdentityInterface;
-use iMSCP\Model\UserIdentityInterface;
 use iMSCP\TemplateEngine;
 use Zend\Navigation\Navigation;
-use Zend\Navigation\Page\AbstractPage;
 use Zend\Navigation\Page\Uri;
 
 /**
@@ -43,32 +41,40 @@ class View
      */
     public static function generateLoggedFrom(TemplateEngine $tpl): void
     {
-        $tpl->define('logged_from', 'layout');
+        $tpl->define([
+            'signed_in'      => 'layout',
+            'signed_in_from' => 'layout'
+        ]);
         $identity = Application::getInstance()->getAuthService()->getIdentity();
 
         if (!($identity instanceof SuIdentityInterface)) {
-            $tpl->assign('LOGGED_FROM', '');
+            $tpl->assign([
+                'YOU_ARE_SIGNED_IN_AS' => tr("You're signed in as %s", $identity->getUsername()),
+                'SIGNED_IN_FROM' => ''
+            ]);
+            $tpl->parse('SIGNED_IN', 'signed_in');
             return;
         }
-        
-        if($identity->getSuIdentity() instanceof SuIdentityInterface) {
+
+        if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
             $tpl->assign([
-                'YOU_ARE_LOGGED_AS' => tr(
-                    '%1$s you are now logged as %2$s, then as %3$s',
+                'YOU_ARE_SIGNED_IN_AS'    => tr(
+                    '%1$s you are signed in as %2$s, then as %3$s',
                     $identity->getSuIdentity()->getSuUsername(),
                     $identity->getSuUsername(),
                     $identity->getUsername()
                 ),
-                'TR_GO_BACK'        => tr('Back')
+                'TR_SIGN_IN_BACK_TOOLTIP' => toHtml(tr('Sign in back to previous user'), 'htmlAttr')
             ]);
         } else {
             $tpl->assign([
-                'YOU_ARE_LOGGED_AS' => tr('%1$s you are now logged as %2$s', $identity->getSuUsername(), $identity->getUsername()),
-                'TR_GO_BACK'        => tr('Back')
+                'YOU_ARE_SIGNED_IN_AS'    => tr('%1$s you are signed in as %2$s', $identity->getSuUsername(), $identity->getUsername()),
+                'TR_SIGN_IN_BACK_TOOLTIP' => toHtml(tr('Sign in back to previous user'), 'htmlAttr')
             ]);
         }
-
-        $tpl->parse('LOGGED_FROM', 'logged_from');
+        
+        $tpl->assign('SIGNED_IN', '');
+        $tpl->parse('SIGNED_IN_FROM', 'signed_in_from');
     }
 
     /**
@@ -151,6 +157,7 @@ class View
      */
     public static function generateNavigation(TemplateEngine $tpl): void
     {
+        loadNavigation();
         Application::getInstance()->getEventManager()->trigger(Events::onBeforeGenerateNavigation, NULL, ['templateEngine' => $tpl]);
 
         $tpl->define([
@@ -166,16 +173,15 @@ class View
 
         /** @var $navigation Navigation */
         $navigation = Application::getInstance()->getRegistry()->get('navigation');
-        
-        /** @var UserIdentityInterface $identity */
         $identity = Application::getInstance()->getAuthService()->getIdentity();
+        $request = Application::getInstance()->getRequest();
 
         // Dynamic links (only at customer level)
         if ($identity->getUserType() == 'user') {
             $domainProperties = getCustomerProperties($identity->getUserId());
             $tpl->assign('WEBSTATS_PATH', 'http://' . decodeIdna($domainProperties['domain_name']) . '/stats/');
 
-            if (customerHasFeature('mail')) {
+            if (Counting::customerHasFeature('mail')) {
                 $webmails = Mail::getWebmailList();
 
                 if (!empty($webmails)) {
@@ -194,7 +200,7 @@ class View
                 }
             }
 
-            if (customerHasFeature('ftp')) {
+            if (Counting::customerHasFeature('ftp')) {
                 $filemanagers = getFilemanagerList();
                 if (!empty($filemanagers)) {
                     $page1 = $navigation->findOneBy('class', 'ftp');
@@ -239,16 +245,9 @@ class View
             }
         }
 
-        /** @var $activePage Uri */
-        foreach ($navigation->findAllBy('uri', $_SERVER['SCRIPT_NAME']) as $activePage) {
-            $activePage->setActive();
-        }
-
-        $query = !empty($_GET) ? '?' . http_build_query($_GET) : '';
-
         $session = Application::getInstance()->getSession();
 
-        /** @var $page AbstractPage */
+        /** @var $page Uri */
         foreach ($navigation as $page) {
             if (NULL !== $callbacks = $page->get('privilege_callback')) {
                 $callbacks = isset($callbacks['name']) ? [$callbacks] : $callbacks;
@@ -315,10 +314,11 @@ class View
                 ]);
 
                 if ($subpage->isVisible()) {
-                    $tpl->parse('LEFT_MENU_LINK_BLOCK', '.left_menu_link_block'); // Add subpage to left menu
+                    // Add subpage to left menu
+                    $tpl->parse('LEFT_MENU_LINK_BLOCK', '.left_menu_link_block');
                 }
 
-                if (!$subpage->isActive(true)) {
+                if (!$subpage->isActive()) {
                     continue;
                 }
 
@@ -328,7 +328,8 @@ class View
                 ]);
 
                 if (!$subpage->hasPages()) {
-                    $tpl->assign('HREF', $subpage->getHref() . $query);
+                    // From Request object because we want include query parameters if any
+                    $tpl->assign('HREF', $request->getUriString());
                 }
 
                 // add subpage to breadcrumbs
@@ -339,10 +340,11 @@ class View
 
         // Static variables
         $tpl->assign([
-            'TR_MENU_LOGOUT' => toHtml(tr('Logout')),
-            'VERSION'        => !empty($cfg['Version']) ? $cfg['Version'] : toHtml(tr('Unknown')),
-            'BUILDDATE'      => !empty($cfg['BuildDate']) ? $cfg['BuildDate'] : toHtml(tr('Unreleased')),
-            'CODENAME'       => !empty($cfg['CodeName']) ? $cfg['CodeName'] : toHtml(tr('Unknown'))
+            'TR_SIGN_OUT'         => toHtml(tr('Sign out')),
+            'TR_SIGN_OUT_TOOLTIP' => toHtml(tr('Sign out', 'htmlAttr')),
+            'VERSION'             => !empty($cfg['Version']) ? $cfg['Version'] : toHtml(tr('Unknown')),
+            'BUILDDATE'           => !empty($cfg['BuildDate']) ? $cfg['BuildDate'] : toHtml(tr('Unreleased')),
+            'CODENAME'            => !empty($cfg['CodeName']) ? $cfg['CodeName'] : toHtml(tr('Unknown'))
         ]);
 
         Application::getInstance()->getEventManager()->trigger(Events::onAfterGenerateNavigation, NULL, ['templateEngine' => $tpl]);
@@ -637,7 +639,7 @@ class View
         $cfg = Application::getInstance()->getConfig();
         $session = Application::getInstance()->getSession();
 
-        if (!empty($_POST)) {
+        if (Application::getInstance()->getRequest()->isPost()) {
             isset($_POST['search_status']) && isset($_POST['search_field']) && isset($_POST['client_domain_aliases_switch'])
             && in_array($_POST['client_domain_aliases_switch'], ['show', 'hide']) or static::showBadRequestErrorPage();
 
@@ -652,7 +654,7 @@ class View
         $sLimit = isset($_GET['psi']) ? intval($_GET['psi']) : 0;
         $eLimit = intval($cfg['DOMAIN_ROWS_PER_PAGE']);
 
-        if (!empty($_POST)) {
+        if (Application::getInstance()->getRequest()->isPost()) {
             list($cQuery, $sQuery) = static::getSearchUserQueries(
                 $sLimit, $eLimit, $session['search_field'], $session['search_value'], $session['search_status']
             );
@@ -677,7 +679,7 @@ class View
 
         $rowCount = execQuery($cQuery)->fetchColumn();
         if ($rowCount < 1) {
-            if (!empty($_POST)) {
+            if (Application::getInstance()->getRequest()->isPost()) {
                 $tpl->assign([
                     'CLIENT_DOMAIN_ALIASES_SWITCH' => '',
                     'CLIENT_LIST'                  => '',
@@ -828,7 +830,7 @@ class View
                 SELECT t2.ip_id, t2.ip_number
                 FROM domain AS t1
                 JOIN server_ips AS t2 ON(FIND_IN_SET(t2.ip_id, t1.domain_client_ips))
-                WHERE t1.reseller_id = ?
+                WHERE t1.domain_admin_id = ?
                 ORDER BY LENGTH(t2.ip_number), t2.ip_number
             ",
             [$clientId]
@@ -977,5 +979,63 @@ EOF
     public static function showInternalServerError(): void
     {
         static::showErrorPage(500);
+    }
+
+    /**
+     * Sets a page message to display on client browser
+     *
+     * @param string $message $message Message to display
+     * @param string $level Message level (static_)?(info|warning|error|success)
+     * @return void
+     */
+    public static function setPageMessage(string $message, string $level = 'info'): void
+    {
+        Application::getInstance()->getFlashMessenger()->addMessage($message, strtolower($level));
+    }
+
+    /**
+     * Generates page messages
+     *
+     * @param TemplateEngine $tpl
+     * @return void
+     */
+    public static function generatePageMessages(TemplateEngine $tpl): void
+    {
+        $flashMessenger = Application::getInstance()->getFlashMessenger();
+
+        Application::getInstance()->getEventManager()->trigger(Events::onGeneratePageMessages, $flashMessenger);
+
+        $tpl->assign('PAGE_MESSAGE', '');
+
+        foreach (['success', 'error', 'warning', 'info', 'static_success', 'static_error', 'static_warning', 'static_info'] as $level) {
+            // Get messages that have been added to the current namespace within this request and remove them from the flash messenger
+            $messages = $flashMessenger->getCurrentMessages($level);
+            $flashMessenger->clearCurrentMessages($level);
+
+            //
+            $messages = array_merge($messages, $flashMessenger->getMessages($level));
+            $flashMessenger->clearMessages($level);
+
+            if (empty($messages)) {
+                continue;
+            }
+
+            $tpl->assign([
+                'MESSAGE_CLS' => $level,
+                'MESSAGE'     => implode("<br>\n", array_unique($messages))
+            ]);
+            $tpl->parse('PAGE_MESSAGE', '.page_message');
+        }
+    }
+
+    /**
+     * Format page messages
+     *
+     * @param  array $messages Message or stack of messages to be concatenated
+     * @return string Formated messages
+     */
+    public static function formatPageMessages(array $messages): string
+    {
+        return implode("<br>\n", $messages);
     }
 }

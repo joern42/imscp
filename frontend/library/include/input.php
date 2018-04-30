@@ -27,6 +27,7 @@ use Zend\Form\Factory as FormFactory;
 use Zend\Form\Form;
 use Zend\Hydrator\ArraySerializable;
 use Zend\Validator\File\MimeType;
+use iMSCP\Functions\View;
 
 $ESCAPER = new Escaper('UTF-8');
 
@@ -194,7 +195,7 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
 
     if ($passwordLength < $cfg['PASSWD_CHARS'] || $passwordLength > 30) {
         if (!$noErrorMsg) {
-            setPageMessage(tr('The password must be between %d and %d characters.', $cfg['PASSWD_CHARS'], 30), 'error');
+            View::setPageMessage(tr('The password must be between %d and %d characters.', $cfg['PASSWD_CHARS'], 30), 'error');
         }
 
         $ret = false;
@@ -202,7 +203,7 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
 
     if (!empty($unallowedChars) && preg_match($unallowedChars, $password)) {
         if (!$noErrorMsg) {
-            setPageMessage(tr('Password contains unallowed characters.'), 'error');
+            View::setPageMessage(tr('Password contains unallowed characters.'), 'error');
         }
 
         $ret = false;
@@ -210,7 +211,7 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
 
     if ($cfg['PASSWD_STRONG'] && !(preg_match('/[0-9]/', $password) && preg_match('/[a-zA-Z]/', $password))) {
         if (!$noErrorMsg) {
-            setPageMessage(tr('Password must contain letters and digits.'), 'error');
+            View::setPageMessage(tr('Password must contain letters and digits.'), 'error');
         }
 
         $ret = false;
@@ -224,7 +225,7 @@ function checkPasswordSyntax($password, $unallowedChars = '/[^\x21-\x7e]/', $noE
  *
  * This function validates syntax of usernames. The characters allowed are all
  * alphanumeric in upper or lower case, the hyphen , the low dash and  the dot,
- * the three latter  being banned at the beginning and end of string.
+ * the three latter being forbidden at the beginning and end of string.
  *
  * Successive instances of a dot or underscore are prohibited
  *
@@ -243,18 +244,13 @@ function validateUsername($username, $min_char = 2, $max_char = 30)
  * Validate the given email address
  *
  * @param string $email Email addresse to check
- * @param bool $localPartOnly If true, check only the local part
+ * @param array $options Validator options
  * @return bool
  */
-function ValidateEmail($email, $localPartOnly = false)
+function ValidateEmail($email, $options)
 {
-    $options = [];
-
-    if ($localPartOnly) {
-        $options['onlyLocalPart'] = true;
-    }
-
-    return Validate::getInstance()->email($email, $options);
+    $validator =new \Zend\Validator\EmailAddress($options);
+    return $validator->isValid($email);
 }
 
 /**
@@ -325,10 +321,8 @@ function validateDomainName($domainName)
 /**
  * Function for checking i-MSCP limits syntax.
  *
- * @param string $data Limit field data (by default valids are numbers greater
- *                     equal 0)
- * @param mixed $extra single extra permitted value or array of permitted
- *                    values
+ * @param string $data Limit field data (by default valids are numbers greater equal 0)
+ * @param mixed $extra single extra permitted value or array of permitted values
  * @return bool false incorrect syntax (ranges) true correct syntax (ranges)
  */
 function validateLimit($data, $extra = -1)

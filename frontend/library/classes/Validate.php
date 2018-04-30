@@ -20,6 +20,7 @@
 
 namespace iMSCP;
 
+use iMSCP\Functions\View;
 use Zend\Config\Config;
 use Zend\Validator\Hostname;
 use Zend\Validator\ValidatorInterface;
@@ -200,7 +201,7 @@ class Validate
         if (!empty($this->lastValidationErrorMessages)) {
             $messages = $this->lastValidationErrorMessages;
             $this->lastValidationErrorMessages = [];
-            return formatMessage($messages);
+            return View::FormatPageMessages($messages);
         }
 
         return '';

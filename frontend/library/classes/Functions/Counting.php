@@ -24,6 +24,9 @@ use iMSCP\Application;
 
 /**
  * Class Counting
+ * 
+ * Provide couting and similar function which return integer or boolean.
+ * 
  * @package iMSCP\Functions
  */
 class Counting
@@ -223,7 +226,7 @@ class Counting
 
         if (NULL === $stmt) {
             $stmt = Application::getInstance()->getDb()->createStatement(
-                "SELECT COUNT(domain_id) FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?AND domain_status <> 'todelete'"
+                "SELECT COUNT(domain_id) FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ? AND domain_status <> 'todelete'"
             );
             $stmt->prepare();
         }
@@ -265,7 +268,7 @@ class Counting
             $stmt->prepare();
         }
 
-        return $stmt->execute([$resellerId])->getResource()->fetchColumn();
+        return $stmt->execute([$resellerId, $resellerId])->getResource()->fetchColumn();
     }
 
     /**
@@ -704,5 +707,175 @@ class Counting
         }
 
         return $customerCount >= $minNbCustomers;
+    }
+
+    /**
+     * Tells whether or not the given feature is available for the reseller
+     *
+     * @param string $featureName Feature name
+     * @param bool $forceReload If true force data to be reloaded
+     * @return bool TRUE if $featureName is available for reseller, FALSE otherwise
+     */
+    public static function resellerHasFeature(string $featureName, bool $forceReload = false): bool
+    {
+        static $availableFeatures = NULL;
+        $featureName = strtolower($featureName);
+
+        if (NULL == $availableFeatures || $forceReload) {
+            $config = Application::getInstance()->getConfig();
+            $resellerProps = getResellerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
+            $availableFeatures = [
+                'domains'            => $resellerProps['max_dmn_cnt'] != '-1',
+                'subdomains'         => $resellerProps['max_sub_cnt'] != '-1',
+                'domain_aliases'     => $resellerProps['max_als_cnt'] != '-1',
+                'mail'               => $resellerProps['max_mail_cnt'] != '-1',
+                'ftp'                => $resellerProps['max_ftp_cnt'] != '-1',
+                'sql'                => $resellerProps['max_sql_db_cnt'] != '-1', // TODO to be removed
+                'sql_db'             => $resellerProps['max_sql_db_cnt'] != '-1',
+                'sql_user'           => $resellerProps['max_sql_user_cnt'] != '-1',
+                'php'                => true,
+                'php_editor'         => $resellerProps['php_ini_system'] == 'yes',
+                'cgi'                => true,
+                'custom_dns_records' => $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+                'external_mail'      => true,
+                'backup'             => $config['BACKUP_DOMAINS'] != 'no',
+                'support'            => $config['IMSCP_SUPPORT_SYSTEM'] && $resellerProps['support_system'] == 'yes'
+            ];
+        }
+
+        if (!array_key_exists($featureName, $availableFeatures)) {
+            throw new \InvalidArgumentException(sprintf("Feature %s is not known by the resellerHasFeature() function.", $featureName));
+        }
+
+        return $availableFeatures[$featureName];
+    }
+
+    /**
+     * Tells whether or not the current customer can access to the given feature(s)
+     *
+     * @param array|string $featureNames Feature name(s) (insensitive case)
+     * @param bool $forceReload If true force data to be reloaded
+     * @return bool TRUE if $featureName is available for customer, FALSE otherwise
+     */
+    public static function customerHasFeature(string $featureNames, bool $forceReload = false): bool
+    {
+        static $availableFeatures = NULL;
+
+        if (NULL === $availableFeatures || $forceReload) {
+            $identity = Application::getInstance()->getAuthService()->getIdentity();
+            $config = Application::getInstance()->getConfig();
+            $dmnProps = getCustomerProperties($identity->getUserId());
+            $availableFeatures = [
+                'external_mail'      => $dmnProps['domain_external_mail'] == 'yes',
+                'php'                => $dmnProps['domain_php'] == 'yes',
+                'php_editor'         => $dmnProps['phpini_perm_system'] == 'yes' && $dmnProps['phpini_perm_allow_url_fopen'] == 'yes'
+                    || $dmnProps['phpini_perm_display_errors'] == 'yes' || in_array($dmnProps['phpini_perm_disable_functions'], ['yes', 'exec']),
+                'cgi'                => $dmnProps['domain_cgi'] == 'yes',
+                'ftp'                => $dmnProps['domain_ftpacc_limit'] != '-1',
+                'sql'                => $dmnProps['domain_sqld_limit'] != '-1',
+                'mail'               => $dmnProps['domain_mailacc_limit'] != '-1',
+                'subdomains'         => $dmnProps['domain_subd_limit'] != '-1',
+                'domain_aliases'     => $dmnProps['domain_alias_limit'] != '-1',
+                'custom_dns_records' => $dmnProps['domain_dns'] != 'no' && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+                'webstats'           => $config['WEBSTATS'] != 'no',
+                'backup'             => $config['BACKUP_DOMAINS'] != 'no' && $dmnProps['allowbackup'] != '',
+                'protected_areas'    => true,
+                'custom_error_pages' => true,
+                'ssl'                => $config['ENABLE_SSL'] == 1
+            ];
+
+            if ($config['IMSCP_SUPPORT_SYSTEM']) {
+                $stmt = execQuery('SELECT support_system FROM reseller_props WHERE reseller_id = ?', [$identity->getUserCreatedBy()]);
+                $availableFeatures['support'] = $stmt->fetchColumn() == 'yes';
+            } else {
+                $availableFeatures['support'] = false;
+            }
+        }
+
+        $canAccess = true;
+        foreach ((array)$featureNames as $featureName) {
+            $featureName = strtolower($featureName);
+            if (!array_key_exists($featureName, $availableFeatures)) {
+                throw new \InvalidArgumentException(sprintf("Feature %s is not known by the customerHasFeature() function.", $featureName));
+            }
+
+            if (!$availableFeatures[$featureName]) {
+                $canAccess = false;
+                break;
+            }
+        }
+
+        return $canAccess;
+    }
+
+    /**
+     * Tells whether or not the current customer can access the mail or external mail feature.
+     * @return bool
+     */
+    public static function customerHasMailOrExtMailFeatures(): bool
+    {
+        return static::customerHasFeature('mail') || static::customerHasFeature('external_mail');
+    }
+
+    /**
+     * Does the given customer is the owner of the given domain?
+     *
+     * @param string $domainName Domain name (dmn,sub,als,alssub)
+     * @param int $customerId Customer unique identifier
+     * @return bool TRUE if the given customer is the owner of the given domain, FALSE otherwise
+     */
+    public static function customerHasDomain(string $domainName, int $customerId): bool
+    {
+        $domainName = encodeIdna($domainName);
+
+        $db = Application::getInstance()->getDb();
+
+        // Check in domain table
+        $stmt = $db->createStatement('SELECT 1 FROM domain WHERE domain_admin_id = ? AND domain_name = ?');
+        $result = $stmt->execute([$customerId, $domainName])->getResource();
+        if ($result->rowCount()) {
+            return true;
+        }
+
+        // Check in domain_aliases table
+        $stmt = $db->createStatement(
+            '
+                SELECT 1 FROM domain AS t1
+                JOIN domain_aliases AS t2 ON(t2.domain_id = t1.domain_id)
+                WHERE t1.domain_admin_id = ?
+                AND t2.alias_name = ?
+            '
+        );
+        $result = $stmt->execute([$customerId, $domainName])->getResource();
+        if ($result->rowCount()) {
+            return true;
+        }
+
+        // Check in subdomain table
+        $stmt = $db->createStatement(
+            "
+                SELECT 1
+                FROM domain AS t1
+                JOIN subdomain AS t2 ON (t2.domain_id = t1.domain_id)
+                WHERE t1.domain_admin_id = ?
+                AND CONCAT(t2.subdomain_name, '.', t1.domain_name) = ?
+        "
+        );
+        $result = $stmt->execute([$customerId, $domainName])->getResource();
+        if ($result->rowCount()) {
+            return true;
+        }
+
+        // Check in subdomain_alias table
+        $stmt = $db->createStatement(
+            "
+                SELECT 1
+                FROM domain AS t1
+                JOIN domain_aliases AS t2 ON(t2.domain_id = t1.domain_id)
+                JOIN subdomain_alias AS t3 ON(t3.alias_id = t2.alias_id)
+                WHERE t1.domain_admin_id = ? AND CONCAT(t3.subdomain_alias_name, '.', t2.alias_name) = ?
+            "
+        );
+        return (bool)$stmt->execute([$customerId, $domainName])->getResource()->rowCount();
     }
 }

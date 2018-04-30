@@ -20,7 +20,8 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -85,7 +86,7 @@ function generateDomainsList($tpl)
                     'DOMAIN_EDIT_LINK' => toHtml("domain_edit.php?id={$row['domain_id']}", 'htmlAttr'),
                     'DOMAIN_EDIT'      => toHtml(tr('Edit')),
                     'CERT_SCRIPT'      => toHtml("cert_view.php?id={$row['domain_id']}&type=dmn", 'htmlAttr'),
-                    'VIEW_CERT'        => toHtml(customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate'))
+                    'VIEW_CERT'        => toHtml(Counting::customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate'))
                 ]);
                 $tpl->assign('DMN_STATUS_DISABLED', '');
                 $tpl->parse('DMN_STATUS_OK', 'dmn_status_ok');
@@ -121,7 +122,7 @@ function generateDomainsList($tpl)
  */
 function generateDomainAliasesList($tpl)
 {
-    if (!customerHasFeature('domain_aliases')) {
+    if (!Counting::customerHasFeature('domain_aliases')) {
         $tpl->assign('ALS_BLOCK', '');
         return;
     }
@@ -201,7 +202,7 @@ function generateDomainAliasesList($tpl)
                     'ALS_EDIT_LINK'     => toHtml("alias_edit.php?id={$row['alias_id']}", 'htmlAttr'),
                     'ALS_EDIT'          => toHtml(tr('Edit')),
                     'CERT_SCRIPT'       => toHtml("cert_view.php?id={$row['alias_id']}&type=als", 'htmlAttr'),
-                    'VIEW_CERT'         => toHtml(customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate')),
+                    'VIEW_CERT'         => toHtml(Counting::customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate')),
                     'ALS_ACTION'        => toHtml($row['alias_status'] == 'ordered' ? tr('Delete order') : tr('Delete')),
                     'ALS_ACTION_SCRIPT' => toHtml($row['alias_status'] == 'ordered' ? "alias_order_delete.php?id={$row['alias_id']}" : "alias_delete.php?id={$row['alias_id']}", 'htmlAttr')
                 ]);
@@ -239,7 +240,7 @@ function generateDomainAliasesList($tpl)
  */
 function generateSubdomainsList($tpl)
 {
-    if (!customerHasFeature('subdomains')) {
+    if (!Counting::customerHasFeature('subdomains')) {
         $tpl->assign('SUB_BLOCK', '');
         return;
     }
@@ -325,7 +326,7 @@ function generateSubdomainsList($tpl)
                     'SUB_EDIT_LINK'     => toHtml("subdomain_edit.php?id={$row['subdomain_id']}&type={$row['sub_type']}", 'htmlAttr'),
                     'SUB_EDIT'          => toHtml(tr('Edit')),
                     'CERT_SCRIPT'       => toHtml($certScript, 'htmlAttr'),
-                    'VIEW_CERT'         => toHtml(customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate')),
+                    'VIEW_CERT'         => toHtml(Counting::customerHasFeature('ssl') ? tr('Manage SSL certificate') : tr('View SSL certificate')),
                     'SUB_ACTION'        => toHtml(tr('Delete')),
                     'SUB_ACTION_SCRIPT' => toHtml($actionScript, 'htmlAttr')
                 ]);
@@ -391,7 +392,7 @@ function generateCustomDnsRecordAction($action, $id, $status, $ownedBy = 'custom
  */
 function generateCustomDnsRecordsList($tpl)
 {
-    if (!customerHasFeature('custom_dns_records')) {
+    if (!Counting::customerHasFeature('custom_dns_records')) {
         $filterCond = "AND owned_by <> 'custom_dns_feature'";
     } else {
         $filterCond = '';
@@ -411,7 +412,7 @@ function generateCustomDnsRecordsList($tpl)
     );
 
     if (!$stmt->rowCount()) {
-        if (customerHasFeature('custom_dns_records')) {
+        if (Counting::customerHasFeature('custom_dns_records')) {
             $tpl->assign([
                 'DNS_MSG'   => tr('You do not have custom DNS resource records.'),
                 'DNS_ITEMS' => ''
@@ -468,9 +469,9 @@ function generateCustomDnsRecordsList($tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 $tpl = new TemplateEngine();
@@ -556,7 +557,7 @@ generateDomainsList($tpl);
 generateSubdomainsList($tpl);
 generateDomainAliasesList($tpl);
 generateCustomDnsRecordsList($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

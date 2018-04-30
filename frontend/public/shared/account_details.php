@@ -83,10 +83,10 @@ function generatePage($tpl, $clientId)
 
         if ($expireDate < $nowDate) {
             Application::getInstance()->getSession()['user_type'] == 'user'
-                ? setPageMessage(tr('Account expired. Please renew your subscription.'), 'static_warning')
-                : setPageMessage(tr('Account expired.'), 'static_warning');
+                ? View::setPageMessage(tr('Account expired. Please renew your subscription.'), 'static_warning')
+                : View::setPageMessage(tr('Account expired.'), 'static_warning');
         } elseif ($rDays = $expireDate->diff($nowDate)->format('%a') < 15) {
-            setPageMessage(tr('%d days remaining until account expiration.', $rDays), $rDays < 8 ? 'static_warning' : 'static_info');
+            View::setPageMessage(tr('%d days remaining until account expiration.', $rDays), $rDays < 8 ? 'static_warning' : 'static_info');
         } else {
             unset($expireDate);
         }
@@ -133,7 +133,7 @@ function generatePage($tpl, $clientId)
     ]);
 }
 
-
+require_once 'application.php';
 
 defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
 
@@ -178,4 +178,4 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl, intval($_GET['id']));
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);

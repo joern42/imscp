@@ -20,12 +20,12 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
@@ -39,7 +39,7 @@ $tpl->define([
 
 $adminCurrentLanguage = Application::getInstance()->getSession()['user_def_lang'];
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     $adminNewLanguage = cleanInput($_POST['def_language']);
 
     if (!in_array($adminNewLanguage, getAvailableLanguages(true), true)) {
@@ -51,9 +51,9 @@ if (!empty($_POST)) {
             $adminNewLanguage, Application::getInstance()->getAuthService()->getIdentity()->getUserId()
         ]);
         Application::getInstance()->getSession()['user_def_lang'] = $adminNewLanguage;
-        setPageMessage(tr('Language has been updated.'), 'success');
+        View::setPageMessage(tr('Language has been updated.'), 'success');
     } else {
-        setPageMessage(tr('Nothing has been changed.'), 'info');
+        View::setPageMessage(tr('Nothing has been changed.'), 'info');
     }
 
     redirectTo('language.php');
@@ -67,7 +67,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 View::generateLanguagesList($tpl, $adminCurrentLanguage);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

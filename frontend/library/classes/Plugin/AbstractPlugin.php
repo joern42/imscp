@@ -21,6 +21,7 @@
 namespace iMSCP\Plugin;
 
 use iMSCP\Application;
+use iMSCP\Functions\View;
 use iMSCP\Plugin\PluginManager as PluginManager;
 use iMSCP\Utility\OpcodeCache;
 use Zend\EventManager\EventManagerInterface;
@@ -156,7 +157,7 @@ abstract class AbstractPlugin implements ListenerAggregateInterface
                 throw new \Exception(tr("Unable to read the %s file.", $file));
             }
 
-            setPageMessage(
+            View::setPageMessage(
                 tr(
                     '%s::getInfo() not implemented and %s not found. This is a bug in the %s plugin which must be reported to the author(s).', get_class($this),
                     $file,

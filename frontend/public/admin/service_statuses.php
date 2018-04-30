@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -32,14 +32,15 @@ use Zend\EventManager\Event;
  */
 function generatePage(TemplateEngine $tpl)
 {
+    $needRefresh = (bool)Application::getInstance()->getRequest()->getQuery('refresh');
     $imscpDaemonType = json_decode(Application::getInstance()->getConfig()['iMSCP_INFO'])->daemon_type;
     $services = new Services();
 
     foreach ($services as $service) {
-        $isRunning = $services->isRunning(isset($_GET['refresh']));
+        $isRunning = $services->isRunning($needRefresh);
 
-        if ($isRunning && $service[0] == 23) {
-            setPageMessage(tr('The Telnet-Server is currently running on your server. This legacy service is not secure.'), 'static_warning');
+        if ($service[0] == 23 && $isRunning) {
+            View::setPageMessage(tr('The Telnet-Server is currently running on your server. This legacy service is not secure.'), 'static_warning');
         } elseif ($service[0] == 9876 && $imscpDaemonType != 'imscp') {
             continue;
         }
@@ -59,15 +60,15 @@ function generatePage(TemplateEngine $tpl)
         $tpl->parse('SERVICE_STATUS', '.service_status');
     }
 
-    if (isset($_GET['refresh'])) {
-        setPageMessage(toHtml(tr('Service statuses were refreshed.')), 'success');
+    if ($needRefresh) {
+        View::setPageMessage(toHtml(tr('Service statuses were refreshed.')), 'success');
         redirectTo('service_statuses.php');
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
@@ -84,15 +85,15 @@ $tpl->assign([
     'TR_PORT'          => toHtml(tr('Port')),
     'TR_STATUS'        => toHtml(tr('Status')),
     'TR_SERVER_STATUS' => toHtml(tr('Server status')),
-    'TR_FORCE_REFRESH' => toHtml(tr('Force refresh', 'htmlAttr'))
+    'TR_REFRESH'       => toHtml(tr('Refresh', 'htmlAttr'))
 ]);
 
 Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
-    $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
+    $e->getParam('translations')['core']['dataTable'] = View::getDataTablesPluginTranslations(false);
 });
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

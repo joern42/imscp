@@ -20,6 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Functions\Counting;
+
 return [
     'general'      => [
         'label' => tr('General'),
@@ -48,7 +50,7 @@ return [
         'uri'   => '/admin/users.php',
         'class' => 'manage_users',
         'pages' => [
-            'overview'             => [
+            'overview'              => [
                 'label'       => tr('Overview'),
                 'uri'         => '/admin/users.php',
                 'title_class' => 'users',
@@ -73,12 +75,12 @@ return [
                     ]
                 ]
             ],
-            'add_admin'            => [
+            'add_admin'             => [
                 'label'       => tr('Add admin'),
                 'uri'         => '/admin/admin_add.php',
                 'title_class' => 'user_yellow'
             ],
-            'add_reseller'         => [
+            'add_reseller'          => [
                 'label'       => tr('Add reseller'),
                 'uri'         => '/admin/reseller_add.php',
                 'title_class' => 'user_green'
@@ -89,10 +91,10 @@ return [
                 'title_class'        => 'users2',
                 'privilege_callback' => [
                     [
-                        'name' => 'systemHasManyAdmins',
+                        'name' => [Counting::class, 'systemHasManyAdmins'],
                     ],
                     [
-                        'name' => 'systemHasResellers'
+                        'name' => [Counting::class, 'systemHasResellers']
                     ]
                 ]
             ],
@@ -101,21 +103,21 @@ return [
                 'uri'                => '/admin/manage_reseller_users.php',
                 'title_class'        => 'users2',
                 'privilege_callback' => [
-                    'name'  => 'systemHasResellers',
+                    'name'  => [Counting::class, 'systemHasResellers'],
                     'param' => '2'
                 ]
             ],
-            'circular'             => [
+            'circular'              => [
                 'label'              => tr('Circular'),
                 'uri'                => '/admin/circular.php',
                 'title_class'        => 'email',
                 'privilege_callback' => [
-                    'name' => 'systemHasAdminsOrResellersOrCustomers'
+                    'name' => [Counting::class, 'systemHasAdminsOrResellersOrCustomers']
                 ]
             ],
-            'sessions_management'  => [
-                'label'       => tr('Sessions'),
-                'uri'         => '/admin/sessions_manage.php',
+            'signed_in_users'   => [
+                'label'       => tr('Signed-in users'),
+                'uri'         => '/admin/signed_in_users.php',
                 'title_class' => 'users2'
             ]
         ]
@@ -155,7 +157,7 @@ return [
                 'uri'                => '/admin/rootkit_log.php',
                 'title_class'        => 'general',
                 'privilege_callback' => [
-                    'name' => 'systemHasAntiRootkits'
+                    'name' => [Counting::class, 'systemHasAntiRootkits']
                 ]
             ]
         ]
@@ -175,7 +177,7 @@ return [
                 'uri'                => '/admin/reseller_statistics.php',
                 'title_class'        => 'stats',
                 'privilege_callback' => [
-                    'name' => 'systemHasResellers',
+                    'name' => [Counting::class, 'systemHasResellers'],
                 ],
                 'pages'              => [
                     'reseller_user_statistics' => [
@@ -199,7 +201,7 @@ return [
                 'uri'                => '/admin/ip_assignments.php',
                 'title_class'        => 'ip',
                 'privilege_callback' => [
-                    'name' => 'systemHasCustomers'
+                    'name' => [Counting::class, 'systemHasCustomers']
                 ]
             ]
         ]
@@ -209,7 +211,7 @@ return [
         'uri'                => '/admin/ticket_system.php',
         'class'              => 'support',
         'privilege_callback' => [
-            'name' => 'systemHasResellers'
+            'name' => [Counting::class, 'systemHasResellers']
         ],
         'pages'              => [
             'open_tickets'   => [
@@ -235,48 +237,48 @@ return [
         'uri'   => '/admin/settings.php',
         'class' => 'settings',
         'pages' => [
-            'general'              => [
+            'general'            => [
                 'label'       => tr('General settings'),
                 'uri'         => '/admin/settings.php',
                 'title_class' => 'general'
             ],
-            'language'             => [
+            'language'           => [
                 'label'       => tr('Languages'),
                 'uri'         => '/admin/multilanguage.php',
                 'title_class' => 'multilanguage'
             ],
-            'custom_menus'         => [
+            'custom_menus'       => [
                 'label'         => tr('Custom menus'),
                 'dynamic_title' => '{TR_DYNAMIC_TITLE}',
                 'uri'           => '/admin/custom_menus.php',
                 'title_class'   => 'custom_link'
             ],
-            'ip_management'        => [
+            'ip_management'      => [
                 'label'       => tr('IP management'),
                 'uri'         => '/admin/ip_manage.php',
                 'title_class' => 'ip'
             ],
-            'server_traffic'       => [
+            'server_traffic'     => [
                 'label'       => tr('Monthly server traffic'),
                 'uri'         => '/admin/settings_server_traffic.php',
                 'title_class' => 'traffic'
             ],
-            'welcome_mail'         => [
+            'welcome_mail'       => [
                 'label'       => tr('Welcome email'),
                 'uri'         => '/admin/settings_welcome_mail.php',
                 'title_class' => 'email'
             ],
-            'lostpassword_mail'    => [
+            'lostpassword_mail'  => [
                 'label'       => tr('Lost password email'),
                 'uri'         => '/admin/settings_lostpassword.php',
                 'title_class' => 'email'
             ],
-            'service_ports'        => [
+            'service_ports'      => [
                 'label'       => tr('Service ports'),
                 'uri'         => '/admin/settings_ports.php',
                 'title_class' => 'general'
             ],
-            'plugins_management'   => [
+            'plugins_management' => [
                 'label'       => tr('Plugin management'),
                 'uri'         => '/admin/settings_plugins.php',
                 'title_class' => 'plugin'

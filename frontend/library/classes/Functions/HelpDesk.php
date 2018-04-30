@@ -24,10 +24,10 @@ use iMSCP\Application;
 use iMSCP\TemplateEngine;
 
 /**
- * Class Support
+ * Class HelpDesk
  * @package iMSCP\Functions
  */
-class Support
+class HelpDesk
 {
     /**
      * Creates a ticket and informs the recipient
@@ -43,7 +43,7 @@ class Support
     public static function createTicket(int $userId, int $adminId, int $urgency, string $subject, string $message, int $userLevel): bool
     {
         if ($userLevel < 1 || $userLevel > 2) {
-            setPageMessage(tr('Wrong user level provided.'), 'error');
+            View::setPageMessage(tr('Wrong user level provided.'), 'error');
             return false;
         }
 
@@ -60,7 +60,7 @@ class Support
             ',
             [$userLevel, $userId, $adminId, 1, 0, $urgency, time(), $subject, $userMessage]
         );
-        setPageMessage(tr('Your message has been successfully sent.'), 'success');
+        View::setPageMessage(tr('Your message has been successfully sent.'), 'success');
         static::sendTicketNotification($adminId, $subject, $userMessage, 0, $urgency);
         return true;
     }
@@ -90,7 +90,7 @@ class Support
 
         if (!$stmt->rowCount()) {
             $tpl->assign('TICKET', '');
-            setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
+            View::setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
             return false;
         }
 
@@ -188,7 +188,7 @@ class Support
             }
 
             $db->getDriver()->getConnection()->commit();
-            setPageMessage(tr('Your message has been successfully sent.'), 'success');
+            View::setPageMessage(tr('Your message has been successfully sent.'), 'success');
             static::sendTicketNotification($ticketTo, $subject, $userMessage, $ticketId, $urgency);
         } catch (\Exception $e) {
             $db->getDriver()->getConnection()->rollBack();
@@ -310,9 +310,9 @@ class Support
         ]);
 
         if ($status == 'open') {
-            setPageMessage(tr('You have no open tickets.'), 'static_info');
+            View::setPageMessage(tr('You have no open tickets.'), 'static_info');
         } else {
-            setPageMessage(tr('You have no closed tickets.'), 'static_info');
+            View::setPageMessage(tr('You have no closed tickets.'), 'static_info');
         }
     }
 
@@ -325,12 +325,12 @@ class Support
     public static function closeTicket(int $ticketId): bool
     {
         if (!static::changeTicketStatus($ticketId, 0)) {
-            setPageMessage(tr("Unable to close the ticket with Id '%s'.", $ticketId), 'error');
+            View::setPageMessage(tr("Unable to close the ticket with Id '%s'.", $ticketId), 'error');
             writeLog(sprintf("Unable to close the ticket with Id '%s'.", $ticketId), E_USER_ERROR);
             return false;
         }
 
-        setPageMessage(tr('Ticket successfully closed.'), 'success');
+        View::setPageMessage(tr('Ticket successfully closed.'), 'success');
         return true;
     }
 
@@ -343,12 +343,12 @@ class Support
     public static function reopenTicket(int $ticketId): bool
     {
         if (!static::changeTicketStatus($ticketId, 3)) {
-            setPageMessage(tr("Unable to reopen ticket with Id '%s'.", $ticketId), 'error');
+            View::setPageMessage(tr("Unable to reopen ticket with Id '%s'.", $ticketId), 'error');
             writeLog(sprintf("Unable to reopen ticket with Id '%s'.", $ticketId), E_USER_ERROR);
             return false;
         }
 
-        setPageMessage(tr('Ticket successfully reopened.'), 'success');
+        View::setPageMessage(tr('Ticket successfully reopened.'), 'success');
         return true;
     }
 
@@ -373,7 +373,7 @@ class Support
         ]);
 
         if (!$stmt->rowCount()) {
-            setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
+            View::setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
             return false;
         }
 
@@ -416,7 +416,7 @@ class Support
         // Get info about the type of message
         $stmt = execQuery('SELECT ticket_level FROM tickets WHERE ticket_id = ?', [$ticketId]);
         if (!$stmt->rowCount()) {
-            setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
+            View::setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
             return false;
         }
 

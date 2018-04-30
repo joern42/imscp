@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -36,7 +36,7 @@ function admin_generateMenusList(TemplateEngine $tpl)
 
     if (!$stmt->rowCount()) {
         $tpl->assign('MENUS_LIST_BLOCK', '');
-        setPageMessage(tr('No custom menu found.'), 'static_info');
+        View::setPageMessage(tr('No custom menu found.'), 'static_info');
         return;
     }
 
@@ -86,14 +86,14 @@ function admin_generateForm(TemplateEngine $tpl)
         'menu_order'  => 0
     ];
 
-    if (empty($_POST) && isset($_GET['edit_id'])) {
+    if (!Application::getInstance()->getRequest()->isPost() && isset($_GET['edit_id'])) {
         $stmt = execQuery('SELECT * FROM custom_menus WHERE menu_id = ?', [intval($_GET['edit_id'])]);
         if (!$stmt->rowCount()) {
-            setPageMessage(tr("The menu you are trying to edit doesn't exist."), 'error');
+            View::setPageMessage(tr("The menu you are trying to edit doesn't exist."), 'error');
             redirectTo('custom_menus.php');
         }
         $customMenu = $stmt->fetch();
-    } elseif (!empty($_POST)) {
+    } elseif (Application::getInstance()->getRequest()->isPost()) {
         $customMenu = $_POST;
     }
 
@@ -161,24 +161,24 @@ function admin_isValidMenu($menuName, $menuLink, $menuTarget, $menuLevel, $menuO
     $errorFieldsStack = [];
 
     if (empty($menuName)) {
-        setPageMessage(tr('Invalid name.'), 'error');
+        View::setPageMessage(tr('Invalid name.'), 'error');
         $errorFieldsStack[] = 'menu_name';
     }
 
     if (empty($menuLink) || !filter_var($menuLink, FILTER_VALIDATE_URL, FILTER_FLAG_SCHEME_REQUIRED | FILTER_FLAG_HOST_REQUIRED)) {
-        setPageMessage(tr('Invalid URL.'), 'error');
+        View::setPageMessage(tr('Invalid URL.'), 'error');
         $errorFieldsStack[] = 'menu_link';
     }
 
     if (!empty($menuTarget) && !in_array($menuTarget, ['_blank', '_parent', '_self', '_top'])) {
-        setPageMessage(tr('Invalid target.'), 'error');
+        View::setPageMessage(tr('Invalid target.'), 'error');
         $errorFieldsStack[] = 'menu_target';
     }
 
     in_array($menuLevel, ['A', 'R', 'C', 'AR', 'AC', 'RC', 'ARC']) or View::showBadRequestErrorPage();
 
     if ($menuOrder !== '' && !isNumber($menuOrder)) {
-        setPageMessage(tr('Invalid menu order.'), 'error');
+        View::setPageMessage(tr('Invalid menu order.'), 'error');
         $errorFieldsStack[] = 'menu_order';
     }
 
@@ -210,7 +210,7 @@ function admin_addMenu()
     execQuery('INSERT INTO custom_menus (menu_level, menu_order, menu_name, menu_link, menu_target) VALUES (?, ?, ?, ?, ?)', [
         $visibilityLevel, $menuOrder, $menuName, $menuLink, $menuTarget
     ]);
-    setPageMessage(tr('Custom menu successfully added.'), 'success');
+    View::setPageMessage(tr('Custom menu successfully added.'), 'success');
     return true;
 }
 
@@ -235,7 +235,7 @@ function admin_updateMenu($menuId)
     execQuery('UPDATE custom_menus SET menu_level = ?, menu_order = ?, menu_name = ?, menu_link = ?, menu_target = ? WHERE menu_id = ?', [
         $menuLevel, $menuOrder, $menuName, $menuLink, $menuTarget, intval($menuId)
     ]);
-    setPageMessage(tr('Custom menu successfully updated.'), 'success');
+    View::setPageMessage(tr('Custom menu successfully updated.'), 'success');
     return true;
 }
 
@@ -249,13 +249,13 @@ function admin_deleteMenu($menuId)
 {
     $stmt = execQuery('DELETE FROM custom_menus WHERE menu_id = ?', [intval($menuId)]);
     if ($stmt->rowCount()) {
-        setPageMessage(tr('Custom menu successfully deleted.'), 'success');
+        View::setPageMessage(tr('Custom menu successfully deleted.'), 'success');
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction'])) {
@@ -304,7 +304,7 @@ $tpl->assign([
     'TR_CANCEL'                 => toHtml(tr('Cancel')),
     'TR_MESSAGE_DELETE_JS'      => toJs(tr('Are you sure you want to delete the %s menu?', '%s')),
     'ERR_FIELDS_STACK'          => Application::getInstance()->getRegistry()->has('errorFieldsStack')
-        ?  json_encode(Application::getInstance()->getRegistry()->get('errorFieldsStack')) : '[]'
+        ? json_encode(Application::getInstance()->getRegistry()->get('errorFieldsStack')) : '[]'
 ]);
 
 Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
@@ -313,7 +313,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 View::generateNavigation($tpl);
 admin_generateMenusList($tpl);
 admin_generateForm($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

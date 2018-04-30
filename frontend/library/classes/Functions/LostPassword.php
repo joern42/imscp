@@ -37,25 +37,29 @@ class LostPassword
      */
     public static function generateCaptcha(string $strSessionVar): void
     {
-        $cfg = Application::getInstance()->getConfig();
-        $rgBgColor = $cfg['LOSTPASSWORD_CAPTCHA_BGCOLOR'];
-        $rgTextColor = $cfg['LOSTPASSWORD_CAPTCHA_TEXTCOLOR'];
-
-        if (!($image = imagecreate($cfg['LOSTPASSWORD_CAPTCHA_WIDTH'], $cfg['LOSTPASSWORD_CAPTCHA_HEIGHT']))) {
-            throw new \Exception('Cannot initialize new GD image stream.');
+        if (!function_exists('imagecreatetruecolor')) {
+            throw new \RuntimeException(tr('PHP GD extension not loaded.'));
         }
 
+        $config = Application::getInstance()->getConfig();
+        $rgBgColor = $config['LOSTPASSWORD_CAPTCHA_BGCOLOR'];
+        $rgTextColor = $config['LOSTPASSWORD_CAPTCHA_TEXTCOLOR'];
+
+        if (!($image = imagecreate($config['LOSTPASSWORD_CAPTCHA_WIDTH'], $config['LOSTPASSWORD_CAPTCHA_HEIGHT']))) {
+            throw new \RuntimeException('Cannot initialize new GD image stream.');
+        }
+        
         imagecolorallocate($image, $rgBgColor[0], $rgBgColor[1], $rgBgColor[2]);
         $textColor = imagecolorallocate($image, $rgTextColor[0], $rgTextColor[1], $rgTextColor[2]);
         $nbLetters = 6;
 
-        $x = ($cfg['LOSTPASSWORD_CAPTCHA_WIDTH'] / 2) - ($nbLetters * 20 / 2);
+        $x = ($config['LOSTPASSWORD_CAPTCHA_WIDTH'] / 2) - ($nbLetters * 20 / 2);
         $y = mt_rand(15, 25);
 
         $string = Crypt::randomStr($nbLetters, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');
         for ($i = 0; $i < $nbLetters; $i++) {
-            $fontFile = LIBRARY_PATH . '/Resources/Fonts/'
-                . $cfg['LOSTPASSWORD_CAPTCHA_FONTS'][mt_rand(0, count($cfg['LOSTPASSWORD_CAPTCHA_FONTS']) - 1)];
+            $fontFile = LIBRARY_PATH . '/resources/fonts/'
+                . $config['LOSTPASSWORD_CAPTCHA_FONTS'][mt_rand(0, count($config['LOSTPASSWORD_CAPTCHA_FONTS']) - 1)];
             imagettftext($image, 17, rand(-30, 30), $x, $y, $textColor, $fontFile, $string[$i]);
             $x += 20;
             $y = mt_rand(15, 25);
@@ -91,7 +95,7 @@ class LostPassword
      */
     public static function removeOldKeys(int $ttl): void
     {
-        execQuery('UPDATE admin SET uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey_time < ?', date('Y-m-d H:i:s', time() - $ttl * 60));
+        execQuery('UPDATE admin SET uniqkey = NULL, uniqkey_time = NULL WHERE uniqkey_time < ?', [date('Y-m-d H:i:s', time() - $ttl * 60)]);
     }
 
     /**
@@ -165,7 +169,7 @@ class LostPassword
         $stmt = execQuery('SELECT admin_id, created_by, fname, lname, email FROM admin WHERE admin_name = ?', [$adminName]);
 
         if (!$stmt->rowCount()) {
-            setPageMessage(tr('Wrong username.'), 'error');
+            View::setPageMessage(tr('Wrong username.'), 'error');
             return false;
         }
 
@@ -197,7 +201,7 @@ class LostPassword
 
         if (!$ret) {
             writeLog(sprintf("Couldn't send new password request validation to %s", $adminName), E_USER_ERROR);
-            setPageMessage(tr('An unexpected error occurred. Please contact your administrator.'));
+            View::setPageMessage(tr('An unexpected error occurred. Please contact your administrator.'));
             return false;
         }
 
@@ -218,13 +222,13 @@ class LostPassword
         );
 
         if (!$stmt->rowCount()) {
-            setPageMessage(tr('Your request for password renewal is either invalid or has expired.'), 'error');
+            View::setPageMessage(tr('Your request for password renewal is either invalid or has expired.'), 'error');
             return false;
         }
 
         $row = $stmt->fetch();
         if ($row['admin_status'] != 'ok') {
-            setPageMessage(tr('Your request for password renewal cannot be honored. Please retry in few minutes.'), 'error');
+            View::setPageMessage(tr('Your request for password renewal cannot be honored. Please retry in few minutes.'), 'error');
             return false;
         }
 
@@ -256,7 +260,7 @@ class LostPassword
 
         if (!$ret) {
             writeLog(sprintf("Couldn't send new passsword to %s", $row['admin_name']), E_USER_ERROR);
-            setPageMessage(tr('An unexpected error occurred. Please contact your administrator.'));
+            View::setPageMessage(tr('An unexpected error occurred. Please contact your administrator.'));
             return false;
         }
 

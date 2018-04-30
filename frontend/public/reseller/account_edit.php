@@ -20,9 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
@@ -287,11 +287,11 @@ function updateClientAccount($clientId)
         // Check for account expiration date
         if ($data['domain_expires'] !== '') {
             if (!preg_match('%^\d{2}/\d{2}/\d{4}$%', $data['domain_expires']) || ($timestamp = strtotime($data['domain_expires'])) === false) {
-                setPageMessage(tr("Wrong syntax for the account expiration date. Date must be provided in form 'dd/mm/yyyy'."), 'error');
+                View::setPageMessage(tr("Wrong syntax for the account expiration date. Date must be provided in form 'dd/mm/yyyy'."), 'error');
                 $errFieldsStack[] = 'domain_expires';
             } elseif ($timestamp != 0 && $timestamp <= time()) {
                 $data['domain_expires'] = $timestamp;
-                setPageMessage(tr('You cannot set account expiration date in past.'), 'error');
+                View::setPageMessage(tr('You cannot set account expiration date in past.'), 'error');
                 $errFieldsStack[] = 'domain_expires';
             } else {
                 $data['domain_expires'] = $timestamp;
@@ -309,7 +309,7 @@ function updateClientAccount($clientId)
         // Check for the subdomains limit
         if ($data['fallback_domain_subd_limit'] != -1) {
             if (!validateLimit($data['domain_subd_limit'])) {
-                setPageMessage(tr('Wrong syntax for the %s limit.', tr('subdomains')), 'error');
+                View::setPageMessage(tr('Wrong syntax for the %s limit.', tr('subdomains')), 'error');
                 $errFieldsStack[] = 'domain_subd_limit';
             } elseif (!isValidServiceLimit($data['domain_subd_limit'], $data['nbSubdomains'], $data['fallback_domain_subd_limit'],
                 $data['current_sub_cnt'], $data['max_sub_cnt'], $data['nbSubdomains'] > 1 ? tr('subdomains') : tr('subdomain'))
@@ -321,7 +321,7 @@ function updateClientAccount($clientId)
         // Check for the domain aliases limit
         if ($data['fallback_domain_alias_limit'] != -1) {
             if (!validateLimit($data['domain_alias_limit'])) {
-                setPageMessage(tr('Wrong syntax for the %s limit.', tr('domain aliases')), 'error');
+                View::setPageMessage(tr('Wrong syntax for the %s limit.', tr('domain aliases')), 'error');
                 $errFieldsStack[] = 'domain_alias_limit';
             } elseif (!isValidServiceLimit($data['domain_alias_limit'], $data['nbAliases'], $data['fallback_domain_alias_limit'],
                 $data['current_als_cnt'], $data['max_als_cnt'], $data['nbAliases'] > 1 ? tr('domain aliases') : tr('domain alias'))
@@ -333,7 +333,7 @@ function updateClientAccount($clientId)
         // Check for the mail accounts limit
         if ($data['fallback_domain_mailacc_limit'] != -1) {
             if (!validateLimit($data['domain_mailacc_limit'])) {
-                setPageMessage(tr('Wrong syntax for the %s limit.', tr('mail accounts')), 'error');
+                View::setPageMessage(tr('Wrong syntax for the %s limit.', tr('mail accounts')), 'error');
                 $errFieldsStack[] = 'domain_mailacc_limit';
             } elseif (!isValidServiceLimit($data['domain_mailacc_limit'], $data['nbMailAccounts'], $data['fallback_domain_mailacc_limit'],
                 $data['current_mail_cnt'], $data['max_mail_cnt'], $data["nbMailAccounts"] > 1 ? tr('mail accounts') : tr('mail account'))
@@ -345,7 +345,7 @@ function updateClientAccount($clientId)
         // Check for the Ftp accounts limit
         if ($data['fallback_domain_ftpacc_limit'] != -1) {
             if (!validateLimit($data['domain_ftpacc_limit'])) {
-                setPageMessage(tr('Wrong syntax for the %s limit.', tr('Ftp accounts')), 'error');
+                View::setPageMessage(tr('Wrong syntax for the %s limit.', tr('Ftp accounts')), 'error');
                 $errFieldsStack[] = 'domain_ftpacc_limit';
             } elseif (!isValidServiceLimit($data['domain_ftpacc_limit'], $data['nbFtpAccounts'], $data['fallback_domain_ftpacc_limit'],
                 $data['current_ftp_cnt'], $data['max_ftp_cnt'], $data['nbFtpAccounts'] > 1 ? tr('Ftp accounts') : tr('Ftp account'))
@@ -357,14 +357,14 @@ function updateClientAccount($clientId)
         // Check for the Sql databases limit
         if ($data['fallback_domain_sqld_limit'] != -1) {
             if (!validateLimit($data['domain_sqld_limit'])) {
-                setPageMessage(tr('Wrong syntax for the %s limit.', tr('SQL databases')), 'error');
+                View::setPageMessage(tr('Wrong syntax for the %s limit.', tr('SQL databases')), 'error');
                 $errFieldsStack[] = 'domain_sqld_limit';
             } elseif (!isValidServiceLimit($data['domain_sqld_limit'], $data['nbSqlDatabases'], $data['fallback_domain_sqld_limit'],
                 $data['current_sql_db_cnt'], $data['max_sql_db_cnt'], $data['nbSqlDatabases'] > 1 ? tr('SQL databases') : tr('SQL database'))
             ) {
                 $errFieldsStack[] = 'domain_sqld_limit';
             } elseif ($data['domain_sqld_limit'] != -1 && $data['domain_sqlu_limit'] == -1) {
-                setPageMessage(tr('SQL users limit is disabled.'), 'error');
+                View::setPageMessage(tr('SQL users limit is disabled.'), 'error');
                 $errFieldsStack[] = 'domain_sqld_limit';
                 $errFieldsStack[] = 'domain_sqlu_limit';
             }
@@ -373,14 +373,14 @@ function updateClientAccount($clientId)
         // Check for the Sql users limit
         if ($data['fallback_domain_sqlu_limit'] != -1) {
             if (!validateLimit($data['domain_sqlu_limit'])) {
-                setPageMessage(tr('Wrong syntax for the %s limit.', tr('SQL users')), 'error');
+                View::setPageMessage(tr('Wrong syntax for the %s limit.', tr('SQL users')), 'error');
                 $errFieldsStack[] = 'domain_sqlu_limit';
             } elseif (!isValidServiceLimit($data['domain_sqlu_limit'], $data['nbSqlUsers'], $data['fallback_domain_sqlu_limit'],
                 $data['current_sql_user_cnt'], $data['max_sql_user_cnt'], $data['nbSqlUsers'] > 1 ? tr('SQL users') : tr('SQL user'))
             ) {
                 $errFieldsStack[] = 'domain_sqlu_limit';
             } elseif ($data['domain_sqlu_limit'] != -1 && $data['domain_sqld_limit'] == -1) {
-                setPageMessage(tr('SQL databases limit is disabled.'), 'error');
+                View::setPageMessage(tr('SQL databases limit is disabled.'), 'error');
                 $errFieldsStack[] = 'domain_sqlu_limit';
                 $errFieldsStack[] = 'domain_sqld_limit';
             }
@@ -388,7 +388,7 @@ function updateClientAccount($clientId)
 
         // Check for the monthly traffic limit
         if (!validateLimit($data['domain_traffic_limit'], NULL)) {
-            setPageMessage(tr('Wrong syntax for the %s limit.', tr('traffic')), 'error');
+            View::setPageMessage(tr('Wrong syntax for the %s limit.', tr('traffic')), 'error');
             $errFieldsStack[] = 'domain_traffic_limit';
         } elseif (!isValidServiceLimit($data['domain_traffic_limit'], $data['domainTraffic'] / 1048576, $data['fallback_domain_traffic_limit'],
             $data['current_traff_amnt'], $data['max_traff_amnt'], tr('traffic'))
@@ -398,7 +398,7 @@ function updateClientAccount($clientId)
 
         // Check for the disk space limit
         if (!validateLimit($data['domain_disk_limit'], NULL)) {
-            setPageMessage(tr('Wrong syntax for the %s limit.', tr('disk space')), 'error');
+            View::setPageMessage(tr('Wrong syntax for the %s limit.', tr('disk space')), 'error');
             $errFieldsStack[] = 'domain_disk_limit';
         } elseif (!isValidServiceLimit($data['domain_disk_limit'], $data['domain_disk_usage'] / 1048576, $data['fallback_domain_disk_limit'],
             $data['current_disk_amnt'], $data['max_disk_amnt'], tr('disk space'))
@@ -409,19 +409,19 @@ function updateClientAccount($clientId)
         // Check for mail quota
         if ($data['fallback_domain_mailacc_limit'] != -1) {
             if (!validateLimit($data['mail_quota'], NULL)) {
-                setPageMessage(tr('Wrong syntax for the mail quota value.'), 'error');
+                View::setPageMessage(tr('Wrong syntax for the mail quota value.'), 'error');
                 $errFieldsStack[] = 'mail_quota';
             } elseif ($data['domain_disk_limit'] != 0 && $data['mail_quota'] > $data['domain_disk_limit']) {
-                setPageMessage(tr('Mail quota cannot be bigger than disk space limit.'), 'error');
+                View::setPageMessage(tr('Mail quota cannot be bigger than disk space limit.'), 'error');
                 $errFieldsStack[] = 'mail_quota';
             } elseif ($data['domain_disk_limit'] != 0 && $data['mail_quota'] == 0) {
-                setPageMessage(tr('Mail quota cannot be unlimited. Max value is %d MiB.', $data['domain_disk_limit']), 'error');
+                View::setPageMessage(tr('Mail quota cannot be unlimited. Max value is %d MiB.', $data['domain_disk_limit']), 'error');
                 $errFieldsStack[] = 'mail_quota';
             } else {
                 $mailData = getMailData($data['domain_id'], $data['fallback_mail_quota']);
 
                 if ($data['mail_quota'] != 0 && $data['mail_quota'] < $mailData['nb_mailboxes']) {
-                    setPageMessage(tr('Mail quota cannot be lower than %d. Each mail account must have a least 1 MiB quota.', $mailData['nb_mailboxes']), 'error');
+                    View::setPageMessage(tr('Mail quota cannot be lower than %d. Each mail account must have a least 1 MiB quota.', $mailData['nb_mailboxes']), 'error');
                     $errFieldsStack[] = 'mail_quota';
                 }
             }
@@ -680,8 +680,8 @@ function updateClientAccount($clientId)
                 Daemon::sendRequest();
             }
 
-            setPageMessage(tr('Domain successfully updated.'), 'success');
-            writeLog(sprintf('%s account properties were updated by %s', decodeIdna($data['admin_name']), Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
+            View::setPageMessage(tr('Domain successfully updated.'), 'success');
+            writeLog(sprintf('%s account properties were updated by %s', decodeIdna($data['admin_name']), getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity())), E_USER_NOTICE);
             return true;
         }
 
@@ -708,14 +708,14 @@ function isValidServiceLimit($newCustomerLimit, $customerConsumption, $customerL
 {
     // Please, don't change test order.
     if (($resellerLimit == -1 || $resellerLimit > 0) && $newCustomerLimit == 0) {
-        setPageMessage(
+        View::setPageMessage(
             tr('The %s limit for this customer cannot be unlimited because your are limited for this service.', $translatedServiceName), 'error'
         );
         return false;
     }
 
     if ($newCustomerLimit == -1 && $customerConsumption > 0) {
-        setPageMessage(
+        View::setPageMessage(
             tr(
                 "The %s limit for this customer cannot be set to 'disabled' because he has already %d %s.", $translatedServiceName,
                 $customerConsumption, $translatedServiceName
@@ -728,7 +728,7 @@ function isValidServiceLimit($newCustomerLimit, $customerConsumption, $customerL
     if ($resellerLimit != 0
         && $newCustomerLimit > ($resellerLimit - $resellerConsumption) + $customerLimit
     ) {
-        setPageMessage(
+        View::setPageMessage(
             tr(
                 'The %s limit for this customer cannot be greater than %d, your calculated limit.', $translatedServiceName,
                 ($resellerLimit - $resellerConsumption) + $customerLimit
@@ -739,7 +739,7 @@ function isValidServiceLimit($newCustomerLimit, $customerConsumption, $customerL
     }
 
     if ($newCustomerLimit != -1 && $newCustomerLimit != 0 && $newCustomerLimit < $customerConsumption) {
-        setPageMessage(
+        View::setPageMessage(
             tr(
                 'The %s limit for this customer cannot be lower than %d, the total of %s already used by him.', $translatedServiceName,
                 round($customerConsumption), $translatedServiceName
@@ -857,7 +857,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         }
 
         if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-            $apacheConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
+            $apacheConfig = loadServiceConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
             $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
         } else {
             $isApacheItk = false;
@@ -933,7 +933,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
         'CGI_NO'  => $data['domain_cgi'] != 'yes' ? ' checked' : ''
     ]);
 
-    if (resellerHasFeature('custom_dns_records')) {
+    if (Counting::resellerHasFeature('custom_dns_records')) {
         $tpl->assign([
             'TR_DNS'  => toHtml(tr('Custom DNS records')),
             'DNS_YES' => $data['domain_dns'] == 'yes' ? ' checked' : '',
@@ -1092,16 +1092,16 @@ function generatePage(TemplateEngine $tpl, $clientId)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 isset($_GET['client_id']) or View::showBadRequestErrorPage();
 
 $clientId = intval($_GET['client_id']);
 
-if (!empty($_POST) && updateClientAccount($clientId)) {
+if (Application::getInstance()->getRequest()->isPost() && updateClientAccount($clientId)) {
     redirectTo('users.php');
 }
 
@@ -1143,7 +1143,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 View::generateNavigation($tpl);
 generatePage($tpl, $clientId);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

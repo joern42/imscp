@@ -20,15 +20,16 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
-use iMSCP\Functions\Support;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\HelpDesk;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('support') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('support') or View::showBadRequestErrorPage();
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 $userId = $identity->getUserId();
@@ -39,7 +40,7 @@ if (isset($_GET['ticket_id'])) {
     $stmt = execQuery('SELECT ticket_status FROM tickets WHERE ticket_id = ? AND (ticket_from = ? OR ticket_to = ?)', [$ticketId, $userId, $userId]);
 
     if ($stmt->rowCount() == 0) {
-        setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
+        View::setPageMessage(tr("Ticket with Id '%d' was not found.", $ticketId), 'error');
         redirectTo($previousPage . '.php');
     }
 
@@ -48,20 +49,20 @@ if (isset($_GET['ticket_id'])) {
         $previousPage = 'ticket_closed';
     }
 
-    Support::deleteTicket($ticketId);
-    setPageMessage(tr('Ticket successfully deleted.'), 'success');
-    writeLog(sprintf('%s: deleted ticket %d', $identity->getUsername(), $ticketId), E_USER_NOTICE);
+    HelpDesk::deleteTicket($ticketId);
+    View::setPageMessage(tr('Ticket successfully deleted.'), 'success');
+    writeLog(sprintf('%s: deleted ticket %d', getProcessorUsername($identity), $ticketId), E_USER_NOTICE);
 } elseif (isset($_GET['delete']) && $_GET['delete'] == 'open') {
-    Support::deleteTickets('open', $userId);
-    setPageMessage(tr('All open tickets were successfully deleted.'), 'success');
-    writeLog(sprintf('%s: deleted all open tickets.', $identity->getUsername()), E_USER_NOTICE);
+    HelpDesk::deleteTickets('open', $userId);
+    View::setPageMessage(tr('All open tickets were successfully deleted.'), 'success');
+    writeLog(sprintf('%s: deleted all open tickets.', getProcessorUsername($identity)), E_USER_NOTICE);
 } elseif (isset($_GET['delete']) && $_GET['delete'] == 'closed') {
-    Support::deleteTickets('closed', $userId);
-    setPageMessage(tr('All closed tickets were successfully deleted.'), 'success');
-    writeLog(sprintf('%s: deleted all closed tickets.', $identity->getUsername()), E_USER_NOTICE);
+    HelpDesk::deleteTickets('closed', $userId);
+    View::setPageMessage(tr('All closed tickets were successfully deleted.'), 'success');
+    writeLog(sprintf('%s: deleted all closed tickets.', getProcessorUsername($identity)), E_USER_NOTICE);
     $previousPage = 'ticket_closed';
 } else {
-    setPageMessage(tr('Unknown action requested.'), 'error');
+    View::setPageMessage(tr('Unknown action requested.'), 'error');
 }
 
 redirectTo($previousPage . '.php');

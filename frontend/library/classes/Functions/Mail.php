@@ -700,4 +700,75 @@ i-MSCP Mailer');
                 return tr('Unknown type.');
         }
     }
+
+    /**
+     * Parse data from the given maildirsize file
+     *
+     * Because processing several maildirsize files can be time consuming, the data are stored in session for next 5 minutes.
+     * It is possible to refresh data by changing the $refreshData flag value to TRUE
+     *
+     * @see http://www.courier-mta.org/imap/README.maildirquota.html
+     * @param string $maildirsizeFilePath
+     * @param bool $refreshData Flag indicating if data must be refreshed
+     * @return array|bool Array containing maildirsize data, FALSE on failure
+     */
+    public static function parseMaildirsize(string $maildirsizeFilePath, bool $refreshData = false)
+    {
+        $session = Application::getInstance()->getSession();
+
+        if (!$refreshData && !empty($session['maildirsize'][$maildirsizeFilePath])
+            && $session['maildirsize'][$maildirsizeFilePath]['timestamp'] < (time() + 300)
+        ) {
+            return $session['maildirsize'][$maildirsizeFilePath];
+        }
+
+        unset($session['maildirsize'][$maildirsizeFilePath]);
+
+        $fh = @fopen($maildirsizeFilePath, 'r');
+        if (!$fh) {
+            return false;
+        }
+
+        $maildirsize = [
+            'quota_bytes'    => 0,
+            'quota_messages' => 0,
+            'byte_count'     => 0,
+            'file_count'     => 0,
+            'timestamp'      => time()
+        ];
+
+        // Parse quota definition
+
+        if (($line = fgets($fh)) === false) {
+            fclose($fh);
+            return false;
+        }
+
+        $quotaDefinition = explode(',', $line, 2);
+
+        if (!isset($quotaDefinition[0]) || !preg_match('/(\d+)S/i', $quotaDefinition[0], $m)) {
+            // No quota definition. Skip processing...
+            fclose($fh);
+            return false;
+        }
+
+        $maildirsize['quota_bytes'] = $m[1];
+
+        if (isset($quotaDefinition[1]) && preg_match('/(\d+)C/i', $quotaDefinition[1], $m)) {
+            $maildirsize['quota_messages'] = $m[1];
+        }
+
+        // Parse byte and file counts
+
+        while (($line = fgets($fh)) !== false) {
+            if (preg_match('/^\s*(-?\d+)\s+(-?\d+)\s*$/', $line, $m)) {
+                $maildirsize['byte_count'] += $m[1];
+                $maildirsize['file_count'] += $m[2];
+            }
+        }
+
+        fclose($fh);
+        Application::getInstance()->getSession()['maildirsize'][$maildirsizeFilePath] = $maildirsize;
+        return $maildirsize;
+    }
 }

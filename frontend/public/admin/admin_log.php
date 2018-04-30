@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -211,7 +211,7 @@ function admin_getLogs()
                         '/\b(update[sd]?)\b/i'                                          => '<strong style="color:#3300FF">\\1</strong>',
                         '/\b(edit(s|ed)?)\b/i'                                          => '<strong style="color:#33CC66">\\1</strong>',
                         '/\b(unknown)\b/i'                                              => '<strong style="color:#CC00FF">\\1</strong>',
-                        '/\b(logged)\b/i'                                               => '<strong style="color:#336600">\\1</strong>',
+                        '/\b(signed (in|out))\b/i'                                       => '<strong style="color:#336600">\\1</strong>',
                         '/\b(Warning[\!]?)\b/i'                                         => '<strong style="color:#FF0000">\\1</strong>',
                     ];
 
@@ -235,9 +235,9 @@ function admin_getLogs()
     admin_sendJsonResponse(400, ['message' => tr('Bad request.')]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_REQUEST['action'])) {
@@ -284,7 +284,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
     $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
 });
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

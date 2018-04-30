@@ -48,9 +48,9 @@
 #define MSG_BYE_CMD                 115
 #define MSG_BYE_CMD_TXT             "bye"
 #define MSG_EQ_CMD                  116
-#define MSG_EQ_CMD_TXT              "execute query"
+#define MSG_EQ_CMD_TXT              "execute backend command"
 #define MSG_CMD_ANSWER              117
-#define MSG_CMD_ANSWER_TXT          "Query is being processed\n"
+#define MSG_CMD_ANSWER_TXT          "Backend request is being processed\n"
 #define MSG_ERROR_BIND              118
 #define MSG_ERROR_BIND_TXT          "bind() error: %s"
 #define MSG_ERROR_SOCKET_CREATE     119

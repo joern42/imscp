@@ -22,6 +22,8 @@ namespace iMSCP;
 
 use iMSCP\Functions\View;
 
+require_once 'application.php';
+
 if (($urlComponents = parse_url($_SERVER['REQUEST_URI'])) === false || !isset($urlComponents['path'])) {
     View::showBadRequestErrorPage();
 }

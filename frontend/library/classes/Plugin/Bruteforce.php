@@ -22,8 +22,8 @@ namespace iMSCP\Plugin;
 
 use iMSCP\Application;
 use iMSCP\Authentication\AuthEvent;
+use iMSCP\Authentication\AuthResult;
 use iMSCP\Plugin\PluginManager as PluginManager;
-use Zend\EventManager\Event;
 use Zend\EventManager\EventManagerInterface;
 
 /**
@@ -32,13 +32,16 @@ use Zend\EventManager\EventManagerInterface;
  * Provides countermeasures against brute-force and dictionary attacks.
  *
  * This class can be used in two different ways:
- *  - As a plugin that listen to the onBeforeAuthentication event which is triggered by authentication service class
- *  - As a simple component
+ *  - As a plugin that listen to the AuthEvent::EVENT_BEFORE_AUTHENTICATION event
+ *  - As a simple component manually controlled
  *
  * @package iMSCP\Plugin
  */
 class Bruteforce extends AbstractPlugin
 {
+    const LOGIN_TARGET = 'login';
+    const CAPTCHA_TARGET = 'captcha';
+
     /**
      * @var int Tells whether or not waiting time between login|captcha attempts is enabled
      */
@@ -103,25 +106,23 @@ class Bruteforce extends AbstractPlugin
      * Constructor
      *
      * @param PluginManager $pluginManager
-     * @param string $targetForm Target form (login|captcha)
+     * @param string $target Target (self::LOGIN_TARGET|self::LOGIN_CAPTCHA)
      * @çeturn void
      */
-    public function __construct(PluginManager $pluginManager, string $targetForm = 'login')
+    public function __construct(PluginManager $pluginManager, string $target = self::LOGIN_TARGET)
     {
-        parent::__construct($pluginManager);
-
         $config = Application::getInstance()->getConfig();
 
-        if ($targetForm == 'login') {
+        if ($target == 'login') {
             $this->maxAttemptsBeforeBlocking = $config['BRUTEFORCE_MAX_LOGIN'];
-        } elseif ($targetForm == 'captcha') {
+        } elseif ($target == 'captcha') {
             $this->maxAttemptsBeforeBlocking = $config['BRUTEFORCE_MAX_CAPTCHA'];
         } else {
-            throw new \Exception(tr('Unknown bruteforce detection type: %s', $targetForm));
+            throw new \Exception(tr('Unknown bruteforce detection type: %s', $target));
         }
 
         $this->clientIpAddr = getIpAddr();
-        $this->targetForm = $targetForm;
+        $this->targetForm = $target;
         $this->sessionId = session_id();
         $this->waitTimeEnabled = $config['BRUTEFORCE_BETWEEN'];
         $this->maxAttemptsBeforeWaitingTime = $config['BRUTEFORCE_MAX_ATTEMPTS_BEFORE_WAIT'];
@@ -129,6 +130,8 @@ class Bruteforce extends AbstractPlugin
         $this->blockingTime = $config['BRUTEFORCE_BLOCK_TIME'];
 
         execQuery('DELETE FROM login WHERE UNIX_TIMESTAMP() > (lastaccess + ?)', [$this->blockingTime * 60]);
+
+        parent::__construct($pluginManager);
     }
 
     /**
@@ -162,18 +165,28 @@ class Bruteforce extends AbstractPlugin
     /**
      * onBeforeAuthentication event listener
      *
-     * @param Event $event
-     * @return null|string
+     * @param AuthEvent $event
+     * @return void
      */
-    public function onBeforeAuthentication($event): ?string
+    public function onBeforeAuthentication(AuthEvent $event): void
     {
         if ($this->isWaiting() || $this->isBlocked()) {
             $event->stopPropagation();
-            return $this->getLastMessage();
+
+            if ($event->hasAuthenticationResult()) {
+                $authResult = $event->getAuthenticationResult();
+                $event->setAuthenticationResult(
+                    new AuthResult($authResult->getCode(), $authResult->getIdentity(), array_merge($authResult->getMessages(), $this->getLastMessage()))
+                );
+            } else {
+                $event->setAuthenticationResult(new AuthResult(AuthResult::FAILURE_UNCATEGORIZED, NULL, [$this->getLastMessage()]));
+            }
+
+            return;
         }
 
         $this->logAttempt();
-        return NULL;
+        return;
     }
 
     /**
@@ -248,10 +261,9 @@ class Bruteforce extends AbstractPlugin
      */
     protected function createRecord(): void
     {
-        execQuery(
-            "REPLACE INTO login (session_id, ipaddr, {$this->targetForm}_count, user_name, lastaccess) VALUES (?, ?, 1, NULL, UNIX_TIMESTAMP())",
-            [$this->sessionId, $this->clientIpAddr]
-        );
+        Application::getInstance()->getDb()->createStatement(
+            "REPLACE INTO login (session_id, ipaddr, {$this->targetForm}_count, user_name, lastaccess) VALUES (?, ?, 1, NULL, UNIX_TIMESTAMP())"
+        )->execute([$this->sessionId, $this->clientIpAddr]);
     }
 
     /**
@@ -261,15 +273,14 @@ class Bruteforce extends AbstractPlugin
      */
     protected function updateRecord(): void
     {
-        execQuery(
+        Application::getInstance()->getDb()->createStatement(
             "
                 UPDATE login
                 SET lastaccess = UNIX_TIMESTAMP(), {$this->targetForm}_count = {$this->targetForm}_count + 1
                 WHERE ipaddr= ?
                 AND user_name IS NULL
-            ",
-            [$this->clientIpAddr]
-        );
+            "
+        )->execute([$this->clientIpAddr]);
     }
 
     /**
@@ -279,13 +290,16 @@ class Bruteforce extends AbstractPlugin
      */
     protected function init(): void
     {
-        $stmt = execQuery('SELECT lastaccess, login_count, captcha_count FROM login WHERE ipaddr = ? AND user_name IS NULL', [$this->clientIpAddr]);
+        $stmt = Application::getInstance()->getDb()->createStatement(
+            'SELECT lastaccess, login_count, captcha_count FROM login WHERE ipaddr = ? AND user_name IS NULL'
+        );
+        $result = $stmt->execute([$this->clientIpAddr])->getResource();
 
-        if (!$stmt->rowCount()) {
+        if (!$result->rowCount()) {
             return;
         }
 
-        $row = $stmt->fetch();
+        $row = $result->fetch();
         $this->recordExists = true;
 
         if ($row[$this->targetForm . '_count'] >= $this->maxAttemptsBeforeBlocking) {

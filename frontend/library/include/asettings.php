@@ -23,10 +23,7 @@ return [
     'ISP_LOGO_PATH'                       => '/ispLogos',
 
     // Default Language (if not overriden by admin)
-    'USER_INITIAL_LANG'                   => \Locale::acceptFromHttp($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? 'en_GB') ?: 'en_GB',
-
-    // Session timeout in minutes
-    'SESSION_TIMEOUT'                     => 30,
+    'USER_INITIAL_LANG'                   => 'en_GB',
 
     // SQL variables
     'MAX_SQL_DATABASE_LENGTH'             => 64,

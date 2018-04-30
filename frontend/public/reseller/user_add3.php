@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 use Zend\Form\Form;
@@ -36,7 +36,7 @@ function getPreviousStepData()
     global $adminName, $hpId, $dmnName, $dmnExpire, $dmnUrlForward, $dmnTypeForward, $dmnHostForward;
 
     $session = Application::getInstance()->getSession();
-    
+
     $dmnExpire = $session['dmn_expire'];
     $dmnUrlForward = $session['dmn_url_forward'];
     $dmnTypeForward = $session['dmn_type_forward'];
@@ -94,7 +94,7 @@ function addCustomer(Form $form)
             View::showBadRequestErrorPage();
         }
     } elseif (!isset($_POST['domain_client_ips'])) {
-        setPageMessage(toHtml(tr('You must select at least one IP address.')), 'error');
+        View::setPageMessage(toHtml(tr('You must select at least one IP address.')), 'error');
         $formIsValid = FALSE;
     } else {
         View::showBadRequestErrorPage();
@@ -103,7 +103,7 @@ function addCustomer(Form $form)
     if (!$form->isValid($_POST)) {
         foreach ($form->getMessages() as $msgsStack) {
             foreach ($msgsStack as $msg) {
-                setPageMessage(toHtml($msg), 'error');
+                View::setPageMessage(toHtml($msg), 'error');
             }
         }
 
@@ -228,8 +228,8 @@ function addCustomer(Form $form)
         ]);
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
-        writeLog(sprintf('A new customer (%s) has been created by: %s:', $adminName, $identity->getUsername()), E_USER_NOTICE);
-        setPageMessage(tr('Customer account successfully scheduled for creation.'), 'success');
+        writeLog(sprintf('A new customer (%s) has been created by: %s:', $adminName, getProcessorUsername($identity)), E_USER_NOTICE);
+        View::setPageMessage(tr('Customer account successfully scheduled for creation.'), 'success');
         unsetMessages();
         redirectTo('users.php');
     } catch (\Exception $e) {
@@ -255,13 +255,13 @@ function generatePage(TemplateEngine $tpl, Form $form)
     Application::getInstance()->getSession()['local_data'] = "$dmnName;$hpId";
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 if (!getPreviousStepData()) {
-    setPageMessage(tr('Data were altered. Please try again.'), 'error');
+    View::setPageMessage(tr('Data were altered. Please try again.'), 'error');
     unsetMessages();
     redirectTo('user_add1.php');
 }
@@ -285,7 +285,7 @@ $tpl->define([
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Reseller / Customers / Add Customer - Next Step')));
 View::generateNavigation($tpl);
 generatePage($tpl, $form);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

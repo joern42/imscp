@@ -3,29 +3,26 @@
     <form name="login" action="index.php" method="post">
         <table>
             <tr>
-                <td class="left"><label for="uname">{TR_USERNAME}</label></td>
-                <td class="right"><input type="text" name="uname" id="uname" value="{UNAME}"></td>
+                <td class="left"><label for="admin_name">{TR_USERNAME}</label></td>
+                <td class="right"><input type="text" name="admin_name" id="admin_name" value="{UNAME}"></td>
             </tr>
             <tr>
-                <td class="left"><label for="password">{TR_PASSWORD}</label></td>
-                <td class="right"><input type="password" name="upass" id="password" value=""></td>
+                <td class="left"><label for="admin_pass">{TR_PASSWORD}</label></td>
+                <td class="right"><input type="password" name="admin_pass" id="admin_pass" value=""></td>
             </tr>
             <tr>
                 <td colspan="2" class="right">
-                    <!-- BDP: lost_password_support -->
-                    <a class="link_as_button" href="lostpassword.php">{TR_LOSTPW}</a>
-                    <!-- EDP: lost_password_support -->
-                    <button type="submit" name="Submit" tabindex="3">{TR_LOGIN}</button>
+                    <button type="submit" name="Submit" tabindex="3">{TR_SIGN_IN}</button>
                 </td>
             </tr>
-            <!-- BDP: ssl_support -->
+            <!-- BDP: ssl_block -->
             <tr>
                 <td colspan="2" class="center">
+                    <br>
                     <a class="icon {SSL_IMAGE_CLASS}" href="{SSL_LINK}" title="{TR_SSL_DESCRIPTION}">{TR_SSL}</a>
                 </td>
             </tr>
-            <!-- EDP: ssl_support -->
+            <!-- EDP: ssl_block -->
         </table>
-        <input type="hidden" name="action" value="login">
     </form>
 </div>

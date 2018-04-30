@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -100,13 +101,13 @@ function client_editSubdomain()
     $subdomainType = cleanInput($_GET['type']);
     $subdomainData = _client_getSubdomainData($subdomainId, $subdomainType);
     $subdomainData !== FALSE or View::showBadRequestErrorPage();
-    
+
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     // Check for subdomain IP addresses
     $subdomainIps = [];
     if (!isset($_POST['subdomain_ips'])) {
-        setPageMessage(toHtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
+        View::setPageMessage(toHtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
         return false;
     } elseif (!is_array($_POST['subdomain_ips'])) {
         View::showBadRequestErrorPage();
@@ -164,7 +165,7 @@ function client_editSubdomain()
 
             $forwardUrl = $uri->getUri();
         } catch (\Exception $e) {
-            setPageMessage($e->getMessage(), 'error');
+            View::setPageMessage($e->getMessage(), 'error');
             return false;
         }
     } // Check for alternative DocumentRoot option
@@ -173,7 +174,7 @@ function client_editSubdomain()
         if ($documentRoot !== '') {
             $vfs = new VirtualFileSystem($identity->getUsername(), $subdomainData['subdomain_mount'] . '/htdocs');
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
-                setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
+                View::setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
                 return false;
             }
         }
@@ -223,7 +224,7 @@ function client_editSubdomain()
     ]);
 
     Daemon::sendRequest();
-    writeLog(sprintf('%s updated properties of the %s subdomain', $identity->getUsername(), $subdomainData['subdomain_name_utf8']), E_USER_NOTICE);
+    writeLog(sprintf('%s updated properties of the %s subdomain', getProcessorUsername($identity), $subdomainData['subdomain_name_utf8']), E_USER_NOTICE);
     return true;
 }
 
@@ -243,10 +244,10 @@ function client_generatePage($tpl)
     $subdomainData !== FALSE or View::showBadRequestErrorPage();
     $subdomainData['subdomain_ips'] = explode(',', $subdomainData['subdomain_ips']);
     $forwardHost = 'Off';
-    
+
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         View::generateClientIpsList($tpl, $identity->getUserId(), $subdomainData['subdomain_ips']);
 
         $documentRoot = strpos($subdomainData['document_root'], '/htdocs') !== FALSE ? substr($subdomainData['document_root'], 7) : '';
@@ -317,14 +318,14 @@ function client_generatePage($tpl)
     Application::getInstance()->getSession()['ftp_chooser_unselectable_dirs'] = [];
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('subdomains') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('subdomains') or View::showBadRequestErrorPage();
 
-if (!empty($_POST) && client_editSubdomain()) {
-    setPageMessage(tr('Subdomain successfully scheduled for update'), 'success');
+if (Application::getInstance()->getRequest()->isPost() && client_editSubdomain()) {
+    View::setPageMessage(tr('Subdomain successfully scheduled for update'), 'success');
     redirectTo('domains_manage.php');
 }
 
@@ -370,7 +371,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 View::generateNavigation($tpl);
 client_generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

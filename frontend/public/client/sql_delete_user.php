@@ -20,24 +20,25 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('sql') && isset($_GET['sqlu_id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('sql') && isset($_GET['sqlu_id']) or View::showBadRequestErrorPage();
 
 $sqluId = intval($_GET['sqlu_id']);
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 
 if (!deleteSqlUser(getCustomerMainDomainId($identity->getUserId()), $sqluId)) {
     writeLog(sprintf('Could not delete SQL user with ID %d. An unexpected error occurred.', $sqluId), E_USER_ERROR);
-    setPageMessage(tr('Could not delete SQL user. An unexpected error occurred.'), 'error');
+    View::setPageMessage(tr('Could not delete SQL user. An unexpected error occurred.'), 'error');
     redirectTo('sql_manage.php');
 }
 
-setPageMessage(tr('SQL user successfully deleted.'), 'success');
-writeLog(sprintf('%s deleted SQL user with ID %d', $identity->getUsername(), $sqluId), E_USER_NOTICE);
+View::setPageMessage(tr('SQL user successfully deleted.'), 'success');
+writeLog(sprintf('%s deleted SQL user with ID %d', getProcessorUsername($identity), $sqluId), E_USER_NOTICE);
 redirectTo('sql_manage.php');

@@ -20,13 +20,13 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 isset($_GET['id']) or View::showBadRequestErrorPage();
 
@@ -45,12 +45,12 @@ $stmt->rowCount() or View::showBadRequestErrorPage();
 $row = $stmt->fetch();
 
 if ($row['num_assignments'] > 0) {
-    setPageMessage(tr('You cannot delete an IP address that is assigned to a reseller.'), 'error');
+    View::setPageMessage(tr('You cannot delete an IP address that is assigned to a reseller.'), 'error');
     redirectTo('ip_manage.php');
 }
 
 if ($row['remaining_ips'] < 1) {
-    setPageMessage(tr('You cannot delete the last IP address.'), 'error');
+    View::setPageMessage(tr('You cannot delete the last IP address.'), 'error');
     redirectTo('ip_manage.php');
 }
 
@@ -67,5 +67,5 @@ writeLog(sprintf(
     "The %s IP address has been deleted by %s", $row['ip_number'], Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
     E_USER_NOTICE
 );
-setPageMessage(tr('IP address successfully scheduled for deletion.'), 'success');
+View::setPageMessage(tr('IP address successfully scheduled for deletion.'), 'success');
 redirectTo('ip_manage.php');

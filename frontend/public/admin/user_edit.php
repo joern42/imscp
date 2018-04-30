@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 use Zend\Form\Form;
@@ -44,7 +44,7 @@ function updateUserData(Form $form, $userId)
     if (!$form->isValid($_POST)) {
         foreach ($form->getMessages() as $msgsStack) {
             foreach ($msgsStack as $msg) {
-                setPageMessage(toHtml($msg), 'error');
+                View::setPageMessage(toHtml($msg), 'error');
             }
         }
 
@@ -100,8 +100,8 @@ function updateUserData(Form $form, $userId)
     $userType != 'user' or Daemon::sendRequest();
 
     writeLog(sprintf('The %s user has been updated by %s', $data['admin_name'], Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
-    setPageMessage('User has been updated.', 'success');
-    !$ret or setPageMessage(tr('New login data were sent to the %s user.', decodeIdna($data['admin_name'])), 'success');
+    View::setPageMessage('User has been updated.', 'success');
+    !$ret or View::setPageMessage(tr('New login data were sent to the %s user.', decodeIdna($data['admin_name'])), 'success');
     redirectTo("user_edit.php?edit_id=$userId");
 }
 
@@ -121,7 +121,7 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
     $tpl->form = $form;
     $tpl->editId = $userId;
 
-    if (!empty($_POST)) {
+    if (Application::getInstance()->getRequest()->isPost()) {
         $form->setDefault('admin_name', getUsername($userId));
         return;
     }
@@ -141,9 +141,9 @@ function generatePage(TemplateEngine $tpl, Form $form, $userId)
     $form->setDefaults($data);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 isset($_GET['edit_id']) or View::showBadRequestErrorPage();
 
@@ -154,7 +154,9 @@ global $userType;
 
 $form = getUserLoginDataForm(false, false)->addElements(getUserPersonalDataForm()->getElements());
 
-empty($_POST) or updateUserData($form, $userId);
+if(Application::getInstance()->getRequest()->isPost()) {
+    updateUserData($form, $userId);
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -165,7 +167,7 @@ $tpl->define([
 
 View::generateNavigation($tpl);
 generatePage($tpl, $form, $userId);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 
 if ($userType == 'admin') {
     $tpl->assign([

@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 
@@ -65,7 +66,7 @@ function checkMailAccount($mailAccountId)
 function activateAutoresponder($mailAccountId, $autoresponderMessage)
 {
     if ($autoresponderMessage === '') {
-        setPageMessage(tr('Autoresponder message cannot be empty.'), 'error');
+        View::setPageMessage(tr('Autoresponder message cannot be empty.'), 'error');
         redirectTo("mail_autoresponder_enable.php?mail_account_id=$mailAccountId");
     }
 
@@ -73,8 +74,8 @@ function activateAutoresponder($mailAccountId, $autoresponderMessage)
         $autoresponderMessage, $mailAccountId
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('A mail autoresponder has been activated by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('Autoresponder has been activated.'), 'success');
+    writeLog(sprintf('A mail autoresponder has been activated by %s', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity())), E_USER_NOTICE);
+    View::setPageMessage(tr('Autoresponder has been activated.'), 'success');
 }
 
 /**
@@ -91,11 +92,11 @@ function generatePage($tpl, $mailAccountId)
     $tpl->assign('AUTORESPONDER_MESSAGE', toHtml($row['mail_auto_respond_text']));
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
 
 $mailAccountId = intval($_REQUEST['id']);
 
@@ -124,7 +125,7 @@ if (!isset($_POST['id'])) {
     ]);
     View::generateNavigation($tpl);
     generatePage($tpl, $mailAccountId);
-    generatePageMessage($tpl);
+    View::generatePageMessages($tpl);
     $tpl->parse('LAYOUT_CONTENT', 'page');
     Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
     $tpl->prnt();

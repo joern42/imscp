@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -34,17 +35,17 @@ function scheduleBackupRestoration($userId)
 {
     execQuery("UPDATE domain SET domain_status = ? WHERE domain_admin_id = ?", ['torestore', $userId]);
     Daemon::sendRequest();
-    writeLog(sprintf('A backup restore has been scheduled by %s.', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('Backup has been successfully scheduled for restoration.'), 'success');
+    writeLog(sprintf('A backup restore has been scheduled by %s.', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity())), E_USER_NOTICE);
+    View::setPageMessage(tr('Backup has been successfully scheduled for restoration.'), 'success');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('backup') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('backup') or View::showBadRequestErrorPage();
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     scheduleBackupRestoration(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     redirectTo('backup.php');
 }
@@ -69,7 +70,7 @@ $tpl->assign([
     'TR_CONFIRM_MESSAGE'    => tr('Are you sure you want to restore the last daily backup?')
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

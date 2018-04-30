@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use iMSCP\Model\SuIdentityInterface;
 
@@ -53,9 +53,9 @@ function reseller_generateLayoutColorForm($tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
@@ -73,25 +73,25 @@ $identity = Application::getInstance()->getAuthService()->getIdentity();
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'updateIspLogo') {
         setUserLogo() ?:
-            setPageMessage(tr('Logo successfully updated.'), 'success');
+            View::setPageMessage(tr('Logo successfully updated.'), 'success');
     } elseif ($_POST['uaction'] == 'deleteIspLogo') {
-        deleteUserLogo() ?: setPageMessage(tr('Logo successfully removed.'), 'success');
+        deleteUserLogo() ?: View::setPageMessage(tr('Logo successfully removed.'), 'success');
     } elseif ($_POST['uaction'] == 'changeLayoutColor' && isset($_POST['layoutColor'])) {
         if (setLayoutColor($identity->getUserId(), $_POST['layoutColor'])) {
             if (!($identity instanceof SuIdentityInterface)) {
                 Application::getInstance()->getSession()['user_theme_color'] = $_POST['layoutColor'];
-                setPageMessage(tr('Layout color successfully updated.'), 'success');
+                View::setPageMessage(tr('Layout color successfully updated.'), 'success');
             } else {
-                setPageMessage(tr("Reseller's layout color successfully updated."), 'success');
+                View::setPageMessage(tr("Reseller's layout color successfully updated."), 'success');
             }
         } else {
-            setPageMessage(tr('Unknown layout color.'), 'error');
+            View::setPageMessage(tr('Unknown layout color.'), 'error');
         }
     } elseif ($_POST['uaction'] == 'changeShowLabels') {
         setMainMenuLabelsVisibility($identity->getUserId(), intval($_POST['mainMenuShowLabels']));
-        setPageMessage(tr('Main menu labels visibility successfully updated.'), 'success');
+        View::setPageMessage(tr('Main menu labels visibility successfully updated.'), 'success');
     } else {
-        setPageMessage(tr('Unknown action: %s', toHtml($_POST['uaction'])), 'error');
+        View::setPageMessage(tr('Unknown action: %s', toHtml($_POST['uaction'])), 'error');
     }
 }
 
@@ -133,7 +133,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 reseller_generateLayoutColorForm($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

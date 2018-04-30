@@ -27,12 +27,16 @@ use iMSCP\Authentication\AuthEvent;
 use iMSCP\Config\DbConfig;
 use iMSCP\Container\Registry;
 use iMSCP\Exception;
+use iMSCP\Functions\View;
 use iMSCP\Model\SuIdentityInterface;
 use iMSCP\Plugin\PluginManager;
+use iMSCP\Session\SaveHandler\SessionHandler;
+use Zend\Authentication\Storage as AuthenticationStorage;
 use Zend\Cache;
 use Zend\Config;
 use Zend\Db\Adapter\Adapter as DbAdapter;
 use Zend\EventManager;
+use Zend\Http\PhpEnvironment\Request;
 use Zend\I18n\Translator\Translator;
 use Zend\Session\Config\SessionConfig;
 use Zend\Session\Container as SessionContainer;
@@ -123,7 +127,12 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     protected $flashMessenger;
 
     /**
-     * Get application instance
+     * @var Request
+     */
+    protected $request;
+
+    /**
+     * Get application
      *
      * @return Application
      */
@@ -144,7 +153,14 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     }
 
     /**
-     * Bootstrap the application
+     * Make clone unavailable
+     */
+    private function __clone()
+    {
+    }
+
+    /**
+     * Bootstrap application
      *
      * @return Application
      */
@@ -158,44 +174,51 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         $this->setErrorHandling();
         $this->setEncoding();
         $this->setTimezone();
+        $this->setupSession();
+        $this->setUserGuiProps();
+        $this->initLayout();
+        $this->loadPlugins();
+        $this->getEventManager()->trigger(Events::onAfterApplicationBootstrap, $this);
+
+        $this->bootstrapped = true;
+        return $this;
+    }
+
+    /**
+     * Setup session
+     *
+     * @return void
+     */
+    protected function setupSession(): void
+    {
+        if (PHP_SAPI == 'cli') {
+            return;
+        }
 
         // Setup default session manager
         $config = $this->getConfig();
         $sessionConfig = new SessionConfig();
         $sessionConfig->setOptions([
-            'name'                => 'iMSCP_FrontEnd',
-            'use_cookies'         => true,
-            'use_only_cookies'    => true,
-            'cookie_domain'       => $config['BASE_SERVER_VHOST'],
-            'cookie_secure'       => $config['BASE_SERVER_VHOST_PREFIX'] == 'https://',
-            'cookie_httponly'     => true,
-            'cookie_path'         => '/',
-            'use_trans_sid'       => false,
-            'remember_me_seconds' => 1400,
-            'gc_divisor'          => 100,
-            'gc_maxlifetime'      => 1440,
-            'gc_probability'      => 1,
-            //'save_path'           => FRONTEND_ROOT_DIR . '/data/sessions'
+            'name'                   => 'iMSCP_Session',
+            'use_cookies'            => true,
+            'use_only_cookies'       => true,
+            'cookie_domain'          => $config['BASE_SERVER_VHOST'],
+            'cookie_secure'          => $config['BASE_SERVER_VHOST_PREFIX'] == 'https://' || isSecureRequest(),
+            'cookie_httponly'        => true,
+            'cookie_path'            => '/',
+            'cookie_lifetime'        => 0,
+            'use_trans_sid'          => false,
+            'gc_probability'         => $config['PHP_SESSION_GC_PROBABILITY'] ?? 2,
+            'gc_divisor'             => $config['PHP_SESSION_GC_DIVISOR'] ?? 100,
+            'gc_maxlifetime'         => $config['PHP_SESSION_GC_MAXLIFETIME'] ?? 1440,
+            'save_path'              => FRONTEND_ROOT_DIR . '/data/sessions',
+            'use_strict_mode'        => true,
+            'sid_bits_per_character' => 5
         ]);
-        SessionContainer::setDefaultManager(new SessionManager($sessionConfig, new SessionStorage(),
-            new \Zend\Session\SaveHandler\Cache(new Cache\Storage\Adapter\Memcached([
-                'namespace'   => 'iMSCPSession',
-                'servers'     => '127.0.0.1',
-                'lib_options' => [
-                    \Memcached::OPT_CONNECT_TIMEOUT => 10,
-                    \Memcached::OPT_DISTRIBUTION    => \Memcached::DISTRIBUTION_CONSISTENT
-                ]
-            ])),
-            [RemoteAddr::class, HttpUserAgent::class]
-        ));
 
-        $this->setUserGuiProps();
-        $this->initLayout();
-
-        $this->loadPlugins();
-        $this->getEventManager()->trigger(Events::onAfterApplicationBootstrap, $this);
-        $this->bootstrapped = true;
-        return $this;
+        SessionContainer::setDefaultManager(
+            new SessionManager($sessionConfig, new SessionStorage(), new SessionHandler(), [RemoteAddr::class, HttpUserAgent::class])
+        );
     }
 
     /**
@@ -209,10 +232,10 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             return;
         }
 
-        $identity = Application::getInstance()->getAuthService()->getIdentity();
+        $identity = $this->getAuthService()->getIdentity();
         $session = $this->getSession();
 
-        if (!$identity || $identity instanceof SuIdentityInterface || (isset($session['user_def_lang']) && isset($session['user_theme']))) {
+        if (NULL == $identity || $identity instanceof SuIdentityInterface || (isset($session['user_def_lang']) && isset($session['user_theme']))) {
             return;
         }
 
@@ -273,24 +296,40 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         }
 
         if ($identity instanceof SuIdentityInterface) {
-            $this->getEventManager()->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, function (AuthEvent $event) {
+            $this->getEventManager()->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, function () {
                 unset($this->getSession()['user_theme_color']);
             });
         }
     }
 
     /**
-     * Get application authentication service
+     * Get authentication service
      *
      * @return AuthenticationService
      */
     public function getAuthService(): AuthenticationService
     {
         if (NULL === $this->authService) {
-            $this->authService = new AuthenticationService(NULL, new AuthEventAdapter($this->getEventManager()));
+            $this->authService = new AuthenticationService(
+                new AuthenticationStorage\Session('iMSCP_Session', NULL, SessionContainer::getDefaultManager()),
+                new AuthEventAdapter($this->getEventManager())
+            );
+
+            if (!$this->authService->hasIdentity() && $this->getRequest()->isPost()) {
+                $this->authService->attach($this->getEventManager());
+            }
         }
 
         return $this->authService;
+    }
+
+    public function getRequest()
+    {
+        if (NULL === $this->request) {
+            $this->request = new Request();
+        }
+
+        return $this->request;
     }
 
     /**
@@ -332,15 +371,16 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                 $this->cache = new Cache\Storage\Adapter\BlackHole();
                 if (PHP_SAPI != 'cli') {
                     $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
-                        $identity = $this->getAuthService()->getIdentity();
-
-                        if ($identity && !isXhr()
+                        if (null !== ($identity = $this->getAuthService()->getIdentity()) && !isXhr()
                             && (
                                 $identity->getUserType() == 'admin'
-                                || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin')
+                                || ($identity instanceof SuIdentityInterface && (
+                                        $identity->getSuUserType() == 'admin')
+                                    || $identity->getSuIdentity() instanceof SuIdentityInterface
+                                )
                             )
                         ) {
-                            setPageMessage(tr('The Apcu extension is not enabled on your system. This can lead to performance issues.', 'static_warning'));
+                            View::setPageMessage(tr('The Apcu extension is not enabled on your system. This can lead to performance issues.', 'static_warning'));
                         }
                     });
                 }
@@ -361,15 +401,18 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             return $this->config;
         }
 
-        // Load settings from master i-MSCP configuration file.
+        // Setup reader for Java .properties configuration file
         Config\Factory::registerReader('conf', Config\Reader\JavaProperties::class);
-        $this->config = new Config\Reader\JavaProperties('=', Config\Reader\JavaProperties::WHITESPACE_TRIM);
-        $this->config = new Config\Config($this->config->fromFile(CONFIG_FILE_PATH), true);
+        Config\Factory::registerReader('data', Config\Reader\JavaProperties::class);
+        $reader = new Config\Reader\JavaProperties('=', Config\Reader\JavaProperties::WHITESPACE_TRIM);
 
-        // Load and merge overridable settings (default values)
-        $this->config->merge(new Config\Config(include_once('osettings.php'), true));
-
-        // Load and merge overridable settings from the database (overridden values)
+        // Load settings from the master i-MSCP configuration file (imscp.conf).
+        $this->config = new Config\Config($reader->fromFile(normalizePath(IMSCP_CONF_DIR . '/imscp.conf')), true);
+        // Load and merge settings from the FrontEnd configuration file (frontend.data)
+        $this->config->merge(new Config\Config($reader->fromFile(normalizePath(IMSCP_CONF_DIR . '/frontend/frontend.data'))));
+        // Load and merge additional settings
+        $this->config->merge(new Config\Config(include_once(normalizePath(LIBRARY_PATH . '/include/asettings.php')), true));
+        // Load and merge settings that were overridden
         $this->config->merge(new Config\Config($this->getDbConfig()->getArrayCopy()));
 
         // Set default root template directory according current theme
@@ -397,9 +440,12 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                     $identity->getUserType() == 'admin' || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin')
                 )
             ) {
-                setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled.'), 'static_warning');
-                setPageMessage(
-                    tr('For better performances, you should consider disabling it through the %s configuration file.', CONFIG_FILE_PATH),
+                View::setPageMessage(tr('The debug mode is currently enabled meaning that the cache is also disabled.'), 'static_warning');
+                View::setPageMessage(
+                    tr(
+                        'For better performances, you should consider disabling it through the %s configuration file.',
+                        normalizePath(IMSCP_CONF_DIR . '/imscp.conf')
+                    ),
                     'static_warning'
                 );
             }

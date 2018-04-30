@@ -20,13 +20,13 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use iMSCP\Model\SuIdentityInterface;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
@@ -46,7 +46,7 @@ if ($identity instanceof SuIdentityInterface) {
     $resellerCurrentLanguage = Application::getInstance()->getSession()['user_def_lang'];
 }
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     $resellerNewLanguage = cleanInput($_POST['def_language']);
     in_array($resellerNewLanguage, getAvailableLanguages(true), true) or View::showBadRequestErrorPage();
 
@@ -57,9 +57,9 @@ if (!empty($_POST)) {
             Application::getInstance()->getSession()['user_def_lang'] = $resellerNewLanguage;
         }
 
-        setPageMessage(tr('Language has been updated.'), 'success');
+        View::setPageMessage(tr('Language has been updated.'), 'success');
     } else {
-        setPageMessage(tr('Nothing has been changed.'), 'info');
+        View::setPageMessage(tr('Nothing has been changed.'), 'info');
     }
 
     redirectTo('language.php');
@@ -73,7 +73,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 View::generateLanguagesList($tpl, $resellerCurrentLanguage);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

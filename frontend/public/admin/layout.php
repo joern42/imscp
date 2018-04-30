@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use iMSCP\Model\SuIdentityInterface;
 
@@ -53,9 +53,9 @@ function admin_generateLayoutColorForm(TemplateEngine $tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
@@ -71,27 +71,27 @@ $tpl->define([
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'updateIspLogo') {
         if (setUserLogo()) {
-            setPageMessage(tr('Logo successfully updated.'), 'success');
+            View::setPageMessage(tr('Logo successfully updated.'), 'success');
         }
     } elseif ($_POST['uaction'] == 'deleteIspLogo') {
         if (deleteUserLogo()) {
-            setPageMessage(tr('Logo successfully removed.'), 'success');
+            View::setPageMessage(tr('Logo successfully removed.'), 'success');
         }
     } elseif ($_POST['uaction'] == 'changeShowLabels') {
         setMainMenuLabelsVisibility(Application::getInstance()->getAuthService()->getIdentity()->getUserId(), intval($_POST['mainMenuShowLabels']));
-        setPageMessage(tr('Main menu labels visibility successfully updated.'), 'success');
+        View::setPageMessage(tr('Main menu labels visibility successfully updated.'), 'success');
     } elseif ($_POST['uaction'] == 'changeLayoutColor' && isset($_POST['layoutColor'])) {
         /** @var SuIdentityInterface $identity */
         $identity = Application::getInstance()->getAuthService()->getIdentity();
         $userId = $identity instanceof SuIdentityInterface ? $identity->getSuUserId() : $identity->getUserId();
         if (setLayoutColor($userId, $_POST['layoutColor'])) {
             Application::getInstance()->getSession()['user_theme_color'] = $_POST['layoutColor'];
-            setPageMessage(tr('Layout color successfully updated.'), 'success');
+            View::setPageMessage(tr('Layout color successfully updated.'), 'success');
         } else {
-            setPageMessage(tr('Unknown layout color.'), 'error');
+            View::setPageMessage(tr('Unknown layout color.'), 'error');
         }
     } else {
-        setPageMessage(tr('Unknown action: %s', toHtml($_POST['uaction'])), 'error');
+        View::setPageMessage(tr('Unknown action: %s', toHtml($_POST['uaction'])), 'error');
     }
 }
 
@@ -133,7 +133,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 admin_generateLayoutColorForm($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

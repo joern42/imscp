@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Config\DbConfig;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -50,25 +50,25 @@ function validatesService($name, $ip, $port, $protocol, $show, $index = '')
     $ip = ($ip == 'localhost') ? '127.0.0.1' : $ip;
 
     if (!preg_match('/^[\w\-]+$/D', $name)) {
-        setPageMessage(tr("Invalid service name: %s", $name), 'error');
+        View::setPageMessage(tr("Invalid service name: %s", $name), 'error');
         $errorFieldsIds[] = "name$index";
     } elseif (strlen($name) > 25) {
-        setPageMessage(tr("Service name cannot be greater than 25 characters.", $name), 'error');
+        View::setPageMessage(tr("Service name cannot be greater than 25 characters.", $name), 'error');
         $errorFieldsIds[] = "name$index";
     }
 
     if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
-        setPageMessage(tr('Wrong IP address.'), 'error');
+        View::setPageMessage(tr('Wrong IP address.'), 'error');
         $errorFieldsIds[] = "ip$index";
     }
 
     if (!isNumber($port) || $port < 1 || $port > 65535) {
-        setPageMessage(tr('Only numbers in range from 0 to 65535 are allowed.'), 'error');
+        View::setPageMessage(tr('Only numbers in range from 0 to 65535 are allowed.'), 'error');
         $errorFieldsIds[] = "port$index";
     }
 
     if (!is_int($index) && isset($dbConfig[$dbServiceName])) {
-        setPageMessage(tr('Service with same name already exists.'), 'error');
+        View::setPageMessage(tr('Service with same name already exists.'), 'error');
         $errorFieldsIds[] = "name$index";
     }
 
@@ -98,7 +98,7 @@ function deleteService($serviceName)
     $dbConfig = Application::getInstance()->getDbConfig();
 
     if (!isset($dbConfig[$serviceName])) {
-        setPageMessage(tr("Unknown service name '%s'.", $serviceName), 'error');
+        View::setPageMessage(tr("Unknown service name '%s'.", $serviceName), 'error');
         return false;
     }
 
@@ -107,7 +107,7 @@ function deleteService($serviceName)
         'A service port (%s) has been removed by %s', $serviceName, Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
         E_USER_NOTICE
     );
-    setPageMessage(tr('Service port successfully removed.'), 'success');
+    View::setPageMessage(tr('Service port successfully removed.'), 'success');
     return true;
 }
 
@@ -148,7 +148,7 @@ function addOrUpdateServices($mode = 'add')
         }
 
         // Reset counter of update queries
-        $dbConfig->resetQueriesCounter('update');
+        $dbConfig->resetQueriesCounter(DbConfig::UPDATE_QUERY_COUNTER);
 
         foreach ($_POST['name'] as $index => $name) {
             $name = strtoupper(cleanInput($name));
@@ -193,16 +193,16 @@ function addOrUpdateServices($mode = 'add')
     }
 
     if ($mode == 'add') {
-        setPageMessage(tr('Service port successfully added'), 'success');
+        View::setPageMessage(tr('Service port successfully added'), 'success');
         return;
     }
 
-    $updateCount = $dbConfig->countQueries('update');
+    $updateCount = $dbConfig->countQueries(DbConfig::UPDATE_QUERY_COUNTER);
 
     if ($updateCount > 0) {
-        setPageMessage(ntr('Service port has been updated.', '%d service ports were updated.', $updateCount, $updateCount), 'success');
+        View::setPageMessage(ntr('Service port has been updated.', '%d service ports were updated.', $updateCount, $updateCount), 'success');
     } else {
-        setPageMessage(tr('Nothing has been changed.'), 'info');
+        View::setPageMessage(tr('Nothing has been changed.'), 'info');
     }
 
     redirectTo('settings_ports.php');
@@ -217,25 +217,22 @@ function addOrUpdateServices($mode = 'add')
 function generatePage($tpl)
 {
     if (Application::getInstance()->getRegistry()->has('error_on_updt')) {
-        $values = new ConfigArray(Application::getInstance()->getRegistry()->get('error_on_updt'));
-        $services = array_keys($values->toArray());
+        $values = new \ArrayObject(Application::getInstance()->getRegistry()->get('error_on_updt'));
+        $services = array_keys($values->getArrayCopy());
     } else {
-        $values = Application::getInstance()->getRegistry()->get('dbConfig');
-        $services = array_filter(
-            array_keys($values->toArray()),
-            function ($name) {
-                return (strlen($name) > 5 && substr($name, 0, 5) == 'PORT_');
-            }
-        );
+        $values = Application::getInstance()->getDbConfig();
+        $services = array_filter(array_keys($values->getArrayCopy()), function ($name) {
+            return (strlen($name) > 5 && substr($name, 0, 5) == 'PORT_');
+        });
 
         if (Application::getInstance()->getRegistry()->has('error_on_add')) {
-            $errorOnAdd = new ConfigArray(Application::getInstance()->getRegistry()->get('error_on_add'));
+            $errorOnAdd = new \ArrayObject(Application::getInstance()->getRegistry()->get('error_on_add'));
         }
     }
 
     if (empty($services)) {
         $tpl->assign('SERVICE_PORTS', '');
-        setPageMessage(tr('There are no service ports yet.'), 'static_info');
+        View::setPageMessage(tr('There are no service ports yet.'), 'static_info');
         return;
     }
 
@@ -277,9 +274,9 @@ function generatePage($tpl)
     );
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction']) && $_POST['uaction'] != 'reset') {
@@ -318,7 +315,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

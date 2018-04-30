@@ -20,17 +20,18 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $stmt = execQuery("DELETE FROM domain_aliases WHERE alias_id = ? AND domain_id = ? AND alias_status = 'ordered'", [
     intval($_GET['id']), getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId())
 ]);
 $stmt->rowCount() or View::showBadRequestErrorPage();
-setPageMessage(tr('Order successfully canceled.'), 'success');
+View::setPageMessage(tr('Order successfully canceled.'), 'success');
 redirectTo('domains_manage.php');

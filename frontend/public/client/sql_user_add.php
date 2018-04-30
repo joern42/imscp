@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -39,7 +39,7 @@ function checkSqlUserPermissions(TemplateEngine $tpl, $sqldId)
     $domainProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 
     if ($domainProps['domain_sqlu_limit'] != 0 && Counting::getCustomerSqlUsersCount($domainProps['domain_id']) >= $domainProps['domain_sqlu_limit']) {
-        setPageMessage(tr("SQL users limit is reached. You cannot add new SQL users."), 'static_info');
+        View::setPageMessage(tr("SQL users limit is reached. You cannot add new SQL users."), 'static_info');
         $canAddNewSQLUser = false;
         $tpl->assign('CREATE_SQLUSER', '');
     }
@@ -131,12 +131,12 @@ function addSqlUser($sqldId)
         $passwordConf = cleanInput($_POST['pass_rep']);
 
         if ($user == '') {
-            setPageMessage(tr('Please enter an username.'), 'error');
+            View::setPageMessage(tr('Please enter an username.'), 'error');
             return;
         }
 
         if ($host == '') {
-            setPageMessage(tr('Please enter an SQL user host.'), 'error');
+            View::setPageMessage(tr('Please enter an SQL user host.'), 'error');
             return;
         }
 
@@ -145,17 +145,17 @@ function addSqlUser($sqldId)
         if ($host != '%' && $host !== 'localhost'
             && !Validator::getInstance()->hostname($host, ['allow' => ValidateHostname::ALLOW_DNS | ValidateHostname::ALLOW_IP])
         ) {
-            setPageMessage(tr('Invalid SQL user host: %s', Validator::getInstance()->getLastValidationMessages()), 'error');
+            View::setPageMessage(tr('Invalid SQL user host: %s', Validator::getInstance()->getLastValidationMessages()), 'error');
             return;
         }
 
         if ($password == '') {
-            setPageMessage(tr('Please enter a password.'), 'error');
+            View::setPageMessage(tr('Please enter a password.'), 'error');
             return;
         }
 
         if ($password !== $passwordConf) {
-            setPageMessage(tr('Passwords do not match.'), 'error');
+            View::setPageMessage(tr('Passwords do not match.'), 'error');
             return;
         }
 
@@ -172,12 +172,12 @@ function addSqlUser($sqldId)
         }
 
         if (strlen($user) > 16) {
-            setPageMessage(tr('SQL username is too long.'), 'error');
+            View::setPageMessage(tr('SQL username is too long.'), 'error');
             return;
         }
 
         if (isSqlUser($user, $host) || in_array($user, ['debian-sys-maint', 'mysql.user', 'root'])) {
-            setPageMessage(tr("The %s SQL user is not available or not permitted.", $user . '@' . decodeIdna($host)), 'error');
+            View::setPageMessage(tr("The %s SQL user is not available or not permitted.", $user . '@' . decodeIdna($host)), 'error');
             return;
         }
     } elseif (isset($_POST['sqluser_id'])) { // Using existing SQL user as specified in input data
@@ -219,7 +219,7 @@ function addSqlUser($sqldId)
     // See https://dev.mysql.com/doc/refman/5.7/en/implicit-commit.html for more details
 
     if ($needUserCreate && isset($password)) {
-        $mysqlConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data');
+        $mysqlConfig = loadServiceConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/mysql/mysql.data');
         if ($mysqlConfig['SQLD_VENDOR'] == 'MariaDB' || version_compare($mysqlConfig['SQLD_VERSION'], '5.7.6', '<')) {
             execQuery('CREATE USER ?@? IDENTIFIED BY ?', [$user, $host, $password]);
         } else {
@@ -245,8 +245,8 @@ function addSqlUser($sqldId)
         'SqlUserPassword' => isset($password) ? $password : '',
         'SqlDatabaseId'   => $sqldId
     ]);
-    writeLog(sprintf('A SQL user has been added by %s', $identity->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('SQL user successfully added.'), 'success');
+    writeLog(sprintf('A SQL user has been added by %s', getProcessorUsername($identity)), E_USER_NOTICE);
+    View::setPageMessage(tr('SQL user successfully added.'), 'success');
     redirectTo('sql_manage.php');
 }
 
@@ -310,15 +310,17 @@ function generatePage(TemplateEngine $tpl, $sqldId)
     $tpl->assign('SQLD_ID', $sqldId);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('sql') && isset($_REQUEST['sqld_id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('sql') && isset($_REQUEST['sqld_id']) or View::showBadRequestErrorPage();
 
 $sqldId = intval($_REQUEST['sqld_id']);
 
-empty($_POST) or addSqlUser($sqldId);
+if(Application::getInstance()->getRequest()->isPost()) {
+    addSqlUser($sqldId);
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -353,7 +355,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl, $sqldId);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

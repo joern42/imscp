@@ -20,22 +20,22 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 isset($_GET['user_id']) or View::showBadRequestErrorPage();
 $customerId = intval($_GET['client_id']);
 
 try {
     deleteCustomer($customerId, true) or View::showBadRequestErrorPage();
-    setPageMessage(tr('Customer account successfully scheduled for deletion.'), 'success');
-    writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $customerId), E_USER_NOTICE);
+    View::setPageMessage(tr('Customer account successfully scheduled for deletion.'), 'success');
+    writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity()), $customerId), E_USER_NOTICE);
 } catch (\Exception $e) {
-    setPageMessage(tr('Unable to schedule deletion of the customer account. A message has been sent to the administrator.'), 'error');
+    View::setPageMessage(tr('Unable to schedule deletion of the customer account. A message has been sent to the administrator.'), 'error');
     writeLog(sprintf("System was unable to schedule deletion of the customer account with ID %s. Message was: %s", $customerId, $e->getMessage()), E_USER_ERROR);
 }
 

@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -185,7 +185,7 @@ function moveCustomers()
             moveCustomer(intval($customerId), $fromResellerId, $toResellerId);
         }
     } catch (\Exception $e) {
-        setPageMessage(toHtml($e->getMessage()), 'error');
+        View::setPageMessage(toHtml($e->getMessage()), 'error');
         return false;
     }
 
@@ -241,14 +241,14 @@ function generatePage(TemplateEngine $tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 Counting::systemHasResellers(2) or View::showBadRequestErrorPage();
 
 if (isset($_POST['uaction']) && $_POST['uaction'] == 'move_customers' && moveCustomers()) {
-    setPageMessage(tr('Customer(s) successfully moved.'), 'success');
+    View::setPageMessage(tr('Customer(s) successfully moved.'), 'success');
     redirectTo('users.php');
 }
 
@@ -265,7 +265,7 @@ $tpl->define([
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Customer Assignments')));
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

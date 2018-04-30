@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 use Zend\Form\Form;
@@ -38,7 +38,7 @@ function addAdminUser(Form $form)
     if (!$form->isValid()) {
         foreach ($form->getMessages() as $msgsStack) {
             foreach ($msgsStack as $msg) {
-                setPageMessage(toHtml($msg), 'error');
+                View::setPageMessage(toHtml($msg), 'error');
             }
         }
 
@@ -96,19 +96,21 @@ function addAdminUser(Form $form)
         $form->getValue('lname'), tr('Administrator')
     );
     writeLog(sprintf('The %s administrator has been added by %s', $form->getValue('admin_name'), $identity->getUsername()), E_USER_NOTICE);
-    setPageMessage('Administrator has been added.', 'success');
+    View::setPageMessage('Administrator has been added.', 'success');
     redirectTo('users.php');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $form = getUserLoginDataForm(true, true)->add(getUserPersonalDataForm()->getElements());
 $form->setDefault('gender', 'U');
 
-empty($_POST) or addAdminUser($form);
+if(Application::getInstance()->getRequest()->isPost()) {
+ addAdminUser($form);
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -118,7 +120,7 @@ $tpl->define([
 ]);
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Add Admin')));
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->form = $form;
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);

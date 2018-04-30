@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 
 /**
  * Is the given directory hidden inside the mountpoints?
@@ -73,7 +73,7 @@ function generateDirectoryList($tpl)
     $list = $vfs->ls($path);
 
     if (!$list) {
-        setPageMessage(toHtml(tr('Could not retrieve directories.')), 'error');
+        View::setPageMessage(toHtml(tr('Could not retrieve directories.')), 'error');
         $tpl->assign('FTP_CHOOSER', '');
         return;
     }
@@ -134,9 +134,9 @@ function generateDirectoryList($tpl)
     }
 }
 
+require_once 'application.php';
 
-
-Login::checkLogin('all');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ANY_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onSharedScriptStart);
 
 $tpl = new TemplateEngine();
@@ -156,7 +156,7 @@ $tpl->assign([
 
 if (!isset(Application::getInstance()->getSession()['ftp_chooser_user']) || !isset(Application::getInstance()->getSession()['ftp_chooser_domain_id'])) {
     $tpl->assign('FTP_CHOOSER', '');
-    setPageMessage(toHtml(tr('Could not retrieve directories.')), 'error');
+    View::setPageMessage(toHtml(tr('Could not retrieve directories.')), 'error');
 } else {
     $vftpDomainId = Application::getInstance()->getSession()['ftp_chooser_domain_id'];
     $vftpUser = Application::getInstance()->getSession()['ftp_chooser_user'];
@@ -180,7 +180,7 @@ if (!isset(Application::getInstance()->getSession()['ftp_chooser_user']) || !iss
     generateDirectoryList($tpl);
 }
 
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('PARTIAL', 'partial');
 Application::getInstance()->getEventManager()->trigger(Events::onSharedScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();

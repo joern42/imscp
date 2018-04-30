@@ -20,17 +20,17 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 isset($_GET['id']) or View::showBadRequestErrorPage();
 $stmt = execQuery('DELETE FROM hosting_plans WHERE id = ? AND reseller_id = ?', [
     intval($_GET['id']), Application::getInstance()->getAuthService()->getIdentity()->getUserId()
 ]);
 $stmt->rowCount() or View::showBadRequestErrorPage();
-setPageMessage(tr('Hosting plan successfully deleted.'), 'success');
+View::setPageMessage(tr('Hosting plan successfully deleted.'), 'success');
 redirectTo('hosting_plan.php');

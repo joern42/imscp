@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 
 /**
  * Generates notice for support system
@@ -37,12 +37,14 @@ function generateSupportSystemNotices()
         return;
     }
 
-    setPageMessage(ntr('You have a new answer to your support ticket.', 'You have %d new answers to your support tickets.', $aCnt, $aCnt), 'static_info');
+    View::setPageMessage(ntr('You have a new answer to your support ticket.', 'You have %d new answers to your support tickets.', $aCnt, $aCnt), 'static_info');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_CLIENT']);
+Application::getInstance()->getAuthService()->checkAuthentication(
+    AuthenticationService::USER_CHECK_AUTH_TYPE, Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_CLIENT']
+);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 define('SHARED_SCRIPT_NEEDED', true);
 $_GET['id'] = Application::getInstance()->getAuthService()->getIdentity()->getUserId();

@@ -20,9 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use iMSCP\Plugin\AbstractPlugin;
 
@@ -522,9 +522,9 @@ function debugger_countRequests($statusField = NULL, $tableName = NULL)
     return $nbRequests;
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $rqstCount = debugger_countRequests('admin_status', 'admin');
@@ -545,12 +545,12 @@ if (isset($_GET['action'])) {
     if ($_GET['action'] == 'run') {
         if ($rqstCount > 0) {
             if (Daemon::sendRequest()) {
-                setPageMessage(tr('Daemon request successful.'), 'success');
+                View::setPageMessage(tr('Daemon request successful.'), 'success');
             } else {
-                setPageMessage(tr('Daemon request failed.'), 'error');
+                View::setPageMessage(tr('Daemon request failed.'), 'error');
             }
         } else {
-            setPageMessage(tr('There is no pending task. Operation canceled.'), 'warning');
+            View::setPageMessage(tr('There is no pending task. Operation canceled.'), 'warning');
         }
 
         redirectTo('imscp_debugger.php');
@@ -602,9 +602,9 @@ if (isset($_GET['action'])) {
                 isset($_GET['table']) && isset($_GET['field']) or View::showBadRequestErrorPage();
 
                 if (!debugger_changePluginItemStatus($_GET['type'], $_GET['table'], $_GET['field'], $_GET['id'])) {
-                    setPageMessage(tr('Unknown type.'), 'error');
+                    View::setPageMessage(tr('Unknown type.'), 'error');
                 } else {
-                    setPageMessage(tr('Done'), 'success');
+                    View::setPageMessage(tr('Done'), 'success');
                 }
 
                 redirectTo('imscp_debugger.php');
@@ -612,7 +612,7 @@ if (isset($_GET['action'])) {
         }
 
         execQuery($query, [$_GET['id']]);
-        setPageMessage(tr('Done'), 'success');
+        View::setPageMessage(tr('Done'), 'success');
         redirectTo('imscp_debugger.php');
     }
 }
@@ -678,7 +678,7 @@ $tpl->assign([
     'EXEC_COUNT'            => toHtml($rqstCount)
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

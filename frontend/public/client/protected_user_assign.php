@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -38,7 +39,7 @@ function client_getHtaccessUsername($htuserId, $domainId)
     $row = $stmt->fetch();
 
     if ($row['status'] != 'ok') {
-        setPageMessage(tr('A task is in progress for this htuser.'));
+        View::setPageMessage(tr('A task is in progress for this htuser.'));
         redirectTo('protected_user_manage.php');
     }
 
@@ -71,7 +72,7 @@ function client_generatePage($tpl)
     // Get groups
     $stmt = execQuery('SELECT * FROM htaccess_groups WHERE dmn_id = ?', [$domainId]);
     if (!$stmt->rowCount()) {
-        setPageMessage(tr('You have no groups.'), 'error');
+        View::setPageMessage(tr('You have no groups.'), 'error');
         redirectTo('protected_user_manage.php');
     }
 
@@ -126,7 +127,7 @@ function client_generatePage($tpl)
  */
 function client_addHtaccessUserToHtaccessGroup()
 {
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         return;
     }
 
@@ -157,7 +158,7 @@ function client_addHtaccessUserToHtaccessGroup()
 
     execQuery("UPDATE htaccess_groups SET members = ?, status = 'tochange' WHERE id = ? AND dmn_id = ?", [$members, $htgroupId, $domainId]);
     Daemon::sendRequest();
-    setPageMessage(tr('Htaccess user successfully assigned to the %s htaccess group', $row['ugroup']), 'success');
+    View::setPageMessage(tr('Htaccess user successfully assigned to the %s htaccess group', $row['ugroup']), 'success');
     redirectTo('protected_user_manage.php');
 }
 
@@ -168,7 +169,7 @@ function client_addHtaccessUserToHtaccessGroup()
  */
 function client_removeHtaccessUserFromHtaccessGroup()
 {
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         return;
     }
 
@@ -202,15 +203,15 @@ function client_removeHtaccessUserFromHtaccessGroup()
 
     execQuery("UPDATE htaccess_groups SET members = ?, status = 'tochange' WHERE id = ? AND dmn_id = ?", [$members, $htgroupId, $domainId]);
     Daemon::sendRequest();
-    setPageMessage(tr('Htaccess user successfully deleted from the %s htaccess group ', $row['ugroup']), 'success');
+    View::setPageMessage(tr('Htaccess user successfully deleted from the %s htaccess group ', $row['ugroup']), 'success');
     redirectTo('protected_user_manage.php');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 
 client_addHtaccessUserToHtaccessGroup();
 client_removeHtaccessUserFromHtaccessGroup();
@@ -237,7 +238,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 client_generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();

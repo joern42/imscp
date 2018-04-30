@@ -20,15 +20,16 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('protected_areas') && isset($_GET['gname']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('protected_areas') && isset($_GET['gname']) or View::showBadRequestErrorPage();
 
 $db = Application::getInstance()->getDb();
 
@@ -65,12 +66,12 @@ try {
     // Schedule htgroup deletion
     execQuery("UPDATE htaccess_groups SET status = 'todelete' WHERE id = ? AND dmn_id = ?", [$htgroupId, $domainId]);
     $db->getDriver()->getConnection()->commit();
-    setPageMessage(tr('Htaccess group successfully scheduled for deletion.'), 'success');
+    View::setPageMessage(tr('Htaccess group successfully scheduled for deletion.'), 'success');
     Daemon::sendRequest();
-    writeLog(sprintf('%s deleted Htaccess group ID: %s', $identity->getUsername(), $htgroupId), E_USER_NOTICE);
+    writeLog(sprintf('%s deleted Htaccess group ID: %s', getProcessorUsername($identity), $htgroupId), E_USER_NOTICE);
 } catch (\Exception $e) {
     $db->getDriver()->getConnection()->rollBack();
-    setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
+    View::setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     writeLog(sprintf('Could not delete htaccess group: %s', $e->getMessage()));
 }
 

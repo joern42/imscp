@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
 /**
@@ -47,25 +47,25 @@ function admin_generateLanguagesList(TemplateEngine $tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_POST['uaction'])) {
     if ($_POST['uaction'] == 'uploadLanguage') {
         if (importMachineObjectFile()) {
-            setPageMessage(tr('Language file successfully installed.'), 'success');
+            View::setPageMessage(tr('Language file successfully installed.'), 'success');
         }
     } elseif ($_POST['uaction'] == 'changeLanguage') {
         if (changeDefaultLanguage()) {
-            setPageMessage(tr('Default language successfully updated.'), 'success');
+            View::setPageMessage(tr('Default language successfully updated.'), 'success');
         } else {
-            setPageMessage(tr('Unknown language name.'), 'error');
+            View::setPageMessage(tr('Unknown language name.'), 'error');
         }
     } elseif ($_POST['uaction'] == 'rebuildIndex') {
         buildLanguagesIndex();
-        setPageMessage(tr('Languages index was successfully re-built.'), 'success');
+        View::setPageMessage(tr('Languages index was successfully re-built.'), 'success');
     }
 
     redirectTo('multilanguage.php');
@@ -98,7 +98,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 admin_generateLanguagesList($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

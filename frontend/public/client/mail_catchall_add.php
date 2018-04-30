@@ -20,9 +20,10 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -106,7 +107,7 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         }
 
         if (empty($_POST['automatic_catchall_addresses'])) {
-            setPageMessage(tr('You must select at least one catch-all address.'), 'error');
+            View::setPageMessage(tr('You must select at least one catch-all address.'), 'error');
             View::showBadRequestErrorPage();
         }
 
@@ -120,7 +121,7 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
     } else {
         $catchallAddresses = cleanInput($_POST['manual_catchall_addresses']);
         if ($catchallAddresses === '') {
-            setPageMessage(tr('Catch-all addresses field cannot be empty.'), 'error');
+            View::setPageMessage(tr('Catch-all addresses field cannot be empty.'), 'error');
             return;
         }
 
@@ -128,13 +129,13 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         foreach ($catchallAddresses as $key => &$catchallAddress) {
             $catchallAddress = encodeIdna(mb_strtolower(trim($catchallAddress)));
             if (!ValidateEmail($catchallAddress)) {
-                setPageMessage(tr('Bad email address in catch-all addresses field.'), 'error');
+                View::setPageMessage(tr('Bad email address in catch-all addresses field.'), 'error');
                 return;
             }
         }
 
         if (empty($catchallAddresses)) {
-            setPageMessage(tr('Catch-all addresses field cannot be empty.'), 'error');
+            View::setPageMessage(tr('Catch-all addresses field cannot be empty.'), 'error');
             return;
         }
     }
@@ -175,8 +176,8 @@ function addCatchallAccount($catchallDomainId, $catchallDomain, $catchallType)
         'mailCatchallAddresses' => $catchallAddresses
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('A catch-all account has been created by %s', $identity->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('Catch-all successfully scheduled for addition.'), 'success');
+    writeLog(sprintf('A catch-all account has been created by %s', getProcessorUsername($identity)), E_USER_NOTICE);
+    View::setPageMessage(tr('Catch-all successfully scheduled for addition.'), 'success');
     redirectTo('mail_catchall.php');
 }
 
@@ -331,11 +332,11 @@ function generatePage($tpl, $catchallDomainId, $catchallType)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $catchallId = cleanInput($_GET['id']);
 
@@ -352,7 +353,7 @@ if (!preg_match(
     exit;
 }
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     addCatchallAccount($matches['catchallDomainId'], $catchallDomain, $matches['catchallType']);
 }
 
@@ -371,7 +372,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl, $matches['catchallDomainId'], $matches['catchallType']);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

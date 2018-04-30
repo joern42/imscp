@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -97,7 +97,7 @@ function generateIpsList(TemplateEngine $tpl)
     );
     if (!$stmt->rowCount()) {
         $tpl->assign('IP_ADDRESSES_BLOCK', '');
-        setPageMessage(toHtml(tr('No IP address found.')), 'info');
+        View::setPageMessage(toHtml(tr('No IP address found.')), 'info');
         return;
     }
 
@@ -175,7 +175,7 @@ function generateDevicesList(TemplateEngine $tpl)
     });
 
     if (empty($netDevices)) {
-        setPageMessage(toHtml(tr('Could not find any network interface. You cannot add new IP addresses.')), 'error');
+        View::setPageMessage(toHtml(tr('Could not find any network interface. You cannot add new IP addresses.')), 'error');
         $tpl->assign('IP_ADDRESS_FORM_BLOCK', '');
         return;
     }
@@ -198,7 +198,7 @@ function generateDevicesList(TemplateEngine $tpl)
 function reconfigureIpAddresses()
 {
     execQuery("UPDATE server_ips SET ip_status = 'tochange' WHERE ip_status <> 'todelete'");
-    setPageMessage(toHtml(tr('Server IP addresses scheduled for reconfiguration.')), 'success');
+    View::setPageMessage(toHtml(tr('Server IP addresses scheduled for reconfiguration.')), 'success');
     Daemon::sendRequest();
     redirectTo('ip_manage.php');
 }
@@ -219,7 +219,7 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
 
     // Validate IP addr
     if (filter_var($ipAddr, FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE) === false) {
-        setPageMessage(tr('Wrong or unallowed IP address.'), 'error');
+        View::setPageMessage(tr('Wrong or unallowed IP address.'), 'error');
         $errFieldsStack[] = 'ip_number';
     }
 
@@ -227,13 +227,13 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
     $isIPv6Allowed = Application::getInstance()->getConfig()['IPV6_SUPPORT'] == 'yes';
 
     if (!$isIPv6Allowed && $isIPv6) {
-        setPageMessage(toHtml(tr('IPv6 support is currently disabled. You cannot add new IPv6 IP addresses.')), 'error');
+        View::setPageMessage(toHtml(tr('IPv6 support is currently disabled. You cannot add new IPv6 IP addresses.')), 'error');
         $errFieldsStack[] = 'ip_number';
     }
 
     // Validate IP netmask
     if (!ctype_digit($ipNetmask) || $ipNetmask < 1 || ($isIPv6 && (!$isIPv6Allowed || $ipNetmask > 128)) || (!$isIPv6 && $ipNetmask > 32)) {
-        setPageMessage(toHtml(tr('Wrong or unallowed IP netmask.')), 'error');
+        View::setPageMessage(toHtml(tr('Wrong or unallowed IP netmask.')), 'error');
         $errFieldsStack[] = 'ip_netmask';
     }
 
@@ -253,7 +253,7 @@ function checkIpData($ipAddr, $ipNetmask, $ipConfigMode, $ipCard, $checkDuplicat
         $stmt = execQuery('SELECT ip_number FROM server_ips');
         while ($row = $stmt->fetch()) {
             if (Net::compress($row['ip_number']) == Net::compress($ipAddr)) {
-                setPageMessage(toHtml(tr('IP address already under the control of i-MSCP.')), 'error');
+                View::setPageMessage(toHtml(tr('IP address already under the control of i-MSCP.')), 'error');
                 $errFieldsStack[] = 'ip_number';
                 break;
             }
@@ -320,7 +320,7 @@ function editIpAddr()
             Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
             E_USER_NOTICE
         );
-        setPageMessage(toHtml(tr('IP address successfully scheduled for modification.')), 'success');
+        View::setPageMessage(toHtml(tr('IP address successfully scheduled for modification.')), 'success');
         sendJsonResponse(200);
     } catch (\Exception $e) {
         sendJsonResponse(500, ['message' => sprintf('An unexpected error occurred: %s', $e->getMessage())]);
@@ -357,17 +357,17 @@ function addIpAddr()
     ]);
 
     Daemon::sendRequest();
-    setPageMessage(toHtml(tr('IP address successfully scheduled for addition.')), 'success');
+    View::setPageMessage(toHtml(tr('IP address successfully scheduled for addition.')), 'success');
     writeLog(sprintf("An IP address (%s) has been added by %s", $ipAddr, Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     redirectTo('ip_manage.php');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     if (isXhr()) {
         editIpAddr();
     }
@@ -419,7 +419,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

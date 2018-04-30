@@ -20,10 +20,10 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -38,7 +38,7 @@ function rejectDomainAliasOrder()
     $domainAliasId = intval($_GET['id']);
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    
+
     $stmt = execQuery(
         "
             SELECT t1.alias_id
@@ -60,12 +60,12 @@ function rejectDomainAliasOrder()
         execQuery("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'als'", [$domainAliasId]);
         execQuery('DELETE FROM domain_aliases WHERE alias_id = ?', [$domainAliasId]);
         $db->getDriver()->getConnection()->commit();
-        writeLog(sprintf('A domain alias order has been rejected by %s.', $identity->getUsername()), E_USER_NOTICE);
-        setPageMessage(toHtml(tr('Domain alias order successfully rejected.')), 'success');
+        writeLog(sprintf('A domain alias order has been rejected by %s.', getProcessorUsername($identity)), E_USER_NOTICE);
+        View::setPageMessage(toHtml(tr('Domain alias order successfully rejected.')), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to reject a domain alias order: %s', $e->getMessage()), E_USER_ERROR);
-        setPageMessage(toHtml(tr("Couldn't reject the domain alias order. An unexpected error occurred.")), 'error');
+        View::setPageMessage(toHtml(tr("Couldn't reject the domain alias order. An unexpected error occurred.")), 'error');
     }
 }
 
@@ -80,7 +80,7 @@ function approveDomainAliasOrder()
     $domainAliasId = intval($_GET['id']);
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    
+
     $stmt = execQuery(
         "
             SELECT t1.*, t2.domain_client_ips, t3.email
@@ -141,12 +141,12 @@ function approveDomainAliasOrder()
         ]);
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
-        writeLog(sprintf('A domain alias order has been approved by %s.', $identity->getUsername()), E_USER_NOTICE);
-        setPageMessage(toHtml(tr('Order successfully approved.')), 'success');
+        writeLog(sprintf('A domain alias order has been approved by %s.', getProcessorUsername($identity)), E_USER_NOTICE);
+        View::setPageMessage(toHtml(tr('Order successfully approved.')), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to approve a domain alias order: %s', $e->getMessage()), E_USER_ERROR);
-        setPageMessage(toHtml(tr("Couldn't approve the domain alias order. An unexpected error occurred.")), 'error');
+        View::setPageMessage(toHtml(tr("Couldn't approve the domain alias order. An unexpected error occurred.")), 'error');
     }
 }
 
@@ -269,11 +269,11 @@ function generatePage()
     return $output;
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-resellerHasFeature('domain_aliases') && Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
+Counting::resellerHasFeature('domain_aliases') && Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
 
 if (isset($_GET['action'])) {
     if ($_GET['action'] == 'reject') {
@@ -310,7 +310,7 @@ if (!isXhr()) {
         $translation['core']['reject_domain_alias_order'] = tr('Are you sure you want to reject the order for the %s domain alias?', '%s');
     });
     View::generateNavigation($tpl);
-    generatePageMessage($tpl);
+    View::generatePageMessages($tpl);
     $tpl->parse('LAYOUT_CONTENT', 'page');
     Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
     $tpl->prnt();

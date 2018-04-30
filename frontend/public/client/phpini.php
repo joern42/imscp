@@ -20,7 +20,8 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
 
 /**
@@ -71,7 +72,7 @@ function isDomainStatusOk($domainId, $domainType)
 function getDomainData($configLevel)
 {
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    
+
     $params = [];
 
     // Per user means only primary domain
@@ -126,7 +127,7 @@ function getDomainData($configLevel)
 function updatePhpConfig($phpini)
 {
     global $phpini;
-    
+
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
     if (isset($_POST['domain_id']) && isset($_POST['domain_type'])) {
@@ -144,7 +145,7 @@ function updatePhpConfig($phpini)
     }
 
     if (!isDomainStatusOk($domainId, $domainType)) {
-        setPageMessage(tr('Domain status is not ok.'), 'error');
+        View::setPageMessage(tr('Domain status is not ok.'), 'error');
         return;
     }
 
@@ -193,7 +194,7 @@ function updatePhpConfig($phpini)
     $phpini->saveIniOptions($identity->getUserId(), $domainId, $domainType);
     $phpini->updateDomainStatuses($identity->getUserId(), $domainId, $domainType, true);
 
-    setPageMessage(tr('PHP configuration successfuly updated.'), 'success');
+    View::setPageMessage(tr('PHP configuration successfuly updated.'), 'success');
     redirectTo('domains_manage.php');
 }
 
@@ -272,8 +273,8 @@ function generatePage($tpl, $phpini)
     }
 
     $config = Application::getInstance()->getConfig();
-    $apacheConfig = loadConfigFile($config['CONF_DIR'] . '/apache/apache.data');
-    
+    $apacheConfig = loadServiceConfigFile($config['CONF_DIR'] . '/apache/apache.data');
+
     if (strpos($config{'iMSCP::Servers::Httpd'}, '::Apache2::') !== false) {
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
@@ -343,18 +344,20 @@ function generatePage($tpl, $phpini)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('php_editor') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('php_editor') or View::showBadRequestErrorPage();
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 $phpini = PHPini::getInstance();
 $phpini->loadResellerPermissions($identity->getUserCreatedBy());
 $phpini->loadClientPermissions($identity->getUserId());
 
-empty($_POST) or updatePhpConfig($phpini);
+if(Application::getInstance()->getRequest()->isPost()) {
+    updatePhpConfig($phpini);
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -380,7 +383,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl, $phpini);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

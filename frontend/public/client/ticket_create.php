@@ -20,24 +20,25 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
-use iMSCP\Functions\Support;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\HelpDesk;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('support') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('support') or View::showBadRequestErrorPage();
 
 if (isset($_POST['uaction'])) {
     if (empty($_POST['subject'])) {
-        setPageMessage(tr('Please specify a message subject.'), 'error');
+        View::setPageMessage(tr('Please specify a message subject.'), 'error');
     } elseif (empty($_POST['user_message'])) {
-        setPageMessage(tr('Please type your message.'), 'error');
+        View::setPageMessage(tr('Please type your message.'), 'error');
     } else {
         $identity = Application::getInstance()->getAuthService()->getIdentity();
-        Support::createTicket($identity->getUserId(), $identity->getUserCreatedBy(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 1);
+        HelpDesk::createTicket($identity->getUserId(), $identity->getUserCreatedBy(), $_POST['urgency'], $_POST['subject'], $_POST['user_message'], 1);
         redirectTo('ticket_system.php');
     }
 }
@@ -95,7 +96,7 @@ $tpl->assign([
 ]);
 $tpl->assign($userdata);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

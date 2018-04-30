@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
@@ -74,7 +74,7 @@ function _generateUserStatistics(TemplateEngine $tpl, $adminId)
 function generatePage(TemplateEngine $tpl)
 {
     $stmt = execQuery('SELECT admin_id FROM admin WHERE created_by = ?', [
-        Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
+            Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     );
     while ($row = $stmt->fetch()) {
         _generateUserStatistics($tpl, $row['admin_id']);
@@ -82,9 +82,9 @@ function generatePage(TemplateEngine $tpl)
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 Counting::resellerHasCustomers() or View::showBadRequestErrorPage();
 
@@ -118,7 +118,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

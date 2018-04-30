@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
 /**
@@ -98,7 +98,7 @@ function admin_deleteUser($userId)
         }
 
         $userTr = $userType == 'reseller' ? tr('Reseller') : tr('Admin');
-        setPageMessage(tr('%s account successfully deleted.', $userTr), 'success');
+        View::setPageMessage(tr('%s account successfully deleted.', $userTr), 'success');
         writeLog(Application::getInstance()->getAuthService()->getIdentity()->getUsername() . ": deletes user " . $userId, E_USER_NOTICE);
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -121,7 +121,7 @@ function admin_validateUserDeletion($userId)
     $row = $stmt->fetch();
 
     if ($row['created_by'] == 0) {
-        setPageMessage(tr('You cannot delete the default administrator.'), 'error');
+        View::setPageMessage(tr('You cannot delete the default administrator.'), 'error');
     }
 
     if (!in_array($row['admin_type'], ['admin', 'reseller'])) {
@@ -133,9 +133,9 @@ function admin_validateUserDeletion($userId)
 
     if ($row2['user_count'] > 0) {
         if ($row['admin_type'] == 'admin') {
-            setPageMessage(tr('Prior to removing this administrator, please move his resellers to another administrator.'), 'error');
+            View::setPageMessage(tr('Prior to removing this administrator, please move his resellers to another administrator.'), 'error');
         } else {
-            setPageMessage(tr('You cannot delete a reseller that has customer accounts.'), 'error');
+            View::setPageMessage(tr('You cannot delete a reseller that has customer accounts.'), 'error');
         }
 
         return false;
@@ -144,9 +144,9 @@ function admin_validateUserDeletion($userId)
     return true;
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 if (isset($_GET['id'])) { # admin/reseller deletion
@@ -158,10 +158,10 @@ if (isset($_GET['id'])) { # admin/reseller deletion
 
     try {
         deleteCustomer($userId) or View::showBadRequestErrorPage();
-        setPageMessage(tr('Customer account successfully scheduled for deletion.'), 'success');
+        View::setPageMessage(tr('Customer account successfully scheduled for deletion.'), 'success');
         writeLog(sprintf('%s scheduled deletion of the customer account with ID %d', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $userId), E_USER_NOTICE);
     } catch (\Exception $e) {
-        setPageMessage(tr('Unable to schedule deletion of the customer account.'), 'error');
+        View::setPageMessage(tr('Unable to schedule deletion of the customer account.'), 'error');
         writeLog(sprintf("System was unable to schedule deletion of customer account with ID %s: %s.", $userId, $e->getMessage()), E_USER_ERROR);
     }
 }

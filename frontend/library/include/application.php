@@ -21,13 +21,12 @@
 namespace iMSCP;
 
 // Application paths
-use iMSCP\Functions\Login;
 
 defined('FRONTEND_ROOT_DIR') || define('FRONTEND_ROOT_DIR', realpath(dirname(__DIR__) . '/../'));
 defined('LIBRARY_PATH') || define('LIBRARY_PATH', FRONTEND_ROOT_DIR . '/library');
 defined('CACHE_PATH') || define('CACHE_PATH', FRONTEND_ROOT_DIR . '/data/cache');
 defined('PERSISTENT_PATH') || define('PERSISTENT_PATH', FRONTEND_ROOT_DIR . '/data/persistent');
-defined('CONFIG_FILE_PATH') || define('CONFIG_FILE_PATH', getenv('IMSCP_CONF') ?: '/etc/imscp/imscp.conf');
+defined('IMSCP_CONF_DIR') || define('IMSCP_CONF_DIR', getenv('IMSCP_CONF') ?: '/etc/imscp');
 
 // Application environment
 defined('APPLICATION_ENV') || define('APPLICATION_ENV', getenv('APPLICATION_ENVSSS') ?: 'development');
@@ -35,18 +34,9 @@ defined('APPLICATION_ENV') || define('APPLICATION_ENV', getenv('APPLICATION_ENVS
 // Include Composer autoloader
 $autoloader = include FRONTEND_ROOT_DIR . '/vendor/autoload.php';
 
+
 // Bootstrap application
 Application::getInstance()
     ->setAutoloader($autoloader)
     ->setEnvironment(APPLICATION_ENV)
     ->bootstrap();
-
-$authService = Application::getInstance()->getAuthService();
-
-// Mimic POST request
-$_POST['uname'] = 'admin';
-$_POST['upass'] = 'skittles';
-
-Login::initLogin(); // Attach default Credential authentication handler
-$authResult = $authService->authenticate();
-$authResult->isValid() or die('Authentication failure');

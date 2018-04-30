@@ -19,7 +19,6 @@
  */
 
 namespace iMSCP\Filter\Compress;
-use iMSCP\Exception;
 
 /**
  * Class Gzip
@@ -70,49 +69,49 @@ class Gzip
      *
      * @var int
      */
-    protected $_minCompressionLevel = 0;
+    protected $minCompressionLevel = 0;
 
     /**
      * Maximum compression level
      *
      * @var int
      */
-    protected $_maxCompressionLevel = 9;
+    protected $maxCompressionLevel = 9;
 
     /**
      * Compression level
      *
      * @var int
      */
-    protected $_compressionLevel = 1;
+    protected $compressionLevel = 1;
 
     /**
      * Accepted browser content-coding
      *
      * @var string
      */
-    protected $_browserAcceptedEncoding = '';
+    protected $browserAcceptedEncoding = '';
 
     /**
      * Data to be compressed
      *
      * @var string
      */
-    protected $_data = '';
+    protected $data = '';
 
     /**
      * Data size
      *
      * @var int
      */
-    protected $_dataSize = 0;
+    protected $dataSize = 0;
 
     /**
      * Gzip (encoded) Data size
      *
      * @var int
      */
-    protected $_gzipDataSize = 0;
+    protected $gzipDataSize = 0;
 
     /**
      * Tells if the filter should act as callback function for the PHP ob_start
@@ -125,7 +124,6 @@ class Gzip
     /**
      * Constructor
      *
-     * @throws Exception
      * @param int $mode Tells if the filter should act as callback function for the PHP ob_start function or as function for create a standard gz
      *                  file. The filter mode must be one of the Gzip::FILTER_* constants.
      * @param int $compressionLevel Compression level
@@ -136,19 +134,19 @@ class Gzip
             if ($mode === self::FILTER_BUFFER || $mode === self::FILTER_FILE) {
                 $this->_mode = $mode;
             } else {
-                throw new Exception('Unknown filter mode!');
+                throw new \InvalidArgumentException('Unknown filter mode!');
             }
         } else {
-            throw new Exception('Zlib Compression library is not loaded.');
+            throw new \RuntimeException('Zlib Compression library is not loaded.');
         }
 
         if (in_array(
             $compressionLevel,
-            range($this->_minCompressionLevel, $this->_maxCompressionLevel))
+            range($this->minCompressionLevel, $this->maxCompressionLevel))
         ) {
-            $this->_compressionLevel = $compressionLevel;
+            $this->compressionLevel = $compressionLevel;
         } else {
-            throw new Exception('Wrong value for compression level.');
+            throw new \InvalidArgumentException('Wrong value for compression level.');
         }
     }
 
@@ -169,7 +167,7 @@ class Gzip
      */
     public function filter($data, $filePath = '')
     {
-        $this->_data = $data;
+        $this->data = $data;
 
         // Act as filter for the PHP ob_start function
         if ($this->_mode === self::FILTER_BUFFER) {
@@ -182,11 +180,11 @@ class Gzip
                     $statTime = microtime(true);
                     $gzipData = $this->_getEncodedData();
                     $time = round((microtime(true) - $statTime) * 1000, 2);
-                    $this->_gzipDataSize = strlen($gzipData);
+                    $this->gzipDataSize = strlen($gzipData);
                     $gzipData = $this->_addCompressionInformation($time);
                 } else {
                     $gzipData = $this->_getEncodedData();
-                    $this->_gzipDataSize = strlen($gzipData);
+                    $this->gzipDataSize = strlen($gzipData);
                 }
 
                 // Send required headers
@@ -217,9 +215,9 @@ class Gzip
     {
         if (isset($_SERVER['HTTP_ACCEPT_ENCODING'])) {
             if (strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'x-gzip') !== false) {
-                $this->_browserAcceptedEncoding = 'x-gzip';
+                $this->browserAcceptedEncoding = 'x-gzip';
             } elseif (strpos($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') !== false) {
-                $this->_browserAcceptedEncoding = 'gzip';
+                $this->browserAcceptedEncoding = 'gzip';
             } else {
                 return false;
             }
@@ -238,7 +236,7 @@ class Gzip
     protected function _getEncodedData()
     {
 
-        return gzencode($this->_data, $this->_compressionLevel);
+        return gzencode($this->data, $this->compressionLevel);
     }
 
     /**
@@ -251,24 +249,24 @@ class Gzip
      */
     protected function _addCompressionInformation($time)
     {
-        $dataSize = round(strlen($this->_data) / 1024, 2);
-        $gzipDataSize = round($this->_gzipDataSize / 1024, 2);
+        $dataSize = round(strlen($this->data) / 1024, 2);
+        $gzipDataSize = round($this->gzipDataSize / 1024, 2);
         $savingkb = $dataSize - $gzipDataSize;
         $saving = ($dataSize > 0) ? round($savingkb / $dataSize * 100, 0) : 0;
 
         // Prepare compression Information
         $compressionInformation =
             "\n<!--\n" .
-            "\tCompression level: {$this->_compressionLevel}\n" .
+            "\tCompression level: {$this->compressionLevel}\n" .
             "\tOriginal size: $dataSize kb\n" .
             "\tNew size: $gzipDataSize kb\n" .
             "\tSaving: $savingkb kb ($saving %)\n" .
             "\tTime: $time ms\n" .
             "-->\n";
 
-        $this->_data .= $compressionInformation;
+        $this->data .= $compressionInformation;
         $gzipData = $this->_getEncodedData();
-        $this->_gzipDataSize = strlen($gzipData);
+        $this->gzipDataSize = strlen($gzipData);
 
         return $gzipData;
     }
@@ -282,14 +280,13 @@ class Gzip
      */
     protected function _sendHeaders()
     {
-        header("Content-Encoding: {$this->_browserAcceptedEncoding}");
-        header("Content-Length: {$this->_gzipDataSize}");
+        header("Content-Encoding: {$this->browserAcceptedEncoding}");
+        header("Content-Length: {$this->gzipDataSize}");
     }
 
     /**
      * Write gzip files
      *
-     * @throws Exception
      * @param string $gzipData Data in GZIP file format
      * @param string $filePath File path for Gzip file
      * @return void
@@ -303,7 +300,7 @@ class Gzip
             fwrite($fileHandle, $gzipData);
             fclose($fileHandle);
         } else {
-            throw new Exception("`$filePath` is not a valid directory or is not writable.");
+            throw new \InvalidArgumentException("`$filePath` is not a valid directory or is not writable.");
         }
     }
 }

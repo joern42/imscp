@@ -89,3 +89,8 @@ PHP_FPM_PROCESS_IDLE_TIMEOUT = 60s
 
 # The number of request each child process should execute before respawning.
 PHP_FPM_MAX_REQUESTS = 1000
+
+# PHP session max life time
+PHP_SESSION_GC_MAXLIFETIME = 1440
+PHP_SESSION_GC_DIVISOR = 100
+PHP_SESSION_GC_PROBABILITY = 5

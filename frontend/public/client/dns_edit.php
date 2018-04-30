@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -555,13 +556,13 @@ function client_saveDnsRecord($dnsRecordId)
 
     # Disallow out-of-zone record
     if ($dnsRecordName !== '' && !preg_match("/(?:.*?\\.)?$domainName\\.$/", $dnsRecordName)) {
-        setPageMessage(tr("Couldn't validate DNS resource record: %s", 'out-of-zone data'), 'error');
+        View::setPageMessage(tr("Couldn't validate DNS resource record: %s", 'out-of-zone data'), 'error');
         $error = true;
     } else {
         // Remove trailing dot for validation process (will be re-added after)
         $dnsRecordName = rtrim($dnsRecordName, '.');
         if (!client_validate_NAME($dnsRecordName, $nameValidationError)) {
-            setPageMessage(tr("Couldn't validate DNS resource record: %s", $nameValidationError), 'error');
+            View::setPageMessage(tr("Couldn't validate DNS resource record: %s", $nameValidationError), 'error');
             $error = true;
         }
     }
@@ -576,7 +577,7 @@ function client_saveDnsRecord($dnsRecordId)
 
             // Process validation
             if (!client_validate_A($dnsRecordData, $errorString)) {
-                setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
+                View::setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
                 $error = true;
             }
             break;
@@ -585,7 +586,7 @@ function client_saveDnsRecord($dnsRecordId)
 
             // Process validation
             if (!client_validate_AAAA($dnsRecordData, $errorString)) {
-                setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
+                View::setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
                 $error = true;
             }
             break;
@@ -604,7 +605,7 @@ function client_saveDnsRecord($dnsRecordId)
 
             // Process validation
             if (!client_validate_CNAME($dnsRecordData, $errorString)) {
-                setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
+                View::setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
                 $error = true;
             }
 
@@ -626,7 +627,7 @@ function client_saveDnsRecord($dnsRecordId)
 
             // Process validation
             if (!client_validate_MX($pref, $host, $errorString)) {
-                setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
+                View::setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
                 $error = true;
             }
 
@@ -648,10 +649,10 @@ function client_saveDnsRecord($dnsRecordId)
 
             // Process validation
             if (!client_validate_NS($host, $errorString)) {
-                setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
+                View::setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
                 $error = true;
             } elseif ($dnsRecordName == $domainName) {
-                setPageMessage(
+                View::setPageMessage(
                     tr("Couldn't validate DNS resource record: %s", tr('NS DNS resource records are only allowed for subzone delegation.')), 'error'
                 );
                 $error = true;
@@ -679,7 +680,7 @@ function client_saveDnsRecord($dnsRecordId)
 
             // Process validation
             if (!client_validate_SRV($srvName, $srvProto, $srvPrio, $srvWeight, $srvPort, $srvTarget, $errorString)) {
-                setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
+                View::setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
                 $error = true;
             }
 
@@ -692,7 +693,7 @@ function client_saveDnsRecord($dnsRecordId)
 
             // Process validation and formatting
             if (!client_validateAndFormat_TXT($dnsRecordData, $errorString)) {
-                setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
+                View::setPageMessage(tr("Couldn't validate DNS resource record: %s", $errorString), 'error');
                 $error = true;
             }
 
@@ -803,13 +804,13 @@ function client_saveDnsRecord($dnsRecordId)
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
         writeLog(
-            sprintf('DNS resource record has been scheduled for %s by %s', $dnsRecordId ? tr('update') : tr('addition'), Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+            sprintf('DNS resource record has been scheduled for %s by %s', $dnsRecordId ? tr('update') : tr('addition'), getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity())),
             E_USER_NOTICE
         );
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         if ($e->getCode() == 23000) { // Duplicate entries
-            setPageMessage(tr('DNS record already exist.'), 'error');
+            View::setPageMessage(tr('DNS record already exist.'), 'error');
             return false;
         }
 
@@ -891,20 +892,20 @@ function generatePage($tpl, $dnsRecordId)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('custom_dns_records') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('custom_dns_records') or View::showBadRequestErrorPage();
 
 $dnsRecordId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-if (!empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost()) {
     if (client_saveDnsRecord($dnsRecordId)) {
         if ($dnsRecordId > 0) {
-            setPageMessage(tr('DNS resource record scheduled for update.'), 'success');
+            View::setPageMessage(tr('DNS resource record scheduled for update.'), 'success');
         } else {
-            setPageMessage(tr('DNS resource record scheduled for addition.'), 'success');
+            View::setPageMessage(tr('DNS resource record scheduled for addition.'), 'success');
         }
 
         redirectTo('domains_manage.php');
@@ -948,7 +949,7 @@ $tpl->assign([
 $tpl->assign(($dnsRecordId > 0) ? 'FORM_ADD_MODE' : 'FORM_EDIT_MODE', '');
 View::generateNavigation($tpl);
 generatePage($tpl, $dnsRecordId);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

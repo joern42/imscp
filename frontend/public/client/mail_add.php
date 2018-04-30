@@ -20,10 +20,10 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -88,7 +88,7 @@ function addMailAccount()
     }
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    
+
     $mainDmnProps = getCustomerProperties($identity->getUserId());
     $password = $forwardList = '_no_';
     $mailType = $subId = '';
@@ -100,7 +100,7 @@ function addMailAccount()
     $username = mb_strtolower(cleanInput($_POST['username']));
 
     if ($_POST['username'] == '' || !ValidateEmail($username, true)) {
-        setPageMessage(tr('Invalid email username.'), 'error');
+        View::setPageMessage(tr('Invalid email username.'), 'error');
         return false;
     }
 
@@ -127,7 +127,7 @@ function addMailAccount()
         # parameters. See http://www.postfix.org/VIRTUAL_README.html#canonical
         # This necessarily means that Postfix canonical domains cannot have
         # virtual mailboxes, hence their prohibition.
-        setPageMessage(tr('You cannot create new mailboxes for that domain. Only forwarded mail accounts are allowed.'), 'warning');
+        View::setPageMessage(tr('You cannot create new mailboxes for that domain. Only forwarded mail accounts are allowed.'), 'warning');
         return false;
     }
 
@@ -139,17 +139,17 @@ function addMailAccount()
         $passwordRep = cleanInput($_POST['password_rep']);
 
         if ($password == '') {
-            setPageMessage(tr('Password is missing.'), 'error');
+            View::setPageMessage(tr('Password is missing.'), 'error');
             return false;
         }
 
         if ($passwordRep == '') {
-            setPageMessage(tr('You must confirm your password.'), 'error');
+            View::setPageMessage(tr('You must confirm your password.'), 'error');
             return false;
         }
 
         if ($password !== $passwordRep) {
-            setPageMessage(tr('Passwords do not match.'), 'error');
+            View::setPageMessage(tr('Passwords do not match.'), 'error');
             return false;
         }
 
@@ -164,7 +164,7 @@ function addMailAccount()
 
         if ($customerEmailQuotaLimitBytes > 0) {
             if ($mailQuotaLimitBytes < 1) {
-                setPageMessage(tr('Incorrect email quota.'), 'error');
+                View::setPageMessage(tr('Incorrect email quota.'), 'error');
                 return false;
             }
 
@@ -177,7 +177,7 @@ function addMailAccount()
             }
 
             if ($mailQuotaLimitBytes > $customerEmailQuotaLimitBytes - $customerMailboxesQuotaSumBytes) {
-                setPageMessage(tr('Email quota cannot be bigger than %s', bytesHuman($mailQuotaLimitBytes)), 'error');
+                View::setPageMessage(tr('Email quota cannot be bigger than %s', bytesHuman($mailQuotaLimitBytes)), 'error');
                 return false;
             }
         }
@@ -204,7 +204,7 @@ function addMailAccount()
         $forwardList = cleanInput($_POST['forward_list']);
 
         if ($forwardList == '') {
-            setPageMessage(tr('Forward list is empty.'), 'error');
+            View::setPageMessage(tr('Forward list is empty.'), 'error');
             return false;
         }
 
@@ -214,18 +214,18 @@ function addMailAccount()
             $forwardEmailAddr = encodeIdna(mb_strtolower($forwardEmailAddr));
 
             if (!ValidateEmail($forwardEmailAddr)) {
-                setPageMessage(tr('Bad email address in forward list field.'), 'error');
+                View::setPageMessage(tr('Bad email address in forward list field.'), 'error');
                 return false;
             }
 
             if ($forwardEmailAddr == $mailAddr) {
-                setPageMessage(tr('You cannot forward %s on itself.', $mailAddr), 'error');
+                View::setPageMessage(tr('You cannot forward %s on itself.', $mailAddr), 'error');
                 return false;
             }
         }
 
         if (empty($forwardList)) {
-            setPageMessage(tr('Forward list is empty.'), 'error');
+            View::setPageMessage(tr('Forward list is empty.'), 'error');
             return false;
         }
 
@@ -275,11 +275,11 @@ function addMailAccount()
             'mailAddress'  => $mailAddr
         ]);
         Daemon::sendRequest();
-        writeLog(sprintf('A mail account has been added by %s', $identity->getUsername()), E_USER_NOTICE);
-        setPageMessage(tr('Mail account successfully scheduled for addition.'), 'success');
+        writeLog(sprintf('A mail account has been added by %s', getProcessorUsername($identity)), E_USER_NOTICE);
+        View::setPageMessage(tr('Mail account successfully scheduled for addition.'), 'success');
     } catch (\Exception $e) {
         if ($e->getCode() == 23000) {
-            setPageMessage(tr('Mail account already exists.'), 'error');
+            View::setPageMessage(tr('Mail account already exists.'), 'error');
             return false;
         }
     }
@@ -315,8 +315,8 @@ function generatePage($tpl)
             $mailQuotaLimitMiB = $mailMaxQuotaLimitMib;
             $mailTypeForwardOnly = false;
         } else {
-            setPageMessage(tr('You cannot add normal mail accounts because you have already assigned all your mail quota. If you want to add a normal mail account, you must first lower the quota assigned to one of your other mail account.'), 'static_info');
-            setPageMessage(tr('For the time being, you can only add forwarded mail account.'), 'static_info');
+            View::setPageMessage(tr('You cannot add normal mail accounts because you have already assigned all your mail quota. If you want to add a normal mail account, you must first lower the quota assigned to one of your other mail account.'), 'static_info');
+            View::setPageMessage(tr('For the time being, you can only add forwarded mail account.'), 'static_info');
             # Only for sanity; Attempting to create account involving quota
             # will fail because quota is already full assigned (expected)
             $mailQuotaLimitBytes = 1048576; # 1 Mio
@@ -362,11 +362,11 @@ function generatePage($tpl)
     );
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('mail') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('mail') or View::showBadRequestErrorPage();
 
 $dmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 $emailAccountsLimit = $dmnProps['domain_mailacc_limit'];
@@ -374,12 +374,12 @@ $emailAccountsLimit = $dmnProps['domain_mailacc_limit'];
 if ($emailAccountsLimit != '0') {
     $nbEmailAccounts = Counting::getCustomerMailAccountsCount($dmnProps['domain_id']);
     if ($nbEmailAccounts >= $emailAccountsLimit) {
-        setPageMessage(tr('You have reached the maximum number of mail accounts allowed by your subscription.'), 'warning');
+        View::setPageMessage(tr('You have reached the maximum number of mail accounts allowed by your subscription.'), 'warning');
         redirectTo('mail_accounts.php');
     }
 }
 
-if (!empty($_POST) && addMailAccount()) {
+if (Application::getInstance()->getRequest()->isPost() && addMailAccount()) {
     redirectTo('mail_accounts.php');
 }
 
@@ -408,7 +408,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

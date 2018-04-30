@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
 /**
@@ -32,9 +32,9 @@ function check_external_events()
 {
     if (isset(Application::getInstance()->getSession()['edit'])) {
         if ('_yes_' == Application::getInstance()->getSession()['edit']) {
-            setPageMessage(tr('User data were successfully updated.'), 'success');
+            View::setPageMessage(tr('User data were successfully updated.'), 'success');
         } else {
-            setPageMessage(tr('User data were not updated.'), 'error');
+            View::setPageMessage(tr('User data were not updated.'), 'error');
         }
 
         unset(Application::getInstance()->getSession()['edit']);
@@ -42,9 +42,9 @@ function check_external_events()
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
 
 $tpl = new TemplateEngine();
@@ -73,7 +73,7 @@ $tpl->assign('TR_PAGE_TITLE', tr('Reseller / Customers / Overview'));
 View::generateNavigation($tpl);
 View::generateCustomersList($tpl);
 check_external_events();
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

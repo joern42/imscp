@@ -18,6 +18,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+namespace iMSCP;
+
+use iMSCP\Functions\Counting;
+
 return [
     'general'       => [
         'label' => tr('General'),
@@ -92,11 +96,11 @@ return [
                 'title_class'        => 'domains',
                 'privilege_callback' => [
                     [
-                        'name'  => 'resellerHasFeature',
+                        'name'  => [Counting::class, 'resellerHasFeature'],
                         'param' => 'domain_aliases'
                     ],
                     [
-                        'name' => 'resellerHasCustomers'
+                        'name' => [Counting::class, 'resellerHasCustomers']
                     ]
                 ]
             ],
@@ -115,7 +119,7 @@ return [
                 'uri'                => '/reseller/circular.php',
                 'title_class'        => 'email',
                 'privilege_callback' => [
-                    'name' => 'resellerHasCustomers'
+                    'name' => [Counting::class, 'resellerHasCustomers']
                 ]
             ]
         ]
@@ -151,7 +155,7 @@ return [
         'uri'                => '/reseller/user_statistics.php',
         'class'              => 'statistics',
         'privilege_callback' => [
-            'name' => 'resellerHasCustomers'
+            'name' => [Counting::class, 'resellerHasCustomers']
         ],
         'pages'              => [
             'user_statistics' => [
@@ -181,11 +185,11 @@ return [
         'class'              => 'support',
         'privilege_callback' => [
             [
-                'name'  => 'resellerHasFeature',
+                'name'  => [Counting::class, 'resellerHasFeature'],
                 'param' => 'support'
             ],
             [
-                'name' => 'resellerHasCustomers'
+                'name' => [Counting::class, 'resellerHasCustomers']
             ]
         ],
         'pages'              => [

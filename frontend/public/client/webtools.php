@@ -20,7 +20,8 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 
@@ -31,12 +32,12 @@ use iMSCP\Functions\View;
  */
 function client_hideDisabledFeatures($tpl)
 {
-    if (!customerHasFeature('backup')) {
+    if (!Counting::customerHasFeature('backup')) {
         $tpl->assign('BACKUP_FEATURE', '');
     }
 
     $webmails = Mail::getWebmailList();
-    if (!customerHasFeature('mail') || empty($webmails)) {
+    if (!Counting::customerHasFeature('mail') || empty($webmails)) {
         $tpl->assign('MAIL_FEATURE', '');
     } else {
         if (in_array('Roundcube', $webmails)) {
@@ -46,18 +47,18 @@ function client_hideDisabledFeatures($tpl)
         }
     }
 
-    if (!customerHasFeature('ftp') || Application::getInstance()->getConfig()['FILEMANAGERS'] == 'no') {
+    if (!Counting::customerHasFeature('ftp') || Application::getInstance()->getConfig()['FILEMANAGERS'] == 'no') {
         $tpl->assign('FTP_FEATURE', '');
     }
 
-    if (!customerHasFeature('webstats')) {
+    if (!Counting::customerHasFeature('webstats')) {
         $tpl->assign('WEBSTATS_FEATURE', '');
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
 $tpl = new TemplateEngine();
@@ -95,7 +96,7 @@ $tpl->assign(
 );
 View::generateNavigation($tpl);
 client_hideDisabledFeatures($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -282,7 +283,7 @@ function client_addSslCert($domainId, $domainType)
     $domainName !== false or View::showBadRequestErrorPage();
 
     if ($selfSigned && !client_generateSelfSignedCert($domainName)) {
-        setPageMessage(tr('Could not generate SSL certificate. An unexpected error occurred.'), 'error');
+        View::setPageMessage(tr('Could not generate SSL certificate. An unexpected error occurred.'), 'error');
         return;
     }
 
@@ -301,7 +302,7 @@ function client_addSslCert($domainId, $domainType)
     if (!$selfSigned) { // Validate SSL certificate (private key, SSL certificate and certificate chain)
         $privateKey = @openssl_pkey_get_private($privateKey, $passPhrase);
         if (!is_resource($privateKey)) {
-            setPageMessage(tr('Invalid private key or passphrase.'), 'error');
+            View::setPageMessage(tr('Invalid private key or passphrase.'), 'error');
             return;
         }
 
@@ -309,19 +310,19 @@ function client_addSslCert($domainId, $domainType)
         $certificate = @openssl_x509_read($certificate);
 
         if (!is_resource($certificate)) {
-            setPageMessage(tr('Invalid SSL certificate.'), 'error');
+            View::setPageMessage(tr('Invalid SSL certificate.'), 'error');
             return;
         }
 
         if (@openssl_x509_check_private_key($certificate, $privateKey) !== true) {
-            setPageMessage(tr("The private key doesn't belong to the provided SSL certificate."), 'error');
+            View::setPageMessage(tr("The private key doesn't belong to the provided SSL certificate."), 'error');
             return;
         }
 
         $tmpfname = @tempnam(sys_get_temp_dir(), Application::getInstance()->getAuthService()->getIdentity()->getUserId() . 'ssl-ca');
         if ($tmpfname === false) {
             writeLog("Couldn't create temporary file for CA bundle.", E_USER_ERROR);
-            setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+            View::setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
             return;
         }
 
@@ -332,24 +333,24 @@ function client_addSslCert($domainId, $domainType)
         if ($caBundle !== '') {
             if (@file_put_contents($tmpfname, $caBundle) === false) {
                 writeLog("Couldn't write CA bundle in temporary file.", E_USER_ERROR);
-                setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+                View::setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
                 return;
             }
 
             if (@openssl_x509_checkpurpose($certificate, X509_PURPOSE_SSL_SERVER, [$config['DISTRO_CA_BUNDLE']], $tmpfname) !== true) {
-                setPageMessage(tr('At least one intermediate certificate is invalid or missing.'), 'error');
+                View::setPageMessage(tr('At least one intermediate certificate is invalid or missing.'), 'error');
                 return;
             }
         } else {
             if (@file_put_contents($tmpfname, $certificateStr) === false) {
                 writeLog("Couldn't write SSL certificate in temporary file.", E_USER_ERROR);
-                setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+                View::setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
                 return;
             }
 
             // Note: Here we also add the certificate in the trusted chain to support self-signed certificates
             if (@openssl_x509_checkpurpose($certificate, X509_PURPOSE_SSL_SERVER, [$config['DISTRO_CA_BUNDLE'], $tmpfname]) !== true) {
-                setPageMessage(tr('At least one intermediate certificate is invalid or missing.'), 'error');
+                View::setPageMessage(tr('At least one intermediate certificate is invalid or missing.'), 'error');
                 return;
             }
         }
@@ -359,14 +360,14 @@ function client_addSslCert($domainId, $domainType)
     if (!$selfSigned) {
         if (@openssl_pkey_export($privateKey, $privateKeyStr) === false) {
             writeLog("Couldn't export private key.", E_USER_ERROR);
-            setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+            View::setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
             return;
         }
 
         @openssl_pkey_free($privateKey);
         if (@openssl_x509_export($certificate, $certificateStr) === false) {
             writeLog("Couldn't export SSL certificate.", E_USER_ERROR);
-            setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
+            View::setPageMessage(tr('Could not add/update SSL certificate. An unexpected error occurred.'), 'error');
             return;
         }
 
@@ -414,18 +415,18 @@ function client_addSslCert($domainId, $domainType)
         Daemon::sendRequest();
 
         if ($certId == 0) {
-            setPageMessage(tr('SSL certificate successfully scheduled for addition.'), 'success');
-            writeLog(sprintf('%s added a new SSL certificate for the %s domain', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), decodeIdna($domainName)), E_USER_NOTICE);
+            View::setPageMessage(tr('SSL certificate successfully scheduled for addition.'), 'success');
+            writeLog(sprintf('%s added a new SSL certificate for the %s domain', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity()), decodeIdna($domainName)), E_USER_NOTICE);
         } else {
-            setPageMessage(tr('SSL certificate successfully scheduled for update.'), 'success');
-            writeLog(sprintf('%s updated an SSL certificate for the %s domain', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $domainName), E_USER_NOTICE);
+            View::setPageMessage(tr('SSL certificate successfully scheduled for update.'), 'success');
+            writeLog(sprintf('%s updated an SSL certificate for the %s domain', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity()), $domainName), E_USER_NOTICE);
         }
 
         redirectTo("cert_view.php?id=$domainId&type=$domainType");
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog("Couldn't add/update SSL certificate in database", E_USER_ERROR);
-        setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
+        View::setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     }
 }
 
@@ -455,13 +456,13 @@ function client_deleteSslCert($domainId, $domainType)
         $db->getDriver()->getConnection()->commit();
 
         Daemon::sendRequest();
-        setPageMessage(tr('SSL certificate successfully scheduled for deletion.'), 'success');
-        writeLog(sprintf('%s deleted SSL certificate for the %s domain.', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), decodeIdna($domainName)), E_USER_NOTICE);
+        View::setPageMessage(tr('SSL certificate successfully scheduled for deletion.'), 'success');
+        writeLog(sprintf('%s deleted SSL certificate for the %s domain.', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity()), decodeIdna($domainName)), E_USER_NOTICE);
         redirectTo('domains_manage.php');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf("Couldn't export SSL certificate: %s", $e->getMessage()), E_USER_ERROR);
-        setPageMessage(tr('Could not delete SSL certificate. An unexpected error occurred.'), 'error');
+        View::setPageMessage(tr('Could not delete SSL certificate. An unexpected error occurred.'), 'error');
     }
 }
 
@@ -481,7 +482,7 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
 
     if ($stmt->rowCount()) {
         $row = $stmt->fetch();
-        $dynTitle = (customerHasFeature('ssl') && $row['status'] == 'ok') ? tr('Edit SSL certificate') : tr('Show SSL certificate');
+        $dynTitle = Counting::customerHasFeature('ssl') && $row['status'] == 'ok' ? tr('Edit SSL certificate') : tr('Show SSL certificate');
         $certId = $row['cert_id'];
         $privateKey = toHtml($row['private_key']);
         $certificate = toHtml($row['certificate']);
@@ -494,7 +495,7 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
         $tpl->assign('STATUS', in_array($status, ['toadd', 'tochange', 'todelete', 'ok'])
             ? humanizeDomainStatus($status) : '<span style="color: red;font-weight: bold">' . $status . "</span>"
         );
-    } elseif (customerHasFeature('ssl')) {
+    } elseif (Counting::customerHasFeature('ssl')) {
         $dynTitle = tr('Add SSL certificate');
         $trAction = tr('Add');
         $certId = '0';
@@ -509,12 +510,12 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
             'SSL_CERTIFICATE_ACTION_DELETE' => ''
         ]);
     } else {
-        setPageMessage('SSL feature is currently disabled.', 'static_warning');
+        View::setPageMessage('SSL feature is currently disabled.', 'static_warning');
         redirectTo('domains_manage.php');
         return;
     }
 
-    if (customerHasFeature('ssl') && isset($_POST['cert_id']) && isset($_POST['private_key']) && isset($_POST['certificate'])
+    if (Counting::customerHasFeature('ssl') && isset($_POST['cert_id']) && isset($_POST['private_key']) && isset($_POST['certificate'])
         && isset($_POST['ca_bundle'])
     ) {
         $certId = $_POST['cert_id'];
@@ -544,17 +545,17 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
         'TR_NO'                      => tr('No')
     ]);
 
-    if (!customerHasFeature('ssl') || (isset($status) && in_array($status, ['toadd', 'tochange', 'todelete']))) {
+    if (!Counting::customerHasFeature('ssl') || (isset($status) && in_array($status, ['toadd', 'tochange', 'todelete']))) {
         $tpl->assign('SSL_CERTIFICATE_ACTIONS', '');
-        if (!customerHasFeature('ssl')) {
-            setPageMessage(tr('SSL feature is not available. You can only view your certificate.'), 'static_warning');
+        if (!Counting::customerHasFeature('ssl')) {
+            View::setPageMessage(tr('SSL feature is not available. You can only view your certificate.'), 'static_warning');
         }
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 isset($_GET['id']) && isset($_GET['type']) && in_array($_GET['type'], ['dmn', 'als', 'sub', 'alssub']) or View::showBadRequestErrorPage();
 
@@ -570,7 +571,7 @@ $tpl->define([
 $domainId = intval($_GET['id']);
 $domainType = cleanInput($_GET['type']);
 
-if (customerHasFeature('ssl') && !empty($_POST)) {
+if (Application::getInstance()->getRequest()->isPost() && Counting::customerHasFeature('ssl')) {
     if (isset($_POST['add_update'])) {
         client_addSslCert($domainId, $domainType);
     } elseif (isset($_POST['delete'])) {
@@ -602,7 +603,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 client_generatePage($tpl, $domainId, $domainType);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

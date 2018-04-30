@@ -21,6 +21,7 @@
 namespace iMSCP\Session\SaveHandler;
 
 use iMSCP\Application;
+use iMSCP\Model\SuIdentityInterface;
 use iMSCP\Model\UserIdentityInterface;
 use Zend\Session\SaveHandler\SaveHandlerInterface;
 
@@ -38,37 +39,48 @@ class SessionHandler extends \SessionHandler implements SaveHandlerInterface
     /**
      * @inheritdoc
      */
-    public function write($session_id, $session_data)
+    public function write($sessionId, $sessionData)
     {
         $identity = Application::getInstance()->getAuthService()->getIdentity();
 
         try {
             if ($identity instanceof UserIdentityInterface) {
-                Application::getInstance()->getDb()->createStatement(
-                    'REPLACE INTO login (session_id, ipaddr, lastaccess, user_name) VALUES (?, ?, ?, ?)')->execute(
-                    [$session_id, getIpAddr(), time(), $identity->getUsername()]
-                );
+                if ($identity instanceof SuIdentityInterface) {
+                    // In case of a SU identity, we do not want change 'user_name' field
+                    Application::getInstance()->getDb()->createStatement(
+                        'UPDATE login SET lastaccess = UNIX_TIMESTAMP() WHERE session_id = ?'
+                    )->execute([$sessionId]);
+                } else {
+                    // Covers both new sessions and sessions' last access time
+                    Application::getInstance()->getDb()->createStatement(
+                        '
+                            INSERT INTO login (session_id, ipaddr, lastaccess, user_name) VALUES (?, ?, UNIX_TIMESTAMP(), ?)
+                            ON DUPLICATE KEY UPDATE lastaccess = UNIX_TIMESTAMP()
+                        '
+                    )->execute([$sessionId, getIpAddr(), $identity->getUsername()]);
+                }
             }
 
         } catch (\Throwable $e) {
-            writeLog(sprintf("Couldn't write session identifier of logged-in user %s in database: %s", $identity->getUsername(), $e->getMessage()));
+            writeLog(sprintf("Couldn't write '%s' user session identifier in database: %s", $identity->getUsername(), $e->getMessage()));
+            return false;
         }
 
-        return parent::write($session_id, $session_data);
+        return parent::write($sessionId, $sessionData);
     }
 
     /**
      * @inheritdoc
      */
-    public function destroy($session_id)
+    public function destroy($sessionId)
     {
         try {
-            Application::getInstance()->getDb()->createStatement('DELETE FROM login WHERE session_id = ?')->execute([$session_id]);
+            Application::getInstance()->getDb()->createStatement('DELETE FROM login WHERE session_id = ?')->execute([$sessionId]);
         } catch (\Throwable $e) {
-            writeLog(sprintf("Couldn't remove '%s' session data from database: %s", $session_id, $e->getMessage()));
+            writeLog(sprintf("Couldn't remove '%s' session data from database: %s", $sessionId, $e->getMessage()));
         }
 
-        return parent::destroy($session_id);
+        return parent::destroy($sessionId);
     }
 
     /**
@@ -79,8 +91,8 @@ class SessionHandler extends \SessionHandler implements SaveHandlerInterface
         try {
             // We need ignore rows for which 'user_name' field is empty as this denote
             // data stored by 3rd-party components such as the Bruteforce plugin.
-            Application::getInstance()->getDb()->createStatement('DELETE FROM login WHERE lastaccess < ? AND user_name IS NOT NULL')->execute(
-                [$maxlifetime]
+            Application::getInstance()->getDb()->createStatement(
+                'DELETE FROM login WHERE lastaccess < (UNIX_TIMESTAMP() - ?)  AND user_name IS NOT NULL')->execute([$maxlifetime]
             );
         } catch (\Throwable $e) {
             writeLog(sprintf("Couldn't cleanup old session data in database: %s", $e->getMessage()));

@@ -20,9 +20,10 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\Config;
 
@@ -63,9 +64,7 @@ function deleteMailAccount($mailId, $domainId, $config, &$postfixConfig, &$nbDel
     if (strpos($row['mail_type'], '_mail') !== false) {
         # Remove cached quota info if any
         list($user, $domain) = explode('@', $row['mail_addr']);
-        unset(Application::getInstance()->getSession()['maildirsize'][
-            normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")
-        ]);
+        unset(Application::getInstance()->getSession()['maildirsize'][normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")]);
     }
 
     # Update or delete forward and/or catch-all accounts that list mail_addr of
@@ -113,11 +112,11 @@ function deleteMailAccount($mailId, $domainId, $config, &$postfixConfig, &$nbDel
     $nbDeletedMails++;
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
 
 $identity = Application::getInstance()->getAuthService()->getIdentity();
 $domainId = getCustomerMainDomainId($identity->getUserId());
@@ -125,7 +124,7 @@ $nbDeletedMails = 0;
 $mailIds = (array)$_REQUEST['id'];
 
 if (empty($mailIds)) {
-    setPageMessage(tr('You must select at least one mail account to delete.'), 'error');
+    View::setPageMessage(tr('You must select at least one mail account to delete.'), 'error');
     redirectTo('mail_accounts.php');
 }
 
@@ -134,7 +133,7 @@ $db = Application::getInstance()->getDb();
 try {
     $db->getDriver()->getConnection()->beginTransaction();
     $config = Application::getInstance()->getConfig();
-    $postfixConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
+    $postfixConfig = loadServiceConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/postfix/postfix.data');
 
     foreach ($mailIds as $mailId) {
         deleteMailAccount(intval($mailId), $domainId, $config, $postfixConfig, $nbDeletedMails);
@@ -144,10 +143,10 @@ try {
     Daemon::sendRequest();
 
     if ($nbDeletedMails) {
-        writeLog(sprintf('%d mail account(s) were deleted by %s', $nbDeletedMails, $identity->getUsername()), E_USER_NOTICE);
-        setPageMessage(ntr('Mail account has been scheduled for deletion.', '%d mail accounts were scheduled for deletion.', $nbDeletedMails, $nbDeletedMails), 'success');
+        writeLog(sprintf('%d mail account(s) were deleted by %s', $nbDeletedMails, getProcessorUsername($identity)), E_USER_NOTICE);
+        View::setPageMessage(ntr('Mail account has been scheduled for deletion.', '%d mail accounts were scheduled for deletion.', $nbDeletedMails, $nbDeletedMails), 'success');
     } else {
-        setPageMessage(tr('No mail account has been deleted.'), 'warning');
+        View::setPageMessage(tr('No mail account has been deleted.'), 'warning');
     }
 } catch (\Exception $e) {
     $db->getDriver()->getConnection()->rollBack();
@@ -156,11 +155,11 @@ try {
     writeLog(sprintf('An unexpected error occurred while attempting to delete a mail account: %s', $errorMessage), E_USER_ERROR);
 
     if ($code == 403) {
-        setPageMessage(tr('Operation cancelled: %s', $errorMessage), 'warning');
+        View::setPageMessage(tr('Operation cancelled: %s', $errorMessage), 'warning');
     } elseif ($e->getCode() == 400) {
         View::showBadRequestErrorPage();
     } else {
-        setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
+        View::setPageMessage(tr('An unexpected error occurred. Please contact your reseller.'), 'error');
     }
 }
 

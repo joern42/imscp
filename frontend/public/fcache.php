@@ -27,16 +27,15 @@ strtolower($_SERVER['REQUEST_METHOD']) == 'get' or View::showBadRequestErrorPage
 $cacheIds = explode(';', isset($_GET['ids']) ? cleanInput((string)$_GET['ids']) : []);
 !empty($cacheIds) or View::showBadRequestErrorPage();
 
-$cache = Application::getInstance()->getCache();
 foreach ($cacheIds as $cacheId) {
     if ($cacheId === 'opcache') {
         OpcodeCache::clearAllActive();
         writeLog('OPcache has been flushed.', E_USER_NOTICE);
     } elseif ($cacheId === 'userland') {
-        $cache->flush() or View::showInternalServerError();
+        Application::getInstance()->getCache()->flush() or View::showInternalServerError();
         writeLog('APCu userland cache has been flushed.', E_USER_NOTICE);
-    } elseif ($cache->hasItem($cacheId)) {
-        $cache->removeItem($cacheId) or View::showInternalServerError();
+    } elseif (Application::getInstance()->getCache()->hasItem($cacheId)) {
+        Application::getInstance()->getCache()->removeItem($cacheId) or View::showInternalServerError();
         writeLog(sprintf('APCu userland cache with ID `%s` has been flushed.', $cacheId), E_USER_NOTICE);
     }
 }

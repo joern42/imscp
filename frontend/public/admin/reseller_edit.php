@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
@@ -63,7 +63,7 @@ function getFormData($resellerId, $forUpdate = false)
     // Retrieve list of all server IP addresses
     $stmt = execQuery('SELECT ip_id, ip_number FROM server_ips ORDER BY ip_number');
     if (!$stmt->rowCount()) {
-        setPageMessage(tr('Unable to get the IP address list. Please fix this problem.'), 'error');
+        View::setPageMessage(tr('Unable to get the IP address list. Please fix this problem.'), 'error');
         redirectTo('users.php');
     }
     $data['server_ips'] = $stmt->fetchAll();
@@ -314,7 +314,7 @@ function generateFeaturesForm(TemplateEngine $tpl)
     });
 
     if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
-        $apacheConfig = loadConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
+        $apacheConfig = loadServiceConfigFile(Application::getInstance()->getConfig()['CONF_DIR'] . '/apache/apache.data');
         $isApacheItk = $apacheConfig['HTTPD_MPM'] == 'itk';
     } else {
         $isApacheItk = false;
@@ -382,7 +382,7 @@ function updateResellerUser(Form $form)
             foreach ($form->getMessages() as $fieldname => $msgsStack) {
                 $errFieldsStack[] = $fieldname;
                 foreach ($msgsStack as $msg) {
-                    setPageMessage(toHtml($msg), 'error');
+                    View::setPageMessage(toHtml($msg), 'error');
                 }
             }
         }
@@ -402,7 +402,7 @@ function updateResellerUser(Form $form)
 
         $resellerIps = array_unique(array_merge($resellerIps, $data['used_ips']));
         if (empty($resellerIps)) {
-            setPageMessage(tr('You must assign at least one IP to this reseller.'), 'error');
+            View::setPageMessage(tr('You must assign at least one IP to this reseller.'), 'error');
             $error = true;
         } else {
             sort($resellerIps, SORT_NUMERIC);
@@ -412,7 +412,7 @@ function updateResellerUser(Form $form)
         if (validateLimit($data['max_dmn_cnt'], NULL)) {
             $rs = checkResellerLimit($data['max_dmn_cnt'], $data['current_dmn_cnt'], $data['nbDomains'], false, tr('domains'));
         } else {
-            setPageMessage(tr('Incorrect limit for %s.', tr('domain')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('domain')), 'error');
             $rs = false;
         }
 
@@ -426,7 +426,7 @@ function updateResellerUser(Form $form)
                 $data['max_sub_cnt'], $data['current_sub_cnt'], $data['nbSubdomains'], $unlimitedItems['subdomains'], tr('subdomains')
             );
         } else {
-            setPageMessage(tr('Incorrect limit for %s.', tr('subdomains')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('subdomains')), 'error');
             $rs = false;
         }
 
@@ -440,7 +440,7 @@ function updateResellerUser(Form $form)
                 $data['max_als_cnt'], $data['current_als_cnt'], $data['nbDomainAliases'], $unlimitedItems['domainAliases'], tr('domain aliases')
             );
         } else {
-            setPageMessage(tr('Incorrect limit for %s.', tr('domain aliases')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('domain aliases')), 'error');
             $rs = false;
         }
 
@@ -454,7 +454,7 @@ function updateResellerUser(Form $form)
                 $data['max_mail_cnt'], $data['current_mail_cnt'], $data['nbMailAccounts'], $unlimitedItems['mailAccounts'], tr('mail')
             );
         } else {
-            setPageMessage(tr('Incorrect limit for %s.', tr('mail accounts')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('mail accounts')), 'error');
             $rs = false;
         }
 
@@ -468,7 +468,7 @@ function updateResellerUser(Form $form)
                 $data['max_ftp_cnt'], $data['current_ftp_cnt'], $data['nbFtpAccounts'], $unlimitedItems['ftpAccounts'], tr('Ftp')
             );
         } else {
-            setPageMessage(tr('Incorrect limit for %s.', tr('Ftp accounts')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('Ftp accounts')), 'error');
             $rs = false;
         }
 
@@ -478,9 +478,9 @@ function updateResellerUser(Form $form)
 
         // Check for max SQL databases limit
         if (!$rs = validateLimit($data['max_sql_db_cnt'])) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('SQL databases')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('SQL databases')), 'error');
         } elseif ($data['max_sql_db_cnt'] == -1 && $data['max_sql_user_cnt'] != -1) {
-            setPageMessage(tr('SQL database limit is disabled but SQL user limit is not.'), 'error');
+            View::setPageMessage(tr('SQL database limit is disabled but SQL user limit is not.'), 'error');
             $rs = false;
         } else {
             $rs = checkResellerLimit(
@@ -494,9 +494,9 @@ function updateResellerUser(Form $form)
 
         // Check for max SQL users limit
         if (!$rs = validateLimit($data['max_sql_user_cnt'])) {
-            setPageMessage(tr('Incorrect limit for %s.', tr('SQL users')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('SQL users')), 'error');
         } elseif ($data['max_sql_db_cnt'] != -1 && $data['max_sql_user_cnt'] == -1) {
-            setPageMessage(tr('SQL user limit is disabled but SQL database limit is not.'), 'error');
+            View::setPageMessage(tr('SQL user limit is disabled but SQL database limit is not.'), 'error');
             $rs = false;
         } else {
             $rs = checkResellerLimit(
@@ -514,7 +514,7 @@ function updateResellerUser(Form $form)
                 $data['max_traff_amnt'], $data['current_traff_amnt'], $data['totalTraffic'] / 1048576, $unlimitedItems['traffic'], tr('traffic')
             );
         } else {
-            setPageMessage(tr('Incorrect limit for %s.', tr('traffic')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('traffic')), 'error');
             $rs = false;
         }
 
@@ -528,7 +528,7 @@ function updateResellerUser(Form $form)
                 $data['max_disk_amnt'], $data['current_disk_amnt'], $data['totalDiskspace'] / 1048576, $unlimitedItems['diskspace'], tr('disk space')
             );
         } else {
-            setPageMessage(tr('Incorrect limit for %s.', tr('disk space')), 'error');
+            View::setPageMessage(tr('Incorrect limit for %s.', tr('disk space')), 'error');
             $rs = false;
         }
 
@@ -632,7 +632,7 @@ function updateResellerUser(Form $form)
                 'The %s reseller has been updated by %s', $form->getValue('admin_name'), Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
                 E_USER_NOTICE
             );
-            setPageMessage('Reseller has been updated.', 'success');
+            View::setPageMessage('Reseller has been updated.', 'success');
             redirectTo('users.php');
         } elseif (!empty($errFieldsStack)) {
             Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
@@ -666,7 +666,7 @@ function checkResellerLimit($newLimit, $assignedByReseller, $consumedByCustomers
     if ($unlimitedService == false) {
         // If the new limit is lower than the already consomed item by customer
         if ($newLimit < $consumedByCustomers && $newLimit != -1) {
-            setPageMessage(
+            View::setPageMessage(
                 tr(
                     "%s: The clients consumption (%s) for this reseller is greater than the new limit.",
                     '<strong>' . ucfirst($serviceName) . '</strong>', $consumedByCustomers),
@@ -675,7 +675,7 @@ function checkResellerLimit($newLimit, $assignedByReseller, $consumedByCustomers
             $retVal = false;
             // If the new limit is lower than the items already assigned by the reseller
         } elseif ($newLimit < $assignedByReseller && $newLimit != -1) {
-            setPageMessage(
+            View::setPageMessage(
                 tr('%s: The total of items (%s) already assigned by the reseller is greater than the new limit.',
                     '<strong>' . ucfirst($serviceName) . '</strong>', $assignedByReseller
                 ),
@@ -684,14 +684,14 @@ function checkResellerLimit($newLimit, $assignedByReseller, $consumedByCustomers
             $retVal = false;
             // If the new limit is -1 (disabled) and assigned items are already consumed by customer
         } elseif ($newLimit == -1 && $consumedByCustomers > 0) {
-            setPageMessage(
+            View::setPageMessage(
                 tr("%s: You cannot disable a service already consumed by reseller's customers.", '<strong>' . ucfirst($serviceName) . '</strong>'),
                 'error'
             );
             $retVal = false;
             // If the new limit is -1 (disabled) and the already assigned accounts/limits by reseller is greater 0
         } elseif ($newLimit == -1 && $assignedByReseller > 0) {
-            setPageMessage(
+            View::setPageMessage(
                 tr("%s: You cannot disable a service already sold to reseller's customers.", '<strong>' . ucfirst($serviceName) . '</strong>'),
                 'error'
             );
@@ -699,8 +699,8 @@ function checkResellerLimit($newLimit, $assignedByReseller, $consumedByCustomers
         }
         // One or more reseller's customers have unlimited items
     } elseif ($newLimit != 0) {
-        setPageMessage(tr('%s: This reseller has customer(s) with unlimited items.', '<strong>' . ucfirst($serviceName) . '</strong>'), 'error');
-        setPageMessage(tr('If you want to limit the reseller, you must first limit its customers.'), 'error');
+        View::setPageMessage(tr('%s: This reseller has customer(s) with unlimited items.', '<strong>' . ucfirst($serviceName) . '</strong>'), 'error');
+        View::setPageMessage(tr('If you want to limit the reseller, you must first limit its customers.'), 'error');
         $retVal = false;
     }
 
@@ -720,7 +720,7 @@ function generatePage(TemplateEngine $tpl, Form $form)
 
     $tpl->form = $form;
 
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         $form->setDefaults(getFormData($resellerId));
         $form->setDefault('email', decodeIdna(getFormData($resellerId)['email']));
     }
@@ -730,9 +730,9 @@ function generatePage(TemplateEngine $tpl, Form $form)
     generateFeaturesForm($tpl);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 isset($_GET['id']) or View::showBadRequestErrorPage();
 
@@ -744,7 +744,9 @@ $phpini->loadResellerPermissions($resellerId);
 
 $form = getUserLoginDataForm(false, false)->addElements(getUserPersonalDataForm()->getElements());
 
-empty($_POST) or updateResellerUser($form);
+if(Application::getInstance()->getRequest()->isPost()) {
+    updateResellerUser($form);
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -762,7 +764,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl, $form);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

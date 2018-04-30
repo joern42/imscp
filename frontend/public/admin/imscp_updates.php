@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use iMSCP\Update\Version;
 
@@ -36,7 +36,7 @@ function admin_generatePage(TemplateEngine $tpl)
         $cfg = Application::getInstance()->getConfig();
 
         if (!$cfg['CHECK_FOR_UPDATES']) {
-            setPageMessage(tr('i-MSCP version update checking is disabled.'), 'static_info');
+            View::setPageMessage(tr('i-MSCP version update checking is disabled.'), 'static_info');
             $tpl->assign('UPDATE_INFO', '');
             return;
         }
@@ -44,7 +44,7 @@ function admin_generatePage(TemplateEngine $tpl)
         $updateVersion = new Version();
 
         if (!$updateVersion->isAvailableUpdate()) {
-            setPageMessage(tr('No update available'), 'static_info');
+            View::setPageMessage(tr('No update available'), 'static_info');
             $tpl->assign('UPDATE_INFO', '');
             return;
         }
@@ -67,14 +67,14 @@ function admin_generatePage(TemplateEngine $tpl)
         ]);
     } catch (\Exception $e) {
         writeLog($e->getMessage(), E_USER_ERROR);
-        setPageMessage(tr("Couldn't get update information from Github. Consult the admin logs for more details."), 'static_error');
+        View::setPageMessage(tr("Couldn't get update information from Github. Consult the admin logs for more details."), 'static_error');
         $tpl->assign('UPDATE_INFO', '');
     }
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 stripos(Application::getInstance()->getConfig()['Version'], 'git') === false or View::showBadRequestErrorPage();
 
@@ -88,7 +88,7 @@ $tpl->define([
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / System Tools / i-MSCP Updates')));
 View::generateNavigation($tpl);
 admin_generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

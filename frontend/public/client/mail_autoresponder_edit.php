@@ -20,9 +20,10 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -39,17 +40,17 @@ use iMSCP\Functions\View;
 function checkMailAccount($mailAccountId)
 {
     return execQuery(
-        "
+            "
             SELECT COUNT(t1.mail_id) FROM mail_users AS t1
             JOIN domain AS t2 USING(domain_id)
             WHERE t1.mail_id = ? AND t2.domain_admin_id = ? AND t1.mail_type NOT RLIKE ? AND t1.status = 'ok'
         ",
-        [
-            $mailAccountId,
-            Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
-            Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL
-        ]
-    )->fetchColumn() > 0;
+            [
+                $mailAccountId,
+                Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
+                Mail::MT_NORMAL_CATCHALL . '|' . Mail::MT_SUBDOM_CATCHALL . '|' . Mail::MT_ALIAS_CATCHALL . '|' . Mail::MT_ALSSUB_CATCHALL
+            ]
+        )->fetchColumn() > 0;
 }
 
 /**
@@ -62,7 +63,7 @@ function checkMailAccount($mailAccountId)
 function updateAutoresponderMessage($mailAccountId, $autoresponderMessage)
 {
     if ($autoresponderMessage === '') {
-        setPageMessage(tr('Autoresponder message cannot be empty.'), 'error');
+        View::setPageMessage(tr('Autoresponder message cannot be empty.'), 'error');
         redirectTo("mail_autoresponder_enable.php?mail_account_id=$mailAccountId");
     }
 
@@ -70,8 +71,8 @@ function updateAutoresponderMessage($mailAccountId, $autoresponderMessage)
         $autoresponderMessage, $mailAccountId
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('A mail autoresponder has been edited by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('Autoresponder has been edited.'), 'success');
+    writeLog(sprintf('A mail autoresponder has been edited by %s', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity())), E_USER_NOTICE);
+    View::setPageMessage(tr('Autoresponder has been edited.'), 'success');
 }
 
 /**
@@ -88,11 +89,11 @@ function generatePage($tpl, $mailAccountId)
     $tpl->assign('AUTORESPONDER_MESSAGE', toHtml($row['mail_auto_respond_text']));
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('mail') && isset($_REQUEST['id']) or View::showBadRequestErrorPage();
 $mailAccountId = intval($_REQUEST['id']);
 checkMailAccount($mailAccountId) or View::showBadRequestErrorPage();
 
@@ -112,7 +113,7 @@ if (!isset($_POST['id'])) {
     ]);
     View::generateNavigation($tpl);
     generatePage($tpl, $mailAccountId);
-    generatePageMessage($tpl);
+    View::generatePageMessages($tpl);
     $tpl->parse('LAYOUT_CONTENT', 'page');
     Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
     $tpl->prnt();

@@ -33,7 +33,8 @@ class Handler implements EventManagerAwareInterface
      * @var string[] Exception writers
      */
     protected $writers = [
-        // Must be registered first on event manager so that even if Browser exception writer raise an exception, mail will be sent
+        // Must be registered first on event manager so that even if the
+        // Browser exception writer raise an exception, mail will be sent
         Writer\Mail::class,
         Writer\Browser::class
     ];

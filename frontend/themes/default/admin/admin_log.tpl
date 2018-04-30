@@ -111,7 +111,7 @@
     </tbody>
     <tbody id="clear_log">
     <tr>
-        <td colspan="2" style="text-align:right;">
+        <td colspan="2" style="background-color:#b0def5;text-align:right;">
             <form name="clear_log_frm" id="clear_log_frm">
                 <label for="uaction_clear">{TR_CLEAR_LOG_MESSAGE}</label>
                 <select name="uaction_clear" id="uaction_clear">

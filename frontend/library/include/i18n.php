@@ -22,12 +22,13 @@ use iMSCP\Application;
 use iMSCP\Events;
 use iMSCP\i18n\GettextParser;
 use iMSCP\Utility\OpcodeCache;
+use iMSCP\Functions\View;
 
 /**
  * Translates the given string
  *
  * @param string $messageId Translation string
- * @param string ...$params OPTIONAL Parameters
+ * @param string ...$params
  * @return string
  */
 function tr(string $messageId, string ...$params): string
@@ -108,7 +109,7 @@ function buildLanguagesIndex(): void
         }
 
         if (PHP_SAPI != 'cli') {
-            setPageMessage(tr('The %s translation file has been ignored: Translation table is empty.', $basename), 'warning');
+            View::setPageMessage(tr('The %s translation file has been ignored: Translation table is empty.', $basename), 'warning');
         }
     }
 
@@ -170,7 +171,7 @@ function importMachineObjectFile(): bool
         $filePath = $_FILES['languageFile']['tmp_name'];
 
         if (!is_readable($filePath)) {
-            setPageMessage(tr('File is not readable.'), 'error');
+            View::setPageMessage(tr('File is not readable.'), 'error');
             return false;
         }
 
@@ -181,27 +182,27 @@ function importMachineObjectFile(): bool
             $creation = $parser->getPotCreationDate();
             $translationTable = $parser->getTranslationTable();
         } catch (\Exception $e) {
-            setPageMessage(tr('Only gettext Machine Object files (MO files) are accepted.'), 'error');
+            View::setPageMessage(tr('Only gettext Machine Object files (MO files) are accepted.'), 'error');
             return false;
         }
 
         $language = isset($translationTable['_: Localised language']) ? $translationTable['_: Localised language'] : '';
 
         if (empty($encoding) || empty($locale) || empty($creation) || empty($lastTranslator) || empty($language)) {
-            setPageMessage(tr("%s is not a valid i-MSCP language file.", toHtml($_FILES['languageFile']['name'])), 'error');
+            View::setPageMessage(tr("%s is not a valid i-MSCP language file.", toHtml($_FILES['languageFile']['name'])), 'error');
             return false;
         }
 
         if (!is_dir("$localesDirectory/$locale")) {
             if (!@mkdir("$localesDirectory/$locale", 0700)) {
-                setPageMessage(tr("Unable to create '%s' directory for language file.", toHtml($locale)), 'error');
+                View::setPageMessage(tr("Unable to create '%s' directory for language file.", toHtml($locale)), 'error');
                 return false;
             }
         }
 
         if (!is_dir("$localesDirectory/$locale/LC_MESSAGES")) {
             if (!@mkdir("$localesDirectory/$locale/LC_MESSAGES", 0700)) {
-                setPageMessage(tr("Unable to create 'LC_MESSAGES' directory for language file."), 'error');
+                View::setPageMessage(tr("Unable to create 'LC_MESSAGES' directory for language file."), 'error');
                 return false;
             }
         }

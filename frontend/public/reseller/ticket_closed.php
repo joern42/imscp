@@ -20,17 +20,18 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
-use iMSCP\Functions\Support;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\HelpDesk;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('reseller');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::RESELLER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptStart);
-resellerHasFeature('support') or View::showBadRequestErrorPage();
+Counting::resellerHasFeature('support') or View::showBadRequestErrorPage();
 
-!isset($_GET['ticket_id']) or Support::reopenTicket(intval($_GET['ticket_id']));
+!isset($_GET['ticket_id']) or HelpDesk::reopenTicket(intval($_GET['ticket_id']));
 
 if (isset($_GET['psi'])) {
     $start = $_GET['psi'];
@@ -70,7 +71,7 @@ $tpl->assign([
     'TR_NEXT'                       => tr('Next')
 ]);
 View::generateNavigation($tpl);
-Support::generateTicketList(
+HelpDesk::generateTicketList(
     $tpl,
     Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
     $start,
@@ -78,7 +79,7 @@ Support::generateTicketList(
     'reseller',
     'closed'
 );
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onResellerScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

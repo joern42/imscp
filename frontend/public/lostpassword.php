@@ -20,33 +20,64 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
 use iMSCP\Functions\LostPassword;
 use iMSCP\Functions\View;
 use iMSCP\Plugin\Bruteforce;
 
-require_once LIBRARY_PATH . '/Functions/LostPassword.php';
+require_once 'application.php';
 
 Application::getInstance()->getEventManager()->trigger(Events::onLostPasswordScriptStart);
-Login::doSessionTimeout();
 
-$cfg = Application::getInstance()->getConfig();
-$cfg['LOSTPASSWORD'] or View::showNotFoundErrorPage();
+$config = Application::getInstance()->getConfig();
+$config['LOSTPASSWORD'] or View::showNotFoundErrorPage();
 
-if (!function_exists('imagecreatetruecolor')) {
-    throw new \Exception(tr('PHP GD extension not loaded.'));
+$request = Application::getInstance()->getRequest();
+
+if ($request->getQuery('captcha')) {
+    LostPassword::generateCaptcha('capcode');
+    exit;
 }
 
-LostPassword::removeOldKeys($cfg['LOSTPASSWORD_TIMEOUT']);
+if ($request->getQuery('key')) {
+    LostPassword::removeOldKeys($config['LOSTPASSWORD_TIMEOUT']);
 
-if (isset($_GET['key'])) {
-    $key = cleanInput($_GET['key']);
+    $key = cleanInput($request->getQuery('key'));
     if (LostPassword::sendPassword($key)) {
-        setPageMessage(tr('Your password has been successfully scheduled for renewal. Check your mails.'), 'success');
+        View::setPageMessage(toHtml(tr('Your password has been successfully scheduled for renewal. Check your mails.')), 'success');
     }
 
     redirectTo('index.php');
 }
+
+if (Application::getInstance()->getRequest()->isPost()) {
+    if ($config['BRUTEFORCE']) {
+        $bruteForce = new Bruteforce(Application::getInstance()->getPluginManager(), Bruteforce::CAPTCHA_TARGET);
+        if ($bruteForce->isWaiting() || $bruteForce->isBlocked()) {
+            View::setPageMessage($bruteForce->getLastMessage(), 'error');
+            goto RENDERING;
+        }
+        $bruteForce->logAttempt();
+    }
+
+    if (NULL === $request->getPost('capcode') || NULL === $request->getPost('uname')) {
+        View::showBadRequestErrorPage();
+    } elseif (!isset(Application::getInstance()->getSession()['capcode'])) {
+        View::setPageMessage(toHtml(tr('Security code has expired')), 'error');
+    } elseif (!$request->getPost('capcode') || !$request->getPost('uname')) {
+        View::setPageMessage(toHtml(tr('All fields are required.')), 'error');
+    } else {
+        $uname = cleanInput($request->getPost('uname'));
+        $capcode = cleanInput($request->getPost('capcode'));
+        if (strtolower(Application::getInstance()->getSession()['capcode']) !== strtolower($capcode)) {
+            View::setPageMessage(toHtml(tr('Wrong security code')), 'error');
+        } else if (LostPassword::sendPasswordRequestValidation($uname)) {
+            View::setPageMessage(toHtml(tr('Your request for password renewal has been taken into account. You will receive a mail in few seconds.')), 'success');
+            redirectTo('index.php');
+        }
+    }
+}
+
+RENDERING:
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -56,50 +87,19 @@ $tpl->define([
 ]);
 $tpl->assign([
     'TR_PAGE_TITLE'    => toHtml(tr('i-MSCP - Multi Server Control Panel / Lost Password')),
-    'CONTEXT_CLASS'    => '',
-    'productLongName'  => tr('internet Multi Server Control Panel'),
-    'productLink'      => 'https://www.i-mscp.net',
-    'productCopyright' => tr('© 2010-2018 i-MSCP Team<br>All Rights Reserved'),
+    'productLongName'  => toHtml(tr('internet Multi Server Control Panel')),
+    'productLink'      => toHtml('https://www.i-mscp.net', 'htmlAttr'),
+    'productCopyright' => toHtml(tr('© 2010-2018 i-MSCP - All Rights Reserved')),
     'TR_CAPCODE'       => toHtml(tr('Security code')),
-    'GET_NEW_IMAGE'    => toHtml(tr('Get a new security code'), 'htmlAttr'),
-    'CAPTCHA_WIDTH'    => toHtml($cfg['LOSTPASSWORD_CAPTCHA_WIDTH'], 'htmlAttr'),
-    'CAPTCHA_HEIGHT'   => toHtml($cfg['LOSTPASSWORD_CAPTCHA_HEIGHT'], 'htmlAttr'),
+    'GET_NEW_CAPTCHA'  => toHtml(tr('Click on this image to get a new security code'), 'htmlAttr'),
+    'CAPTCHA_WIDTH'    => toHtml($config['LOSTPASSWORD_CAPTCHA_WIDTH'], 'htmlAttr'),
+    'CAPTCHA_HEIGHT'   => toHtml($config['LOSTPASSWORD_CAPTCHA_HEIGHT'], 'htmlAttr'),
     'TR_USERNAME'      => toHtml(tr('Username')),
     'TR_SEND'          => toHtml(tr('Send')),
     'TR_CANCEL'        => toHtml(tr('Cancel')),
-    'UNAME'            => isset($_POST['uname']) ? $_POST['uname'] : ''
+    'UNAME'            => toHtml($request->getPost('uname', ''), 'htmlAttr')
 ]);
-
-if (!empty($_POST)) {
-    if ($cfg['BRUTEFORCE']) {
-        $bruteForce = new Bruteforce(Application::getInstance()->getPluginManager(), 'captcha');
-        if ($bruteForce->isWaiting() || $bruteForce->isBlocked()) {
-            setPageMessage($bruteForce->getLastMessage(), 'error');
-            redirectTo('index.php');
-        }
-
-        $bruteForce->logAttempt();
-    }
-
-    if (!isset($_POST['capcode']) || !isset($_POST['uname'])) {
-        View::showBadRequestErrorPage();
-    } elseif (!isset(Application::getInstance()->getSession()['capcode'])) {
-        setPageMessage(tr('Security code has expired'), 'error');
-    } elseif ($_POST['capcode'] == '' || $_POST['uname'] == '') {
-        setPageMessage(tr('All fields are required.'), 'error');
-    } else {
-        $uname = cleanInput($_POST['uname']);
-        $capcode = cleanInput($_POST['capcode']);
-        if (strtolower(Application::getInstance()->getSession()['capcode']) !== strtolower($capcode)) {
-            setPageMessage(tr('Wrong security code'), 'error');
-        } else if (LostPassword::sendPasswordRequestValidation($uname)) {
-            setPageMessage(tr('Your request for password renewal has been registered. You will receive a mail with instructions to complete the process.'), 'success');
-            redirectTo('index.php');
-        }
-    }
-}
-
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
-Application::getInstance()->getEventManager()->trigger(Events::onLostPasswordScriptEnd, null, ['templateEngine' => $tpl]);
+Application::getInstance()->getEventManager()->trigger(Events::onLostPasswordScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 
 /**
@@ -88,7 +88,7 @@ function generateServerStatsByDay(TemplateEngine $tpl, $day, $month, $year)
     );
 
     if (!$stmt->rowCount()) {
-        setPageMessage(tr('No statistics found for the given period. Try another period.'), 'static_info');
+        View::setPageMessage(tr('No statistics found for the given period. Try another period.'), 'static_info');
         $tpl->assign('SERVER_STATS_BY_DAY', '');
         return;
     }
@@ -158,7 +158,7 @@ function generateServerStatsByMonth(TemplateEngine $tpl, $month, $year)
     ]);
 
     if (!$stmt->rowCount()) {
-        setPageMessage(tr('No statistics found for the given period. Try another period.'), 'static_info');
+        View::setPageMessage(tr('No statistics found for the given period. Try another period.'), 'static_info');
         $tpl->assign('SERVER_STATS_BY_MONTH', '');
         return;
     }
@@ -244,9 +244,9 @@ function generatePage(TemplateEngine $tpl)
     generateServerStatsByDay($tpl, $day, $month, $year);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
@@ -282,7 +282,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

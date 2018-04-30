@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 
@@ -68,15 +69,15 @@ function deactivateAutoresponder($mailAccountId)
 {
     execQuery("UPDATE mail_users SET status = 'tochange', mail_auto_respond = 0 WHERE mail_id = ?", [$mailAccountId]);
     Daemon::sendRequest();
-    writeLog(sprintf('A mail autoresponder has been deactivated by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('Autoresponder has been deactivated.'), 'success');
+    writeLog(sprintf('A mail autoresponder has been deactivated by %s', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity())), E_USER_NOTICE);
+    View::setPageMessage(tr('Autoresponder has been deactivated.'), 'success');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('mail') && isset($_GET['id']) or View::showBadRequestErrorPage();
 $mailAccountId = intval($_GET['id']);
 checkMailAccount($mailAccountId) or View::showBadRequestErrorPage();
 deactivateAutoresponder($mailAccountId);

@@ -20,15 +20,16 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('ftp') && isset($_GET['id']) or View::showBadRequestErrorPage();
 
 $userid = cleanInput($_GET['id']);
 $stmt = execQuery('SELECT admin_name as groupname FROM ftp_users JOIN admin USING(admin_id) WHERE userid = ? AND admin_id = ?', [
@@ -78,8 +79,8 @@ try {
     Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteFtp, NULL, ['ftpUserId' => $userid]);
     $db->getDriver()->getConnection()->commit();
     Daemon::sendRequest();
-    writeLog(sprintf('An FTP account has been deleted by %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
-    setPageMessage(tr('FTP account successfully deleted.'), 'success');
+    writeLog(sprintf('An FTP account has been deleted by %s', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity())), E_USER_NOTICE);
+    View::setPageMessage(tr('FTP account successfully deleted.'), 'success');
 } catch (\Exception $e) {
     $db->getDriver()->getConnection()->rollBack();
     throw $e;

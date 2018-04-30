@@ -20,13 +20,13 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
@@ -42,18 +42,18 @@ if (isset($_POST['uaction']) && $_POST['uaction'] == 'email_setup') {
     $error = false;
 
     if ($data['subject'] == '') {
-        setPageMessage(tr('Please specify a message subject.'), 'error');
+        View::setPageMessage(tr('Please specify a message subject.'), 'error');
         $error = true;
     }
 
     if ($data['message'] == '') {
-        setPageMessage(tr('Please specify a message content.'), 'error');
+        View::setPageMessage(tr('Please specify a message content.'), 'error');
         $error = true;
     }
 
     if (!$error) {
         Mail::setWelcomeEmail(0, $data);
-        setPageMessage(tr('Welcome email template has been updated.'), 'success');
+        View::setPageMessage(tr('Welcome email template has been updated.'), 'success');
         redirectTo('settings_welcome_mail.php');
     }
 }
@@ -83,7 +83,7 @@ $tpl->assign([
     'SENDER_NAME_VALUE'           => toHtml($data['sender_name'])
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

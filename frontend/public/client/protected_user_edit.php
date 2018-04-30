@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -33,14 +34,14 @@ use iMSCP\Functions\View;
  */
 function client_updateHtaccessUser($domainId, $htuserId)
 {
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         return;
     }
 
     isset($_POST['pass']) && isset($_POST['pass_rep']) or View::showBadRequestErrorPage();
 
     if ($_POST['pass'] !== $_POST['pass_rep']) {
-        setPageMessage(tr('Passwords do not match.'), 'error');
+        View::setPageMessage(tr('Passwords do not match.'), 'error');
         return;
     }
 
@@ -52,15 +53,15 @@ function client_updateHtaccessUser($domainId, $htuserId)
         Crypt::bcrypt($_POST['pass']), 'tochange', $htuserId, $domainId
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('%s updated htaccess user ID: %s', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), $htuserId), E_USER_NOTICE);
+    writeLog(sprintf('%s updated htaccess user ID: %s', getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity()), $htuserId), E_USER_NOTICE);
     redirectTo('protected_user_manage.php');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('protected_areas') && isset($_REQUEST['uname']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('protected_areas') && isset($_REQUEST['uname']) or View::showBadRequestErrorPage();
 
 $htuserId = intval($_REQUEST['uname']);
 $domainId = getCustomerMainDomainId(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
@@ -88,7 +89,7 @@ $tpl->assign([
     'TR_CANCEL'          => tr('Cancel')
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, ['templateEngine' => $tpl]);
 $tpl->prnt();

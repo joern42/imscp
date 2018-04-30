@@ -20,8 +20,8 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -75,7 +75,7 @@ function client_generatePage($tpl)
     $domainData !== false or View::showBadRequestErrorPage();
     $forwardHost = 'Off';
 
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         $documentRoot = strpos($domainData['document_root'], '/htdocs') !== FALSE ? substr($domainData['document_root'], 7) : '';
 
         if ($domainData['url_forward'] != 'no') {
@@ -209,7 +209,7 @@ function client_editDomain()
 
             $forwardUrl = $uri->getUri();
         } catch (\Exception $e) {
-            setPageMessage($e->getMessage(), 'error');
+            View::setPageMessage($e->getMessage(), 'error');
             return false;
         }
     } // Check for alternative DocumentRoot option
@@ -220,7 +220,7 @@ function client_editDomain()
             $vfs = new VirtualFileSystem(Application::getInstance()->getAuthService()->getIdentity()->getUsername(), '/htdocs');
 
             if ($documentRoot !== '/' && !$vfs->exists($documentRoot, VirtualFileSystem::VFS_TYPE_DIR)) {
-                setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
+                View::setPageMessage(tr('The new document root must pre-exists inside the /htdocs directory.'), 'error');
                 return false;
             }
         }
@@ -253,17 +253,17 @@ function client_editDomain()
         'forwardHost'  => $forwardHost
     ]);
     Daemon::sendRequest();
-    writeLog(sprintf('The %s domain properties were updated by', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
+    writeLog(sprintf('The %s domain properties were updated by', Application::getInstance()->getAuthService()->getIdentity()->getUsername(), getProcessorUsername(Application::getInstance()->getAuthService()->getIdentity())), E_USER_NOTICE);
     return true;
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
 
-if (!empty($_POST) && client_editDomain()) {
-    setPageMessage(tr('Domain successfully scheduled for update.'), 'success');
+if (Application::getInstance()->getRequest()->isPost() && client_editDomain()) {
+    View::setPageMessage(tr('Domain successfully scheduled for update.'), 'success');
     redirectTo('domains_manage.php');
 }
 
@@ -305,7 +305,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 });
 View::generateNavigation($tpl);
 client_generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

@@ -20,13 +20,14 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
+Counting::customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
 deleteSubdomainAlias(intval($_GET['id']));
 redirectTo('domains_manage.php');

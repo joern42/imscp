@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -77,13 +78,13 @@ function updateExternalMailFeature($action, $domainId, $domainType)
         $db->getDriver()->getConnection()->commit();
 
         if ($action == 'activate') {
-            writeLog(sprintf('External mail feature has been activared by %s', $identity->getUsername()));
-            setPageMessage(tr('External mail server feature scheduled for activation.'), 'success');
+            writeLog(sprintf('External mail feature has been activared by %s', getProcessorUsername($identity)));
+            View::setPageMessage(tr('External mail server feature scheduled for activation.'), 'success');
             return;
         }
 
-        writeLog(sprintf('External mail feature has been deactivated by %s', $identity->getUsername()));
-        setPageMessage(tr('External mail server feature scheduled for deactivation.'), 'success');
+        writeLog(sprintf('External mail feature has been deactivated by %s', getProcessorUsername($identity)));
+        View::setPageMessage(tr('External mail server feature scheduled for deactivation.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         throw $e;
@@ -198,11 +199,11 @@ function generatePage($tpl)
     generateItemList($tpl, $domainId, $domainName);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('external_mail') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('external_mail') or View::showBadRequestErrorPage();
 
 if (isset($_GET['action']) && isset($_GET['domain_id']) && isset($_GET['domain_type'])) {
     $action = cleanInput($_GET['action']);
@@ -233,7 +234,7 @@ $tpl->define([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

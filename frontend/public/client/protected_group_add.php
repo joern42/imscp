@@ -20,8 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 
 /**
@@ -31,7 +32,7 @@ use iMSCP\Functions\View;
  */
 function client_addHtaccessGroup()
 {
-    if (empty($_POST)) {
+    if (!Application::getInstance()->getRequest()->isPost()) {
         return;
     }
 
@@ -40,7 +41,7 @@ function client_addHtaccessGroup()
     $htgroupName = cleanInput($_POST['groupname']);
 
     if (!validateUsername($htgroupName)) {
-        setPageMessage(tr('Invalid group name!'), 'error');
+        View::setPageMessage(tr('Invalid group name!'), 'error');
         return;
     }
 
@@ -49,21 +50,21 @@ function client_addHtaccessGroup()
 
     $stmt = execQuery('SELECT id FROM htaccess_groups WHERE ugroup = ? AND dmn_id = ?', [$htgroupName, $domainId]);
     if ($stmt->rowCount()) {
-        setPageMessage(tr('This htaccess group already exists.'), 'error');
+        View::setPageMessage(tr('This htaccess group already exists.'), 'error');
     }
 
     execQuery("INSERT INTO htaccess_groups (dmn_id, ugroup, status) VALUES (?, ?, 'toadd')", [$domainId, $htgroupName]);
     Daemon::sendRequest();
-    setPageMessage(tr('Htaccess group successfully scheduled for addition.'), 'success');
-    writeLog(sprintf('%s added htaccess group: %s', $identity->getUsername(), $htgroupName), E_USER_NOTICE);
+    View::setPageMessage(tr('Htaccess group successfully scheduled for addition.'), 'success');
+    writeLog(sprintf('%s added htaccess group: %s', getProcessorUsername($identity), $htgroupName), E_USER_NOTICE);
     redirectTo('protected_user_manage.php');
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('protected_areas') or View::showBadRequestErrorPage();
 client_addHtaccessGroup();
 
 $tpl = new TemplateEngine();
@@ -81,7 +82,7 @@ $tpl->assign([
     'TR_CANCEL'         => tr('Cancel')
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

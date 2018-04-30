@@ -20,17 +20,17 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
-use iMSCP\Functions\Support;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\HelpDesk;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 Application::getInstance()->getConfig()['IMSCP_SUPPORT_SYSTEM'] or View::showBadRequestErrorPage();
 
-isset($_GET['ticket_id']) or Support::closeTicket(intval($_GET['ticket_id']));
+!isset($_GET['ticket_id']) or HelpDesk::closeTicket(intval($_GET['ticket_id']));
 
 if (isset($_GET['psi'])) {
     $start = $_GET['psi'];
@@ -71,14 +71,14 @@ $tpl->assign([
 ]);
 
 View::generateNavigation($tpl);
-Support::generateTicketList(
+HelpDesk::generateTicketList(
     $tpl,
     Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
     $start, Application::getInstance()->getConfig()['DOMAIN_ROWS_PER_PAGE'],
     'admin',
     'open'
 );
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

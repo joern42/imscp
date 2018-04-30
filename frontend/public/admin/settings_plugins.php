@@ -20,7 +20,7 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\View;
 use iMSCP\Plugin\PluginManager as PluginManager;
 use iMSCP\Utility\OpcodeCache;
@@ -47,7 +47,7 @@ function uploadPlugin($pluginManager)
     $tmpArchPath = uploadFile('plugin_archive', [function ($tmpDirectory) {
         $tmpFilePath = $_FILES['plugin_archive']['tmp_name'];
         if (!validateMimeType($tmpFilePath, ['application/x-gzip', 'application/x-bzip2',])) {
-            setPageMessage(tr('Only tar.gz and tar.bz2 archives are supported.'), 'error');
+            View::setPageMessage(tr('Only tar.gz and tar.bz2 archives are supported.'), 'error');
             return false;
         }
 
@@ -55,7 +55,7 @@ function uploadPlugin($pluginManager)
         $maxUploadFileSize = getMaxFileUpload();
 
         if ($pluginArchiveSize > $maxUploadFileSize) {
-            setPageMessage(tr('Plugin archive exceeds the maximum upload size'), 'error');
+            View::setPageMessage(tr('Plugin archive exceeds the maximum upload size'), 'error');
             return false;
         }
 
@@ -96,12 +96,12 @@ function uploadPlugin($pluginManager)
         $arch->extractTo($pluginDirectory, NULL, true);
         $ret = true;
     } catch (\Exception $e) {
-        setPageMessage($e->getMessage(), 'error');
+        View::setPageMessage($e->getMessage(), 'error');
 
         if (!empty($pluginName) && is_dir("$tmpDirectory/$pluginName" . '-old')) {
             // Try to restore previous plugin directory on error
             if (!@rename("$tmpDirectory/$pluginName" . '-old', "$pluginDirectory/$pluginName")) {
-                setPageMessage(tr('Could not restore ancient %s plugin directory', $pluginName), 'error');
+                View::setPageMessage(tr('Could not restore ancient %s plugin directory', $pluginName), 'error');
             }
         }
     }
@@ -158,7 +158,7 @@ function generatePage($tpl, $pluginManager)
 
     if (empty($pluginList)) {
         $tpl->assign('PLUGINS_BLOCK', '');
-        setPageMessage(tr('Plugin list is empty.'), 'static_info');
+        View::setPageMessage(tr('Plugin list is empty.'), 'static_info');
         return;
     }
 
@@ -264,7 +264,7 @@ function generatePage($tpl, $pluginManager)
 function checkAction($pluginManager, $pluginName, $action)
 {
     if ($pluginManager->pluginIsProtected($pluginName)) {
-        setPageMessage(tr('Plugin %s is protected.', $pluginName), 'warning');
+        View::setPageMessage(tr('Plugin %s is protected.', $pluginName), 'warning');
         return false;
     }
 
@@ -274,42 +274,42 @@ function checkAction($pluginManager, $pluginName, $action)
     switch ($action) {
         case 'install':
             if (!$pluginManager->pluginIsInstallable($pluginName) || !in_array($pluginStatus, ['toinstall', 'uninstalled'])) {
-                setPageMessage(tr('Plugin %s cannot be installed.', $pluginName), 'warning');
+                View::setPageMessage(tr('Plugin %s cannot be installed.', $pluginName), 'warning');
                 $ret = false;
             }
 
             break;
         case 'uninstall':
             if (!$pluginManager->pluginIsUninstallable($pluginName) || !in_array($pluginStatus, ['touninstall', 'disabled'])) {
-                setPageMessage(tr('Plugin %s cannot be uninstalled.', $pluginName), 'warning');
+                View::setPageMessage(tr('Plugin %s cannot be uninstalled.', $pluginName), 'warning');
                 $ret = false;
             }
 
             break;
         case 'update':
             if ($pluginStatus != 'toupdate') {
-                setPageMessage(tr('Plugin %s cannot be updated.', $pluginName), 'warning');
+                View::setPageMessage(tr('Plugin %s cannot be updated.', $pluginName), 'warning');
                 $ret = false;
             }
 
             break;
         case 'change':
             if ($pluginStatus != 'tochange') {
-                setPageMessage(tr('Plugin %s cannot be reconfigured.', $pluginName), 'warning');
+                View::setPageMessage(tr('Plugin %s cannot be reconfigured.', $pluginName), 'warning');
                 $ret = false;
             }
 
             break;
         case 'enable':
             if (!in_array($pluginStatus, ['toenable', 'disabled', 'uninstalled'])) {
-                setPageMessage(tr('Plugin %s cannot be activated.', $pluginName), 'warning');
+                View::setPageMessage(tr('Plugin %s cannot be activated.', $pluginName), 'warning');
                 $ret = false;
             }
 
             break;
         case 'disable':
             if (!in_array($pluginStatus, ['todisable', 'enabled', 'installed'])) {
-                setPageMessage(tr('Plugin %s cannot be deactivated.', $pluginName), 'warning');
+                View::setPageMessage(tr('Plugin %s cannot be deactivated.', $pluginName), 'warning');
                 $ret = false;
             }
 
@@ -325,14 +325,14 @@ function checkAction($pluginManager, $pluginName, $action)
                 }
 
                 if (!$ret) {
-                    setPageMessage(tr('Plugin %s cannot be deleted.', $pluginName), 'warning');
+                    View::setPageMessage(tr('Plugin %s cannot be deleted.', $pluginName), 'warning');
                 }
             }
 
             break;
         case 'protect':
             if ($pluginStatus != 'enabled') {
-                setPageMessage(tr('Plugin %s cannot be protected.', $pluginName), 'warning');
+                View::setPageMessage(tr('Plugin %s cannot be protected.', $pluginName), 'warning');
                 $ret = false;
             }
 
@@ -368,7 +368,7 @@ function doAction($pluginManager, $pluginName, $action)
         $ret = call_user_func([$pluginManager, 'plugin' . ucfirst($action)], $pluginName);
 
         if ($ret === false) {
-            setPageMessage(tr('An unexpected error occurred.'));
+            View::setPageMessage(tr('An unexpected error occurred.'));
             return;
         }
 
@@ -401,7 +401,7 @@ function doAction($pluginManager, $pluginName, $action)
                     $msg = tr('Could not protect the %s plugin: %s', $pluginName, $msg);
             }
 
-            setPageMessage($msg, 'error');
+            View::setPageMessage($msg, 'error');
             return;
         }
 
@@ -431,7 +431,7 @@ function doAction($pluginManager, $pluginName, $action)
                     $msg = tr('Plugin %s protected.', $pluginName);
             }
 
-            setPageMessage($msg, 'success');
+            View::setPageMessage($msg, 'success');
             return;
         }
 
@@ -461,9 +461,9 @@ function doAction($pluginManager, $pluginName, $action)
                 $msg = tr('Plugin %s protected.', $pluginName);
         }
 
-        setPageMessage($msg, 'success');
+        View::setPageMessage($msg, 'success');
     } catch (\Exception $e) {
-        setPageMessage($e->getMessage(), 'error');
+        View::setPageMessage($e->getMessage(), 'error');
     }
 }
 
@@ -480,7 +480,7 @@ function doBulkAction($pluginManager)
     in_array($action, ['install', 'uninstall', 'enable', 'disable', 'delete', 'protect']) or View::showBadRequestErrorPage();
 
     if (!isset($_POST['checked']) || !is_array($_POST['checked']) || empty($_POST['checked'])) {
-        setPageMessage(tr('You must select at least one plugin.'), 'error');
+        View::setPageMessage(tr('You must select at least one plugin.'), 'error');
         return;
     }
 
@@ -504,7 +504,7 @@ function updatePluginList(PluginManager $pluginManager)
 
     $updateInfo = $pluginManager->pluginUpdateList();
     $pluginManager->getEventManager()->trigger(Events::onAfterUpdatePluginList, NULL, ['pluginManager' => $pluginManager]);
-    setPageMessage(
+    View::setPageMessage(
         tr(
             'Plugins list has been updated: %s new plugin(s) found, %s plugin(s) updated, %s plugin(s) reconfigured, and %s plugin(s) deleted.',
             $updateInfo['new'], $updateInfo['updated'], $updateInfo['changed'], $updateInfo['deleted']
@@ -513,9 +513,9 @@ function updatePluginList(PluginManager $pluginManager)
     );
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::ADMIN_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $pluginManager = Application::getInstance()->getPluginManager();
@@ -578,7 +578,7 @@ if (!empty($_REQUEST)
         doBulkAction($pluginManager);
     } elseif (!empty($_FILES) && uploadPlugin($pluginManager)) {
         OpcodeCache::clearAllActive(); // Force newest files to be loaded on next run
-        setPageMessage(tr('Plugin has been successfully uploaded.'), 'success');
+        View::setPageMessage(tr('Plugin has been successfully uploaded.'), 'success');
         redirectTo('settings_plugins.php?update_plugin_list');
     }
 
@@ -634,7 +634,7 @@ $tpl->assign([
 ]);
 View::generateNavigation($tpl);
 generatePage($tpl, $pluginManager);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

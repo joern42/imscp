@@ -20,17 +20,18 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
-use iMSCP\Functions\Support;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
+use iMSCP\Functions\HelpDesk;
 use iMSCP\Functions\View;
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('support') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('support') or View::showBadRequestErrorPage();
 
-!isset($_GET['ticket_id']) or Support::closeTicket(intval($_GET['ticket_id']));
+!isset($_GET['ticket_id']) or HelpDesk::closeTicket(intval($_GET['ticket_id']));
 
 if (isset($_GET['psi'])) {
     $start = $_GET['psi'];
@@ -70,7 +71,7 @@ $tpl->assign([
     'TR_NEXT'                       => tr('Next')
 ]);
 View::generateNavigation($tpl);
-Support::generateTicketList(
+HelpDesk::generateTicketList(
     $tpl,
     Application::getInstance()->getAuthService()->getIdentity()->getUserId(),
     $start,
@@ -78,7 +79,7 @@ Support::generateTicketList(
     'client',
     'open'
 );
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

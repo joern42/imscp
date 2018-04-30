@@ -402,7 +402,7 @@ a {
     display: inline;
 }
 
-.location-menu li a {
+.location-menu li a, .location-menu li span {
     float: left;
     display: block;
     background: transparent no-repeat center left;
@@ -414,7 +414,7 @@ a {
     background-image: url(../images/user/logout.png);
 }
 
-.location-menu .backadmin {
+.location-menu .su_back {
     background-image: url(../images/user/backadmin.png);
 }
 

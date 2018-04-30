@@ -35,16 +35,16 @@ function updatePassword()
     if (!$form->isValid($_POST)) {
         foreach ($form->getMessages() as $msgsStack) {
             foreach ($msgsStack as $msg) {
-                setPageMessage(toHtml($msg), 'error');
+                View::setPageMessage(toHtml($msg), 'error');
             }
         }
 
         return;
     }
-    
+
     $identity = Application::getInstance()->getAuthService()->getIdentity();
 
-    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, null, [
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, NULL, [
         'userId'   => $identity->getUserId(),
         'userData' => [
             'admin_name' => $identity->getUsername(),
@@ -54,7 +54,7 @@ function updatePassword()
     execQuery("UPDATE admin SET admin_pass = ?, admin_status = IF(admin_type = 'user', 'tochangepwd', admin_status) WHERE admin_id = ?", [
         Crypt::bcrypt($form->getValue('admin_pass')), $identity->getUserId()
     ]);
-    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, null, [
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, NULL, [
         'userId'   => $identity->getUserId(),
         'userData' => [
             'admin_name' => $identity->getUsername(),
@@ -67,15 +67,17 @@ function updatePassword()
     }
 
     writeLog(sprintf('Password has been updated for the %s user.', $identity->getUsername(), E_USER_NOTICE));
-    setPageMessage(tr('Password successfully updated.'), 'success');
+    View::setPageMessage(tr('Password successfully updated.'), 'success');
     redirectTo('password_update.php');
 }
 
-
+require_once 'application.php';
 
 defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
 
-empty($_POST) or updatePassword();
+if(Application::getInstance()->getRequest()->isPost()) {
+    updatePassword();
+}
 
 $tpl = new TemplateEngine();
 $tpl->define([
@@ -84,4 +86,4 @@ $tpl->define([
     'page_message' => 'layout'
 ]);
 View::generateNavigation($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);

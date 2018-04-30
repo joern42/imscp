@@ -20,11 +20,11 @@
 
 namespace iMSCP;
 
-use iMSCP\Functions\Login;
+use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Functions\Counting;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
 use iMSCP\Update\Version;
-use iMSCP\Functions\Counting;
 
 /**
  * Generates support questions notice for administrator
@@ -38,7 +38,7 @@ function admin_generateSupportQuestionsMessage()
     ])->fetchColumn();
 
     if ($ticketsCount > 0) {
-        setPageMessage(ntr('You have a new support ticket.', 'You have %d new support tickets.', $ticketsCount, $ticketsCount), 'static_info');
+        View::setPageMessage(ntr('You have a new support ticket.', 'You have %d new support tickets.', $ticketsCount, $ticketsCount), 'static_info');
     }
 }
 
@@ -56,9 +56,9 @@ function admin_generateUpdateMessages()
 
     $updateVersion = new Version();
     if ($updateVersion->isAvailableUpdate()) {
-        setPageMessage('<a href="imscp_updates.php" class="link">' . tr('A new i-MSCP version is available') . '</a>', 'static_info');
+        View::setPageMessage('<a href="imscp_updates.php" class="link">' . tr('A new i-MSCP version is available') . '</a>', 'static_info');
     } elseif (($error = $updateVersion->getError())) {
-        setPageMessage($error, 'error');
+        View::setPageMessage($error, 'error');
     }
 }
 
@@ -116,7 +116,7 @@ function admin_generateServerTrafficInfo(TemplateEngine $tpl)
     if ($trafficUsageBytes
         && ($trafficWarningBytes && $trafficUsageBytes > $trafficWarningBytes || $trafficLimitBytes && $trafficUsageBytes > $trafficLimitBytes)
     ) {
-        setPageMessage(tr('You are exceeding the monthly server traffic limit.'), 'static_warning');
+        View::setPageMessage(tr('You are exceeding the monthly server traffic limit.'), 'static_warning');
     }
 
     $tpl->assign([
@@ -126,9 +126,11 @@ function admin_generateServerTrafficInfo(TemplateEngine $tpl)
     ]);
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('admin', Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_ADMIN']);
+Application::getInstance()->getAuthService()->checkAuthentication(
+    AuthenticationService::ADMIN_CHECK_AUTH_TYPE, Application::getInstance()->getConfig()['PREVENT_EXTERNAL_LOGIN_ADMIN']
+);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
 $tpl = new TemplateEngine();
@@ -154,12 +156,12 @@ $tpl->assign([
     'TR_SQL_USERS'       => toHtml(tr('SQL users')),
     'TR_SERVER_TRAFFIC'  => toHtml(tr('Monthly server traffic'))
 ]);
-//View::generateNavigation($tpl);
+View::generateNavigation($tpl);
 admin_generateSupportQuestionsMessage();
 admin_generateUpdateMessages();
 admin_getAdminGeneralInfo($tpl);
 admin_generateServerTrafficInfo($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();

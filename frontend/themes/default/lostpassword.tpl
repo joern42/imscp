@@ -1,12 +1,17 @@
 
+<script>
+    $(function() {
+        $('#captcha').click(function() {
+            $(this).attr('src', $(this).attr('src'))
+        });
+    })
+</script>
 <div id="login">
-    <form name="lostpasswordFrm" action="lostpassword.php" method="post">
+    <form name="lostpasswordFrm" action="lostpassword.php" method="post" id="fmr1">
         <table>
             <tr>
                 <td colspan="2" class="center">
-                    <a href="lostpassword.php" title="{GET_NEW_IMAGE}">
-                        <img id="captcha" src="imagecode.php" width="{CAPTCHA_WIDTH}" height="{CAPTCHA_HEIGHT}" alt="captcha image">
-                    </a>
+                    <img id="captcha" src="?captcha=1" width="{CAPTCHA_WIDTH}" height="{CAPTCHA_HEIGHT}" title="{GET_NEW_CAPTCHA}">
                 </td>
             </tr>
             <tr>
@@ -20,7 +25,7 @@
             <tr>
                 <td colspan="2" class="right">
                     <button name="Submit" type="submit" tabindex="3">{TR_SEND}</button>
-                    <a class="link_as_button" href="/" tabindex="4">{TR_CANCEL}</a>
+                    <button formaction="/" formmethod="get">{TR_CANCEL}</button>
                 </td>
             </tr>
         </table>

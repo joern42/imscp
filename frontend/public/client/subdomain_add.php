@@ -20,10 +20,10 @@
 
 namespace iMSCP;
 
+use iMSCP\Authentication\AuthenticationService;
 use iMSCP\Functions\Counting;
 use iMSCP\Functions\Daemon;
 use iMSCP\Functions\Mail;
-use iMSCP\Functions\Login;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
 
@@ -93,7 +93,7 @@ function addSubdomain()
 
     // Basic check
     if (empty($_POST['subdomain_name'])) {
-        setPageMessage(tr('You must enter a subdomain name.'), 'error');
+        View::setPageMessage(tr('You must enter a subdomain name.'), 'error');
         return false;
     }
 
@@ -117,14 +117,14 @@ function addSubdomain()
 
     $subLabel = mb_strtolower(cleanInput($_POST['subdomain_name']));
     if ($subLabel == 'www' || strpos($subLabel, 'www.') === 0) {
-        setPageMessage(tr('%s is not allowed as subdomain label.', "<strong>www</strong>"), 'error');
+        View::setPageMessage(tr('%s is not allowed as subdomain label.', "<strong>www</strong>"), 'error');
         return false;
     }
 
     $subdomainName = $subLabel . '.' . $domainName;
     // Check for subdomain syntax
     if (!validateDomainName($subdomainName)) {
-        setPageMessage(tr('Subdomain name is not valid.'), 'error');
+        View::setPageMessage(tr('Subdomain name is not valid.'), 'error');
         return false;
     }
 
@@ -138,14 +138,14 @@ function addSubdomain()
         [$subdomainName, $subdomainName]
     );
     if ($stmt->rowCount()) {
-        setPageMessage(tr('Subdomain %s is unavailable.', "<strong>$subdomainName</strong>"), 'error');
+        View::setPageMessage(tr('Subdomain %s is unavailable.', "<strong>$subdomainName</strong>"), 'error');
         return false;
     }
 
     // Check for subdomain IP addresses
     $subdomainIps = [];
     if (!isset($_POST['subdomain_ips'])) {
-        setPageMessage(toHtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
+        View::setPageMessage(toHtml(tr('You must assign at least one IP address to that subdomain.')), 'error');
         return false;
     } elseif (!is_array($_POST['subdomain_ips'])) {
         View::showBadRequestErrorPage();
@@ -164,7 +164,7 @@ function addSubdomain()
     // Check for subdomain existence
     foreach ($domainList as $domain) {
         if ($domain['name'] == $subdomainNameAscii) {
-            setPageMessage(tr('Subdomain %s already exist.', "<strong>$subdomainName</strong>"), 'error');
+            View::setPageMessage(tr('Subdomain %s already exist.', "<strong>$subdomainName</strong>"), 'error');
             return false;
         }
     }
@@ -236,7 +236,7 @@ function addSubdomain()
 
             $forwardUrl = $uri->getUri();
         } catch (\Exception $e) {
-            setPageMessage($e->getMessage(), 'error');
+            View::setPageMessage($e->getMessage(), 'error');
             return false;
         }
     }
@@ -328,12 +328,12 @@ function addSubdomain()
 
         $db->getDriver()->getConnection()->commit();
         Daemon::sendRequest();
-        writeLog(sprintf('A new subdomain (%s) has been created by %s', $subdomainName, $identity->getUsername()), E_USER_NOTICE);
+        writeLog(sprintf('A new subdomain (%s) has been created by %s', $subdomainName, getProcessorUsername($identity)), E_USER_NOTICE);
         return true;
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
         writeLog(sprintf('System was unable to create the %s subdomain: %s', $subdomainName, $e->getMessage()), E_USER_ERROR);
-        setPageMessage('Could not create subdomain. An unexpected error occurred.', 'error');
+        View::setPageMessage('Could not create subdomain. An unexpected error occurred.', 'error');
         return false;
     }
 }
@@ -406,22 +406,22 @@ function generatePage($tpl)
     );
 }
 
-require 'application.php';
+require_once 'application.php';
 
-Login::checkLogin('user');
+Application::getInstance()->getAuthService()->checkAuthentication(AuthenticationService::USER_CHECK_AUTH_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-customerHasFeature('subdomains') or View::showBadRequestErrorPage();
+Counting::customerHasFeature('subdomains') or View::showBadRequestErrorPage();
 
 $mainDmnProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
 $subdomainsCount = Counting::getCustomerSubdomainsCount($mainDmnProps['domain_id']);
 
 if ($mainDmnProps['domain_subd_limit'] != 0 && $subdomainsCount >= $mainDmnProps['domain_subd_limit']) {
-    setPageMessage(tr('You have reached the maximum number of subdomains allowed by your subscription.'), 'warning');
+    View::setPageMessage(tr('You have reached the maximum number of subdomains allowed by your subscription.'), 'warning');
     redirectTo('domains_manage.php');
 }
 
-if (!empty($_POST) && addSubdomain()) {
-    setPageMessage(tr('Subdomain successfully scheduled for addition.'), 'success');
+if (Application::getInstance()->getRequest()->isPost() && addSubdomain()) {
+    View::setPageMessage(tr('Subdomain successfully scheduled for addition.'), 'success');
     redirectTo('domains_manage.php');
 }
 
@@ -469,7 +469,7 @@ Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslation
 
 View::generateNavigation($tpl);
 generatePage($tpl);
-generatePageMessage($tpl);
+View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onClientScriptEnd, NULL, ['templateEngine' => $tpl]);
 $tpl->prnt();
