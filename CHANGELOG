@@ -4,9 +4,15 @@
 Git 1.5.x
 ------------------------------------------------------------------------------------------------------------------------
 
+YOUTRACK
+    IP-1786 Customer assignment (to reseller) not showing all clients
+
 ------------------------------------------------------------------------------------------------------------------------
 1.5.3
 ------------------------------------------------------------------------------------------------------------------------
+
+2018-05-16: Laurent Declercq
+    RELEASE i-MSCP 1.5.3
 
 BACKEND
     Backport: Fix for #IP-1758 (Could not remove HTTPD log directory -- The immutable bit is removed too late) from 1.6.x branch
