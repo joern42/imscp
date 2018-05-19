@@ -1,7 +1,7 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2010-2017 by Laurent Declercq <l.declercq@nuxwin.com>
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,10 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
-
-/***********************************************************************************************************************
- * Functions
  */
 
 /**
@@ -82,12 +78,7 @@ function admin_sendToAdministrators($senderName, $senderEmail, $subject, $body)
     }
 
     $stmt = execute_query(
-        "
-            SELECT MIN(admin_name), MIN(fname), MIN(lname), email
-            FROM admin
-            WHERE admin_type = 'admin'
-            GROUP BY email
-        "
+        "SELECT MIN(admin_name) AS admin_name, MIN(fname) AS fname, MIN(lname) AS lname, email FROM admin WHERE admin_type = 'admin' GROUP BY email"
     );
 
     while ($rcptToData = $stmt->fetchRow()) {
@@ -115,14 +106,10 @@ function admin_sendToResellers($senderName, $senderEmail, $subject, $body)
     }
 
     $stmt = execute_query(
-        "
-            SELECT MIN(admin_name), MIN(fname), MIN(lname), email
-            FROM admin
-            WHERE admin_type = 'reseller'
-            GROUP BY email
-        "
+        "SELECT MIN(admin_name) AS admin_name, MIN(fname) AS fname, MIN(lname) AS lname, email FROM admin WHERE admin_type = 'reseller' GROUP BY email"
     );
     while ($rcptToData = $stmt->fetchRow()) {
+        print_r($rcptToData);
         admin_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
     }
 }
@@ -147,12 +134,7 @@ function admin_sendToCustomers($senderName, $senderEmail, $subject, $body)
     }
 
     $stmt = execute_query(
-        "
-            SELECT MIN(admin_name), MIN(fname), MIN(lname), email
-            FROM admin
-            WHERE admin_type = 'user'
-            GROUP BY email
-        "
+        "SELECT MIN(admin_name) AS admin_name, MIN(fname) AS fname, MIN(lname) AS lname, email FROM admin WHERE admin_type = 'user' GROUP BY email"
     );
     while ($rcptToData = $stmt->fetchRow()) {
         admin_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
@@ -168,30 +150,31 @@ function admin_sendToCustomers($senderName, $senderEmail, $subject, $body)
  * @param string $body Body
  * @return bool TRUE if circular is valid, FALSE otherwise
  * @throws Zend_Exception
+ * @throws iMSCP_Exception
  */
 function admin_isValidCircular($senderName, $senderEmail, $subject, $body)
 {
     $ret = true;
     if ($senderName == '') {
-        set_page_message(tr('Sender name is missing.'), 'error');
+        set_page_message(tohtml(tr('Sender name is missing.')), 'error');
         $ret = false;
     }
 
     if ($senderEmail == '') {
-        set_page_message(tr('Reply-To email is missing.'), 'error');
+        set_page_message(tohtml(tr('Reply-To email is missing.')), 'error');
         $ret = false;
     } elseif (!chk_email($senderEmail)) {
-        set_page_message(tr("Incorrect email length or syntax."), 'error');
+        set_page_message(tohtml(tr('Incorrect email length or syntax.')), 'error');
         $ret = false;
     }
 
     if ($subject == '') {
-        set_page_message(tr('Subject is missing.'), 'error');
+        set_page_message(tohtml(tr('Subject is missing.')), 'error');
         $ret = false;
     }
 
     if ($body == '') {
-        set_page_message(tr('Body is missing.'), 'error');
+        set_page_message(tohtml(tr('Body is missing.')), 'error');
         $ret = false;
     }
 
@@ -243,27 +226,15 @@ function admin_sendCircular()
     set_time_limit(0);
     ignore_user_abort(true);
 
-    if ($rcptTo == 'all_users'
-        || $rcptTo == 'administrators_resellers'
-        || $rcptTo == 'administrators_customers'
-        || $rcptTo == 'administrators'
-    ) {
+    if ($rcptTo == 'all_users' || $rcptTo == 'administrators_resellers' || $rcptTo == 'administrators_customers' || $rcptTo == 'administrators') {
         admin_sendToAdministrators($senderName, $senderEmail, $subject, $body);
     }
 
-    if ($rcptTo == 'all_users'
-        || $rcptTo == 'administrators_resellers'
-        || $rcptTo == 'resellers_customers'
-        || $rcptTo == 'resellers'
-    ) {
+    if ($rcptTo == 'all_users' || $rcptTo == 'administrators_resellers' || $rcptTo == 'resellers_customers' || $rcptTo == 'resellers') {
         admin_sendToResellers($senderName, $senderEmail, $subject, $body);
     }
 
-    if ($rcptTo == 'all_users'
-        || $rcptTo == 'administrators_customers'
-        || $rcptTo == 'resellers_customers'
-        || $rcptTo == 'customers'
-    ) {
+    if ($rcptTo == 'all_users' || $rcptTo == 'administrators_customers' || $rcptTo == 'resellers_customers' || $rcptTo == 'customers') {
         admin_sendToCustomers($senderName, $senderEmail, $subject, $body);
     }
 
@@ -274,7 +245,7 @@ function admin_sendCircular()
         'subject'      => $subject,
         'body'         => $body
     ]);
-    set_page_message(tr('Circular successfully sent.'), 'success');
+    set_page_message(tohtml(tr('Circular successfully sent.')), 'success');
     write_log(sprintf('A circular has been sent by %s', $_SESSION['user_logged']), E_USER_NOTICE);
     return true;
 }
@@ -326,38 +297,38 @@ function generatePage($tpl)
     }
 
     $tpl->assign([
-        'SENDER_NAME'  => tohtml($senderName),
-        'SENDER_EMAIL' => tohtml($senderEmail),
-        'SUBJECT'      => tohtml($subject),
+        'SENDER_NAME'  => tohtml($senderName, 'htmlAttr'),
+        'SENDER_EMAIL' => tohtml($senderEmail, 'htmlAttr'),
+        'SUBJECT'      => tohtml($subject, 'htmlAttr'),
         'BODY'         => tohtml($body)
     ]);
 
     $rcptToOptions = [
-        ['all_users', tr('All users')]
+        ['all_users', tohtml(tr('All users'))]
     ];
 
     if (systemHasManyAdmins() && systemHasResellers()) {
-        $rcptToOptions[] = ['administrators_resellers', tr('Administrators and resellers')];
+        $rcptToOptions[] = ['administrators_resellers', tohtml(tr('Administrators and resellers'))];
     }
 
     if (systemHasManyAdmins() && systemHasCustomers()) {
-        $rcptToOptions[] = ['administrators_customers', tr('Administrators and customers')];
+        $rcptToOptions[] = ['administrators_customers', tohtml(tr('Administrators and customers'))];
     }
 
     if (systemHasResellers() && systemHasCustomers()) {
-        $rcptToOptions[] = ['resellers_customers', tr('Resellers and customers')];
+        $rcptToOptions[] = ['resellers_customers', tohtml(tr('Resellers and customers'))];
     }
 
     if (systemHasManyAdmins()) {
-        $rcptToOptions[] = ['administrators', tr('Administrators')];
+        $rcptToOptions[] = ['administrators', tohtml(tr('Administrators'))];
     }
 
     if (systemHasResellers()) {
-        $rcptToOptions[] = ['resellers', tr('Resellers')];
+        $rcptToOptions[] = ['resellers', tohtml(tr('Resellers'))];
     }
 
     if (systemHasCustomers()) {
-        $rcptToOptions[] = ['customers', tr('Customers')];
+        $rcptToOptions[] = ['customers', tohtml(tr('Customers'))];
     }
 
     foreach ($rcptToOptions as $option) {
@@ -369,10 +340,6 @@ function generatePage($tpl)
         $tpl->parse('RCPT_TO_OPTION', '.rcpt_to_option');
     }
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require 'imscp-lib.php';
 
@@ -395,15 +362,15 @@ $tpl->define_dynamic([
     'rcpt_to_option' => 'page'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'    => tr('Admin / Users / Circular'),
-    'TR_CIRCULAR'      => tr('Circular'),
-    'TR_SEND_TO'       => tr('Send to'),
-    'TR_SUBJECT'       => tr('Subject'),
-    'TR_BODY'          => tr('Body'),
-    'TR_SENDER_EMAIL'  => tr('Reply-To email'),
-    'TR_SENDER_NAME'   => tr('Reply-To name'),
-    'TR_SEND_CIRCULAR' => tr('Send circular'),
-    'TR_CANCEL'        => tr('Cancel')
+    'TR_PAGE_TITLE'    => tohtml(tr('Admin / Users / Circular')),
+    'TR_CIRCULAR'      => tohtml(tr('Circular')),
+    'TR_SEND_TO'       => tohtml(tr('Send to')),
+    'TR_SUBJECT'       => tohtml(tr('Subject')),
+    'TR_BODY'          => tohtml(tr('Body')),
+    'TR_SENDER_EMAIL'  => tohtml(tr('Reply-To email')),
+    'TR_SENDER_NAME'   => tohtml(tr('Reply-To name')),
+    'TR_SEND_CIRCULAR' => tohtml(tr('Send circular')),
+    'TR_CANCEL'        => tohtml(tr('Cancel'), 'htmlAttr')
 ]);
 
 generateNavigation($tpl);

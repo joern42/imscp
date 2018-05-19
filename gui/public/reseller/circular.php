@@ -1,7 +1,7 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2010-2017 by Laurent Declercq <l.declercq@nuxwin.com>
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,10 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
-
-/***********************************************************************************************************************
- * Functions
  */
 
 /**
@@ -82,13 +78,8 @@ function reseller_sendToCustomers($senderName, $senderEmail, $subject, $body)
     }
 
     $stmt = exec_query(
-        "
-            SELECT MIN(admin_name), MIN(fname), MIN(lname), email
-            FROM admin
-            WHERE created_by = ?
-            GROUP BY email
-        ",
-        $_SESSION['user_id']
+        "SELECT MIN(admin_name) AS admin_name, MIN(fname) AS fname, MIN(lname) AS lname, email FROM admin WHERE created_by = ? GROUP BY email",
+        [$_SESSION['user_id']]
     );
     while ($rcptToData = $stmt->fetchRow()) {
         reseller_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
@@ -104,27 +95,28 @@ function reseller_sendToCustomers($senderName, $senderEmail, $subject, $body)
  * @param string $body Body
  * @return bool TRUE if circular is valid, FALSE otherwise
  * @throws Zend_Exception
+ * @throws iMSCP_Exception
  */
 function reseller_isValidCircular($senderName, $senderEmail, $subject, $body)
 {
     $ret = true;
     if ($senderName == '') {
-        set_page_message(tr('Sender name is missing.'), 'error');
+        set_page_message(tohtml(tr('Sender name is missing.')), 'error');
         $ret = false;
     }
     if ($senderEmail == '') {
-        set_page_message(tr('Reply-To email is missing.'), 'error');
+        set_page_message(tohtml(tr('Reply-To email is missing.')), 'error');
         $ret = false;
     } elseif (!chk_email($senderEmail)) {
-        set_page_message(tr("Incorrect email length or syntax."), 'error');
+        set_page_message(tohtml(tr('Incorrect email length or syntax.')), 'error');
         $ret = false;
     }
     if ($subject == '') {
-        set_page_message(tr('Subject is missing.'), 'error');
+        set_page_message(tohtml(tr('Subject is missing.')), 'error');
         $ret = false;
     }
     if ($body == '') {
-        set_page_message(tr('Body is missing.'), 'error');
+        set_page_message(tohtml(tr('Body is missing.')), 'error');
         $ret = false;
     }
 
@@ -142,9 +134,7 @@ function reseller_isValidCircular($senderName, $senderEmail, $subject, $body)
  */
 function reseller_sendCircular()
 {
-    if (!isset($_POST['sender_name']) || !isset($_POST['sender_email']) || !isset($_POST['subject'])
-        || !isset($_POST['body'])
-    ) {
+    if (!isset($_POST['sender_name']) || !isset($_POST['sender_email']) || !isset($_POST['subject']) || !isset($_POST['body'])) {
         showBadRequestErrorPage();
     }
 
@@ -227,16 +217,12 @@ function reseller_generatePageData($tpl)
     }
 
     $tpl->assign([
-        'SENDER_NAME'  => tohtml($senderName),
-        'SENDER_EMAIL' => tohtml($senderEmail),
-        'SUBJECT'      => tohtml($subject),
+        'SENDER_NAME'  => tohtml($senderName, 'htmlAttr'),
+        'SENDER_EMAIL' => tohtml($senderEmail, 'htmlAttr'),
+        'SUBJECT'      => tohtml($subject, 'htmlAttr'),
         'BODY'         => tohtml($body)
     ]);
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require 'imscp-lib.php';
 
@@ -258,15 +244,15 @@ $tpl->define_dynamic([
     'page_message' => 'layout'
 ]);
 $tpl->assign([
-    'TR_PAGE_TITLE'    => tr('Reseller / Customers / Circular'),
-    'TR_CIRCULAR'      => tr('Circular'),
-    'TR_SEND_TO'       => tr('Send to'),
-    'TR_SUBJECT'       => tr('Subject'),
-    'TR_BODY'          => tr('Body'),
-    'TR_SENDER_EMAIL'  => tr('Reply-To email'),
-    'TR_SENDER_NAME'   => tr('Reply-To name'),
-    'TR_SEND_CIRCULAR' => tr('Send circular'),
-    'TR_CANCEL'        => tr('Cancel')
+    'TR_PAGE_TITLE'    => tohtml(tr('Reseller / Customers / Circular')),
+    'TR_CIRCULAR'      => tohtml(tr('Circular')),
+    'TR_SEND_TO'       => tohtml(tr('Send to')),
+    'TR_SUBJECT'       => tohtml(tr('Subject')),
+    'TR_BODY'          => tohtml(tr('Body')),
+    'TR_SENDER_EMAIL'  => tohtml(tr('Reply-To email')),
+    'TR_SENDER_NAME'   => tohtml(tr('Reply-To name')),
+    'TR_SEND_CIRCULAR' => tohtml(tr('Send circular')),
+    'TR_CANCEL'        => tohtml(tr('Cancel'), 'htmlAttr')
 ]);
 
 generateNavigation($tpl);
