@@ -261,7 +261,7 @@ sub _makeDirs
                 group => $_->[2],
                 mode  => $_->[3]
             }
-        );;
+        );
     }
 
     $self->{'eventManager'}->trigger( 'afterHttpdMakeDirs' );
