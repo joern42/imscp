@@ -36,11 +36,17 @@ use iMSCP_Registry as Registry;
  */
 function moveCustomer($customerId, $fromResellerId, $toResellerId)
 {
+    static $toResellerProps = NULL;
+
     $db = Database::getInstance();
 
     try {
-        $toResellerProps = imscp_getResellerProperties($toResellerId);
+        if (NULL === $toResellerProps) {
+            $toResellerProps = imscp_getResellerProperties($toResellerId);
+        }
+
         $customerToResellerLimits = [
+            // Customer prop => [ reseller current assignments, reseller max assignments ]
             'domain_subd_limit'    => ['current_sub_cnt', 'max_sub_cnt'],
             'domain_alias_limit'   => ['current_als_cnt', 'max_als_cnt'],
             'domain_mailacc_limit' => ['current_mail_cnt', 'max_mail_cnt'],
@@ -51,6 +57,7 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
             'domain_disk_limit'    => ['current_disk_amnt', 'max_disk_amnt']
         ];
         $resellerToCustomerPerms = [
+            // Customer prop => reseller prop
             'domain_software_allowed'       => 'software_allowed',
             'phpini_perm_system'            => 'php_ini_system',
             'phpini_perm_allow_url_fopen'   => 'php_ini_al_allow_url_fopen',
@@ -61,9 +68,8 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
 
         $stmt = exec_query(
             '
-                SELECT domain_subd_limit, domain_alias_limit, domain_mailacc_limit, domain_ftpacc_limit,
-                    domain_sqld_limit, domain_sqlu_limit, domain_traffic_limit, domain_disk_limit, domain_ip_id,
-                    domain_software_allowed, phpini_perm_system, phpini_perm_allow_url_fopen, 
+                SELECT domain_mailacc_limit, domain_ftpacc_limit, domain_traffic_limit, domain_sqld_limit, domain_sqlu_limit, domain_alias_limit,
+                    domain_subd_limit, domain_ip_id, domain_disk_limit, domain_software_allowed, phpini_perm_system, phpini_perm_allow_url_fopen,
                     phpini_perm_display_errors, phpini_perm_disable_functions, phpini_perm_mail_function
                 FROM domain
                 WHERE domain_admin_id = ?
@@ -75,7 +81,7 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
             throw new Exception(tr("Couldn't find domain properties for customer with ID %d.", $customerId));
         }
 
-        $customerProps = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $customerProps = $stmt->fetchRow();
         $db->beginTransaction();
 
         // For each item (sub, mail, ftp....), we adjust the target reseller
@@ -112,18 +118,20 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
         }
 
         // Adjust the customer permissions according target reseller permissions
-        foreach ($resellerToCustomerPerms as $resellerPerms => $customerPerm) {
-            if ($customerProps[$customerPerm] == 'yes' && $toResellerProps[$resellerPerms] != 'yes') {
+        foreach ($resellerToCustomerPerms as $customerPerm => $resellerPerm) {
+            if ($customerProps[$customerPerm] !== $toResellerProps[$resellerPerm]) {
                 $customerProps[$customerPerm] = 'no';
             }
         }
 
         // The customer IP address must be in the target reseller IP addresses list
-        $newResellerIps = explode(';', $toResellerProps['reseller_ips']);
-        $newResellerIps[] = $customerProps['domain_ip_id'];
-        sort($newResellerIps, SORT_NUMERIC);
-        $toResellerProps['reseller_ips'] = implode(';', array_unique($newResellerIps)) . ';';
-        unset($newResellerIps);
+        $resellerIps = explode(';', rtrim($toResellerProps['reseller_ips'], ';'));
+        if (!in_array($customerProps['domain_ip_id'], $resellerIps)) {
+            $resellerIps[] = $customerProps['domain_ip_id'];
+            sort($resellerIps, SORT_NUMERIC);
+            $toResellerProps['reseller_ips'] = implode(';', array_unique($resellerIps)) . ';';
+        }
+        unset($resellerIps);
 
         // Move the customer to the target reseller
         exec_query('UPDATE admin SET created_by = ? WHERE admin_id = ?', [$toResellerId, $customerId]);
@@ -163,9 +171,7 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
     } catch (Exception $e) {
         $db->rollBack();
         write_log(sprintf("Couldn't move customer with ID %d: %s", $customerId, $e->getMessage()));
-        throw new Exception(
-            tr("Couldn't move customer with ID %d: %s", $customerId, $e->getMessage()), $e->getCode(), $e
-        );
+        throw new Exception(tr("Couldn't move customer with ID %d: %s", $customerId, $e->getMessage()), $e->getCode(), $e);
     }
 }
 
