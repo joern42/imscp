@@ -1569,6 +1569,15 @@ sub _addCfg
         );
         $data->{'VHOST_TYPE'} = 'domain_fwd';
     } elsif ( $data->{'FORWARD'} ne 'no' ) {
+        if($data->{'FORWARD_TYPE'} eq 'proxy') {
+            $self->setData(
+                {
+                    X_FORWARDED_PROTOCOL => 'http',
+                    X_FORWARDED_PORT     => 80
+                }
+            );
+        }
+
         $data->{'VHOST_TYPE'} = 'domain_fwd';
     } else {
         $data->{'VHOST_TYPE'} = 'domain';
@@ -1605,6 +1614,16 @@ sub _addCfg
                     FORWARD_TYPE => $data->{'FORWARD_TYPE'}
                 }
             );
+
+            if($data->{'FORWARD_TYPE'} eq 'proxy') {
+                $self->setData(
+                    {
+                        X_FORWARDED_PROTOCOL => 'https',
+                        X_FORWARDED_PORT     => 443
+                    }
+                );
+            }
+
             $data->{'VHOST_TYPE'} = 'domain_ssl_fwd';
         } else {
             $data->{'VHOST_TYPE'} = 'domain_ssl';
