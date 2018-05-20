@@ -9,6 +9,9 @@ CONFIG
     Added: Specific LOGROTATE(8) configuration file for rsyslog (Ubuntu 14.04/Trusty Thar) -- Backported from 1.6.x
     Fixed: Bad value for X-Forward-* headers (Proxy feature / Apache2 ssl vhosts) -- Backported from 1.6.x
 
+DISTRIBUTION
+    Added: Support for Ubuntu Bionic Beaver (18.04) LTS
+
 INSTALLER
     Fixed: DIRMNGR(8) daemon not being terminated when expected (APT key management -- Debian adapter) -- Backported from 1.6.x
 
