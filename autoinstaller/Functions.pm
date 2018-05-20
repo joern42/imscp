@@ -963,10 +963,25 @@ sub _copyConfig
     my ($data) = @_;
 
     if ( defined $data->{'if'} && !eval _expandVars( $data->{'if'} ) ) {
-        return 0 if $data->{'kept'};
-        ( my $syspath = $data->{'content'} ) =~ s/^$main::{'INST_PREF'}//;
-        return 0 unless $syspath ne '/' && -f $syspath;
-        return iMSCP::File->new( filename => $syspath )->delFile();
+        return if defined $data->{'kept'} && eval _expandVars( $data->{'kept'} );
+
+        my $syspath;
+        if ( defined $data->{'as'} ) {
+            my ( undef, $dirs ) = fileparse( $data->{'content'} );
+            ( $syspath = "$dirs/$data->{'as'}" ) =~ s/^$::{'INST_PREF'}//;
+        } else {
+            ( $syspath = $data->{'content'} ) =~ s/^$::{'INST_PREF'}//;
+        }
+
+        return unless $syspath ne '/' && -e $syspath;
+
+        if ( -d _ ) {
+            iMSCP::Dir->new( dirname => $syspath )->remove();
+        } else {
+            iMSCP::File->new( filename => $syspath )->delFile();
+        }
+
+        return;
     }
 
     my ($name, $path) = fileparse( $data->{'content'} );
