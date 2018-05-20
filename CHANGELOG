@@ -13,6 +13,9 @@ CONFIG
 DISTRIBUTION
     Added: Support for Ubuntu Bionic Beaver (18.04) LTS
 
+FRONTEND:
+    Fixed: Closing button being removed in all dialog UI while it must be removed only in alert and confirmation dialogs
+
 INSTALLER
     Fixed: DIRMNGR(8) daemon not being terminated when expected (APT key management -- Debian adapter) -- Backported from 1.6.x
 
