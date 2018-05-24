@@ -109,7 +109,6 @@ function admin_sendToResellers($senderName, $senderEmail, $subject, $body)
         "SELECT MIN(admin_name) AS admin_name, MIN(fname) AS fname, MIN(lname) AS lname, email FROM admin WHERE admin_type = 'reseller' GROUP BY email"
     );
     while ($rcptToData = $stmt->fetchRow()) {
-        print_r($rcptToData);
         admin_sendEmail($senderName, $senderEmail, $subject, $body, $rcptToData);
     }
 }
