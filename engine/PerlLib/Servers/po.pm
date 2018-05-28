@@ -73,7 +73,7 @@ sub factory
 
 =item can( $method )
 
- Checks if the po server package provides the given method
+ Checks if the given method is implemented
 
  Param string $method Method name
  Return subref|undef

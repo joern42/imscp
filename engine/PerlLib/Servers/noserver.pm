@@ -57,7 +57,7 @@ sub factory
 
 =item can( $method )
 
- Checks if the server class provide the given method
+ Checks if the given method is implemented
 
  Param string $method Method name
  Return undef

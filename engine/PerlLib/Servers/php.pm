@@ -23,6 +23,8 @@
 
 package Servers::php;
 
+use strict;
+use warnings;
 use parent 'Servers::noserver';
 
 =head1 DESCRIPTION
