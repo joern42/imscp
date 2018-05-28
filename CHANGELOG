@@ -23,6 +23,7 @@ YOUTRACK
     IP-1745 Rsyslog log rotation failure -- Initctl command (Upstart) doesn't know the 'rotate' action -- Ubuntu 14.04/Trusty Thar
     IP-1785 Exception in circular email feature (admin and reseller interfaces)
     IP-1786 Customer assignment (to reseller) not showing all clients
+    IP-1787 Typo in external mail feature activation
 
 ------------------------------------------------------------------------------------------------------------------------
 1.5.3
