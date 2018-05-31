@@ -10,6 +10,7 @@ CONFIG
     Fixed: Bad value for X-Forward-* headers (Proxy feature / Apache2 ssl vhosts) -- Backported from 1.6.x
     Security: Protect both /var/www/virtual and /var/www/imscp directories from entire access (Apache2)
     Review: SSL parameters for both Apache2 and Nginx Web servers
+    Review: Do not discard paths other than '/errors/' and '/.well-known/acme-challenge/' on redirect/proxy (Apache2)
 
 DISTRIBUTION
     Added: Support for Ubuntu Bionic Beaver (18.04) LTS

@@ -29,6 +29,6 @@
     # SECTION dmn END.
 
     # SECTION fwd BEGIN.
-    RedirectMatch {FORWARD_TYPE} ^/((?!\.well-known/).*) {FORWARD}$1
+    RedirectMatch {FORWARD_TYPE} ^/((?!\.well-known/acme-challenge/).*) {FORWARD}$1
     # SECTION fwd END.
 </VirtualHost>
