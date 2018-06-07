@@ -48,6 +48,14 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
             'domain_traffic_limit' => ['current_traff_amnt', 'max_traff_amnt'],
             'domain_disk_limit'    => ['current_disk_amnt', 'max_disk_amnt']
         ];
+        $resellerToCustomerPerms = [
+            // Customer prop => reseller prop
+            'phpini_perm_system'            => 'php_ini_system',
+            'phpini_perm_allow_url_fopen'   => 'php_ini_al_allow_url_fopen',
+            'phpini_perm_display_errors'    => 'php_ini_al_display_errors',
+            'phpini_perm_disable_functions' => 'php_ini_al_disable_functions',
+            'phpini_perm_mail_function'     => 'php_ini_al_mail_function'
+        ];
 
         $stmt = execQuery(
             '
@@ -104,8 +112,8 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
         }
 
         // Adjust the customer permissions according target reseller permissions
-        foreach ($resellerToCustomerPerms as $resellerPerms => $customerPerm) {
-            if ($customerProps[$customerPerm] == 'yes' && $toResellerProps[$resellerPerms] != 'yes') {
+        foreach ($resellerToCustomerPerms as $resellerPerm => $customerPerm) {
+            if ($customerProps[$customerPerm] !== $toResellerProps[$resellerPerm]) {
                 $customerProps[$customerPerm] = 'no';
             }
         }
@@ -122,7 +130,7 @@ function moveCustomer($customerId, $fromResellerId, $toResellerId)
 
         // Update the customer permissions according the target reseller permissions
 
-        PhpIni::getInstance()->syncClientPermissionsAndIniOptions($toResellerId, $customerId);
+        PHPini::getInstance()->syncClientPermissionsAndIniOptions($toResellerId, $customerId);
 
         // Update the target reseller limits, permissions and IP addresses 
         execQuery(

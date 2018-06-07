@@ -196,14 +196,19 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         }
 
         // Setup default session manager
+        $isSecureRequest = isSecureRequest();
         $config = $this->getConfig();
         $sessionConfig = new SessionConfig();
         $sessionConfig->setOptions([
-            'name'                   => 'iMSCP_Session',
+            // We cannot use same session name (cookie name) for both HTTP and
+            // HTTPS because once the secure cookie is set, it will not longer
+            // be send via HTTP and users won't be able to login via HTTP.
+            // There is a similar problem with PMA: https://github.com/phpmyadmin/phpmyadmin/issues/14184
+            'name'                   => 'iMSCP_Session' . ($isSecureRequest ? '_Secure' : ''),
             'use_cookies'            => true,
             'use_only_cookies'       => true,
             'cookie_domain'          => $config['BASE_SERVER_VHOST'],
-            'cookie_secure'          => $config['BASE_SERVER_VHOST_PREFIX'] == 'https://' || isSecureRequest(),
+            'cookie_secure'          => $isSecureRequest,
             'cookie_httponly'        => true,
             'cookie_path'            => '/',
             'cookie_lifetime'        => 0,
@@ -359,27 +364,31 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
     {
         if (NULL === $this->cache) {
             $adapter = PHP_SAPI != 'cli' && version_compare(phpversion('apcu'), '5.1.0', '>=') && ini_get('apc.enabled') ? 'Apcu' : 'BlackHole';
+
             if ($adapter == 'Apcu') {
                 $this->cache = new Cache\Storage\Adapter\Apcu(['namespace' => 'iMSCPcache']);
                 $this->cache->addPlugin(Cache\StorageFactory::pluginFactory('ExceptionHandler', ['throw_exceptions' => false]));
                 $this->cache->addPlugin(Cache\StorageFactory::pluginFactory('IgnoreUserAbort', ['exit_on_abort' => false]));
-            } else {
-                $this->cache = new Cache\Storage\Adapter\BlackHole();
-                if (PHP_SAPI != 'cli') {
-                    $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
-                        if (NULL !== ($identity = $this->getAuthService()->getIdentity()) && !isXhr()
-                            && (
-                                $identity->getUserType() == 'admin'
-                                || ($identity instanceof SuIdentityInterface && (
-                                        $identity->getSuUserType() == 'admin')
-                                    || $identity->getSuIdentity() instanceof SuIdentityInterface
-                                )
+                return $this->cache;
+            }
+
+            $this->cache = new Cache\Storage\Adapter\BlackHole();
+
+            if (PHP_SAPI != 'cli') {
+                $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
+                    $identity = $this->getAuthService()->getIdentity();
+
+                    if (NULL !== $identity
+                        && !isXhr()
+                        && ($identity->getUserType() == 'admin'
+                            || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin'
+                                || $identity->getSuIdentity() instanceof SuIdentityInterface
                             )
-                        ) {
-                            View::setPageMessage(tr('The APCu extension is not enabled on your system. This can lead to performance issues.'), 'static_warning');
-                        }
-                    });
-                }
+                        )
+                    ) {
+                        View::setPageMessage(tr('The APCu extension is not enabled on your system. This can lead to performance issues.'), 'static_warning');
+                    }
+                });
             }
         }
 
@@ -398,7 +407,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         }
 
         // Setup reader for Java .properties configuration file
-        Config\Factory::registerReader('conf', Config\Reader\JavaProperties::class);
+        #Config\Factory::registerReader('conf', Config\Reader\JavaProperties::class);
         Config\Factory::registerReader('data', Config\Reader\JavaProperties::class);
         $reader = new Config\Reader\JavaProperties('=', Config\Reader\JavaProperties::WHITESPACE_TRIM);
 

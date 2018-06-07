@@ -47,7 +47,7 @@ function getFormData()
         redirectTo('users.php');
     }
 
-    $phpini = PhpIni::getInstance();
+    $phpini = PHPini::getInstance();
 
     foreach (
         [
@@ -331,7 +331,7 @@ function addResellerUser(Form $form)
         $db->getDriver()->getConnection()->beginTransaction();
 
         // Check for PHP settings
-        $phpini = PhpIni::getInstance();
+        $phpini = PHPini::getInstance();
         $phpini->setResellerPermission('phpiniSystem', $data['php_ini_system']);
 
         if ($phpini->resellerHasPermission('phpiniSystem')) {
@@ -456,7 +456,7 @@ require_once 'application.php';
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-$phpini = PhpIni::getInstance();
+$phpini = PHPini::getInstance();
 $phpini->loadResellerPermissions();
 
 $form = getUserLoginDataForm(true, true)->addElements(getUserPersonalDataForm()->getElements());

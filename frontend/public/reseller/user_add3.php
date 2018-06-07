@@ -193,7 +193,7 @@ function addCustomer(Form $form)
 
         $dmnId = $db->getDriver()->getLastGeneratedValue();
 
-        $phpini = PhpIni::getInstance();
+        $phpini = PHPini::getInstance();
         $phpini->loadResellerPermissions($identity->getUserId()); // Load reseller PHP permissions
         $phpini->loadClientPermissions(); // Load client default PHP permissions
         $phpini->loadIniOptions(); // Load domain default PHP configuration options

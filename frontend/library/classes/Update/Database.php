@@ -862,7 +862,7 @@ class Database extends DatabaseAbstract
      */
     protected function r233()
     {
-        $phpini = PhpIni::getInstance();
+        $phpini = PHPini::getInstance();
 
         // For each reseller
         $resellers = execQuery("SELECT admin_id FROM admin WHERE admin_type = 'reseller'");

@@ -84,7 +84,7 @@ function getFormData($resellerId, $forUpdate = false)
 
     $data = array_merge($data, $fallbackData);
 
-    $phpini = PhpIni::getInstance();
+    $phpini = PHPini::getInstance();
 
     $data['php_ini_system'] = $phpini->getResellerPermission('phpiniSystem');
     $data['php_ini_al_config_level'] = $phpini->getResellerPermission('phpiniConfigLevel');

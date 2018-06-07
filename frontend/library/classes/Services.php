@@ -50,12 +50,9 @@ class Services implements \iterator, \countable
         $values = Application::getInstance()->getDbConfig()->getArrayCopy();
 
         // Gets list of services port names
-        $services = array_filter(
-            array_keys($values),
-            function ($name) {
-                return (strlen($name) > 5 && substr($name, 0, 5) == 'PORT_');
-            }
-        );
+        $services = array_filter(array_keys($values), function ($name) {
+            return strlen($name) > 5 && substr($name, 0, 5) == 'PORT_';
+        });
 
         foreach ($services as $name) {
             $this->services[$name] = explode(';', $values[$name]);

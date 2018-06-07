@@ -224,7 +224,7 @@ function &getData($clientId, $forUpdate = false)
     $data['fallback_web_folder_protection'] = $data['web_folder_protection'];
     $data['fallback_mail_quota'] = $data['mail_quota'];
 
-    $phpini = PhpIni::getInstance();
+    $phpini = PHPini::getInstance();
     $phpini->loadResellerPermissions($identity->getUserId()); // Load reseller PHP permissions
     $phpini->loadClientPermissions($data['admin_id']); // Load client PHP permissions
     $phpini->loadIniOptions($data['admin_id'], $data['domain_id'], 'dmn'); // Load domain PHP configuration options
@@ -433,7 +433,7 @@ function updateClientAccount($clientId)
         $data['domain_php'] = in_array($data['domain_php'], ['no', 'yes'], true) ? $data['domain_php'] : $data['fallback_domain_php'];
 
         // PHP editor
-        $phpini = PhpIni::getInstance();
+        $phpini = PHPini::getInstance();
         $phpConfigLevel = $phpini->getClientPermission('phpiniConfigLevel');
 
         if (isset($_POST['php_ini_system']) && $data['domain_php'] == 'yes' && $phpini->resellerHasPermission('phpiniSystem')) {
@@ -784,7 +784,7 @@ function generatePage(TemplateEngine $tpl, $clientId)
     $identity = Application::getInstance()->getAuthService()->getIdentity();
     View::generateResellerIpsList($tpl, $identity->getUserId(), $data['domain_client_ips']);
 
-    $phpini = PhpIni::getInstance();
+    $phpini = PHPini::getInstance();
 
     if (!$phpini->resellerHasPermission('phpiniSystem')) {
         $tpl->assign('PHP_EDITOR_BLOCK', '');
