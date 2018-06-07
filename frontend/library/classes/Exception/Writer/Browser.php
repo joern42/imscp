@@ -66,8 +66,14 @@ class Browser implements WriterInterface
             $this->message = $exception->getMessage();
         }
 
-        if (static::$templateFile && NULL !== $tpl = $this->render()) {
-            $event->setParams(['templateEngine' => $tpl, 'layout' => 'layout_browser_exception']);
+        // Flush output buffer (cover template context exceptions)
+        ob_clean();
+
+        if (self::$templateFile && NULL !== $tpl = $this->render()) {
+            $event->setParams([
+                'templateEngine' => $tpl,
+                'layout'         => 'layout_browser_exception'
+            ]);
             initLayout($event);
             $tpl->prnt();
             return;
@@ -125,7 +131,7 @@ HTML;
             # identifier. Not doing this would lead to wrong template used.
             $tpl->define([
                 'layout_browser_exception' => 'shared/layouts/simple.tpl',
-                'page_browser_exception'   => static::$templateFile,
+                'page_browser_exception'   => self::$templateFile,
                 'page_message'             => 'layout',
                 'backlink_block'           => 'page'
             ]);
