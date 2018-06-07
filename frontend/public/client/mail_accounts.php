@@ -256,7 +256,7 @@ function generateMailAccountsList($tpl, $domainId)
             'MAIL_ACCOUNT_ADDR'       => toHtml(substr(decodeIdna('-' . $row['mail_addr']), 1)),
             'MAIL_ACCOUNT_TYPE'       => toHtml(Mail::humanizeMailType($row['mail_acc'], $row['mail_type'])),
             'MAIL_ACCOUNT_QUOTA_INFO' => toHtml($mailQuotaInfo),
-            'MAIL_ACCOUNT_STATUS'     => humanizeDomainStatus($row['status'])
+            'MAIL_ACCOUNT_STATUS'     => humanizeItemStatus($row['status'])
         ]);
 
         if ($quotaPercent >= 95) {

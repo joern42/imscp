@@ -38,7 +38,7 @@ use Zend\Validator\File\MimeType;
 /**
  * Translates the given string
  *
- * @param string $messageId Translation string
+ * @param string $messageId
  * @param string ...$params
  * @return string
  */
@@ -1476,7 +1476,7 @@ function getCustomerMainDomainId($customeId, $forceReload = false)
  * @param bool $colored Flag indicating whether or not translated status must be colored
  * @return string Translated status
  */
-function humanizeDomainStatus($status, $showError = false, $colored = false)
+function humanizeItemStatus($status, $showError = false, $colored = false)
 {
     $statusOk = TRUE;
 
@@ -1487,8 +1487,10 @@ function humanizeDomainStatus($status, $showError = false, $colored = false)
         case 'toadd':
             $status = toHtml(tr('Addition in progress...'));
             break;
-        case 'tochange':
         case 'torestore':
+            $status = toHtml(tr('Backup restore in progress...'));
+            break;
+        case 'tochange':
         case 'tochangepwd':
             $status = toHtml(tr('Modification in progress...'));
             break;

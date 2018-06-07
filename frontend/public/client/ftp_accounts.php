@@ -47,7 +47,7 @@ function generatePage($tpl)
         $tpl->assign([
             'FTP_ACCOUNT'        => toHtml($row['userid']),
             'UID'                => toHtml($row['userid'], 'htmlAttr'),
-            'FTP_ACCOUNT_STATUS' => humanizeDomainStatus($row['status'])
+            'FTP_ACCOUNT_STATUS' => humanizeItemStatus($row['status'])
         ]);
 
         if ($row['status'] != 'ok') {

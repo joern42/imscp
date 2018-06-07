@@ -115,18 +115,18 @@ function generateIpsList(TemplateEngine $tpl)
         $ipAddr = Net::compress($row['ip_number']);
 
         if ($baseServerIp == $ipAddr) {
-            $actionName = $row['ip_status'] == 'ok' ? toHtml(tr('Protected')) : toHtml(humanizeDomainStatus($row['ip_status']));
+            $actionName = $row['ip_status'] == 'ok' ? toHtml(tr('Protected')) : humanizeItemStatus($row['ip_status']);
             $actionIpId = NULL;
         } elseif ($row['num_assignments'] > 0) {
             $actionName = ($row['ip_status'] == 'ok')
                 ? toHtml(ntr('Assigned to one reseller', 'Assigned to %d one reseller', $row['num_assignments'], $row['num_assignments']))
-                : toHtml(humanizeDomainStatus($row['ip_status']));
+                : humanizeItemStatus($row['ip_status']);
             $actionIpId = NULL;
         } elseif ($row['ip_status'] == 'ok') {
             $actionName = toHtml(tr('Delete'));
             $actionIpId = $row['ip_id'];
         } else {
-            $actionName = toHtml(humanizeDomainStatus($row['ip_status']));
+            $actionName = humanizeItemStatus($row['ip_status']);
             $actionIpId = NULL;
         }
 

@@ -493,7 +493,7 @@ function client_generatePage(TemplateEngine $tpl, $domainId, $domainType)
         $trAction = tr('Update');
         $status = $row['status'];
         $tpl->assign('STATUS', in_array($status, ['toadd', 'tochange', 'todelete', 'ok'])
-            ? humanizeDomainStatus($status) : '<span style="color: red;font-weight: bold">' . $status . "</span>"
+            ? humanizeItemStatus($status) : '<span style="color: red;font-weight: bold">' . $status . "</span>"
         );
     } elseif (Counting::customerHasFeature('ssl')) {
         $dynTitle = tr('Add SSL certificate');

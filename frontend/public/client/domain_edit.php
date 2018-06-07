@@ -239,7 +239,7 @@ function client_editDomain()
         'forwardHost'  => $forwardHost
     ]);
     execQuery(
-        'UPDATE domain SET document_root = ?, url_forward = ?, type_forward = ?, host_forward = ?, domain_status = ?WHERE domain_id = ?', [
+        'UPDATE domain SET document_root = ?, url_forward = ?, type_forward = ?, host_forward = ?, domain_status = ? WHERE domain_id = ?', [
         $documentRoot, $forwardUrl, $forwardType, $forwardHost, 'tochange', $domainId
     ]);
     Application::getInstance()->getEventManager()->trigger(Events::onAfterEditDomain, NULL, [

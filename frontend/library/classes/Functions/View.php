@@ -89,7 +89,7 @@ class View
         foreach (getAvailableLanguages() as $language) {
             $tpl->assign([
                 'LANG_VALUE'    => toHtml($language['locale'], 'htmlAttr'),
-                'LANG_SELECTED' => ($language['locale'] == $selectedLanguage) ? ' selected' : '',
+                'LANG_SELECTED' => $language['locale'] == $selectedLanguage ? ' selected' : '',
                 'LANG_NAME'     => toHtml($language['language'])
             ]);
             $tpl->parse('DEF_LANGUAGE', '.def_language');
@@ -718,7 +718,7 @@ class View
 
         while ($row = $stmt->fetch()) {
             $statusOk = true;
-            $statusTxt = $statusTooltip = humanizeDomainStatus($row['admin_status'] != 'ok' ? $row['admin_status'] : $row['domain_status']);
+            $statusTxt = $statusTooltip = humanizeItemStatus($row['admin_status'] != 'ok' ? $row['admin_status'] : $row['domain_status']);
 
             if ($row['admin_status'] == 'ok' && $row['domain_status'] == 'ok') {
                 $class = 'i_ok';

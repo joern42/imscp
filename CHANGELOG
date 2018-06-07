@@ -6,21 +6,21 @@ Git 1.6.x
 
 BACKEND
     Added: composer.phar compatibility symlink for backward compatibility with plugins
-    Added: Netplan networking configuration provider for Debian like distributions
+    Added: Netplan networking configuration provider (required for Ubuntu >= 
     Added: New library for templates processing: iMSCP::Template::Processor (in replacement of the iMSCP::TemplateParser library)
     Added: Support for .timer unit files (Systemd init provider)
     Added: Version check (minimum version) for non-core Perl modules (iMSCP::Requirements)
-    Enhancement: Make it possible to define placeholders in placeholders (iMSCP::Template::Processor)
+    Enhancement: Make it possible to define placeholders within placeholders (iMSCP::Template::Processor)
     Enhancement: Make it possible to delay execution of the 'start', 'restart' and 'reload' actions (iMSCP::Service)
     Enhancement: Make it possible to discard files/directories when clearing a directory (iMSCP::Dir::clear)
     Enhancement: Make it possible to empty unknown pseudo-variables in templates (iMSCP::Template::Processor)
-    Enhancement: Make it possible to install Composer anywhere (iMSCP::Composer)
+    Enhancement: Make it possible to install composer anywhere (iMSCP::Composer)
     Enhancement: Make it possible to override default composer.json (iMSCP::Composer)
     Enhancement: Make it possible to reconfigure many items at once by passing comma separated list of items (iMSCP::Getopt)
     Enhancement: Make it possible to support multiple distributions (other than Debian like distributions) by providing abstract classes for all i-MSCP servers.
     Enhancement: Make the iMSCP::Composer package usable by 3rd-party components, without relying on event manager
     Fixed: All Perl packages must be in iMSCP namespace
-    Fixed: Avoid localization of '$@' variable
+    Fixed: Avoid localization of the '$@' variable whenever possible
     Fixed: Can't call method "XXXXXX" on unblessed reference -- Object as event listener (iMSCP::EventManager -- regression fix)
     Fixed: Couldn't restore SQL databases -- Can't locate object method "selectall_array" via package "DBI::db"
     Fixed: Couldn't restore uncompressed databases
@@ -28,7 +28,7 @@ BACKEND
     Fixed: Make distinction between install and update commands (iMSCP::Composer)
     Fixed: Make sure that units are not masked when enabling them (Systemd service provider)
     Fixed: Make sure to work with a well-known composer version (iMSCP::Composer)
-    Fixed: Make use of the INADDR_ANY address, regardless of domain IP address when primary server IP is set with `None` option
+    Fixed: Make use of the INADDR_ANY address, regardless of domain IP address when primary server IP is set with 'None' option
     Fixed: Resolve units before acting on them due to https://github.com/systemd/systemd/issues/7875 (Systemd service provider)
     Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::Dir::copy)
     Fixed: Symlinks are dereferenced (followed) instead of being copied (iMSCP::File::copy)
@@ -41,24 +41,23 @@ BACKEND
     Removed: iMSCP::LsbRelease package -- We now make use of FACTER(8) to gather system information from various distributions
 
 CONFIG
-    Added: Daily CRON(8) configuration file for i-MSCP frontend (cleanup of tmp directory)
+    Added: Daily CRON(8) configuration file for the frontEnd (cleanup of ./tmp directory)
     Added: Dedicated parameters for APCu (PHP APC userland cache -- /etc/imscp/php/php.data)
-    Added: Dedicated PHP parameters for the i-MSCP frontend (/etc/imscp/frontend/frontend.data)
-    Added: i-MSCP own SOURCES.LIST(5) file
+    Added: Dedicated PHP parameters for the frontEnd (/etc/imscp/frontend/frontend.data)
+    Added: i-MSCP own SOURCES.LIST(5) file (Debian-like distributions)
     Added: LOGROTATE(8) configuration file for i-MSCP frontend (PHP errors.log file rotation)
     Added: LOGROTATE(8) configuration file for VsFTPD (Traffic log file rotation)
     Added: LOGROTATE(8) configuration file for rsyslog (Ubuntu 14.04/Trusty Thar)
     Added: LOGROTATE(8) configuration file for syslog-ng (All distributions)
     Added: Missing pbuilder configuration file -- Devuan 1.0/Jessie
-    Added: Missing pop3d, popd-ssl, imapd local configuration files (courier alternative)
+    Added: Missing pop3d, popd-ssl, imapd local configuration files (Courier alternative)
     Added: Support for PHP 7.2 (only for distributions that support it)
-    Enhancement: Make it possible to override default config by including *.conf files from the /etc/dovecot/imscp.d directory (Dovecot)
+    Enhancement: Make it possible to override default configuration by including *.conf files from the /etc/dovecot/imscp.d directory (Dovecot)
     Enhancement: Make it possible to override most of default Apache2 Fcgid module configuration parameters (/etc/imscp/php/php.data)
     Fixed: Make use of the 'ssl' parameter of the 'listen' directive in place of the 'ssl' directive (Nginx)
     Updated: LOGROTATE(8) configuration file for ProFTPD -- Added stanza for traffic log file rotation
     Removed: PHP_CONFIG_LEVEL parameter (PHP configuration level is now configured through PHP editor)
-    Removed: Support for SQL server versions that are too old (MySQL < 5.7, MariaDB < 10.1, Percona < 5.7)
-    Removed: Useless `DATABASE_TYPE` parameter (imscp.conf)
+    Removed: Useless 'DATABASE_TYPE' parameter (imscp.conf)
     Removed: Useless imscp LOGROTATE(8) configuration file
     Review: Make use of dedicated files (PHP/Perl) for storing encryption key and initialization vector
 
@@ -73,8 +72,8 @@ DAEMON
     Enhancement: Make it possible to process i-MSCP's backend requests through CRON(8) (alternative to historical i-MSCP daemon)
 
 DISTRIBUTIONS
-    Added: `libfile-chmod-perl` distribution package (all distributions -- Required by 3rd-party softwares)
-    Added: `unzip` distribution package (all distributions -- required for correct symlinks handling (Composer))
+    Added: libfile-chmod-perl' distribution package (all distributions -- Required by 3rd-party softwares)
+    Added: 'unzip' distribution package (all distributions -- required for correct symlinks handling through Composer)
     Added: Support for Debian 10/Buster (Experimental)
     Fixed: Disable MPM event due to MPM event scoreboard bug (#53555) in versions prior 2.4.25 (Debian/Devuan Jessie)
     Fixed: Install Apache2 from Ondřej Surý PPA due to MPM event scoreboard bug (#53555) in versions prior 2.4.25 (Ubuntu Trusty, Ubuntu Xenial)
@@ -101,7 +100,7 @@ FRONTEND
     Fixed: Exit with proper code on error (FrontEnd)
     Fixed: Fatal error: Call to a member function fetchRow() on string in client/mail_catchall_add.php on line 84
     Fixed: iMSCP_Authentication_AuthEvent badly initialized
-    Fixed: isSecureRequest() bad implementation -- `HTTP_X_FORWARDED_PROTO` must take precedence if set
+    Fixed: isSecureRequest() bad implementation -- 'HTTP_X_FORWARDED_PROTO' must take precedence if set
     Fixed: List of customers is truncated due to wrong template variable name in loop (Customer assignments feature)
     Fixed: Misleading domain status due to missing 'torestore' status in the translate_dmn_status() function
     Fixed: Notice: Undefined index: page_message (admin, reseller UI -- Domain details interface)
@@ -109,7 +108,6 @@ FRONTEND
     Fixed: Undefined offsets (Support feature - Tickets view interfaces)
     Fixed: Template block tag mismatch (administrator_list vs admin_list) in admin/users.phtml
     Fixed: Template block tag mismatch (domain_list vs domains_list) in client/domain_manage.tpl
-    Fixed: Template block tag mismatch (no_webdepotsoftware_list vs no_webdepotsoftware_lists) in admin/software_manage.tpl
     Fixed: Wrong alternative subject names in self-signed SSL certificates
     Fixed: Wrong order for parameters in mail delete.php (i18n -- client UI)
     Fixed: Wrong properties used for target reseller when moving customer(s) (Customer assignments feature)
@@ -117,7 +115,6 @@ FRONTEND
     Fixed: Wrong value passed-in the 'onBeforeEditUser' and 'onAfterEditUser' events for the 'admin_pass' parameter
     Review: Make use of composer autoloader for loading of vendor dependencies
     Review: Prepare the SQL statements once per session (objects counting, stats)
-    Removed: iMSCP_Events_Aggregator class (now an alias of iMSCP_Events_Manager)
     Rewritten: iMSCP_Database class (now extends the PDO class)
     Rewritten: iMSCP_Database_ResultSet (now extends the PDOStatement class -- Renamed to iMSCP\Database\ResultSet)
     Rewritten: iMSCP_pTemplate class (renamed to iMSCP\TemplateEngine; aliased to iMSCP_pTemplate for bacwkard compatibility)
@@ -148,7 +145,7 @@ INSTALLER
     Fixed: Setup dialog for the alternative URLs feature is not shown on fresh install
     Merged: Distribution layout.xml file with distribution master install.xml file
     Removed: 'allow_switch' attribute from packages files (check is now done by the distribution adapter)
-    Removed: 'forcereinstall` installer option -- Packages reinstallation is a task that must be fully understanded by administrators
+    Removed: 'forcereinstall' installer option -- Packages reinstallation is a task that must be fully understanded by administrators
     Removed: 'imscp_allow_writeable_root.patch' patch for vsftpd (no longer needed with latest version)
     Removed: 'repository_conflict' attribute (packages files)
     Renamed: 'kept' attribute to 'keep_if_exist' (copy_config xml node from install.xml files)
@@ -191,9 +188,9 @@ PLUGINS
     Enhancement: Make plugins able to trigger flush of cache (OPcache, userland cache (full or by ID)
     Fixed: Covers case of plugins that are uninstallable but not installable
     Fixed: Local plugin configuration files are not merged as expected
-    Fixed: Undefined offset -- Couldn't infer `Standard` plugin type
-    Review: Avoid useless SQL query for plugin `run` action if there are no error (backend)
-    Updated: Plugin API to version 1.5.1
+    Fixed: Undefined offset -- Couldn't infer 'Standard' plugin type
+    Review: Avoid useless SQL query for plugin 'run' action if there are no error (backend)
+    Updated: Plugin API to version 1.6.0
 
 PRESEEDING
     Enhancement: Make use of default alternatives when there is no value set for them
@@ -210,10 +207,10 @@ SERVERS
     Enhancement: Make use of in memory tmpfs to build Web folders whenever possible (iMSCP::Servers::Httpd::Apache2::Abstract)
     Fixed: Applications such as WHMCS behave unexpectedly with strict SQL mode -- Set SQL mode as with MySQL 5.5 (no SQL mode)
     Fixed: Avoid truncating ProFTPD and VsFTPD traffic log files -- Make use of LOGROTATE(8) instead
-    Fixed: Bad `X_FORWARDED_PORT` header value for SSL redirect (proxy) vhosts (Apache2)
-    Fixed: Bad `X_FORWARDED_PROTO` header value for SSL redirect (proxy) vhosts (Apache2)
+    Fixed: Bad 'X_FORWARDED_PORT' header value for SSL redirect (proxy) vhosts (Apache2)
+    Fixed: Bad 'X_FORWARDED_PROTO' header value for SSL redirect (proxy) vhosts (Apache2)
     Fixed: Don't enforce SSL strict SNI (Apache2)
-    Fixed: Make use of the INADDR_ANY address, regadless of domain IP address when primary server IP is set with `None` option (Httpd)
+    Fixed: Make use of the INADDR_ANY address, regadless of domain IP address when primary server IP is set with 'None' option (Httpd)
     Fixed: Set timeout to 5 seconds for LWP::Simple; Default value is far too hight (iMSCP::Servers::Server::local::installer)
     Review: The FcgidBusyTimeout, FcgidMinProcessesPerClass and FcgidMaxProcessesPerClass Apache2 FCGID module parameters are now set on per vhost basis
     Review: Make use of ipify.org as default service for WAN IP retrieval (iMSCP::Servers::Server::local::installer)

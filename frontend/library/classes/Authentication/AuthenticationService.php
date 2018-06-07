@@ -22,7 +22,7 @@ namespace iMSCP\Authentication;
 
 use iMSCP\Application;
 use iMSCP\Authentication\Listener\CheckCredentials;
-use iMSCP\Authentication\Listener\CheckCustomerAccount;
+use iMSCP\Authentication\Listener\checkUserAccount;
 use iMSCP\Authentication\Listener\CheckMaintenanceMode;
 use iMSCP\Authentication\Listener\PasswordRecovery;
 use iMSCP\Functions\View;
@@ -74,7 +74,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
         $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new CheckMaintenanceMode(), $priority);
 
         // Attach listener that is responsible to check customer account
-        $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new CheckCustomerAccount(), $priority);
+        $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new checkUserAccount(), $priority);
 
         // Attach listener that is responsible to show link for password recovery
         $events->attach(AuthEvent::EVENT_AFTER_AUTHENTICATION, new PasswordRecovery(), -99);
@@ -87,11 +87,9 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
      */
     public function signIn(): bool
     {
-        // Attach authentication listeners
-        $this->attach(Application::getInstance()->getEventManager());
-
-        Application::getInstance()->getEventManager()->trigger(self::EVENT_BEFORE_SIGN_IN, $this);
-
+        $events = Application::getInstance()->getEventManager();
+        $this->attach($events);
+        $events->trigger(self::EVENT_BEFORE_SIGN_IN, $this);
         $ret = true;
         $authResult = $this->authenticate();
 
@@ -107,7 +105,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
             $ret = false;
         }
 
-        Application::getInstance()->getEventManager()->trigger(self::EVENT_AFTER_SIGN_IN, $this);
+        $events->trigger(self::EVENT_AFTER_SIGN_IN, $this);
         return $ret;
     }
 
@@ -122,11 +120,12 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
             return;
         }
 
-        Application::getInstance()->getEventManager()->trigger(self::EVENT_BEFORE_SIGN_OUT, $this);
+        $events = Application::getInstance()->getEventManager();
+        $events->trigger(self::EVENT_BEFORE_SIGN_OUT, $this);
         $adminName = $this->getIdentity()->getUsername();
-        $this->clearIdentity();
         $this->clearIdentityFromDb();
-        Application::getInstance()->getEventManager()->trigger(self::EVENT_AFTER_SIGN_OUT, $this);
+        $this->clearIdentity();
+        $events->trigger(self::EVENT_AFTER_SIGN_OUT, $this);
         View::setPageMessage(tr('You have been successfully signed out.'), 'success');
         writeLog(sprintf('%s signed out.', decodeIdna($adminName)), E_USER_NOTICE);
         redirectTo('/index.php');
@@ -198,13 +197,13 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
             // Administrator signed in as 'reseller' identity then signed in as 'user' identity
             if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
                 if (NULL !== $userId) {
-                    // When signed in as 'reseller' identity, then signed in as 'user' identity, an administrator
-                    // can only become the previous identity, that is, a 'reseller' identity.
+                    // Unsupported use case: An administrator signed in as 'reseller' identity, then signed in as 'user' identity can only become back
+                    // to himself
                     View::showBadRequestErrorPage();
                 }
                 // and that wants become back the previous identity
                 $newIdentity = $identity->getSuIdentity();
-            } else { // Administrator signed in as 'reseller' or 'user' identity, or reseller signed in as 'user'identity
+            } else { // Administrator signed in as 'reseller' identity  or 'user' identity, or reseller signed in as 'user' identity
                 if ($identity->getSuUserType() == 'admin') {
                     if ($identity->getUserType() == 'reseller') { // Administrator signed in as 'reseller' identity
                         if (NULL !== $userId) { // and that want become a 'user' identity of that 'reseller' identity
@@ -234,7 +233,7 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
                     // Unsupported use case: Unknown SU identity type; A SU identity can be only of type 'admin' or 'reseller'
                     View::showBadRequestErrorPage();
                 }
-            }/**/
+            }
         } elseif (NULL === $userId || $identity->getUserType() == 'user') {
             // Unsupported use case: A non SU identity cannot become back to himself and an 'user' identity cannot become another user identity
             View::showBadRequestErrorPage();
@@ -246,7 +245,13 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
             }
         }
 
-        $this->setIdentity($newIdentity);
+        // Prevent multiple successive calls from storing inconsistent results
+        // Ensure storage has clean state
+        if ($this->hasIdentity()) {
+            $this->clearIdentity();
+        }
+
+        $this->getStorage()->write($newIdentity);
     }
 
     /**
@@ -259,26 +264,6 @@ class AuthenticationService extends \Zend\Authentication\AuthenticationService i
     public function getIdentity()
     {
         return parent::getIdentity();
-    }
-
-    /**
-     * Set the identity
-     *
-     * Not part of default ZF implementation but we need it for the SU logic
-     *
-     * @param UserIdentityInterface $identity
-     */
-    public function setIdentity(UserIdentityInterface $identity)
-    {
-        /**
-         * Prevent multiple successive calls from storing inconsistent results
-         * Ensure storage has clean state
-         */
-        if ($this->hasIdentity()) {
-            $this->clearIdentity();
-        }
-
-        $this->getStorage()->write($identity);
     }
 
     /**

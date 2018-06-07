@@ -47,7 +47,7 @@ function generatePage($tpl)
         $tpl->assign([
             'AREA_NAME' => toHtml($row['auth_name']),
             'AREA_PATH' => toHtml($row['path']),
-            'STATUS'    => humanizeDomainStatus($row['status'])
+            'STATUS'    => humanizeItemStatus($row['status'])
         ]);
 
         if (!in_array($row['status'], ['toadd', 'tochange', 'todelete'])) {

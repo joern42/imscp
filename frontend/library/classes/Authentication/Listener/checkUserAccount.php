@@ -25,14 +25,14 @@ use iMSCP\Authentication\AuthEvent;
 use iMSCP\Authentication\AuthResult;
 
 /**
- * Class CheckCustomerAccount
+ * Class checkUserAccount
  *
- * Check domain account (status and expires date)
+ * Check user account (status and expires date)
  * Expects to listen on the AuthEvent::EVENT_AFTER_AUTHENTICATION
  *
  * @package iMSCP\Authentication\Listener
  */
-class CheckCustomerAccount implements AuthenticationListenerInterface
+class checkUserAccount implements AuthenticationListenerInterface
 {
     /**
      * @inheritdoc
@@ -47,6 +47,7 @@ class CheckCustomerAccount implements AuthenticationListenerInterface
 
         $identity = $event->getAuthenticationResult()->getIdentity();
         if ($identity->getUserType() !== 'user') {
+            // Return early if user type is other than 'user'
             return;
         }
 

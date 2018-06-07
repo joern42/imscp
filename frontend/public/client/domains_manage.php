@@ -53,9 +53,9 @@ function generateDomainsList($tpl)
             'DOMAIN_MOUNT_POINT'   => toHtml($row['url_forward'] == 'no' ? '/' : tr('N/A')),
             'DOMAIN_DOCUMENT_ROOT' => toHtml($row['url_forward'] == 'no' ? normalizePath($row['document_root']) : tr('N/A')),
             'DOMAIN_REDIRECT'      => toHtml($row['url_forward'] == 'no' ? tr('N/A') : $row['url_forward']),
-            'DOMAIN_STATUS'        => toHtml(humanizeDomainStatus($row['domain_status'])),
+            'DOMAIN_STATUS'        => humanizeItemStatus($row['domain_status']),
             'DOMAIN_SSL_STATUS'    => is_null($row['ssl_status']) ? toHtml(tr('Disabled')) : (in_array($row['ssl_status'], ['toadd', 'tochange', 'todelete', 'ok'])
-                ? toHtml(humanizeDomainStatus($row['ssl_status'])) : '<span style="color:red;font-weight:bold">' . tr('Invalid SSL certificate') . "</span>")
+                ? humanizeItemStatus($row['ssl_status']) : '<span style="color:red;font-weight:bold">' . tr('Invalid SSL certificate') . "</span>")
         ]);
 
         if (in_array($row['domain_status'], ['ok', 'disabled'])) {
@@ -158,9 +158,9 @@ function generateDomainAliasesList($tpl)
             'ALS_MOUNT_POINT'   => toHtml($row['url_forward'] == 'no' ? normalizePath($row['alias_mount']) : tr('N/A')),
             'ALS_DOCUMENT_ROOT' => toHtml($row['url_forward'] == 'no' ? normalizePath($row['alias_document_root']) : tr('N/A')),
             'ALS_REDIRECT'      => toHtml($row['url_forward'] == 'no' ? tr('N/A') : $row['url_forward']),
-            'ALS_STATUS'        => toHtml(humanizeDomainStatus($row['alias_status'])),
+            'ALS_STATUS'        => humanizeItemStatus($row['alias_status']),
             'ALS_SSL_STATUS'    => is_null($row['ssl_status']) ? toHtml(tr('Disabled')) : (in_array($row['ssl_status'], ['toadd', 'tochange', 'todelete', 'ok'])
-                ? toHtml(humanizeDomainStatus($row['ssl_status'])) : '<span style="color:red;font-weight:bold">' . tr('Invalid SSL certificate') . "</span>"),
+                ? humanizeItemStatus($row['ssl_status']) : '<span style="color:red;font-weight:bold">' . tr('Invalid SSL certificate') . "</span>"),
             'ALS_RECORD_TYPE'   => 'als',
         ]);
 
@@ -285,9 +285,9 @@ function generateSubdomainsList($tpl)
             'SUB_MOUNT_POINT'   => toHtml($row['subdomain_url_forward'] == 'no' ? normalizePath($row['subdomain_mount']) : tr('N/A')),
             'SUB_DOCUMENT_ROOT' => toHtml($row['subdomain_url_forward'] == 'no' ? normalizePath($row['subdomain_document_root']) : tr('N/A')),
             'SUB_REDIRECT'      => toHtml($row['subdomain_url_forward'] == 'no' ? tr('N/A') : $row['subdomain_url_forward']),
-            'SUB_STATUS'        => toHtml(humanizeDomainStatus($row['subdomain_status'])),
+            'SUB_STATUS'        => humanizeItemStatus($row['subdomain_status']),
             'SUB_SSL_STATUS'    => is_null($row['ssl_status']) ? toHtml(tr('Disabled')) : (in_array($row['ssl_status'], ['toadd', 'tochange', 'todelete', 'ok'])
-                ? toHtml(humanizeDomainStatus($row['ssl_status'])) : '<span style="color:red;font-weight: bold">' . tr('Invalid SSL certificate') . "</span>")
+                ? humanizeItemStatus($row['ssl_status']) : '<span style="color:red;font-weight: bold">' . tr('Invalid SSL certificate') . "</span>")
         ]);
 
         if (in_array($row['subdomain_status'], ['ok', 'disabled'])) {
@@ -450,7 +450,7 @@ function generateCustomDnsRecordsList($tpl)
             $dnsName = (substr($row['domain_dns'], -1) == '.') ? $row['domain_dns'] : "{$row['domain_dns']}.{$row['zone_name']}.";
         }
 
-        $status = humanizeDomainStatus($row['domain_dns_status'], true);
+        $status = humanizeItemStatus($row['domain_dns_status'], true);
         $tpl->assign([
             'DNS_DOMAIN'             => toHtml(decodeIdna($row['zone_name'])),
             'DNS_NAME'               => toHtml($dnsName),

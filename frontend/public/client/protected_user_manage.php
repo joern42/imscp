@@ -85,7 +85,7 @@ function client_generateUsersList($tpl)
 
         $tpl->assign([
             'UNAME'              => toHtml($row['uname']),
-            'USTATUS'            => humanizeDomainStatus($row['status']),
+            'USTATUS'            => humanizeItemStatus($row['status']),
             'USER_ID'            => $row['id'],
             'USER_DELETE'        => $userDeleteTranslation,
             'USER_DELETE_SCRIPT' => $userDeleteJsScript,
@@ -122,7 +122,7 @@ function client_generateGroupsList($tpl)
 
         $tpl->assign([
             'GNAME'               => toHtml($row['ugroup']),
-            'GSTATUS'             => humanizeDomainStatus($row['status']),
+            'GSTATUS'             => humanizeItemStatus($row['status']),
             'GROUP_ID'            => $row['id'],
             'GROUP_DELETE'        => $groupDeleteTranslation,
             'GROUP_DELETE_SCRIPT' => $groupDeleteJsScript

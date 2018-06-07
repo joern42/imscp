@@ -99,7 +99,7 @@ function generatePage($tpl, $clientId)
             : '<span style="color:green;font-weight:bold;">' . toHtml(tr('∞')) . '</span>',
         'VL_PRIMARY_DOMAIN_NAME'     => toHtml(decodeIdna($clientData['domain_name'])),
         'VL_CLIENT_IPS'              => $clientData['client_ips'] == '0.0.0.0' ? tr('Any') : implode(', ', explode(',', $clientData['client_ips'])),
-        'VL_STATUS'                  => humanizeDomainStatus($clientData['domain_status'], true, true),
+        'VL_STATUS'                  => humanizeItemStatus($clientData['domain_status'], true, true),
         'VL_PHP_SUPP'                => humanizeDbValue($clientData['domain_php']),
         'VL_PHP_EDITOR_SUPP'         => humanizeDbValue($clientData['phpini_perm_system']),
         'VL_CGI_SUPP'                => humanizeDbValue($clientData['domain_cgi']),

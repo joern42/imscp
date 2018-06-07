@@ -44,7 +44,13 @@ function updateExternalMailFeature($action, $domainId, $domainType)
 
         if ($domainType == 'dmn') {
             $stmt = execQuery(
-                "UPDATE domain SET domain_status = 'tochange', external_mail = ?WHERE domain_id = ? AND domain_admin_id = ? AND domain_status = 'ok'",
+                "
+                    UPDATE domain
+                    SET domain_status = 'tochange', external_mail = ?
+                    WHERE domain_id = ?
+                    AND domain_admin_id = ?
+                    AND domain_status = 'ok'
+                ",
                 [$action == 'activate' ? 'on' : 'off', $domainId, $identity->getUserId()]
             );
             $stmt->rowCount() or View::showBadRequestErrorPage();
@@ -78,7 +84,7 @@ function updateExternalMailFeature($action, $domainId, $domainType)
         $db->getDriver()->getConnection()->commit();
 
         if ($action == 'activate') {
-            writeLog(sprintf('External mail feature has been activared by %s', getProcessorUsername($identity)));
+            writeLog(sprintf('External mail feature has been activated by %s', getProcessorUsername($identity)));
             View::setPageMessage(tr('External mail server feature scheduled for activation.'), 'success');
             return;
         }
@@ -103,16 +109,16 @@ function updateExternalMailFeature($action, $domainId, $domainType)
  * @param string $type Domain type (normal for domain or alias for domain alias)
  * @return void
  */
-function generateItem($tpl, $externalMail, $domainId, $domainName, $status, $type)
+function generateItem(TemplateEngine $tpl, $externalMail, $domainId, $domainName, $status, $type)
 {
     if ($status == 'ok') {
         if ($externalMail == 'off') {
             $tpl->assign([
                 'DOMAIN'          => decodeIdna($domainName),
-                'STATUS'          => ($status == 'ok') ? tr('Deactivated') : humanizeDomainStatus($status),
+                'STATUS'          => $status == 'ok' ? tr('Deactivated') : humanizeItemStatus($status),
                 'DOMAIN_TYPE'     => $type,
                 'DOMAIN_ID'       => $domainId,
-                'TR_ACTIVATE'     => ($status == 'ok') ? tr('Activate') : tr('N/A'),
+                'TR_ACTIVATE'     => $status == 'ok' ? tr('Activate') : tr('N/A'),
                 'DEACTIVATE_LINK' => ''
             ]);
             $tpl->parse('ACTIVATE_LINK', 'activate_link');
@@ -121,11 +127,11 @@ function generateItem($tpl, $externalMail, $domainId, $domainName, $status, $typ
 
         $tpl->assign([
             'DOMAIN'        => decodeIdna($domainName),
-            'STATUS'        => ($status == 'ok') ? tr('Activated') : humanizeDomainStatus($status),
+            'STATUS'        => $status == 'ok' ? tr('Activated') : humanizeItemStatus($status),
             'DOMAIN_TYPE'   => $type,
             'DOMAIN_ID'     => $domainId,
             'ACTIVATE_LINK' => '',
-            'TR_DEACTIVATE' => ($status == 'ok') ? tr('Deactivate') : tr('N/A'),
+            'TR_DEACTIVATE' => $status == 'ok' ? tr('Deactivate') : tr('N/A'),
         ]);
         $tpl->parse('DEACTIVATE_LINK', 'deactivate_link');
         return;
@@ -133,7 +139,7 @@ function generateItem($tpl, $externalMail, $domainId, $domainName, $status, $typ
 
     $tpl->assign([
         'DOMAIN'          => decodeIdna($domainName),
-        'STATUS'          => humanizeDomainStatus($status),
+        'STATUS'          => humanizeItemStatus($status),
         'ACTIVATE_LINK'   => '',
         'DEACTIVATE_LINK' => ''
     ]);
@@ -148,17 +154,15 @@ function generateItem($tpl, $externalMail, $domainId, $domainName, $status, $typ
  * @param string $domainName Domain name
  * @return void
  */
-function generateItemList($tpl, $domainId, $domainName)
+function generateItemList(TemplateEngine $tpl, $domainId, $domainName)
 {
     $stmt = execQuery('SELECT domain_status, external_mail FROM domain WHERE domain_id = ?', [$domainId]);
     $data = $stmt->fetch();
 
     generateItem($tpl, $data['external_mail'], $domainId, $domainName, $data['domain_status'], 'dmn');
-
     $tpl->parse('ITEM', '.item');
-    $stmt = execQuery(
-        'SELECT alias_id, alias_name, alias_status, external_mail FROM domain_aliases WHERE domain_id = ?', [$domainId]
-    );
+
+    $stmt = execQuery('SELECT alias_id, alias_name, alias_status, external_mail FROM domain_aliases WHERE domain_id = ?', [$domainId]);
 
     if (!$stmt->rowCount()) {
         return;
@@ -184,13 +188,13 @@ function generatePage($tpl)
     });
 
     $tpl->assign([
-        'TR_PAGE_TITLE' => tr('Client / Mail / External Mail Feature'),
-        'TR_INTRO'      => tr('Below you can activate the external mail feature for your domains (including their subdomains). In such case, you must not forgot to add the DNS MX and SPF records for your external mail server through the custom DNS interface, or through your own DNS management interface if you make use of an external DNS server.'),
-        'TR_DOMAIN'     => tr('Domain'),
-        'TR_STATUS'     => tr('Status'),
-        'TR_ACTION'     => tr('Action'),
-        'TR_DEACTIVATE' => tr('Deactivate'),
-        'TR_CANCEL'     => tr('Cancel')
+        'TR_PAGE_TITLE' => toHtml(tr('Client / Mail / External Mail Feature')),
+        'TR_INTRO'      => toHtml(tr('Below you can activate the external mail feature for your domains, including subdomains. If you do so, you must not forgot to add the DNS MX and SPF records for your external mail server through the custom DNS interface, or through your own DNS management interface if you make use of an external DNS server.')),
+        'TR_DOMAIN'     => toHtml(tr('Domain')),
+        'TR_STATUS'     => toHtml(tr('Status')),
+        'TR_ACTION'     => toHtml(tr('Action')),
+        'TR_DEACTIVATE' => toHtml(tr('Deactivate')),
+        'TR_CANCEL'     => toHtml(tr('Cancel'))
     ]);
 
     $domainProps = getCustomerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());

@@ -95,7 +95,7 @@ sub showDialog
     my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'DAEMON_TYPE', iMSCP::Getopt->preseed ? 'imscp' : '' );
-    my %choices = ( 'imscp', 'Via the historical i-MSCP daemon (real time)', 'cron', 'Via a cron job run every 5 minutes (delayed)' );
+    my %choices = ( 'imscp', 'Via the historical i-MSCP daemon (real time)', 'cron', 'Via a cron job run every minutes (delayed)' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'daemon', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
         ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'imscp' );
@@ -166,7 +166,7 @@ sub install
 
     return iMSCP::Servers::Cron->factory()->addTask( {
         TASKID  => __PACKAGE__,
-        MINUTE  => '*/5',
+        MINUTE  => '*',
         COMMAND => "perl $::imscpConfig{'BACKEND_ROOT_DIR'}/imscp-rqst-mngr > /dev/null 2>&1"
     } ) if ::setupGetQuestion( 'DAEMON_TYPE' ) eq 'cron';
 

@@ -727,6 +727,7 @@ sub _removeObsoleteFiles
         "$::imscpConfig{'CONF_DIR'}/php/apache",                      # To be moved in cleanup routine from php server
         "$::imscpConfig{'CONF_DIR'}/php/fcgi",                        # To be moved in cleanup routine from php server
         "$::imscpConfig{'CONF_DIR'}/php-fpm",                         # To be moved in cleanup routine from php server
+        "$::imscpConfig{'CONF_DIR'}/pma",                             # To be moved in cleanup routine from phpmyadmin package
         "$::imscpConfig{'CONF_DIR'}/postfix/backup",                  # To be moved in cleanup routine from postfix server
         "$::imscpConfig{'CONF_DIR'}/postfix/imscp",                   # To be moved in cleanup routine from postfix server
         "$::imscpConfig{'CONF_DIR'}/postfix/parts",                   # To be moved in cleanup routine from postfix server

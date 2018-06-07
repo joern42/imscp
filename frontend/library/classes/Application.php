@@ -213,13 +213,11 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             'gc_maxlifetime'         => $config['PHP_SESSION_GC_MAXLIFETIME'] ?? 1440,
             'save_path'              => FRONTEND_ROOT_DIR . '/data/sessions',
             'use_strict_mode'        => true,
-            'sid_bits_per_character' => 5,
+            'sid_bits_per_character' => 5
         ]);
 
         SessionContainer::setDefaultManager(
-            new SessionManager($sessionConfig, new SessionStorage(), new SessionHandler(), [RemoteAddr::class, HttpUserAgent::class], [
-                'clear_storage' => true
-            ])
+            new SessionManager($sessionConfig, new SessionStorage(), new SessionHandler(), [RemoteAddr::class, HttpUserAgent::class])
         );
     }
 
@@ -434,9 +432,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         // reasons (cache disabled)
         $this->getEventManager()->attach(Events::onGeneratePageMessages, function () {
             $identity = $this->getAuthService()->getIdentity();
-            if (NULL !== $identity
-                && !isXhr()
-                && ($identity->getUserType() == 'admin'
+            if (NULL !== $identity && !isXhr() && ($identity->getUserType() == 'admin'
                     || ($identity instanceof SuIdentityInterface && $identity->getSuUserType() == 'admin')
                     || $identity->getSuIdentity() instanceof SuIdentityInterface
                 )

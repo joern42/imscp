@@ -67,7 +67,7 @@ function updateAutoresponderMessage($mailAccountId, $autoresponderMessage)
         redirectTo("mail_autoresponder_enable.php?mail_account_id=$mailAccountId");
     }
 
-    execQuery("UPDATE mail_users SET status = IF(mail_auto_respond, 'tochange', status), mail_auto_respond_text = ?WHERE mail_id = ?", [
+    execQuery("UPDATE mail_users SET status = IF(mail_auto_respond, 'tochange', status), mail_auto_respond_text = ? WHERE mail_id = ?", [
         $autoresponderMessage, $mailAccountId
     ]);
     Daemon::sendRequest();

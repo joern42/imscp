@@ -155,7 +155,7 @@ sub getServerHumanName
 
 sub createUser
 {
-    my ( undef, $user, $host, $password ) = @_;
+    my ( $self, $user, $host, $password ) = @_;
 
     defined $user or croak( '$user parameter is not defined' );
     defined $host or croak( '$host parameter is not defined' );

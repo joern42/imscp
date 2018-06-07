@@ -201,7 +201,6 @@
                 pinning_pin="release o=Ubuntu,n=bionic"
                 pinning_pin_priority="1001"
         >
-            <package>libmysqlclient20</package>
             <package>mariadb-client-10.1</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.1</package>

@@ -46,7 +46,7 @@ function generateCatchallItem($tpl, $domainName, $mailId, $mailAcc, $domainId, $
             'CATCHALL_DOMAIN'            => toHtml(decodeIdna($domainName)),
             'CATCHALL_LONG_FOWARD_LIST'  => toHtml(wordwrap($mailAcc, 75)),
             'CATCHALL_SHORT_FOWARD_LIST' => toHtml(strlen($mailAcc) > 50 ? substr($mailAcc, 0, 50) . '...' : $mailAcc, 'htmlAttr'),
-            'CATCHALL_STATUS'            => toHtml(humanizeDomainStatus($mailStatus)),
+            'CATCHALL_STATUS'            => toHtml(humanizeItemStatus($mailStatus)),
         ]);
 
         if ($mailStatus != 'ok') {
