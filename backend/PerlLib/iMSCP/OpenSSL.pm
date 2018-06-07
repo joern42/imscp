@@ -230,11 +230,13 @@ sub createSelfSignedCertificate
     # openssl configuration template file for self-signed SSL certificates
     my $openSSLConffileTplCref = iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/openssl/openssl.cnf.tpl" )->getAsRef();
 
-    print $openSSLConffile processVarsByRef( $openSSLConffileTplCref, {
+    processVarsByRef( $openSSLConffileTplCref, {
         COMMON_NAME   => $commonName,
         EMAIL_ADDRESS => $data->{'email'},
         ALT_NAMES     => $data->{'wildcard'} ? "DNS.1 = $commonName\n" : "DNS.1 = $commonName\nDNS.2 = www.$commonName\n"
     } );
+
+    print $openSSLConffile ${ $openSSLConffileTplCref };
     $openSSLConffile->close();
     undef $openSSLConffileTplCref;
 
