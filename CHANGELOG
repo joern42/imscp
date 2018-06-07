@@ -6,7 +6,7 @@ Git 1.6.x
 
 BACKEND
     Added: composer.phar compatibility symlink for backward compatibility with plugins
-    Added: Netplan networking configuration provider (required for Ubuntu >= 
+    Added: Netplan networking configuration provider (required for newest Ubuntu versions)
     Added: New library for templates processing: iMSCP::Template::Processor (in replacement of the iMSCP::TemplateParser library)
     Added: Support for .timer unit files (Systemd init provider)
     Added: Version check (minimum version) for non-core Perl modules (iMSCP::Requirements)

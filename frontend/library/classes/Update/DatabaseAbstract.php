@@ -77,7 +77,7 @@ abstract class DatabaseAbstract extends UpdateAbstract
     public function __construct()
     {
         $this->config = Application::getInstance()->getConfig();
-        $this->dbConfig = new DbConfig();
+        $this->dbConfig = new DbConfig(Application::getInstance()->getDb());
 
         if (!isset($this->config['DATABASE_NAME'])) {
             throw new \Exception('Database name not found.');

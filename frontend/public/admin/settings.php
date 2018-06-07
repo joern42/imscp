@@ -121,7 +121,9 @@ if (Application::getInstance()->getRequest()->isPost()) {
         $dbConfig['PREVENT_EXTERNAL_LOGIN_CLIENT'] = $prevExtLoginClient;
         $dbConfig['ENABLE_SSL'] = $enableSSL;
 
-        Application::getInstance()->getCache()->removeItem('merged_config'); // Force new merge
+        // Force new merge on next request
+        Application::getInstance()->getCache()->removeItem('merged_config');
+
         Application::getInstance()->getEventManager()->trigger(Events::onAfterEditAdminGeneralSettings);
 
         $updtCount = $dbConfig->countQueries(DbConfig::UPDATE_QUERY_COUNTER);

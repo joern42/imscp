@@ -34,7 +34,10 @@ if ($request->isPost()) {
     $dbConfig = Application::getInstance()->getDbConfig();
     $dbConfig['MAINTENANCEMODE'] = intval($request->getPost('maintenancemode', 0));
     $dbConfig['MAINTENANCEMODE_MESSAGE'] = cleanHtml($request->getPost('maintenancemode_message', ''));
-    Application::getInstance()->getCache()->removeItem('merged_config'); // Force new merge;
+
+    // Force new merge or next request
+    Application::getInstance()->getCache()->removeItem('merged_config');
+
     View::setPageMessage(toHtml(tr('Settings saved.')), 'success');
     redirectTo('settings_maintenance_mode.php');
 }

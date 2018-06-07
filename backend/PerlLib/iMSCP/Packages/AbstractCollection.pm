@@ -97,7 +97,7 @@ EOF
         next unless $_->can( 'showDialog' );
 
         debug( sprintf( 'Executing showDialog action on %s', ref $_ ));
-        my $rs = $_->showDialog();
+        my $rs = $_->showDialog( $dialog );
         return $rs if $rs;
     }
 

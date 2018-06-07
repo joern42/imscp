@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS `domain` (
   `domain_status` text collate utf8_unicode_ci NOT NULL,
   `domain_alias_limit` int(11) DEFAULT NULL,
   `domain_subd_limit` int(11) DEFAULT NULL,
-  `domain_client_ips text NOT NULL,
+  `domain_client_ips` text NOT NULL,
   `domain_ips` text NOT NULL,
   `domain_disk_limit` bigint(20) unsigned DEFAULT NULL,
   `domain_disk_usage` bigint(20) unsigned DEFAULT NULL,

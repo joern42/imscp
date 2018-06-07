@@ -146,7 +146,7 @@ sub askMasterAdminCredentials
 {
     my ( $self, $dialog ) = @_;
 
-    my ( $username, $password ) = ( '', '' );
+    my ( $username, $password, $freshInstall ) = ( '', '', TRUE );
 
     if ( iMSCP::Getopt->preseed ) {
         $username = ::setupGetQuestion( 'ADMIN_LOGIN_NAME', 'admin' );
@@ -155,7 +155,9 @@ sub askMasterAdminCredentials
         $self->{'dbh'}->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' ));
         TRUE;
     } ) {
-        my $row = $self->{'dbh'}->selectrow_hashref( "SELECT admin_name, admin_pass FROM admin WHERE created_by = 0 AND admin_type = 'admin'", );
+        $freshInstall = FALSE;
+
+        my $row = $self->{'dbh'}->selectrow_hashref( "SELECT admin_name, admin_pass FROM admin WHERE created_by = 0 AND admin_type = 'admin'" );
         if ( $row ) {
             $username = $row->{'admin_name'} // '';
             $password = $row->{'admin_pass'} // '';
@@ -185,7 +187,7 @@ Please enter a username for the master administrator (leave empty for default):
 \\Z \\Zn
 EOF
             if ( isValidUsername( $username ) ) {
-                if ( $self->{'dbh'} ) {
+                unless ( $freshInstall ) {
                     my $row = $self->{'dbh'}->selectrow_hashref( 'SELECT 1 FROM admin WHERE admin_name = ? AND created_by <> 0', undef, $username );
                     if ( $row ) {
                         $iMSCP::Dialog::InputValidation::lastValidationError = <<"EOF";

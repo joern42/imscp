@@ -128,7 +128,9 @@ function buildLanguagesIndex(): void
     sort($availableLanguages);
     $serializedData = serialize($availableLanguages);
     $dbConfig['AVAILABLE_LANGUAGES'] = $serializedData;
-    $cfg['AVAILABLE_LANGUAGES'] = $serializedData;
+
+    // Force new merge on next request
+    Application::getInstance()->getCache()->removeItem('merged_config');
 }
 
 /**
