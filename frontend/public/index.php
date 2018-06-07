@@ -56,11 +56,7 @@ $tpl->assign([
     'productLongName'  => toHtml(tr('internet Multi Server Control Panel')),
     'productLink'      => toHtml('https://www.i-mscp.net', 'htmlAttr'),
     'productCopyright' => toHtml(tr('© 2010-2018 i-MSCP - All Rights Reserved')),
-    'TR_PAGE_TITLE'    => toHtml(tr('i-MSCP - Multi Server Control Panel / Sign In')),
-    'TR_SIGN_IN'       => toHtml(tr('Sign in')),
-    'TR_USERNAME'      => toHtml(tr('Username')),
-    'UNAME'            => toHtml(Application::getInstance()->getRequest()->getPost('admin_name', ''), 'htmlAttr'),
-    'TR_PASSWORD'      => toHtml(tr('Password'))
+    'TR_PAGE_TITLE'    => toHtml(tr('i-MSCP - Multi Server Control Panel / Sign In'))
 ]);
 
 $config = Application::getInstance()->getConfig();
