@@ -376,7 +376,7 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
                                 )
                             )
                         ) {
-                            View::setPageMessage(tr('The Apcu extension is not enabled on your system. This can lead to performance issues.', 'static_warning'));
+                            View::setPageMessage(tr('The APCu extension is not enabled on your system. This can lead to performance issues.'), 'static_warning');
                         }
                     });
                 }
