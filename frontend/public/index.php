@@ -20,6 +20,7 @@
 
 namespace iMSCP;
 
+use iMSCP\Form\SignIn;
 use iMSCP\Functions\View;
 
 require_once 'application.php';
@@ -27,9 +28,15 @@ require_once 'application.php';
 Application::getInstance()->getEventManager()->trigger(Events::onLoginScriptStart);
 
 $authService = Application::getInstance()->getAuthService();
+$form = new SignIn();
 
 if (Application::getInstance()->getRequest()->isPost()) {
-    $authService->signIn();
+    $form->setData(Application::getInstance()->getRequest()->getPost());
+    if (!$form->isValid()) {
+        View::setPageMessage(tr('Authentication failed. Please try again.'), 'static_error');
+    } else {
+        $authService->signIn();
+    }
 } elseif (Application::getInstance()->getRequest()->getQuery('signout')) {
     $authService->signOut();
     redirectTo('/index.php');
@@ -42,7 +49,7 @@ $tpl = new TemplateEngine();
 $tpl->define([
     'layout'       => 'shared/layouts/simple.tpl',
     'page_message' => 'layout',
-    'page'         => 'index.tpl',
+    'page'         => 'index.phtml',
     'ssl_block'    => 'page'
 ]);
 $tpl->assign([
@@ -75,6 +82,9 @@ if ($config['PANEL_SSL_ENABLED'] == 'yes' && $config['BASE_SERVER_VHOST_PREFIX']
 } else {
     $tpl->assign('SSL_BLOCK', '');
 }
+
+/** @noinspection PhpUndefinedFieldInspection */
+$tpl->form = $form;
 
 View::generatePageMessages($tpl);
 $tpl->parse('LAYOUT_CONTENT', 'page');
