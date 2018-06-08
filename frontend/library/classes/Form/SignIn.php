@@ -21,40 +21,26 @@
 namespace iMSCP\Form;
 
 use iMSCP\Application;
+use Zend\Filter;
 use Zend\Form\Element;
 use Zend\Form\Form;
-use Zend\InputFilter\InputFilter;
+use Zend\InputFilter\InputFilterProviderInterface;
 use Zend\Validator;
 
 /**
  * Class SignIn
  * @package iMSCP\Form
  */
-class SignIn extends Form
+class SignIn extends Form implements InputFilterProviderInterface
 {
     /**
      * @inheritdoc
      */
-    public function __construct()
+    public function __construct($name = NULL, $options = [])
     {
         parent::__construct('sign-in-form');
 
         $this->setAttribute('method', 'post');
-        $this->addElements();
-        $this->addInputFilters();
-
-        // Make 3rd-party components able to modify that form
-        Application::getInstance()->getEventManager()->trigger('onInitSignInForm', $this);
-    }
-
-    /**
-     * Add elements
-     *
-     * @throws \Exception
-     * @return void
-     */
-    protected function addElements()
-    {
         $this->add([
             'type'     => Element\Text::class,
             'name'     => 'admin_name',
@@ -87,51 +73,38 @@ class SignIn extends Form
                 'label' => toHtml('Sign In')
             ]
         ]);
+
+        // Make 3rd-party components able to modify that form
+        Application::getInstance()->getEventManager()->trigger('onInitSignInForm', $this);
     }
 
     /**
-     * Add input filters
-     *
-     * @return void
+     * @inheritdoc
      */
-    protected function addInputFilters()
+    public function getInputFilterSpecification()
     {
-        $cfg = Application::getInstance()->getConfig();
-        $minPasswordLength = intval($cfg['PASSWD_CHARS']);
-
-        if ($minPasswordLength < 6) {
-            $minPasswordLength = 6;
-        }
-
-        // Create main input filter
-        $inputFilter = new InputFilter();
-        $this->setInputFilter($inputFilter);
-        $inputFilter->add([
-            'name'     => 'admin_name',
-            'filters'  => [
-                [
-                    'name' => 'StringTrim'
+        return [
+            'admin_name' => [
+                'filters'  => [
+                    ['name' => Filter\StringTrim::class],
                 ],
+                'required' => true
             ],
-            'required' => true,
-        ]);
-        $inputFilter->add([
-            'name'       => 'admin_pass',
-            'required'   => true,
-            'filters'    => [
-                [
-                    'name' => 'StringTrim'
-                ]
-            ],
-            'validators' => [
-                [
-                    'name'    => Validator\StringLength::class,
-                    'options' => [
-                        'min' => $minPasswordLength,
-                        'max' => 30
+            'admin_pass' => [
+                'required'   => true,
+                'filters'    => [
+                    ['name' => Filter\StringTrim::class]
+                ],
+                'validators' => [
+                    [
+                        'name'    => Validator\StringLength::class,
+                        'options' => [
+                            'min' => Application::getInstance()->getConfig()['PASSWD_CHARS'] ?? 6,
+                            'max' => 30
+                        ]
                     ]
                 ]
             ]
-        ]);
+        ];
     }
 }
