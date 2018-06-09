@@ -1,20 +1,20 @@
 <div id="login">
-    <form name="login" action="index.php" method="post">
+    <form name="<?= toHtml($this->form->getName(), 'htmlAttr') ?>" method="post">
         <table>
             <tr>
                 <td class="left">
                     <label for="admin_name"><?= $this->form->get('admin_name')->getLabel() ?></label>
                 </td>
-                <td class="right"><input type="text" name="admin_name" id="admin_name" value="<?= $this->form->get('admin_name')->getValue() ?>"></td>
+                <td class="right"><input type="text" name="admin_name" id="admin_name" value="<?= toHtml($this->form->get('admin_name')->getValue(), 'htmlAttr') ?>"></td>
             </tr>
             <tr>
-                <td class="left"><label for="admin_pass"><?= $this->form->get('admin_pass')->getLabel() ?></label></td>
+                <td class="left"><label for="admin_pass"><?= toHtml($this->form->get('admin_pass')->getLabel()) ?></label></td>
                 <td class="right"><input type="password" name="admin_pass" id="admin_pass" value=""></td>
             </tr>
             <tr>
                 <td colspan="2" class="right">
-                    <input type="hidden" name="csrf" value="<?= $this->form->get('csrf')->getValue() ?>">
-                    <button type="submit" name="Submit" tabindex="3"><?= $this->form->get('submit')->getLabel() ?></button>
+                    <input type="hidden" name="csrf" value="<?= toHtml($this->form->get('csrf')->getValue(), 'htmlAttr') ?>">
+                    <button type="submit" name="submit" tabindex="3"><?= toHtml($this->form->get('submit')->getLabel()) ?></button>
                 </td>
             </tr>
             <!-- BDP: ssl_block -->

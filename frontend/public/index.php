@@ -33,7 +33,9 @@ $form = new SignIn();
 if (Application::getInstance()->getRequest()->isPost()) {
     $form->setData(Application::getInstance()->getRequest()->getPost());
     if (!$form->isValid()) {
-        View::setPageMessage(tr('Authentication failed. Please try again.'), 'static_error');
+        foreach($form->getMessages() as $messages) {
+            View::setPageMessage(View::formatPageMessages($messages), 'static_error');
+        }
     } else {
         $authService->signIn();
     }

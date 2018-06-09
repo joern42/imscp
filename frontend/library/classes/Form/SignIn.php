@@ -46,14 +46,14 @@ class SignIn extends Form implements InputFilterProviderInterface
             'name'     => 'admin_name',
             'required' => true,
             'options'  => [
-                'label' => toHtml(tr('Username'))
+                'label' => tr('Username')
             ]
         ]);
         $this->add([
             'type'    => Element\Password::class,
             'name'    => 'admin_pass',
             'options' => [
-                'label' => toHtml(tr('Password'))
+                'label' => tr('Password')
             ]
         ]);
         $this->add([
@@ -61,8 +61,9 @@ class SignIn extends Form implements InputFilterProviderInterface
             'name'    => 'csrf',
             'options' => [
                 'csrf_options' => [
-                    'timeout' => 180
-                ]
+                    'timeout' => 300,
+                    'message' => tr('Validation token (CSRF) was expired. Please try again.')
+                ],
             ]
         ]);
         $this->add([
@@ -70,7 +71,7 @@ class SignIn extends Form implements InputFilterProviderInterface
             'type'     => Element\Submit::class,
             'priority' => -100,
             'options'  => [
-                'label' => toHtml('Sign In')
+                'label' => tr('Sign In')
             ]
         ]);
 
@@ -85,26 +86,31 @@ class SignIn extends Form implements InputFilterProviderInterface
     {
         return [
             'admin_name' => [
-                'filters'  => [
-                    [
-                        'name' => Filter\StringTrim::class
-                    ],
+                'required'   => true,
+                'filters'    => [
+                    ['name' => Filter\StringTrim::class]
                 ],
-                'required' => true
+                'validators' => [
+                    [
+                        'name'    => Validator\NotEmpty::class,
+                        'options' => [
+                            'type'    => 'string',
+                            'message' => tr('The username cannot be empty.')
+                        ]
+                    ]
+                ]
             ],
             'admin_pass' => [
                 'required'   => true,
                 'filters'    => [
-                    [
-                        'name' => Filter\StringTrim::class
-                    ]
+                    ['name' => Filter\StringTrim::class]
                 ],
                 'validators' => [
                     [
-                        'name'    => Validator\StringLength::class,
+                        'name'    => Validator\NotEmpty::class,
                         'options' => [
-                            'min' => Application::getInstance()->getConfig()['PASSWD_CHARS'] ?? 6,
-                            'max' => 30
+                            'type'    => 'string',
+                            'message' => tr('The password cannot be empty.')
                         ]
                     ]
                 ]
