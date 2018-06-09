@@ -1,6 +1,6 @@
 <?php
-    /** @var \Zend\Form\Fieldset $udata */
-    $udata = $this->form->get('loginData');
+    /** @var \Zend\Form\Fieldset $ldata */
+    $ldata = $this->form->get('loginData');
     /** @var \Zend\Form\Fieldset $pdata */
     $pdata = $this->form->get('personalData');
 ?>
@@ -13,16 +13,16 @@
         </thead>
         <tbody>
         <tr>
-            <td><label for="admin_name"><?= toHtml($udata->get('admin_name')->getLabel()) ?></label></td>
-            <td><input type="text" name="loginData[admin_name]" id="admin_name" value="<?= toHtml($udata->get('admin_name')->getValue(), 'htmlAttr') ?>" required></td>
+            <td><label for="admin_name"><?= toHtml($ldata->get('admin_name')->getLabel()) ?></label></td>
+            <td><input type="text" name="loginData[admin_name]" id="admin_name" value="<?= toHtml($ldata->get('admin_name')->getValue(), 'htmlAttr') ?>" required></td>
         </tr>
         <tr>
-            <td><label for="password"><?= $udata->get('admin_pass')->getLabel() ?></label></td>
-            <td><input type="password" name="loginData[admin_pass]" id="password" class="pwd_generator" value="<?= $udata->get('admin_pass')->getValue() ?>" autocomplete="new-password" required></td>
+            <td><label for="password"><?= $ldata->get('admin_pass')->getLabel() ?></label></td>
+            <td><input type="password" name="loginData[admin_pass]" id="password" class="pwd_generator" value="<?= toHtml($ldata->get('admin_pass')->getValue(), 'htmlAttr') ?>" autocomplete="new-password" required></td>
         </tr>
         <tr>
-            <td><label for="cpassword"><?= $udata->get('admin_pass_confirmation')->getLabel() ?></label></td>
-            <td><input type="password" name="loginData[admin_pass_confirmation]" id="cpassword" value="<?= $udata->get('admin_pass_confirmation')->getValue() ?>" autocomplete="new-password" required></td>
+            <td><label for="cpassword"><?= $ldata->get('admin_pass_confirmation')->getLabel() ?></label></td>
+            <td><input type="password" name="loginData[admin_pass_confirmation]" id="cpassword" value="<?= toHtml($ldata->get('admin_pass_confirmation')->getValue(), 'htmlAttr') ?>" autocomplete="new-password" required></td>
         </tr>
         </tbody>
     </table>
@@ -76,7 +76,7 @@
             <td><input type="text" name="personalData[state]" id="state" value="<?= toHtml($pdata->get('state')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="country"><?= toHtml($pdata->get('country')->getLabel()); ?></label></td>
+            <td><label for="country"><?= toHtml($pdata->get('country')->getLabel()) ?></label></td>
             <td><input type="text" name="personalData[country]" id="country" value="<?= toHtml($pdata->get('country')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>

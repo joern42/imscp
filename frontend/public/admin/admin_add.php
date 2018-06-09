@@ -50,10 +50,8 @@ function addAdminUser(Form $form)
 
     /** @var \Zend\Form\Fieldset $loginData */
     $loginData = $form->get('loginData');
-
     /** @var \Zend\Form\Fieldset $personalData */
     $personalData = $form->get('personalData');
-
     $identity = Application::getInstance()->getAuthService()->getIdentity();
     $db = Application::getInstance()->getDb();
 

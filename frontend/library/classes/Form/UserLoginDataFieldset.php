@@ -79,7 +79,7 @@ class UserLoginDataFieldset extends Fieldset implements InputFilterProviderInter
                         'break_chain_on_failure' => true,
                         'options'                => [
                             'type'    => 'string',
-                            'message' => tr('The username cannot be empty.')
+                            'message' => tr('The username field cannot be empty.')
                         ]
                     ],
                     [
@@ -121,7 +121,7 @@ class UserLoginDataFieldset extends Fieldset implements InputFilterProviderInter
                         'break_chain_on_failure' => true,
                         'options'                => [
                             'type'    => 'string',
-                            'message' => tr('The password cannot be empty.')
+                            'message' => tr('The password field cannot be empty.')
                         ]
                     ],
                     [
@@ -149,6 +149,14 @@ class UserLoginDataFieldset extends Fieldset implements InputFilterProviderInter
                     ['name' => Filter\StringTrim::class]
                 ],
                 'validators' => [
+                    [
+                        'name'                   => Validator\NotEmpty::class,
+                        'break_chain_on_failure' => true,
+                        'options'                => [
+                            'type'    => 'string',
+                            'message' => tr('The password confirmation field cannot be empty.')
+                        ]
+                    ],
                     [
                         'name'    => Validator\Identical::class,
                         'options' => [

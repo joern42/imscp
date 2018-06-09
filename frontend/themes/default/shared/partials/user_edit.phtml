@@ -1,96 +1,102 @@
-
-<form method="post" action="user_edit.php?edit_id=<?= toUrl($this->editId); ?>" autocomplete="off">
+<?php
+    /** @var \Zend\Form\Fieldset $ldata */
+    $ldata = $this->form->get('loginData');
+    /** @var \Zend\Form\Fieldset $pdata */
+    $pdata = $this->form->get('personalData');
+?>
+<form name="<?= toHtml($this->form->getName(), 'htmlAttr') ?>" method="post" action="?edit_id=<?= toUrl($this->editId) ?>" autocomplete="off">
     <table class="firstColFixed">
         <thead>
         <tr>
-            <th colspan="2"><?= toHtml(tr('Login data')); ?></th>
+            <th colspan="2"><?= toHtml(tr('Login data')) ?></th>
         </tr>
         </thead>
         <tbody>
         <tr>
-            <td><?= toHtml(tr('Username')); ?></td>
-            <td><?= toHtml(decodeIdna($this->form->getValue('admin_name'))); ?></td>
+            <td><?= toHtml(tr('Username')) ?></td>
+            <td><?= toHtml(decodeIdna($ldata->get('admin_name')->getValue())) ?></td>
         </tr>
         <tr>
-            <td><label for="password"><?= toHtml(tr('Password')); ?></label></td>
-            <td><input type="password" name="admin_pass" id="password" class="pwd_generator" value="" autocomplete="new-password">
+            <td><label for="password"><?= $ldata->get('admin_pass')->getLabel() ?></label></td>
+            <td><input type="password" name="loginData[admin_pass]" id="password" class="pwd_generator" value="<?= toHtml($ldata->get('admin_pass')->getValue(), 'htmlAttr') ?>" autocomplete="new-password">
             </td>
         </tr>
         <tr>
-            <td><label for="cpassword"><?= toHtml(tr('Password confirmation')); ?></label></td>
-            <td><input type="password" name="admin_pass_confirmation" id="cpassword" value="" autocomplete="new-password"></td>
+            <td><label for="cpassword"><?= toHtml(tr('Password confirmation')) ?></label></td>
+            <td><input type="password" name="loginData[admin_pass_confirmation]" id="cpassword" value="<?= toHtml($ldata->get('admin_pass_confirmation')->getValue(), 'htmlAttr') ?>" autocomplete="new-password"></td>
         </tr>
         </tbody>
     </table>
     <table class="firstColFixed">
         <thead>
         <tr>
-            <th colspan="2"><?= toHtml(tr('Personal data')); ?></th>
+            <th colspan="2"><?= toHtml(tr('Personal data')) ?></th>
         </tr>
         </thead>
         <tbody>
         <tr>
-            <td><label for="fname"><?= toHtml(tr('First name')); ?></label></td>
-            <td><input type="text" name="fname" id="fname" value="<?= toHtml($this->form->getValue('fname'), 'htmlAttr'); ?>"></td>
+            <td><label for="fname"><?= toHtml($pdata->get('fname')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[fname]" id="fname" value="<?= toHtml($pdata->get('fname')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="lname"><?= toHtml(tr('Last name')); ?></label></td>
-            <td><input type="text" name="lname" id="lname" value="<?= toHtml($this->form->getValue('lname'), 'htmlAttr'); ?>"></td>
+            <td><label for="lname"><?= toHtml($pdata->get('lname')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[lname]" id="lname" value="<?= toHtml($pdata->get('lname')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="gender"><?= toHtml(tr('Gender')); ?></label></td>
+            <td><label for="gender"><?= toHtml($pdata->get('gender')->getLabel()) ?></label></td>
             <td>
-                <select id="gender" name="gender">
-                    <option value="M"<?= $this->form->getValue('gender') == 'M' ? ' selected' : ''; ?>><?= toHtml(tr('Male')); ?></option>
-                    <option value="F"<?= $this->form->getValue('gender') == 'F' ? ' selected' : ''; ?>><?= toHtml(tr('Female')); ?></option>
-                    <option value="U"<?= $this->form->getValue('gender') == 'U' ? ' selected' : ''; ?>><?= toHtml(tr('Unknown')); ?></option>
+                <select id="gender" name="personalData[gender]">
+                    <option value="M"<?= $pdata->get('gender')->getValue() == 'M' ? ' selected' : '' ?>><?= toHtml(tr('Male')) ?></option>
+                    <option value="F"<?= $pdata->get('gender')->getValue() == 'F' ? ' selected' : '' ?>><?= toHtml(tr('Female')) ?></option>
+                    <option value="U"<?= $pdata->get('gender')->getValue() == 'U' ? ' selected' : '' ?>><?= toHtml(tr('Unknown')) ?></option>
                 </select>
             </td>
         </tr>
         <tr>
-            <td><label for="firm"><?= toHtml(tr('Company')); ?></label></td>
-            <td><input type="text" name="firm" id="firm" value="<?= toHtml($this->form->getValue('firm'), 'htmlAttr'); ?>"></td>
+            <td><label for="firm"><?= toHtml($pdata->get('firm')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[firm]" id="firm" value="<?= toHtml($pdata->get('firm')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="street1"><?= toHtml(tr('Street 1')); ?></label></td>
-            <td><input type="text" name="street1" id="street1" value="<?= toHtml($this->form->getValue('street1'), 'htmlAttr'); ?>"></td>
+            <td><label for="street1"><?= toHtml($pdata->get('street1')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[street1]" id="street1" value="<?= toHtml($pdata->get('street1')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="street2"><?= toHtml(tr('Street 2')); ?></label></td>
-            <td><input type="text" name="street2" id="street2" value="<?= toHtml($this->form->getValue('street2'), 'htmlAttr'); ?>"></td>
+            <td><label for="street2"><?= toHtml($pdata->get('street2')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[street2]" id="street2" value="<?= toHtml($pdata->get('street2')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="zip"><?= toHtml(tr('Zip/Postal code')); ?></label></td>
-            <td><input type="text" name="zip" id="zip" value="<?= toHtml($this->form->getValue('zip'), 'htmlAttr'); ?>"></td>
+            <td><label for="zip"><?= toHtml($pdata->get('zip')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[zip]" id="zip" value="<?= toHtml($pdata->get('zip')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="city"><?= toHtml(tr('City')); ?></label></td>
-            <td><input type="text" name="city" id="city" value="<?= toHtml($this->form->getValue('city'), 'htmlAttr'); ?>"></td>
+            <td><label for="city"><?= toHtml($pdata->get('city')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[city]" id="city" value="<?= toHtml($pdata->get('city')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="state"><?= toHtml(tr('State/Province')); ?></label></td>
-            <td><input type="text" name="state" id="state" value="<?= toHtml($this->form->getValue('state'), 'htmlAttr'); ?>"></td>
+            <td><label for="state"><?= toHtml($pdata->get('state')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[state]" id="state" value="<?= toHtml($pdata->get('state')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="country"><?= toHtml(tr('Country')); ?></label></td>
-            <td><input type="text" name="country" id="country" value="<?= toHtml($this->form->getValue('country'), 'htmlAttr'); ?>"></td>
+            <td><label for="country"><?= toHtml($pdata->get('country')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[country]" id="country" value="<?= toHtml($pdata->get('country')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="email"><?= toHtml(tr('Email')); ?></label></td>
-            <td><input type="text" name="email" id="email" value="<?= toHtml(decodeIdna($this->form->getValue('email')), 'htmlAttr'); ?>" required></td>
+            <td><label for="email"><?= toHtml($pdata->get('email')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[email]" id="email" value="<?= toHtml(decodeIdna($pdata->get('email')->getValue()), 'htmlAttr') ?>" required></td>
         </tr>
         <tr>
-            <td><label for="phone"><?= toHtml(tr('Phone')); ?></label></td>
-            <td><input type="text" name="phone" id="phone" value="<?= toHtml($this->form->getValue('phone'), 'htmlAttr'); ?>"></td>
+            <td><label for="phone"><?= toHtml($pdata->get('phone')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[phone]" id="phone" value="<?= toHtml($pdata->get('phone')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         <tr>
-            <td><label for="fax"><?= toHtml(tr('Fax')); ?></label></td>
-            <td><input type="text" name="fax" id="fax" value="<?= toHtml($this->form->getValue('fax'), 'htmlAttr'); ?>"></td>
+            <td><label for="fax"><?= toHtml($pdata->get('fax')->getLabel()) ?></label></td>
+            <td><input type="text" name="personalData[fax]" id="fax" value="<?= toHtml($pdata->get('fax')->getValue(), 'htmlAttr') ?>"></td>
         </tr>
         </tbody>
     </table>
     <div class="buttons">
-        <input name="Submit" type="submit" value="<?= toHtml(tr('Update'), 'htmlAttr'); ?>">
-        <a href="users.php" class="link_as_button"><?= toHtml(tr('Cancel')); ?></a>
+        <input type="hidden" name="csrf" value="<?= toHtml($this->form->get('csrf')->getValue(), 'htmlAttr') ?>">
+        <input name="submit" type="submit" value="<?= toHtml($this->form->get('submit')->getLabel(), 'htmlAttr') ?>">
+        <a href="users.php" class="link_as_button"><?= toHtml(tr('Cancel')) ?></a>
     </div>
 </form>

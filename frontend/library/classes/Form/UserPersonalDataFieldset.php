@@ -293,7 +293,7 @@ class UserPersonalDataFieldset extends Fieldset implements InputFilterProviderIn
                         'break_chain_on_failure' => true,
                         'options'                => [
                             'type'    => 'string',
-                            'message' => tr('The email address cannot be empty.')
+                            'message' => tr('The email address field cannot be empty.')
                         ]
                     ],
                     [

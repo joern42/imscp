@@ -90,7 +90,7 @@ class SignIn extends Form implements InputFilterProviderInterface
                         'name'    => Validator\NotEmpty::class,
                         'options' => [
                             'type'    => 'string',
-                            'message' => tr('The username cannot be empty.')
+                            'message' => tr('The username field cannot be empty.')
                         ]
                     ]
                 ]
@@ -105,7 +105,7 @@ class SignIn extends Form implements InputFilterProviderInterface
                         'name'    => Validator\NotEmpty::class,
                         'options' => [
                             'type'    => 'string',
-                            'message' => tr('The password cannot be empty.')
+                            'message' => tr('The password field cannot be empty.')
                         ]
                     ]
                 ]
