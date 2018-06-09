@@ -59,7 +59,7 @@ class UserLoginDataFieldset extends Fieldset implements InputFilterProviderInter
             ]
         ]);
 
-        // Make 3rd-party components able to modify that form
+        // Make 3rd-party components able to modify that fieldset
         Application::getInstance()->getEventManager()->trigger('onInitUserLoginDataFieldset', $this);
     }
 

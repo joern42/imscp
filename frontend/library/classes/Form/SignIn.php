@@ -86,14 +86,18 @@ class SignIn extends Form implements InputFilterProviderInterface
         return [
             'admin_name' => [
                 'filters'  => [
-                    ['name' => Filter\StringTrim::class],
+                    [
+                        'name' => Filter\StringTrim::class
+                    ],
                 ],
                 'required' => true
             ],
             'admin_pass' => [
                 'required'   => true,
                 'filters'    => [
-                    ['name' => Filter\StringTrim::class]
+                    [
+                        'name' => Filter\StringTrim::class
+                    ]
                 ],
                 'validators' => [
                     [

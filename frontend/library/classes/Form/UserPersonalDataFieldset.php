@@ -129,7 +129,7 @@ class UserPersonalDataFieldset extends Fieldset implements InputFilterProviderIn
             ]
         ]);
 
-        // Make 3rd-party components able to modify that form
+        // Make 3rd-party components able to modify that fieldset
         Application::getInstance()->getEventManager()->trigger('onInitUserPersonalDataFieldset', $this);
     }
 
