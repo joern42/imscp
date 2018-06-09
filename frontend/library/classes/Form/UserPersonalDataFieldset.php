@@ -33,101 +33,79 @@ use Zend\Validator;
  */
 class UserPersonalDataFieldset extends Fieldset implements InputFilterProviderInterface
 {
-    public function __construct()
+    /**
+     * @inheritdoc
+     */
+    public function __construct($name = NULL, $options = [])
     {
-        parent::__construct('user-personal-data');
+        parent::__construct($name ?: 'user-personal-data-fieldset', $options);
 
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'fname',
-            'options' => [
-                'label' => tr('First name')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'lname',
-            'options' => [
-                'label' => tr('Last name')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Select::class,
-            'name'    => 'gender',
-            'options' => [
-                'label' => tr('Gender')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'firm',
-            'options' => [
-                'label' => tr('Company')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'street1',
-            'options' => [
-                'label' => tr('Street 1')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'street2',
-            'options' => [
-                'label' => tr('Street 2')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'zip',
-            'options' => [
-                'label' => tr('Zip/Postal code')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'city',
-            'options' => [
-                'label' => tr('City')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'state',
-            'options' => [
-                'label' => tr('State/Province')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'country',
-            'options' => [
-                'label' => tr('Country')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'email',
-            'options' => [
-                'label' => tr('Email')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'phone',
-            'options' => [
-                'label' => tr('Phone')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'fax',
-            'options' => [
-                'label' => tr('Fax')
-            ]
-        ]);
+        $this
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'fname',
+                'options' => ['label' => tr('First name')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'lname',
+                'options' => ['label' => tr('Last name')]
+            ])
+            ->add([
+                'type'    => Element\Select::class,
+                'name'    => 'gender',
+                'options' => ['label' => tr('Gender')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'firm',
+                'options' => ['label' => tr('Company')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'street1',
+                'options' => ['label' => tr('Street 1')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'street2',
+                'options' => ['label' => tr('Street 2')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'zip',
+                'options' => ['label' => tr('Zip/Postal code')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'city',
+                'options' => ['label' => tr('City')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'state',
+                'options' => ['label' => tr('State/Province')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'country',
+                'options' => ['label' => tr('Country')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'email',
+                'options' => ['label' => tr('Email')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'phone',
+                'options' => ['label' => tr('Phone')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'fax',
+                'options' => ['label' => tr('Fax')]
+            ]);
 
         // Make 3rd-party components able to modify that fieldset
         Application::getInstance()->getEventManager()->trigger('onInitUserPersonalDataFieldset', $this);

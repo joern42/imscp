@@ -21,8 +21,11 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Form\UserLoginDataFieldset;
+use iMSCP\Form\UserPersonalDataFieldset;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
+use Zend\Form\Element;
 use Zend\Form\Form;
 
 /**
@@ -36,14 +39,20 @@ function addAdminUser(Form $form)
     $form->setData($_POST);
 
     if (!$form->isValid()) {
-        foreach ($form->getMessages() as $msgsStack) {
-            foreach ($msgsStack as $msg) {
-                View::setPageMessage(toHtml($msg), 'error');
+        foreach ($form->getMessages() as $messages) {
+            foreach ($messages as $fieldsetMessages) {
+                View::setPageMessage(View::formatPageMessages($fieldsetMessages), 'error');
             }
         }
 
         return;
     }
+
+    /** @var \Zend\Form\Fieldset $loginData */
+    $loginData = $form->get('loginData');
+
+    /** @var \Zend\Form\Fieldset $personalData */
+    $personalData = $form->get('personalData');
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
     $db = Application::getInstance()->getDb();
@@ -65,24 +74,35 @@ function addAdminUser(Form $form)
                 )
             ",
             [
-                $form->getValue('admin_name'), Crypt::bcrypt($form->getValue('admin_pass')), $identity->getUserId(),
-                $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'),
-                $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
-                encodeIdna($form->getValue('email')), $form->getValue('phone'), $form->getValue('fax'),
-                $form->getValue('street1'), $form->getValue('street2'), $form->getValue('gender')
+                $loginData->get('admin_name')->getValue(),
+                Crypt::bcrypt($loginData->get('admin_pass')->getValue()),
+                $identity->getUserId(),
+                $personalData->get('fname')->getValue(),
+                $personalData->get('lname')->getValue(),
+                $personalData->get('firm')->getValue(),
+                $personalData->get('zip')->getValue(),
+                $personalData->get('city')->getValue(),
+                $personalData->get('state')->getValue(),
+                $personalData->get('country')->getValue(),
+                encodeIdna($personalData->get('email')->getValue()),
+                $personalData->get('phone')->getValue(),
+                $personalData->get('fax')->getValue(),
+                $personalData->get('street1')->getValue(),
+                $personalData->get('street2')->getValue(),
+                $personalData->get('gender')->getValue()
             ]
         );
 
         $adminId = $db->getDriver()->getLastGeneratedValue();
-        $cfg = Application::getInstance()->getConfig();
+        $config = Application::getInstance()->getConfig();
 
         execQuery('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (?, ?, ?)', [
-            $adminId, $cfg['USER_INITIAL_LANG'], $cfg['USER_INITIAL_THEME']
+            $adminId, $config['USER_INITIAL_LANG'], $config['USER_INITIAL_THEME']
         ]);
 
         Application::getInstance()->getEventManager()->trigger(Events::onAfterAddUser, NULL, [
             'userId'   => $adminId,
-            'userData' => $form->getValues()
+            'userData' => $form->getData()
         ]);
 
         $db->getDriver()->getConnection()->commit();
@@ -92,10 +112,15 @@ function addAdminUser(Form $form)
     }
 
     Mail::sendWelcomeMail(
-        $identity->getUserId(), $form->getValue('admin_name'), $form->getValue('admin_pass'), $form->getValue('email'), $form->getValue('fname'),
-        $form->getValue('lname'), tr('Administrator')
+        $identity->getUserId(),
+        $loginData->get('admin_name')->getValue(),
+        $loginData->get('admin_pass')->getValue(),
+        $personalData->get('email')->getValue(),
+        $personalData->get('fname')->getValue(),
+        $personalData->get('lname')->getValue(),
+        tr('Administrator')
     );
-    writeLog(sprintf('The %s administrator has been added by %s', $form->getValue('admin_name'), $identity->getUsername()), E_USER_NOTICE);
+    writeLog(sprintf('The %s administrator has been added by %s', $loginData->get('admin_name')->getValue(), $identity->getUsername()), E_USER_NOTICE);
     View::setPageMessage('Administrator has been added.', 'success');
     redirectTo('users.php');
 }
@@ -105,11 +130,36 @@ require_once 'application.php';
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-$form = getUserLoginDataForm(true, true)->add(getUserPersonalDataForm()->getElements());
-$form->setDefault('gender', 'U');
+($form = new Form('AdminAddForm'))
+    ->add([
+        'type' => UserLoginDataFieldset::class,
+        'name' => 'loginData'
+    ])
+    ->add([
+        'type' => UserPersonalDataFieldset::class,
+        'name' => 'personalData'
+    ])
+    ->add([
+        'type'    => Element\Csrf::class,
+        'name'    => 'csrf',
+        'options' => [
+            'csrf_options' => [
+                'timeout' => 300,
+                'message' => tr('Validation token (CSRF) was expired. Please try again.')
+            ]
+        ]
+    ])
+    ->add([
+        'type'    => Element\Submit::class,
+        'name'    => 'submit',
+        'options' => [
+            'label' => tr('Add')
+        ]
+    ])
+    ->get('personalData')->get('gender')->setValue('U');
 
-if(Application::getInstance()->getRequest()->isPost()) {
- addAdminUser($form);
+if (Application::getInstance()->getRequest()->isPost()) {
+    addAdminUser($form);
 }
 
 $tpl = new TemplateEngine();
@@ -121,6 +171,7 @@ $tpl->define([
 $tpl->assign('TR_PAGE_TITLE', toHtml(tr('Admin / Users / Add Admin')));
 View::generateNavigation($tpl);
 View::generatePageMessages($tpl);
+/** @noinspection PhpUndefinedFieldInspection */
 $tpl->form = $form;
 $tpl->parse('LAYOUT_CONTENT', 'page');
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptEnd, NULL, ['templateEngine' => $tpl]);

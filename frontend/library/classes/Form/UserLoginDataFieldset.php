@@ -33,31 +33,29 @@ use Zend\Validator;
  */
 class UserLoginDataFieldset extends Fieldset implements InputFilterProviderInterface
 {
-    public function __construct()
+    /**
+     * @inheritdoc
+     */
+    public function __construct($name = NULL, $options = [])
     {
-        parent::__construct('user-login-data');
+        parent::__construct($name ?: 'user-login-data-fieldset', $options);
 
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'admin_name',
-            'options' => [
-                'label' => tr('Username')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'admin_pass',
-            'options' => [
-                'label' => tr('Password')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Text::class,
-            'name'    => 'admin_pass_confirmation',
-            'options' => [
-                'label' => tr('Password confirmation')
-            ]
-        ]);
+        $this
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'admin_name',
+                'options' => ['label' => tr('Username')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'admin_pass',
+                'options' => ['label' => tr('Password')]
+            ])
+            ->add([
+                'type'    => Element\Text::class,
+                'name'    => 'admin_pass_confirmation',
+                'options' => ['label' => tr('Password confirmation')]
+            ]);
 
         // Make 3rd-party components able to modify that fieldset
         Application::getInstance()->getEventManager()->trigger('onInitUserLoginDataFieldset', $this);

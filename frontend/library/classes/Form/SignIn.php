@@ -38,42 +38,37 @@ class SignIn extends Form implements InputFilterProviderInterface
      */
     public function __construct($name = NULL, $options = [])
     {
-        parent::__construct('sign-in-form');
+        parent::__construct($name ?: 'sign-in-form', $options);
 
         $this->setAttribute('method', 'post');
-        $this->add([
-            'type'     => Element\Text::class,
-            'name'     => 'admin_name',
-            'required' => true,
-            'options'  => [
-                'label' => tr('Username')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Password::class,
-            'name'    => 'admin_pass',
-            'options' => [
-                'label' => tr('Password')
-            ]
-        ]);
-        $this->add([
-            'type'    => Element\Csrf::class,
-            'name'    => 'csrf',
-            'options' => [
-                'csrf_options' => [
-                    'timeout' => 300,
-                    'message' => tr('Validation token (CSRF) was expired. Please try again.')
-                ],
-            ]
-        ]);
-        $this->add([
-            'name'     => 'submit',
-            'type'     => Element\Submit::class,
-            'priority' => -100,
-            'options'  => [
-                'label' => tr('Sign In')
-            ]
-        ]);
+        $this
+            ->add([
+                'type'     => Element\Text::class,
+                'name'     => 'admin_name',
+                'required' => true,
+                'options'  => ['label' => tr('Username')]
+            ])
+            ->add([
+                'type'    => Element\Password::class,
+                'name'    => 'admin_pass',
+                'options' => ['label' => tr('Password')]
+            ])
+            ->add([
+                'type'    => Element\Csrf::class,
+                'name'    => 'csrf',
+                'options' => [
+                    'csrf_options' => [
+                        'timeout' => 300,
+                        'message' => tr('Validation token (CSRF) was expired. Please try again.')
+                    ],
+                ]
+            ])
+            ->add([
+                'name'     => 'submit',
+                'type'     => Element\Submit::class,
+                'priority' => -100,
+                'options'  => ['label' => tr('Sign In')]
+            ]);
 
         // Make 3rd-party components able to modify that form
         Application::getInstance()->getEventManager()->trigger('onInitSignInForm', $this);
