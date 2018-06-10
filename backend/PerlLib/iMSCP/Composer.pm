@@ -375,9 +375,9 @@ sub checkPackageRequirements
 
 sub getComposerJson
 {
-    my ( $self, $scalar ) = @_;
+    my ( $self, $hashref ) = @_;
 
-    $scalar ? $self->{'_attrs'}->{'composer_json'} : to_json( $self->{'_attrs'}->{'composer_json'}, {
+    $hashref ? $self->{'_attrs'}->{'composer_json'} : to_json( $self->{'_attrs'}->{'composer_json'}, {
         utf8      => TRUE,
         indent    => TRUE,
         canonical => TRUE

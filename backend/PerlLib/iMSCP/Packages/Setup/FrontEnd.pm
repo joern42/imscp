@@ -122,7 +122,7 @@ sub registerSetupListeners
             return unless length $stdout;
 
             step( undef, <<"EOT", 1, 1 )
-Installing/Updating i-MSCP frontEnd (dependencies) composer packages...
+Installing i-MSCP frontEnd (dependencies) composer packages...
 
 $stdout
 
