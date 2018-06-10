@@ -170,7 +170,6 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
             throw new \LogicException('Already bootstrapped.');
         }
 
-        $this->loadFunctions();
         $this->setErrorHandling();
         $this->setEncoding();
         $this->setTimezone();
@@ -640,17 +639,6 @@ class Application implements EventManager\EventsCapableInterface, EventManager\S
         }
 
         return $this->flashMessenger;
-    }
-
-    /**
-     * Load application functions
-     *
-     * @return void
-     */
-    public function loadFunctions()
-    {
-        // TODO Replace by classes with static methods and with better separation concerns
-        require_once 'functions.php';
     }
 
     /**

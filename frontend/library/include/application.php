@@ -21,7 +21,6 @@
 namespace iMSCP;
 
 // Application paths
-
 defined('FRONTEND_ROOT_DIR') || define('FRONTEND_ROOT_DIR', realpath(dirname(__DIR__) . '/../'));
 defined('LIBRARY_PATH') || define('LIBRARY_PATH', FRONTEND_ROOT_DIR . '/library');
 defined('CACHE_PATH') || define('CACHE_PATH', FRONTEND_ROOT_DIR . '/data/cache');
@@ -33,7 +32,6 @@ defined('APPLICATION_ENV') || define('APPLICATION_ENV', getenv('APPLICATION_ENVS
 
 // Include Composer autoloader
 $autoloader = include FRONTEND_ROOT_DIR . '/vendor/autoload.php';
-
 
 // Bootstrap application
 Application::getInstance()

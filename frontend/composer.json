@@ -78,6 +78,9 @@
     "psr-4": {
       "iMSCP\\": "library/classes",
       "iMSCP\\Plugin\\": "plugins"
-    }
+    },
+    "files": [
+      "library/include/functions.php"
+    ]
   }
 }
