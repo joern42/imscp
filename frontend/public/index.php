@@ -33,9 +33,7 @@ $form = new SignIn();
 if (Application::getInstance()->getRequest()->isPost()) {
     $form->setData(Application::getInstance()->getRequest()->getPost());
     if (!$form->isValid()) {
-        foreach($form->getMessages() as $messages) {
-            View::setPageMessage(View::formatPageMessages($messages), 'static_error');
-        }
+        View::setPageMessage(View::formatPageMessages($form->getMessages()), 'static_error');
     } else {
         $authService->signIn();
     }

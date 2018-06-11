@@ -20,7 +20,9 @@
 
 namespace iMSCP;
 
+use iMSCP\Form\UserPersonalDataFieldset;
 use iMSCP\Functions\View;
+use Zend\Form\Element;
 use Zend\Form\Form;
 
 /**
@@ -31,23 +33,19 @@ use Zend\Form\Form;
  */
 function updatePersonalData(Form $form)
 {
-    if (!$form->isValid($_POST)) {
-        foreach ($form->getMessages() as $msgsStack) {
-            foreach ($msgsStack as $msg) {
-                View::setPageMessage(toHtml($msg), 'error');
-            }
-        }
+    $form->setData(Application::getInstance()->getRequest()->getPost());
 
+    if (!$form->isValid()) {
+        View::setPageMessage(View::formatPageMessages($form->getMessages()), 'error');
         return;
     }
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
+    $pdata = $form->getData()['personalData'];
 
-    $idnaEmail = $form->getValue('email');
-
-    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, NULL, [
-        'userId'   => $identity->getUserId(),
-        'userData' => $form->getValues()
+    Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUserPersonalData, NULL, [
+        'userId'       => $identity->getUserId(),
+        'personalData' => $pdata
     ]);
     execQuery(
         "
@@ -57,22 +55,16 @@ function updatePersonalData(Form $form)
             WHERE admin_id = ?
         ",
         [
-            $form->getValue('fname'), $form->getValue('lname'), $form->getValue('firm'), $form->getValue('zip'),
-            $form->getValue('city'), $form->getValue('state'), $form->getValue('country'),
-            $idnaEmail, $form->getValue('phone'), $form->getValue('fax'), $form->getValue('street1'),
-            $form->getValue('street2'), $form->getValue('gender'), $identity->getUserId()
+            $pdata['fname'], $pdata['lname'], $pdata['firm'], $pdata['zip'], $pdata['city'], $pdata['state'], $pdata['country'],
+            encodeIdna($pdata['email']), $pdata['phone'], $pdata['fax'], $pdata['street1'], $pdata['street2'], $pdata['gender'],
+            $identity->getUserId()
         ]
     );
-
-    # We need also update user email in session
-    //AuthenticationService::getInstance()->getIdentity()->email = $idnaEmail;
-    //Application::getInstance()->getSession()['user_email'] = $idnaEmail; // Only for backward compatibility
-
-    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, NULL, [
+    Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUserPersonalData, NULL, [
         'userId'   => $identity->getUserId(),
-        'userData' => $form->getValues()
+        'userData' => $pdata
     ]);
-    writeLog(sprintf('The %s user data were updated', $identity->getUsername()), E_USER_NOTICE);
+    writeLog(sprintf('The %s user personal data were updated', $identity->getUsername()), E_USER_NOTICE);
     View::setPageMessage(tr('Personal data were updated.'), 'success');
     redirectTo('personal_change.php');
 }
@@ -86,12 +78,8 @@ function updatePersonalData(Form $form)
  */
 function generatePage(TemplateEngine $tpl, Form $form)
 {
+    /** @noinspection PhpUndefinedFieldInspection */
     $tpl->form = $form;
-
-    if (Application::getInstance()->getRequest()->isPost()) {
-        return;
-    }
-
     $stmt = execQuery(
         "
             SELECT admin_name, admin_type, fname, lname, IFNULL(gender, 'U') as gender, firm, zip, city, state, country, street1, street2, email,
@@ -101,18 +89,36 @@ function generatePage(TemplateEngine $tpl, Form $form)
         ",
         [Application::getInstance()->getAuthService()->getIdentity()->getUserId()]
     );
-
-    $data = $stmt->fetch() or View::showBadRequestErrorPage();
-    $form->setDefaults($data);
+    $pdata = $stmt->fetch() or View::showBadRequestErrorPage();
+    $form->get('personalData')->populateValues($pdata);
 }
 
 require_once 'application.php';
 
 defined('SHARED_SCRIPT_NEEDED') or View::showNotFoundErrorPage();
 
-$form = getUserPersonalDataForm();
+($form = new Form('PersonalDataEditForm'))
+    ->add([
+        'type' => UserPersonalDataFieldset::class,
+        'name' => 'personalData'
+    ])
+    ->add([
+        'type'    => Element\Csrf::class,
+        'name'    => 'csrf',
+        'options' => [
+            'csrf_options' => [
+                'timeout' => 300,
+                'message' => tr('Validation token (CSRF) was expired. Please try again.')
+            ]
+        ]
+    ])
+    ->add([
+        'type'    => Element\Submit::class,
+        'name'    => 'submit',
+        'options' => ['label' => tr('Update')]
+    ]);
 
-if(Application::getInstance()->getRequest()->isPost()) {
+if (Application::getInstance()->getRequest()->isPost()) {
     updatePersonalData($form);
 }
 

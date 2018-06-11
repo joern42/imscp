@@ -166,7 +166,8 @@ class Events
      * Event triggered before user addition (admin, reseller)
      *
      * iMSCP_Events_Event object parameter:
-     *  - userData : User login and personal data
+     *  - loginData    : User login data
+     *  - personalData : User personal Data
      *
      * @const string
      */
@@ -176,8 +177,9 @@ class Events
      * Event triggered after user addition (admin, reseller)
      *
      * iMSCP_Events_Event objectparameters:
-     *  - userId   : User unique identifier
-     *  - userData : User login and personal data
+     *  - userId       : User unique identifier
+     *  - loginData    : User login data
+     *  - personalData : User personal Data
      *
      * @const string
      */
@@ -187,8 +189,9 @@ class Events
      * Event triggered before user edition
      *
      * iMSCP_Events_Event objectparameters:
-     *  - userId   : User unique identifier
-     *  - userData : User login and personal data. Depending on context, some data can be unavailable
+     *  - userId       : User unique identifier
+     *  - loginData    : User login data (depending on context, those data can be unavailable)
+     *  - personalData : User personal Data
      *
      * @const string
      */
@@ -198,13 +201,36 @@ class Events
      * Event triggered after user edition
      *
      * iMSCP_Events_Event object parameters:
-     *  - userId   : User unique identifier
-     *  - userData : User login and personal data Depending on context, some data can be unavailable
+     *  - userId       : User unique identifier
+     *  - loginData    : User login data (depending on context, those data can be unavailable)
+     *  - personalData : User personal Data
      *
      * @const string
      */
     const onAfterEditUser = 'onAfterEditUser';
 
+    /**
+     * Event triggered before user personal data edition
+     *
+     * iMSCP_Events_Event objectparameters:
+     *  - userId       : User unique identifier
+     *  - personalData : User personal Data
+     *
+     * @const string
+     */
+    const onBeforeEditUserPersonalData = 'onBeforeEditUserPersonalData';
+
+    /**
+     * Event triggered after user personal data edition
+     *
+     * iMSCP_Events_Event object parameters:
+     *  - userId       : User unique identifier
+     *  - personalData : User personal Data
+     *
+     * @const string
+     */
+    const onAfterEditUserPersonalData = 'onAfterEditUserPersonalData';
+    
     /**
      * Event triggered before user deletion
      *

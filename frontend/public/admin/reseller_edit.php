@@ -21,10 +21,13 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
+use iMSCP\Form\UserLoginDataFieldset;
+use iMSCP\Form\UserPersonalDataFieldset;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\Statistics;
 use iMSCP\Functions\View;
 use Zend\EventManager\Event;
+use Zend\Form\Element;
 use Zend\Form\Form;
 
 /**
@@ -34,7 +37,7 @@ use Zend\Form\Form;
  * @param bool $forUpdate Tell whether or not data are fetched for update
  * @return array Reference to array of data
  */
-function getFormData($resellerId, $forUpdate = false)
+function &getFormData($resellerId, $forUpdate = false)
 {
     static $data = NULL;
 
@@ -61,20 +64,22 @@ function getFormData($resellerId, $forUpdate = false)
     // IP addresses
 
     // Retrieve list of all server IP addresses
-    $stmt = execQuery('SELECT ip_id, ip_number FROM server_ips ORDER BY ip_number');
+    $stmt = execQuery("SELECT ip_id, ip_number FROM server_ips WHERE ip_status <> 'todelete' ORDER BY ip_number");
     if (!$stmt->rowCount()) {
         View::setPageMessage(tr('Unable to get the IP address list. Please fix this problem.'), 'error');
         redirectTo('users.php');
     }
-    $data['server_ips'] = $stmt->fetchAll();
 
+    $data['server_ips'] = $stmt->fetchAll(\PDO::FETCH_KEY_PAIR);
     $data['reseller_ips'] = explode(',', $data['reseller_ips']);
 
     // Retrieve all IP addresses assigned to clients of the reseller being edited
-    $stmt = execQuery('SELECT domain_client_ips FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [$resellerId]);
-    $data['used_ips'] = [];
+    $stmt = execQuery('SELECT DISTINCT domain_client_ips FROM domain JOIN admin ON(admin_id = domain_admin_id) WHERE created_by = ?', [$resellerId]);
+    $data['client_ips'] = [];
     while ($row = $stmt->fetch()) {
-        $data['used_ips'] = array_merge(array_diff(explode(',', $row['domain_client_ips']), $data['used_ips']));
+        $data['client_ips'] = array_merge(
+            array_diff(explode(',', $row['domain_client_ips']), $data['client_ips']), $data['client_ips']
+        );
     }
 
     $fallbackData = [];
@@ -181,31 +186,23 @@ function generateIpListForm(TemplateEngine $tpl)
     global $resellerId;
 
     $data = getFormData($resellerId);
-    $assignedTranslation = toHtml(tr('Already in use'));
-    $unusedTranslation = toHtml(tr('Not used'));
-
-    $tpl->assign([
-        'TR_IP_ADDRESS' => toHtml(tr('IP address')),
-        'TR_IP_LABEL'   => toHtml(tr('Label')),
-        'TR_ASSIGN'     => toHtml(tr('Assign')),
-        'TR_STATUS'     => toHtml(tr('Usage status'))
-    ]);
+    $tpl->assign('TR_IPS', toHtml(tr('IP addresses')));
 
     Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
         $e->getParam('translations')->core['dataTable'] = View::getDataTablesPluginTranslations(false);
+        $e->getParam('translations')->core['available'] = tr('Available');
+        $e->getParam('translations')->core['assigned'] = tr('Assigned');
     });
 
-    foreach ($data['server_ips'] as $ipData) {
-        $resellerHasIp = in_array($ipData['ip_id'], $data['reseller_ips']);
-        $isUsedIp = in_array($ipData['ip_id'], $data['used_ips']);
+    foreach ($data['server_ips'] as $ipId => $ipAddr) {
         $tpl->assign([
-            'IP_ID'       => toHtml($ipData['ip_id']),
-            'IP_NUMBER'   => toHtml(($ipData['ip_number'] == '0.0.0.0') ? tr('Any') : $ipData['ip_number']),
-            'IP_ASSIGNED' => $resellerHasIp ? ' checked' : '',
-            'IP_STATUS'   => $isUsedIp ? $assignedTranslation : $unusedTranslation,
-            'IP_READONLY' => $isUsedIp ? ' title="' . toHtml(tr('You cannot unassign an IP address already in use.'), 'htmlAttr') . '" readonly' : ''
+            'IP_VALUE'    => toHtml($ipId),
+            'IP_NUM'      => toHtml($ipAddr == '0.0.0.0' ? tr('Any') : $ipAddr),
+            'IP_SELECTED' => in_array($ipId, $data['reseller_ips']) ? ' selected' : '',
+            'IP_DISABLED' => !in_array($ipId, $data['client_ips'])
+                ? ' title="' . toHtml(tr('You cannot un-assign an IP address already used by customers.'), 'htmlAttr') . '" disabled' : ''
         ]);
-        $tpl->parse('IP_BLOCK', '.ip_block');
+        $tpl->parse('IP_ENTRY', '.ip_entry');
     }
 }
 
@@ -347,12 +344,9 @@ function updateResellerUser(Form $form)
     global $resellerId;
 
     $error = false;
-    $errFieldsStack = [];
     $db = Application::getInstance()->getDb();
 
     try {
-        $data = getFormData($resellerId, true);
-
         $stmt = execQuery(
             '
                 SELECT IFNULL(SUM(t1.domain_subd_limit), 0) AS subdomains,
@@ -377,163 +371,137 @@ function updateResellerUser(Form $form)
             $stmt->fetch()
         );
 
+        //
         // Check for login and personal data
-        if (!$form->isValid($_POST)) {
-            foreach ($form->getMessages() as $fieldname => $msgsStack) {
-                $errFieldsStack[] = $fieldname;
-                foreach ($msgsStack as $msg) {
-                    View::setPageMessage(toHtml($msg), 'error');
-                }
-            }
+        //
+
+        $form->setData(Application::getInstance()->getRequest()->getPost());
+
+        // We do not want validate username in edit mode
+        $form->getInputFilter()->get('loginData')->remove('admin_name');
+        // Password is optional in edit mode
+        $form->getInputFilter()->get('loginData')->get('admin_pass')->setRequired(false);
+        if ($form->get('loginData')->get('admin_pass')->getValue() == ''
+            && $form->get('loginData')->get('admin_pass_confirmation')->getValue() == ''
+        ) {
+            $form->getInputFilter()->get('loginData')->get('admin_pass_confirmation')->setRequired(false);
+        }
+        if (!$form->isValid()) {
+            $error = true;
+            View::setPageMessage(View::formatPageMessages($form->getMessages()), 'error');
         }
 
-        $form->setDefault('admin_name', $data['fallback_admin_name']);
+        $data =& getFormData($resellerId, true);
 
-        // Make sure to compare and store email in ACE form
-        $form->setDefault('email', encodeIdna($form->getValue('email')));
+        //
+        // Check for IP addresses
+        //
 
-        // Check for ip addresses
-        $resellerIps = [];
-        foreach ($data['server_ips'] as $serverIpData) {
-            if (in_array($serverIpData['ip_id'], $data['reseller_ips'], true)) {
-                $resellerIps[] = $serverIpData['ip_id'];
-            }
-        }
+        // Make sure that all assigned IP addresses (client IP addresses are still listed
+        $data['reseller_ips'] = array_unique(array_merge($data['reseller_ips'], $data['client_ips']));
 
-        $resellerIps = array_unique(array_merge($resellerIps, $data['used_ips']));
-        if (empty($resellerIps)) {
+        // Dicard unknown IP addresses
+        $data['reseller_ips'] = array_intersect($data['reseller_ips'], array_keys($data['server_ips']));
+
+        if (empty($data['reseller_ips'])) {
             View::setPageMessage(tr('You must assign at least one IP to this reseller.'), 'error');
             $error = true;
         } else {
-            sort($resellerIps, SORT_NUMERIC);
+            sort($data['reseller_ips'], SORT_NUMERIC);
         }
 
         // Check for max domains limit
         if (validateLimit($data['max_dmn_cnt'], NULL)) {
-            $rs = checkResellerLimit($data['max_dmn_cnt'], $data['current_dmn_cnt'], $data['nbDomains'], false, tr('domains'));
+            if (!checkResellerLimit($data['max_dmn_cnt'], $data['current_dmn_cnt'], $data['nbDomains'], false, tr('domains'))) {
+                $error = true;
+            }
         } else {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('domain')), 'error');
-            $rs = false;
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_dmn_cnt';
+            $error = true;
         }
 
         // Check for max subdomains limit
         if (validateLimit($data['max_sub_cnt'])) {
-            $rs = checkResellerLimit(
-                $data['max_sub_cnt'], $data['current_sub_cnt'], $data['nbSubdomains'], $unlimitedItems['subdomains'], tr('subdomains')
-            );
+            if (!checkResellerLimit($data['max_sub_cnt'], $data['current_sub_cnt'], $data['nbSubdomains'], $unlimitedItems['subdomains'], tr('subdomains'))) {
+                $error = true;
+            }
         } else {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('subdomains')), 'error');
-            $rs = false;
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_sub_cnt';
+            $error = true;
         }
 
         // check for max domain aliases limit
         if (validateLimit($data['max_als_cnt'])) {
-            $rs = checkResellerLimit(
-                $data['max_als_cnt'], $data['current_als_cnt'], $data['nbDomainAliases'], $unlimitedItems['domainAliases'], tr('domain aliases')
-            );
+            if (!checkResellerLimit($data['max_als_cnt'], $data['current_als_cnt'], $data['nbDomainAliases'], $unlimitedItems['domainAliases'], tr('domain aliases'))) {
+                $error = true;
+            }
         } else {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('domain aliases')), 'error');
-            $rs = false;
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_als_cnt';
+            $error = true;
         }
 
         // Check for max mail accounts limit
         if (validateLimit($data['max_mail_cnt'])) {
-            $rs = checkResellerLimit(
-                $data['max_mail_cnt'], $data['current_mail_cnt'], $data['nbMailAccounts'], $unlimitedItems['mailAccounts'], tr('mail')
-            );
+            if (!checkResellerLimit($data['max_mail_cnt'], $data['current_mail_cnt'], $data['nbMailAccounts'], $unlimitedItems['mailAccounts'], tr('mail'))) {
+                $error = true;
+            }
         } else {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('mail accounts')), 'error');
-            $rs = false;
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_mail_cnt';
+            $error = true;
         }
 
         // Check for max FTP accounts limit
         if (validateLimit($data['max_ftp_cnt'])) {
-            $rs = checkResellerLimit(
-                $data['max_ftp_cnt'], $data['current_ftp_cnt'], $data['nbFtpAccounts'], $unlimitedItems['ftpAccounts'], tr('Ftp')
-            );
+            if (!checkResellerLimit($data['max_ftp_cnt'], $data['current_ftp_cnt'], $data['nbFtpAccounts'], $unlimitedItems['ftpAccounts'], tr('Ftp'))) {
+                $error = true;
+            }
         } else {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('Ftp accounts')), 'error');
-            $rs = false;
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_ftp_cnt';
+            $error = true;
         }
 
         // Check for max SQL databases limit
         if (!$rs = validateLimit($data['max_sql_db_cnt'])) {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('SQL databases')), 'error');
+            $error = true;
         } elseif ($data['max_sql_db_cnt'] == -1 && $data['max_sql_user_cnt'] != -1) {
             View::setPageMessage(tr('SQL database limit is disabled but SQL user limit is not.'), 'error');
-            $rs = false;
+            $error = true;
         } else {
-            $rs = checkResellerLimit(
-                $data['max_sql_db_cnt'], $data['current_sql_db_cnt'], $unlimitedItems['nbSqlDatabases'], $data['sqlDatabases'], tr('SQL databases')
-            );
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_sql_db_cnt';
+            if (!checkResellerLimit($data['max_sql_db_cnt'], $data['current_sql_db_cnt'], $data['nbSqlDatabases'], $unlimitedItems['sqlDatabases'], tr('SQL databases'))) {
+                $error = true;
+            }
         }
 
         // Check for max SQL users limit
         if (!$rs = validateLimit($data['max_sql_user_cnt'])) {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('SQL users')), 'error');
+            $error = true;
         } elseif ($data['max_sql_db_cnt'] != -1 && $data['max_sql_user_cnt'] == -1) {
             View::setPageMessage(tr('SQL user limit is disabled but SQL database limit is not.'), 'error');
-            $rs = false;
+            $error = true;
         } else {
-            $rs = checkResellerLimit(
-                $data['max_sql_user_cnt'], $data['current_sql_user_cnt'], $data['nbSqlUsers'], $unlimitedItems['sqlUsers'], tr('SQL users')
-            );
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_sql_user_cnt';
+            if (!checkResellerLimit($data['max_sql_user_cnt'], $data['current_sql_user_cnt'], $data['nbSqlUsers'], $unlimitedItems['sqlUsers'], tr('SQL users'))) {
+                $error = true;
+            }
         }
 
         // Check for max monthly traffic limit
         if (validateLimit($data['max_traff_amnt'], NULL)) {
-            $rs = checkResellerLimit(
-                $data['max_traff_amnt'], $data['current_traff_amnt'], $data['totalTraffic'] / 1048576, $unlimitedItems['traffic'], tr('traffic')
-            );
+            if (!checkResellerLimit($data['max_traff_amnt'], $data['current_traff_amnt'], $data['totalTraffic'] / 1048576, $unlimitedItems['traffic'], tr('traffic'))) {
+                $error = true;
+            }
         } else {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('traffic')), 'error');
-            $rs = false;
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_traff_amnt';
         }
 
         // Check for max disk space limit
         if (validateLimit($data['max_disk_amnt'], NULL)) {
-            $rs = checkResellerLimit(
-                $data['max_disk_amnt'], $data['current_disk_amnt'], $data['totalDiskspace'] / 1048576, $unlimitedItems['diskspace'], tr('disk space')
-            );
+            if (!checkResellerLimit($data['max_disk_amnt'], $data['current_disk_amnt'], $data['totalDiskspace'] / 1048576, $unlimitedItems['diskspace'], tr('disk space'))) {
+                $error = true;
+            }
         } else {
             View::setPageMessage(tr('Incorrect limit for %s.', tr('disk space')), 'error');
-            $rs = false;
-        }
-
-        if (!$rs) {
-            $errFieldsStack[] = 'max_disk_amnt';
         }
 
         $db->getDriver()->getConnection()->beginTransaction();
@@ -561,23 +529,26 @@ function updateResellerUser(Form $form)
             $phpini->loadResellerPermissions();
         }
 
-        if (empty($errFieldsStack) && !$error) {
+        if (!$error) {
+            $ldata = $form->getData()['loginData'];
+            $pdata = $form->getData()['personalData'];
+
             Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, NULL, [
-                'userId'   => $resellerId,
-                'userData' => $form->getValues()
+                'userId'       => $resellerId,
+                'loginData'    => $ldata,
+                'personalData' => $pdata
             ]);
 
             // Update reseller personal data (including password if needed)
 
             $bindParams = [
-                $form->getValue('fname'), $form->getValue('lname'), $form->getValue('gender'), $form->getValue('firm'), $form->getValue('zip'),
-                $form->getValue('city'), $form->getValue('state'), $form->getValue('country'), $form->getValue('email'), $form->getValue('phone'),
-                $form->getValue('fax'), $form->getValue('street1'), $form->getValue('street2'), $resellerId
+                $pdata['fname'], $pdata['lname'], $pdata['gender'], $pdata['firm'], $pdata['zip'], $pdata['city'], $pdata['state'], $pdata['country'],
+                encodeIdna($pdata['email']), $pdata['phone'], $pdata['fax'], $pdata['street1'], $pdata['street2'], $resellerId
             ];
 
-            if ($form->getValue('admin_pass') != '') {
+            if ($ldata['admin_pass'] != '') {
                 $setPassword = 'admin_pass = ?,';
-                array_unshift($bindParams, Crypt::bcrypt($form->getValue('admin_pass')));
+                array_unshift($bindParams, Crypt::bcrypt($ldata['admin_pass']));
             } else {
                 $setPassword = '';
             }
@@ -602,8 +573,8 @@ function updateResellerUser(Form $form)
                 ',
                 [
                     $data['max_dmn_cnt'], $data['max_sub_cnt'], $data['max_als_cnt'], $data['max_mail_cnt'], $data['max_ftp_cnt'],
-                    $data['max_sql_db_cnt'], $data['max_sql_user_cnt'], $data['max_traff_amnt'], $data['max_disk_amnt'], implode(',', $resellerIps),
-                    $data['support_system'], $resellerId
+                    $data['max_sql_db_cnt'], $data['max_sql_user_cnt'], $data['max_traff_amnt'], $data['max_disk_amnt'],
+                    implode(',', $data['reseller_ips']), $data['support_system'], $resellerId
                 ]
             );
 
@@ -614,28 +585,27 @@ function updateResellerUser(Form $form)
             execQuery('DELETE FROM login WHERE user_name = ?', [$data['fallback_admin_name']]);
 
             Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, NULL, [
-                'userId'   => $resellerId,
-                'userData' => $form->getValues()
+                'userId'       => $resellerId,
+                'loginData'    => $ldata,
+                'personalData' => $pdata
             ]);
 
             $db->getDriver()->getConnection()->commit();
 
             // Send mail to reseller for new password
-            if ($form->getValue('admin_pass') !== '') {
+            if ($ldata['admin_pass'] != '') {
                 Mail::sendWelcomeMail(
-                    Application::getInstance()->getAuthService()->getIdentity()->getUserId(), $data['admin_name'], $form->getValue('admin_pass'),
-                    $form->getValue('email'), $form->getValue('fname'), $form->getValue('lname'), tr('Reseller')
+                    Application::getInstance()->getAuthService()->getIdentity()->getUserId(), $data['admin_name'], $ldata['admin_pass'],
+                    $pdata['email'], $pdata['fname'], $pdata['lname'], tr('Reseller')
                 );
             }
 
             writeLog(sprintf(
-                'The %s reseller has been updated by %s', $form->getValue('admin_name'), Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
+                'The %s reseller has been updated by %s', $data['admin_name'], Application::getInstance()->getAuthService()->getIdentity()->getUsername()),
                 E_USER_NOTICE
             );
             View::setPageMessage('Reseller has been updated.', 'success');
             redirectTo('users.php');
-        } elseif (!empty($errFieldsStack)) {
-            Application::getInstance()->getRegistry()->set('errFieldsStack', $errFieldsStack);
         }
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -718,11 +688,13 @@ function generatePage(TemplateEngine $tpl, Form $form)
 {
     global $resellerId;
 
+    /** @noinspection PhpUndefinedFieldInspection */
     $tpl->form = $form;
 
     if (!Application::getInstance()->getRequest()->isPost()) {
-        $form->setDefaults(getFormData($resellerId));
-        $form->setDefault('email', decodeIdna(getFormData($resellerId)['email']));
+        $data = getFormData($resellerId);
+        $form->get('loginData')->populateValues($data);
+        $form->get('personalData')->populateValues($data);
     }
 
     generateIpListForm($tpl);
@@ -734,17 +706,38 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
-isset($_GET['id']) or View::showBadRequestErrorPage();
 
 global $resellerId;
-$resellerId = intval($_GET['edit_id']);
-
+($resellerId = Application::getInstance()->getRequest()->getQuery('edit_id')) !== NULL or View::showBadRequestErrorPage();
 $phpini = PHPini::getInstance();
 $phpini->loadResellerPermissions($resellerId);
 
-$form = getUserLoginDataForm(false, false)->addElements(getUserPersonalDataForm()->getElements());
+($form = new Form('ResellerEditForm'))
+    ->add([
+        'type' => UserLoginDataFieldset::class,
+        'name' => 'loginData'
+    ])
+    ->add([
+        'type' => UserPersonalDataFieldset::class,
+        'name' => 'personalData'
+    ])
+    ->add([
+        'type'    => Element\Csrf::class,
+        'name'    => 'csrf',
+        'options' => [
+            'csrf_options' => [
+                'timeout' => 300,
+                'message' => tr('Validation token (CSRF) was expired. Please try again.')
+            ]
+        ]
+    ])
+    ->add([
+        'type'    => Element\Submit::class,
+        'name'    => 'submit',
+        'options' => ['label' => tr('Update')]
+    ]);
 
-if(Application::getInstance()->getRequest()->isPost()) {
+if (Application::getInstance()->getRequest()->isPost()) {
     updateResellerUser($form);
 }
 
@@ -753,8 +746,7 @@ $tpl->define([
     'layout'                             => 'shared/layouts/ui.tpl',
     'page'                               => 'admin/reseller_edit.phtml',
     'page_message'                       => 'layout',
-    'ips_block'                          => 'page',
-    'ip_block'                           => 'ips_block',
+    'ip_entry'                           => 'page',
     'php_editor_disable_functions_block' => 'page',
     'php_editor_mail_function_block'     => 'page'
 ]);

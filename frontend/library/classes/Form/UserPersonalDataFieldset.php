@@ -285,7 +285,7 @@ class UserPersonalDataFieldset extends Fieldset implements InputFilterProviderIn
             'email'   => [
                 'required'   => true,
                 'filters'    => [
-                    ['name' => Filter\StringToLower::class],
+                    ['name' => Filter\StringToLower::class]
                 ],
                 'validators' => [
                     [

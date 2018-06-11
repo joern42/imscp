@@ -40,11 +40,12 @@ function updateUserData(Form $form, $userId)
 {
     global $userType;
 
-    $data = execQuery('SELECT admin_name, admin_type FROM admin WHERE admin_id = ?', [$userId])->fetch();
-    $data !== false or View::showBadRequestErrorPage();
-    $userType = $data['admin_type'];
+    $udata = execQuery('SELECT admin_name, admin_type FROM admin WHERE admin_id = ?', [$userId])->fetch();
+    $udata !== false or View::showBadRequestErrorPage();
+    $userType = $udata['admin_type'];
 
-    $form->setData($_POST);
+    $form->setData(Application::getInstance()->getRequest()->getPost());
+
     // We do not want validate username in edit mode
     $form->getInputFilter()->get('loginData')->remove('admin_name');
 
@@ -57,20 +58,12 @@ function updateUserData(Form $form, $userId)
     }
 
     if (!$form->isValid()) {
-        foreach ($form->getMessages() as $messages) {
-            foreach ($messages as $fieldsetMessages) {
-                View::setPageMessage(View::formatPageMessages($fieldsetMessages), 'error');
-            }
-        }
-
+        View::setPageMessage(View::formatPageMessages($form->getMessages()), 'error');
         return;
     }
 
-    /** @var \Zend\Form\Fieldset $loginData */
-    $loginData = $form->get('loginData');
-    /** @var \Zend\Form\Fieldset $personalData */
-    $personalData = $form->get('personalData');
-    $newPassword = $loginData->get('admin_pass')->getValue();
+    $ldata = $form->getData()['loginData'];
+    $pdata = $form->getData()['personalData'];
 
     $db = Application::getInstance()->getDb();
 
@@ -78,41 +71,31 @@ function updateUserData(Form $form, $userId)
         $db->getDriver()->getConnection()->beginTransaction();
 
         Application::getInstance()->getEventManager()->trigger(Events::onBeforeEditUser, NULL, [
-            'userId'   => $userId,
-            'userData' => $form->getData()
+            'loginData'    => $ldata,
+            'personalData' => $pdata
         ]);
         execQuery(
             "
                 UPDATE admin
                 SET admin_pass = IFNULL(?, admin_pass), fname = ?, lname = ?, firm = ?, zip = ?, city = ?, state = ?, country = ?, email = ?,
-                    phone = ?, fax = ?, street1 = ?, street2 = ?, gender = ?,
-                    admin_status = IF(admin_type = 'user', IF(?, 'tochangepwd', admin_status), admin_status)
+                    phone = ?, fax = ?, street1 = ?, street2 = ?, gender = ?, admin_status = IF(
+                    admin_type = 'user', IF(?, 'tochangepwd', admin_status), admin_status
+                )
                 WHERE admin_id = ?
             ",
             [
-                $newPassword != '' ? Crypt::bcrypt($newPassword) : NULL,
-                $personalData->get('fname')->getValue(),
-                $personalData->get('lname')->getValue(),
-                $personalData->get('firm')->getValue(),
-                $personalData->get('zip')->getValue(),
-                $personalData->get('city')->getValue(),
-                $personalData->get('state')->getValue(),
-                $personalData->get('country')->getValue(),
-                encodeIdna($personalData->get('email')->getValue()),
-                $personalData->get('phone')->getValue(),
-                $personalData->get('fax')->getValue(),
-                $personalData->get('street1')->getValue(),
-                $personalData->get('street2')->getValue(),
-                $personalData->get('gender')->getValue(),
-                $newPassword != '' ? 1 : 0,
-                $userId
+                $ldata['admin_pass'] != '' ? Crypt::bcrypt($ldata['admin_pass']) : NULL, $pdata['fname'], $pdata['lname'], $pdata['firm'],
+                $pdata['zip'], $pdata['city'], $pdata['state'], $pdata['country'], encodeIdna($pdata['email']), $pdata['phone'], $pdata['fax'],
+                $pdata['street1'], $pdata['street2'], $pdata['gender'], $ldata['admin_pass'] != '' ? 1 : 0, $userId
             ]
         );
         // Force user to login again (needed due to possible password or email change)
-        execQuery('DELETE FROM login WHERE user_name = ?', [$data['admin_name']]);
+        //execQuery('DELETE FROM login WHERE user_name = ?', [$udata['admin_name']]);
         Application::getInstance()->getEventManager()->trigger(Events::onAfterEditUser, NULL, [
-            'userId'   => $userId,
-            'userData' => $form->getData()
+            'userId'       => $userId,
+            'loginData'    => $ldata,
+            'personalData' => $pdata
+
         ]);
         $db->getDriver()->getConnection()->commit();
     } catch (\Exception $e) {
@@ -121,23 +104,17 @@ function updateUserData(Form $form, $userId)
     }
 
     $ret = false;
-    if ($newPassword != '') {
-        $ret = Mail::sendWelcomeMail(
-            $userId,
-            $data['admin_name'],
-            $newPassword,
-            $personalData->get('email')->getValue(),
-            $personalData->get('fname')->getValue(),
-            $personalData->get('lname')->getValue(),
-            $data['admin_type'] == 'admin' ? tr('Administrator') : tr('Customer')
+    if ($ldata['admin_pass'] != '') {
+        $ret = Mail::sendWelcomeMail($userId, $udata['admin_name'], $ldata['admin_pass'], $pdata['email'], $pdata['fname'], $pdata['lname'],
+            $udata['admin_type'] == 'admin' ? tr('Administrator') : tr('Customer')
         );
     }
 
     $userType != 'user' or Daemon::sendRequest();
 
-    writeLog(sprintf('The %s user has been updated by %s', $data['admin_name'], Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
+    writeLog(sprintf('The %s user has been updated by %s', $udata['admin_name'], Application::getInstance()->getAuthService()->getIdentity()->getUsername()), E_USER_NOTICE);
     View::setPageMessage('User has been updated.', 'success');
-    !$ret or View::setPageMessage(tr('New login data were sent to the %s user.', decodeIdna($data['admin_name'])), 'success');
+    !$ret or View::setPageMessage(tr('New login data were sent to the %s user.', decodeIdna($udata['admin_name'])), 'success');
     redirectTo("user_edit.php?edit_id=$userId");
 }
 
@@ -183,10 +160,8 @@ require_once 'application.php';
 
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
-isset($_GET['edit_id']) or View::showBadRequestErrorPage();
-
-$userId = intval($_GET['edit_id']);
-$userId != Application::getInstance()->getAuthService()->getIdentity()->getUserId() or redirectTo('personal_change.php');
+($userId = Application::getInstance()->getRequest()->getQuery('edit_id')) !== NULL or View::showBadRequestErrorPage();
+$userId !== Application::getInstance()->getAuthService()->getIdentity()->getUserId() or redirectTo('personal_change.php');
 
 global $userType;
 
@@ -212,11 +187,8 @@ global $userType;
     ->add([
         'type'    => Element\Submit::class,
         'name'    => 'submit',
-        'options' => [
-            'label' => tr('Update')
-        ]
-    ])
-    ->get('personalData')->get('gender')->setValue('U');
+        'options' => ['label' => tr('Update')]
+    ]);
 
 if (Application::getInstance()->getRequest()->isPost()) {
     updateUserData($form, $userId);

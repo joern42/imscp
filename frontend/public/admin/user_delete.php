@@ -33,10 +33,15 @@ function admin_deleteUser($userId)
     $userId = intval($userId);
     $cfg = Application::getInstance()->getConfig();
     $db = Application::getInstance()->getDb();
-
-    $stmt = execQuery('SELECT a.admin_type, b.logo FROM admin a LEFT JOIN user_gui_props b ON (b.user_id = a.admin_id) WHERE admin_id = ?', [
-        $userId
-    ]);
+    $stmt = execQuery(
+        '
+            SELECT t1.admin_type, t2.logo
+            FROM admin AS t1
+            LEFT JOIN user_gui_props AS t2 ON (t2.user_id = t1.admin_id)
+            WHERE t1.admin_id = ?
+        ',
+        [$userId]
+    );
     $row = $stmt->fetch();
     $userType = $row['admin_type'];
 
@@ -117,15 +122,17 @@ function admin_deleteUser($userId)
 function admin_validateUserDeletion($userId)
 {
     $stmt = execQuery('SELECT admin_type, created_by FROM admin WHERE admin_id = ?', [$userId]);
-    $stmt->rowCount() or View::showBadRequestErrorPage(); # No user found; assume a bad request
+    // No user found; assume a bad request
+    $stmt->rowCount() or View::showBadRequestErrorPage(); 
     $row = $stmt->fetch();
 
     if ($row['created_by'] == 0) {
-        View::setPageMessage(tr('You cannot delete the default administrator.'), 'error');
+        View::setPageMessage(tr('You cannot delete the master administrator.'), 'error');
     }
 
     if (!in_array($row['admin_type'], ['admin', 'reseller'])) {
-        View::showBadRequestErrorPage(); # Not an administrator, nor a reseller; assume a bad request
+        // Not an administrator, nor a reseller; assume a bad request
+        View::showBadRequestErrorPage();
     }
 
     $stmt = execQuery('SELECT COUNT(admin_id) AS user_count FROM admin WHERE created_by = ?', [$userId]);
@@ -133,7 +140,7 @@ function admin_validateUserDeletion($userId)
 
     if ($row2['user_count'] > 0) {
         if ($row['admin_type'] == 'admin') {
-            View::setPageMessage(tr('Prior to removing this administrator, please move his resellers to another administrator.'), 'error');
+            View::setPageMessage(tr('Before deleting this administrator, please move all his resellers.'), 'error');
         } else {
             View::setPageMessage(tr('You cannot delete a reseller that has customer accounts.'), 'error');
         }
@@ -149,9 +156,10 @@ require_once 'application.php';
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-if (isset($_GET['id'])) { # admin/reseller deletion
-    if (admin_validateUserDeletion($_GET['id'])) {
-        admin_deleteUser($_GET['id']);
+if (isset($_GET['delete_id'])) {
+    // admin/reseller deletion
+    if (admin_validateUserDeletion($_GET['delete_id'])) {
+        admin_deleteUser($_GET['delete_id']);
     }
 } elseif (isset($_GET['id'])) {
     $userId = intval($_GET['id']);
@@ -164,6 +172,8 @@ if (isset($_GET['id'])) { # admin/reseller deletion
         View::setPageMessage(tr('Unable to schedule deletion of the customer account.'), 'error');
         writeLog(sprintf("System was unable to schedule deletion of customer account with ID %s: %s.", $userId, $e->getMessage()), E_USER_ERROR);
     }
+
+    redirectTo('users.php');
 }
 
-redirectTo('users.php');
+View::showBadRequestErrorPage();

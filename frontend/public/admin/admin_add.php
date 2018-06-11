@@ -36,91 +36,64 @@ use Zend\Form\Form;
  */
 function addAdminUser(Form $form)
 {
-    $form->setData($_POST);
+    $form->setData(Application::getInstance()->getRequest()->getPost());
 
     if (!$form->isValid()) {
-        foreach ($form->getMessages() as $messages) {
-            foreach ($messages as $fieldsetMessages) {
-                View::setPageMessage(View::formatPageMessages($fieldsetMessages), 'error');
-            }
-        }
-
+        View::setPageMessage(View::formatPageMessages($form->getMessages()), 'error');
         return;
     }
 
-    /** @var \Zend\Form\Fieldset $loginData */
-    $loginData = $form->get('loginData');
-    /** @var \Zend\Form\Fieldset $personalData */
-    $personalData = $form->get('personalData');
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-    $db = Application::getInstance()->getDb();
+    $ldata = $form->getData()['loginData'];
+    $pdata = $form->getData()['personalData'];
+    $dbConnect = Application::getInstance()->getDb()->getDriver()->getConnection();
 
     try {
-        $db->getDriver()->getConnection()->beginTransaction();
+        $dbConnect->beginTransaction();
 
         Application::getInstance()->getEventManager()->trigger(Events::onBeforeAddUser, NULL, [
-            'userData' => $form->getData()
+            'loginData'    => $ldata,
+            'personalData' => $pdata
         ]);
-
         execQuery(
             "
                 INSERT INTO admin (
                     admin_name, admin_pass, admin_type, domain_created, created_by, fname, lname, firm, zip, city, state, country, email, phone, fax,
                     street1, street2, gender
                 ) VALUES (
-                    ?, ?, 'admin', unix_timestamp(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, 'admin', UNIX_TIMESTAMP(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
             ",
             [
-                $loginData->get('admin_name')->getValue(),
-                Crypt::bcrypt($loginData->get('admin_pass')->getValue()),
-                $identity->getUserId(),
-                $personalData->get('fname')->getValue(),
-                $personalData->get('lname')->getValue(),
-                $personalData->get('firm')->getValue(),
-                $personalData->get('zip')->getValue(),
-                $personalData->get('city')->getValue(),
-                $personalData->get('state')->getValue(),
-                $personalData->get('country')->getValue(),
-                encodeIdna($personalData->get('email')->getValue()),
-                $personalData->get('phone')->getValue(),
-                $personalData->get('fax')->getValue(),
-                $personalData->get('street1')->getValue(),
-                $personalData->get('street2')->getValue(),
-                $personalData->get('gender')->getValue()
+                $ldata['admin_name'], Crypt::bcrypt($ldata['admin_pass']), $identity->getUserId(), $pdata['fname'], $pdata['lname'], $pdata['firm'],
+                $pdata['zip'], $pdata['city'], $pdata['state'], $pdata['country'], encodeIdna($pdata['email']), $pdata['phone'], $pdata['fax'],
+                $pdata['street1'], $pdata['street2'], $pdata['gender']
             ]
         );
 
-        $adminId = $db->getDriver()->getLastGeneratedValue();
         $config = Application::getInstance()->getConfig();
 
-        execQuery('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (?, ?, ?)', [
-            $adminId, $config['USER_INITIAL_LANG'], $config['USER_INITIAL_THEME']
+        execQuery('INSERT INTO user_gui_props (user_id, lang, layout) VALUES (LAST_INSERT_ID(), ?, ?)', [
+            $config['USER_INITIAL_LANG'], $config['USER_INITIAL_THEME']
         ]);
-
         Application::getInstance()->getEventManager()->trigger(Events::onAfterAddUser, NULL, [
-            'userId'   => $adminId,
-            'userData' => $form->getData()
+            'userId'       => $dbConnect->getLastGeneratedValue(),
+            'loginData'    => $ldata,
+            'personalData' => $pdata
         ]);
 
-        $db->getDriver()->getConnection()->commit();
+        $dbConnect->commit();
+
+        Mail::sendWelcomeMail($identity->getUserId(), $ldata['admin_name'], $ldata['admin_pass'], $pdata['email'], $pdata['fname'], $pdata['lname'],
+            tr('Administrator')
+        );
+        writeLog(sprintf('The %s administrator has been added by %s', $ldata['admin_name'], $identity->getUsername()), E_USER_NOTICE);
+        View::setPageMessage('Administrator has been added.', 'success');
+        redirectTo('users.php');
     } catch (\Exception $e) {
-        $db->getDriver()->getConnection()->rollBack();
+        $dbConnect->rollBack();
         throw $e;
     }
-
-    Mail::sendWelcomeMail(
-        $identity->getUserId(),
-        $loginData->get('admin_name')->getValue(),
-        $loginData->get('admin_pass')->getValue(),
-        $personalData->get('email')->getValue(),
-        $personalData->get('fname')->getValue(),
-        $personalData->get('lname')->getValue(),
-        tr('Administrator')
-    );
-    writeLog(sprintf('The %s administrator has been added by %s', $loginData->get('admin_name')->getValue(), $identity->getUsername()), E_USER_NOTICE);
-    View::setPageMessage('Administrator has been added.', 'success');
-    redirectTo('users.php');
 }
 
 require_once 'application.php';
@@ -150,9 +123,7 @@ Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStar
     ->add([
         'type'    => Element\Submit::class,
         'name'    => 'submit',
-        'options' => [
-            'label' => tr('Add')
-        ]
+        'options' => ['label' => tr('Add')]
     ])
     ->get('personalData')->get('gender')->setValue('U');
 

@@ -13,7 +13,7 @@
         </thead>
         <tbody>
         <tr>
-            <td><?= toHtml(tr('Username')) ?></td>
+            <td><?= toHtml($ldata->get('admin_name')->getLabel()) ?></td>
             <td><?= toHtml(decodeIdna($ldata->get('admin_name')->getValue())) ?></td>
         </tr>
         <tr>

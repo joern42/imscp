@@ -329,13 +329,21 @@ global $ESCAPER;
 $ESCAPER = new Escaper('UTF-8');
 
 /**
- * Clean input
+ * Clean input string or array
  *
- * @param string $input input data (eg. post-var) to be cleaned
- * @return string space trimmed input string
+ * @param string|string $input input data (eg. post-var) to be cleaned
+ * @return string|array space trimmed input string
  */
 function cleanInput($input)
 {
+    if (is_array($input)) {
+        foreach ($input as &$entry) {
+            $entry = cleanInput($entry);
+        }
+
+        return $input;
+    }
+
     return trim($input, "\x20");
 }
 
@@ -357,6 +365,7 @@ function filterDigits($input, $default = NULL)
     if (NULL === $filter) {
         $filter = new Digits();
     }
+
 
     $input = $filter->filter(cleanInput($input));
 
@@ -672,140 +681,20 @@ function validateMimeType($pathFile, array $mimeTypes)
  */
 function getUserLoginDataForm($usernameRequired = true, $passwordRequired = true)
 {
-    $cfg = Application::getInstance()->getConfig();
-    $minPasswordLength = intval($cfg['PASSWD_CHARS']);
+    $form = new Form('user-login-data-form');
+    $form->add(['type' => \iMSCP\Form\UserLoginDataFieldset::class]);
 
-    if ($minPasswordLength < 6) {
-        $minPasswordLength = 6;
-    }
-
-    $form = new Form(['elements' => [
-        'admin_name'              => ['text', [
-            'validators' => [
-                ['NotEmpty', true, ['type' => 'string', 'messages' => tr('The username cannot be empty.')]],
-                ['Regex', true, '/^[[:alnum:]](?:(?<![-_])(?:-*|[_.])?(?![-_])[[:alnum:]]*)*?(?<![-_.])$/', 'messages' => tr('Invalid username.')],
-                ['StringLength', true, ['min' => 2, 'max' => 30, 'messages' => tr('The username must be between %d and %d characters.', 2, 30)]],
-                ['Callback', true, [
-                    function ($username) {
-                        return execQuery(
-                                'SELECT COUNT(admin_id) FROM admin WHERE admin_name = ?', [$username]
-                            )->fetchColumn() == 0;
-                    },
-                    'messages' => tr("The '%value%' username is not available.")
-                ]]
-            ],
-            'Required'   => true
-        ]],
-        'admin_pass'              => ['password', [
-            'validators' => [
-                ['NotEmpty', true, ['type' => 'string', 'messages' => tr('The password cannot be empty.')]],
-                [
-                    'StringLength',
-                    true,
-                    [
-                        'min'      => $minPasswordLength,
-                        'max'      => 30,
-                        'messages' => tr('The password must be between %d and %d characters.', $minPasswordLength, 30)
-                    ]
-                ],
-                ['Regex', true, ['/^[\x21-\x7e]+$/', 'messages' => tr('The password contains unallowed characters.')]]
-            ],
-            'Required'   => true
-        ]],
-        'admin_pass_confirmation' => ['password', ['validators' => [['Identical', true, ['admin_pass', 'messages' => tr('Passwords do not match.')]]]]]]
-    ]);
-
-    if ($cfg['PASSWD_STRONG']) {
-        $form->get('admin_pass')->addValidator('Callback', true, [
-            function ($password) {
-                return preg_match('/[0-9]/', $password) && preg_match('/[a-zA-Z]/', $password);
-            },
-            'messages' => tr('The password must contain letters and digits.'),
-        ]);
-    }
-
+    /*
     if (!$usernameRequired) {
+        $form->get('user-login-data-fieldset')->get('admin_name');
         $form->getElement('admin_name')->removeValidator('NoEmpty')->setRequired(false);
     }
 
     if (!$passwordRequired) {
         $form->getElement('admin_pass')->removeValidator('NoEmpty')->setRequired(false);
     }
+    */
 
-    $form->setElementFilters(['StripTags', 'StringTrim']);
-    return $form;
-}
-
-/**
- * Get user personal data form
- *
- * @return Form
- */
-function getUserPersonalDataForm()
-{
-    $form = new Form([
-        'elementPrefixPath' => ['validate' => ['prefix' => 'iMSCP_Validate', 'path' => 'iMSCP/Validate/']],
-        'elements'          => [
-            'fname'   => ['text', ['validators' => [
-                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid first name.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The first name must be between %d and %d characters.', 1, 200)]]
-            ]]],
-            'lname'   => ['text', ['validators' => [
-                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid last name.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The last name must be between %d and %d characters.', 1, 200)]]
-            ]]],
-            'gender'  => ['select', ['validators' => [
-                ['InArray', true, ['haystack' => ['M', 'F', 'U'], 'strict' => true, 'messages' => tr('Invalid gender.')]],
-            ]]],
-            'firm'    => ['text', ['validators' => [
-                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid company.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The company name must be between %d and %d characters.', 1, 200)]]
-            ]]],
-            'street1' => ['text', ['validators' => [
-                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid street 1.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The street 1 name must be between %d and %d characters', 1, 200)]]
-            ]]],
-            'street2' => ['text', ['validators' => [
-                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid street 2.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The street 2 name must be between %d and %d characters.', 1, 200)]]
-            ]]],
-            'zip'     => ['text', ['validators' => [
-                //['Alnum', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid zipcode.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 10, 'messages' => tr('The zipcode must be between %d and %d characters.', 1, 10)]]
-            ]]],
-            'city'    => ['text', ['validators' => [
-                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid city.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The city name must be between %d and %d characters.', 1, 200)]]
-            ]]],
-            'state'   => ['text', ['validators' => [
-                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid state/province.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The state/province name must be between %d and %d characters.', 1, 200)]]
-            ]]],
-            'country' => ['text', ['validators' => [
-                //['AlnumAndHyphen', true, ['allowWhiteSpace' => true, 'messages' => tr('Invalid country.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The country name must be between %d and %d characters.', 1, 200)]]
-            ]]],
-            'email'   => ['text', [
-                'validators' => [
-                    ['NotEmpty', true, ['type' => 'string', 'messages' => tr('The email address cannot be empty.')]],
-                    ['EmailAddress', true, ['messages' => tr('Invalid email address.')]]
-                ],
-                'Required'   => true
-            ]],
-            'phone'   => ['text', ['validators' => [
-                ['Regex', true, ['/^[0-9()\s.+-]+$/', 'messages' => tr('Invalid phone.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The phone number must be between %d and %d characters.', 1, 200)]]
-            ]
-            ]],
-            'fax'     => ['text', ['validators' => [
-                ['Regex', true, ['/^[0-9()\s.+]+$/', 'messages' => tr('Invalid phone.')]],
-                ['StringLength', true, ['min' => 1, 'max' => 200, 'messages' => tr('The fax number must be between %d and %d characters.', 1, 200)]]
-            ]]]
-        ]
-    ]);
-
-    $form->setElementFilters(['StripTags', 'StringTrim']);
-    $form->getElement('email')->addFilter('stringToLower');
     return $form;
 }
 

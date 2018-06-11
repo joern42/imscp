@@ -1031,11 +1031,11 @@ EOF
     /**
      * Format page messages
      *
-     * @param  array $messages Message or stack of messages to be concatenated
+     * @param  array $messages Stack of messages to be concatenated
      * @return string Formated messages
      */
     public static function formatPageMessages(array $messages): string
     {
-        return implode("<br>\n", $messages);
+        return implode("<br>\n", iterator_to_array(new \RecursiveIteratorIterator(new \RecursiveArrayIterator($messages)), false));
     }
 }
