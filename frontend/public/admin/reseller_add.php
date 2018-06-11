@@ -50,6 +50,7 @@ function &getFormData()
 
     $data['server_ips'] = $stmt->fetchAll(\PDO::FETCH_KEY_PAIR);
     $phpini = PHPini::getInstance();
+    $request = Application::getInstance()->getRequest();
 
     foreach (
         [
@@ -77,7 +78,7 @@ function &getFormData()
             'reseller_ips'                 => []
         ] as $key => $value
     ) {
-        $data[$key] = cleanInput(Application::getInstance()->getRequest()->getPost($key, $value));
+        $data[$key] = cleanInput($request->getPost($key, $value));
     }
 
     return $data;
@@ -91,7 +92,7 @@ function &getFormData()
  */
 function generateIpListForm(TemplateEngine $tpl)
 {
-    $data = getFormData();
+    $data =& getFormData();
     $tpl->assign('TR_IPS', toHtml(tr('IP addresses')));
 
     Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
@@ -118,7 +119,7 @@ function generateIpListForm(TemplateEngine $tpl)
  */
 function generateLimitsForm(TemplateEngine $tpl)
 {
-    $data = getFormData();
+    $data =& getFormData();
     $tpl->assign([
         'TR_ACCOUNT_LIMITS'   => toHtml(tr('Account limits')),
         'TR_MAX_DMN_CNT'      => toHtml(tr('Domains limit')) . '<br><i>(0 ∞)</i>',
@@ -150,7 +151,7 @@ function generateLimitsForm(TemplateEngine $tpl)
  */
 function generateFeaturesForm(TemplateEngine $tpl)
 {
-    $data = getFormData();
+    $data =& getFormData();
     $tpl->assign([
         'TR_FEATURES'                        => toHtml(tr('Features')),
         'TR_SETTINGS'                        => toHtml(tr('PHP Settings')),

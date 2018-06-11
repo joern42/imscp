@@ -190,7 +190,7 @@ class Events
      *
      * iMSCP_Events_Event objectparameters:
      *  - userId       : User unique identifier
-     *  - loginData    : User login data (depending on context, those data can be unavailable)
+     *  - loginData    : User login data
      *  - personalData : User personal Data
      *
      * @const string
@@ -202,7 +202,7 @@ class Events
      *
      * iMSCP_Events_Event object parameters:
      *  - userId       : User unique identifier
-     *  - loginData    : User login data (depending on context, those data can be unavailable)
+     *  - loginData    : User login data
      *  - personalData : User personal Data
      *
      * @const string

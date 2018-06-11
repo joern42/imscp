@@ -185,7 +185,7 @@ function generateIpListForm(TemplateEngine $tpl)
 {
     global $resellerId;
 
-    $data = getFormData($resellerId);
+    $data =& getFormData($resellerId);
     $tpl->assign('TR_IPS', toHtml(tr('IP addresses')));
 
     Application::getInstance()->getEventManager()->attach(Events::onGetJsTranslations, function (Event $e) {
@@ -216,7 +216,7 @@ function generateLimitsForm(TemplateEngine $tpl)
 {
     global $resellerId;
 
-    $data = getFormData($resellerId);
+    $data =& getFormData($resellerId);
     $tpl->assign([
         'TR_ACCOUNT_LIMITS'   => toHtml(tr('Account limits')),
         'TR_MAX_DMN_CNT'      => toHtml(tr('Domains limit')) . '<br><i>(0 ∞)</i>',
@@ -250,7 +250,7 @@ function generateFeaturesForm(TemplateEngine $tpl)
 {
     global $resellerId;
 
-    $data = getFormData($resellerId);
+    $data =& getFormData($resellerId);
 
     $tpl->assign([
         'TR_FEATURES'                        => toHtml(tr('Features')),
@@ -692,7 +692,7 @@ function generatePage(TemplateEngine $tpl, Form $form)
     $tpl->form = $form;
 
     if (!Application::getInstance()->getRequest()->isPost()) {
-        $data = getFormData($resellerId);
+        $data =& getFormData($resellerId);
         $form->get('loginData')->populateValues($data);
         $form->get('personalData')->populateValues($data);
     }

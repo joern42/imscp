@@ -332,7 +332,7 @@ $ESCAPER = new Escaper('UTF-8');
  * Clean input string or array
  *
  * @param string|string $input input data (eg. post-var) to be cleaned
- * @return string|array space trimmed input string
+ * @return string|array Space trimmed input
  */
 function cleanInput($input)
 {
@@ -365,7 +365,6 @@ function filterDigits($input, $default = NULL)
     if (NULL === $filter) {
         $filter = new Digits();
     }
-
 
     $input = $filter->filter(cleanInput($input));
 
