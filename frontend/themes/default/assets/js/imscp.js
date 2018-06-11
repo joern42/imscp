@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-(function($) {
+(function ($) {
     // Function to initialize page messages
     var initPageMessages = function () {
         $("body").on("message_timeout", ".success,.info,.warning,.error", function () {
@@ -32,36 +32,31 @@
     // Function to initialize tooltips
     var initTooltips = function (context) {
         if (context == "simple") {
-            $("a, img").tooltip(
-                {
-                    tooltipClass: "ui-tooltip-notice",
-                    track: true,
-                    position: { collision: "flipfit" },
-                    content: function() {
-                        return $(this).attr('title');
-                    }
+            $("a, img").tooltip({
+                tooltipClass: "ui-tooltip-notice",
+                track: true,
+                position: {collision: "flipfit"},
+                content: function () {
+                    return $(this).attr('title');
                 }
-            );
+            });
         } else {
-            $(".main_menu a").tooltip({ track: true });
-            $(".location a, .body a, .body span, .body input, .dataTables_paginate div").tooltip(
-                {
-                    tooltipClass: "ui-tooltip-notice",
-                    track: true,
-                    position: { collision: "flipfit" },
-                    content: function() {
-                        var title = $( this ).attr("title") || "";
-                        return $(this).attr('title');
-                    }
+            $(".main_menu a").tooltip({track: true});
+            $(".location a, .body a, .body span, .body input, .dataTables_paginate div").tooltip({
+                tooltipClass: "ui-tooltip-notice",
+                track: true,
+                position: {collision: "flipfit"},
+                content: function () {
+                    return $(this).attr("title") || "";
                 }
-            );
+            });
         }
     };
 
     // Function to initialize buttons
     var initButtons = function (context) {
         if (context == "simple") {
-            $(".link_as_button,button").button({ icons: { secondary: "ui-icon-triangle-1-e"} });
+            $(".link_as_button,button").button({icons: {secondary: "ui-icon-triangle-1-e"}});
             $("input").first().focus();
         } else {
             $("input:submit, input:button, input:reset, button, .link_as_button").button();
@@ -91,24 +86,24 @@
     // Function to initialize password generator
     // To enable the password generator for a password input field, just add the .pwd_generator class to it
     // Only password input fields with the password and cpassword identifier are filled
-    var passwordGenerator = function() {
+    var passwordGenerator = function () {
         var $pwdGenerator = $(".pwd_generator");
 
-        if($pwdGenerator.length) {
+        if ($pwdGenerator.length) {
             var $pwdElements = $("#password,#cpassword");
 
             $("<span>", {
                 style: "display:inline-block;margin-left:5px",
                 html: [
-                    $("<button>", { id: "pwd_generate", type: "button", text: imscp_i18n.core.generate }).pGenerator({
+                    $("<button>", {id: "pwd_generate", type: "button", text: imscp_i18n.core.generate}).pGenerator({
                         'passwordElement': $pwdElements,
                         'passwordLength': imscp_i18n.core.password_length > 16 ? imscp_i18n.core.password_length : 16,
                         'specialChars': false
                     }),
-                    $("<button>", { id: "pwd_show", type: "button", text: imscp_i18n.core.show }).click(function() {
+                    $("<button>", {id: "pwd_show", type: "button", text: imscp_i18n.core.show}).click(function () {
                         var password = $pwdElements.first().val();
                         if (password != '') {
-                            $('<div>', { html: $("<strong>", { text: password }) }).dialog({
+                            $('<div>', {html: $("<strong>", {text: password})}).dialog({
                                 modal: true,
                                 hide: false,
                                 show: false,
@@ -116,7 +111,9 @@
                                 buttons: [
                                     {
                                         text: imscp_i18n.core.close,
-                                        click: function () { $(this).dialog("destroy").remove(); }
+                                        click: function () {
+                                            $(this).dialog("destroy").remove();
+                                        }
                                     }
                                 ]
                             });
@@ -128,7 +125,7 @@
             }).insertAfter($pwdGenerator);
 
             // Prefill password field if needed
-            if($(".pwd_prefill").length && $pwdElements.val() == '') {
+            if ($(".pwd_prefill").length && $pwdElements.val() == '') {
                 $("#pwd_generate").trigger("click");
             }
         }
@@ -156,15 +153,15 @@
         if (context == "simple") {
             $(".no_header #header").hide();
         } else {
-           passwordGenerator();
-           initTables();
+            passwordGenerator();
+            initTables();
         }
 
         initButtons(context);
     };
 
     // Main function to initialize application
-    $(function() {
+    $(function () {
         initLayout($('body').hasClass('simple') ? 'simple' : 'ui');
         fixJqueryUI();
     });
@@ -270,11 +267,11 @@
             ],
             open: function () {
                 var $dialog = $(this);
-                $(window).on("resize scroll", function() {
-                    $dialog.dialog("option", "position", { my: "center", at: "center", of: window });
+                $(window).on("resize scroll", function () {
+                    $dialog.dialog("option", "position", {my: "center", at: "center", of: window});
                 });
             },
-            close: function() {
+            close: function () {
                 $('input').blur();
                 $(window).off("resize scroll");
             }
@@ -292,7 +289,7 @@
         });
 
         var $phpEditorBlock = $("#php_editor_block");
-        if($phpEditorBlock.length) {
+        if ($phpEditorBlock.length) {
             if ($("#php_no").is(":checked")) {
                 $phpEditorBlock.hide();
             }
@@ -304,7 +301,7 @@
 
         var $phpEditorDialogOpen = $("#php_editor_dialog_open");
 
-        $phpEditorDialogOpen.button("option", "icons", { primary: "ui-icon-gear" }).click(function () {
+        $phpEditorDialogOpen.button("option", "icons", {primary: "ui-icon-gear"}).click(function () {
             $phpEditorDialog.dialog("open");
         });
 
@@ -322,16 +319,14 @@
             if (typeof(t) != "undefined") {
                 if (!$("#err_" + k).length) {
                     $("#php_editor_msg_default").remove();
-                    $errorMessages.append('<span style="display:block" id="err_' + k + '">' + t + "</span>").
-                        removeClass("static_success").addClass("static_error");
+                    $errorMessages.append('<span style="display:block" id="err_' + k + '">' + t + "</span>").removeClass("static_success").addClass("static_error");
                 }
             } else if ($("#err_" + k).length) {
                 $("#err_" + k).remove();
             }
 
             if ($.trim($errorMessages.text()) == "") {
-                $errorMessages.empty().append('<span id="php_editor_msg_default">' + imscp_i18n.core.fields_ok + '</span>').
-                    removeClass("static_error").addClass("static_success");
+                $errorMessages.empty().append('<span id="php_editor_msg_default">' + imscp_i18n.core.fields_ok + '</span>').removeClass("static_error").addClass("static_success");
             }
         }
 
@@ -363,30 +358,30 @@
 })(jQuery);
 
 // Initialize FTP chooser event handler
-(function($) {
-    $(function() {
-        if(!$(".ftp_choose_dir").length) return; // Avoid attaching event handler when not necessary
+(function ($) {
+    $(function () {
+        if (!$(".ftp_choose_dir").length) return; // Avoid attaching event handler when not necessary
 
         $("body").on("click", ".ftp_choose_dir", function () {
             var $dialog = $("#ftp_choose_dir_dialog");
 
-            if($dialog.length) {
+            if ($dialog.length) {
                 var link = $(this).data("link") || 'none';
 
-                if(link == "none") { // 'none' means that we want set directory.
+                if (link == "none") { // 'none' means that we want set directory.
                     var directory = $(this).data("directory");
-                    if(directory == '') directory = '/';
+                    if (directory == '') directory = '/';
                     $("#ftp_directory").val(directory);
                     $dialog.dialog("close");
                 } else { // We already have a dialog. We just need to update it content
-                    $.get(link, function(data) {
+                    $.get(link, function (data) {
                         $dialog.html(data).dialog("open").find('table').trigger('updateTable').tooltip();
-                    }).fail(function() {
+                    }).fail(function () {
                         alert("Request failed");
                     });
                 }
             } else { // No dialog. We create one
-                $.get("/shared/ftp_choose_dir.php", function(data) {
+                $.get("/shared/ftp_choose_dir.php", function (data) {
                     $dialog = $('<div id="ftp_choose_dir_dialog">').html(data).dialog({
                         hide: false,
                         show: false,
@@ -406,8 +401,8 @@
                         open: function () {
                             var $dialog = $(this);
                             $dialog.find('table').trigger('updateTable').tooltip();
-                            $(window).on("resize scroll", function() {
-                                $dialog.dialog("option", "position", { my: "center", at: "center", of: window });
+                            $(window).on("resize scroll", function () {
+                                $dialog.dialog("option", "position", {my: "center", at: "center", of: window});
                             });
                         },
                         close: function () {
@@ -415,7 +410,7 @@
                             $(this).remove();
                         }
                     });
-                }).fail(function() {
+                }).fail(function () {
                     alert("Request failed")
                 });
             }

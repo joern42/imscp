@@ -2,27 +2,24 @@
     $(function () {
         $("#reseller_ips").multiSelect({
             cssClass: "reseller_ips_select",
-            selectableHeader: '<div class="ms-header">'+imscp_i18n.core.available+'</div>',
-            selectionHeader: '<div class="ms-header">'+imscp_i18n.core.assigned+'</div>',
-            afterInit: function() {
-                $(".reseller_ips_select li").tooltip(
-                    {
-                        tooltipClass: "ui-tooltip-notice",
-                        track: true,
-                        position: { collision: "flipfit" },
-                        content: function() {
-                            var title = $( this ).attr("title") || "";
-                            return $(this).attr('title');
-                        }
+            selectableHeader: '<div class="ms-header">' + imscp_i18n.core.available + '</div>',
+            selectionHeader: '<div class="ms-header">' + imscp_i18n.core.assigned + '</div>',
+            afterInit: function () {
+                $(".reseller_ips_select li").tooltip({
+                    tooltipClass: "ui-tooltip-notice",
+                    track: true,
+                    position: {collision: "flipfit"},
+                    content: function () {
+                        return $(this).attr("title") || "";
                     }
-                );
+                });
             }
         });
-        
-        $("form").submit(function() {
+
+        $("form").submit(function () {
             $(this).find('#reseller_ips :selected').prop('disabled', false);
         });
-        
+
 
         $(".datatable").dataTable({
             language: imscp_i18n.core.dataTable,
