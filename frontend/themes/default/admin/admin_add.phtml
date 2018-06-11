@@ -94,7 +94,7 @@
         </tbody>
     </table>
     <div class="buttons">
-        <input type="hidden" name="csrf" value="ss<?= toHtml($this->form->get('csrf')->getValue(), 'htmlAttr') ?>">
+        <input type="hidden" name="csrf" value="<?= toHtml($this->form->get('csrf')->getValue(), 'htmlAttr') ?>">
         <input name="submit" type="submit" value="<?= toHtml($this->form->get('submit')->getLabel(), 'htmlAttr') ?>">
         <a href="users.php" class="link_as_button"><?= toHtml(tr('Cancel')) ?></a>
     </div>
