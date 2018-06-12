@@ -44,9 +44,13 @@ use Zend\Validator\File\MimeType;
  */
 function tr(string $messageId, string ...$params): string
 {
-    return empty($params)
-        ? Application::getInstance()->getTranslator()->translate($messageId)
-        : vsprintf(Application::getInstance()->getTranslator()->translate($messageId), $params);
+    static $translator = NULL;
+
+    if (NULL === $translator) {
+        $translator = Application::getInstance()->getTranslator();
+    }
+
+    return empty($params) ? $translator->translate($messageId) : vsprintf($translator->translate($messageId), $params);
 }
 
 /**
@@ -60,9 +64,15 @@ function tr(string $messageId, string ...$params): string
  */
 function ntr(string $singular, string $plural, int $number, string ...$params): string
 {
+    static $translator = NULL;
+
+    if (NULL === $translator) {
+        $translator = Application::getInstance()->getTranslator();
+    }
+
     return empty($params)
-        ? Application::getInstance()->getTranslator()->translatePlural($singular, $plural, $number)
-        : vsprintf(Application::getInstance()->getTranslator()->translatePlural($singular, $plural, $number), $params);
+        ? $translator->translatePlural($singular, $plural, $number)
+        : vsprintf($translator->translatePlural($singular, $plural, $number), $params);
 }
 
 /**
@@ -746,41 +756,17 @@ function getMenuVariables($menuLink)
         $identity->getUserId()
     ])->fetch();
 
-    $search = [];
-    $replace = [];
+    $search = [
+        '{uid}', '{uname}', '{fname}', '{lname}', '{company}', '{zip}', '{city}', '{state}', '{country}', '{email}', '{phone}', '{fax}', '{street1}',
+        '{street2}', '{domain_name}'
+    ];
+    $replace = [
+        $identity->getUserId(), toHtml($identity->getUsername()), toHtml($row['fname']), toHtml($row['lname']), toHtml($row['firm']),
+        toHtml($row['zip']), toHtml($row['city']), toHtml($row['state']), toHtml($row['country']), toHtml($row['email']), toHtml($row['phone']),
+        toHtml($row['fax']), toHtml($row['street1']), toHtml($row['street2']),
+        execQuery('SELECT domain_name FROM domain WHERE domain_admin_id = ?', [$identity->getUserId()])->fetchColumn()
+    ];
 
-    $search [] = '{uid}';
-    $replace[] = $identity->getUserId();
-    $search [] = '{uname}';
-    $replace[] = toHtml($identity->getUsername());
-    $search [] = '{fname}';
-    $replace[] = toHtml($row['fname']);
-    $search [] = '{lname}';
-    $replace[] = toHtml($row['lname']);
-    $search [] = '{company}';
-    $replace[] = toHtml($row['firm']);
-    $search [] = '{zip}';
-    $replace[] = toHtml($row['zip']);
-    $search [] = '{city}';
-    $replace[] = toHtml($row['city']);
-    $search [] = '{state}';
-    $replace[] = toHtml($row['state']);
-    $search [] = '{country}';
-    $replace[] = toHtml($row['country']);
-    $search [] = '{email}';
-    $replace[] = toHtml($row['email']);
-    $search [] = '{phone}';
-    $replace[] = toHtml($row['phone']);
-    $search [] = '{fax}';
-    $replace[] = toHtml($row['fax']);
-    $search [] = '{street1}';
-    $replace[] = toHtml($row['street1']);
-    $search [] = '{street2}';
-    $replace[] = toHtml($row['street2']);
-
-    $row = execQuery('SELECT domain_name, domain_admin_id FROM domain WHERE domain_admin_id = ?', [$identity->getUserId()])->fetch();
-    $search [] = '{domain_name}';
-    $replace[] = $row['domain_name'];
     return str_replace($search, $replace, $menuLink);
 }
 
@@ -803,7 +789,7 @@ function getLayoutColorsSet()
         if (is_array($themeInfo)) {
             $colorSet = (array)$themeInfo['theme_color_set'];
         } else {
-            throw new RuntimeException(sprintf("'theme_color'_set parameter missing in %s file", $cfg['ROOT_TEMPLATE_PATH'] . '/info.php'));
+            throw new RuntimeException(sprintf("'theme_color_set' parameter missing in %s file", $cfg['ROOT_TEMPLATE_PATH'] . '/info.php'));
         }
     } else {
         throw new RuntimeException(sprintf("Couldn't read %s file", $cfg['ROOT_TEMPLATE_PATH'] . '/info.php'));
@@ -848,18 +834,12 @@ function getLayoutColor($userId)
  *
  * @param Event $event
  * @return void
- * @todo Use cookies to store user UI properties (Remember me implementation?)
+ * @todo Use cookies to store user UI properties
  */
 function initLayout(Event $event)
 {
     $cfg = Application::getInstance()->getConfig();
-
-    if ($cfg['DEBUG']) {
-        $themesAssetsVersion = time();
-    } else {
-        $themesAssetsVersion = $cfg['THEME_ASSETS_VERSION'];
-    }
-
+    $themesAssetsVersion = $cfg['DEBUG'] ? time() : $cfg['THEME_ASSETS_VERSION'];
     /** @var \iMSCP\Model\SuIdentityInterface $identity */
     $identity = Application::getInstance()->getAuthService()->getIdentity();
     $session = Application::getInstance()->getSession();
@@ -1482,7 +1462,6 @@ function changeDomainStatus($customerId, $action)
     $domainId = $row['domain_id'];
     $adminName = decodeIdna($row['admin_name']);
 
-
     $db = Application::getInstance()->getDb();
 
     try {
@@ -1594,7 +1573,6 @@ function deleteSqlUser($dmnId, $userId)
 
     execQuery('DELETE FROM sql_user WHERE sqlu_id = ?', [$userId]);
     execQuery('FLUSH PRIVILEGES');
-
     Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteSqlUser, NULL, [
         'sqlUserId'   => $userId,
         'sqlUsername' => $user,
@@ -1671,7 +1649,6 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
     }
 
     $data = $stmt->fetch();
-
     $db = Application::getInstance()->getDb();
 
     try {
@@ -1713,22 +1690,16 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
         execQuery('DELETE FROM ftp_group WHERE groupname = ?', [$data['admin_name']]);
         execQuery('DELETE FROM quotalimits WHERE name = ?', [$data['admin_name']]);
         execQuery('DELETE FROM quotatallies WHERE name = ?', [$data['admin_name']]);
-
         // Delete support tickets
         execQuery('DELETE FROM tickets WHERE ticket_from = ? OR ticket_to = ?', [$customerId, $customerId]);
-
         // Delete user frontend properties
         execQuery('DELETE FROM user_gui_props WHERE user_id = ?', [$customerId]);
-
         // Delete PHP ini
         execQuery('DELETE FROM php_ini WHERE admin_id = ?', [$customerId]);
-
         // Schedule FTP accounts deletion
         execQuery("UPDATE ftp_users SET status = 'todelete' WHERE admin_id = ?", [$customerId]);
-
         // Schedule mail accounts deletion
         execQuery("UPDATE mail_users SET status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
-
         // Schedule subdomain aliases deletion
         execQuery(
             "
@@ -1739,23 +1710,16 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
             ",
             [$data['domain_id']]
         );
-
         // Schedule domain aliases deletion
         execQuery("UPDATE domain_aliases SET alias_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
-
         // Schedule subdomains deletion
         execQuery("UPDATE subdomain SET subdomain_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
-
         // Schedule domain deletion
         execQuery("UPDATE domain SET domain_status = 'todelete' WHERE domain_id = ?", [$data['domain_id']]);
-
         // Schedule customer deletion
         execQuery("UPDATE admin SET admin_status = 'todelete' WHERE admin_id = ?", [$customerId]);
-
         // Schedule SSL certificates deletion
-        execQuery(
-            "UPDATE ssl_certs SET status = 'todelete' WHERE domain_type = 'dmn' AND domain_id = ?", [$data['domain_id']]
-        );
+        execQuery("UPDATE ssl_certs SET status = 'todelete' WHERE domain_type = 'dmn' AND domain_id = ?", [$data['domain_id']]);
         execQuery(
             "
                 UPDATE ssl_certs
@@ -1789,10 +1753,8 @@ function deleteCustomer($customerId, $checkCreatedBy = false)
 
         // Delete autoreplies log entries
         \iMSCP\Functions\Mail::deleteAutorepliesLogs();
-
         // Update reseller properties
         recalculateResellerAssignments($data['created_by']);
-
         Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteCustomer, NULL, [
             'customerId' => $customerId
         ]);
@@ -1825,7 +1787,6 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
 {
     ignore_user_abort(true);
     set_time_limit(0);
-
 
     $db = Application::getInstance()->getDb();
 
@@ -1863,7 +1824,6 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
 
         // Delete custom DNS
         execQuery('DELETE FROM domain_dns WHERE alias_id = ?', [$aliasId]);
-
         // Delete PHP ini
         execQuery("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'als'", [$aliasId]);
         execQuery(
@@ -1874,7 +1834,6 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
             ",
             [$aliasId]
         );
-
         // Schedule FTP accounts deletion
         execQuery(
             "
@@ -1886,7 +1845,6 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
             ",
             [$aliasId]
         );
-
         // Schedule mail accounts deletion
         execQuery(
             "
@@ -1897,7 +1855,6 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
             ",
             [$aliasId, $aliasId]
         );
-
         // Schedule SSL certificates deletion
         execQuery(
             "
@@ -1909,19 +1866,15 @@ function deleteDomainAlias($customerId, $domainId, $aliasId, $aliasName, $aliasM
             [$aliasId]
         );
         execQuery("UPDATE ssl_certs SET status = 'todelete' WHERE domain_id = ? and domain_type = 'als'", [$aliasId]);
-
         // Schedule protected areas deletion
         execQuery(
             "UPDATE htaccess SET status = 'todelete' WHERE dmn_id = ? AND path LIKE ?",
             [$domainId, normalizePath($aliasMount) . '%']
         );
-
         // Schedule subdomain aliases deletion
         execQuery("UPDATE subdomain_alias SET subdomain_alias_status = 'todelete' WHERE alias_id = ?", [$aliasId]);
-
         // Schedule domain alias deletion
         execQuery("UPDATE domain_aliases SET alias_status = 'todelete' WHERE alias_id = ?", [$aliasId]);
-
         Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteDomainAlias, NULL, [
             'domainAliasId'   => $aliasId,
             'domainAliasName' => $aliasName
@@ -1956,7 +1909,6 @@ function getResellerProperties($resellerId, $forceReload = false)
 
     if (NULL === $properties || $forceReload) {
         $stmt = execQuery('SELECT * FROM reseller_props WHERE reseller_id = ?', [$resellerId]);
-
         if (!$stmt->rowCount()) {
             throw new \Exception(tr('Properties for reseller with ID %d were not found in database.', $resellerId));
         }
@@ -2003,9 +1955,7 @@ function updateResellerProperties($resellerId, $props)
     return $stmt;
 }
 
-//
 // Utils functions
-//
 
 /**
  * Redirect to the given location
@@ -2333,9 +2283,7 @@ function arrayDiffRecursive(array $array1, array $array2)
     return $diff;
 }
 
-//
 // Checks functions
-//
 
 /**
  * Checks if all of the characters in the provided string are numerical
@@ -2548,9 +2496,7 @@ function getRequestBaseUrl()
     return $scheme . '://' . getRequestHost() . ':' . $port;
 }
 
-//
 // Logging related functions
-//
 
 /**
  * Writes a log message in database and notify administrator by email
@@ -2622,9 +2568,7 @@ i-MSCP Mailer'),
     ]);
 }
 
-//
 // Database related functions
-//
 
 /**
  * Convenience function to prepare and execute a SQL statement with optional parameters
@@ -2664,9 +2608,7 @@ function quoteValue($value)
     return $db = Application::getInstance()->getDb()->getPlatform()->quoteValue($value);
 }
 
-//
 // Unclassified functions
-//
 
 /**
  * Unset global variables
@@ -2940,146 +2882,119 @@ function getIpAddr(): string
 }
 
 /**
- * Check that limits for the given hosting plan are not exceeding limits of the given reseller
+ * Validate an hosting plan
  *
- * @param int|string $hp Hosting plan unique identifier or string representing hosting plan properties to check against
+ * This function can operate in two context
+ * - Hosting plan creation/edition in which case only reseller max limits are considered
+ * - Customer account creation/edition in which case reseller max limits and current consumption are considered
+ *
+ * @param array array containg hosting plan properties
  * @param int $resellerId Reseller unique identifier
- * @return bool TRUE if none of the given hosting plan limits is exceeding limits of the given reseller, FALSE otherwise
+ * @param boolean $accountContext Whether or not the validation must be performed for a new customer account. By default, validation is made for
+ *                                an hosting plan.
+ * @return bool TRUE if none of the given hosting plan limits are exceeding limits of the given reseller, FALSE otherwise
  */
-function validateHostingPlanLimits($hp, int $resellerId): bool
+function validateHostingPlan(array $hpProps, int $resellerId, $accountContext = false): bool
 {
     $ret = true;
+    $stmt = execQuery('SELECT * FROM reseller_props WHERE reseller_id = ?', [$resellerId]);
 
-    if (isNumber($hp)) {
-        $session = Application::getInstance()->getSession();
-
-        if (isset($session['ch_hpprops'])) {
-            $hostingPlanProperties = $session['ch_hpprops'];
-        } else {
-            $stmt = execQuery('SELECT props FROM hosting_plans WHERE id = ?', [$hp]);
-            if (($hostingPlanProperties = $stmt->fetchColumn()) === false) {
-                throw new \Exception('Hosting plan not found');
-            }
-        }
-    } else {
-        $hostingPlanProperties = $hp;
+    if (!$stmt->rowCount()) {
+        throw new InvalidArgumentException("Couldn't find reseller properties.");
     }
 
-    list(, , $newSubLimit, $newAlsLimit, $newMailLimit, $newFtpLimit, $newSqlDbLimit, $newSqlUserLimit, $newTrafficLimit,
-        $newDiskspaceLimit) = explode(';', $hostingPlanProperties);
+    $row = $stmt->fetch();
 
-    $stmt = execQuery('SELECT * FROM reseller_props WHERE reseller_id = ?', [$resellerId]);
-    $data = $stmt->fetch();
-    $currentDmnLimit = $data['current_dmn_cnt'];
-    $maxDmnLimit = $data['max_dmn_cnt'];
-    $currentSubLimit = $data['current_sub_cnt'];
-    $maxSubLimit = $data['max_sub_cnt'];
-    $currentAlsLimit = $data['current_als_cnt'];
-    $maxAlsLimit = $data['max_als_cnt'];
-    $currentMailLimit = $data['current_mail_cnt'];
-    $maxMailLimit = $data['max_mail_cnt'];
-    $currentFtpLimit = $data['current_ftp_cnt'];
-    $ftpMaxLimit = $data['max_ftp_cnt'];
-    $currentSqlDbLimit = $data['current_sql_db_cnt'];
-    $maxSqlDbLimit = $data['max_sql_db_cnt'];
-    $currentSqlUserLimit = $data['current_sql_user_cnt'];
-    $maxSqlUserLimit = $data['max_sql_user_cnt'];
-    $currentTrafficLimit = $data['current_traff_amnt'];
-    $maxTrafficLimit = $data['max_traff_amnt'];
-    $currentDiskspaceLimit = $data['current_disk_amnt'];
-    $maxDiskspaceLimit = $data['max_disk_amnt'];
-
-    if ($maxDmnLimit != 0 && $currentDmnLimit + 1 > $maxDmnLimit) {
-        View::setPageMessage(tr('You have reached your domains limit. You cannot add more domains.'), 'error');
+    if ($accountContext && $row['max_dmn_cnt'] != 0 && $row['current_dmn_cnt'] + 1 > $row['max_dmn_cnt']) {
+        View::setPageMessage(tr('The limit for customers is reached. No new customer account can be created.'), 'error');
         $ret = false;
     }
 
-    if ($maxSubLimit != 0 && $newSubLimit != -1) {
-        if ($newSubLimit == 0) {
-            View::setPageMessage(tr('You have a subdomains limit. You cannot add a user with unlimited subdomains.'), 'error');
+    if ($row['max_sub_cnt'] != 0 && $hpProps['subdomains_limit'] != -1) {
+        if ($hpProps['subdomains_limit'] == 0) {
+            View::setPageMessage(tr('There is a limit for subdomains. Subdomains cannot be unlimited.'), 'error');
             $ret = false;
-        } else if ($currentSubLimit + $newSubLimit > $maxSubLimit) {
-            View::setPageMessage(tr('You are exceeding your subdomains limit.'), 'error');
-            $ret = false;
-        }
-    }
-
-    if ($maxAlsLimit != 0 && $newAlsLimit != -1) {
-        if ($newAlsLimit == 0) {
-            View::setPageMessage(tr('You have a domain aliases limit. You cannot add a user with unlimited domain aliases.'), 'error');
-            $ret = false;
-        } else if ($currentAlsLimit + $newAlsLimit > $maxAlsLimit) {
-            View::setPageMessage(tr('You are exceeding you domain aliases limit.'), 'error');
+        } elseif ($accountContext && $row['current_sub_cnt'] + $hpProps['subdomains_limit'] > $row['max_sub_cnt']) {
+            View::setPageMessage(tr('The limit for subdomains is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($maxMailLimit != 0) {
-        if ($newMailLimit == 0) {
-            View::setPageMessage(tr('You have a mail accounts limit. You cannot add a user with unlimited mail accounts.'), 'error');
+    if ($row['max_als_cnt'] != 0 && $hpProps['domain_aliases_limit'] != -1) {
+        if ($hpProps['domain_aliases_limit'] == 0) {
+            View::setPageMessage(tr('There is limit for domain aliases. Domain aliases cannot be unlimited.'), 'error');
             $ret = false;
-        } else if ($currentMailLimit + $newMailLimit > $maxMailLimit) {
-            View::setPageMessage(tr('You are exceeding your mail accounts limit.'), 'error');
-            $ret = false;
-        }
-    }
-
-    if ($ftpMaxLimit != 0) {
-        if ($newFtpLimit == 0) {
-            View::setPageMessage(tr('You have a FTP accounts limit. You cannot add a user with unlimited FTP accounts.'), 'error');
-            $ret = false;
-        } else if ($currentFtpLimit + $newFtpLimit > $ftpMaxLimit) {
-            View::setPageMessage(tr('You are exceeding your FTP accounts limit.'), 'error');
+        } elseif ($accountContext && $row['current_als_cnt'] + $hpProps['domain_aliases_limit'] > $row['max_als_cnt']) {
+            View::setPageMessage(tr('The limit for domain aliases is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($maxSqlDbLimit != 0 && $newSqlDbLimit != -1) {
-        if ($newSqlDbLimit == 0) {
-            View::setPageMessage(tr('You have a SQL databases limit. You cannot add a user with unlimited SQL databases.'), 'error');
+    if ($row['max_mail_cnt'] != 0 && $row['max_mail_cnt'] != -1) {
+        if ($hpProps['mail_accounts_limit'] == 0) {
+            View::setPageMessage(tr('There is a limit for mail accounts. Mail accounts cannot be unlimited.'), 'error');
             $ret = false;
-        } else if ($currentSqlDbLimit + $newSqlDbLimit > $maxSqlDbLimit) {
-            View::setPageMessage(tr('You are exceeding your SQL databases limit.'), 'error');
-            $ret = false;
-        }
-    }
-
-    if ($maxSqlUserLimit != 0 && $newSqlUserLimit != -1) {
-        if ($newSqlUserLimit == 0) {
-            View::setPageMessage(tr('You have a SQL users limit. You cannot add a user with unlimited SQL users.'), 'error');
-            $ret = false;
-        } elseif ($newSqlDbLimit == -1) {
-            View::setPageMessage(tr('You have disabled SQL databases for this user. You cannot have SQL users here.'), 'error');
-            $ret = false;
-        } elseif ($currentSqlUserLimit + $newSqlUserLimit > $maxSqlUserLimit) {
-            View::setPageMessage(tr('You are exceeding your SQL users limit.'), 'error');
+        } elseif ($accountContext && $row['current_mail_cnt'] + $hpProps['mail_accounts_limit'] > $row['max_mail_cnt']) {
+            View::setPageMessage(tr('The limit for mail accounts is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($maxTrafficLimit != 0) {
-        if ($newTrafficLimit == 0) {
-            View::setPageMessage(tr('You have a monthly traffic limit. You cannot add a user with unlimited monthly traffic.'), 'error');
+    if ($row['max_ftp_cnt'] != 0 && $row['max_ftp_cnt'] != -1) {
+        if ($hpProps['ftp_accounts_limit'] == 0) {
+            View::setPageMessage(tr('There is a limit for FTP accounts. FTP accounts cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($currentTrafficLimit + $newTrafficLimit > $maxTrafficLimit) {
-            View::setPageMessage(tr('You are exceeding your monthly traffic limit.'), 'error');
+        } elseif ($accountContext && $row['current_ftp_cnt'] + $hpProps['ftp_accounts_limit'] > $row['max_ftp_cnt']) {
+            View::setPageMessage(tr('The limit for FTP account is reached.'), 'error');
             $ret = false;
         }
     }
 
-    if ($maxDiskspaceLimit != 0) {
-        if ($newDiskspaceLimit == 0) {
-            View::setPageMessage(tr('You have a disk space limit. You cannot add a user with unlimited disk space.'), 'error');
+    if ($row['max_sql_db_cnt'] != 0 && $hpProps['sql_databases_limit'] != -1) {
+        if ($hpProps['sql_databases_limit'] == 0) {
+            View::setPageMessage(tr('There is a limit for SQL databases. SQL databases cannot be unlimited.'), 'error');
             $ret = false;
-        } elseif ($currentDiskspaceLimit + $newDiskspaceLimit > $maxDiskspaceLimit) {
-            View::setPageMessage(tr('You are exceeding your disk space limit.'), 'error');
+        } elseif ($accountContext && $row['current_sql_db_cnt'] + $hpProps['sql_databases_limit'] > $row['max_sql_db_cnt']) {
+            View::setPageMessage(tr('The limit for SQL database is reached.'), 'error');
+            $ret = false;
+        }
+    }
+
+    if ($row['max_sql_user_cnt'] != 0 && $hpProps['sql_users_limit'] != -1) {
+        if ($hpProps['sql_users_limit'] == 0) {
+            View::setPageMessage(tr('There is a limit for SQL users. SQL users cannot be unlimited.'), 'error');
+            $ret = false;
+        } elseif ($hpProps['sql_databases_limit'] == -1) {
+            View::setPageMessage(tr('There can not be SQL users without SQL databases.'), 'error');
+            $ret = false;
+        } elseif ($row['current_sql_user_cnt'] + $hpProps['sql_users_limit'] > $row['max_sql_user_cnt']) {
+            View::setPageMessage(tr('The limit for SQL users is reached.'), 'error');
+            $ret = false;
+        }
+    }
+
+    if ($row['max_traff_amnt'] != 0) {
+        if ($hpProps['monthly_traffic_limit'] == 0) {
+            View::setPageMessage(tr('There is a monthly traffic limit. Monthly traffic cannot be unlimited.'), 'error');
+            $ret = false;
+        } elseif ($accountContext && $row['current_traff_amnt'] + $hpProps['monthly_traffic_limit'] > $row['max_traff_amnt']) {
+            View::setPageMessage(tr('The limit for monthly traffic is reached.'), 'error');
+            $ret = false;
+        }
+    }
+
+    if ($row['max_disk_amnt'] != 0) {
+        if ($hpProps['diskspace_limit'] == 0) {
+            View::setPageMessage(tr('There is a diskspace limit. Diskspace cannot be unlimited.'), 'error');
+            $ret = false;
+        } elseif ($accountContext && $row['current_disk_amnt'] + $hpProps['diskspace_limit'] > $row['max_disk_amnt']) {
+            View::setPageMessage(tr('The limit for diskspace is reached.'), 'error');
             $ret = false;
         }
     }
 
     return $ret;
 }
-
 
 /**
  * Get mount points
@@ -3181,7 +3096,6 @@ function deleteSubdomain(int $id): void
     set_time_limit(0);
 
     $identity = Application::getInstance()->getAuthService()->getIdentity();
-
     $stmt = execQuery(
         "
             SELECT t1.domain_id, CONCAT(t1.subdomain_name, '.', t2.domain_name) AS subdomain_name, t1.subdomain_mount
@@ -3194,7 +3108,6 @@ function deleteSubdomain(int $id): void
     );
     $stmt->rowCount() or \iMSCP\Functions\View::showBadRequestErrorPage();
     $row = $stmt->fetch();
-
     $db = Application::getInstance()->getDb();
 
     try {
@@ -3242,10 +3155,8 @@ function deleteSubdomain(int $id): void
         execQuery("UPDATE htaccess SET status = 'todelete' WHERE dmn_id = ? AND path LIKE ?", [
             $row['domain_id'], normalizePath($row['subdomain_mount']) . '%'
         ]);
-
         // Schedule subdomain deletion
         execQuery("UPDATE subdomain SET subdomain_status = 'todelete' WHERE subdomain_id = ?", [$id]);
-
         Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteSubdomain, NULL, [
             'subdomainId'   => $id,
             'subdomainName' => $row['subdomain_name'],
@@ -3254,12 +3165,7 @@ function deleteSubdomain(int $id): void
 
         $db->getDriver()->getConnection()->commit();
         \iMSCP\Functions\Daemon::sendRequest();
-        writeLog(
-            sprintf(
-                'Deletion of the %s subdomain has been scheduled by %s', decodeIdna($row['subdomain_alias_name']), decodeIdna($identity->getUsername())
-            ),
-            E_USER_NOTICE
-        );
+        writeLog(sprintf('Deletion of the %s subdomain has been scheduled by %s', decodeIdna($row['subdomain_alias_name']), decodeIdna($identity->getUsername())), E_USER_NOTICE);
         View::setPageMessage(tr('Subdomain scheduled for deletion.'), 'success');
     } catch (\Exception $e) {
         $db->getDriver()->getConnection()->rollBack();
@@ -3331,24 +3237,18 @@ function deleteSubdomainAlias(int $id): void
 
         // Delete PHP ini entries
         execQuery("DELETE FROM php_ini WHERE domain_id = ? AND domain_type = 'subals'", $id);
-
         // Schedule FTP accounts deletion
         execQuery("UPDATE ftp_users SET status = 'todelete' WHERE userid LIKE ?", '%@' . $row['subdomain_alias_name']);
-
         // Schedule mail accounts deletion
         execQuery("UPDATE mail_users SET status = 'todelete' WHERE sub_id = ? AND mail_type LIKE '%alssub_%'", $id);
-
         // Schedule SSL certificates deletion
         execQuery("UPDATE ssl_certs SET status = 'todelete' WHERE domain_id = ? AND domain_type = 'alssub'", $id);
-
         // Schedule protected areas deletion
         execQuery("UPDATE htaccess SET status = 'todelete' WHERE dmn_id = ? AND path LIKE ?", [
             $domainId, normalizePath($row['subdomain_alias_mount']) . '%'
         ]);
-
         // Schedule subdomain aliases deletion
         execQuery("UPDATE subdomain_alias SET subdomain_alias_status = 'todelete' WHERE subdomain_alias_id = ?", $id);
-
         Application::getInstance()->getEventManager()->trigger(Events::onAfterDeleteSubdomain, NULL, [
             'subdomainId'   => $id,
             'subdomainName' => $row['subdomain_alias_name'],
@@ -3427,16 +3327,18 @@ function getProcessorUsername(UserIdentityInterface $identity): string
 {
     static $username = NULL;
 
-    if (NULL === $username) {
-        if ($identity instanceof SuIdentityInterface) {
-            if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
-                $username = $identity->getSuIdentity()->getSuUsername();
-            } else {
-                $username = $identity->getSuUsername();
-            }
+    if (NULL !== $username) {
+        return $username;
+    }
+
+    if ($identity instanceof SuIdentityInterface) {
+        if ($identity->getSuIdentity() instanceof SuIdentityInterface) {
+            $username = $identity->getSuIdentity()->getSuUsername();
         } else {
-            $username = decodeIdna($identity->getUsername());
+            $username = $identity->getSuUsername();
         }
+    } else {
+        $username = decodeIdna($identity->getUsername());
     }
 
     return $username;
