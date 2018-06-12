@@ -2,6 +2,7 @@
 
 namespace iMSCP\Form;
 
+use iMSCP\Application;
 use Zend\Filter;
 use Zend\Form\Element;
 use Zend\Form\Form;
@@ -135,6 +136,9 @@ class HostingPlan extends Form implements InputFilterProviderInterface
                 'required' => true,
                 'options'  => ['label' => tr('PHP')]
             ])
+            
+            // TODO: We should have separate fieldset for PHP editor (client properties) which we could reuse - START
+            
             ->add([
                 'type'     => Element\Checkbox::class,
                 'name'     => 'php_ini_system',
@@ -208,6 +212,9 @@ class HostingPlan extends Form implements InputFilterProviderInterface
                 'required' => true,
                 'options'  => ['label' => tr('Memory limit')]
             ])
+
+            // TODO: We should have separate fieldset for PHP editor (client properties) which we could reuse - END
+            
             ->add([
                 'type'     => Element\Checkbox::class,
                 'name'     => 'cgi',
@@ -296,5 +303,18 @@ class HostingPlan extends Form implements InputFilterProviderInterface
                 ]
             ]
         ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function isValid()
+    {
+        if(!parent::isValid()) {
+            return false;
+        }
+        
+        // Perform validation against reseller limits
+        return validateHostingPlan($this->getData(), Application::getInstance()->getAuthService()->getIdentity()->getUserId());
     }
 }
