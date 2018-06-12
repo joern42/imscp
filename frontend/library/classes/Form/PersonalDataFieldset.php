@@ -28,17 +28,17 @@ use Zend\InputFilter\InputFilterProviderInterface;
 use Zend\Validator;
 
 /**
- * Class UserPersonalDataFieldset
+ * Class PersonalDataFieldset
  * @package iMSCP\Form
  */
-class UserPersonalDataFieldset extends Fieldset implements InputFilterProviderInterface
+class PersonalDataFieldset extends Fieldset implements InputFilterProviderInterface
 {
     /**
      * @inheritdoc
      */
     public function __construct($name = NULL, $options = [])
     {
-        parent::__construct($name ?: 'user-personal-data-fieldset', $options);
+        parent::__construct($name, $options);
 
         $this
             ->add([
@@ -108,7 +108,7 @@ class UserPersonalDataFieldset extends Fieldset implements InputFilterProviderIn
             ]);
 
         // Make 3rd-party components able to modify that fieldset
-        Application::getInstance()->getEventManager()->trigger('onInitUserPersonalDataFieldset', $this);
+        Application::getInstance()->getEventManager()->trigger('onInitPersonalDataFieldset', $this);
     }
 
     /**
