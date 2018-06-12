@@ -21,8 +21,7 @@
 namespace iMSCP;
 
 use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Form\UserLoginDataFieldset;
-use iMSCP\Form\UserPersonalDataFieldset;
+use iMSCP\Form\AdminForm;
 use iMSCP\Functions\Mail;
 use iMSCP\Functions\View;
 use Zend\Form\Element;
@@ -101,25 +100,7 @@ require_once 'application.php';
 Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::ADMIN_IDENTITY_TYPE);
 Application::getInstance()->getEventManager()->trigger(Events::onAdminScriptStart);
 
-($form = new Form('AdminAddForm'))
-    ->add([
-        'type' => UserLoginDataFieldset::class,
-        'name' => 'loginData'
-    ])
-    ->add([
-        'type' => UserPersonalDataFieldset::class,
-        'name' => 'personalData'
-    ])
-    ->add([
-        'type'    => Element\Csrf::class,
-        'name'    => 'csrf',
-        'options' => [
-            'csrf_options' => [
-                'timeout' => 300,
-                'message' => tr('Validation token (CSRF) was expired. Please try again.')
-            ]
-        ]
-    ])
+($form = new AdminForm())
     ->add([
         'type'    => Element\Submit::class,
         'name'    => 'submit',
