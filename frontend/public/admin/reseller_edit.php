@@ -306,8 +306,6 @@ function generateFeaturesForm(TemplateEngine $tpl)
         $translations['core']['fields_ok'] = tr('All fields are valid.');
         $translations['core']['out_of_range_value_error'] = tr('Value for the PHP %%s directive must be in range %%d to %%d.');
         $translations['core']['lower_value_expected_error'] = tr('%%s cannot be greater than %%s.');
-        $translations['core']['error_field_stack'] = Application::getInstance()->getRegistry()->has('errFieldsStack')
-            ? Application::getInstance()->getRegistry()->get('errFieldsStack') : [];
     });
 
     if (strpos(Application::getInstance()->getConfig()['iMSCP::Servers::Httpd'], '::Apache2::') !== false) {
@@ -317,7 +315,7 @@ function generateFeaturesForm(TemplateEngine $tpl)
         $isApacheItk = false;
     }
 
-    if ($isApacheItk) {
+    if (!$isApacheItk) {
         $tpl->assign([
             'TR_PHP_INI_AL_DISABLE_FUNCTIONS'  => tr('Can edit the PHP %s configuration option', '<strong>disable_functions</strong>'),
             'PHP_INI_AL_DISABLE_FUNCTIONS_YES' => $data['php_ini_al_disable_functions'] == 'yes' ? ' checked' : '',
