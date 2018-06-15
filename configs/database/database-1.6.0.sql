@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS `imscp_client_props` (
   `phpEditorPermissions` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `phpEditorLimits` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `cgi` tinyint(1) NOT NULL DEFAULT '0',
+  `dns` tinyint(1) NOT NULL DEFAULT '0',
   `customDNS` tinyint(1) NOT NULL DEFAULT '0',
   `externalMailServer` tinyint(1) NOT NULL DEFAULT '0',
   `supportSystem` tinyint(1) NOT NULL DEFAULT '0',
