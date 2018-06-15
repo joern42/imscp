@@ -210,6 +210,18 @@ CREATE TABLE IF NOT EXISTS `imscp_ip_address` (
   KEY `status` (`status`(15))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
+CREATE TABLE IF NOT EXISTS `imscp_job` (
+  `jobID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `serverID` int(11) UNSIGNED DEFAULT NULL,
+  `objectID` int(11) UNSIGNED NOT NULL,
+  `moduleName` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`jobID`),
+  KEY `serverID` (`serverID`),
+  KEY `moduleName` (`moduleName`),
+  KEY `status` (`status`(15))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
+
 CREATE TABLE IF NOT EXISTS `imscp_log` (
   `logID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `logTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -563,6 +575,9 @@ ALTER TABLE `imscp_htgroup`
 
 ALTER TABLE `imscp_htpasswd`
   ADD CONSTRAINT `htpasswdConstraint_01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`) ON DELETE CASCADE;
+
+ALTER TABLE `imscp_job`
+  ADD CONSTRAINT `jobConstraint01` FOREIGN KEY (`serverID`) REFERENCES `imscp_server` (`serverID`) ON DELETE SET NULL;
 
 ALTER TABLE `imscp_mail_domain`
   ADD CONSTRAINT `mailDomainConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`) ON DELETE CASCADE;
