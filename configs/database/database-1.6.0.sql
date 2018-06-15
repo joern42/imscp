@@ -1,7 +1,7 @@
 SET FOREIGN_KEY_CHECKS=0;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-CREATE DATABASE IF NOT EXISTS `{DATABASE_NAME}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `{DATABASE_NAME}`;
+CREATE DATABASE IF NOT EXISTS `imscp_check` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `imscp_check`;
 
 CREATE TABLE IF NOT EXISTS `imscp_autoreply` (
   `autoreplyTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -13,8 +13,7 @@ CREATE TABLE IF NOT EXISTS `imscp_autoreply` (
 CREATE TABLE IF NOT EXISTS `imscp_client_props` (
   `clientPropsID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `userID` int(11) UNSIGNED NOT NULL,
-  `accountExpireDate` TIMESTAMP NULL DEFAULT NULL,
-  `ipAddresses` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `accountExpireDate` timestamp NULL DEFAULT NULL,
   `domainsLimit` int(11) NOT NULL DEFAULT '0',
   `mailAccountsLimit` int(11) NOT NULL DEFAULT '0',
   `ftpAccountsLimit` int(11) NOT NULL DEFAULT '0',
@@ -198,10 +197,10 @@ CREATE TABLE IF NOT EXISTS `imscp_htpasswd` (
   KEY `status` (`status`(15))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
-CREATE TABLE IF NOT EXISTS `imscp_ip_addresses` (
+CREATE TABLE IF NOT EXISTS `imscp_ip_address` (
   `ipAddressID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `ipAddress` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `netmask` tinyint(1) NOT NULL,
+  `netmask` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `nic` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `configMode` varchar(6) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'auto',
   `status` text COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -323,9 +322,8 @@ CREATE TABLE IF NOT EXISTS `imscp_quota_tallies` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE IF NOT EXISTS `imscp_reseller_props` (
-  `resellerPropsID` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `resellerPropsID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `userID` int(11) UNSIGNED NOT NULL,
-  `ipAddresses` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `domainsLimit` int(11) NOT NULL DEFAULT '0',
   `domainsAssigned` int(11) NOT NULL DEFAULT '0',
   `mailAccountsLimit` int(11) NOT NULL DEFAULT '0',
@@ -382,8 +380,8 @@ CREATE TABLE IF NOT EXISTS `imscp_sql_database` (
 CREATE TABLE IF NOT EXISTS `imscp_sql_database_sql_user` (
   `sqlDatabaseID` int(11) UNSIGNED NOT NULL,
   `sqlUserID` int(11) UNSIGNED NOT NULL,
-  KEY `sqlDatabaseSqlUserConstraint01` (`sqlDatabaseID`),
-  KEY `sqlDatabaseSqlUserConstraint02` (`sqlUserID`)
+  PRIMARY KEY (`sqlDatabaseID`,`sqlUserID`),
+  KEY `sqlUserID` (`sqlUserID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE IF NOT EXISTS `imscp_sql_user` (
@@ -437,8 +435,8 @@ CREATE TABLE IF NOT EXISTS `imscp_traffic` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE IF NOT EXISTS `imscp_ui_props` (
-  `uiPropsID` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `userID` int(10) UNSIGNED NOT NULL,
+  `uiPropsID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `userID` int(11) UNSIGNED NOT NULL,
   `lang` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT 'browser',
   `layout` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'default',
   `layoutColor` varchar(15) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'black',
@@ -484,6 +482,13 @@ CREATE TABLE IF NOT EXISTS `imscp_user` (
   KEY `status` (`status`(15))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
+CREATE TABLE IF NOT EXISTS `imscp_user_ip_address` (
+  `userID` int(11) UNSIGNED NOT NULL,
+  `ipAddressID` int(11) UNSIGNED NOT NULL,
+  PRIMARY KEY (`userID`,`ipAddressID`),
+  KEY `ipAddressID` (`ipAddressID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
+
 CREATE TABLE IF NOT EXISTS `imscp_web_domain` (
   `webDomainID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `userID` int(11) UNSIGNED NOT NULL,
@@ -502,6 +507,13 @@ CREATE TABLE IF NOT EXISTS `imscp_web_domain` (
   UNIQUE KEY `domainName` (`domainName`),
   KEY `userID` (`userID`),
   KEY `status` (`status`(15))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
+
+CREATE TABLE IF NOT EXISTS `imscp_web_domain_ip_address` (
+  `webDomainID` int(11) UNSIGNED NOT NULL,
+  `ipAddressID` int(11) UNSIGNED NOT NULL,
+  PRIMARY KEY (`webDomainID`,`ipAddressID`),
+  KEY `ipAddressID` (`ipAddressID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
 ALTER TABLE `imscp_client_props`
@@ -523,7 +535,6 @@ ALTER TABLE `imscp_ftp_group`
   ADD CONSTRAINT `ftpGroupConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`) ON DELETE CASCADE;
 
 ALTER TABLE `imscp_ftp_user`
-  ADD CONSTRAINT `ftpUserConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`) ON DELETE CASCADE,
   ADD CONSTRAINT `ftpUserConstraint02` FOREIGN KEY (`ftpGroupID`) REFERENCES `imscp_ftp_group` (`ftpGroupID`) ON DELETE CASCADE;
 
 ALTER TABLE `imscp_hosting_plan`
@@ -572,6 +583,16 @@ ALTER TABLE `imscp_ui_props`
 ALTER TABLE `imscp_user`
   ADD CONSTRAINT `userConstraint01` FOREIGN KEY (`createdBy`) REFERENCES `imscp_user` (`userID`) ON DELETE CASCADE;
 
+ALTER TABLE `imscp_user_ip_address`
+  ADD CONSTRAINT `userIpAddressConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `userIpAddressConstraint02` FOREIGN KEY (`ipAddressID`) REFERENCES `imscp_ip_address` (`ipAddressID`) ON DELETE CASCADE;
+
 ALTER TABLE `imscp_web_domain`
   ADD CONSTRAINT `webDomainConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`) ON DELETE CASCADE;
+
+ALTER TABLE `imscp_web_domain_ip_address`
+  ADD CONSTRAINT `webDomainIpAddressConstraint01` FOREIGN KEY (`webDomainID`) REFERENCES `imscp_web_domain` (`webDomainID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `webDomainIpAddressConstraint02` FOREIGN KEY (`ipAddressID`) REFERENCES `imscp_ip_address` (`ipAddressID`) ON DELETE CASCADE;
+  
+
 SET FOREIGN_KEY_CHECKS=1;
