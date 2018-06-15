@@ -51,19 +51,19 @@ CREATE TABLE IF NOT EXISTS `imscp_config` (
 
 INSERT IGNORE INTO `imscp_config` (`configName`, `configValue`) VALUES
 ('DATABASE_REVISION', '0'),
-('PORT_DNS', '53;tcp;DNS;1;0.0.0.0'),
-('PORT_FTP', '21;tcp;FTP;1;0.0.0.0'),
-('PORT_HTTP', '80;tcp;HTTP;1;0.0.0.0'),
-('PORT_HTTPS', '443;tcp;HTTPS;0;0.0.0.0'),
-('PORT_IMAP', '143;tcp;IMAP;1;0.0.0.0'),
-('PORT_IMAP-SSL', '993;tcp;IMAP-SSL;0;0.0.0.0'),
-('PORT_IMSCP_DAEMON', '9876;tcp;i-MSCP-Daemon;1;127.0.0.1'),
-('PORT_POP3', '110;tcp;POP3;1;0.0.0.0'),
-('PORT_POP3-SSL', '995;tcp;POP3-SSL;0;0.0.0.0'),
-('PORT_SMTP', '25;tcp;SMTP;1;0.0.0.0'),
-('PORT_SMTP-SSL', '465;tcp;SMTP-SSL;0;0.0.0.0'),
-('PORT_SSH', '22;tcp;SSH;1;0.0.0.0'),
-('PORT_TELNET', '23;tcp;TELNET;1;0.0.0.0');
+('LOCAL_PORT_DNS', '53;tcp;DNS;1;0.0.0.0'),
+('LOCAL_PORT_FTP', '21;tcp;FTP;1;0.0.0.0'),
+('LOCAL_PORT_HTTP', '80;tcp;HTTP;1;0.0.0.0'),
+('LOCAL_PORT_HTTPS', '443;tcp;HTTPS;0;0.0.0.0'),
+('LOCAL_PORT_IMAP', '143;tcp;IMAP;1;0.0.0.0'),
+('LOCAL_PORT_IMAP-SSL', '993;tcp;IMAP-SSL;0;0.0.0.0'),
+('LOCAL_PORT_IMSCP_DAEMON', '9876;tcp;i-MSCP-Daemon;1;127.0.0.1'),
+('LOCAL_PORT_POP3', '110;tcp;POP3;1;0.0.0.0'),
+('LOCAL_PORT_POP3-SSL', '995;tcp;POP3-SSL;0;0.0.0.0'),
+('LOCAL_PORT_SMTP', '25;tcp;SMTP;1;0.0.0.0'),
+('LOCAL_PORT_SMTP-SSL', '465;tcp;SMTP-SSL;0;0.0.0.0'),
+('LOCAL_PORT_SSH', '22;tcp;SSH;1;0.0.0.0'),
+('LOCAL_PORT_TELNET', '23;tcp;TELNET;1;0.0.0.0');
 
 CREATE TABLE IF NOT EXISTS `imscp_dns_record` (
   `dnsRecordID` int(11) NOT NULL AUTO_INCREMENT,
@@ -356,6 +356,19 @@ CREATE TABLE IF NOT EXISTS `imscp_reseller_props` (
   KEY `userID` (`userID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
+CREATE TABLE IF NOT EXISTS `imscp_server` (
+  `serverID` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `description` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hostname` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('local','remote') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'local',
+  `token` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `maxClients` int(11) NOT NULL,
+  `isShared` tinyint(1) NOT NULL DEFAULT '1',
+  `status` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`serverID`),
+  KEY `status` (`status`(15))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
+
 CREATE TABLE IF NOT EXISTS `imscp_server_traffic` (
   `trafficTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `bytesIn` bigint(20) UNSIGNED NOT NULL DEFAULT '0',
@@ -517,6 +530,7 @@ CREATE TABLE IF NOT EXISTS `imscp_web_domain_ip_address` (
   KEY `ipAddressID` (`ipAddressID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
+
 ALTER TABLE `imscp_client_props`
   ADD CONSTRAINT `clientPropsConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`) ON DELETE CASCADE;
 
@@ -594,6 +608,5 @@ ALTER TABLE `imscp_web_domain`
 ALTER TABLE `imscp_web_domain_ip_address`
   ADD CONSTRAINT `webDomainIpAddressConstraint01` FOREIGN KEY (`webDomainID`) REFERENCES `imscp_web_domain` (`webDomainID`) ON DELETE CASCADE,
   ADD CONSTRAINT `webDomainIpAddressConstraint02` FOREIGN KEY (`ipAddressID`) REFERENCES `imscp_ip_address` (`ipAddressID`) ON DELETE CASCADE;
-  
 
 SET FOREIGN_KEY_CHECKS=1;
