@@ -87,7 +87,7 @@ sub processJobs
 
  Initialize instance
 
- Return iMSCP::DbTasksProcessor or die on failure
+ Return iMSCP::JobQueueManager, die on failure
 
 =cut
 
@@ -156,6 +156,7 @@ sub _processJob
  Notify a remote server (node) for a new job to process
 
  Return boolean TRUE if the remote server has been notified, FALSE otherwise
+
 =cut
 
 sub _notifyRemoteServer
