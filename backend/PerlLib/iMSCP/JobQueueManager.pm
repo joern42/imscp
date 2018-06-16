@@ -118,8 +118,8 @@ sub _processJob
 {
     my ( $self, $job ) = @_;
 
-    debug( sprintf( 'Processing %s job (ID %s) ', $module, $job->{'jobID'} ));
-    newDebug( $job->{'moduleName'} . ( $perJobLogFile ? "_${name}" : '' ) . '.log' );
+    debug( sprintf( 'Processing %s job (ID %s) ', $job->{'moduleName'}, $job->{'jobID'} ));
+    newDebug( $job->{'moduleName'} . ( $perJobLogFile ? "_$job->{'jobID'}" : '' ) . '.log' );
 
     eval {
         iMSCP::EventManager->getInstance( 'beforeProcessJob', $job );
