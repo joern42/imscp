@@ -213,9 +213,9 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @return null
+     * @return \DateTimeImmutable|null
      */
-    public function getAccountExpireDate()
+    public function getAccountExpireDate(): ?\DateTimeImmutable
     {
         return $this->accountExpireDate;
     }
