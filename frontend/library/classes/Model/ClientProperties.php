@@ -132,12 +132,12 @@ class ClientProperties extends BaseModel
     private $phpConfigLevel = 'site';
 
     /**
-     * @var PhpEditorPermission[]
+     * @var UserPhpEditorPermission[]
      */
     private $phpEditorPermissions;
 
     /**
-     * @var PhpEditorLimit[]
+     * @var UserPhpEditorLimit[]
      */
     private $phpEditorLimits;
 
@@ -570,7 +570,7 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @return PhpEditorPermission[]
+     * @return UserPhpEditorPermission[]
      */
     public function getPhpEditorPermissions(): array
     {
@@ -578,7 +578,7 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @param PhpEditorPermission[] $phpEditorPermissions
+     * @param UserPhpEditorPermission[] $phpEditorPermissions
      * @return ClientProperties
      */
     public function setPhpEditorPermissions(array $phpEditorPermissions): ClientProperties
@@ -588,7 +588,7 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @return PhpEditorLimit[]
+     * @return UserPhpEditorLimit[]
      */
     public function getPhpEditorLimits(): array
     {
@@ -596,7 +596,7 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @param PhpEditorLimit[] $phpEditorLimits
+     * @param UserPhpEditorLimit[] $phpEditorLimits
      * @return ClientProperties
      */
     public function setPhpEditorLimits(array $phpEditorLimits): ClientProperties

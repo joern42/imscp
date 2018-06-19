@@ -147,12 +147,12 @@ class ResellerProperties extends BaseModel
     private $phpConfigLevel = 'site';
 
     /**
-     * @var PhpEditorPermission[]
+     * @var UserPhpEditorPermission[]
      */
     private $phpEditorPermissions = [];
 
     /**
-     * @var PhpEditorLimit[]
+     * @var UserPhpEditorLimit[]
      */
     private $phpEditorLimits = [];
 
@@ -639,7 +639,7 @@ class ResellerProperties extends BaseModel
     }
 
     /**
-     * @return PhpEditorPermission[]
+     * @return UserPhpEditorPermission[]
      */
     public function getPhpEditorPermissions(): array
     {
@@ -647,7 +647,7 @@ class ResellerProperties extends BaseModel
     }
 
     /**
-     * @param PhpEditorPermission[] $phpEditorPermissions
+     * @param UserPhpEditorPermission[] $phpEditorPermissions
      * @return ResellerProperties
      */
     public function setPhpEditorPermissions(array $phpEditorPermissions): ResellerProperties
@@ -657,7 +657,7 @@ class ResellerProperties extends BaseModel
     }
 
     /**
-     * @return PhpEditorLimit[]
+     * @return UserPhpEditorLimit[]
      */
     public function getPhpEditorLimits(): array
     {
@@ -665,7 +665,7 @@ class ResellerProperties extends BaseModel
     }
 
     /**
-     * @param PhpEditorLimit[] $phpEditorLimits
+     * @param UserPhpEditorLimit[] $phpEditorLimits
      * @return ResellerProperties
      */
     public function setPhpEditorLimits(array $phpEditorLimits): ResellerProperties
