@@ -1,7 +1,29 @@
 <?php
+/**
+ * i-MSCP - internet Multi Server Control Panel
+ * Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 
 namespace iMSCP\Model;
 
+/**
+ * Class ClientProperties
+ * @package iMSCP\Model
+ */
 class ClientProperties extends BaseModel
 {
     /**
@@ -25,10 +47,10 @@ class ClientProperties extends BaseModel
     private $domainsLimit = 0;
 
     /**
-     * @var int 
+     * @var int
      */
     private $domainAliasesLimit = 0;
-    
+
     /**
      * @var int
      */
@@ -93,10 +115,12 @@ class ClientProperties extends BaseModel
      * @var int
      */
     private $php = 0;
+
     /**
      * @var int
      */
     private $phpEditor = 0;
+
     /**
      * @var string
      */
@@ -133,7 +157,7 @@ class ClientProperties extends BaseModel
     private $externalMailServer = 0;
 
     /**
-     * @var string 
+     * @var string
      */
     private $backup = 'dmn,mail,web';
 
@@ -200,7 +224,7 @@ class ClientProperties extends BaseModel
      * @param \DateTimeImmutable|null $accountExpireDate
      * @return ClientProperties
      */
-    public function setAccountExpireDate(\DateTimeImmutable $accountExpireDate = null): ClientProperties
+    public function setAccountExpireDate(\DateTimeImmutable $accountExpireDate = NULL): ClientProperties
     {
         $this->accountExpireDate = $accountExpireDate;
         return $this;
@@ -241,7 +265,7 @@ class ClientProperties extends BaseModel
         $this->domainAliasesLimit = $domainALiasesLimit;
         return $this;
     }
-    
+
     /**
      * @return int
      */
