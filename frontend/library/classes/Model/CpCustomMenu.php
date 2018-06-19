@@ -21,15 +21,15 @@
 namespace iMSCP\Model;
 
 /**
- * Class Menu
+ * Class CpCustomMenu
  * @package iMSCP\Model
  */
-class Menu extends BaseModel
+class CpCustomMenu extends BaseModel
 {
     /**
      * @var int
      */
-    private $menuID;
+    private $cpCustomMenuID;
 
     /**
      * @var string
@@ -64,18 +64,18 @@ class Menu extends BaseModel
     /**
      * @return int
      */
-    public function getMenuID(): int
+    public function getCpCustomMenuID(): int
     {
-        return $this->menuID;
+        return $this->cpCustomMenuID;
     }
 
     /**
-     * @param int $menuID
-     * @return Menu
+     * @param int $cpCustomMenuID
+     * @return CpCustomMenu
      */
-    public function setMenuID(int $menuID): Menu
+    public function setCpCustomMenuID(int $cpCustomMenuID): CpCustomMenu
     {
-        $this->menuID = $menuID;
+        $this->cpCustomMenuID = $cpCustomMenuID;
         return $this;
     }
 
@@ -89,9 +89,9 @@ class Menu extends BaseModel
 
     /**
      * @param string $menuLevel
-     * @return Menu
+     * @return CpCustomMenu
      */
-    public function setMenuLevel(string $menuLevel): Menu
+    public function setMenuLevel(string $menuLevel): CpCustomMenu
     {
         $this->menuLevel = $menuLevel;
         return $this;
@@ -107,9 +107,9 @@ class Menu extends BaseModel
 
     /**
      * @param int $menuOrder
-     * @return Menu
+     * @return CpCustomMenu
      */
-    public function setMenuOrder(int $menuOrder): Menu
+    public function setMenuOrder(int $menuOrder): CpCustomMenu
     {
         $this->menuOrder = $menuOrder;
         return $this;
@@ -125,9 +125,9 @@ class Menu extends BaseModel
 
     /**
      * @param string $menuName
-     * @return Menu
+     * @return CpCustomMenu
      */
-    public function setMenuName(string $menuName): Menu
+    public function setMenuName(string $menuName): CpCustomMenu
     {
         $this->menuName = $menuName;
         return $this;
@@ -143,9 +143,9 @@ class Menu extends BaseModel
 
     /**
      * @param string $menuLink
-     * @return Menu
+     * @return CpCustomMenu
      */
-    public function setMenuLink(string $menuLink): Menu
+    public function setMenuLink(string $menuLink): CpCustomMenu
     {
         $this->menuLink = $menuLink;
         return $this;
@@ -161,9 +161,9 @@ class Menu extends BaseModel
 
     /**
      * @param string $menuTarget
-     * @return Menu
+     * @return CpCustomMenu
      */
-    public function setMenuTarget(string $menuTarget): Menu
+    public function setMenuTarget(string $menuTarget): CpCustomMenu
     {
         $this->menuTarget = $menuTarget;
         return $this;
@@ -179,9 +179,9 @@ class Menu extends BaseModel
 
     /**
      * @param int $isActive
-     * @return Menu
+     * @return CpCustomMenu
      */
-    public function setIsActive(int $isActive): Menu
+    public function setIsActive(int $isActive): CpCustomMenu
     {
         $this->isActive = $isActive;
         return $this;
