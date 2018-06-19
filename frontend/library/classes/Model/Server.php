@@ -64,16 +64,6 @@ class Server extends BaseModel
     /**
      * @var int
      */
-    private $maxClients;
-
-    /**
-     * @var int
-     */
-    private $isShared;
-
-    /**
-     * @var int
-     */
     private $isActive = 1;
 
     /**
@@ -204,42 +194,6 @@ class Server extends BaseModel
     public function setServices(string $services): Server
     {
         $this->services = $services;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getMaxClients(): int
-    {
-        return $this->maxClients;
-    }
-
-    /**
-     * @param int $maxClients
-     * @return Server
-     */
-    public function setMaxClients(int $maxClients): Server
-    {
-        $this->maxClients = $maxClients;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getisShared(): int
-    {
-        return $this->isShared;
-    }
-
-    /**
-     * @param int $isShared
-     * @return Server
-     */
-    public function setIsShared(int $isShared): Server
-    {
-        $this->isShared = $isShared;
         return $this;
     }
 
