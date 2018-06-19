@@ -35,18 +35,20 @@ CREATE TABLE IF NOT EXISTS `imscp_client_properties` (
   `webDataUsage`         bigint(20) UNSIGNED                               NOT NULL DEFAULT '0',
   `mailDataUsage`        bigint(20) UNSIGNED                               NOT NULL DEFAULT '0',
   `sqlDataUsage`         bigint(20) UNSIGNED                               NOT NULL DEFAULT '0',
-  `php`                  tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
+  `php`                  tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `phpEditor`            tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `phpConfigLevel`       enum ('domain', 'site', 'user') COLLATE ascii_bin NOT NULL DEFAULT 'site',
   `phpEditorPermissions` text COLLATE ascii_bin                            NOT NULL,
   `phpEditorLimits`      text COLLATE ascii_bin                            NOT NULL,
   `cgi`                  tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
-  `dns`                  tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
+  `dns`                  tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `dnsEditor`            tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `externalMailServer`   tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
-  `backup`               set ('mail', 'sql', 'web') COLLATE ascii_bin      NOT NULL DEFAULT 'mail,sql,web',
+  `backup`               set ('mail', 'sql', 'web', '') COLLATE ascii_bin  NULL     DEFAULT null,
+  `protectedArea`        tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
+  `customErrorPages`     tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `supportSystem`        tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
-  `webFolderProtection`  tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
+  `webFolderProtection`  tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `webstats`             tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   PRIMARY KEY (`clientPropertiesID`),
   UNIQUE KEY `userID` (`userID`)
@@ -92,7 +94,7 @@ CREATE TABLE IF NOT EXISTS `imscp_dns_record` (
   `class`       char(2)             NOT NULL,
   `ttl`         int(11)             NOT NULL DEFAULT '3600',
   `rdata`       text                NOT NULL,
-  `3rdParty`    varchar(255)                 DEFAULT NULL,
+  `owner`       varchar(255)        NOT NULL DEFAULT 'core',
   `isActive`    tinyint(1) UNSIGNED NOT NULL DEFAULT '1',
   PRIMARY KEY (`dnsRecordID`),
   KEY `dnsZoneID` (`dnsZoneID`),
@@ -144,12 +146,12 @@ CREATE TABLE IF NOT EXISTS `imscp_email_template` (
   COLLATE = utf8mb4_bin
   ROW_FORMAT = DYNAMIC;
 
-CREATE TABLE IF NOT EXISTS `imscp_error_page` (
-  `errorPageID` int(11) UNSIGNED                NOT NULL AUTO_INCREMENT,
-  `userID`      int(11) UNSIGNED                NOT NULL,
-  `code`        enum ('401', '403', '404', '500', '503') CHARACTER SET ascii
-  COLLATE ascii_bin                             NOT NULL,
-  `content`     text COLLATE utf8mb4_unicode_ci NOT NULL,
+CREATE TABLE IF NOT EXISTS `imscp_web_error_page` (
+  `webErrorPageID` int(11) UNSIGNED                NOT NULL AUTO_INCREMENT,
+  `userID`         int(11) UNSIGNED                NOT NULL,
+  `code`           enum ('401', '403', '404', '500', '503') CHARACTER SET ascii
+  COLLATE ascii_bin                                NOT NULL,
+  `content`        text COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`errorPageID`),
   KEY `userID` (`userID`)
 )
@@ -216,18 +218,18 @@ CREATE TABLE IF NOT EXISTS `imscp_hosting_plan` (
   COLLATE = utf8mb4_unicode_ci
   ROW_FORMAT = DYNAMIC;
 
-CREATE TABLE IF NOT EXISTS `imscp_htaccess` (
-  `htaccessID` int(11) UNSIGNED                 NOT NULL AUTO_INCREMENT,
-  `userID`     int(11) UNSIGNED                 NOT NULL,
-  `serverID`   int(11) UNSIGNED                 NOT NULL,
-  `htpasswdID` int(11) UNSIGNED                          DEFAULT NULL,
-  `htgroupID`  int(11) UNSIGNED                          DEFAULT NULL,
-  `authName`   varchar(255) CHARACTER SET ascii
-  COLLATE ascii_bin                             NOT NULL,
-  `authType`   varchar(255) CHARACTER SET ascii
-  COLLATE ascii_bin                             NOT NULL,
-  `path`       varchar(255) COLLATE utf8mb4_bin NOT NULL,
-  PRIMARY KEY (`htaccessID`),
+CREATE TABLE IF NOT EXISTS `imscp_web_htaccess` (
+  `webHtaccessID` int(11) UNSIGNED                 NOT NULL AUTO_INCREMENT,
+  `userID`        int(11) UNSIGNED                 NOT NULL,
+  `serverID`      int(11) UNSIGNED                 NOT NULL,
+  `webHtpasswdID` int(11) UNSIGNED                          DEFAULT NULL,
+  `webHtgroupID`  int(11) UNSIGNED                          DEFAULT NULL,
+  `authName`      varchar(255) CHARACTER SET ascii
+  COLLATE ascii_bin                                NOT NULL,
+  `authType`      varchar(255) CHARACTER SET ascii
+  COLLATE ascii_bin                                NOT NULL,
+  `path`          varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`webHtaccessID`),
   KEY `userID` (`userID`),
   KEY `serverID` (`serverID`)
 )
@@ -236,13 +238,13 @@ CREATE TABLE IF NOT EXISTS `imscp_htaccess` (
   COLLATE = utf8mb4_bin
   ROW_FORMAT = DYNAMIC;
 
-CREATE TABLE IF NOT EXISTS `imscp_htgroup` (
-  `htgroupID` int(11) UNSIGNED               NOT NULL AUTO_INCREMENT,
-  `userID`    int(11) UNSIGNED               NOT NULL,
-  `serverID`  int(11) UNSIGNED               NOT NULL,
-  `groupName` varchar(255) COLLATE ascii_bin NOT NULL,
-  `members`   text COLLATE ascii_bin         NOT NULL,
-  PRIMARY KEY (`htgroupID`),
+CREATE TABLE IF NOT EXISTS `imscp_web_htgroup` (
+  `webHtgroupID` int(11) UNSIGNED               NOT NULL AUTO_INCREMENT,
+  `userID`       int(11) UNSIGNED               NOT NULL,
+  `serverID`     int(11) UNSIGNED               NOT NULL,
+  `groupName`    varchar(255) COLLATE ascii_bin NOT NULL,
+  `members`      text COLLATE ascii_bin         NULL     DEFAULT NULL,
+  PRIMARY KEY (`webHtgroupID`),
   KEY `userID` (`userID`),
   KEY `serverID` (`serverID`)
 )
@@ -251,13 +253,13 @@ CREATE TABLE IF NOT EXISTS `imscp_htgroup` (
   COLLATE = ascii_bin
   ROW_FORMAT = DYNAMIC;
 
-CREATE TABLE IF NOT EXISTS `imscp_htpasswd` (
-  `htpasswdID`   int(11) UNSIGNED               NOT NULL AUTO_INCREMENT,
-  `userID`       int(11) UNSIGNED               NOT NULL,
-  `serverID`     int(11) UNSIGNED               NOT NULL,
-  `username`     varchar(255) COLLATE ascii_bin NOT NULL,
-  `passwordHash` varchar(255) COLLATE ascii_bin NOT NULL,
-  PRIMARY KEY (`htpasswdID`),
+CREATE TABLE IF NOT EXISTS `imscp_web_htpasswd` (
+  `webHtpasswdID` int(11) UNSIGNED               NOT NULL AUTO_INCREMENT,
+  `userID`        int(11) UNSIGNED               NOT NULL,
+  `serverID`      int(11) UNSIGNED               NOT NULL,
+  `username`      varchar(255) COLLATE ascii_bin NOT NULL,
+  `passwordHash`  varchar(255) COLLATE ascii_bin NOT NULL,
+  PRIMARY KEY (`webHtpasswdID`),
   KEY `userID` (`userID`),
   KEY `serverID` (`serverID`)
 )
@@ -292,7 +294,7 @@ CREATE TABLE IF NOT EXISTS `imscp_job` (
   `moduleAction` enum ('toadd', 'tochange', 'torestore', 'toenable', 'todisable', 'todelete') COLLATE ascii_bin NOT NULL,
   `moduleData`   longtext CHARACTER SET utf8mb4
   COLLATE utf8mb4_bin                                                                                           NOT NULL,
-  `state`        enum ('scheduled', 'pending', 'processed') COLLATE ascii_bin                                   NOT NULL,
+  `state`        enum ('scheduled', 'pending', 'processed') COLLATE ascii_bin                                   NOT NULL DEFAULT 'scheduled',
   `error`        longtext COLLATE ascii_bin,
   PRIMARY KEY (`jobID`),
   KEY `userID` (`userID`),
@@ -339,10 +341,10 @@ CREATE TABLE IF NOT EXISTS `imscp_mailbox` (
   `serverID`      int(11) UNSIGNED                 NOT NULL,
   `mailbox`       varchar(255) CHARACTER SET ascii NOT NULL,
   `passwordHash`  varchar(255) COLLATE ascii_bin            DEFAULT NULL,
-  `quota`         bigint(20) UNSIGNED                       DEFAULT NULL,
-  `aliases`       text CHARACTER SET ascii,
+  `quota`         bigint(20) UNSIGNED              NULL     DEFAULT NULL,
+  `aliases`       text CHARACTER SET ascii         NULL     DEFAULT NULL,
   `autoreply`     text CHARACTER SET utf8mb4
-  COLLATE utf8mb4_bin,
+  COLLATE utf8mb4_bin                              NULL     DEFAULT NULL,
   `keepLocalCopy` tinyint(1) UNSIGNED              NOT NULL DEFAULT '0',
   `isDefault`     tinyint(1) UNSIGNED              NOT NULL DEFAULT '0',
   `isCatchall`    tinyint(1) UNSIGNED              NOT NULL DEFAULT '0',
@@ -376,17 +378,17 @@ CREATE TABLE IF NOT EXISTS `imscp_mail_domain` (
   DEFAULT CHARSET = ascii
   ROW_FORMAT = DYNAMIC;
 
-CREATE TABLE IF NOT EXISTS `imscp_menu` (
-  `menuID`     int(11) UNSIGNED                 NOT NULL AUTO_INCREMENT,
-  `menuLevel`  enum ('A', 'R', 'C', 'AR', 'AC', 'RC', 'ARC') CHARACTER SET ascii
-  COLLATE ascii_bin                             NOT NULL,
-  `menuOrder`  int(11) UNSIGNED                 NOT NULL,
-  `menuName`   varchar(255) COLLATE utf8mb4_bin NOT NULL,
-  `menuLink`   varchar(255) COLLATE utf8mb4_bin NOT NULL,
-  `menuTarget` varchar(128) CHARACTER SET ascii
-  COLLATE ascii_bin                             NOT NULL DEFAULT '_blank',
-  `isActive`   tinyint(1) UNSIGNED              NOT NULL DEFAULT '1',
-  PRIMARY KEY (`menuID`)
+CREATE TABLE IF NOT EXISTS `imscp_cp_custom_menu` (
+  `cpCustomMenuID` int(11) UNSIGNED                 NOT NULL AUTO_INCREMENT,
+  `menuLevel`      enum ('A', 'R', 'C', 'AR', 'AC', 'RC', 'ARC') CHARACTER SET ascii
+  COLLATE ascii_bin                                 NOT NULL,
+  `menuOrder`      int(11) UNSIGNED                 NOT NULL DEFAULT '0',
+  `menuName`       varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `menuLink`       varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `menuTarget`     varchar(128) CHARACTER SET ascii
+  COLLATE ascii_bin                                 NOT NULL DEFAULT '_blank',
+  `isActive`       tinyint(1) UNSIGNED              NOT NULL DEFAULT '1',
+  PRIMARY KEY (`cpMenuID`)
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -473,8 +475,9 @@ CREATE TABLE IF NOT EXISTS `imscp_reseller_properties` (
   `resellerPropertiesID`   int(11) UNSIGNED                                  NOT NULL AUTO_INCREMENT,
   `userID`                 int(11) UNSIGNED                                  NOT NULL,
   `domainsLimit`           int(11)                                           NOT NULL DEFAULT '0',
-  `domainAliasesLimit`     int(11)                                           NOT NULL DEFAULT '0',
   `domainsAssigned`        int(11)                                           NOT NULL DEFAULT '0',
+  `domainAliasesLimit`     int(11)                                           NOT NULL DEFAULT '0',
+  `domainAssigned`         int(11)                                           NOT NULL DEFAULT '0',
   `subdomainsLimit`        int(11)                                           NOT NULL DEFAULT '0',
   `subdomainsAssigned`     int(11)                                           NOT NULL DEFAULT '0',
   `domainAliasesAssigned`  int(11)                                           NOT NULL DEFAULT '0',
@@ -490,21 +493,21 @@ CREATE TABLE IF NOT EXISTS `imscp_reseller_properties` (
   `diskspaceAssigned`      int(11)                                           NOT NULL DEFAULT '0',
   `monthlyTrafficLimit`    int(11)                                           NOT NULL DEFAULT '0',
   `monthlyTrafficAssigned` int(11)                                           NOT NULL DEFAULT '0',
-  `php`                    tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
+  `php`                    tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `phpEditor`              tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `phpConfigLevel`         enum ('domain', 'site', 'user') COLLATE ascii_bin NOT NULL DEFAULT 'site',
   `phpEditorPermissions`   text COLLATE ascii_bin                            NOT NULL,
   `phpEditorLimits`        text COLLATE ascii_bin                            NOT NULL,
-  `cgi`                    tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
+  `cgi`                    tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `dns`                    tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   `dnsEditor`              tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
-  `externalMailServer`     tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
-  `supportSystem`          tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
-  `backup`                 tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
-  `protectedArea`          tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
-  `customErrorPages`       tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
-  `webFolderProtection`    tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
-  `webstats`               tinyint(1) UNSIGNED                               NOT NULL DEFAULT '1',
+  `externalMailServer`     tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
+  `supportSystem`          tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
+  `backup`                 tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
+  `protectedArea`          tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
+  `customErrorPages`       tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
+  `webFolderProtection`    tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
+  `webstats`               tinyint(1) UNSIGNED                               NOT NULL DEFAULT '0',
   PRIMARY KEY (`resellerPropertiesID`),
   KEY `userID` (`userID`)
 )
@@ -593,8 +596,8 @@ CREATE TABLE IF NOT EXISTS `imscp_sql_user` (
   DEFAULT CHARSET = ascii
   ROW_FORMAT = DYNAMIC;
 
-CREATE TABLE IF NOT EXISTS `imscp_ssl_certificate` (
-  `sslCertificateID`      int(11) UNSIGNED       NOT NULL AUTO_INCREMENT,
+CREATE TABLE IF NOT EXISTS `imscp_web_ssl_certificate` (
+  `webSslCertificateID`   int(11) UNSIGNED       NOT NULL AUTO_INCREMENT,
   `webDomainID`           int(11) UNSIGNED       NOT NULL,
   `privateKey`            text COLLATE ascii_bin NOT NULL,
   `certificate`           text COLLATE ascii_bin NOT NULL,
@@ -602,7 +605,7 @@ CREATE TABLE IF NOT EXISTS `imscp_ssl_certificate` (
   `hsts`                  tinyint(1) UNSIGNED    NOT NULL DEFAULT '0',
   `hstsMaxAge`            int(11) UNSIGNED       NOT NULL DEFAULT '31536000',
   `hstsIncludeSubdomains` tinyint(1) UNSIGNED    NOT NULL DEFAULT '0',
-  PRIMARY KEY (`sslCertificateID`),
+  PRIMARY KEY (`webSslCertificateID`),
   UNIQUE KEY `webDomainID` (`webDomainID`)
 )
   ENGINE = InnoDB
@@ -614,16 +617,18 @@ CREATE TABLE IF NOT EXISTS `imscp_ticket` (
   `ticketID`   int(11) UNSIGNED                 NOT NULL AUTO_INCREMENT,
   `fromUserID` int(11) UNSIGNED                 NOT NULL,
   `toUserID`   int(11) UNSIGNED                 NOT NULL,
+  `replyTo`    int(11) UNSIGNED                 NULL     DEFAULT NULL,
   `date`       datetime                         NOT NULL,
   `level`      tinyint(1) UNSIGNED              NOT NULL,
-  `reply`      int(11) UNSIGNED                          DEFAULT NULL,
+
   `urgency`    int(11) UNSIGNED                 NOT NULL,
   `subject`    varchar(255) COLLATE utf8mb4_bin NOT NULL,
   `body`       text COLLATE utf8mb4_bin         NOT NULL,
   `state`      tinyint(1) UNSIGNED              NOT NULL,
   PRIMARY KEY (`ticketID`),
   KEY `fromUserID` (`fromUserID`),
-  KEY `toUserID` (`toUserID`)
+  KEY `toUserID` (`toUserID`),
+  KEY `replyTo` (`replyTo`)
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -651,7 +656,7 @@ CREATE TABLE IF NOT EXISTS `imscp_ui_props` (
   `layout`         varchar(100) COLLATE ascii_bin NOT NULL     DEFAULT 'default',
   `layoutColor`    varchar(15) COLLATE ascii_bin  NOT NULL     DEFAULT 'black',
   `layoutLogo`     varchar(255) CHARACTER SET utf8mb4
-  COLLATE utf8mb4_bin                             NOT NULL     DEFAULT '',
+  COLLATE utf8mb4_bin                             NULL         DEFAULT NULL,
   `showMenuLabels` tinyint(1) UNSIGNED            NOT NULL     DEFAULT '0',
   PRIMARY KEY (`uiPropsID`),
   UNIQUE KEY `userID` (`userID`)
@@ -727,11 +732,11 @@ CREATE TABLE IF NOT EXISTS `imscp_web_domain` (
   `php`                 tinyint(1) UNSIGNED                     NOT NULL DEFAULT '0',
   `cgi`                 tinyint(1) UNSIGNED                     NOT NULL DEFAULT '0',
   `documentRoot`        varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '/htdocs',
-  `forwardURL`          varchar(255) COLLATE utf8mb4_unicode_ci          DEFAULT NULL,
+  `forwardURL`          varchar(255) COLLATE utf8mb4_unicode_ci NULL     DEFAULT NULL,
   `forwardType`         enum ('301', '302', '303', '307', '308', 'proxy') CHARACTER SET ascii
-  COLLATE ascii_bin                                                      DEFAULT NULL,
-  `forwardKeepHost`     tinyint(1) UNSIGNED                              DEFAULT NULL,
-  `webFolderProtection` tinyint(1) UNSIGNED                              DEFAULT NULL,
+  COLLATE ascii_bin                                             NULL     DEFAULT NULL,
+  `forwardKeepHost`     tinyint(1) UNSIGNED                     NOT NULL DEFAULT '0',
+  `webFolderProtection` tinyint(1) UNSIGNED                     NOT NULL DEFAULT '0',
   `isActive`            tinyint(1) UNSIGNED                     NOT NULL DEFAULT '1',
   PRIMARY KEY (`webDomainID`),
   UNIQUE KEY `domainName` (`domainName`),
@@ -779,15 +784,13 @@ CREATE TABLE IF NOT EXISTS `imscp_web_domain_web_domain_alias` (
   COLLATE = ascii_bin
   ROW_FORMAT = DYNAMIC;
 
-
 ALTER TABLE `imscp_client_properties`
   ADD CONSTRAINT `clientPropertiesConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
 ALTER TABLE `imscp_dns_record`
   ADD CONSTRAINT `dnsRecordConstraint01` FOREIGN KEY (`dnsZoneID`) REFERENCES `imscp_dns_zone` (`dnsZoneID`)
-  ON DELETE CASCADE
-  ON UPDATE CASCADE;
+  ON DELETE CASCADE;
 
 ALTER TABLE `imscp_dns_zone`
   ADD CONSTRAINT `dnsZoneConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
@@ -797,7 +800,7 @@ ALTER TABLE `imscp_email_template`
   ADD CONSTRAINT `emailTemplateConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
-ALTER TABLE `imscp_error_page`
+ALTER TABLE `imscp_web_error_page`
   ADD CONSTRAINT `errorPageConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
@@ -813,16 +816,16 @@ ALTER TABLE `imscp_hosting_plan`
   ADD CONSTRAINT `hostingPlanConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
-ALTER TABLE `imscp_htaccess`
-  ADD CONSTRAINT `htaccessConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
+ALTER TABLE `imscp_web_htaccess`
+  ADD CONSTRAINT `webHtaccessConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
-ALTER TABLE `imscp_htgroup`
-  ADD CONSTRAINT `htgroupConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
+ALTER TABLE `imscp_web_htgroup`
+  ADD CONSTRAINT `webHtgroupConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
-ALTER TABLE `imscp_htpasswd`
-  ADD CONSTRAINT `htpasswdConstraint_01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
+ALTER TABLE `imscp_web_htpasswd`
+  ADD CONSTRAINT `webHtpasswdConstraint_01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
 ALTER TABLE `imscp_ip_address`
@@ -865,7 +868,7 @@ ALTER TABLE `imscp_sql_user`
   ADD CONSTRAINT `sqlUserConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
-ALTER TABLE `imscp_ssl_certificate`
+ALTER TABLE `imscp_web_ssl_certificate`
   ADD CONSTRAINT `sslCertificateConstraint01` FOREIGN KEY (`webDomainID`) REFERENCES `imscp_web_domain` (`webDomainID`)
   ON DELETE CASCADE;
 
@@ -873,6 +876,8 @@ ALTER TABLE `imscp_ticket`
   ADD CONSTRAINT `ticketConstraint01` FOREIGN KEY (`fromUserID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE,
   ADD CONSTRAINT `ticketConstraint02` FOREIGN KEY (`toUserID`) REFERENCES `imscp_user` (`userID`)
+  ON DELETE CASCADE,
+  ADD CONSTRAINT `ticketConstraint03` FOREIGN KEY (`replyTo`) REFERENCES `imscp_ticket` (`ticketID`)
   ON DELETE CASCADE;
 
 ALTER TABLE `imscp_traffic`
