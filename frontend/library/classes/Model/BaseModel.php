@@ -18,16 +18,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP;
+namespace iMSCP\Model;
 
-use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Functions\Counting;
-use iMSCP\Functions\View;
+/**
+ * Class BaseModel
+ * @package iMSCP\Model
+ */
+class BaseModel
+{
 
-require_once 'application.php';
-
-Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
-Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('subdomains') && isset($_GET['id']) or View::showBadRequestErrorPage();
-deleteSubdomain(intval($_GET['id']));
-redirectTo('domains_manage.php');
+}
