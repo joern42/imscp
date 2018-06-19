@@ -69,18 +69,18 @@ class WebSslCertificate extends BaseModel
     /**
      * @return int
      */
-    public function getSslCertificateID(): int
+    public function getWebSslCertificateID(): int
     {
-        return $this->sslCertificateID;
+        return $this->webSslCertificateID;
     }
 
     /**
-     * @param int $sslCertificateID
+     * @param int $webSslCertificateID
      * @return WebSslCertificate
      */
-    public function setSslCertificateID(int $sslCertificateID): WebSslCertificate
+    public function setWebSslCertificateID(int $webSslCertificateID): WebSslCertificate
     {
-        $this->sslCertificateID = $sslCertificateID;
+        $this->webSslCertificateID = $webSslCertificateID;
         return $this;
     }
 
