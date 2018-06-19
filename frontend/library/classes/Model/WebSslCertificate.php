@@ -21,15 +21,15 @@
 namespace iMSCP\Model;
 
 /**
- * Class SslCertificate
+ * Class WebSslCertificate
  * @package iMSCP\Model
  */
-class SslCertificate extends BaseModel
+class WebSslCertificate extends BaseModel
 {
     /**
      * @var int
      */
-    private $sslCertificateID;
+    private $webSslCertificateID;
 
     /**
      * @var int
@@ -76,9 +76,9 @@ class SslCertificate extends BaseModel
 
     /**
      * @param int $sslCertificateID
-     * @return SslCertificate
+     * @return WebSslCertificate
      */
-    public function setSslCertificateID(int $sslCertificateID): SslCertificate
+    public function setSslCertificateID(int $sslCertificateID): WebSslCertificate
     {
         $this->sslCertificateID = $sslCertificateID;
         return $this;
@@ -94,9 +94,9 @@ class SslCertificate extends BaseModel
 
     /**
      * @param int $webDomainID
-     * @return SslCertificate
+     * @return WebSslCertificate
      */
-    public function setWebDomainID(int $webDomainID): SslCertificate
+    public function setWebDomainID(int $webDomainID): WebSslCertificate
     {
         $this->webDomainID = $webDomainID;
         return $this;
@@ -112,9 +112,9 @@ class SslCertificate extends BaseModel
 
     /**
      * @param string $privateKey
-     * @return SslCertificate
+     * @return WebSslCertificate
      */
-    public function setPrivateKey(string $privateKey): SslCertificate
+    public function setPrivateKey(string $privateKey): WebSslCertificate
     {
         $this->privateKey = $privateKey;
         return $this;
@@ -130,9 +130,9 @@ class SslCertificate extends BaseModel
 
     /**
      * @param string $certificate
-     * @return SslCertificate
+     * @return WebSslCertificate
      */
-    public function setCertificate(string $certificate): SslCertificate
+    public function setCertificate(string $certificate): WebSslCertificate
     {
         $this->certificate = $certificate;
         return $this;
@@ -148,9 +148,9 @@ class SslCertificate extends BaseModel
 
     /**
      * @param string $caBundle
-     * @return SslCertificate
+     * @return WebSslCertificate
      */
-    public function setCaBundle(string $caBundle): SslCertificate
+    public function setCaBundle(string $caBundle): WebSslCertificate
     {
         $this->caBundle = $caBundle;
         return $this;
@@ -166,9 +166,9 @@ class SslCertificate extends BaseModel
 
     /**
      * @param int $hsts
-     * @return SslCertificate
+     * @return WebSslCertificate
      */
-    public function setHsts(int $hsts): SslCertificate
+    public function setHsts(int $hsts): WebSslCertificate
     {
         $this->hsts = $hsts;
         return $this;
@@ -184,9 +184,9 @@ class SslCertificate extends BaseModel
 
     /**
      * @param int $hstsMaxAge
-     * @return SslCertificate
+     * @return WebSslCertificate
      */
-    public function setHstsMaxAge(int $hstsMaxAge): SslCertificate
+    public function setHstsMaxAge(int $hstsMaxAge): WebSslCertificate
     {
         $this->hstsMaxAge = $hstsMaxAge;
         return $this;
@@ -202,9 +202,9 @@ class SslCertificate extends BaseModel
 
     /**
      * @param int $hstsIncludeSubdomains
-     * @return SslCertificate
+     * @return WebSslCertificate
      */
-    public function setHstsIncludeSubdomains(int $hstsIncludeSubdomains): SslCertificate
+    public function setHstsIncludeSubdomains(int $hstsIncludeSubdomains): WebSslCertificate
     {
         $this->hstsIncludeSubdomains = $hstsIncludeSubdomains;
         return $this;
