@@ -29,7 +29,7 @@ class WebErrorPage extends BaseModel
     /**
      * @var int
      */
-    private $errorPageID;
+    private $webErrorPageID;
 
     /**
      * @var int
@@ -49,18 +49,18 @@ class WebErrorPage extends BaseModel
     /**
      * @return int
      */
-    public function getErrorPageID(): int
+    public function getWebErrorPageID(): int
     {
-        return $this->errorPageID;
+        return $this->webErrorPageID;
     }
 
     /**
-     * @param int $errorPageID
+     * @param int $webErrorPageID
      * @return WebErrorPage
      */
-    public function setErrorPageID(int $errorPageID): WebErrorPage
+    public function setWebErrorPageID(int $webErrorPageID): WebErrorPage
     {
-        $this->errorPageID = $errorPageID;
+        $this->webErrorPageID = $webErrorPageID;
         return $this;
     }
 
