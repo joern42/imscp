@@ -157,9 +157,19 @@ class ClientProperties extends BaseModel
     private $externalMailServer = 0;
 
     /**
-     * @var string
+     * @var string|null
      */
-    private $backup = 'dmn,mail,web';
+    private $backup;
+
+    /**
+     * @var int
+     */
+    private $protectedArea = 0;
+
+    /**
+     * @var int
+     */
+    private $customErrorPages = 0;
 
     /**
      * @var int
@@ -645,20 +655,56 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getBackup(): string
+    public function getBackup(): ?string
     {
         return $this->backup;
     }
 
     /**
-     * @param string $backup
+     * @param string|null $backup
      * @return ClientProperties
      */
-    public function setBackup(string $backup): ClientProperties
+    public function setBackup(string $backup = NULL): ClientProperties
     {
         $this->backup = $backup;
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getProtectedArea(): int
+    {
+        return $this->protectedArea;
+    }
+
+    /**
+     * @param int $protectedArea
+     * @return ClientProperties
+     */
+    public function setProtectedArea(int $protectedArea): ClientProperties
+    {
+        $this->protectedArea = $protectedArea;
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getCustomErrorPages(): int
+    {
+        return $this->customErrorPages;
+    }
+
+    /**
+     * @param int $customErrorPages
+     * @return ClientProperties
+     */
+    public function setCustomErrorPages(int $customErrorPages): ClientProperties
+    {
+        $this->customErrorPages = $customErrorPages;
         return $this;
     }
 
