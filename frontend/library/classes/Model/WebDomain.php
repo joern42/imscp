@@ -47,9 +47,19 @@ class WebDomain extends BaseModel
     private $domainName;
 
     /**
+     * @var IpAddress[]
+     */
+    private $ipAddresses = [];
+
+    /**
      * @var int
      */
     private $automaticDNS = 1;
+
+    /**
+     * @var WebDomainAlias[]
+     */
+    private $domainAliases = [];
 
     /**
      * @var int
@@ -164,6 +174,24 @@ class WebDomain extends BaseModel
     }
 
     /**
+     * @return IpAddress[]
+     */
+    public function getIpAddresses(): array
+    {
+        return $this->ipAddresses;
+    }
+
+    /**
+     * @param IpAddress[] $ipAddresses
+     * @return WebDomain
+     */
+    public function setIpAddresses(array $ipAddresses): WebDomain
+    {
+        $this->ipAddresses = $ipAddresses;
+        return $this;
+    }
+
+    /**
      * @return int
      */
     public function getAutomaticDNS(): int
@@ -178,6 +206,24 @@ class WebDomain extends BaseModel
     public function setAutomaticDNS(string $automaticDNS): WebDomain
     {
         $this->automaticDNS = $automaticDNS;
+        return $this;
+    }
+
+    /**
+     * @return WebDomainAlias[]
+     */
+    public function getDomainAliases(): array
+    {
+        return $this->domainAliases;
+    }
+
+    /**
+     * @param WebDomainAlias[] $domainAliases
+     * @return WebDomain
+     */
+    public function setDomainAliases(array $domainAliases): WebDomain
+    {
+        $this->domainAliases = $domainAliases;
         return $this;
     }
 
