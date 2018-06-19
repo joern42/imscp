@@ -617,9 +617,9 @@ class User extends BaseModel
     }
 
     /**
-     * @return \DateTimeImmutable
+     * @return \DateTimeImmutable|null
      */
-    public function getLastLostPasswordRequestTime(): \DateTimeImmutable
+    public function getLastLostPasswordRequestTime(): ?\DateTimeImmutable
     {
         return $this->lastLostPasswordRequestTime;
     }
@@ -635,9 +635,9 @@ class User extends BaseModel
     }
 
     /**
-     * @return string
+     * @return string|null
      */
-    public function getLostPasswordKey(): string
+    public function getLostPasswordKey(): ?string
     {
         return $this->lostPasswordKey;
     }
