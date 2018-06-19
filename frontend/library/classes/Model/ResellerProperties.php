@@ -37,6 +37,11 @@ class ResellerProperties extends BaseModel
     private $userID;
 
     /**
+     * @var IpAddress[]
+     */
+    private $ipAddresses = [];
+
+    /**
      * @var int
      */
     private $domainsLimit = 0;
@@ -142,14 +147,14 @@ class ResellerProperties extends BaseModel
     private $phpConfigLevel = 'site';
 
     /**
-     * @var PhpEditorPermissions
+     * @var PhpEditorPermission[]
      */
-    private $phpEditorPermissions;
+    private $phpEditorPermissions = [];
 
     /**
-     * @var PhpEditorLimits
+     * @var PhpEditorLimit[]
      */
-    private $phpEditorLimits;
+    private $phpEditorLimits = [];
 
     /**
      * @var int
@@ -234,6 +239,24 @@ class ResellerProperties extends BaseModel
     public function setUserID(int $userID): ResellerProperties
     {
         $this->userID = $userID;
+        return $this;
+    }
+
+    /**
+     * @return IpAddress[]
+     */
+    public function getIpAddresses(): array
+    {
+        return $this->ipAddresses;
+    }
+
+    /**
+     * @param IpAddress[] $ipAddresses
+     * @return ResellerProperties
+     */
+    public function setIpAddresses(array $ipAddresses): ResellerProperties
+    {
+        $this->ipAddresses = $ipAddresses;
         return $this;
     }
 
@@ -616,36 +639,36 @@ class ResellerProperties extends BaseModel
     }
 
     /**
-     * @return PhpEditorPermissions
+     * @return PhpEditorPermission[]
      */
-    public function getPhpEditorPermissions(): PhpEditorPermissions
+    public function getPhpEditorPermissions(): array
     {
         return $this->phpEditorPermissions;
     }
 
     /**
-     * @param PhpEditorPermissions $phpEditorPermissions
+     * @param PhpEditorPermission[] $phpEditorPermissions
      * @return ResellerProperties
      */
-    public function setPhpEditorPermissions(PhpEditorPermissions $phpEditorPermissions): ResellerProperties
+    public function setPhpEditorPermissions(array $phpEditorPermissions): ResellerProperties
     {
         $this->phpEditorPermissions = $phpEditorPermissions;
         return $this;
     }
 
     /**
-     * @return PhpEditorLimits
+     * @return PhpEditorLimit[]
      */
-    public function getPhpEditorLimits(): PhpEditorLimits
+    public function getPhpEditorLimits(): array
     {
         return $this->phpEditorLimits;
     }
 
     /**
-     * @param PhpEditorLimits $phpEditorLimits
+     * @param PhpEditorLimit[] $phpEditorLimits
      * @return ResellerProperties
      */
-    public function setPhpEditorLimits(PhpEditorLimits $phpEditorLimits): ResellerProperties
+    public function setPhpEditorLimits(array $phpEditorLimits): ResellerProperties
     {
         $this->phpEditorLimits = $phpEditorLimits;
         return $this;
