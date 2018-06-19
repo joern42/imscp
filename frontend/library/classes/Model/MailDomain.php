@@ -149,7 +149,7 @@ class MailDomain extends BaseModel
     /**
      * @return int
      */
-    public function getisActive(): int
+    public function getIsActive(): int
     {
         return $this->isActive;
     }
