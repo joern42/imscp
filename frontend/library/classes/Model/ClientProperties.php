@@ -42,6 +42,11 @@ class ClientProperties extends BaseModel
     private $accountExpireDate = NULL;
 
     /**
+     * @var IpAddress[]
+     */
+    private $ipAddresses = [];
+
+    /**
      * @var int
      */
     private $domainsLimit = 0;
@@ -127,12 +132,12 @@ class ClientProperties extends BaseModel
     private $phpConfigLevel = 'site';
 
     /**
-     * @var PhpEditorPermissions
+     * @var PhpEditorPermission[]
      */
     private $phpEditorPermissions;
 
     /**
-     * @var PhpEditorLimits
+     * @var PhpEditorLimit[]
      */
     private $phpEditorLimits;
 
@@ -237,6 +242,24 @@ class ClientProperties extends BaseModel
     public function setAccountExpireDate(\DateTimeImmutable $accountExpireDate = NULL): ClientProperties
     {
         $this->accountExpireDate = $accountExpireDate;
+        return $this;
+    }
+
+    /**
+     * @return IpAddress[]
+     */
+    public function getIpAddresses(): array
+    {
+        return $this->ipAddresses;
+    }
+
+    /**
+     * @param IpAddress[] $ipAddresses
+     * @return ClientProperties
+     */
+    public function setIpAddresses(array $ipAddresses): ClientProperties
+    {
+        $this->ipAddresses = $ipAddresses;
         return $this;
     }
 
@@ -547,36 +570,36 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @return PhpEditorPermissions
+     * @return PhpEditorPermission[]
      */
-    public function getPhpEditorPermissions(): PhpEditorPermissions
+    public function getPhpEditorPermissions(): array
     {
         return $this->phpEditorPermissions;
     }
 
     /**
-     * @param PhpEditorPermissions $phpEditorPermissions
+     * @param PhpEditorPermission[] $phpEditorPermissions
      * @return ClientProperties
      */
-    public function setPhpEditorPermissions(PhpEditorPermissions $phpEditorPermissions): ClientProperties
+    public function setPhpEditorPermissions(array $phpEditorPermissions): ClientProperties
     {
         $this->phpEditorPermissions = $phpEditorPermissions;
         return $this;
     }
 
     /**
-     * @return PhpEditorLimits
+     * @return PhpEditorLimit[]
      */
-    public function getPhpEditorLimits(): PhpEditorLimits
+    public function getPhpEditorLimits(): array
     {
         return $this->phpEditorLimits;
     }
 
     /**
-     * @param PhpEditorLimits $phpEditorLimits
+     * @param PhpEditorLimit[] $phpEditorLimits
      * @return ClientProperties
      */
-    public function setPhpEditorLimits(PhpEditorLimits $phpEditorLimits): ClientProperties
+    public function setPhpEditorLimits(array $phpEditorLimits): ClientProperties
     {
         $this->phpEditorLimits = $phpEditorLimits;
         return $this;
