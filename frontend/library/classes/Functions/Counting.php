@@ -239,7 +239,7 @@ class Counting
      */
     public static function getResellerClientsCount(int $resellerId): int
     {
-        return static::getObjectsCount('imscp_user', 'userID', 'createdBy = ?' [$resellerId]);
+        return static::getObjectsCount('imscp_user', 'userID', 'createdBy = ?', [$resellerId]);
     }
 
     /**
