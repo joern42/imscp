@@ -188,7 +188,7 @@ class Counting
      * @param string $table
      * @param string $objectIDfield Object identifier field
      * @param string|NULL $where OPTIONAL WHERE clause
-     * @param $params
+     * @param array|null $params SQL query parameters
      * @return int Count of objects
      */
     public static function getObjectsCount(string $table, string $objectIDfield, string $where = NULL, ?$params = []): int
@@ -569,7 +569,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $qb = $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
             $count = $qb->select('COUNT(userID)')
                 ->from('imscp_user')
                 ->where("type = 'client'")
@@ -610,7 +610,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $qb = $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
             $count = $qb->select('COUNT(userID)')
                 ->from('imscp_user')
                 ->where("type = 'admin'")
@@ -651,7 +651,7 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $qb = $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
             $count = $qb->select('COUNT(userID)')
                 ->from('imscp_user')
                 ->where("type = 'client'")
@@ -771,7 +771,7 @@ class Counting
     public static function clientOwnDomain(int $clientID, string $domainName): bool
     {
 
-        $qb = $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+        $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
         return (bool)$qb->select('COUNT(userID)')
             ->from('imscp_web_domain')
             ->where('userID = ?')
