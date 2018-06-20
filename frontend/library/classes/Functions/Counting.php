@@ -113,19 +113,21 @@ class Counting
     }
 
     /**
-     * Retrieve count of mail accounts
+     * Retrieve count of mailboxes
      *
      * Default mail accounts are counted or not, depending of administrator settings.
      *
      * @return int Count of mail accounts
      */
-    public static function getMailAccountsCount(): int
+    public static function getMailboxesCount(): int
     {
         static $count = NULL;
 
         if (NULL === $count) {
             $count = self::getObjectsCount(
-                'imscp_mailbox', 'mailboxID', !Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES'] ? "isDefault = '0'" : NULL
+                'imscp_mailbox',
+                'mailboxID',
+                !Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES'] ? "isDefault = 0" : NULL
             );
         }
 
@@ -186,18 +188,22 @@ class Counting
      * @param string $table
      * @param string $objectIDfield Object identifier field
      * @param string|NULL $where OPTIONAL WHERE clause
+     * @param $params
      * @return int Count of objects
      */
-    public static function getObjectsCount(string $table, string $objectIDfield, string $where = NULL): int
+    public static function getObjectsCount(string $table, string $objectIDfield, string $where = NULL, ?$params = []): int
     {
-        $table = quoteIdentifier($table);
-        $objectIDfield = quoteIdentifier($objectIDfield);
+        $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder()->select("COUNT($objectIDfield)")->from($table);
 
-        return Application::getInstance()
-            ->getDb()
-            ->createStatement("SELECT COUNT($objectIDfield) AS objectsCount FROM $table" . (!is_null($where) ? "WHERE $where" : ''))
-            ->execute()
-            ->current()['objectsCount'];
+        if ($where !== NULL) {
+            $qb->where($where);
+
+            if (!empty($params)) {
+                $qb->setParameters($params);
+            }
+        }
+
+        return $qb->execute()->fetchColumn();
     }
 
     /**
@@ -209,10 +215,15 @@ class Counting
     public static function getObjectsCounts(): array
     {
         return [
-            self::getAdministratorsCount(), self::getResellersCount(), self::getClientsCount(),
-            self::getDomainsCount(), self::getSubdomainsCount(),
-            self::getMailAccountsCount(), self::getFtpUsersCount(),
-            self::getSqlDatabasesCount(), self::getSqlUsersCount()
+            self::getAdministratorsCount(),
+            self::getResellersCount(),
+            self::getClientsCount(),
+            self::getDomainsCount(),
+            self::getSubdomainsCount(),
+            self::getMailboxesCount(),
+            self::getFtpUsersCount(),
+            self::getSqlDatabasesCount(),
+            self::getSqlUsersCount()
         ];
     }
 
@@ -224,14 +235,7 @@ class Counting
      */
     public static function getResellerClientsCount(int $resellerId): int
     {
-        static $stmt = NULL;
-
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement('SELECT COUNT(userID) AS usersCount FROM imscp_user WHERE createdBy = ?');
-            $stmt->prepare();
-        }
-
-        return $stmt->execute([$resellerId])->current()['usersCount'];
+        return static::getObjectsCount('imscp_user', 'userID', "createdBy = $resellerId");
     }
 
     /**
@@ -242,22 +246,18 @@ class Counting
      */
     public static function getResellerDomainsCount(int $resellerId): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                '
-                  SELECT COUNT(webDomainID) AS webDomainsCount
-                  FROM imscp_web_domain
-                  JOIN imscp_user USING(userID)
-                  WHERE createdBy = ?
-                  AND webDomainPID IS NULL
-                '
-            );
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(t1.webDomainID)')
+                ->from('imscp_web_domain', 't1')
+                ->join('t1', 'imscp_user', 't2', 't1.userID = t2.userID')
+                ->where('t2.createdBy = ?')
+                ->andWhere('t1.webDomainPID IS NULL');
         }
 
-        return $stmt->execute([$resellerId])->current()['webDomainsCount'];
+        return $qb->setParameter(0, $resellerId)->execute()->fetchColumn();
     }
 
     /**
@@ -268,43 +268,45 @@ class Counting
      */
     public static function getResellerSubdomainsCount(int $resellerId): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                '
-                  SELECT COUNT(webDomainID) AS subdomainsCount
-                  FROM imscp_web_domain
-                  JOIN imscp_user USING(userID)
-                  WHERE createdBy = ?
-                  AND webDomainPID IS NOT NULL
-                '
-            );
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(t1.webDomainID)')
+                ->from('imscp_web_domain', 't1')
+                ->join('t1', 'imscp_user', 't2', 't1.userID = t2.userID')
+                ->where('t2.createdBy = ?')
+                ->andWhere('t1.webDomainPID IS NOT NULL');
         }
 
-        return $stmt->execute([$resellerId])->current()['subdomainsCount'];
+        return $qb->setParameter(0, $resellerId)->execute()->fetchColumn();
     }
 
     /**
-     * Retrieve count of mail accounts that belong to the given reseller
+     * Retrieve count of mailboxes that belong to the given reseller
      *
      * Default mail accounts are counted or not, depending of administrator settings.
      *
      * @param int $resellerId Domain unique identifier
      * @return int Count of mail accounts
      */
-    public static function getResellerMailAccountsCount(int $resellerId): int
+    public static function getResellerMailboxesCount(int $resellerId): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $query = 'SELECT COUNT(t1.mailboxID) AS mailboxesCount FROM imscp_mailbox AS t1 JOIN imscp_user AS t2 USING(userID) WHERE t2.createdBy = ?';
-            $query .= !Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES'] ? " AND isDefault = '0'" : '';
-            $stmt = Application::getInstance()->getDb()->createStatement($query);
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(t1.mailboxID)')
+                ->from('imscp_mailbox', 't1')
+                ->join('t1', 'imscp_user', 't2', 't1.userID = t2.userID')
+                ->where('t2.createdBy = ?');
+
+            if (!Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES']) {
+                $qb->andWhere('t1.isDefault = 0');
+            }
         }
-        return $stmt->execute([$resellerId])->current()['mailboxesCount'];
+
+        return $qb->setParameter(0, $resellerId)->execute()->fetchColumn();
     }
 
     /**
@@ -315,16 +317,17 @@ class Counting
      */
     public static function getResellerFtpUsersCount(int $resellerId): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                'SELECT COUNT(ftpUserID) AS ftpUsersCount FROM imscp_ftp_user JOIN user USING(userID) WHERE createdBy = ?'
-            );
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(t1.ftpUserID')
+                ->from('imscp_ftp_user', 't1')
+                ->join('t1', 'imscp_user', 't2', 't1.userID = t2.userID')
+                ->where('t2.createdBy = ?');
         }
 
-        return $stmt->execute([$resellerId])->current()['ftpUsersCount'];
+        return $qb->setParameter(0, $resellerId)->execute()->fetchColumn();
     }
 
     /**
@@ -335,16 +338,17 @@ class Counting
      */
     public static function getResellerSqlDatabasesCount(int $resellerId): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                'SELECT COUNT(sqlDatabaseID) AS sqlDatabasesCount FROM imscp_sql_database AS t1 JOIN admin AS t2 USING(userID) WHERE t2.createdBy = ?'
-            );
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(t1.sqlDatabaseID')
+                ->from('imscp_sql_database', 't1')
+                ->join('t1', 'imscp_user', 't2', 't1.userID = t2.userID')
+                ->where('t2.createdBy = ?');
         }
 
-        return $stmt->execute([$resellerId])->current()['sqlDatabasesCount'];
+        return $qb->setParameter(0, $resellerId)->execute()->fetchColumn();
     }
 
     /**
@@ -355,16 +359,17 @@ class Counting
      */
     public static function getResellerSqlUsersCount(int $resellerId): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                'SELECT COUNT(t1.sqlUserID) AS sqlUsersCount FROM imscp_sql_user AS t1 JOIN imscp_user AS t2 USING(userID) WHERE t2.createdBy = ?'
-            );
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(t1.sqlUserID')
+                ->from('imscp_sql_user', 't1')
+                ->join('t1', 'imscp_user', 't2', 't1.userID = t2.userID')
+                ->where('t2.createdBy = ?');
         }
 
-        return $stmt->execute([$resellerId])->current()['sqlUsersCount'];
+        return $qb->setParameter(0, $resellerId)->execute()->fetchColumn();
     }
 
     /**
@@ -377,9 +382,12 @@ class Counting
     {
         return [
             self::getResellerClientsCount($resellerId),
-            self::getResellerDomainsCount($resellerId), self::getResellerSubdomainsCount($resellerId),
-            self::getResellerMailAccountsCount($resellerId), self::getResellerFtpUsersCount($resellerId),
-            self::getResellerSqlDatabasesCount($resellerId), self::getResellerSqlUsersCount($resellerId)
+            self::getResellerDomainsCount($resellerId),
+            self::getResellerSubdomainsCount($resellerId),
+            self::getResellerMailboxesCount($resellerId),
+            self::getResellerFtpUsersCount($resellerId),
+            self::getResellerSqlDatabasesCount($resellerId),
+            self::getResellerSqlUsersCount($resellerId)
         ];
     }
 
@@ -391,16 +399,16 @@ class Counting
      */
     public static function getClientDomainsCount(int $clientID): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                'SELECT COUNT(webDomainID) FROM imscp_web_domain WHERE webDomainPID IS NULL AND userID = ?'
-            );
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('imscp_web_domain')
+                ->where('useID = ?')
+                ->andWhere('webDomainID IS NULL');
         }
 
-        return $stmt->execute([$clientID])->getResource()->fetchColumn();
+        return $qb->setParameter(0, $clientID)->execute()->fetchColumn();
     }
 
     /**
@@ -411,38 +419,42 @@ class Counting
      */
     public static function getClientSubdomainsCount(int $clientID): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement(
-                'SELECT COUNT(webDomainID) FROM imscp_web_domain WHERE webDomainPID IS NOT NULL AND userID = ?'
-            );
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('imscp_web_domain')
+                ->where('useID = ?')
+                ->andWhere('webDomainID IS NOT NULL');
         }
 
-        return $stmt->execute([$clientID])->getResource()->fetchColumn();
+        return $qb->setParameter(0, $clientID)->execute()->fetchColumn();
     }
 
     /**
-     * Retrieve count of mail accounts that belong to the given client
+     * Retrieve count of mailboxes that belong to the given client
      *
      * Default mail accounts are counted or not, depending of administrator settings.
      *
      * @param int $clientID Client unique identifier
      * @return int Count of mail accounts
      */
-    public static function getClientMailAccountsCount(int $clientID): int
+    public static function getClientMailboxesCount(int $clientID): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $query = 'SELECT COUNT(mailboxID) FROM imscp_mailbox WHERE userID = ?';
-            $query .= !Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES'] ? " AND isDefault = '0'" : '';
-            $stmt = Application::getInstance()->getDb()->createStatement($query);
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(mailboxID)')
+                ->from('imscp_mailbox')
+                ->where('userID = ?');
+
+            if (!Application::getInstance()->getConfig()['COUNT_DEFAULT_EMAIL_ADDRESSES']) {
+                $qb->andWhere('isDefault = 0');
+            }
         }
 
-        return $stmt->execute([$clientID])->getResource()->fetchColumn();
+        return $qb->setParameter(0, $clientID)->execute()->fetchColumn();
     }
 
     /**
@@ -453,14 +465,16 @@ class Counting
      */
     public static function getClientFtpUsersCount(int $clientID): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement('SELECT COUNT(ftpUserID) FROM imscp_ftp_user WHERE userID = ?');
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(ftpUserID)')
+                ->from('imscp_ftp_user')
+                ->where('userID = ?');
         }
 
-        return $stmt->execute([$clientID])->getResource()->fetchColumn();
+        return $qb->setParameter(0, $clientID)->execute()->fetchColumn();
     }
 
     /**
@@ -471,14 +485,16 @@ class Counting
      */
     public static function getClientSqlDatabasesCount(int $clientID): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement('SELECT COUNT(sqlDatabaseID) FROM imscp_sql_database WHERE userID = ?');
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(sqlDatabaseID)')
+                ->from('imscp_sql_database')
+                ->where('userID = ?');
         }
 
-        return $stmt->execute([$clientID])->getResource()->fetchColumn();
+        return $qb->setParameter(0, $clientID)->execute()->fetchColumn();
     }
 
     /**
@@ -489,14 +505,16 @@ class Counting
      */
     public static function getClientSqlUsersCount(int $clientID): int
     {
-        static $stmt = NULL;
+        static $qb = NULL;
 
-        if (NULL === $stmt) {
-            $stmt = Application::getInstance()->getDb()->createStatement('SELECT COUNT(sqlUserID) FROM imscp_sql_user WHERE userID = ?');
-            $stmt->prepare();
+        if (NULL === $qb) {
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $qb->select('COUNT(sqlUserID)')
+                ->from('imscp_sql_user')
+                ->where('userID = ?');
         }
 
-        return $stmt->execute([$clientID])->getResource()->fetchColumn();
+        return $qb->setParameter(0, $clientID)->execute()->fetchColumn();
     }
 
     /**
@@ -509,9 +527,12 @@ class Counting
     public static function getClientObjectsCounts(int $clientID): array
     {
         return [
-            self::getClientDomainsCount($clientID), self::getClientSubdomainsCount($clientID),
-            self::getClientMailAccountsCount($clientID), self::getClientFtpUsersCount($clientID),
-            self::getClientSqlDatabasesCount($clientID), self::getClientSqlUsersCount($clientID)
+            self::getClientDomainsCount($clientID),
+            self::getClientSubdomainsCount($clientID),
+            self::getClientMailboxesCount($clientID),
+            self::getClientFtpUsersCount($clientID),
+            self::getClientSqlDatabasesCount($clientID),
+            self::getClientSqlUsersCount($clientID)
         ];
     }
 
@@ -526,11 +547,12 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = Application::getInstance()
-                ->getDb()
-                ->createStatement("SELECT COUNT(userID) AS usersCount FROM imscp_user WHERE type = 'reseller'")
+            $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $count = $qb->select('COUNT(userID)')
+                ->from('imscp_user')
+                ->where("type = 'reseller'")
                 ->execute()
-                ->current()['usersCount'];
+                ->fetchColumn();
         }
 
         return $count >= $minResellers;
@@ -547,11 +569,12 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = Application::getInstance()
-                ->getDb()
-                ->createStatement("SELECT COUNT(userID) as usersCount FROM imscp_user WHERE type = 'client'")
+            $qb = $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $count = $qb->select('COUNT(userID)')
+                ->from('imscp_user')
+                ->where("type = 'client'")
                 ->execute()
-                ->current()['usersCount'];
+                ->fetchColumn();
         }
 
         return $count >= $minClients;
@@ -587,11 +610,12 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = Application::getInstance()
-                ->getDb()
-                ->createStatement("SELECT COUNT(userID) AS usersCount FROM imscp_user WHERE type = 'admin'")
+            $qb = $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $count = $qb->select('COUNT(userID)')
+                ->from('imscp_user')
+                ->where("type = 'admin'")
                 ->execute()
-                ->current()['usersCount'];
+                ->fetchColumn();
         }
 
         return $count > 1;
@@ -627,110 +651,104 @@ class Counting
         static $count = NULL;
 
         if (NULL === $count) {
-            $count = Application::getInstance()
-                ->getDb()
-                ->createStatement("SELECT COUNT(userID) AS usersCount FROM imscp_user WHERE type = 'client' AND createdBy = ?")
-                ->execute([Application::getInstance()->getAuthService()->getIdentity()->getUserId()])
-                ->current()['usersCount'];
+            $qb = $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+            $count = $qb->select('COUNT(userID)')
+                ->from('imscp_user')
+                ->where("type = 'client'")
+                ->andWhere('createdBy = ?')
+                ->setParameter(0, Application::getInstance()->getAuthService()->getIdentity()->getUserId())
+                ->execute()
+                ->fetchColumn();
         }
 
         return $count >= $minClientsCount;
     }
 
     /**
-     * Tells whether or not the logged-in reseller has permissions on the given feature
+     * Tells whether or not the logged-in reseller has the given feature
      *
      * @param string $featureName Feature name
      * @param bool $forceReload If true force data to be reloaded
-     * @return bool TRUE if $featureName is available for reseller, FALSE otherwise
+     * @return bool TRUE if $featureName is available for the reseller, FALSE otherwise
      */
     public static function resellerHasFeature(string $featureName, bool $forceReload = false): bool
     {
         static $availableFeatures = NULL;
-        $featureName = strtolower($featureName);
 
         if (NULL == $availableFeatures || $forceReload) {
             $config = Application::getInstance()->getConfig();
             $resellerProps = getResellerProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
             $availableFeatures = [
-                'domains'             => $resellerProps['domainsLimit'] != '-1',
-                'subdomains'          => $resellerProps['subdomainsLimit'] != '-1',
-                'mail'                => $resellerProps['mailAccountsLimit'] != '-1',
-                'ftp'                 => $resellerProps['ftpAccountsLimit'] != '-1',
-                'sql'                 => $resellerProps['sqlDatabasesLimit'] != '-1' && $resellerProps['sqlUsersLimit'] != '-1',
-                'php'                 => $resellerProps['php'] == '1',
-                'phpEditor'           => $resellerProps['phpEditor'] == '1',
-                'cgi'                 => $resellerProps['cgi'] == '1',
-                'dns'                 => $resellerProps['dns'] == '1',
-                'dnsEditor'           => $resellerProps['dnsEditor'] == '1' && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
-                'supportSystem'       => $resellerProps['supportSystem'] == '1' && $config['IMSCP_SUPPORT_SYSTEM'],
-                'externalMailServer'  => $resellerProps['externalMailServer'] == '1',
-                'backup'              => $resellerProps['backup'] == '1' && $config['BACKUP_DOMAINS'] != 'no',
-                'protectedArea'       => $resellerProps['protectedArea'] == '1',
-                'customErrorPages'    => $resellerProps['customErrorPages'] == '1',
-                'webFolderProtection' => $resellerProps['webFolderProtection'] == '1',
-                'webstats'            => $resellerProps['webstats'] == '1'
+                'domains'             => $resellerProps['domainsLimit'] != -1,
+                'subdomains'          => $resellerProps['subdomainsLimit'] != -1,
+                'mail'                => $resellerProps['mailboxesLimit'] != -1,
+                'ftp'                 => $resellerProps['ftpUsersLimit'] != -1,
+                'sql'                 => $resellerProps['sqlDatabasesLimit'] != -1 && $resellerProps['sqlUsersLimit'] != -1,
+                'php'                 => $resellerProps['php'] == 1,
+                'phpEditor'           => $resellerProps['phpEditor'] == 1,
+                'cgi'                 => $resellerProps['cgi'] == 1,
+                'dns'                 => $resellerProps['dns'] == 1,
+                'dnsEditor'           => $resellerProps['dnsEditor'] == 1 && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+                'supportSystem'       => $resellerProps['supportSystem'] == 1 && $config['IMSCP_SUPPORT_SYSTEM'],
+                'externalMailServer'  => $resellerProps['externalMailServer'] == 1,
+                'backup'              => $resellerProps['backup'] == 1 && $config['BACKUP_DOMAINS'] != 'no',
+                'protectedArea'       => $resellerProps['protectedArea'] == 1,
+                'customErrorPages'    => $resellerProps['customErrorPages'] == 1,
+                'webFolderProtection' => $resellerProps['webFolderProtection'] == 1,
+                'webstats'            => $resellerProps['webstats'] == 1
             ];
         }
 
+        $featureName = strtolower($featureName);
         if (!array_key_exists($featureName, $availableFeatures)) {
-            throw new \InvalidArgumentException(sprintf("Feature %s is not known by the resellerHasFeature() function.", $featureName));
+            throw new \InvalidArgumentException(sprintf('Unknown feature: %s', $featureName));
         }
 
         return $availableFeatures[$featureName];
     }
 
     /**
-     * Tells whether or not the logged-in client has permissions on the given feature
+     * Tells whether or not the logged-in client has the given feature
      *
-     * @param array|string $featureNames Feature name(s) (insensitive case)
+     * @param string $featureName Feature name
      * @param bool $forceReload If true force data to be reloaded
-     * @return bool TRUE if $featureName is available for client, FALSE otherwise
+     * @return bool TRUE if $featureName is available for the client, FALSE otherwise
      */
-    public static function clientHasFeature(string $featureNames, bool $forceReload = false): bool
+    public static function clientHasFeature(string $featureName, bool $forceReload = false): bool
     {
         static $availableFeatures = NULL;
 
         if (NULL === $availableFeatures || $forceReload) {
-            $identity = Application::getInstance()->getAuthService()->getIdentity();
             $config = Application::getInstance()->getConfig();
-            $clientProperties = getClientProperties($identity->getUserId());
+            $clientProps = getClientProperties(Application::getInstance()->getAuthService()->getIdentity()->getUserId());
             $availableFeatures = [
-                'domains'             => $clientProperties['domainsLimit'] != '-1',
-                'subdomains'          => $clientProperties['subdomainsLimit'] != '-1',
-                'mail'                => $clientProperties['mailAccountsLimit'] != '-1',
-                'ftp'                 => $clientProperties['ftpAccountsLimit'] != '-1',
-                'sql'                 => $clientProperties['sqlDatabasesLimit'] != '-1' && $clientProperties['sqlUsersLimit'] != '-1',
-                'php'                 => $clientProperties['php'] == '1',
-                'phpEditor'           => $clientProperties['phpEditor'] == '1',
-                'cgi'                 => $clientProperties['cgi'] == '1',
-                'dns'                 => $clientProperties['dns'] == '1',
-                'dnsEditor'           => $clientProperties['dnsEditor'] == '1' && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
-                'supportSystem'       => $clientProperties['supportSystem'] == '1' && $config['IMSCP_SUPPORT_SYSTEM'],
-                'externalMailServer'  => $clientProperties['externalMailServer'] == '1',
-                'backup'              => $clientProperties['backup'] == '1' && $config['BACKUP_DOMAINS'] != 'no',
-                'protectedArea'       => $clientProperties['protectedArea'] == '1',
-                'customErrorPages'    => $clientProperties['customErrorPages'] == '1',
-                'webFolderProtection' => $clientProperties['webFolderProtection'] == '1',
-                'webstats'            => $clientProperties['webstats'] == '1',
-                'ssl'                 => $config['ENABLE_SSL'] == '1'
+                'domains'             => $clientProps['domainsLimit'] != -1,
+                'subdomains'          => $clientProps['subdomainsLimit'] != -1,
+                'mail'                => $clientProps['mailboxesLimit'] != -1,
+                'ftp'                 => $clientProps['ftpUsersLimit'] != -1,
+                'sql'                 => $clientProps['sqlDatabasesLimit'] != -1 && $clientProps['sqlUsersLimit'] != -1,
+                'php'                 => $clientProps['php'] == 1,
+                'phpEditor'           => $clientProps['phpEditor'] == 1,
+                'cgi'                 => $clientProps['cgi'] == 1,
+                'dns'                 => $clientProps['dns'] == 1,
+                'dnsEditor'           => $clientProps['dnsEditor'] == 1 && $config['iMSCP::Servers::Named'] != 'iMSCP::Servers::NoServer',
+                'supportSystem'       => $clientProps['supportSystem'] == 1 && $config['IMSCP_SUPPORT_SYSTEM'],
+                'externalMailServer'  => $clientProps['externalMailServer'] == 1,
+                'backup'              => $clientProps['backup'] == 1 && $config['BACKUP_DOMAINS'] != 'no',
+                'protectedArea'       => $clientProps['protectedArea'] == 1,
+                'customErrorPages'    => $clientProps['customErrorPages'] == 1,
+                'webFolderProtection' => $clientProps['webFolderProtection'] == 1,
+                'webstats'            => $clientProps['webstats'] == 1,
+                'ssl'                 => $config['ENABLE_SSL'] == 1
             ];
         }
 
-        $canAccess = true;
-        foreach ((array)$featureNames as $featureName) {
-            $featureName = strtolower($featureName);
-            if (!array_key_exists($featureName, $availableFeatures)) {
-                throw new \InvalidArgumentException(sprintf("Feature %s is not known by the clientHasFeature() function.", $featureName));
-            }
-
-            if (!$availableFeatures[$featureName]) {
-                $canAccess = false;
-                break;
-            }
+        $featureName = strtolower($featureName);
+        if (!array_key_exists($featureName, $availableFeatures)) {
+            throw new \InvalidArgumentException(sprintf('Unknown feature: %s', $featureName));
         }
 
-        return $canAccess;
+        return $availableFeatures[$featureName];
     }
 
     /**
@@ -752,10 +770,14 @@ class Counting
      */
     public static function clientOwnDomain(int $clientID, string $domainName): bool
     {
-        return (bool)Application::getInstance()
-            ->getDb()
-            ->createStatement('SELECT 1 FROM imscp_web_domain WHERE userID = ? AND domainName = ? LIMIT 1')
-            ->execute([$clientID, encodeIdna($domainName)])
-            ->count();
+
+        $qb = $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder();
+        return (bool)$qb->select('COUNT(userID)')
+            ->from('imscp_web_domain')
+            ->where('userID = ?')
+            ->andWhere('domainName = ?')
+            ->setParameters([$clientID, encodeIdna($domainName)])
+            ->execute()
+            ->fetchColumn();
     }
 }
