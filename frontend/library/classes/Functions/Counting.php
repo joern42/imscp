@@ -193,11 +193,15 @@ class Counting
      */
     public static function getObjectsCount(string $table, string $objectIDfield, string $where = NULL, ?$params = []): int
     {
-        $qb = Application::getInstance()->getEntityManager()->getConnection()->createQueryBuilder()->select("COUNT($objectIDfield)")->from($table);
+        $qb = Application::getInstance()
+            ->getEntityManager()
+            ->getConnection()
+            ->createQueryBuilder()
+            ->select("COUNT($objectIDfield)")
+            ->from($table);
 
         if ($where !== NULL) {
             $qb->where($where);
-
             if (!empty($params)) {
                 $qb->setParameters($params);
             }
@@ -235,7 +239,7 @@ class Counting
      */
     public static function getResellerClientsCount(int $resellerId): int
     {
-        return static::getObjectsCount('imscp_user', 'userID', "createdBy = $resellerId");
+        return static::getObjectsCount('imscp_user', 'userID', 'createdBy = ?' [$resellerId]);
     }
 
     /**
