@@ -104,21 +104,6 @@ class ClientProperties extends BaseModel
     /**
      * @var int
      */
-    private $webDataUsage = 0;
-
-    /**
-     * @var int
-     */
-    private $mailDataUsage = 0;
-
-    /**
-     * @var int
-     */
-    private $sqlDataUsage = 0;
-
-    /**
-     * @var int
-     */
     private $php = 0;
 
     /**
@@ -440,78 +425,6 @@ class ClientProperties extends BaseModel
     public function setDiskspaceLimit(int $diskspaceLimit): ClientProperties
     {
         $this->diskspaceLimit = $diskspaceLimit;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getDiskUsage(): int
-    {
-        return $this->diskUsage;
-    }
-
-    /**
-     * @param int $diskUsage
-     * @return ClientProperties
-     */
-    public function setDiskUsage(int $diskUsage): ClientProperties
-    {
-        $this->diskUsage = $diskUsage;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getWebDataUsage(): int
-    {
-        return $this->webDataUsage;
-    }
-
-    /**
-     * @param int $webDataUsage
-     * @return ClientProperties
-     */
-    public function setWebDataUsage(int $webDataUsage): ClientProperties
-    {
-        $this->webDataUsage = $webDataUsage;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getMailDataUsage(): int
-    {
-        return $this->mailDataUsage;
-    }
-
-    /**
-     * @param int $mailDataUsage
-     * @return ClientProperties
-     */
-    public function setMailDataUsage(int $mailDataUsage): ClientProperties
-    {
-        $this->mailDataUsage = $mailDataUsage;
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getSqlDataUsage(): int
-    {
-        return $this->sqlDataUsage;
-    }
-
-    /**
-     * @param int $sqlDataUsage
-     * @return ClientProperties
-     */
-    public function setSqlDataUsage(int $sqlDataUsage): ClientProperties
-    {
-        $this->sqlDataUsage = $sqlDataUsage;
         return $this;
     }
 
