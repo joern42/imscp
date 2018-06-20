@@ -21,15 +21,15 @@
 namespace iMSCP\Model;
 
 /**
- * Class Log
+ * Class CpLog
  * @package iMSCP\Model
  */
-class Log extends BaseModel
+class CpLog extends BaseModel
 {
     /**
      * @var int
      */
-    private $logID;
+    private $cpLogID;
 
     /**
      * @var \DateTimeImmutable
@@ -44,18 +44,18 @@ class Log extends BaseModel
     /**
      * @return int
      */
-    public function getLogID(): int
+    public function getCpLogID(): int
     {
-        return $this->logID;
+        return $this->cpLogID;
     }
 
     /**
-     * @param int $logID
-     * @return Log
+     * @param int $cpLogID
+     * @return CpLog
      */
-    public function setLogID(int $logID): Log
+    public function setCpLogID(int $cpLogID): CpLog
     {
-        $this->logID = $logID;
+        $this->cpLogID = $cpLogID;
         return $this;
     }
 
@@ -69,9 +69,9 @@ class Log extends BaseModel
 
     /**
      * @param \DateTimeImmutable $logTime
-     * @return Log
+     * @return CpLog
      */
-    public function setLogTime(\DateTimeImmutable $logTime): Log
+    public function setLogTime(\DateTimeImmutable $logTime): CpLog
     {
         $this->logTime = $logTime;
         return $this;
@@ -87,9 +87,9 @@ class Log extends BaseModel
 
     /**
      * @param string $log
-     * @return Log
+     * @return CpLog
      */
-    public function setLog(string $log): Log
+    public function setLog(string $log): CpLog
     {
         $this->log = $log;
         return $this;

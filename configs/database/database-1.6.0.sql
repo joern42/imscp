@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Jun 20, 2018 at 08:43 AM
+-- Generation Time: Jun 20, 2018 at 09:45 AM
 -- Server version: 10.1.26-MariaDB-0+deb9u1
 -- PHP Version: 7.1.17-1+0~20180505045738.17+stretch~1.gbpde69c6
 
@@ -162,6 +162,90 @@ CREATE TABLE IF NOT EXISTS `imscp_cp_custom_menu` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `imscp_cp_email_template`
+--
+
+CREATE TABLE IF NOT EXISTS `imscp_cp_email_template` (
+  `cpEmailTemplateID`    int(11) UNSIGNED                 NOT NULL AUTO_INCREMENT,
+  `userID`               int(11) UNSIGNED                 NOT NULL,
+  `emailTemplateName`    varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `emailTemplateSubject` varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `emailTemplateBody`    longtext COLLATE utf8mb4_bin     NOT NULL,
+  PRIMARY KEY (`cpEmailTemplateID`),
+  KEY `userID` (`userID`),
+  KEY `emailTemplateName` (`emailTemplateName`)
+)
+  ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_bin
+  ROW_FORMAT = DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `imscp_cp_log`
+--
+
+CREATE TABLE IF NOT EXISTS `imscp_cp_log` (
+  `cpLogID` int(11) UNSIGNED         NOT NULL AUTO_INCREMENT,
+  `logTime` datetime                 NOT NULL,
+  `log`     text COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`cpLogID`)
+)
+  ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_bin
+  ROW_FORMAT = DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `imscp_cp_login`
+--
+
+CREATE TABLE IF NOT EXISTS `imscp_cp_login` (
+  `cpLoginID`      varchar(255) COLLATE ascii_bin NOT NULL,
+  `username`       varchar(255) CHARACTER SET utf8mb4
+  COLLATE utf8mb4_bin                                      DEFAULT NULL,
+  `ipAddress`      varchar(255) COLLATE ascii_bin NOT NULL,
+  `lastAccessTime` datetime                       NOT NULL,
+  `loginCount`     int(11) UNSIGNED               NOT NULL DEFAULT '0',
+  `captchaCount`   int(11) UNSIGNED               NOT NULL DEFAULT '0',
+  PRIMARY KEY (`cpLoginID`),
+  KEY `username` (`username`),
+  KEY `lastAccessTime` (`lastAccessTime`)
+)
+  ENGINE = InnoDB
+  DEFAULT CHARSET = ascii
+  COLLATE = ascii_bin
+  ROW_FORMAT = DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `imscp_cp_ui_properties`
+--
+
+CREATE TABLE IF NOT EXISTS `imscp_cp_ui_properties` (
+  `cpUiProperties` int(11) UNSIGNED               NOT NULL     AUTO_INCREMENT,
+  `userID`         int(11) UNSIGNED               NOT NULL,
+  `lang`           varchar(15) COLLATE ascii_bin               DEFAULT 'browser',
+  `layout`         varchar(100) COLLATE ascii_bin NOT NULL     DEFAULT 'default',
+  `layoutColor`    varchar(15) COLLATE ascii_bin  NOT NULL     DEFAULT 'black',
+  `layoutLogo`     varchar(255) CHARACTER SET utf8mb4
+  COLLATE utf8mb4_bin                                          DEFAULT NULL,
+  `showMenuLabels` tinyint(1) UNSIGNED            NOT NULL     DEFAULT '0',
+  PRIMARY KEY (`cpUiProperties`),
+  UNIQUE KEY `userID` (`userID`)
+)
+  ENGINE = InnoDB
+  DEFAULT CHARSET = ascii
+  COLLATE = ascii_bin
+  ROW_FORMAT = DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `imscp_dns_record`
 --
 
@@ -215,27 +299,6 @@ CREATE TABLE IF NOT EXISTS `imscp_dns_zone` (
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = ascii
-  ROW_FORMAT = DYNAMIC;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `imscp_email_template`
---
-
-CREATE TABLE IF NOT EXISTS `imscp_email_template` (
-  `emailTemplateID`      int(11) UNSIGNED                 NOT NULL AUTO_INCREMENT,
-  `userID`               int(11) UNSIGNED                 NOT NULL,
-  `emailTemplateName`    varchar(255) COLLATE utf8mb4_bin NOT NULL,
-  `emailTemplateSubject` varchar(255) COLLATE utf8mb4_bin NOT NULL,
-  `emailTemplateBody`    longtext COLLATE utf8mb4_bin     NOT NULL,
-  PRIMARY KEY (`emailTemplateID`),
-  KEY `userID` (`userID`),
-  KEY `emailTemplateName` (`emailTemplateName`)
-)
-  ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_bin
   ROW_FORMAT = DYNAMIC;
 
 -- --------------------------------------------------------
@@ -317,28 +380,6 @@ CREATE TABLE IF NOT EXISTS `imscp_hosting_plan` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `imscp_ip_address`
---
-
-CREATE TABLE IF NOT EXISTS `imscp_ip_address` (
-  `ipAddressID` int(11) UNSIGNED                          NOT NULL AUTO_INCREMENT,
-  `serverID`    int(11) UNSIGNED                          NOT NULL,
-  `ipAddress`   varchar(255) COLLATE ascii_bin            NOT NULL,
-  `netmask`     varchar(255) COLLATE ascii_bin            NOT NULL,
-  `nic`         varchar(255) COLLATE ascii_bin            NOT NULL,
-  `configMode`  enum ('auto', 'manual') COLLATE ascii_bin NOT NULL DEFAULT 'manual',
-  PRIMARY KEY (`ipAddressID`),
-  UNIQUE KEY `ipAddress` (`ipAddress`),
-  KEY `serverID` (`serverID`)
-)
-  ENGINE = InnoDB
-  DEFAULT CHARSET = ascii
-  COLLATE = ascii_bin
-  ROW_FORMAT = DYNAMIC;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `imscp_job`
 --
 
@@ -360,44 +401,6 @@ CREATE TABLE IF NOT EXISTS `imscp_job` (
   KEY `moduleName` (`moduleName`),
   KEY `moduleGroup` (`moduleGroup`),
   KEY `state` (`state`)
-)
-  ENGINE = InnoDB
-  DEFAULT CHARSET = ascii
-  COLLATE = ascii_bin
-  ROW_FORMAT = DYNAMIC;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `imscp_log`
---
-
-CREATE TABLE IF NOT EXISTS `imscp_log` (
-  `logID`   int(11) UNSIGNED         NOT NULL AUTO_INCREMENT,
-  `logTime` datetime                 NOT NULL,
-  `log`     text COLLATE utf8mb4_bin NOT NULL,
-  PRIMARY KEY (`logID`)
-)
-  ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_bin
-  ROW_FORMAT = DYNAMIC;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `imscp_login`
---
-
-CREATE TABLE IF NOT EXISTS `imscp_login` (
-  `loginID`        varchar(255) COLLATE ascii_bin NOT NULL,
-  `username`       varchar(255) CHARACTER SET utf8mb4
-  COLLATE utf8mb4_bin                                      DEFAULT NULL,
-  `ipAddress`      varchar(255) COLLATE ascii_bin NOT NULL,
-  `lastAccessTime` datetime                       NOT NULL,
-  `loginCount`     int(11) UNSIGNED               NOT NULL DEFAULT '0',
-  `captchaCount`   int(11) UNSIGNED               NOT NULL DEFAULT '0',
-  PRIMARY KEY (`loginID`)
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = ascii
@@ -601,13 +604,35 @@ CREATE TABLE IF NOT EXISTS `imscp_server` (
   `description`      text CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci                                                     NOT NULL,
   `hostname`         varchar(255) CHARACTER SET ascii                            NOT NULL,
-  `type`             enum ('host', 'node') COLLATE ascii_bin                     NOT NULL DEFAULT 'host',
+  `type`             enum ('master', 'node') COLLATE ascii_bin                   NOT NULL,
   `metadata`         text COLLATE ascii_bin                                      NOT NULL,
   `hmacSharedSecret` varchar(255) COLLATE ascii_bin                                       DEFAULT NULL,
-  `services`         set ('dns', 'ftp', 'http', 'mail', 'sql') COLLATE ascii_bin NOT NULL DEFAULT 'dns,ftp,http,mail,sql',
+  `services`         set ('dns', 'ftp', 'http', 'mail', 'sql') COLLATE ascii_bin NOT NULL,
   `apiVersion`       varchar(20) COLLATE ascii_bin                               NOT NULL,
   `isActive`         tinyint(1) UNSIGNED                                         NOT NULL DEFAULT '1',
   PRIMARY KEY (`serverID`)
+)
+  ENGINE = InnoDB
+  DEFAULT CHARSET = ascii
+  COLLATE = ascii_bin
+  ROW_FORMAT = DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `imscp_server_ip_address`
+--
+
+CREATE TABLE IF NOT EXISTS `imscp_server_ip_address` (
+  `serverIpAddressID` int(11) UNSIGNED                          NOT NULL AUTO_INCREMENT,
+  `serverID`          int(11) UNSIGNED                          NOT NULL,
+  `ipAddress`         varchar(255) COLLATE ascii_bin            NOT NULL,
+  `netmask`           varchar(255) COLLATE ascii_bin            NOT NULL,
+  `nic`               varchar(255) COLLATE ascii_bin            NOT NULL,
+  `configMode`        enum ('auto', 'manual') COLLATE ascii_bin NOT NULL DEFAULT 'manual',
+  PRIMARY KEY (`serverIpAddressID`),
+  UNIQUE KEY `ipAddress` (`ipAddress`),
+  KEY `serverID` (`serverID`)
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = ascii
@@ -750,29 +775,6 @@ CREATE TABLE IF NOT EXISTS `imscp_traffic` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `imscp_ui_props`
---
-
-CREATE TABLE IF NOT EXISTS `imscp_ui_props` (
-  `uiPropsID`      int(11) UNSIGNED               NOT NULL     AUTO_INCREMENT,
-  `userID`         int(11) UNSIGNED               NOT NULL,
-  `lang`           varchar(15) COLLATE ascii_bin               DEFAULT 'browser',
-  `layout`         varchar(100) COLLATE ascii_bin NOT NULL     DEFAULT 'default',
-  `layoutColor`    varchar(15) COLLATE ascii_bin  NOT NULL     DEFAULT 'black',
-  `layoutLogo`     varchar(255) CHARACTER SET utf8mb4
-  COLLATE utf8mb4_bin                                          DEFAULT NULL,
-  `showMenuLabels` tinyint(1) UNSIGNED            NOT NULL     DEFAULT '0',
-  PRIMARY KEY (`uiPropsID`),
-  UNIQUE KEY `userID` (`userID`)
-)
-  ENGINE = InnoDB
-  DEFAULT CHARSET = ascii
-  COLLATE = ascii_bin
-  ROW_FORMAT = DYNAMIC;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `imscp_user`
 --
 
@@ -828,10 +830,10 @@ CREATE TABLE IF NOT EXISTS `imscp_user` (
 --
 
 CREATE TABLE IF NOT EXISTS `imscp_user_ip_address` (
-  `userID`      int(11) UNSIGNED NOT NULL,
-  `ipAddressID` int(11) UNSIGNED NOT NULL,
-  PRIMARY KEY (`userID`, `ipAddressID`),
-  KEY `ipAddressID` (`ipAddressID`)
+  `userID`            int(11) UNSIGNED NOT NULL,
+  `serverIpAddressID` int(11) UNSIGNED NOT NULL,
+  PRIMARY KEY (`userID`, `serverIpAddressID`),
+  KEY `serverIpAddressID` (`serverIpAddressID`)
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = ascii
@@ -931,23 +933,6 @@ CREATE TABLE IF NOT EXISTS `imscp_web_domain_alias` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `imscp_web_domain_ip_address`
---
-
-CREATE TABLE IF NOT EXISTS `imscp_web_domain_ip_address` (
-  `webDomainID` int(11) UNSIGNED NOT NULL,
-  `ipAddressID` int(11) UNSIGNED NOT NULL,
-  PRIMARY KEY (`webDomainID`, `ipAddressID`),
-  KEY `ipAddressID` (`ipAddressID`)
-)
-  ENGINE = InnoDB
-  DEFAULT CHARSET = ascii
-  COLLATE = ascii_bin
-  ROW_FORMAT = DYNAMIC;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `imscp_web_domain_php_directive`
 --
 
@@ -960,6 +945,23 @@ CREATE TABLE IF NOT EXISTS `imscp_web_domain_php_directive` (
   PRIMARY KEY (`webDomainPhpDirectiveID`),
   UNIQUE KEY `webDomainID` (`webDomainID`),
   KEY `name` (`name`)
+)
+  ENGINE = InnoDB
+  DEFAULT CHARSET = ascii
+  COLLATE = ascii_bin
+  ROW_FORMAT = DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `imscp_web_domain_user_ip_address`
+--
+
+CREATE TABLE IF NOT EXISTS `imscp_web_domain_user_ip_address` (
+  `webDomainID`     int(11) UNSIGNED NOT NULL,
+  `userIpAddressID` int(11) UNSIGNED NOT NULL,
+  PRIMARY KEY (`webDomainID`, `userIpAddressID`),
+  KEY `userIpAddressID` (`userIpAddressID`)
 )
   ENGINE = InnoDB
   DEFAULT CHARSET = ascii
@@ -1113,6 +1115,20 @@ ALTER TABLE `imscp_client_properties`
   ON DELETE CASCADE;
 
 --
+-- Constraints for table `imscp_cp_email_template`
+--
+ALTER TABLE `imscp_cp_email_template`
+  ADD CONSTRAINT `cpEmailTemplateConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
+  ON DELETE CASCADE;
+
+--
+-- Constraints for table `imscp_cp_ui_properties`
+--
+ALTER TABLE `imscp_cp_ui_properties`
+  ADD CONSTRAINT `cpUiPropertiesConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
+  ON DELETE CASCADE;
+
+--
 -- Constraints for table `imscp_dns_record`
 --
 ALTER TABLE `imscp_dns_record`
@@ -1124,13 +1140,6 @@ ALTER TABLE `imscp_dns_record`
 --
 ALTER TABLE `imscp_dns_zone`
   ADD CONSTRAINT `dnsZoneConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
-  ON DELETE CASCADE;
-
---
--- Constraints for table `imscp_email_template`
---
-ALTER TABLE `imscp_email_template`
-  ADD CONSTRAINT `emailTemplateConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE;
 
 --
@@ -1152,13 +1161,6 @@ ALTER TABLE `imscp_ftp_user`
 --
 ALTER TABLE `imscp_hosting_plan`
   ADD CONSTRAINT `hostingPlanConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
-  ON DELETE CASCADE;
-
---
--- Constraints for table `imscp_ip_address`
---
-ALTER TABLE `imscp_ip_address`
-  ADD CONSTRAINT `ipAddressConstraint01` FOREIGN KEY (`serverID`) REFERENCES `imscp_server` (`serverID`)
   ON DELETE CASCADE;
 
 --
@@ -1189,6 +1191,13 @@ ALTER TABLE `imscp_mail_domain`
 --
 ALTER TABLE `imscp_reseller_properties`
   ADD CONSTRAINT `resellerPropertiesConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
+  ON DELETE CASCADE;
+
+--
+-- Constraints for table `imscp_server_ip_address`
+--
+ALTER TABLE `imscp_server_ip_address`
+  ADD CONSTRAINT `ipAddressConstraint01` FOREIGN KEY (`serverID`) REFERENCES `imscp_server` (`serverID`)
   ON DELETE CASCADE;
 
 --
@@ -1233,13 +1242,6 @@ ALTER TABLE `imscp_traffic`
   ON DELETE CASCADE;
 
 --
--- Constraints for table `imscp_ui_props`
---
-ALTER TABLE `imscp_ui_props`
-  ADD CONSTRAINT `uiPropsConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
-  ON DELETE CASCADE;
-
---
 -- Constraints for table `imscp_user`
 --
 ALTER TABLE `imscp_user`
@@ -1252,7 +1254,7 @@ ALTER TABLE `imscp_user`
 ALTER TABLE `imscp_user_ip_address`
   ADD CONSTRAINT `userIpAddressConstraint01` FOREIGN KEY (`userID`) REFERENCES `imscp_user` (`userID`)
   ON DELETE CASCADE,
-  ADD CONSTRAINT `userIpAddressConstraint02` FOREIGN KEY (`ipAddressID`) REFERENCES `imscp_ip_address` (`ipAddressID`)
+  ADD CONSTRAINT `userIpAddressConstraint02` FOREIGN KEY (`serverIpAddressID`) REFERENCES `imscp_server_ip_address` (`serverIpAddressID`)
   ON DELETE CASCADE;
 
 --
@@ -1275,19 +1277,19 @@ ALTER TABLE `imscp_web_domain`
   ON DELETE CASCADE;
 
 --
--- Constraints for table `imscp_web_domain_ip_address`
---
-ALTER TABLE `imscp_web_domain_ip_address`
-  ADD CONSTRAINT `webDomainIpAddressConstraint01` FOREIGN KEY (`webDomainID`) REFERENCES `imscp_web_domain` (`webDomainID`)
-  ON DELETE CASCADE,
-  ADD CONSTRAINT `webDomainIpAddressConstraint02` FOREIGN KEY (`ipAddressID`) REFERENCES `imscp_ip_address` (`ipAddressID`)
-  ON DELETE CASCADE;
-
---
 -- Constraints for table `imscp_web_domain_php_directive`
 --
 ALTER TABLE `imscp_web_domain_php_directive`
   ADD CONSTRAINT `webDomainPhpDirectiveConstraint01` FOREIGN KEY (`webDomainID`) REFERENCES `imscp_web_domain` (`webDomainID`)
+  ON DELETE CASCADE;
+
+--
+-- Constraints for table `imscp_web_domain_user_ip_address`
+--
+ALTER TABLE `imscp_web_domain_user_ip_address`
+  ADD CONSTRAINT `webDomainIpAddressConstraint01` FOREIGN KEY (`webDomainID`) REFERENCES `imscp_web_domain` (`webDomainID`)
+  ON DELETE CASCADE,
+  ADD CONSTRAINT `webDomainUserIpAddressConstraint01` FOREIGN KEY (`userIpAddressID`) REFERENCES `imscp_user_ip_address` (`serverIpAddressID`)
   ON DELETE CASCADE;
 
 --
@@ -1335,4 +1337,3 @@ ALTER TABLE `imscp_web_ssl_certificate`
   ON DELETE CASCADE;
 
 SET FOREIGN_KEY_CHECKS = 1;
-

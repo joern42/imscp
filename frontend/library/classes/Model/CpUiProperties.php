@@ -21,15 +21,15 @@
 namespace iMSCP\Model;
 
 /**
- * Class UiProperties
+ * Class CpUiProperties
  * @package iMSCP\Model
  */
-class UiProperties extends BaseModel
+class CpUiProperties extends BaseModel
 {
     /**
      * @var int
      */
-    private $uiPropsID;
+    private $CpUiPropertiesID;
 
     /**
      * @var int
@@ -64,18 +64,18 @@ class UiProperties extends BaseModel
     /**
      * @return int
      */
-    public function getUiPropsID(): int
+    public function getCpUiPropertiesID(): int
     {
-        return $this->uiPropsID;
+        return $this->CpUiPropertiesID;
     }
 
     /**
-     * @param int $uiPropsID
-     * @return UiProperties
+     * @param int $CpUiPropertiesID
+     * @return CpUiProperties
      */
-    public function setUiPropsID(int $uiPropsID): UiProperties
+    public function setCpUiPropertiesID(int $CpUiPropertiesID): CpUiProperties
     {
-        $this->uiPropsID = $uiPropsID;
+        $this->CpUiPropertiesID = $CpUiPropertiesID;
         return $this;
     }
 
@@ -89,9 +89,9 @@ class UiProperties extends BaseModel
 
     /**
      * @param int $userID
-     * @return UiProperties
+     * @return CpUiProperties
      */
-    public function setUserID(int $userID): UiProperties
+    public function setUserID(int $userID): CpUiProperties
     {
         $this->userID = $userID;
         return $this;
@@ -107,9 +107,9 @@ class UiProperties extends BaseModel
 
     /**
      * @param string $lang
-     * @return UiProperties
+     * @return CpUiProperties
      */
-    public function setLang(string $lang): UiProperties
+    public function setLang(string $lang): CpUiProperties
     {
         $this->lang = $lang;
         return $this;
@@ -125,9 +125,9 @@ class UiProperties extends BaseModel
 
     /**
      * @param string $layout
-     * @return UiProperties
+     * @return CpUiProperties
      */
-    public function setLayout(string $layout): UiProperties
+    public function setLayout(string $layout): CpUiProperties
     {
         $this->layout = $layout;
         return $this;
@@ -143,9 +143,9 @@ class UiProperties extends BaseModel
 
     /**
      * @param string $layoutColor
-     * @return UiProperties
+     * @return CpUiProperties
      */
-    public function setLayoutColor(string $layoutColor): UiProperties
+    public function setLayoutColor(string $layoutColor): CpUiProperties
     {
         $this->layoutColor = $layoutColor;
         return $this;
@@ -161,9 +161,9 @@ class UiProperties extends BaseModel
 
     /**
      * @param string|null $layoutLogo
-     * @return UiProperties
+     * @return CpUiProperties
      */
-    public function setLayoutLogo(string $layoutLogo = NULL): UiProperties
+    public function setLayoutLogo(string $layoutLogo = NULL): CpUiProperties
     {
         $this->layoutLogo = $layoutLogo;
         return $this;
@@ -179,9 +179,9 @@ class UiProperties extends BaseModel
 
     /**
      * @param int $showMenuLabels
-     * @return UiProperties
+     * @return CpUiProperties
      */
-    public function setShowMenuLabels(int $showMenuLabels): UiProperties
+    public function setShowMenuLabels(int $showMenuLabels): CpUiProperties
     {
         $this->showMenuLabels = $showMenuLabels;
         return $this;

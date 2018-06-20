@@ -21,15 +21,15 @@
 namespace iMSCP\Model;
 
 /**
- * Class IpAddress
+ * Class ServerIpAddress
  * @package iMSCP\Model
  */
-class IpAddress extends BaseModel
+class ServerIpAddress extends BaseModel
 {
     /**
      * @var int
      */
-    private $ipAddressID;
+    private $serverIpAddressID;
 
     /**
      * @var int
@@ -59,18 +59,18 @@ class IpAddress extends BaseModel
     /**
      * @return int
      */
-    public function getIpAddressID(): int
+    public function getServerIpAddressID(): int
     {
-        return $this->ipAddressID;
+        return $this->serverIpAddressID;
     }
 
     /**
-     * @param int $ipAddressID
-     * @return IpAddress
+     * @param int $serverIpAddressID
+     * @return ServerIpAddress
      */
-    public function setIpAddressID(int $ipAddressID): IpAddress
+    public function setServerIpAddressID(int $serverIpAddressID): ServerIpAddress
     {
-        $this->ipAddressID = $ipAddressID;
+        $this->serverIpAddressID = $serverIpAddressID;
         return $this;
     }
 
@@ -84,9 +84,9 @@ class IpAddress extends BaseModel
 
     /**
      * @param int $serverID
-     * @return IpAddress
+     * @return ServerIpAddress
      */
-    public function setServerID(int $serverID): IpAddress
+    public function setServerID(int $serverID): ServerIpAddress
     {
         $this->serverID = $serverID;
         return $this;
@@ -102,9 +102,9 @@ class IpAddress extends BaseModel
 
     /**
      * @param string $ipAddress
-     * @return IpAddress
+     * @return ServerIpAddress
      */
-    public function setIpAddress(string $ipAddress): IpAddress
+    public function setIpAddress(string $ipAddress): ServerIpAddress
     {
         $this->ipAddress = $ipAddress;
         return $this;
@@ -120,9 +120,9 @@ class IpAddress extends BaseModel
 
     /**
      * @param string $netmask
-     * @return IpAddress
+     * @return ServerIpAddress
      */
-    public function setNetmask(string $netmask): IpAddress
+    public function setNetmask(string $netmask): ServerIpAddress
     {
         $this->netmask = $netmask;
         return $this;
@@ -138,9 +138,9 @@ class IpAddress extends BaseModel
 
     /**
      * @param string $nic
-     * @return IpAddress
+     * @return ServerIpAddress
      */
-    public function setNic(string $nic): IpAddress
+    public function setNic(string $nic): ServerIpAddress
     {
         $this->nic = $nic;
         return $this;
@@ -156,9 +156,9 @@ class IpAddress extends BaseModel
 
     /**
      * @param string $configMode
-     * @return IpAddress
+     * @return ServerIpAddress
      */
-    public function setConfigMode(string $configMode): IpAddress
+    public function setConfigMode(string $configMode): ServerIpAddress
     {
         $this->configMode = $configMode;
         return $this;

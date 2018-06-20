@@ -37,7 +37,7 @@ class ResellerProperties extends BaseModel
     private $userID;
 
     /**
-     * @var IpAddress[]
+     * @var ServerIpAddress[]
      */
     private $ipAddresses = [];
 
@@ -243,7 +243,7 @@ class ResellerProperties extends BaseModel
     }
 
     /**
-     * @return IpAddress[]
+     * @return ServerIpAddress[]
      */
     public function getIpAddresses(): array
     {
@@ -251,7 +251,7 @@ class ResellerProperties extends BaseModel
     }
 
     /**
-     * @param IpAddress[] $ipAddresses
+     * @param ServerIpAddress[] $ipAddresses
      * @return ResellerProperties
      */
     public function setIpAddresses(array $ipAddresses): ResellerProperties

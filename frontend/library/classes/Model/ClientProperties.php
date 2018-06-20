@@ -42,7 +42,7 @@ class ClientProperties extends BaseModel
     private $accountExpireDate = NULL;
 
     /**
-     * @var IpAddress[]
+     * @var ServerIpAddress[]
      */
     private $ipAddresses = [];
 
@@ -95,11 +95,6 @@ class ClientProperties extends BaseModel
      * @var int
      */
     private $diskspaceLimit = 0;
-
-    /**
-     * @var int
-     */
-    private $diskUsage = 0;
 
     /**
      * @var int
@@ -231,7 +226,7 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @return IpAddress[]
+     * @return ServerIpAddress[]
      */
     public function getIpAddresses(): array
     {
@@ -239,7 +234,7 @@ class ClientProperties extends BaseModel
     }
 
     /**
-     * @param IpAddress[] $ipAddresses
+     * @param ServerIpAddress[] $ipAddresses
      * @return ClientProperties
      */
     public function setIpAddresses(array $ipAddresses): ClientProperties

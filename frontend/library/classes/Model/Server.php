@@ -44,7 +44,7 @@ class Server extends BaseModel
     /**
      * @var string
      */
-    private $type = 'host';
+    private $type;
 
     /**
      * @var string
@@ -59,17 +59,17 @@ class Server extends BaseModel
     /**
      * @var string
      */
-    private $services = 'dns,ftp,http,mail,sql';
-
-    /**
-     * @var int
-     */
-    private $isActive = 1;
+    private $services;
 
     /**
      * @var string
      */
     private $apiVersion;
+
+    /**
+     * @var int
+     */
+    private $isActive = 1;
 
     /**
      * @return int
@@ -206,16 +206,6 @@ class Server extends BaseModel
     }
 
     /**
-     * @param int $isActive
-     * @return Server
-     */
-    public function setIsActive(int $isActive): Server
-    {
-        $this->isActive = $isActive;
-        return $this;
-    }
-
-    /**
      * @return string
      */
     public function getApiVersion(): string
@@ -230,6 +220,16 @@ class Server extends BaseModel
     public function setApiVersion(string $apiVersion): Server
     {
         $this->apiVersion = $apiVersion;
+        return $this;
+    }
+
+    /**
+     * @param int $isActive
+     * @return Server
+     */
+    public function setIsActive(int $isActive): Server
+    {
+        $this->isActive = $isActive;
         return $this;
     }
 }

@@ -24,12 +24,12 @@ namespace iMSCP\Model;
  * Class EmailTemplate
  * @package iMSCP\Model
  */
-class EmailTemplate extends BaseModel
+class CpEmailTemplate extends BaseModel
 {
     /**
      * @var int
      */
-    private $emailTemplateID;
+    private $cpEmailTemplateID;
 
     /**
      * @var int
@@ -54,18 +54,18 @@ class EmailTemplate extends BaseModel
     /**
      * @return int
      */
-    public function getEmailTemplateID(): int
+    public function getCpEmailTemplateID(): int
     {
-        return $this->emailTemplateID;
+        return $this->cpEmailTemplateID;
     }
 
     /**
-     * @param int $emailTemplateID
-     * @return EmailTemplate
+     * @param int $cpEmailTemplateID
+     * @return CpEmailTemplate
      */
-    public function setEmailTemplateID(int $emailTemplateID): EmailTemplate
+    public function setCpEmailTemplateID(int $cpEmailTemplateID): CpEmailTemplate
     {
-        $this->emailTemplateID = $emailTemplateID;
+        $this->cpEmailTemplateID = $cpEmailTemplateID;
         return $this;
     }
 
@@ -79,9 +79,9 @@ class EmailTemplate extends BaseModel
 
     /**
      * @param int $userID
-     * @return EmailTemplate
+     * @return CpEmailTemplate
      */
-    public function setUserID(int $userID): EmailTemplate
+    public function setUserID(int $userID): CpEmailTemplate
     {
         $this->userID = $userID;
         return $this;
@@ -97,9 +97,9 @@ class EmailTemplate extends BaseModel
 
     /**
      * @param string $emailTemplateName
-     * @return EmailTemplate
+     * @return CpEmailTemplate
      */
-    public function setEmailTemplateName(string $emailTemplateName): EmailTemplate
+    public function setEmailTemplateName(string $emailTemplateName): CpEmailTemplate
     {
         $this->emailTemplateName = $emailTemplateName;
         return $this;
@@ -115,9 +115,9 @@ class EmailTemplate extends BaseModel
 
     /**
      * @param string $emailTemplateSubject
-     * @return EmailTemplate
+     * @return CpEmailTemplate
      */
-    public function setEmailTemplateSubject(string $emailTemplateSubject): EmailTemplate
+    public function setEmailTemplateSubject(string $emailTemplateSubject): CpEmailTemplate
     {
         $this->emailTemplateSubject = $emailTemplateSubject;
         return $this;
@@ -133,9 +133,9 @@ class EmailTemplate extends BaseModel
 
     /**
      * @param string $emailTemplateBody
-     * @return EmailTemplate
+     * @return CpEmailTemplate
      */
-    public function setEmailTemplateBody(string $emailTemplateBody): EmailTemplate
+    public function setEmailTemplateBody(string $emailTemplateBody): CpEmailTemplate
     {
         $this->emailTemplateBody = $emailTemplateBody;
         return $this;

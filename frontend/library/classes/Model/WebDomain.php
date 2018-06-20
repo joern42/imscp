@@ -47,7 +47,7 @@ class WebDomain extends BaseModel
     private $domainName;
 
     /**
-     * @var IpAddress[]
+     * @var ServerIpAddress[]
      */
     private $ipAddresses = [];
 
@@ -174,7 +174,7 @@ class WebDomain extends BaseModel
     }
 
     /**
-     * @return IpAddress[]
+     * @return ServerIpAddress[]
      */
     public function getIpAddresses(): array
     {
@@ -182,7 +182,7 @@ class WebDomain extends BaseModel
     }
 
     /**
-     * @param IpAddress[] $ipAddresses
+     * @param ServerIpAddress[] $ipAddresses
      * @return WebDomain
      */
     public function setIpAddresses(array $ipAddresses): WebDomain
