@@ -18,16 +18,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP;
+namespace iMSCP\Model\Store;
 
-use iMSCP\Authentication\AuthenticationService;
-use iMSCP\Functions\Counting;
-use iMSCP\Functions\View;
+use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
 
-require_once 'application.php';
+/**
+ * Class StoreAbstract
+ * @package iMSCP\Model\Store
+ * @KeyValue\Entity(storageName="imscp_storage")
+ */
+abstract class StoreAbstract
+{
+    /**
+     * @KeyValue\Id
+     */
+    protected $storageID;
 
-Application::getInstance()->getAuthService()->checkIdentity(AuthenticationService::USER_IDENTITY_TYPE);
-Application::getInstance()->getEventManager()->trigger(Events::onClientScriptStart);
-Counting::customerHasFeature('domain_aliases') && isset($_GET['id']) or View::showBadRequestErrorPage();
-deleteSubdomainAlias(intval($_GET['id']));
-redirectTo('domains_manage.php');
+    /**
+     * StoreAbstract constructor.
+     */
+    public function __construct()
+    {
+        $this->storageID = static::class;
+    }
+}
