@@ -36,7 +36,7 @@ class Services extends StoreAbstract implements \IteratorAggregate
     private $services = [];
 
     /**
-     * ServicePorts constructor.
+     * Services constructor.
      */
     public function __construct()
     {
@@ -45,6 +45,8 @@ class Services extends StoreAbstract implements \IteratorAggregate
     }
 
     /**
+     * Add a service
+     *
      * @param Service $service
      * @return Services
      */
@@ -55,6 +57,8 @@ class Services extends StoreAbstract implements \IteratorAggregate
     }
 
     /**
+     * Remove a service
+     *
      * @param Service $service
      * @return Services
      */

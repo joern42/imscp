@@ -37,7 +37,7 @@ class Service
     private $protocol;
 
     /**
-     * @var
+     * @var string
      */
     private $ipAddress;
 
@@ -66,29 +66,34 @@ class Service
 
         $this->name = $name;
         $this->protocol = $protocol;
-        $this->port = $port;
         $this->ipAddress = $ipAddress;
+        $this->port = $port;
     }
 
     /**
-     * @return mixed
+     * Return service name
+     *
+     * @return string
      */
-    public function getName()
+    public function getName(): string
     {
         return $this->name;
     }
 
     /**
-     * @param mixed $name
+     * Set service name
+     * @param string $name
      * @return Service
      */
-    public function setName($name): Service
+    public function setName(string $name): Service
     {
         $this->name = $name;
         return $this;
     }
 
     /**
+     * Return service protocol
+     *
      * @return string
      */
     public function getProtocol(): string
@@ -97,6 +102,8 @@ class Service
     }
 
     /**
+     * Set service protocol
+     *
      * @param string $protocol
      * @return Service
      */
@@ -107,6 +114,8 @@ class Service
     }
 
     /**
+     * Return service port
+     *
      * @return int
      */
     public function getPort(): int
@@ -115,6 +124,8 @@ class Service
     }
 
     /**
+     * Set service port
+     *
      * @param int $port
      * @return Service
      */
@@ -125,24 +136,30 @@ class Service
     }
 
     /**
-     * @return mixed
+     * Return service IP address
+     *
+     * @return string
      */
-    public function getIpAddress()
+    public function getIpAddress(): string
     {
         return $this->ipAddress;
     }
 
     /**
-     * @param mixed $ipAddress
+     * Set service IP address
+     *
+     * @param string $ipAddress
      * @return Service
      */
-    public function setIpAddress($ipAddress)
+    public function setIpAddress(string $ipAddress): Service
     {
         $this->ipAddress = $ipAddress;
         return $this;
     }
 
     /**
+     * Is the service hidden?
+     *
      * @return bool
      */
     public function isHidden(): bool
@@ -151,6 +168,8 @@ class Service
     }
 
     /**
+     * Set service visibility
+     *
      * @param bool $isHidden
      * @return Service
      */
