@@ -20,8 +20,6 @@
 
 namespace iMSCP\Model\Store\Setting;
 
-use iMSCP\Model\Store\Service\SettingInterface;
-
 /**
  * Class CpBruteForcePlugin
  * @package iMSCP\Model\Store\Setting
@@ -31,37 +29,37 @@ class CpBruteForcePlugin implements SettingInterface
     const NAME = 'BruteForcePlugin';
 
     /**
-     * @var bool 
+     * @var bool
      */
     private $isActiveWaitingTime = true;
 
     /**
-     * @var int 
+     * @var int
      */
     private $maxAttemptsBeforeWaitingTime = 2;
 
     /**
-     * @var int 
+     * @var int
      */
     private $waitingTimeInSeconds = 30;
 
     /**
-     * @var int 
+     * @var int
      */
     private $blockingTimeInMinutes = 15;
 
     /**
-     * @var int 
+     * @var int
      */
     private $maxLoginAuthAttempts = 5;
 
     /**
-     * @var int 
+     * @var int
      */
     private $maxCaptchaAttempts = 5;
 
     /**
-     * @var bool 
+     * @var bool
      */
     private $isActive = true;
 

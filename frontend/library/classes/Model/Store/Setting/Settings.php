@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP\Model\Store\Service;
+namespace iMSCP\Model\Store\Setting;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;

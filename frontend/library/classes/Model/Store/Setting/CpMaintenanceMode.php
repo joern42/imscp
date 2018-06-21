@@ -20,8 +20,6 @@
 
 namespace iMSCP\Model\Store\Setting;
 
-use iMSCP\Model\Store\Service\SettingInterface;
-
 /**
  * Class MaintenanceMode
  * @package iMSCP\Model\Store\Setting

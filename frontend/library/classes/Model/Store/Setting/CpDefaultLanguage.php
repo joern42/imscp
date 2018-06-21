@@ -20,8 +20,6 @@
 
 namespace iMSCP\Model\Store\Setting;
 
-use iMSCP\Model\Store\Service\SettingInterface;
-
 /**
  * Class CpDefaultLanguage
  * @package iMSCP\Model\Store\Setting
@@ -50,8 +48,8 @@ class CpDefaultLanguage implements SettingInterface
     {
         return $this->defaultLanguage;
     }
-    
-     /**
+
+    /**
      * @param string $defaultLanguage
      * @return CpDefaultLanguage
      */

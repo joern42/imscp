@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP\Model\Store\Service;
+namespace iMSCP\Model\Store\Setting;
 
 /**
  * Interface setting

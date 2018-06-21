@@ -20,8 +20,6 @@
 
 namespace iMSCP\Model\Store\Setting;
 
-use iMSCP\Model\Store\Service\SettingInterface;
-
 /**
  * Class CpPasswordStrength
  * @package iMSCP\Model\Store\Setting
@@ -29,14 +27,14 @@ use iMSCP\Model\Store\Service\SettingInterface;
 class CpPasswordStrength implements SettingInterface
 {
     const NAME = 'CpPasswordStrength';
-    
+
     /**
-     * @var int 
+     * @var int
      */
     private $minPasswordChars = 6;
 
     /**
-     * @var bool 
+     * @var bool
      */
     private $strongPassword = true;
 
