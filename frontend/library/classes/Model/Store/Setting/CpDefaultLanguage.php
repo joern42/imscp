@@ -18,25 +18,46 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP\Model\Store;
+namespace iMSCP\Model\Store\Setting;
+
+use iMSCP\Model\Store\Service\SettingInterface;
 
 /**
- * Interface setting
- * @package iMSCP\Model\Store
+ * Class CpDefaultLanguage
+ * @package iMSCP\Model\Store\Setting
  */
-interface SettingInterface
+class CpDefaultLanguage implements SettingInterface
 {
-    /**
-     * Return setting value
-     *
-     * @return mixed
-     */
-    public function getValue();
+    const NAME = 'CpDefaultLanguage';
 
     /**
-     * Set setting value
-     *
-     * @return mixed
+     * @var string
      */
-    public function setValue();
+    private $defaultLanguage = 'en_GB';
+
+    /**
+     * @return string
+     */
+    public function getName()
+    {
+        return self::NAME;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDefaultLanguage(): string
+    {
+        return $this->defaultLanguage;
+    }
+    
+     /**
+     * @param string $defaultLanguage
+     * @return CpDefaultLanguage
+     */
+    public function setDefaultLanguage(string $defaultLanguage): CpDefaultLanguage
+    {
+        $this->defaultLanguage = $defaultLanguage;
+        return $this;
+    }
 }

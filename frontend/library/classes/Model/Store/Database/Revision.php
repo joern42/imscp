@@ -18,61 +18,51 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP\Model\Store;
+namespace iMSCP\Model\Store\Service;
 
-use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
+use iMSCP\Model\Store\StoreAbstract;
 
 /**
- * Class Settings
+ * Class DatabaseRevision
  * @package iMSCP\Model\Store
  * @KeyValue\Entity(storageName="imscp_storage")
  */
-class Settings extends StoreAbstract implements \IteratorAggregate
+class Revision extends StoreAbstract
 {
     /**
-     * @var SettingInterface[]
+     * @var int
      */
-    private $settings = [];
+    private $revision;
 
     /**
-     * Services constructor.
+     * DatabaseRevision constructor.
+     * @param int $revision
      */
-    public function __construct()
+    public function __construct(int $revision = 0)
     {
-        parent::__construct();
-        $this->settings = new ArrayCollection();
+        $this->revision = $revision;
     }
 
     /**
-     * Add a service
+     * Get database revision
      *
-     * @param SettingInterface $setting
-     * @return Settings
+     * @return int
      */
-    public function addSetting(SettingInterface $setting): Settings
+    public function getRevision(): int
     {
-        $this->settings->add($setting);
-        return $this;
+        return $this->revision;
     }
 
     /**
-     * Remove a setting
+     * Set database revision
      *
-     * @param SettingInterface $setting
-     * @return Settings
+     * @param int $revision
+     * @return Revision
      */
-    public function removeService(SettingInterface $setting): Settings
+    public function setRevision(int $revision): Revision
     {
-        $this->settings->removeElement($setting);
+        $this->revision = $revision;
         return $this;
-    }
-
-    /**
-     * @return \ArrayIterator
-     */
-    public function getIterator(): \ArrayIterator
-    {
-        return $this->settings->getIterator();
     }
 }

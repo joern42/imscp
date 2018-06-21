@@ -18,50 +18,46 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP\Model\Store;
+namespace iMSCP\Model\Store\Setting;
 
-use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
+use iMSCP\Model\Store\Service\SettingInterface;
 
 /**
- * Class DatabaseRevision
- * @package iMSCP\Model\Store
- * @KeyValue\Entity(storageName="imscp_storage")
+ * Class CpLogLevel
+ * @package iMSCP\Model\Store\Setting
  */
-class DatabaseRevision extends StoreAbstract
+class CpLogLevel implements SettingInterface
 {
+    const NAME = 'CpLogLevel';
+
     /**
      * @var int
      */
-    private $revision;
+    private $logLEvel = E_USER_ERROR;
 
     /**
-     * DatabaseRevision constructor.
-     * @param int $revision
+     * @return string
      */
-    public function __construct(int $revision = 0)
+    public function getName()
     {
-        $this->revision = $revision;
+        return self::NAME;
     }
 
     /**
-     * Get database revision
-     *
      * @return int
      */
-    public function getRevision(): int
+    public function getLogLEvel(): int
     {
-        return $this->revision;
+        return $this->logLEvel;
     }
 
     /**
-     * Set database revision
-     *
-     * @param int $revision
-     * @return DatabaseRevision
+     * @param int $logLEvel
+     * @return CpLogLevel
      */
-    public function setRevision(int $revision): DatabaseRevision
+    public function setLogLEvel(int $logLEvel): CpLogLevel
     {
-        $this->revision = $revision;
+        $this->logLEvel = $logLEvel;
         return $this;
     }
 }
