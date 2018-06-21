@@ -18,23 +18,23 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-namespace iMSCP\Model\Store\Service;
+namespace iMSCP\Model\Store\Setting;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
 use iMSCP\Model\Store\StoreAbstract;
 
 /**
- * Class Services
+ * Class SettingCollection
  * @package iMSCP\Model\Store
  * @KeyValue\Entity(storageName="imscp_storage")
  */
-class Services extends StoreAbstract implements \IteratorAggregate
+class SettingCollection extends StoreAbstract implements \IteratorAggregate
 {
     /**
-     * @var Service[]
+     * @var SettingInterface[]
      */
-    private $services = [];
+    private $settings = [];
 
     /**
      * Services constructor.
@@ -42,30 +42,58 @@ class Services extends StoreAbstract implements \IteratorAggregate
     public function __construct()
     {
         parent::__construct();
-        $this->services = new ArrayCollection();
+        $this->settings = new ArrayCollection();
     }
 
     /**
-     * Add a service
+     * Return setting
      *
-     * @param Service $service
-     * @return Services
+     * @param string $name
+     * @return mixed|null
      */
-    public function addService(Service $service): Services
+    public function getSetting(string $name)
     {
-        $this->services->add($service);
+        $setting = $this->settings->get($name);
+        if (NULL === $this->settings) {
+            throw new \RuntimeException(sprintf("Couldn't find setting by name: %s", $name));
+        }
+
+        return $setting;
+    }
+
+    /**
+     * Add a setting
+     *
+     * @param SettingInterface $setting
+     * @return SettingCollection
+     */
+    public function addSetting(SettingInterface $setting): SettingCollection
+    {
+        $this->settings[$setting->getName()] = $setting;
         return $this;
     }
 
     /**
-     * Remove a service
+     * Remove a setting
      *
-     * @param Service $service
-     * @return Services
+     * @param SettingInterface $setting
+     * @return SettingCollection
      */
-    public function removeService(Service $service): Services
+    public function removeSetting(SettingInterface $setting): SettingCollection
     {
-        $this->services->removeElement($service);
+        $this->settings->removeElement($setting);
+        return $this;
+    }
+
+    /**
+     * Remove a setting by name
+     *
+     * @param string $name
+     * @return SettingCollection
+     */
+    public function removeSettingByName(string $name): SettingCollection
+    {
+        $this->settings->remove($name);
         return $this;
     }
 
@@ -74,6 +102,6 @@ class Services extends StoreAbstract implements \IteratorAggregate
      */
     public function getIterator(): \ArrayIterator
     {
-        return $this->services->getIterator();
+        return $this->settings->getIterator();
     }
 }
