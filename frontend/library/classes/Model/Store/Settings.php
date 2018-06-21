@@ -20,48 +20,59 @@
 
 namespace iMSCP\Model\Store;
 
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
 
 /**
- * Class DatabaseRevision
+ * Class Settings
  * @package iMSCP\Model\Store
  * @KeyValue\Entity(storageName="imscp_storage")
  */
-class DatabaseRevision extends StoreAbstract
+class Settings extends StoreAbstract implements \IteratorAggregate
 {
     /**
-     * @var int
+     * @var SettingInterface[]
      */
-    private $revision;
+    private $settings = [];
 
     /**
-     * DatabaseRevision constructor.
-     * @param int $revision
+     * Services constructor.
      */
-    public function __construct(int $revision = 0)
+    public function __construct()
     {
-        $this->revision = $revision;
+        parent::__construct();
+        $this->settings = new ArrayCollection();
     }
 
     /**
-     * Get database revision
+     * Add a service
      *
-     * @return int
+     * @param SettingInterface $setting
+     * @return Settings
      */
-    public function getRevision(): int
+    public function addSetting(SettingInterface $setting): Settings
     {
-        return $this->revision;
-    }
-
-    /**
-     * Set database revision
-     *
-     * @param int $revision
-     * @return DatabaseRevision
-     */
-    public function setRevision(int $revision): DatabaseRevision
-    {
-        $this->revision = $revision;
+        $this->settings->add($setting);
         return $this;
+    }
+
+    /**
+     * Remove a setting
+     *
+     * @param SettingInterface $setting
+     * @return Settings
+     */
+    public function removeService(SettingInterface $setting): Settings
+    {
+        $this->settings->removeElement($setting);
+        return $this;
+    }
+
+    /**
+     * @return \ArrayIterator
+     */
+    public function getIterator(): \ArrayIterator
+    {
+        return $this->settings->getIterator();
     }
 }

@@ -52,7 +52,7 @@ class Services extends StoreAbstract implements \IteratorAggregate
      */
     public function addService(Service $service): Services
     {
-        $this->services[$service->getName()] = $service;
+        $this->services->add($service);
         return $this;
     }
 
@@ -64,7 +64,7 @@ class Services extends StoreAbstract implements \IteratorAggregate
      */
     public function removeService(Service $service): Services
     {
-        unset($this->services[$service->getName()]);
+        $this->services->removeElement($service);
         return $this;
     }
 

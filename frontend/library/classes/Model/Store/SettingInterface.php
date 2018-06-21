@@ -20,48 +20,23 @@
 
 namespace iMSCP\Model\Store;
 
-use Doctrine\KeyValueStore\Mapping\Annotations as KeyValue;
-
 /**
- * Class DatabaseRevision
+ * Interface setting
  * @package iMSCP\Model\Store
- * @KeyValue\Entity(storageName="imscp_storage")
  */
-class DatabaseRevision extends StoreAbstract
+interface SettingInterface
 {
     /**
-     * @var int
-     */
-    private $revision;
-
-    /**
-     * DatabaseRevision constructor.
-     * @param int $revision
-     */
-    public function __construct(int $revision = 0)
-    {
-        $this->revision = $revision;
-    }
-
-    /**
-     * Get database revision
+     * Return setting value
      *
-     * @return int
+     * @return mixed
      */
-    public function getRevision(): int
-    {
-        return $this->revision;
-    }
+    public function getValue();
 
     /**
-     * Set database revision
+     * Set setting value
      *
-     * @param int $revision
-     * @return DatabaseRevision
+     * @return mixed
      */
-    public function setRevision(int $revision): DatabaseRevision
-    {
-        $this->revision = $revision;
-        return $this;
-    }
+    public function setValue();
 }
