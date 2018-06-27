@@ -38,7 +38,7 @@ class SetBackupType extends Type
      */
     public function convertToDatabaseValue($value, AbstractPlatform $platform)
     {
-        if (sizeof(array_diff_key($value, [self::MAIL_BACKUP, self::NO_BACKUP, self::SQL_BACKUP, self::SQL_BACKUP]) > 0)
+        if (sizeof(array_diff($value, [self::MAIL_BACKUP, self::NO_BACKUP, self::SQL_BACKUP, self::SQL_BACKUP]) > 0)
             || sizeof($value) > 1 && in_array('', $value)
         ) {
             throw new \InvalidArgumentException("Invalid backup type");
