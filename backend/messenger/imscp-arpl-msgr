@@ -33,7 +33,7 @@ iMSCP::Bootstrapper->getInstance()->boot( {
 } );
 
 my $dbh = iMSCP::Database->getInstance();
-$dbh->do( "DELETE FROM `autoreplies_log` WHERE ADDTIME(`time`, '24:00:00') < NOW()" );
+$dbh->do( "DELETE FROM imscp_autoreply_log WHERE ADDTIME(autoreplyTime, '24:00:00') < NOW()" );
 
 ( my $from = $ARGV[0] ) =~ s/imscp-arpl\.//;
 my $message = do {
@@ -64,7 +64,7 @@ exit if ( $mimeHeaders->get( 'x-spam-flag' ) && $mimeHeaders->get( 'x-spam-flag'
     || $mimeHeaders->get( 'x-autoresponse-from' );
 
 # Get recipient address
-my ( $to ) = Mail::Address->parse( $mimeHeaders->get( 'from' )) or die( "Couldn't parse `From' MIME header" );
+my ( $to ) = Mail::Address->parse( $mimeHeaders->get( 'from' )) or die( "Couldn't parse 'From' MIME header" );
 $to = $to->address();
 
 # Get original subject
@@ -72,7 +72,7 @@ my $subject = $mimeHeaders->get( 'subject' );
 undef $mimeHeaders;
 
 # Exit early if the same compound from/to has been already processed within the last 24 hours
-exit $dbh->selectrow_array(
+exit if $dbh->selectrow_array(
     "
         SELECT COUNT(autoreplyTime)
         FROM imscp_autoreply_log
@@ -87,7 +87,7 @@ exit $dbh->selectrow_array(
 );
 # Exit early if there are not autoresponder message available
 exit unless my $autoreplyMsg = $dbh->selectrow_array(
-    'SELECT autoreply FROM mail_mailbox WHERE mailbox = ? AND isAutoreplyActive = 1', undef, $from
+    'SELECT autoreply FROM imscp_mail_mailbox WHERE mailbox = ? AND isAutoreplyActive = 1', undef, $from
 );
 
 # Build new multipart MIME message
