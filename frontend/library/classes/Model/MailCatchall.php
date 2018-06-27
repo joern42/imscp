@@ -23,7 +23,7 @@ namespace iMSCP\Model;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Class imscp_mail_catchall
+ * Class MailCatchall
  * @ORM\Entity
  * @ORM\Table(name="imscp_mail_catchall", options={"charset":"utf8mb4", "collate":"utf8mb4_general_ci", "row_format":"DYNAMIC"})
  * @package iMSCP\Model
@@ -53,10 +53,11 @@ class MailCatchall
     private $catchallAddresses;
 
     /**
+     * MailCatchall constructor.
      * @param MailDomain $mailDomain
      * @param array $catchallAddresses
      */
-    public function construct(MailDomain $mailDomain, array $catchallAddresses)
+    public function __construct(MailDomain $mailDomain, array $catchallAddresses)
     {
         $this->setMailDomain($mailDomain);
         $this->setCatchallAddresses($catchallAddresses);
