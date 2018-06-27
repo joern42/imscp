@@ -307,6 +307,7 @@
         <package>libdata-compare-perl</package>
         <package>libdata-validate-domain-perl</package>
         <package>libdata-validate-ip-perl</package>
+        <package>libdomain-publicsuffix-perl</package>
         <package>libtimedate-perl</package>
         <package>libdatetime-timezone-perl</package>
         <package>libdbi-perl</package>
@@ -356,6 +357,9 @@
         <package>pbzip2</package>
         <package>pigz</package>
         <package>policyrcd-script-zg2</package>
+        <package>publicsuffix</package>
+        <package>quota</package>
+        <package>quotatool</package>
         <package>ruby</package>
         <package>tar</package>
         <package>unzip</package>
