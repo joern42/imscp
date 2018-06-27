@@ -73,11 +73,21 @@ undef $mimeHeaders;
 
 # Exit early if the same compound from/to has been already processed within the last 24 hours
 exit $dbh->selectrow_array(
-    "SELECT COUNT(`time`) FROM `autoreplies_log` WHERE `from` = ? AND `to` = ? AND ADDTIME(`time`, '24:00:00') > NOW()", undef, $from, $to
+    "
+        SELECT COUNT(autoreplyTime)
+        FROM imscp_autoreply_log
+        WHERE autoreplyFrom = ?
+        AND autoreplTo = ?
+        AND ADDTIME(autoreplyTime, '24:00:00') > NOW()
+        LIMIT 1
+    ",
+    undef,
+    $from,
+    $to
 );
 # Exit early if there are not autoresponder message available
-exit unless my $autorespondMsg = $dbh->selectrow_array(
-    'SELECT `mail_auto_respond_text` FROM `mail_users` WHERE `mail_addr` = ? AND `mail_auto_respond` = 1', undef, $from
+exit unless my $autoreplyMsg = $dbh->selectrow_array(
+    'SELECT autoreply FROM mail_mailbox WHERE mailbox = ? AND isAutoreplyActive = 1', undef, $from
 );
 
 # Build new multipart MIME message
@@ -95,7 +105,7 @@ $mimeEntity->attach(
     Type        => 'text/plain; charset=utf-8',
     Encoding    => '8bit',
     Description => 'Mail User Auto-Reply Message',
-    Data        => encode( 'utf8', $autorespondMsg )
+    Data        => encode( 'utf8', $autoreplyMsg )
 );
 
 # Attach original message
@@ -110,8 +120,8 @@ open my $fh, '|-', '/usr/sbin/sendmail', '-t', '-oi' or die( sprintf( "Couldn't 
 $mimeEntity->print( $fh );
 close $fh;
 
-# Add sender marker to avoid further processing within the next 24 hours
-$dbh->do( 'INSERT INTO `autoreplies_log` (`time`, `from`, `to`) VALUES (NOW(),?,?)', undef, $from, $to );
+# Log autoreply to avoid further processing within the next 24 hours
+$dbh->do( 'INSERT INTO imscp_autoreply_log (autoreplyTime, autoreplyFrom, autoreplTo) VALUES (NOW(),?,?)', undef, $from, $to );
 
 1;
 __END__
