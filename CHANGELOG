@@ -15,6 +15,9 @@ CONFIG
     Review: SSL parameters for both Apache2 and Nginx Web servers
     Review: Do not discard paths other than '/errors/' and '/.well-known/acme-challenge/' on redirect/proxy (Apache2)
 
+CONTRIB
+    Fixed: Possible duplicate DNS zone entry leading to server crash (Slave DNS server - 10_named_slave_provisioning.pl listener file)
+
 DISTRIBUTION
     Added: Support for Ubuntu Bionic Beaver (18.04) LTS
 
