@@ -8,11 +8,11 @@ BACKEND
     Fixed: Use of uninitialized value in bitwise or ( |) (PHP memory_limit, Subdomain module)
 
 CONFIG
-    Added: Missing LOGROTATE(8) for SYSLOG-NG(8) which can be installed on some system in place of RSYSLOGD(8) -- Backported from 1.6.x
-    Added: Specific LOGROTATE(8) configuration file for rsyslog (Ubuntu 14.04/Trusty Thar) -- Backported from 1.6.x
-    Fixed: Bad value for X-Forward-* headers (Proxy feature / Apache2 ssl vhosts) -- Backported from 1.6.x
-    Security: Protect both /var/www/virtual and /var/www/imscp directories from entire access (Apache2)
-    Review: SSL parameters for both Apache2 and Nginx Web servers
+    Added: Missing LOGROTATE(8) for SYSLOG-NG(8) which can be installed on some system in place of RSYSLOGD(8) (Fix backported from 1.6.x branch)
+    Added: Specific LOGROTATE(8) configuration file for rsyslog (Ubuntu 14.04/Trusty Thar; Fix backported from 1.6.x branch)
+    Fixed: Bad value for X-Forward-* headers (Proxy feature / Apache2 ssl vhosts; Fix backported from 1.6.x branch)
+    Security: Protect both /var/www/virtual and /var/www/imscp directories from full access (Apache2)
+    Review: SSL parameters for both Apache2 and Nginx Web servers (cipher suite)
     Review: Do not discard paths other than '/errors/' and '/.well-known/acme-challenge/' on redirect/proxy (Apache2)
 
 CONTRIB
@@ -25,7 +25,9 @@ FRONTEND
     Fixed: Closing button being removed in all dialog UI while it must be removed only in alert and confirmation dialogs
 
 INSTALLER
-    Fixed: DIRMNGR(8) daemon not being terminated when expected (APT key management -- Debian adapter) -- Backported from 1.6.x
+    Fixed: 'CLIENT_DOMAIN_ALT_URLS' configuration parameter reseted to 0 (disabled) while running installer (Fix backported from 1.6.x branch)
+    Fixed: 'CLIENT_DOMAIN_ALT_URLS' parameter is not set on fresh installations (Fix backported from 1.6.x branch)
+    Fixed: DIRMNGR(8) daemon not being terminated when expected (APT key management -- Debian adapter; Fix backported from 1.6.x branch)
 
 TOOLS
     Backported: imscp-get-master-sql-user-pwd.pl script from 1.6.x branch (Script that make possible to retrieve i-MSCP master SQL user and password)
@@ -35,6 +37,7 @@ YOUTRACK
     IP-1785 Exception in circular email feature (admin and reseller interfaces)
     IP-1786 Customer assignment (to reseller) not showing all clients
     IP-1787 Typo in external mail feature activation
+    IP-1751 CLIENT_DOMAIN_ALT_URLS reseted
 
 ------------------------------------------------------------------------------------------------------------------------
 1.5.3

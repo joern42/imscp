@@ -34,7 +34,7 @@ use Net::LibIDN qw/ idn_to_ascii /;
 use parent 'Exporter';
 
 our @EXPORT = qw/isValidUsername isValidPassword isValidEmail isValidHostname isValidDomain isValidIpAddr
-isValidTimezone isValidDbName isNumber isNumberInRange isStringNotInList isValidNumberRange isNotEmpty
+isValidTimezone isValidDbName isNumber isNumberInRange isStringInList isStringNotInList isValidNumberRange isNotEmpty
 isAvailableSqlUser/;
 
 our $lastValidationError = '';
@@ -394,11 +394,42 @@ EOF
     0;
 }
 
+
+=item isStringInList( $string, @stringList )
+
+ Is the given string in the given list?
+
+ Note: Comparison is case-sensitive.
+
+ Param string string String
+ Param list @stringList String list
+ Return bool TRUE if the given string is the given list, FALSE otherwise, croak on failure
+
+=cut
+
+sub isStringInList( $@ )
+{
+    my ( $string, @stringList ) = @_;
+
+    defined $string or die( 'Missing $string parameter' );
+
+    $lastValidationError = '';
+    return 1 if grep { $string eq $_ } @stringList;
+
+    my $entries = join ', ', @stringList;
+    $lastValidationError = <<"EOF";
+\\Z1Invalid entry.\\Zn
+
+ - Following entries are allowed: $entries
+EOF
+    0;
+}
+
 =item isStringNotInList( $string, @stringList )
 
  Is the given string not in the given string list?
 
- Note: Comparison is case-insensitive
+ Note: Comparison is case-sensitive.
 
  Param string string String
  Param list @stringList String list
@@ -412,7 +443,7 @@ sub isStringNotInList( $@ )
 
     defined $string or die( 'Missing $string parameter' );
 
-    return 1 unless grep { lc $string eq lc $_ } @stringList;
+    return 1 unless grep { $string eq $_ } @stringList;
 
     my $entries = join ', ', @stringList;
     $lastValidationError = <<"EOF";

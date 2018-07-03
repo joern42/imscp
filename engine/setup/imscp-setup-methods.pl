@@ -543,12 +543,12 @@ sub setupGetQuestion
     $default //= '';
 
     if ( iMSCP::Getopt->preseed ) {
-        return exists $main::questions{$qname} && $main::questions{$qname} ne '' ? $main::questions{$qname} : $default;
+        return length $main::questions{$qname} ? $main::questions{$qname} : $default // '';
     }
 
-    exists $main::questions{$qname}
-        ? $main::questions{$qname}
-        : ( exists $main::imscpConfig{$qname} && $main::imscpConfig{$qname} ne '' ? $main::imscpConfig{$qname} : $default );
+    return $main::questions{$qname} if length $main::questions{$qname};
+
+    exists $main::imscpConfig{$qname} && length $main::imscpConfig{$qname} ? $main::imscpConfig{$qname} : $default // '';
 }
 
 sub setupSetQuestion
