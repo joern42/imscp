@@ -4,6 +4,9 @@
 Git 1.5.x
 ------------------------------------------------------------------------------------------------------------------------
 
+BACKEND
+    Fixed: Use of uninitialized value in bitwise or ( |) (PHP memory_limit, Subdomain module)
+
 CONFIG
     Added: Missing LOGROTATE(8) for SYSLOG-NG(8) which can be installed on some system in place of RSYSLOGD(8) -- Backported from 1.6.x
     Added: Specific LOGROTATE(8) configuration file for rsyslog (Ubuntu 14.04/Trusty Thar) -- Backported from 1.6.x
