@@ -374,6 +374,8 @@
         <package>ssh</package>
         <package>sudo</package>
         <package>tar</package>
+        <package_conflict>nplan</package_conflict>
+        <package_conflict>netplan.io</package_conflict>
     </other>
     <sendmail>
         <package_conflict>sendmail</package_conflict>
