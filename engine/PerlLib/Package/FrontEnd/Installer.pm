@@ -501,11 +501,11 @@ sub askAltUrlsFeature
 {
     my (undef, $dialog) = @_;
 
-    my $altUrlsFeature = main::setupGetQuestion( 'CLIENT_DOMAIN_ALT_URLS');
+    my $altUrlsFeature = main::setupGetQuestion( 'CLIENT_DOMAIN_ALT_URLS' );
     my $rs = 0;
 
     if ( $main::reconfigure =~ /^(?:panel|alt_urls_feature|all|forced)$/
-        || !isStringInList($altUrlsFeature, ['yes', 'no'])
+        || !isStringInList($altUrlsFeature, 'yes', 'no')
     ) {
         ($rs, $altUrlsFeature) = $dialog->radiolist( <<'EOF', ['yes', 'no'], $altUrlsFeature eq 'yes' ? 'yes' : 'no');
 
