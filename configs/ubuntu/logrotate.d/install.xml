@@ -8,7 +8,7 @@
         exists, unless the 'kept' expression evaluate to TRUE.
     -->
     <copy_config if="'${DISTRO_CODENAME}' ne 'trusty' &amp;&amp; -x '/usr/sbin/rsyslogd'" kept="-x '/usr/sbin/rsyslogd">
-        ${SYSTEM_ETC_DIR}/logrotate.d/rsyslog
+        ${ROOT_CONF}/logrotate.d/rsyslog
     </copy_config>
     <!--
         The rsyslog LOGROTATE(8) configuration file is copied only when the
