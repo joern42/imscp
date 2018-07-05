@@ -836,7 +836,7 @@ sub _processXmlFile
     eval "use XML::Simple; 1";
     fatal( "Couldn't load the XML::Simple perl module" ) if $@;
     my $xml = XML::Simple->new( ForceArray => 1, ForceContent => 1 );
-    my $data = eval { $xml->XMLin( $file, VarAttr => 'export' ) };
+    my $data = eval { $xml->XMLin( $file, VarAttr => 'export', NormaliseSpace => 2 ) };
     if ( $@ ) {
         error( $@ );
         return 1;
