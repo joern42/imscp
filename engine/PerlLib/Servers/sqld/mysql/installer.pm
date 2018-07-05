@@ -93,9 +93,7 @@ sub masterSqlUserDialog
     my $port = main::setupGetQuestion( 'DATABASE_PORT' );
     my $user = main::setupGetQuestion( 'DATABASE_USER', 'imscp_user' );
     $user = 'imscp_user' if lc( $user ) eq 'root'; # Handle upgrade case
-    my $pwd = main::setupGetQuestion(
-        'DATABASE_PASSWORD', ( iMSCP::Getopt->preseed ) ? randomStr( 16, iMSCP::Crypt::ALNUM ) : ''
-    );
+    my $pwd = main::setupGetQuestion( 'DATABASE_PASSWORD', ( iMSCP::Getopt->preseed ) ? randomStr( 16, iMSCP::Crypt::ALNUM ) : '' );
     $pwd = decryptRijndaelCBC( $main::imscpDBKey, $main::imscpDBiv, $pwd ) unless $pwd eq '' || iMSCP::Getopt->preseed;
     my $rs = 0;
 
@@ -169,14 +167,13 @@ sub sqlUserHostDialog
 
     my $hostname = main::setupGetQuestion( 'DATABASE_USER_HOST', main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' ));
     if ( grep($hostname eq $_, ( 'localhost', '127.0.0.1', '::1' )) ) {
+        # Handle switch case (default value). Host cannot be one of above value
+        # when using remote SQL server 
         $hostname = main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
     }
 
     if ( $main::reconfigure =~ /^(?:sql|servers|all|forced)$/
-        || ( $hostname ne '%'
-        && !isValidHostname( $hostname )
-        && !isValidIpAddr( $hostname, qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ )
-    )
+        || ( $hostname ne '%' && !isValidHostname( $hostname ) && !isValidIpAddr( $hostname ) )
     ) {
         my ($rs, $msg) = ( 0, '' );
         do {
@@ -185,10 +182,7 @@ sub sqlUserHostDialog
 Please enter the host from which SQL users created by i-MSCP must be allowed to connect:$msg
 EOF
             $msg = '';
-            if ( $hostname ne '%'
-                && !isValidHostname( $hostname )
-                && !isValidIpAddr( $hostname, qr/^(?:PUBLIC|GLOBAL-UNICAST)$/ )
-            ) {
+            if ( $hostname ne '%' && !isValidHostname( $hostname ) && !isValidIpAddr( $hostname ) ) {
                 $msg = $iMSCP::Dialog::InputValidation::lastValidationError;
             }
         } while $rs < 30 && $msg;
@@ -356,11 +350,15 @@ sub _askSqlRootUser
     my $hostname = main::setupGetQuestion(
         'DATABASE_HOST', ( $main::imscpConfig{'SQL_PACKAGE'} eq 'Servers::sqld::remote' ) ? '' : 'localhost'
     );
+
     if ( $main::imscpConfig{'SQL_PACKAGE'} eq 'Servers::sqld::remote'
         && grep { $hostname eq $_ } ( 'localhost', '127.0.0.1', '::1' )
     ) {
+        # Handle switch case (default value). Host cannot be one of above value
+        # when using remote SQL server
         $hostname = '';
     }
+
     my $port = main::setupGetQuestion( 'DATABASE_PORT', 3306 );
     my $user = main::setupGetQuestion( 'SQL_ROOT_USER', 'root' );
     my $pwd = main::setupGetQuestion( 'SQL_ROOT_PASSWORD' );
