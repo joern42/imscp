@@ -595,7 +595,7 @@ sub askAltUrlsFeature
 
 Do you want to enable the alternative URLs feature for client domains?
 
-This feature allows the clients to access their websites through alternative URLs such as http://dmn1.panel.domain.tld
+This feature make clients able to access their websites through alternative URLs such as http://dmn1.panel.domain.tld
 \\Z \\Zn
 EOF
         return $rs unless $rs < 30;

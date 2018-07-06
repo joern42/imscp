@@ -93,7 +93,7 @@ EOF
 
     ::setupSetQuestion( $ucPackageName, @{ $self->{'SELECTED_PACKAGES'} } ? join ',', @{ $self->{'SELECTED_PACKAGES'} } : 'no' );
 
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         next unless $_->can( 'showDialog' );
 
         debug( sprintf( 'Executing showDialog action on %s', ref $_ ));
@@ -115,22 +115,18 @@ sub preinstall
     my ( $self ) = @_;
 
     my @distroPackages = ();
-    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-        next if grep $package eq $_, @{ $self->{'SELECTED_PACKAGES'} };
-        $package = "iMSCP::Packages::Webmails::${package}::${package}";
-        eval "require $package" or die( $@ );
-
+    for my $package ( $self->getUnselectedPackages() ) {
         debug( sprintf( 'Executing uninstall action on %s', $package ));
-        $package->getInstance()->uninstall();
+        $package->uninstall();
 
         debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
-        push @distroPackages, $package->getInstance()->getDistroPackages();
+        push @distroPackages, $package->getDistroPackages();
     }
 
     $self->_uninstallPackages( @distroPackages );
 
     @distroPackages = ();
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing preinstall action on %s', ref $_ ));
         $_->preinstall();
 
@@ -151,7 +147,7 @@ sub install
 {
     my ( $self ) = @_;
 
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing install action on %s', ref $_ ));
         $_->install();
     }
@@ -167,7 +163,7 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing postinstall action on %s', ref $_ ));
         $_->postinstall();
     }
@@ -183,7 +179,7 @@ sub preuninstall
 {
     my ( $self ) = @_;
 
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing install action on %s', ref $_ ));
         $_->preuninstall();
     }
@@ -200,7 +196,7 @@ sub uninstall
     my ( $self ) = @_;
 
     my @distroPackages = ();
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing uninstall action on %s', ref $_ ));
         $_->uninstall();
 
@@ -221,7 +217,7 @@ sub postuninstall
 {
     my ( $self ) = @_;
 
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing postuninstall action on %s', ref $_ ));
         $_->postuninstall();
     }
@@ -237,7 +233,7 @@ sub setBackendPermissions
 {
     my ( $self ) = @_;
 
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing setBackendPermissions action on %s', ref $_ ));
         $_->setBackendPermissions();
     }
@@ -253,7 +249,7 @@ sub setFrontendPermissions
 {
     my ( $self ) = @_;
 
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing setFrontendPermissions action on %s', ref $_ ));
         $_->setFrontendPermissions();
     }
@@ -269,13 +265,13 @@ sub dpkgPostInvokeTasks
 {
     my ( $self ) = @_;
 
-    for ( $self->getCollection() ) {
+    for ( $self->getSelectedPackages() ) {
         debug( sprintf( 'Executing dpkgPostInvokeTasks action on %s', ref $_ ));
         $_->dpkgPostInvokeTasks();
     }
 }
 
-=item getCollection()
+=item getSelectedPackages()
 
  Get list of selected package instances from this collection, sorted in descending order of priority
 
@@ -283,16 +279,46 @@ sub dpkgPostInvokeTasks
 
 =cut
 
-sub getCollection
+sub getSelectedPackages
 {
     my ( $self ) = @_;
 
-    @{ $self->{'_package_instances'} } = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
+    @{ $self->{'_selected_package_instances'} } = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
         my $package = "iMSCP::Packages::@{ [ $self->getPackageName() ] }::${_}";
         eval "require $package; 1" or die( $@ );
         $package->getInstance();
-    } @{ $self->{'SELECTED_PACKAGES'} } unless $self->{'_package_instances'};
-    @{ $self->{'_package_instances'} };
+    } @{ $self->{'SELECTED_PACKAGES'} } unless $self->{'_selected_package_instances'};
+
+    @{ $self->{'_selected_package_instances'} };
+}
+
+=item getUnselectedPackages()
+
+ Get list of unselected package instances from this collection, sorted in descending order of priority
+
+ Return list of package instances
+
+=cut
+
+sub getUnselectedPackages
+{
+    my ( $self ) = @_;
+
+    unless ( $self->{'_unselected_package_instances'} ) {
+        my @unselectedPackages;
+        for my $package ( $self->{'AVAILABLE_PACKAGES'} ) {
+            next if grep ($package eq $_, @{ $self->{'SELECTED_PACKAGES'} });
+            push @unselectedPackages, $package;
+        }
+
+        @{ $self->{'_unselected_package_instances'} } = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
+            my $package = "iMSCP::Packages::@{ [ $self->getPackageName() ] }::${_}";
+            eval "require $package; 1" or die( $@ );
+            $package->getInstance();
+        } @unselectedPackages;
+    }
+
+    @{ $self->{'_unselected_package_instances'} };
 }
 
 =item AUTOLOAD()
@@ -313,7 +339,7 @@ sub AUTOLOAD
     $method =~ /^
         (?:pre|post)?
         (?:add|disable|restore|delete)
-        (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddr|Mail|SSLcertificate|Subdomain|User)
+        (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddress|Mail|SSLcertificate|Subdomain|User)
         $/x or die( sprintf( 'Unknown %s method', $AUTOLOAD ));
 
     # Define the method
@@ -321,7 +347,7 @@ sub AUTOLOAD
     *{ $AUTOLOAD } = sub {
         my ( $self, $moduleData ) = @_;
 
-        for ( $self->getCollection() ) {
+        for ( $self->getSelectedPackages() ) {
             debug( sprintf( 'Executing %s action on %s', $method, ref $_ ));
             $_->$method( $moduleData );
         }

@@ -492,7 +492,7 @@ password = "@{ [ decryptRijndaelCBC($::imscpKEY, $::imscpIV, ::setupGetQuestion(
 EOF
     $mysqlConffile->close();
 
-    my $rs = execute( "mysql --defaults-extra-file=$mysqlConffile < $schemaFilePath", \my $stdout, \my $stderr );
+    my $rs = execute( "mysql --defaults-file=$mysqlConffile < $schemaFilePath", \my $stdout, \my $stderr );
     debug( $stdout ) if length $stdout;
     $rs == 0 or die( $stderr || 'Unknown error' ) if $rs;
 }

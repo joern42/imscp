@@ -48,43 +48,6 @@ our $VERSION = '2.0.0';
 
 =over 4
 
-=item preinstall( )
-
- See iMSCP::Packages::AbstractCollection::preinstall()
-
-=cut
-
-sub preinstall
-{
-    my ( $self ) = @_;
-
-    my @distroPackages = ();
-    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-        next if grep $package eq $_, @{ $self->{'SELECTED_PACKAGES'} };
-        $package = "iMSCP::Packages::Setup::AntiRootkits::${package}";
-        eval "require $package" or die( $@ );
-
-        debug( sprintf( 'Executing uninstall action on %s', $package ));
-        $package->getInstance()->uninstall();
-
-        debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
-        push @distroPackages, $package->getInstance()->getDistroPackages();
-    }
-
-    $self->_uninstallPackages( @distroPackages );
-
-    @distroPackages = ();
-    for ( $self->getCollection() ) {
-        debug( sprintf( 'Executing preinstall action on %s', ref $_ ));
-        $_->preinstall();
-
-        debug( sprintf( 'Executing getDistroPackages action on %s', ref $_ ));
-        push @distroPackages, $_->getDistroPackages();
-    }
-
-    $self->_installPackages( @distroPackages );
-}
-
 =item getPackageName( )
 
  See iMSCP::Packages::Abstract::getPackageName()
@@ -124,13 +87,13 @@ sub getPackageVersion
     $self->getPackageImplVersion();
 }
 
-=item getCollection()
+=item getSelectedPackages()
 
- See iMSCP::Packages::AbstractCollection::getCollection()
+ See iMSCP::Packages::AbstractCollection::getSelectedPackages()
 
 =cut
 
-sub getCollection
+sub getSelectedPackages
 {
     my ( $self ) = @_;
 
@@ -139,7 +102,37 @@ sub getCollection
         eval "require $package; 1" or die( $@ );
         $package->getInstance();
     } @{ $self->{'SELECTED_PACKAGES'} } unless $self->{'_package_instances'};
+
     @{ $self->{'_package_instances'} };
+}
+
+=item getUnselectedPackages()
+
+ Get list of unselected package instances from this collection, sorted in descending order of priority
+
+ Return list of package instances
+
+=cut
+
+sub getUnselectedPackages
+{
+    my ( $self ) = @_;
+
+    unless ( $self->{'_unselected_package_instances'} ) {
+        my @unselectedPackages;
+        for my $package ( $self->{'AVAILABLE_PACKAGES'} ) {
+            next if grep ($package eq $_, @{ $self->{'SELECTED_PACKAGES'} });
+            push @unselectedPackages, $package;
+        }
+
+        @{ $self->{'_unselected_package_instances'} } = sort { $b->getPackagePriority() <=> $a->getPackagePriority() } map {
+            my $package = "iMSCP::Packages::Setup::@{ [ $self->getPackageName() ] }::${_}";
+            eval "require $package; 1" or die( $@ );
+            $package->getInstance();
+        } @unselectedPackages;
+    }
+
+    @{ $self->{'_unselected_package_instances'} };
 }
 
 =back

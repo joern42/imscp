@@ -95,7 +95,7 @@ sub imscpBackupDialog
 
 \\Z4\\Zb\\Zui-MSCP Backup Feature\\Zn
 
-Do you want to activate the backup feature for i-MSCP (config files and database)?
+Do you want to activate the backup feature for i-MSCP?
 \\Z \\Zn
 EOF
         return $rs if $rs >= 30;
@@ -118,7 +118,7 @@ sub customersBackupDialog
 {
     my ( $self, $dialog ) = @_;
 
-    my $value = ::setupGetQuestion( 'BACKUP_DOMAINS', iMSCP::Getopt->preseed ? 'yes' : '' );
+    my $value = ::setupGetQuestion( 'BACKUP_FEATURE', iMSCP::Getopt->preseed ? 'yes' : '' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
@@ -132,7 +132,7 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    ::setupSetQuestion( 'BACKUP_DOMAINS', $value );
+    ::setupSetQuestion( 'BACKUP_FEATURE', $value );
     0;
 }
 
@@ -195,7 +195,7 @@ sub install
         } );
     }
 
-    if ( ::setupGetQuestion( 'BACKUP_DOMAINS' ) eq 'yes' ) {
+    if ( ::setupGetQuestion( 'BACKUP_FEATURE' ) eq 'yes' ) {
         $cronServer->addTask( {
             TASKID  => __PACKAGE__ . '::Customers',
             MINUTE  => length $::imscpConfig{'BACKUP_MINUTE'} ? $::imscpConfig{'BACKUP_MINUTE'} : 40,
