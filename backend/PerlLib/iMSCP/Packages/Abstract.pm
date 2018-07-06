@@ -243,7 +243,7 @@ sub getPackageName
 
  For instance: Roundcube 1.3.4
 
- Return string Humanized service name
+ Return string Humanized package name
 
 =cut
 
@@ -258,7 +258,7 @@ sub getPackageHumanName
 
  Return package version, generally the version of the service provided by the package but not always
 
- Return string Service version
+ Return string Package version
 
 =cut
 
@@ -435,7 +435,7 @@ sub AUTOLOAD
     $method =~ /^
         (?:pre|post)?
         (?:add|disable|restore|delete)
-        (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddr|Mail|SSLcertificate|Subdomain|User)
+        (?:Domain|CustomDNS|FtpUser|Htaccess|Htgroup|Htpasswd|IpAddress|Mail|SSLcertificate|Subdomain|User)
         $/x or die( sprintf( 'Unknown %s method', $AUTOLOAD ));
 
     # Define the subroutine to prevent further AUTOLOADING

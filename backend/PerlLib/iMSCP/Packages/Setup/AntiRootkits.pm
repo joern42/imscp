@@ -108,9 +108,7 @@ sub getSelectedPackages
 
 =item getUnselectedPackages()
 
- Get list of unselected package instances from this collection, sorted in descending order of priority
-
- Return list of package instances
+ See iMSCP::Packages::AbstractCollection::getUnselectedPackages()
 
 =cut
 
