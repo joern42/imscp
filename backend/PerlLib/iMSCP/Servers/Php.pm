@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers::Php - Factory and abstract implementation for the i-MSCP php servers
+ iMSCP::Servers::Php - Factory and abstract implementation for the i-MSCP PHP servers
 
 =cut
 
@@ -40,7 +40,7 @@ use parent 'iMSCP::Servers::Abstract';
 
 =head1 DESCRIPTION
 
- This class provides a factory and an abstract implementation for the i-MSCP php servers.
+ This class provides a factory and an abstract implementation for the i-MSCP PHP servers.
 
  TODO (Enterprise Edition):
  - Depending of selected Httpd server, customer should be able to choose between several SAPI:
@@ -84,7 +84,9 @@ sub registerSetupListeners
     $self->{'eventManager'}->registerOne(
         'beforeSetupDialog',
         sub {
-            push @{ $_[0] }, sub { $self->askForPhpVersion( @_ ) }, sub { $self->askForPhpSapi( @_ ) },
+            push @{ $_[0] },
+                sub { $self->askForPhpVersion( @_ ) },
+                sub { $self->askForPhpSapi( @_ ) },
                 sub { $self->askForFastCGIconnectionType( @_ ) };
         },
         # We want show these dialogs after the httpd server dialog because
@@ -106,10 +108,7 @@ sub askForPhpVersion
 {
     my ( $self, $dialog ) = @_;
 
-    ( my @availablePhpVersions = sort grep ( /\d+.\d+/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs()) ) or die(
-        "Couldn't guess list of available PHP versions"
-    );
-
+    my @availablePhpVersions = $self->getAvailablePhpVersions();
     my %choices;
     @{choices}{@availablePhpVersions} = map { "PHP $_" } @availablePhpVersions;
 
@@ -127,8 +126,6 @@ Please choose the PHP version for the customers:
 EOF
         return $rs unless $rs < 30;
     }
-
-    $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} = "@availablePhpVersions";
 
     ::setupSetQuestion( 'PHP_VERSION', $value );
     $self->{'config'}->{'PHP_VERSION'} = $value;
@@ -292,6 +289,23 @@ sub getServerVersion
     my ( $self ) = @_;
 
     $self->{'config'}->{'PHP_VERSION'};
+}
+
+=item getAvailablePhpVersions( )
+
+ Return list of available PHP versions
+
+ List must be PHP MAJOR.MINOR version strings such as 5.6, 7.0, 7.1, 7.2 ...
+
+ Return List of available PHP versions, die on failure
+
+=cut
+
+sub getAvailablePhpVersions
+{
+    my ( $self ) = @_;
+
+    die( sprintf( 'The %s class must implement the getAvailablePhpVersions() method', ref $self ));
 }
 
 =item addDomain( \%moduleData )
@@ -469,8 +483,8 @@ sub _init
     ref $self ne __PACKAGE__ or croak( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     # Check for properties that must be defined in concret server implementations
-    for my $prop ( qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR / ) {
-        defined $self->{$prop } or die( sprintf( 'The %s package must define the %s property', ref $self, $prop ));
+    for my $property ( qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR / ) {
+        defined $self->{$property} or die( sprintf( 'The %s package must define the %s property', ref $self, $property ));
     }
 
     @{ $self }{qw/ reload restart _templates cfgDir httpd /} = ( {}, {}, {}, "$::imscpConfig{'CONF_DIR'}/php", iMSCP::Servers::Httpd->factory() );
@@ -485,6 +499,8 @@ sub _init
 
  Set full version for selected PHP version
 
+ Full version = MAJOR.MINOR.TINY version such as 5.6.32
+ 
  Return void, croak on failure
 
 =cut

@@ -2,9 +2,6 @@
 ### PHP common parameters
 ##
 
-# List of available PHP versions
-PHP_AVAILABLE_VERSIONS =
-
 # Selected PHP alternative for customers
 PHP_VERSION =
 PHP_VERSION_FULL =

@@ -77,7 +77,7 @@ sub preinstall
     # Disable PHP session cleaner services as we don't rely on them
     # FIXME: One administrator could rely on those services (outside of i-MSCP)
     # FIXME: If re-enabled, we should also disable the /etc/cron.d/php cron task
-    # FIXME Are thse services provided for other init system than systemd?
+    # FIXME Are these services provided for other init system than systemd?
     #for my $service ( qw/ phpsessionclean phpsessionclean.timer / ) {
     #    next unless $srvProvider->hasService( $service );
     #    $srvProvider->stop( $service );
@@ -90,7 +90,7 @@ sub preinstall
     #    }
     #}
 
-    for my $version ( @{ $self->{'_available_php_versions'} } ) {
+    for my $version ( $self->getAvailablePhpVersions() ) {
         # Tasks for apache2handler SAPI
         if ( $httpdSname eq 'Apache' && $self->{'config'}->{'PHP_SAPI'} ne 'apache2handler' || $self->{'config'}->{'PHP_VERSION'} ne $version ) {
             # Disable Apache PHP module if PHP version is other than selected PHP alternative
@@ -164,7 +164,7 @@ sub install
     };
 
     # Configure all PHP versions (even those which are disabled)
-    for my $version ( @{ $self->{'_available_php_versions'} } ) {
+    for my $version ( $self->getAvailablePhpVersions() ) {
         $serverData->{'PHP_VERSION'} = $version;
 
         # Master php.ini file for apache2handler, cli, cgi and fpm SAPIs
@@ -243,8 +243,24 @@ sub uninstall
     my ( $self ) = @_;
 
     $self->{'httpd'}->removeModules( 'fcgid_imscp' ) if $self->{'httpd'}->getServerName() eq 'Apache';
-    iMSCP::File->new( filename => "/etc/init/php$_-fpm.override" )->remove() for split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'};
+    iMSCP::File->new( filename => "/etc/init/php$_-fpm.override" )->remove() for $self->getAvailablePhpVersions();
     iMSCP::Dir->new( dirname => $self->{'config'}->{'PHP_FCGI_STARTER_DIR'} )->remove();
+}
+
+=item getAvailablePhpVersions( )
+
+ See iMSCP::Servers::Php::getAvailablePhpVersions()
+
+=cut
+
+sub getAvailablePhpVersions
+{
+    my ( $self ) = @_;
+
+    CORE::state @versions;
+
+    @versions = sort { $a <=> $b } iMSCP::Dir->new( dirname => '/etc/php' )->getDirs( qr/^\d+.\d+$/ ) unless @versions;
+    @versions;
 }
 
 =item addDomain( \%moduleData )
@@ -455,10 +471,14 @@ sub _init
 
     # Define properties that are expected by parent package
     @{ $self }{qw/ PHP_FPM_POOL_DIR PHP_FPM_RUN_DIR PHP_PEAR_DIR /} = (
-        # We defer the evaluation because the PHP version can be overriden by 3rd-party components.
-        defer { "/etc/php/$self->{'config'}->{'PHP_VERSION'}/fpm/pool.d" }, '/run/php', '/usr/share/php'
+        (
+            # We defer the evaluation to make 3rd-party components able to
+            # override the PHP_VERSION configuration parameter.
+            defer { "/etc/php/$self->{'config'}->{'PHP_VERSION'}/fpm/pool.d" }
+        ),
+        '/run/php',
+        '/usr/share/php'
     );
-    $self->{'_available_php_versions'} = lazy { [ split /\s+/, $self->{'config'}->{'PHP_AVAILABLE_VERSIONS'} ]; };
     $self->SUPER::_init();
 }
 
@@ -519,7 +539,7 @@ sub _deleteCgiConfig
     my ( $self, $moduleData, $checkContext ) = @_;
     $checkContext //= 1;
 
-    for my $version ( @{ $self->{'_available_php_versions'} } ) {
+    for my $version ( $self->getAvailablePhpVersions() ) {
         if ( $checkContext
             && ( $self->{'config'}->{'PHP_VERSION'} eq $version
             && ( $moduleData->{'PHP_SUPPORT'} eq 'yes'
@@ -553,7 +573,7 @@ sub _deleteFpmConfig
     my ( $self, $moduleData, $checkContext ) = @_;
     $checkContext //= 1;
 
-    for my $version ( @{ $self->{'_available_php_versions'} } ) {
+    for my $version ( $self->getAvailablePhpVersions() ) {
         if ( $checkContext
             && ( $self->{'config'}->{'PHP_VERSION'} eq $version
             && ( $moduleData->{'PHP_SUPPORT'} eq 'yes'
@@ -614,10 +634,10 @@ sub _cleanup
     iMSCP::File->new( filename => "$self->{'cfgDir'}/php.old.data" )->remove();
 
     # FIXME: Really needed?
-    iMSCP::File->new( filename => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->remove();
-    iMSCP::Dir->new( dirname => '/etc/php5' )->remove();
+    #iMSCP::File->new( filename => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->remove();
+    #iMSCP::Dir->new( dirname => '/etc/php5' )->remove();
 
-    if ( $self->{'httpd'}->getServerName() ) {
+    if ( $self->{'httpd'}->getServerName() eq 'Apache' ) {
         $self->{'httpd'}->disableModules( qw/ fastcgi_imscp php5 php5_cgi php5filter php_fpm_imscp proxy_handler / );
 
         for my $file ( 'fastcgi_imscp.conf', 'fastcgi_imscp.load', 'php_fpm_imscp.conf', 'php_fpm_imscp.load' ) {
@@ -644,7 +664,6 @@ sub _shutdown
         for my $phpVersion ( keys %{ $self->{$action} } ) {
             # Check for actions precedence. The 'restart' action has higher precedence than the 'reload' action
             next if $action eq 'reload' && $self->{'restart'}->{$phpVersion};
-
             # Do not act if the PHP version is not enabled
             next unless $srvProvider->isEnabled( "php$phpVersion-fpm" );
 
