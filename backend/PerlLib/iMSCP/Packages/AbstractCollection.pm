@@ -115,12 +115,12 @@ sub preinstall
     my ( $self ) = @_;
 
     my @distroPackages = ();
-    for my $package ( $self->getUnselectedPackages() ) {
-        debug( sprintf( 'Executing uninstall action on %s', $package ));
-        $package->uninstall();
+    for ( $self->getUnselectedPackages() ) {
+        debug( sprintf( 'Executing uninstall action on %s', ref $_ ));
+        $_->uninstall();
 
-        debug( sprintf( 'Executing getDistroPackages action on %s', $package ));
-        push @distroPackages, $package->getDistroPackages();
+        debug( sprintf( 'Executing getDistroPackages action on %s', ref $_ ));
+        push @distroPackages, $_->getDistroPackages();
     }
 
     $self->_uninstallPackages( @distroPackages );
