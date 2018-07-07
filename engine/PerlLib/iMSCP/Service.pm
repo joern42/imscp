@@ -335,7 +335,13 @@ sub _init
 
  Detect init system
 
- Return string init system in use
+ Detection of initialization system on various distributions is kind of a black
+ art as there are too many factors implied. Here, we assume one of the Systemd,
+ Upstart or SysVinit initialization system. We don't provide init provider for
+ other initialization systems yet (eg, OpenRC, Nosh...). The current detection
+ heuristic is left as simple as it can and as such, is far from perfect. While
+ it works pretty well for Debian based distributions, it could fail on other
+ distributions.
 
 =cut
 
