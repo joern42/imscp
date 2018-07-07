@@ -90,22 +90,22 @@ sub showPhpConfigLevelDialog
     my $confLevel = main::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
 
     if ( $main::reconfigure =~ /^(?:httpd|php|servers|all|forced)$/ || $confLevel !~ /^per_(?:site|domain|user)$/ ) {
-        $confLevel =~ s/_/ /;
-        ( my $rs, $confLevel ) = $dialog->radiolist(
-            <<"EOF", [ 'per_site', 'per_domain', 'per_user' ], $confLevel =~ /^per (?:user|domain)$/ ? $confLevel : 'per site' );
+        my %choices = (
+            'per_site', 'Per domaon PHP configuration (recommended)',
+            'per_domain', 'Per domain, including subdomains PHP configuration',
+            'per_user', 'Per user PHP configuration'
+        );
+        ( my $rs, $confLevel ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $confLevel eq $_, keys %choices ) )[0] || 'per_site' );
 
 \\Z4\\Zb\\ZuPHP configuration level\\Zn
 
-Please choose the PHP configuration level you want use. Available levels are:
-
-\\Z4Per domain:\\Zn One pool configuration file per domain (including subdomains)
-\\Z4Per user:\\Zn One pool configuration file per user
-\\Z4Per site:\\Zn One pool configuration per domain
+Please choose the PHP configuration level for customers:
+\Z \Zn
 EOF
         return $rs if $rs >= 30;
     }
 
-    ( $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $confLevel ) =~ s/ /_/;
+    $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $confLevel;
     0;
 }
 
@@ -126,17 +126,16 @@ sub showListenModeDialog
     my $listenMode = main::setupGetQuestion( 'PHP_FPM_LISTEN_MODE', $self->{'phpConfig'}->{'PHP_FPM_LISTEN_MODE'} );
 
     if ( $main::reconfigure =~ /^(?:httpd|php|servers|all|forced)$/ || $listenMode !~ /^(?:uds|tcp)$/ ) {
-        ( $rs, $listenMode ) = $dialog->radiolist(
-            <<"EOF", [ 'uds', 'tcp' ], $listenMode =~ /^(?:tcp|uds)$/ ? $listenMode : 'uds' );
+        my %choices = (
+            'tcp', 'TCP sockets over the loopback interface',
+            'uds', 'Unix Domain Sockets (recommended)'
+        );
+        ( $rs, $listenMode ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $listenMode eq $_, keys %choices ) )[0] || 'uds' );
 
-\\Z4\\Zb\\ZuPHP-FPM - FastCGI address type\\Zn
+\Z4\Zb\ZuPHP-FPM - FastCGI connection type\Zn
 
-Please, choose the FastCGI address type that you want use. Available types are:
-
-\\Z4tcp:\\Zn TCP/IP (e.g. 127.0.0.1:9000)
-\\Z4uds:\\Zn Unix domain socket (e.g. /run/php/php<version>-fpm-domain.tld.sock)
-
-Be aware that for high traffic sites, TCP/IP can require a tweaking of your kernel parameters (sysctl).
+Please choose the FastCGI connection type that you want use:
+\Z \Zn
 EOF
     }
 

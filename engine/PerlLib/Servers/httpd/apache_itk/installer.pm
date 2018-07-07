@@ -90,22 +90,22 @@ sub showDialog
     my $confLevel = main::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
 
     if ( $main::reconfigure =~ /^(?:httpd|php|servers|all|forced)$/ || $confLevel !~ /^per_(?:site|domain|user)$/ ) {
-        $confLevel =~ s/_/ /;
-        ( my $rs, $confLevel ) = $dialog->radiolist(
-            <<"EOF", [ 'per_site', 'per_domain', 'per_user' ], $confLevel =~ /^per (?:user|domain)$/ ? $confLevel : 'per site' );
+        my %choices = (
+            'per_site', 'Per domaon PHP configuration (recommended)',
+            'per_domain', 'Per domain, including subdomains PHP configuration',
+            'per_user', 'Per user PHP configuration'
+        );
+        ( my $rs, $confLevel ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $confLevel eq $_, keys %choices ) )[0] || 'per_site' );
 
 \\Z4\\Zb\\ZuPHP configuration level\\Zn
 
-Please choose the PHP configuration level you want use. Available levels are:
-
-\\Z4Per domain:\\Zn Changes made through the PHP editor apply to selected domain, including its subdomains
-\\Z4Per user:\\Zn Changes made through the PHP Editor apply to all domains
-\\Z4Per site:\\Zn Change made through the PHP editor apply to selected domain only
+Please choose the PHP configuration level for customers:
+\Z \Zn
 EOF
         return $rs if $rs >= 30;
     }
 
-    ( $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $confLevel ) =~ s/ /_/;
+    $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $confLevel;
     0;
 }
 

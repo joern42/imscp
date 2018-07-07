@@ -373,10 +373,12 @@ EOF
             }
 
             if ( $sslEnabled eq 'yes' ) {
+                my %choices = ( 'http://', 'No secure access (No SSL)', 'https://', 'Secure access (SSL)' );
                 ( $rs, $baseServerVhostPrefix ) = $dialog->radiolist(
-                    <<'EOF', [ 'https', 'http' ], $baseServerVhostPrefix eq 'https://' ? 'https' : 'http' );
+                    <<'EOF', \%choices, ( grep ( $baseServerVhostPrefix eq $_, keys %choices ) )[0] || 'https://' );
 
-Please choose the default HTTP access mode for the control panel:
+Please choose the default access mode for the control panel:
+\Z \Zn
 EOF
                 $baseServerVhostPrefix .= '://'
             }
@@ -507,11 +509,13 @@ sub askAltUrlsFeature
     if ( $main::reconfigure =~ /^(?:panel|alt_urls_feature|all|forced)$/
         || !isStringInList($altUrlsFeature, 'yes', 'no')
     ) {
-        ($rs, $altUrlsFeature) = $dialog->radiolist( <<'EOF', ['yes', 'no'], $altUrlsFeature eq 'yes' ? 'yes' : 'no');
+        my %choices = ( 'yes', 'Yes', 'no', 'No' );
+        ($rs, $altUrlsFeature) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $altUrlsFeature eq $_, keys %choices ) )[0] || 'no');
 
 Do you want to enable the alternative URLs feature for client domains?
 
 This feature make clients able to access their websites through alternative URLs such as http://dmn1.panel.domain.tld
+\Z \Zn
 EOF
     }
 

@@ -499,12 +499,13 @@ sub _askInstallerMode
 
     $dialog->set( 'cancel-label', 'Abort' );
 
-    my ($rs, $mode) = $dialog->radiolist( <<"EOF", [ 'auto', 'manual' ], 'auto' );
+    my %choices = ( 'auto', 'Automatic installation', 'manual', 'Manual installation' );
+    my ( $rs, $mode ) = $dialog->radiolist( <<"EOF", \%choices, 'auto' );
 
 Please choose the installer mode:
 
 See https://wiki.i-mscp.net/doku.php?id=start:installer#installer_modes for a full description of the installer modes.
- 
+ \\Z \\Zn
 EOF
 
     return 50 if $rs;

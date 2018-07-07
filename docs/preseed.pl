@@ -5,7 +5,7 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.07.03
+# Last update: 2018.07.07
 
 use strict;
 use warnings;
@@ -299,8 +299,8 @@ use warnings;
     ## Packages configuration parameters
     #
 
-    # Webstats package
-    # Possible values: Awstats, No
+    # Webstats packages
+    # Possible values: 'no' or a list of packages, each comma separated
     WEBSTATS_PACKAGES                   => 'Awstats',
 
     # FTP Web file manager packages
@@ -314,7 +314,7 @@ use warnings;
     PHPMYADMIN_SQL_PASSWORD             => '',
 
     # Webmmail packages
-    # Possible values: 'No' or a list of packages, each comma separated
+    # Possible values: 'no' or a list of packages, each comma separated
     WEBMAIL_PACKAGES                    => 'RainLoop,Roundcube',
 
     # SQL user for Roundcube package (only if you use Roundcube)
@@ -330,7 +330,7 @@ use warnings;
     RAINLOOP_SQL_PASSWORD               => '',
 
     # Anti-rootkits packages
-    # Possible values: 'No' or a list of packages, each comma separated
+    # Possible values: 'no' or a list of packages, each comma separated
     ANTI_ROOTKITS_PACKAGES              => 'Chkrootkit,Rkhunter'
 );
 

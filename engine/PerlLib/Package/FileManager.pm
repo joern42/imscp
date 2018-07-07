@@ -78,13 +78,15 @@ sub showDialog
     my ($self, $dialog) = @_;
 
     my $package = main::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
+    my %choices = map { $_ => ucfirst $_ } keys %{$self->{'PACKAGES'}};
 
     my $rs = 0;
     if ( $main::reconfigure =~ /^(?:filemanager|all|forced)$/ || !$package || !exists $self->{'PACKAGES'}->{$package} ) {
         ( $rs, $package ) = $dialog->radiolist(
-            <<"EOF", [ keys %{$self->{'PACKAGES'}} ], exists $self->{'PACKAGES'}->{$package} ? $package : ( keys %{$self->{'PACKAGES'}} )[0] );
+            <<"EOF", \%choices,  ( grep ( $package eq $_, keys %choices ) )[0] || ( keys %choices )[0] );
 
 Please select the Ftp Web file manager package you want to install:
+\Z \Zn
 EOF
     }
 

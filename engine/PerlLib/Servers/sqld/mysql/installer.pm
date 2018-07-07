@@ -267,22 +267,21 @@ sub databasePrefixDialog
     my (undef, $dialog) = @_;
 
     my $prefix = main::setupGetQuestion( 'MYSQL_PREFIX' );
+    my %choices = ( 'behind', 'Behind', 'infront', 'Infront', 'none', 'None' );
 
     if ( $main::reconfigure =~ /^(?:sql|servers|all|forced)$/
         || $prefix !~ /^(?:behind|infront|none)$/
     ) {
-        ( my $rs, $prefix ) = $dialog->radiolist(
-            <<"EOF", [ 'infront', 'behind', 'none' ], $prefix =~ /^(?:behind|infront)$/ ? $prefix : 'none' );
+        ( my $rs, $prefix ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $prefix eq $_, keys %choices ) )[0] || 'none' );
 
 \\Z4\\Zb\\ZuMySQL Database Prefix/Suffix\\Zn
 
-Do you want use a prefix or suffix for customer's SQL databases?
+Do you want to use a prefix or suffix for customer's SQL databases?
 
-\\Z4Infront:\\Zn A numeric prefix such as '1_' will be added to each customer
-         SQL user and database name.
- \\Z4Behind:\\Zn A numeric suffix such as '_1' will be added to each customer
-         SQL user and database name.
-   \\Z4None\\Zn: Choice will be let to customer.
+\\Z4Infront:\\Zn A numeric prefix such as '1_' is added to each SQL user and database name.
+ \\Z4Behind:\\Zn A numeric suffix such as '_1' is added to each SQL user and database name.
+   \\Z4None\\Zn: Choice is left to the customer.
+\\Z \\Zn
 EOF
         return $rs if $rs >= 30;
     }

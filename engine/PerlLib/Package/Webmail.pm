@@ -52,18 +52,18 @@ use parent 'Common::SingletonClass';
 
 sub registerSetupListeners
 {
-    my ($self, $eventManager) = @_;
+    my ( $self, $eventManager ) = @_;
 
     $eventManager->register(
         'beforeSetupDialog',
         sub {
-            push @{$_[0]}, sub { $self->showDialog( @_ ) };
+            push @{ $_[0] }, sub { $self->showDialog( @_ ) };
             0;
         }
     );
 }
 
-=item showDialog(\%dialog)
+=item showDialog( \%dialog )
 
  Show dialog
 
@@ -74,30 +74,29 @@ sub registerSetupListeners
 
 sub showDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
-    my %selectedPackages;
-    @{selectedPackages}{ split ',', main::setupGetQuestion( 'WEBMAIL_PACKAGES' ) } = ();
+    my $selectedPackages = [ split ',', ::setupGetQuestion( 'WEBMAIL_PACKAGES' ) ];
+    my %choices = map { $_ => $_ } @{ $self->{'PACKAGES' } };
 
-    my $rs = 0;
-    if ( $main::reconfigure =~ /^(?:webmails|all|forced)$/ || !%selectedPackages
-        || grep { !exists $self->{'PACKAGES'}->{$_} && $_ ne 'No' } keys %selectedPackages
+    if ( $main::reconfigure =~ /^(?:webmails|all|forced)$/
+        || !@{ $selectedPackages }
+        || grep { !exists $choices{$_} && $_ ne 'no' } @{ $selectedPackages }
     ) {
-        ( $rs, my $packages ) = $dialog->checkbox(
-            <<'EOF', [ keys %{$self->{'PACKAGES'}} ], grep { exists $self->{'PACKAGES'}->{$_} && $_ ne 'No' } keys %selectedPackages );
+        ( my $rs, $selectedPackages ) = $dialog->checkbox(
+            <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $selectedPackages } ] );
 
-Please select the webmail packages you want to install
+Please select the webmail packages you want to install:
+\\Z \\Zn
 EOF
-        %selectedPackages = ();
-        @{selectedPackages}{@{$packages}} = ();
+        return $rs unless $rs < 30;
     }
 
-    return $rs unless $rs < 30;
+    @{ $selectedPackages } = grep ( $_ ne 'no', @{ $selectedPackages } );
 
-    main::setupSetQuestion( 'WEBMAIL_PACKAGES', %selectedPackages ? join ',', keys %selectedPackages : 'No' );
+    ::setupSetQuestion( 'WEBMAIL_PACKAGES', @{ $selectedPackages } ? join ',', @{ $selectedPackages } : 'no' );
 
-    for ( keys %{$self->{'PACKAGES'}} ) {
-        next unless exists $selectedPackages{$_};
+    for ( @{ $selectedPackages } ) {
         my $package = "Package::Webmail::${_}::${_}";
         eval "require $package";
         if ( $@ ) {
@@ -105,9 +104,9 @@ EOF
             return 1;
         }
 
-        return 0 unless my $subref = $package->can( 'showDialog' );
+        ( my $subref = $package->can( 'showDialog' ) ) or next;
         debug( sprintf( 'Executing showDialog action on %s', $package ));
-        $rs = $subref->( $package->getInstance(), $dialog );
+        my $rs = $subref->( $package->getInstance(), $dialog );
         return $rs if $rs;
     }
 
@@ -126,13 +125,13 @@ EOF
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', main::setupGetQuestion( 'WEBMAIL_PACKAGES' ) } = ();
+    @{selectedPackages}{ split ',', ::setupGetQuestion( 'WEBMAIL_PACKAGES' ) } = ();
 
     my @distroPackages = ();
-    for( keys %{$self->{'PACKAGES'}} ) {
+    for ( keys %{ $self->{'PACKAGES'} } ) {
         next if exists $selectedPackages{$_};
         my $package = "Package::Webmail::${_}::${_}";
         eval "require $package";
@@ -158,7 +157,7 @@ sub preinstall
     }
 
     @distroPackages = ();
-    for ( keys %{$self->{'PACKAGES'}} ) {
+    for ( keys %{ $self->{'PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webmail::${_}::${_}";
         eval "require $package";
@@ -196,12 +195,12 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', main::setupGetQuestion( 'WEBMAIL_PACKAGES' ) } = ();
+    @{selectedPackages}{ split ',', ::setupGetQuestion( 'WEBMAIL_PACKAGES' ) } = ();
 
-    for ( keys %{$self->{'PACKAGES'}} ) {
+    for ( keys %{ $self->{'PACKAGES'} } ) {
         next unless exists $selectedPackages{$_} && $_ ne 'No';
         my $package = "Package::Webmail::${_}::${_}";
         eval "require $package";
@@ -230,10 +229,10 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my @distroPackages = ();
-    for ( keys %{$self->{'PACKAGES'}} ) {
+    for ( keys %{ $self->{'PACKAGES'} } ) {
         my $package = "Package::Webmail::${_}::${_}";
         eval "require $package";
         if ( $@ ) {
@@ -278,7 +277,7 @@ sub getPriority
 
 sub setGuiPermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeWebmailSetGuiPermissions' );
     return $rs if $rs;
@@ -286,7 +285,7 @@ sub setGuiPermissions
     my %selectedPackages;
     @{selectedPackages}{ split ',', $main::imscpConfig{'WEBMAIL_PACKAGES'} } = ();
 
-    for ( keys %{$self->{'PACKAGES'}} ) {
+    for ( keys %{ $self->{'PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webmail::${_}::${_}";
         eval "require $package";
@@ -316,12 +315,12 @@ sub setGuiPermissions
 
 sub deleteMail
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     my %selectedPackages;
     @{selectedPackages}{ split ',', $main::imscpConfig{'WEBMAIL_PACKAGES'} } = ();
 
-    for ( keys %{$self->{'PACKAGES'}} ) {
+    for ( keys %{ $self->{'PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webmail::${_}::${_}";
         eval "require $package";
@@ -355,12 +354,10 @@ sub deleteMail
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    @{$self->{'PACKAGES'}}{
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webmail" )->getDirs()
-    } = ();
+    @{ $self->{'PACKAGES'} }{iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webmail" )->getDirs()} = ();
     $self;
 }
 
@@ -375,7 +372,7 @@ sub _init
 
 sub _installPackages
 {
-    my (undef, @packages) = @_;
+    my ( undef, @packages ) = @_;
 
     iMSCP::Dialog->getInstance->endGauge() unless iMSCP::Getopt->noprompt;
 
@@ -383,7 +380,7 @@ sub _installPackages
     local $ENV{'UCF_FORCE_CONFFNEW'} = 1;
     local $ENV{'UCF_FORCE_CONFFMISS'} = 1;
 
-    my ($aptVersion) = `apt-get --version` =~ /^apt\s+([\d.]+)/;
+    my ( $aptVersion ) = `apt-get --version` =~ /^apt\s+([\d.]+)/;
     my $stdout;
     my $rs = execute(
         [
@@ -395,7 +392,7 @@ sub _installPackages
             'install', @packages
         ],
         ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
-        \ my $stderr
+        \my $stderr
     );
     error( sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' )) if $rs;
     $rs;
@@ -412,12 +409,12 @@ sub _installPackages
 
 sub _removePackages
 {
-    my (undef, @packages) = @_;
+    my ( undef, @packages ) = @_;
 
     return 0 unless @packages;
 
     # Do not try to remove packages that are not available
-    my $rs = execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \ my $stdout );
+    my $rs = execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \my $stdout );
     @packages = split /\n/, $stdout;
     return 0 unless @packages;
 
@@ -428,7 +425,7 @@ sub _removePackages
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
             'apt-get', '--assume-yes', '--auto-remove', '--purge', '--no-install-recommends', 'remove', @packages
         ],
-        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \ $stdout : undef ),
+        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
         \my $stderr
     );
     error( sprintf( "Couldn't remove packages: %s", $stderr || 'Unknown error' )) if $rs;
