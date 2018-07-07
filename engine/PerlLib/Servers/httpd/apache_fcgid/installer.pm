@@ -93,7 +93,7 @@ sub showDialog
         || $confLevel !~ /^per_(?:site|domain|user)$/
     ) {
         my %choices = (
-            'per_site', 'Per domaon PHP configuration (recommended)',
+            'per_site', 'Per domain PHP configuration (recommended)',
             'per_domain', 'Per domain, including subdomains PHP configuration',
             'per_user', 'Per user PHP configuration'
         );

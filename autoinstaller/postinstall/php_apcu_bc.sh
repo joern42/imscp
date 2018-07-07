@@ -16,7 +16,7 @@ set -e
 
 # Make sure that apcu.ini file is available for installed PHP variant
 # Enable APC backward compatibility extension
-# See # See https://github.com/oerdnj/deb.sury.org/issues/660
+# See https://github.com/oerdnj/deb.sury.org/issues/660
 
 if [ ! -f /etc/php/$1/mods-available/apcu_bc.ini ] ; then
     cat <<EOF > /etc/php/$1/mods-available/apcu_bc.ini
