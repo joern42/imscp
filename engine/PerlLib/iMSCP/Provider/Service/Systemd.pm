@@ -5,7 +5,7 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2017 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -25,8 +25,13 @@ package iMSCP::Provider::Service::Systemd;
 
 use strict;
 use warnings;
+use Carp qw/ croak /;
+use File::Basename;
 use File::Spec;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug /;
 use iMSCP::File;
+use iMSCP::Dir;
 use parent 'iMSCP::Provider::Service::Sysvinit';
 
 # Commands used in that package
@@ -35,21 +40,19 @@ our %COMMANDS = (
 );
 
 # Paths in which service units must be searched
+# Order is signifiant, specially for the remove action
 my @UNITFILEPATHS = (
     '/etc/systemd/system',
-    '/lib/systemd/system',
     '/usr/local/lib/systemd/system',
+    '/lib/systemd/system',
     '/usr/lib/systemd/system'
 );
 
 =head1 DESCRIPTION
 
- Base service provider for `systemd' service/socket units.
+ Systemd base service provider implementation.
 
- See:
-  - https://www.freedesktop.org/wiki/Software/systemd/
-  - https://www.freedesktop.org/software/systemd/man/systemd.service.html
-  - https://www.freedesktop.org/software/systemd/man/systemd.socket.html
+ See https://www.freedesktop.org/wiki/Software/systemd/
 
 =head1 PUBLIC METHODS
 
@@ -57,180 +60,332 @@ my @UNITFILEPATHS = (
 
 =item isEnabled( $unit )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::isEnabled()
 
 =cut
 
 sub isEnabled
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    $self->_exec( $COMMANDS{'systemctl'}, '--system', '--quiet', 'is-enabled', $unit ) == 0;
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    # We need to catch STDERR here as we do not want raise a failure when
+    # command status is other than 0 but no STDERR
+    my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \my $stdout, \my $stderr );
+    croak( $stderr ) if $ret && length $stderr;
+
+    # The indirect state indicates that the unit is not enabled.
+    chomp( $stdout );
+    return 0 if $stdout eq 'indirect';
+
+    # The command status 0 indicate that the service is enabled
+    $ret == 0;
 }
 
 =item enable( $unit )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::enable()
 
 =cut
 
 sub enable
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    $self->_exec( $COMMANDS{'systemctl'}, '--system', '--force', '--quiet', 'enable', $unit ) == 0;
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    # We make use of the --force flag to overwrite any conflicting symlinks.
+    # This is particularly usefull in case the unit provides an alias that is
+    # also provided as a SysVinit script and which has been masked. For instance:
+    # - mariadb.service unit that provides the mysql.service unit as alias
+    # - mysql SysVinit script which is masked (/etc/systemd/system/mysql.service => /dev/null)
+    # In such a case, and without the --force option, Systemd would fails to create the symlink
+    # for the mysql.service alias as the mysql.service symlink (masked unit) would already exist.
+    $self->unmask( $unit );
+    $self->_exec( [ $COMMANDS{'systemctl'}, '--force', '--quiet', 'enable', $self->resolveUnit( $unit ) ] );
 }
 
 =item disable( $unit )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::disable()
 
 =cut
 
 sub disable
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    $self->_exec( $COMMANDS{'systemctl'}, '--system', '--quiet', 'disable', $unit ) == 0;
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    $self->_exec( [ $COMMANDS{'systemctl'}, '--quiet', 'disable', $self->resolveUnit( $unit ) ] );
+}
+
+=item mask( $unit )
+
+ Mask the given unit
+ 
+ Return bool TRUE on success, croak on failure
+
+=cut
+
+sub mask
+{
+    my ( $self, $unit ) = @_;
+
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    $self->disable( $unit );
+
+    # Units located in the /etc/systemd/system directory cannot be masked
+    unless ( index( $self->resolveUnit( $unit, 'withpath' ), '/etc/systemd/system/' ) == 0 ) {
+        $self->_exec( [ $COMMANDS{'systemctl'}, '--quiet', 'mask', $self->resolveUnit( $unit ) ] );
+    }
+}
+
+=item unmask( $unit )
+
+ Unmask the given unit
+ 
+ Return bool TRUE on success, croak on failure
+
+=cut
+
+sub unmask
+{
+    my ( $self, $unit ) = @_;
+
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    $self->_exec( [ $COMMANDS{'systemctl'}, '--quiet', 'unmask', $self->resolveUnit( $unit ) ] );
 }
 
 =item remove( $unit )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::remove()
 
 =cut
 
 sub remove
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    return 0 unless $self->stop( $unit ) && $self->disable( $unit );
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    local $@;
-    my $unitFilePath = eval { $self->getUnitFilePath( $unit ); };
-    if ( defined $unitFilePath ) {
-        return 0 if iMSCP::File->new( filename => $unitFilePath )->delFile();
+    return unless $self->hasService( $unit, 'nocache' );
+
+    $self->stop( $unit );
+    $self->unmask( $unit );
+
+    # We need check again for existence of the unit because there could have
+    # been an orphaned masked unit
+    $self->disable( $unit ) if $self->hasService( $unit, 'nocache' );
+
+    # Remove drop-in directories if any
+    for my $dir ( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
+        my $dropInDir = $dir;
+        ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
+        $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
+        next unless -d $dropInDir;
+        debug( sprintf( 'Removing the %s drop-in directory', $dropInDir ));
+        iMSCP::Dir->new( dirname => $dropInDir )->remove();
     }
 
-    $self->_exec( $COMMANDS{'systemctl'}, '--system', 'daemon-reload' ) == 0;
+    # Remove unit files if any
+    while ( my $unitFilePath = eval { $self->resolveUnit( $unit, 'withpath', 'nocache' ) } ) {
+        # We do not want remove units that are shipped by distribution packages
+        last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
+        debug( sprintf( 'Removing the %s unit', $unitFilePath ));
+        iMSCP::File->new( filename => $unitFilePath )->remove();
+    }
+
+    $self->daemonReload();
 }
 
 =item start( $unit )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::start()
 
 =cut
 
 sub start
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    $self->_exec( $COMMANDS{'systemctl'}, '--system', 'start', $unit ) == 0;
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    $self->_exec( [ $COMMANDS{'systemctl'}, 'start', $self->resolveUnit( $unit ) ] );
 }
 
 =item stop( $unit )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::stop()
 
 =cut
 
 sub stop
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    return 1 unless $self->isRunning( $unit );
-    $self->_exec( $COMMANDS{'systemctl'}, '--system', 'stop', $unit ) == 0;
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    $self->_exec( [ $COMMANDS{'systemctl'}, 'stop', $self->resolveUnit( $unit ) ] );
 }
 
 =item restart( $unit )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::restart()
 
 =cut
 
 sub restart
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    return $self->_exec( $COMMANDS{'systemctl'}, 'restart', $unit ) == 0 if $self->isRunning( $unit );
-    $self->_exec( $COMMANDS{'systemctl'}, '--system', 'start', $unit ) == 0;
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    $self->_exec( [ $COMMANDS{'systemctl'}, 'restart', $self->resolveUnit( $unit ) ] );
 }
 
 =item reload( $service )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::reload()
 
 =cut
 
 sub reload
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.service$/;
-    return $self->_exec( $COMMANDS{'systemctl'}, '--system', 'reload', $unit ) == 0 if $self->isRunning( $unit );
-    $self->start( $unit );
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    $self->_exec( [ $COMMANDS{'systemctl'}, 'reload-or-restart', $self->resolveUnit( $unit ) ] );
 }
 
 =item isRunning( $service )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::isRunning()
 
 =cut
 
 sub isRunning
 {
-    my ($self, $service) = @_;
+    my ( $self, $unit ) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    $service .= '.service' unless $service =~ /\.(?:service|socket)$/;
-    $self->_exec( $COMMANDS{'systemctl'}, '--system', 'is-active', $service ) == 0;
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    # We need to catch STDERR here as we do not want raise failure when command
+    # status is other than 0 but no STDERR
+    my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-active', $self->resolveUnit( $unit ) ], undef, \my $stderr );
+    die( $stderr ) if $ret && length $stderr;
+    $ret == 0;
 }
 
-=item hasService( $service )
+=item hasService( $unit [, $nocache = FALSE ] )
 
- See iMSCP::Provider::Service::Interface
+ See iMSCP::Provider::Service::Interface::hasService()
 
 =cut
 
 sub hasService
 {
-    my ($self, $service) = @_;
+    my ( $self, $unit, $nocache ) = @_;
 
-    defined $service or die( 'parameter $service is not defined' );
-    $self->_isSystemd( $service );
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    eval { $self->resolveUnit( $unit, undef, $nocache ); };
 }
 
-=item getUnitFilePath( $unit )
+=item resolveUnit( $unit [, $withpath =  FALSE, [ $nocache = FALSE ] ] )
 
- Get full path of the given unit
+ Resolves the given unit
+
+ Units can be aliased (have an alternative name), by creating a symlink from
+ the new name to the existing name in one of the unit search paths.
+ 
+ Due to unexpected behaviors when we're acting on alias units, this method make
+ it possible to always act on the aliased units by resolving them.
+ 
+ See the following reports for a better understanding of the situation
+  - https://github.com/systemd/systemd/issues/7875
+  - https://github.com/systemd/systemd/issues/7874
+
+ A fallback for SysVinit scripts is also provided. If $unit is not a native
+ Systemd unit and that a SysVinit match the $unit name (without the .service
+ suffix), its name or path is returned.
+ 
+ Units are resolved only once. However, it is possible to force new resolving by
+ passing the $nocache flag.
 
  Param string $unit Unit name
- Return string Unit path on success, die on failure
+ Param bool withpath If true, full unit path will be returned
+ Param bool $nocache OPTIONAL If true, no cache will be used
+ Return string real unit file path or name, SysVinit file path or name, croak/die if the unit cannot be resolved
 
 =cut
 
-sub getUnitFilePath
+sub resolveUnit
 {
-    my ($self, $unit) = @_;
+    my ( $self, $unit, $withpath, $nocache ) = @_;
 
-    defined $unit or die( 'parameter $unit is not defined' );
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    $self->_searchUnitFile( $unit );
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    # Make sure that units are resolved only once
+    CORE::state %resolved;
+
+    if ( $nocache ) {
+        delete $resolved{$unit};
+    } elsif ( exists $resolved{$unit} ) {
+        defined $resolved{$unit} or die( sprintf( "Couldn't resolve the %s unit", $unit ));
+        return $resolved{$unit}->[$withpath ? FALSE : TRUE];
+    }
+
+    my $unitFilePath = eval { $self->_searchUnitFile( $unit ); };
+
+    if ( $@ ) {
+        # For the SysVinit scripts, we want operate only on services
+        ( $unit, undef, my $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
+        if ( grep ( $suffix eq $_, '', '.service') ) {
+            local $@;
+
+            if ( $unitFilePath = eval { $self->_searchInitScript( $unit, $nocache ) } ) {
+                $resolved{$unit} = [ $unitFilePath, $unit ];
+                goto &{ resolveUnit };
+            }
+        }
+
+        $resolved{$unit} = undef unless $nocache;
+        die( sprintf( "Couldn't resolve the %s unit: %s", $unit, $@ ));
+    }
+
+    # Resolve the unit, unless it is not a symlink pointing to a regular file,
+    # case of a masked unit that point to the /dev/null character special file
+    # For the file test, we reuse the stat structure from the last stat() call
+    # that has been done in the _searchUnitFile() method
+    $unitFilePath = readlink( $unitFilePath ) or die( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! )) if -f _ && -l $unitFilePath;
+
+    if ( $nocache ) {
+        return $unitFilePath if $withpath;
+        return basename( $unitFilePath );
+    }
+
+    $resolved{$unit} = [ $unitFilePath, basename( $unitFilePath ) ];
+    goto &{ resolveUnit };
+}
+
+=item daemonReload
+
+ Reload the systemd manager configuration
+
+ Return void, croak on failure
+
+=cut
+
+sub daemonReload
+{
+    my ( $self ) = @_;
+
+    $self->_exec( [ $COMMANDS{'systemctl'}, 'daemon-reload' ] );
 }
 
 =back
@@ -239,43 +394,31 @@ sub getUnitFilePath
 
 =over 4
 
-=item _isSystemd( $unit )
-
- Is the given service managed by a native systemd service or socket unit file?
-
- Param string $unit Unit name
- Return bool TRUE if the given service is managed by a systemd service unit file, FALSE otherwise
-
-=cut
-
-sub _isSystemd
-{
-    my ($self, $unit) = @_;
-
-    $unit .= '.service' unless $unit =~ /\.(?:service|socket)$/;
-    local $@;
-    eval { $self->_searchUnitFile( $unit ); };
-}
-
 =item _searchUnitFile( $unit )
 
- Search the given unit configuration file in all available paths
+ Search the given unit file in all available paths
 
  Param string $unit Unit name
- Return string unit file path on success, die on failure
+ Return string unit file path on success, croak on failure
 
 =cut
 
 sub _searchUnitFile
 {
-    my (undef, $unit) = @_;
+    my ( undef, $unit ) = @_;
 
-    for ( @UNITFILEPATHS ) {
-        my $filepath = File::Spec->join( $_, $unit );
-        return $filepath if -f $filepath;
+    defined $unit or croak( 'Missing or undefined $unit parameter' );
+
+    ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
+    $unit .= '.service' unless length $suffix;
+
+    for my $path ( @UNITFILEPATHS ) {
+        my $filepath = File::Spec->join( $path, $unit );
+        # Either a regular file or character special file (Masked units point to /dev/null)
+        return $filepath if -f $filepath || -c _;
     }
 
-    die( sprintf( "Couldn't find systemd `%s' unit configuration file", $unit ));
+    die( sprintf( 'Unit %s not found', $unit ));
 }
 
 =back
