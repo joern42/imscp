@@ -23,7 +23,6 @@
 
 package iMSCP::Service;
 
-
 use strict;
 use warnings;
 use Carp qw/ croak /;
@@ -342,6 +341,8 @@ sub _init
  heuristic is left as simple as it can and as such, is far from perfect. While
  it works pretty well for Debian based distributions, it could fail on other
  distributions.
+
+ Return string init system in use
 
 =cut
 
