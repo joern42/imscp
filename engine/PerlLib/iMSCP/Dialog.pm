@@ -110,7 +110,7 @@ sub radiolist
         }
     }
 
-    local $self->{'opts'}->{'no-tags'} = '' unless $showTags;
+    local $self->{'_opts'}->{'no-tags'} = '' unless $showTags;
     my ( $ret, $tag ) = $self->_textbox( $text, 'radiolist', "@{ [ scalar keys %{ $choices } ] } @init" );
     wantarray ? ( $ret, $tag ) : $tag;
 }
@@ -144,7 +144,7 @@ sub checkbox
         }
     }
 
-    local $self->{'opts'}->{'no-tags'} = '' unless $showTags;
+    local $self->{'_opts'}->{'no-tags'} = '' unless $showTags;
     my ( $ret, $tags ) = $self->_textbox( $text, 'checklist', "@{ [ scalar keys %{ $choices } ] } @init" );
     wantarray ? ( $ret, [ split /\n/, $tags ] ) : [ split /\n/, $tags ];
 }
@@ -488,7 +488,7 @@ sub _init
     $self->{'_opts'}->{'width'} = undef;
     $self->{'_opts'}->{'aspect'} = undef;
     $self->{'_opts'}->{'separate-output'} = undef;
-    $self->{'opts'}->{'no-tags'} = undef;
+    $self->{'_opts'}->{'no-tags'} = undef;
     $self->_findBin( $^O =~ /bsd$/ ? 'cdialog' : 'dialog' );
     $self->_resize();
     $SIG{'WINCH'} = sub { $self->_resize(); };
