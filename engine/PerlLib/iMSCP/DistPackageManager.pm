@@ -8,6 +8,7 @@ package iMSCP::DistPackageManager;
 
 use strict;
 use warnings;
+use iMSCP::LsbRelease;
 use iMSCP::EventManager;
 use parent qw/ Common::SingletonClass iMSCP::DistPackageManager::Interface /;
 
@@ -123,8 +124,11 @@ sub _getDistroPackageManager
 {
     my ( $self ) = @_;
 
+    my $distID = iMSCP::LsbRelease->getInstance()->getId( 'short' );
+    $distID = 'Debian' if grep ( lc $distID eq $_, 'devuan', 'ubuntu' );
+    
     $self->{'_distro_package_manager'} //= do {
-        my $class = "iMSCP::DistPackageManager::$::imscpConfig{'DISTRO_FAMILY'}";
+        my $class = "iMSCP::DistPackageManager::$distID";
         eval "require $class; 1" or die $@;
         $class->new( eventManager => $self->{'eventManager'} );
     };

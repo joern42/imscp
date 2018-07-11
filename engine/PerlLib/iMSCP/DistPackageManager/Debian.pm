@@ -10,7 +10,7 @@ use strict;
 use warnings;
 use File::Temp;
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug /;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::Dialog;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -42,6 +42,10 @@ use parent qw/ Common::Object iMSCP::DistPackageManager::Interface /;
 sub addRepositories
 {
     my ( $self, @repositories ) = @_;
+
+    $self->{'eventManager'}->trigger( 'beforeAddDistributionRepositories', \@repositories ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 
     my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' );
     my $fileContent = $file->getAsRef();
@@ -88,7 +92,13 @@ EOF
     }
 
     $file->save();
+
+    $self->{'eventManager'}->trigger( 'afterAddDistributionRepositories', \@repositories ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
+
     $self->_updateAptIndex();
+
 }
 
 =item removeRepositories( @repositories )
@@ -103,10 +113,19 @@ sub removeRepositories
 {
     my ( $self, @repositories ) = @_;
 
+    $self->{'eventManager'}->trigger( 'beforeRemoveDistributionRepositories', \@repositories ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
+
     my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' );
     my $fileContent = $file->getAsRef();
     ${ $fileContent } =~ s/^\n?(?:#\s*)?deb(?:-src)?\s+\Q$_\E.*?\n//gm for @repositories;
     $file->save();
+
+    $self->{'eventManager'}->trigger( 'afterRemoveDistributionRepositories', \@repositories ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
+
     $self->_updateAptIndex();
 }
 
@@ -119,6 +138,10 @@ sub removeRepositories
 sub installPackages
 {
     my ( $self, @packages ) = @_;
+
+    $self->{'eventManager'}->trigger( 'beforeInstallDistributionPackages', \@packages ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 
     # Ignores exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
     execute( [ 'apt-mark', 'unhold', @packages ], \my $stdout, \my $stderr );
@@ -142,6 +165,10 @@ sub installPackages
         sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' )
     );
 
+    $self->{'eventManager'}->trigger( 'afterInstallDistributionPackages', \@packages ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
+
     $self;
 }
 
@@ -154,6 +181,10 @@ sub installPackages
 sub uninstallPackages
 {
     my ( $self, @packages ) = @_;
+
+    $self->{'eventManager'}->trigger( 'beforeUninstallDistributionPackages', \@packages ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 
     local $ENV{'LANG'} = 'C';
 
@@ -183,6 +214,10 @@ sub uninstallPackages
         ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \$stdout ),
         \$stderr
     ) == 0 or die( sprintf( "Couldn't purge packages that are in RC state: %s", $stderr || 'Unknown error' ));
+
+    $self->{'eventManager'}->trigger( 'afterUninstallDistributionPackages', \@packages ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 
     $self;
 }
