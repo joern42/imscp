@@ -8,8 +8,8 @@ package iMSCP::DistPackageManager;
 
 use strict;
 use warnings;
-use iMSCP::LsbRelease;
 use iMSCP::EventManager;
+use iMSCP::LsbRelease;
 use parent qw/ Common::SingletonClass iMSCP::DistPackageManager::Interface /;
 
 =head1 DESCRIPTION
