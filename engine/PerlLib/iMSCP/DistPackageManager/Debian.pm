@@ -66,6 +66,9 @@ sub addRepositories
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
+    # Make sure that repositories are not added twice
+    $self->removeRepositories( @repositories );
+
     my $file = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH );
     my $fileContent = $file->getAsRef();
 
@@ -282,6 +285,10 @@ sub addAptPreferences
 {
     my ( $self, @preferences ) = @_;
 
+    $self->{'eventManager'}->trigger( 'beforeAddDistributionAptPreferences', \@preferences ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
+
     my $file = iMSCP::File->new( filename => $APT_PREFERENCES_FILE_PATH );
     my $fileContent = -f $file->{'filename'} ? $file->get() : '';
 
@@ -297,12 +304,14 @@ Pin-Priority: @{ [ $preferences->{'pinning_pin_priority'} // '1001' ] }
 EOF
     }
 
-    # Remove unwanted leading newline
-    $fileContent =~ s/^\n//;
     $file->set( $fileContent );
     $file->save() == 0 or die( sprintf(
         "Couldn't add APT preferences: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     ));
+
+    $self->{'eventManager'}->trigger( 'afterAddDistributionAptPreferences', \@preferences ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 }
 
 =item removeAptPreferences( @preferences )
@@ -321,9 +330,13 @@ EOF
 
 sub removeAptPreferences
 {
-    my ( undef, @preferences ) = @_;
+    my ( $self, @preferences ) = @_;
 
     return unless -f $APT_PREFERENCES_FILE_PATH;
+
+    $self->{'eventManager'}->trigger( 'beforeRemoveDistributionAptPreferences', \@preferences ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 
     my $file = iMSCP::File->new( filename => $APT_PREFERENCES_FILE_PATH );
     my $fileContent = $file->getAsRef();
@@ -340,6 +353,10 @@ EOF
     $file->save() == 0 or die( sprintf(
         "Couldn't add APT preferences: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     ));
+
+    $self->{'eventManager'}->trigger( 'afterRemoveDistributionAptPreferences', \@preferences ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 }
 
 =back
