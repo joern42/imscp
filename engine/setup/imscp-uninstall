@@ -321,7 +321,7 @@ sub _removeFiles
 {
     chdir( '/' );
 
-    for( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp', '/etc/apt/preferences.d/imscp' ) {
+    for( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
         next unless -f;
         my $rs = iMSCP::File->new( filename => $_ )->delFile();
         return $rs if $rs;
