@@ -38,11 +38,11 @@ use warnings;
 
  Add the given distribution repositories
 
- The following event *MUST* be triggered:
+ The following events *MUST* be triggered:
   - beforeAddDistributionRepositories( \@repositories )
   - afterAddDistributionRepositories( \@repositories )
 
- Param array @repositories An array containing list of repositories to add
+ Param list @repositories List of distribution repositories to add
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
@@ -58,11 +58,11 @@ sub addRepositories
 
  Remove the given distribution repositories
 
- The following event *MUST* be triggered:
+ The following events *MUST* be triggered:
   - beforeRemoveDistributionRepositories( \@repositories )
   - afterRemoveDistributionRepositories( \@repositories )
 
- Param array @repositories An array containing list of repositories to remove
+ Param list @repositories List of distribution repositories to remove
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
@@ -78,11 +78,11 @@ sub removeRepositories
 
  Install the given distribution packages
 
- The following event *MUST* be triggered:
+ The following events *MUST* be triggered:
   - beforeInstallDistributionPackages( \@packages )
   - afterInstallDistributionPackages( \@packages )
 
- Param array @packages An array containing list of package to install
+ Param list @packages List of distribution packages to install
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
@@ -98,11 +98,11 @@ sub installPackages
 
  Uninstall the given distribution packages
 
- The following event *MUST* be triggered:
+ The following events *MUST* be triggered:
   - beforeUninstallDistributionPackages( \@packages )
   - afterUninstallDistributionPackages( \@packages )
 
- Param array @packages An array containing list of packages to uninstall
+ Param list @packages List of distribution package to uninstall
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut

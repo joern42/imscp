@@ -90,6 +90,28 @@ sub updateRepositoryIndexes
     $self;
 }
 
+=item AUTOLOAD
+
+ Provide autoloading for distribution package managers
+
+=cut
+
+sub AUTOLOAD
+{
+    ( my $method = our $AUTOLOAD ) =~ s/.*:://;
+
+    my $sub = __PACKAGE__->getInstance()->_getDistroPackageManager()->can( $method ) or die(
+        sprintf( 'Unknown %s method', $AUTOLOAD )
+    );
+
+    # Define the subroutine to prevent further evaluation
+    no strict 'refs';
+    *{ $AUTOLOAD } = $sub;
+
+    # Execute the subroutine, erasing AUTOLOAD stack frame without trace
+    goto &{ $AUTOLOAD };
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -126,7 +148,7 @@ sub _getDistroPackageManager
 
     my $distID = iMSCP::LsbRelease->getInstance()->getId( 'short' );
     $distID = 'Debian' if grep ( lc $distID eq $_, 'devuan', 'ubuntu' );
-    
+
     $self->{'_distro_package_manager'} //= do {
         my $class = "iMSCP::DistPackageManager::$distID";
         eval "require $class; 1" or die $@;

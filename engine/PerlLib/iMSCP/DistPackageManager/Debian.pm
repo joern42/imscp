@@ -35,6 +35,9 @@ use iMSCP::Getopt;
 use version;
 use parent qw/ Common::Object iMSCP::DistPackageManager::Interface /;
 
+my $APT_SOURCES_LIST_FILE_PATH = '/etc/apt/sources.list';
+my $APT_PREFERENCES_FILE_PATH = '/etc/apt/preferences.d/imscp';
+
 =head1 DESCRIPTION
 
  Debian distribution package manager.
@@ -47,8 +50,7 @@ use parent qw/ Common::Object iMSCP::DistPackageManager::Interface /;
 
  See iMSCP::DistPackageManager::Interface::addRepositories()
  
- @repositories must contain a list of hashes, each describing an APT repository.
- The hashes *MUST* contain the following key/value pairs:
+ Param list @repositories List of repositories, each represented as a hash with the following key/value pairs:
   repository         : APT repository in format 'uri suite [component1] [component2] [...]' 
   repository_key_srv : APT repository key server such as keyserver.ubuntu.com  (not needed if repository_key_uri is provided)
   repository_key_id  : APT repository key identifier such as 5072E1F5 (not needed if repository_key_uri is provided)
@@ -64,7 +66,7 @@ sub addRepositories
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
-    my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' );
+    my $file = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH );
     my $fileContent = $file->getAsRef();
 
     # Add APT repositories
@@ -121,7 +123,7 @@ EOF
 
  See iMSCP::DistPackageManager::Interface::removeRepositories()
  
- @repositories must contain a list of repository in following format: 'uri suite [component1] [component2] [...]' 
+ Param list @repositories List of repository in following format: 'uri suite [component1] [component2] [...]' 
 
 =cut
 
@@ -133,7 +135,7 @@ sub removeRepositories
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
-    my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' );
+    my $file = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH );
     my $fileContent = $file->getAsRef();
     ${ $fileContent } =~ s/^\n?(?:#\s*)?deb(?:-src)?\s+\Q$_\E.*?\n//gm for @repositories;
     $file->save();
@@ -204,7 +206,7 @@ sub uninstallPackages
 
     local $ENV{'LANG'} = 'C';
 
-    # Filter packages that are no longer available
+    # Filter packages that are no longer available or not installed
     # Ignore exit code as dpkg-query exit with status 1 when a queried package is not found
     execute( [ 'dpkg-query', '-W', '-f=${Package}\n', @packages ], \my $stdout, \my $stderr );
     @packages = split /\n/, $stdout;
@@ -260,6 +262,84 @@ sub updateRepositoryIndexes
     $rs == 0 or die( sprintf( "Couldn't update APT repository indexes: %s", $stderr || 'Unknown error' ));
     debug( $stderr );
     $self;
+}
+
+=item addAPTPreferences( @preferences )
+
+ Add the given APT preferences
+ 
+ See APT_PREFERENCES(5) for further details.
+
+ Param list @preferences List of APT preferences each represented as a hash containing the following key/value pairs:
+  pinning_package       : List of pinned packages 
+  pinning_pin           : origin, version, release
+  pinning_pin_priority  : Pin priority
+ Return void, die on failure
+
+=cut
+
+sub addAptPreferences
+{
+    my ( $self, @preferences ) = @_;
+
+    my $file = iMSCP::File->new( filename => $APT_PREFERENCES_FILE_PATH );
+    my $fileContent = -f $file->{'filename'} ? $file->get() : '';
+
+    # Make sure that preferences are not added twice
+    $self->removeAPTpreferences( @preferences );
+
+    for my $preferences ( @preferences ) {
+        $fileContent .= <<"EOF";
+
+Package: @{ [ $preferences->{'pinning_package'} // '*' ] }
+Pin: @{ [ $preferences->{'pinning_pin'} ] // 'origin ""' }
+Pin-Priority: @{ [ $preferences->{'pinning_pin_priority'} // '1001' ] }
+EOF
+    }
+
+    # Remove unwanted leading newline
+    $fileContent =~ s/^\n//;
+    $file->set( $fileContent );
+    $file->save() == 0 or die( sprintf(
+        "Couldn't add APT preferences: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    ));
+}
+
+=item removeAptPreferences( @preferences )
+
+ Remove the given APT preferences
+ 
+ See APT_PREFERENCES(5) for further details.
+
+ Param list @preferences List of APT preferences each represented as a hash with the following key/value pairs:
+  pinning_package       : List of pinned packages 
+  pinning_pin           : origin, version, release
+  pinning_pin_priority  : Pin priority
+ Return void, die on failure
+
+=cut
+
+sub removeAptPreferences
+{
+    my ( undef, @preferences ) = @_;
+
+    return unless -f $APT_PREFERENCES_FILE_PATH;
+
+    my $file = iMSCP::File->new( filename => $APT_PREFERENCES_FILE_PATH );
+    my $fileContent = $file->getAsRef();
+
+    for my $preferences ( @preferences ) {
+        my $preferencesStanza .= <<"EOF";
+Package:\\s+\Q@{ [ $preferences->{'pinning_package'} // '*' ] }\E
+Pin:\\s+\Q@{ [ $preferences->{'pinning_pin'} ] // 'origin ""' }\E
+Pin-Priority:\\s+\Q@{ [ $preferences->{'pinning_pin_priority'} // 1001 ] }\E
+EOF
+        ${ $fileContent } =~ s/\n*$preferencesStanza//gm;
+    }
+
+    $file->save() == 0 or die( sprintf(
+        "Couldn't add APT preferences: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    ));
 }
 
 =back
