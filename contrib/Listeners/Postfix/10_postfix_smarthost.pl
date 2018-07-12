@@ -41,13 +41,17 @@ my $saslPasswdMapsPath = '/etc/postfix/relay_passwd';
 ## Please, don't edit anything below this line unless you known what you're doing
 #
 
-iMSCP::EventManager->getInstance()->register(
-    'beforeInstallPackages',
-    sub {
-        push @{$_[0]}, 'libsasl2-modules';
-        0;
-    }
-);
+# Add the libsasl2-modules to list of package to install
+iMSCP::EventManager->getInstance()->registerOne( 'beforeInstallDistributionPackages', sub {
+    push @{ $_[0] }, 'libsasl2-modules';
+    0;
+} );
+
+# We must ensure that the libsasl2-modules package won't be uninstalled
+iMSCP::EventManager->getInstance()->register( 'beforeUninstallDistributionPackages', sub {
+    @{ $_[0] } = grep { $_ ne 'libsasl2-modules' } @{ $_[0] };
+    0;
+} );
 
 iMSCP::EventManager->getInstance()->register(
     'afterMtaBuildConf',
