@@ -67,15 +67,13 @@ sub addRepositories
     );
 
     # Make sure that repositories are not added twice
-    $self->removeRepositories( @repositories );
+    $self->removeRepositories( map { $_->{'repository'} } @repositories );
 
     my $file = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH );
     my $fileContent = $file->getAsRef();
 
     # Add APT repositories
     for my $repository ( @repositories ) {
-        next if ${ $fileContent } =~ /^deb\s+$repository->{'repository'}/m;
-
         ${ $fileContent } .= <<"EOF";
 
 deb $repository->{'repository'}
