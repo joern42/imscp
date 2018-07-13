@@ -5,7 +5,7 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.07.07
+# Last update: 2018.07.14
 
 use strict;
 use warnings;
@@ -58,7 +58,7 @@ use warnings;
     # SQL server implementation
     # Please consult the ../autoinstaller/Packages/<distro>-<codename>.xml file
     # for available options.
-    SQL_SERVER                          => 'mysql_5.5',
+    SQLD_SERVER                          => 'mysql_5.5',
 
     # Database name
     DATABASE_NAME                       => 'imscp',
@@ -120,6 +120,14 @@ use warnings;
     # Possible values: A port in range 1025-65535
     BASE_SERVER_VHOST_HTTPS_PORT        => '8443',
 
+    # PHP version for the control panel
+    # Possible value: php5.6, php7.0, php7.1
+    PANEL_PHP_VERSION                    => 'php7.1',
+    
+    # Web server for the control panel
+    # Possible value: nginx
+    PANEL_HTTPD_SERVER                   => 'nginx',
+    
     # Enable or disable SSL
     # Possible values: yes, no
     PANEL_SSL_ENABLED                   => 'yes',
@@ -202,8 +210,8 @@ use warnings;
     ## PHP configuration parameters
     #
 
-    # PHP version to use
-    # Popssible values: php5.6, php7.0, php7.1
+    # PHP version for customers
+    # Popssible values: php5.6, php7.0, php7.1, php7.2
     PHP_SERVER                          => 'php5.6',
 
     # PHP configuration level
@@ -304,7 +312,7 @@ use warnings;
     WEBSTATS_PACKAGES                   => 'Awstats',
 
     # FTP Web file manager packages
-    # Possible values: Pydio (only if PHP < 7.0), Net2ftp and MonstaFTP
+    # Possible values: Pydio (only if the PHP version for the control panel is < 7.0), MonstaFTP
     FILEMANAGER_PACKAGE                 => 'MonstaFTP',
 
     # SQL user for PhpMyAdmin
