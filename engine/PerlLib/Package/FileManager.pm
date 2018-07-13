@@ -29,6 +29,7 @@ use iMSCP::Debug;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute;
+use Package::FrontEnd;
 use version;
 use parent 'Common::SingletonClass';
 
@@ -257,7 +258,7 @@ sub setGuiPermissions
 sub _init
 {
     my ( $self ) = @_;
-    
+
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/FileManager" )->getDirs();
 
