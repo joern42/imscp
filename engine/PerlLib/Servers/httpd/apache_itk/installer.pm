@@ -91,7 +91,7 @@ sub showDialog
 
     if ( $main::reconfigure =~ /^(?:httpd|php|servers|all|forced)$/ || $confLevel !~ /^per_(?:site|domain|user)$/ ) {
         my %choices = (
-            'per_site', 'Per domain PHP configuration (recommended)',
+            'per_site', 'Per site PHP configuration (recommended)',
             'per_domain', 'Per domain, including subdomains PHP configuration',
             'per_user', 'Per user PHP configuration'
         );
@@ -155,28 +155,28 @@ sub _init
     $self->{'config'} = $self->{'httpd'}->{'config'};
     $self->{'phpCfgDir'} = $self->{'httpd'}->{'phpCfgDir'};
     $self->{'phpConfig'} = $self->{'httpd'}->{'phpConfig'};
-    $self->_guessSystemPhpVariables();
+    $self->guessPhpVariables();
     $self;
 }
 
-=item _guessSystemPhpVariables( )
+=item guessPhpVariables( )
 
- Guess system PHP Variables
+ Guess PHP Variables
 
  Return int 0 on success, die on failure
 
 =cut
 
-sub _guessSystemPhpVariables
+sub guessPhpVariables
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my ($phpVersion) = `php -nv 2> /dev/null` =~ /^PHP\s+(\d+.\d+)/ or die( "Couldn't guess system PHP version" );
+    ( $self->{'phpConfig'}->{'PHP_VERSION'} ) = `$main::imscpConfig{'PHP_SERVER'} -nv 2> /dev/null` =~ /^PHP\s+(\d+.\d+)/ or die(
+        "Couldn't guess PHP version"
+    );
 
-    $self->{'phpConfig'}->{'PHP_VERSION'} = $phpVersion;
-
-    my ($phpConfDir) = `php -ni 2> /dev/null | grep '(php.ini) Path'` =~ /([^\s]+)$/ or die(
-        "Couldn't guess system PHP configuration directory path"
+    my ( $phpConfDir ) = `$main::imscpConfig{'PHP_SERVER'} -ni 2> /dev/null | grep '(php.ini) Path'` =~ /([^\s]+)$/ or die(
+        "Couldn't guess PHP configuration directory path"
     );
 
     my $phpConfBaseDir = dirname( $phpConfDir );
@@ -188,11 +188,11 @@ sub _guessSystemPhpVariables
         die( sprintf( "Couldn't guess `%s' PHP configuration parameter value: directory doesn't exists.", $_ ));
     }
 
-    $self->{'phpConfig'}->{'PHP_CLI_BIN_PATH'} = iMSCP::ProgramFinder::find( "php$phpVersion" );
-    $self->{'phpConfig'}->{'PHP_FCGI_BIN_PATH'} = iMSCP::ProgramFinder::find( "php-cgi$phpVersion" );
-    $self->{'phpConfig'}->{'PHP_FPM_BIN_PATH'} = iMSCP::ProgramFinder::find( "php-fpm$phpVersion" );
+    $self->{'phpConfig'}->{'PHP_CLI_BIN_PATH'} = iMSCP::ProgramFinder::find( "php$self->{'phpConfig'}->{'PHP_VERSION'}" );
+    $self->{'phpConfig'}->{'PHP_FCGI_BIN_PATH'} = iMSCP::ProgramFinder::find( "php-cgi$self->{'phpConfig'}->{'PHP_VERSION'}" );
+    $self->{'phpConfig'}->{'PHP_FPM_BIN_PATH'} = iMSCP::ProgramFinder::find( "php-fpm$self->{'phpConfig'}->{'PHP_VERSION'}" );
 
-    for( qw/ PHP_CLI_BIN_PATH PHP_FCGI_BIN_PATH PHP_FPM_BIN_PATH / ) {
+    for ( qw/ PHP_CLI_BIN_PATH PHP_FCGI_BIN_PATH PHP_FPM_BIN_PATH / ) {
         next if $self->{'phpConfig'}->{$_};
         die( sprintf( "Couldn't guess `%s' PHP configuration parameter value.", $_ ));
     }
@@ -397,8 +397,8 @@ sub _buildApacheConfFiles
     $rs ||= $self->{'httpd'}->enableSites( '00_nameserver.conf' );
     $rs ||= $self->{'httpd'}->enableConfs( '00_imscp.conf' );
     $rs ||= $self->{'httpd'}->disableConfs(
-        'php5.6-cgi.conf', 'php7.0-cgi.conf', 'php7.1-cgi.conf',
-        'php5.6-fpm.conf', 'php7.0-fpm.conf', 'php7.1-fpm.conf',
+        'php5.6-cgi.conf', 'php7.0-cgi.conf', 'php7.1-cgi.conf', 'php7.2-cgi.conf',
+        'php5.6-fpm.conf', 'php7.0-fpm.conf', 'php7.1-fpm.conf', 'php7.2-fpm.conf',
         'serve-cgi-bin.conf'
     );
     $rs ||= $self->{'httpd'}->disableSites( 'default', 'default-ssl', '000-default.conf', 'default-ssl.conf' );

@@ -257,37 +257,19 @@ sub setGuiPermissions
 sub _init
 {
     my ( $self ) = @_;
-
+    
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/FileManager" )->getDirs();
 
     # Quick fix for disabling Pydio package if PHP >= 7 is detected
-    if ( defined $main::execmode && $main::execmode eq 'setup' && version->parse( $self->_getPhpVersion()) >= version->parse( '7.0.0' ) ) {
+    if ( defined $main::execmode
+        && $main::execmode eq 'setup'
+        && version->parse( Package::FrontEnd->getInstance()->{'config'}->{'PHP_VERSION'} ) >= version->parse( '7.0.0' )
+    ) {
         @{ $self->{'AVAILABLE_PACKAGES'} } = grep { $_ ne 'Pydio' } @{ $self->{'AVAILABLE_PACKAGES'} };
     }
 
     $self;
-}
-
-=item _getPhpVersion( )
-
- Get PHP version
-
- Return int PHP version on success, die on failure
-
-=cut
-
-sub _getPhpVersion
-{
-    my $rs = execute( 'php -nv', \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-    return $rs if $rs;
-
-    $stdout =~ /PHP\s+([\d.]+)/ or die(
-        sprintf( "Couldn't find PHP version from `php -nv` command output: %s", $stdout )
-    );
-    $1;
 }
 
 =back

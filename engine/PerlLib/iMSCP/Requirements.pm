@@ -117,6 +117,7 @@ sub _init
     my ($self) = @_;
 
     $self->{'programs'} = {
+        # System PHP version is expected to be the PHP version used by the control panel
         PHP  => {
             version_command => 'php -nv 2> /dev/null',
             version_regexp  => qr/PHP\s+([\d.]+)/,
