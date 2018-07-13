@@ -28,7 +28,6 @@ HTTPD_PID_FILE = /var/run/nginx.pid
 FRONTEND_FCGI_CHILDREN = 5
 FRONTEND_FCGI_MAX_REQUEST = 1000
 
-
 #
 ## PHP variables
 #
