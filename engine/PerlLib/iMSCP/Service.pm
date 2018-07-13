@@ -70,7 +70,9 @@ sub enable
 {
     my ( $self, $service ) = @_;
 
-    eval { $self->{'provider'}->enable( $service ) };
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    eval { $self->{'provider'}->enable( $service ); };
     !$@ or croak( sprintf( "Couldn't enable the %s service: %s", $service, $@ ));
 }
 
@@ -84,7 +86,9 @@ sub disable
 {
     my ( $self, $service ) = @_;
 
-    eval { $self->{'provider'}->disable( $service ) };
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    eval { $self->{'provider'}->disable( $service ); };
     !$@ or croak( sprintf( "Couldn't disable the %s service: %s", $service, $@ ));
 }
 
@@ -102,6 +106,8 @@ sub disable
 sub remove
 {
     my ( $self, $service ) = @_;
+
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
     eval {
         $self->{'provider'}->remove( $service );
@@ -153,7 +159,9 @@ sub start
 {
     my ( $self, $service ) = @_;
 
-    eval { $self->{'provider'}->start( $service ) };
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    eval { $self->{'provider'}->start( $service ); };
     !$@ or croak( sprintf( "Couldn't start the %s service: %s", $service, $@ ));
 }
 
@@ -167,7 +175,9 @@ sub stop
 {
     my ( $self, $service ) = @_;
 
-    eval { $self->{'provider'}->stop( $service ) };
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
+    eval { $self->{'provider'}->stop( $service ); };
     !$@ or croak( sprintf( "Couldn't stop the %s service: %s", $service, $@ ));
 }
 
@@ -180,6 +190,8 @@ sub stop
 sub restart
 {
     my ( $self, $service ) = @_;
+
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
     eval { $self->{'provider'}->restart( $service ); };
     !$@ or croak( sprintf( "Couldn't restart the %s service: %s", $service, $@ ));
@@ -195,6 +207,8 @@ sub reload
 {
     my ( $self, $service ) = @_;
 
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
     eval { $self->{'provider'}->reload( $service ); };
     !$@ or croak( sprintf( "Couldn't reload the %s service: %s", $service, $@ ));
 }
@@ -209,6 +223,8 @@ sub isRunning
 {
     my ( $self, $service ) = @_;
 
+    defined $service or croak( 'Missing or undefined $service parameter' );
+
     $self->{'provider'}->isRunning( $service );
 }
 
@@ -221,6 +237,8 @@ sub isRunning
 sub hasService
 {
     my ( $self, $service, $nocache ) = @_;
+
+    defined $service or croak( 'Missing or undefined $service parameter' );
 
     $self->{'provider'}->hasService( $service, $nocache );
 }

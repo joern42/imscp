@@ -122,7 +122,7 @@ EOF
 
  See iMSCP::DistPackageManager::Interface::removeRepositories()
  
- Param list @repositories List of repository in following format: 'uri suite [component1] [component2] [...]' 
+ Param list @repositories List of repositories in following format: 'uri suite [component1] [component2] [...]' 
 
 =cut
 

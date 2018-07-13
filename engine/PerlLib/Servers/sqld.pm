@@ -50,7 +50,7 @@ sub factory
 {
     return $instance if $instance;
 
-    my $package = $main::imscpConfig{'SQL_PACKAGE'} || 'Servers::noserver';
+    my $package = $main::imscpConfig{'SQLD_PACKAGE'} || 'Servers::noserver';
     eval "require $package";
     fatal( $@ ) if $@;
     $instance = $package->getInstance();
@@ -69,7 +69,7 @@ sub can
 {
     my (undef, $method) = @_;
 
-    my $package = $main::imscpConfig{'SQL_PACKAGE'} || 'Servers::noserver';
+    my $package = $main::imscpConfig{'SQLD_PACKAGE'} || 'Servers::noserver';
     eval "require $package";
     fatal( $@ ) if $@;
     $package->can( $method );

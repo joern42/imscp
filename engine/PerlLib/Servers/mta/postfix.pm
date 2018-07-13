@@ -759,13 +759,13 @@ sub getTraffic
             sprintf( "Couldn't pipe to maillogconvert.pl command for reading: %s", $! )
         );
 
-        while ( <$fh> ) {
+        while ( my $line = <$fh> ) {
             # Extract SMTP traffic data
             #
             # Log line example
             # date       hour     from            to            relay_s            relay_r            proto  extinfo code size
             # 2017-04-17 13:31:50 from@domain.tld to@domain.tld relay_s.domain.tld relay_r.domain.tld SMTP   -       1    1001
-            next unless /\@(?<from>[^\s]+)[^\@]+\@(?<to>[^\s]+)\s+(?<relay_s>[^\s]+)\s+(?<relay_r>[^\s]+).*?(?<size>\d+)$/o;
+            next unless $line =~ /\@(?<from>[^\s]+)[^\@]+\@(?<to>[^\s]+)\s+(?<relay_s>[^\s]+)\s+(?<relay_r>[^\s]+).*?(?<size>\d+)$/o;
 
             $trafficDb->{$+{'from'}} += $+{'size'} if exists $trafficDb->{$+{'from'}};
             $trafficDb->{$+{'to'}} += $+{'size'} if exists $trafficDb->{$+{'to'}};

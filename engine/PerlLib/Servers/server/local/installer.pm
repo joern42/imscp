@@ -156,13 +156,13 @@ sub primaryIpDialog
         do {
             my %choices;
             @choices{@ipList} = @ipList;
-            ( $rs, $lanIP ) = $dialog->radiolist( <<"EOF", \%choices, grep ( $_ eq $lanIP, @ipList ) ? $lanIP : $ipList[0] );
+            ( $rs, $lanIP ) = $dialog->radiolist( <<'EOF', \%choices, grep ( $_ eq $lanIP, @ipList ) ? $lanIP : $ipList[0] );
 
 Please select your server primary IP address:
 
-The \\Zb'None'\\ZB option means that i-MSCP will configure the services to listen on all interfaces.
+The \Zb'None'\ZB option means that i-MSCP will configure the services to listen on all interfaces.
 This option is more suitable for Cloud computing services such as Scaleway and Amazon EC2, or when using a Vagrant box where the IP that is set through DHCP can changes over the time.
-\\Z \\Zn
+\Z \Zn
 EOF
             $lanIP = '0.0.0.0' if $lanIP && $lanIP eq 'None';
         } while $rs < 30 && !isValidIpAddr( $lanIP );

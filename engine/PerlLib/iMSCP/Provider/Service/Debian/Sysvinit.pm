@@ -26,6 +26,7 @@ package iMSCP::Provider::Service::Debian::Sysvinit;
 use strict;
 use warnings;
 use Carp qw/ croak /;
+use iMSCP::Boolean;
 use parent 'iMSCP::Provider::Service::Sysvinit';
 
 # Commands used in that package
@@ -60,8 +61,7 @@ sub isEnabled
 
     $self->_isSysvinit() or croak( sprintf( 'Unknown %s service', $service ));
 
-    return 1 if scalar glob "/etc/rc[S5].d/S??$service";
-    0;
+    scalar glob "/etc/rc[S5].d/S??$service" ? TRUE : FALSE;
 }
 
 =item enable( $service )

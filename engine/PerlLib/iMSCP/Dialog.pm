@@ -115,13 +115,13 @@ sub radiolist
     wantarray ? ( $ret, $tag ) : $tag;
 }
 
-=item checkbox( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] )
+=item checkbox( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] ] )
 
  Show check list dialog
 
  Param string $text Text to show
  Param hashref \%choices List of choices where keys are tags and values are items.
- Param arrayref @default Default tag(s)
+ Param arrayref \@default Default tag(s)
  Param bool $showTags OPTIONAL Flag indicating whether or not tags must be showed in dialog box
  Return List A list containing array of selected tags or a list containing both the dialog exit code and array of selected tags
 
@@ -309,7 +309,7 @@ sub startGauge
 {
     my ( $self, $text, $percent ) = @_;
 
-    return 0 if iMSCP::Getopt->noprompt || $self->{'gauge'};
+    return 0 if iMSCP::Getopt->noprompt || defined $self->{'gauge'};
 
     defined $_[0] or die( '$text parameter is undefined' );
 
@@ -344,7 +344,7 @@ sub setGauge
 {
     my ( $self, $percent, $text ) = @_;
 
-    return 0 if iMSCP::Getopt->noprompt || !$self->{'gauge'};
+    return 0 unless defined $self->{'gauge'};
 
     print { $self->{'gauge'} } sprintf( "XXX\n%d\n%s\nXXX\n", $percent, $text );
     0
@@ -362,7 +362,7 @@ sub endGauge
 {
     my ( $self ) = @_;
 
-    return 0 if iMSCP::Getopt->noprompt || !$self->{'gauge'};
+    return 0 unless defined $self->{'gauge'};
 
     $self->{'gauge'}->close();
     undef $self->{'gauge'};
@@ -381,9 +381,7 @@ sub hasGauge
 {
     my ( $self ) = @_;
 
-    return 0 if iMSCP::Getopt->noprompt;
-
-    !!$self->{'gauge'}
+    defined $self->{'gauge'}
 }
 
 =item set( $option, $value )

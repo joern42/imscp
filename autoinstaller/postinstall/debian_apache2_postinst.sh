@@ -33,7 +33,7 @@ if [ -f /usr/lib/apache2/modules/mod_proxy_fcgi.so-DIST ] ; then
     dpkg-divert --rename --remove /usr/lib/apache2/modules/mod_proxy_fcgi.so
 fi
 
-# Don't process if Apache2 version is ge 2.4.24
+# Don't process if Apache2 version is greater or equan than 2.4.24
 if dpkg --compare-versions "$APACHE_INSTALLED_VERSION" ge "2.4.24" ; then
     exit;
 fi

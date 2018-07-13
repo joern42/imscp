@@ -95,9 +95,9 @@ sub showDialog
             'per_domain', 'Per domain, including subdomains PHP configuration',
             'per_user', 'Per user PHP configuration'
         );
-        ( my $rs, $confLevel ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $confLevel eq $_, keys %choices ) )[0] || 'per_site' );
+        ( my $rs, $confLevel ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $confLevel eq $_, keys %choices ) )[0] || 'per_site' );
 
-\\Z4\\Zb\\ZuPHP configuration level\\Zn
+\Z4\Zb\ZuPHP configuration level\Zn
 
 Please choose the PHP configuration level for customers:
 \Z \Zn
@@ -315,7 +315,7 @@ sub _buildPhpConfFiles
     );
     $rs = $self->{'httpd'}->disableModules(
         'actions', 'fastcgi', 'fcgid', 'fcgid_imscp', 'suexec', 'php5', 'php5_cgi', 'php5filter', 'php5.6', 'php7.0',
-        'php7.1', 'proxy_fcgi', 'proxy_handler', 'mpm_itk', 'mpm_event', 'mpm_prefork', 'mpm_worker'
+        'php7.1', 'php7.2', 'proxy_fcgi', 'proxy_handler', 'mpm_itk', 'mpm_event', 'mpm_prefork', 'mpm_worker'
     );
     $rs ||= $self->{'httpd'}->enableModules(
         'authz_groupfile', "php$self->{'phpConfig'}->{'PHP_VERSION'}", 'mpm_itk', 'version'

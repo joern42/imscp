@@ -53,15 +53,12 @@ use parent 'Common::SingletonClass';
 
 sub registerSetupListeners
 {
-    my ($self, $eventManager) = @_;
+    my ( $self, $eventManager ) = @_;
 
-    $eventManager->register(
-        'beforeSetupDialog',
-        sub {
-            push @{$_[0]}, sub { $self->showDialog( @_ ) };
-            0;
-        }
-    );
+    $eventManager->register( 'beforeSetupDialog', sub {
+        push @{ $_[0] }, sub { $self->showDialog( @_ ) };
+        0;
+    } );
 }
 
 =item showDialog( \%dialog )
@@ -75,24 +72,26 @@ sub registerSetupListeners
 
 sub showDialog
 {
-    my ($self, $dialog) = @_;
+    my ( $self, $dialog ) = @_;
 
-    my $package = main::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
-    my %choices = map { $_ => ucfirst $_ } keys %{$self->{'PACKAGES'}};
+    my $package = ::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
+    my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
 
     my $rs = 0;
-    if ( $main::reconfigure =~ /^(?:filemanager|all|forced)$/ || !$package || !exists $self->{'PACKAGES'}->{$package} ) {
+    if ( $main::reconfigure =~ /^(?:filemanager|all|forced)$/
+        || !grep ($_ eq $package, @{ $self->{'AVAILABLE_PACKAGES'} })
+    ) {
         ( $rs, $package ) = $dialog->radiolist(
-            <<"EOF", \%choices,  ( grep ( $package eq $_, keys %choices ) )[0] || ( keys %choices )[0] );
+            <<'EOF', \%choices, ( grep ( $package eq $_, keys %choices ) )[0] || ( keys %choices )[0] );
 
-Please select the Ftp Web file manager package you want to install:
+Please select the Web FTP file manager package you want to install:
 \Z \Zn
 EOF
     }
 
     return $rs unless $rs < 30;
 
-    main::setupSetQuestion( 'FILEMANAGER_PACKAGE', $package );
+    ::setupSetQuestion( 'FILEMANAGER_PACKAGE', $package );
 
     $package = "Package::FileManager::${package}::${package}";
     eval "require $package";
@@ -118,20 +117,16 @@ EOF
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $oldPackage = exists $main::imscpOldConfig{'FILEMANAGER_ADDON'}
         ? $main::imscpOldConfig{'FILEMANAGER_ADDON'} # backward compatibility with 1.1.x Serie (upgrade process)
         : $main::imscpOldConfig{'FILEMANAGER_PACKAGE'};
 
     # Ensure backward compatibility
-    if ( $oldPackage eq 'AjaXplorer' ) {
-        $oldPackage = 'Pydio';
-    } elsif ( $oldPackage eq 'Net2FTP' ) {
-        $oldPackage = 'Net2ftp';
-    }
+    $oldPackage = 'Pydio' if $oldPackage eq 'AjaXplorer';
 
-    my $package = main::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
+    my $package = ::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
     if ( $oldPackage ne '' && $oldPackage ne $package ) {
         my $rs = $self->uninstall( $oldPackage );
         return $rs if $rs;
@@ -159,7 +154,7 @@ sub preinstall
 
 sub install
 {
-    my $package = main::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
+    my $package = ::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
     $package = "Package::FileManager::${package}::${package}";
     eval "require $package";
     if ( $@ ) {
@@ -183,10 +178,10 @@ sub install
 
 sub uninstall
 {
-    my (undef, $package) = @_;
+    my ( undef, $package ) = @_;
 
     $package ||= $main::imscpConfig{'FILEMANAGER_PACKAGE'};
-    return 0 unless $package;
+    return 0 unless $package ne '';
 
     $package = "Package::FileManager::${package}::${package}";
     eval "require $package";
@@ -223,13 +218,13 @@ sub getPriority
 
 sub setGuiPermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFileManagerSetGuiPermissions' );
     return $rs if $rs;
 
     my $package = $main::imscpConfig{'FILEMANAGER_PACKAGE'};
-    return 0 unless exists $self->{'PACKAGES'}->{$package};
+    return 0 unless grep { $_ eq $package } @{ $self->{'AVAILABLE_PACKAGES'} };
 
     $package = "Package::FileManager::${package}::${package}";
     eval "require $package";
@@ -261,16 +256,14 @@ sub setGuiPermissions
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    @{$self->{'PACKAGES'}}{
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/FileManager" )->getDirs()
-    } = ();
+    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/FileManager" )->getDirs();
 
     # Quick fix for disabling Pydio package if PHP >= 7 is detected
-    if ( defined $main::execmode && $main::execmode eq 'setup' ) {
-        delete $self->{'PACKAGES'}->{'Pydio'} if version->parse( $self->_getPhpVersion()) >= version->parse( '7.0.0' );
+    if ( defined $main::execmode && $main::execmode eq 'setup' && version->parse( $self->_getPhpVersion()) >= version->parse( '7.0.0' ) ) {
+        @{ $self->{'AVAILABLE_PACKAGES'} } = grep { $_ ne 'Pydio' } @{ $self->{'AVAILABLE_PACKAGES'} };
     }
 
     $self;
@@ -286,7 +279,7 @@ sub _init
 
 sub _getPhpVersion
 {
-    my $rs = execute( 'php -nv', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'php -nv', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;

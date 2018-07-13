@@ -26,6 +26,7 @@ package iMSCP::Provider::Service::Debian::Systemd;
 use strict;
 use warnings;
 use File::Basename;
+use iMSCP::Boolean;
 use parent qw/ iMSCP::Provider::Service::Systemd iMSCP::Provider::Service::Debian::Sysvinit /;
 
 =head1 DESCRIPTION
@@ -63,7 +64,7 @@ sub isEnabled
     die( $stderr ) if $ret && length $stderr;
 
     # The indirect state indicates that the unit is not enabled.
-    return 0 if $stdout eq 'indirect';
+    return FALSE if $stdout eq 'indirect';
 
     # The 'is-enabled' API call for SysVinit scripts is not implemented till
     # the systemd version 220-1 (Debian package), that is, under the following

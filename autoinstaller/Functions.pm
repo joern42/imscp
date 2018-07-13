@@ -28,6 +28,7 @@ use warnings;
 use autouse 'iMSCP::Stepper' => qw/ step /;
 use File::Basename;
 use File::Find;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Config;
 use iMSCP::Cwd;
@@ -44,7 +45,7 @@ use iMSCP::Rights;
 use version;
 use parent 'Exporter';
 
-our @EXPORT_OK = qw/ loadConfig build install /;
+our @EXPORT_OK = qw/ loadConfig build install expandVars /;
 
 my $autoinstallerAdapterInstance;
 my $eventManager;
@@ -122,12 +123,15 @@ sub build
 {
     newDebug( 'imscp-build.log' );
 
-    if ( !iMSCP::Getopt->preseed && !( $main::imscpConfig{'FRONTEND_SERVER'} && $main::imscpConfig{'FTPD_SERVER'}
-        && $main::imscpConfig{'HTTPD_SERVER'} && $main::imscpConfig{'NAMED_SERVER'} && $main::imscpConfig{'MTA_SERVER'}
-        && $main::imscpConfig{'PHP_SERVER'} && $main::imscpConfig{'PO_SERVER'} && $main::imscpConfig{'SQL_SERVER'} )
+    unless ( length $main::imscpConfig{'PANEL_HTTPD_SERVER'} && length $main::imscpConfig{'PANEL_PHP_VERSION'}
+        && length $main::imscpConfig{'FTPD_SERVER'} && length $main::imscpConfig{'HTTPD_SERVER'}
+        && length $main::imscpConfig{'NAMED_SERVER'} && length $main::imscpConfig{'MTA_SERVER'}
+        && length $main::imscpConfig{'PHP_SERVER'} && length $main::imscpConfig{'PO_SERVER'}
+        && length $main::imscpConfig{'SQLD_SERVER'}
     ) {
-        iMSCP::Getopt->noprompt( 0 );
-        $main::skippackages = 0;
+        iMSCP::Getopt->noprompt( FALSE ) unless iMSCP::Getopt->preseed;
+        iMSCP::Getopt->verbose( FALSE ) unless iMSCP::Getopt->noprompt;
+        $main::skippackages = FALSE;
     }
 
     my $rs = 0;
@@ -296,8 +300,7 @@ EOF
     Net::LibIDN->import( 'idn_to_unicode' );
 
     my $port = $main::imscpConfig{'BASE_SERVER_VHOST_PREFIX'} eq 'http://'
-        ? $main::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'}
-        : $main::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
+        ? $main::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $main::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
     my $vhost = idn_to_unicode( $main::imscpConfig{'BASE_SERVER_VHOST'}, 'utf-8' );
 
     iMSCP::Dialog->getInstance()->infobox( <<"EOF" );
@@ -312,6 +315,33 @@ Thank you for choosing i-MSCP.
 EOF
 
     endDebug();
+}
+
+=item expandVars( $string )
+
+ Expand variables in the given string
+
+ Param string $string string containing variables to expands
+ Return string
+
+=cut
+
+sub expandVars
+{
+    my ($string) = @_;
+    $string //= '';
+
+    while ( my ($var) = $string =~ /\$\{([^\}]+)\}/g ) {
+        if ( defined $main::{$var} ) {
+            $string =~ s/\$\{$var\}/$main::{$var}/g;
+        } elsif ( defined $main::imscpConfig{$var} ) {
+            $string =~ s/\$\{$var\}/$main::imscpConfig{$var}/g;
+        } else {
+            fatal( "Couldn't expand variable \${$var}. Variable not found." );
+        }
+    }
+
+    $string;
 }
 
 =back
@@ -500,17 +530,17 @@ sub _askInstallerMode
     $dialog->set( 'cancel-label', 'Abort' );
 
     my %choices = ( 'auto', 'Automatic installation', 'manual', 'Manual installation' );
-    my ( $rs, $mode ) = $dialog->radiolist( <<"EOF", \%choices, 'auto' );
+    my ( $rs, $mode ) = $dialog->radiolist( <<'EOF', \%choices, 'auto' );
 
 Please choose the installer mode:
 
 See https://wiki.i-mscp.net/doku.php?id=start:installer#installer_modes for a full description of the installer modes.
- \\Z \\Zn
+\Z \Zn
 EOF
 
     return 50 if $rs;
 
-    $main::buildonly = $mode eq 'manual' ? 1 : 0;
+    $main::buildonly = $mode eq 'manual' ? TRUE : FALSE;
     $dialog->set( 'cancel-label', 'Back' );
     0;
 }
@@ -836,7 +866,7 @@ sub _processXmlFile
 
     eval "use XML::Simple; 1";
     fatal( "Couldn't load the XML::Simple perl module" ) if $@;
-    my $xml = XML::Simple->new( ForceArray => 1, ForceContent => 1 );
+    my $xml = XML::Simple->new( ForceArray => TRUE, ForceContent => TRUE );
     my $data = eval { $xml->XMLin( $file, VarAttr => 'export', NormaliseSpace => 2 ) };
     if ( $@ ) {
         error( $@ );
@@ -848,7 +878,7 @@ sub _processXmlFile
 
     # Process xml 'folders' nodes if any
     for ( @{$data->{'folders'}} ) {
-        $_->{'content'} = _expandVars( $_->{'content'} );
+        $_->{'content'} = expandVars( $_->{'content'} );
         $main::{$_->{'export'}} = $_->{'content'} if defined $_->{'export'};
         my $rs = _processFolder( $_ );
         return $rs if $rs;
@@ -856,67 +886,40 @@ sub _processXmlFile
 
     # Process xml 'copy_config' nodes if any
     for ( @{$data->{'copy_config'}} ) {
-        $_->{'content'} = _expandVars( $_->{'content'} );
+        $_->{'content'} = expandVars( $_->{'content'} );
         my $rs = _copyConfig( $_ );
         return $rs if $rs;
     }
 
     # Process xml 'copy' nodes if any
     for ( @{$data->{'copy'}} ) {
-        $_->{'content'} = _expandVars( $_->{'content'} );
+        $_->{'content'} = expandVars( $_->{'content'} );
         my $rs = _copy( $_ );
         return $rs if $rs;
     }
 
     # Process xml 'create_file' nodes if any
     for ( @{$data->{'create_file'}} ) {
-        $_->{'content'} = _expandVars( $_->{'content'} );
+        $_->{'content'} = expandVars( $_->{'content'} );
         my $rs = _createFile( $_ );
         return $rs if $rs;
     }
 
     # Process xml 'chmod_file' nodes if any
     for ( @{$data->{'chmod_file'}} ) {
-        $_->{'content'} = _expandVars( $_->{'content'} );
+        $_->{'content'} = expandVars( $_->{'content'} );
         my $rs = _chmodFile( $_ ) if $_->{'content'};
         return $rs if $rs;
     }
 
     # Process xml 'chmod_file' nodes if any
     for ( @{$data->{'chown_file'}} ) {
-        $_->{'content'} = _expandVars( $_->{'content'} );
+        $_->{'content'} = expandVars( $_->{'content'} );
         my $rs = _chownFile( $_ );
         return $rs if $rs;
     }
 
     0;
-}
-
-=item _expandVars( $string )
-
- Expand variables in the given string
-
- Param string $string string containing variables to expands
- Return string
-
-=cut
-
-sub _expandVars
-{
-    my ($string) = @_;
-    $string //= '';
-
-    while ( my ($var) = $string =~ /\$\{([^\}]+)\}/g ) {
-        if ( defined $main::{$var} ) {
-            $string =~ s/\$\{$var\}/$main::{$var}/g;
-        } elsif ( defined $main::imscpConfig{$var} ) {
-            $string =~ s/\$\{$var\}/$main::imscpConfig{$var}/g;
-        } else {
-            fatal( "Couldn't expand variable \${$var}. Variable not found." );
-        }
-    }
-
-    $string;
 }
 
 =item _processFolder( \%data )
@@ -943,8 +946,8 @@ sub _processFolder
 
     $dir->make(
         {
-            user  => defined $data->{'user'} ? _expandVars( $data->{'owner'} ) : undef,
-            group => defined $data->{'group'} ? _expandVars( $data->{'group'} ) : undef,
+            user  => defined $data->{'user'} ? expandVars( $data->{'owner'} ) : undef,
+            group => defined $data->{'group'} ? expandVars( $data->{'group'} ) : undef,
             mode  => defined $data->{'mode'} ? oct( $data->{'mode'} ) : undef
         }
     );
@@ -963,8 +966,8 @@ sub _copyConfig
 {
     my ($data) = @_;
 
-    if ( defined $data->{'if'} && !eval _expandVars( $data->{'if'} ) ) {
-        return if defined $data->{'kept'} && eval _expandVars( $data->{'kept'} );
+    if ( defined $data->{'if'} && !eval expandVars( $data->{'if'} ) ) {
+        return if defined $data->{'kept'} && eval expandVars( $data->{'kept'} );
 
         my $syspath;
         if ( defined $data->{'as'} ) {
@@ -1003,8 +1006,8 @@ sub _copyConfig
 
     if ( defined $data->{'user'} || defined $data->{'group'} ) {
         my $rs = $file->owner(
-            ( defined $data->{'user'} ? _expandVars( $data->{'user'} ) : -1 ),
-            ( defined $data->{'group'} ? _expandVars( $data->{'group'} ) : -1 )
+            ( defined $data->{'user'} ? expandVars( $data->{'user'} ) : -1 ),
+            ( defined $data->{'group'} ? expandVars( $data->{'group'} ) : -1 )
         );
         return $rs if $rs;
     }
@@ -1042,8 +1045,8 @@ sub _copy
 
     if ( defined $data->{'user'} || defined $data->{'group'} ) {
         my $rs = $file->owner(
-            ( defined $data->{'user'} ? _expandVars( $data->{'user'} ) : -1 ),
-            ( defined $data->{'group'} ? _expandVars( $data->{'group'} ) : -1 )
+            ( defined $data->{'user'} ? expandVars( $data->{'user'} ) : -1 ),
+            ( defined $data->{'group'} ? expandVars( $data->{'group'} ) : -1 )
         );
         return $rs if $rs;
     }

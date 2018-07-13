@@ -91,10 +91,10 @@ sub askDnsServerMode
 
     if ( $main::reconfigure =~ /^(?:named|servers|all|forced)$/ || $dnsServerMode !~ /^(?:master|slave)$/ ) {
         my %choices = ( 'master', 'Master DNS server', 'slave', 'Slave DNS server' );
-        ( $rs, $dnsServerMode ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $dnsServerMode eq $_, keys %choices ) )[0] || 'master' );
+        ( $rs, $dnsServerMode ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $dnsServerMode eq $_, keys %choices ) )[0] || 'master' );
 
 Select DNS server type to configure:
-\\Z \\Zn
+\Z \Zn
 EOF
     }
 
@@ -131,10 +131,10 @@ sub askDnsServerIps
             || ( "@slaveDnsIps" ne 'no' && !$self->_checkIps( @slaveDnsIps ) )
         ) {
             my %choices = ( 'yes', 'Yes', 'no', 'No' );
-            ( $rs, $answer ) = $dialog->radiolist( <<"EOF", \%choices, !@slaveDnsIps || $slaveDnsIps[0] eq 'no' ? 'no' : 'yes' );
+            ( $rs, $answer ) = $dialog->radiolist( <<'EOF', \%choices, !@slaveDnsIps || $slaveDnsIps[0] eq 'no' ? 'no' : 'yes' );
 
 Do you want add slave DNS servers?
-\\Z \\Zn
+\Z \Zn
 EOF
             if ( $rs < 30 && $answer eq 'yes' ) {
                 @slaveDnsIps = () if "@slaveDnsIps" eq 'no';
@@ -218,10 +218,10 @@ sub askIPv6Support
     my $rs = 0;
 
     if ( $main::reconfigure =~ /^(?:named|servers|all|forced)$/ || $ipv6 !~ /^(?:yes|no)$/ ) {
-        ( $rs, $ipv6 ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $ipv6 eq $_, keys %choices ) )[0] || 'no' );
+        ( $rs, $ipv6 ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $ipv6 eq $_, keys %choices ) )[0] || 'no' );
 
 Do you want enable IPv6 support for your DNS server?
-\\Z \\Zn
+\Z \Zn
 EOF
     }
 
@@ -247,10 +247,10 @@ sub askLocalDnsResolver
     my $rs = 0;
 
     if ( $main::reconfigure =~ /^(?:resolver|named|all|forced)$/ || $localDnsResolver !~ /^(?:yes|no)$/ ) {
-        ( $rs, $localDnsResolver ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $localDnsResolver eq $_, keys %choices ) )[0] || 'yes' );
+        ( $rs, $localDnsResolver ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $localDnsResolver eq $_, keys %choices ) )[0] || 'yes' );
 
 Do you want use the local DNS resolver?
-\\Z \\Zn
+\Z \Zn
 EOF
     }
 

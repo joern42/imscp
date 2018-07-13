@@ -27,7 +27,8 @@ use strict;
 use warnings;
 use Carp qw/ croak /;
 use File::Spec;
-use iMSCP::Debug qw/ debug /;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::LsbRelease;
@@ -55,10 +56,12 @@ sub remove
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    if ( my $initScriptPath = eval { $self->getInitScriptPath( $service, 'nocache' ); } ) {
-        debug( sprintf( "Removing the %s sysvinit script", $initScriptPath ));
-        iMSCP::File->new( filename => $initScriptPath )->remove();
-    }
+    my $initScriptPath = eval { $self->getInitScriptPath( $service, 'nocache' ) } or return;
+
+    debug( sprintf( "Removing the %s sysvinit script", $initScriptPath ));
+    iMSCP::File->new( filename => $initScriptPath )->delFile() == 0 or croak(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 }
 
 =item start( $service )
@@ -129,7 +132,7 @@ sub reload
     defined $service or croak( 'Missing or undefined $service parameter' );
 
     if ( $self->isRunning( $service ) ) {
-        # We need catch STDERR here as we do do want raise failure (see _exec() for further details)
+        # We need catch STDERR here as we do do want croak on failure
         my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'reload' ], undef, \my $stderr );
 
         # If the reload action failed, we try a restart instead. This cover
@@ -155,10 +158,10 @@ sub isRunning
     defined $service or croak( 'Missing or undefined $service parameter' );
 
     unless ( defined $self->{'_pid_pattern'} ) {
-        # We need to catch STDERR here as we do not want raise failure when command
+        # We need to catch STDERR here as we do not croak on failure when command
         # status is other than 0 but no STDERR
         my $ret = $self->_exec( [ $self->getInitScriptPath( $service ), 'status' ], undef, \my $stderr );
-        die( $stderr ) if $ret && length $stderr;
+        croak( $stderr ) if $ret && length $stderr;
         return $ret == 0;
     }
 
@@ -289,7 +292,7 @@ sub _searchInitScript
     if ( $nocache ) {
         delete $initScripts{$service};
     } elsif ( exists $initScripts{$service} ) {
-        defined $initScripts{$service} or die( sprintf( "SysVinit script %s not found", $service ));
+        defined $initScripts{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
         return $initScripts{$service};
     }
 
@@ -303,7 +306,7 @@ sub _searchInitScript
     }
 
     $initScripts{$service} = undef unless $nocache || $initScripts{$service};
-    $initScripts{$service} or die( sprintf( "SysVinit script %s not found", $service ));
+    $initScripts{$service} or croak( sprintf( "SysVinit script %s not found", $service ));
     $nocache ? delete $initScripts{$service} : $initScripts{$service};
 }
 
@@ -318,7 +321,7 @@ sub _searchInitScript
  Param array_ref \@command Command to execute
  Param scalar_ref \$stdout OPTIONAL Scalar reference for STDOUT capture
  Param scalar_ref \$stderr OPTIONAL Scalar reference for STDERR capture
- Return int Command exit status, die on failure if the command status is other than 0 and if no scalar reference has been provided for STDERR
+ Return int Command exit status, croak on failure if the command status is other than 0 and if no scalar reference has been provided for STDERR
 
 =cut
 
@@ -331,7 +334,7 @@ sub _exec
 
     # Raise a failure if command status is other than 0 and if no scalar
     # reference has been provided for STDERR, giving choice to callers
-    die( $stderr || 'Unknown error' ) if $ret && ref $stderr ne 'SCALAR';
+    croak( $stderr || 'Unknown error' ) if $ret && ref $stderr ne 'SCALAR';
 
     # We cache STDOUT output.
     # see _getLastExecOutput()
@@ -391,11 +394,11 @@ sub _getPid
     defined $pattern or croak( 'Missing or undefined $pattern parameter' );
 
     my $ps = $self->_getPs();
-    open my $fh, '-|', $ps or die( sprintf( "Couldn't pipe to %s: %s", $ps, $! ));
+    open my $fh, '-|', $ps or croak( sprintf( "Couldn't pipe to %s: %s", $ps, $! ));
 
-    while ( <$fh> ) {
-        next unless /$pattern/;
-        return ( split /\s+/, s/^\s+//r )[1];
+    while ( my $line = <$fh> ) {
+        next unless $line =~ /$pattern/;
+        return ( split /\s+/, $line =~ s/^\s+//r )[1];
     }
 
     undef;

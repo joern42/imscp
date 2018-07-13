@@ -26,7 +26,8 @@ package iMSCP::Provider::Service::Upstart;
 use strict;
 use warnings;
 use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug /;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use File::Basename;
 use File::Spec;
 use iMSCP::File;
@@ -44,7 +45,6 @@ our %COMMANDS = (
 );
 
 # Private variables
-my $UPSTART_VERSION;
 my $START_ON = qr/^\s*start\s+on/;
 my $COMMENTED_START_ON = qr/^\s*#+\s*start\s+on/;
 my $MANUAL = qr/^\s*manual\s*/m;
@@ -152,7 +152,7 @@ sub remove
     }
 
     # Even if there is no job file, there can be still orphaned job override
-    # file which we need to remove.
+    # file which we need to remove. Thus, we always process both files.
 
     for my $type ( qw/ conf override / ) {
         if ( my $jobFilePath = eval { $self->getJobFilePath( $job, $type ); } ) {
@@ -160,8 +160,6 @@ sub remove
             iMSCP::File->new( filename => $jobFilePath )->remove();
         }
     }
-
-    1;
 }
 
 =item start( $job )
@@ -243,7 +241,7 @@ sub reload
 
     if ( $self->_isUpstart( $job ) ) {
         if ( $self->isRunning( $job ) ) {
-            # We need catch STDERR here as we do do want raise failure (see _exec() for further details)
+            # We need catch STDERR here as we do do want croak on failure
             my $ret = $self->_exec( [ $COMMANDS{'reload'}, $job ], undef, \my $stderr );
 
             # If the reload action failed, we try a restart instead. This cover
@@ -330,8 +328,10 @@ sub getJobFilePath
 
 sub _getVersion
 {
-    ( $UPSTART_VERSION ) = `initctl --version` =~ /initctl \(upstart\s+([^\)]*)\)/ unless $UPSTART_VERSION;
-    $UPSTART_VERSION;
+    CORE::state $version;
+
+    ( $version ) = `initctl --version` =~ /initctl \(upstart\s+([^\)]*)\)/ unless $version;
+    $version;
 }
 
 =item _isUpstart( $job )
@@ -436,12 +436,12 @@ sub _isEnabledPre090
     # stanza is the last one in the file. The last one in the
     # file wins.
     open my $fh, '<', \$jobFileContent or croak( sprintf( "Couldn't open in-memory file handle: %s", $! ));
-    my $enabled = 0;
-    while ( <$fh> ) {
-        if ( /$START_ON/ ) {
-            $enabled = 1;
-        } elsif ( /$MANUAL/ ) {
-            $enabled = 0;
+    my $enabled = FALSE;
+    while ( my $line = <$fh> ) {
+        if ( $line =~ /$START_ON/ ) {
+            $enabled = TRUE;
+        } elsif ( $line =~ /$MANUAL/ ) {
+            $enabled = FALSE;
         }
     }
 
@@ -469,14 +469,14 @@ sub _isEnabledPost090
     # files. Thus, we check to see if an uncommented 'start on' or
     # 'manual' stanza is the last one in the conf file and any
     # override files. The last one in the file wins.
-    my $enabled = 0;
+    my $enabled = FALSE;
     for my $fcontent ( \$jobFileContent, \$jobOverrideFileContent ) {
         open my $fh, '<', $fcontent or croak( sprintf( "Couldn't open in-memory file handle: %s", $! ));
-        while ( <$fh> ) {
-            if ( /$START_ON/ ) {
-                $enabled = 1;
-            } elsif ( /$MANUAL/ ) {
-                $enabled = 0;
+        while ( my $line = <$fh> ) {
+            if ( $line =~ /$START_ON/ ) {
+                $enabled = TRUE;
+            } elsif ( $line =~ /$MANUAL/ ) {
+                $enabled = FALSE;
             }
         }
     }
@@ -864,12 +864,14 @@ sub _readJobFile
 
     defined $job or croak( 'Missing or undefined $job parameter' );
 
-    iMSCP::File->new( filename => $self->getJobFilePath( $job ))->get();
+    my $fcontent = iMSCP::File->new( filename => $self->getJobFilePath( $job ))->get();
+    defined $fcontent or croak( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+    $fcontent;
 }
 
 =item _readJobOverrideFile( $job )
 
- Read the job override file which belongs to the given job
+ Read the job override file which belongs to the given job if any
 
  Param string job Job name
  Return string Job override file content on success, die on failure
@@ -885,7 +887,9 @@ sub _readJobOverrideFile
     my $filepath = eval { $self->getJobFilePath( $job, 'override' ) };
     return '' unless defined $filepath;
 
-    iMSCP::File->new( filename => $filepath )->get();
+    my $fcontent = iMSCP::File->new( filename => $filepath )->get();
+    defined $fcontent or croak( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+    $fcontent;
 }
 
 =item _writeFile( $filename, $fileContent )
@@ -894,7 +898,7 @@ sub _readJobOverrideFile
 
  Param string $filename file name
  Param string $fileContent file content
- Return bool TRUE on success, die on failure
+ Return bool TRUE on success, croak on failure
 
 =cut
 
@@ -907,12 +911,17 @@ sub _writeFile
 
     my $jobDir = dirname( $self->getJobFilePath( basename( $filename, '.conf', '.override' )));
     my $filepath = File::Spec->join( $jobDir, $filename );
-    my $file = iMSCP::File->new( filename => $filepath );
 
     if ( length $fileContent ) {
-        $file->set( $fileContent )->save()->mode( 0644 );
-    } elsif ( $filepath =~ /\.override$/ ) {
-        $file->remove();
+        my $file = iMSCP::File->new( filename => $filepath );
+        $file->set( $fileContent );
+        my $rs ||= $file->save();
+        $rs ||= $file->mode( 0644 );
+        $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
+    } elsif ( $filepath =~ /\.override$/ && -f $filepath ) {
+        iMSCP::File->new( filename => $filepath )->delFile() == 0 or croak(
+            getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+        );
     }
 
     1;

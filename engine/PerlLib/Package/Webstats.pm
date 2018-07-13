@@ -28,6 +28,7 @@ use warnings;
 use iMSCP::Debug;
 use iMSCP::Dialog;
 use iMSCP::Dir;
+use iMSCP::DistPackageManager;
 use iMSCP::EventManager;
 use iMSCP::Execute;
 use iMSCP::Getopt;
@@ -59,13 +60,10 @@ sub registerSetupListeners
 {
     my ( $self, $eventManager ) = @_;
 
-    $eventManager->register(
-        'beforeSetupDialog',
-        sub {
-            push @{ $_[0] }, sub { $self->showDialog( @_ ) };
-            0;
-        }
-    );
+    $eventManager->register( 'beforeSetupDialog', sub {
+        push @{ $_[0] }, sub { $self->showDialog( @_ ) };
+        0;
+    } );
 }
 
 =item showDialog( \%dialog )
@@ -82,17 +80,17 @@ sub showDialog
     my ( $self, $dialog ) = @_;
 
     my $selectedPackages = [ split ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES' ) ];
-    my %choices = map { $_ => $_ } @{ $self->{'PACKAGES' } };
+    my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
 
     if ( $main::reconfigure =~ /^(?:webstats|all|forced)$/
         || !@{ $selectedPackages }
         || grep { !exists $choices{$_} && $_ ne 'no' } @{ $selectedPackages }
     ) {
         ( my $rs, $selectedPackages ) = $dialog->checkbox(
-            <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $selectedPackages } ] );
+            <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $selectedPackages } ] );
 
 Please select the Webstats packages you want to install:
-\\Z \\Zn
+\Z \Zn
 EOF
         return $rs unless $rs < 30;
     }
@@ -136,7 +134,7 @@ sub preinstall
     @{selectedPackages}{ split ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES' ) } = ();
 
     my @distroPackages = ();
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next if exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -162,7 +160,7 @@ sub preinstall
     }
 
     @distroPackages = ();
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -205,7 +203,7 @@ sub install
     my %selectedPackages;
     @{selectedPackages}{ split ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES' ) } = ();
 
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_} && $_ ne 'No';
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -238,7 +236,7 @@ sub postinstall
     my %selectedPackages;
     @{selectedPackages}{ split ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES' ) } = ();
 
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_} && $_ ne 'No';
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -269,7 +267,7 @@ sub uninstall
     my ( $self ) = @_;
 
     my @distroPackages = ();
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
         if ( $@ ) {
@@ -319,7 +317,7 @@ sub setEnginePermissions
     my %selectedPackages;
     @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -353,7 +351,7 @@ sub addUser
     my %selectedPackages;
     @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -387,7 +385,7 @@ sub preaddDmn
     my %selectedPackages;
     @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -421,7 +419,7 @@ sub addDmn
     my %selectedPackages;
     @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -455,7 +453,7 @@ sub deleteDmn
     my %selectedPackages;
     @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
-    for ( keys %{ $self->{'PACKAGES'} } ) {
+    for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
         eval "require $package";
@@ -540,7 +538,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    @{ $self->{'PACKAGES'} }{iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webstats" )->getDirs()} = ();
+    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webstats" )->getDirs();
     $self;
 }
 
@@ -557,28 +555,15 @@ sub _installPackages
 {
     my ( undef, @packages ) = @_;
 
-    iMSCP::Dialog->getInstance->endGauge() unless iMSCP::Getopt->noprompt;
+    return 0 unless @packages;
 
-    local $ENV{'LANG'} = 'C';
-    local $ENV{'UCF_FORCE_CONFFNEW'} = 1;
-    local $ENV{'UCF_FORCE_CONFFMISS'} = 1;
+    eval { iMSCP::DistPackageManager->getInstance()->installPackages( @packages ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
 
-    my ( $aptVersion ) = `apt-get --version` =~ /^apt\s+([\d.]+)/;
-    my $stdout;
-    my $rs = execute(
-        [
-            ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-            'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew',
-            '--option', 'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
-            ( $main::forcereinstall ? '--reinstall' : () ), '--auto-remove', '--purge', '--no-install-recommends',
-            ( ( version->parse( $aptVersion ) < version->parse( '1.1.0' ) ) ? '--force-yes' : '--allow-downgrades' ),
-            'install', @packages
-        ],
-        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
-        \my $stderr
-    );
-    error( sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' )) if $rs;
-    $rs;
+    0;
 }
 
 =item _removePackages( @packages )
@@ -596,23 +581,13 @@ sub _removePackages
 
     return 0 unless @packages;
 
-    # Do not try to remove packages that are not available
-    my $rs = execute( "dpkg-query -W -f='\${Package}\\n' @packages 2>/dev/null", \my $stdout );
-    @packages = split /\n/, $stdout;
-    return 0 unless @packages;
+    eval { iMSCP::DistPackageManager->getInstance()->uninstallPackages( @packages ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
 
-    iMSCP::Dialog->getInstance()->endGauge() unless iMSCP::Getopt->noprompt;
-
-    $rs = execute(
-        [
-            ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-            'apt-get', '--assume-yes', '--auto-remove', '--purge', '--no-install-recommends', 'remove', @packages
-        ],
-        ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
-        \my $stderr
-    );
-    error( sprintf( "Couldn't remove packages: %s", $stderr || 'Unknown error' )) if $rs;
-    $rs;
+    0;
 }
 
 =back

@@ -25,7 +25,7 @@ package Package::Backup;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList isStringInList /;
+use autouse 'iMSCP::Dialog::InputValidation' => qw/ isStringInList /;
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
@@ -76,13 +76,15 @@ sub imscpBackupDialog
     my $value = ::setupGetQuestion( 'BACKUP_IMSCP' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
+    if ( isStringInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] )
+        || !isStringInList( $value, keys %choices )
+    ) {
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
 
-\\Z4\\Zb\\Zui-MSCP Backup Feature\\Zn
+\Z4\Zb\Zui-MSCP Backup Feature\Zn
 
 Do you want to activate the backup feature for i-MSCP?
-\\Z \\Zn
+\Z \Zn
 EOF
         return $rs if $rs >= 30;
     }
@@ -107,13 +109,15 @@ sub customerBackupDialog
     my $value = ::setupGetQuestion( 'BACKUP_DOMAINS' );
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] ) || !isStringInList( $value, keys %choices ) ) {
-        ( my $rs, $value ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
+    if ( isStringInList( iMSCP::Getopt->reconfigure, [ 'backup', 'all', 'forced' ] )
+        || !isStringInList( $value, keys %choices )
+    ) {
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'yes' );
 
-\\Z4\\Zb\\ZuDomains Backup Feature\\Zn
+\Z4\Zb\ZuDomains Backup Feature\Zn
 
 Do you want to activate the backup feature for customers?
-\\Z \\Zn
+\Z \Zn
 EOF
         return $rs if $rs >= 30;
     }

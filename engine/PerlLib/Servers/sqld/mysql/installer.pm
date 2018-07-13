@@ -160,7 +160,7 @@ sub sqlUserHostDialog
 {
     my (undef, $dialog) = @_;
 
-    if ( $main::imscpConfig{'SQL_PACKAGE'} ne 'Servers::sqld::remote' ) {
+    if ( $main::imscpConfig{'SQLD_PACKAGE'} ne 'Servers::sqld::remote' ) {
         main::setupSetQuestion( 'DATABASE_USER_HOST', 'localhost' );
         return 0;
     }
@@ -272,16 +272,16 @@ sub databasePrefixDialog
     if ( $main::reconfigure =~ /^(?:sql|servers|all|forced)$/
         || $prefix !~ /^(?:behind|infront|none)$/
     ) {
-        ( my $rs, $prefix ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $prefix eq $_, keys %choices ) )[0] || 'none' );
+        ( my $rs, $prefix ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $prefix eq $_, keys %choices ) )[0] || 'none' );
 
-\\Z4\\Zb\\ZuMySQL Database Prefix/Suffix\\Zn
+\Z4\Zb\ZuMySQL Database Prefix/Suffix\Zn
 
 Do you want to use a prefix or suffix for customer's SQL databases?
 
-\\Z4Infront:\\Zn A numeric prefix such as '1_' is added to each SQL user and database name.
- \\Z4Behind:\\Zn A numeric suffix such as '_1' is added to each SQL user and database name.
-   \\Z4None\\Zn: Choice is left to the customer.
-\\Z \\Zn
+\Z4Infront:\Zn A numeric prefix such as '1_' is added to each SQL user and database name.
+ \Z4Behind:\Zn A numeric suffix such as '_1' is added to each SQL user and database name.
+   \Z4None\Zn: Choice is left to the customer.
+\Z \Zn
 EOF
         return $rs if $rs >= 30;
     }
@@ -347,10 +347,10 @@ sub _askSqlRootUser
     my ($self, $dialog) = @_;
 
     my $hostname = main::setupGetQuestion(
-        'DATABASE_HOST', ( $main::imscpConfig{'SQL_PACKAGE'} eq 'Servers::sqld::remote' ) ? '' : 'localhost'
+        'DATABASE_HOST', ( $main::imscpConfig{'SQLD_PACKAGE'} eq 'Servers::sqld::remote' ) ? '' : 'localhost'
     );
 
-    if ( $main::imscpConfig{'SQL_PACKAGE'} eq 'Servers::sqld::remote'
+    if ( $main::imscpConfig{'SQLD_PACKAGE'} eq 'Servers::sqld::remote'
         && grep { $hostname eq $_ } ( 'localhost', '127.0.0.1', '::1' )
     ) {
         # Handle switch case (default value). Host cannot be one of above value
@@ -593,7 +593,7 @@ EOF
 
     # Fix For: The 'INFORMATION_SCHEMA.SESSION_VARIABLES' feature is disabled; see the documentation for
     # 'show_compatibility_56' (3167) - Occurs when executing mysqldump with Percona server 5.7.x
-    if ( $main::imscpConfig{'SQL_PACKAGE'} eq 'Servers::sqld::percona'
+    if ( $main::imscpConfig{'SQLD_PACKAGE'} eq 'Servers::sqld::percona'
         && version->parse( "$self->{'config'}->{'SQLD_VERSION'}" ) >= version->parse( '5.7.6' ) ) {
         $cfgTpl .= "show_compatibility_56 = 1\n";
     }
@@ -601,7 +601,7 @@ EOF
     # For backward compatibility - We will review this in later version
     # TODO Handle mariadb case when ready. See https://mariadb.atlassian.net/browse/MDEV-7597
     if ( version->parse( "$self->{'config'}->{'SQLD_VERSION'}" ) >= version->parse( '5.7.4' )
-        && $main::imscpConfig{'SQL_PACKAGE'} ne 'Servers::sqld::mariadb'
+        && $main::imscpConfig{'SQLD_PACKAGE'} ne 'Servers::sqld::mariadb'
     ) {
         $cfgTpl .= "default_password_lifetime = 0\n";
     }
@@ -654,7 +654,7 @@ sub _updateServerConfig
         }
     }
 
-    if ( !( $main::imscpConfig{'SQL_PACKAGE'} eq 'Servers::sqld::mariadb'
+    if ( !( $main::imscpConfig{'SQLD_PACKAGE'} eq 'Servers::sqld::mariadb'
         && version->parse( "$self->{'config'}->{'SQLD_VERSION'}" ) >= version->parse( '10.0' ) )
         && !( version->parse( "$self->{'config'}->{'SQLD_VERSION'}" ) >= version->parse( '5.6.6' ) )
     ) {
@@ -764,7 +764,7 @@ sub _setupSecureInstallation
         $dbh->do( "DELETE FROM db WHERE Db = 'test' OR Db = 'test\\_%'" );
 
         # Disallow remote root login
-        if ( $main::imscpConfig{'SQL_PACKAGE'} ne 'Servers::sqld::remote' ) {
+        if ( $main::imscpConfig{'SQLD_PACKAGE'} ne 'Servers::sqld::remote' ) {
             $dbh->do( "DELETE FROM user WHERE User = 'root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" );
         }
 

@@ -21,10 +21,11 @@ CONFIG
 
 CONTRIB
     Fixed: Possible duplicate DNS zone entry leading to server crash (Slave DNS server - 10_named_slave_provisioning.pl listener file)
+    Fixed: Prevent uninstallation of the libsasl2-modules package (10_postfix_smarthost.pl listener file)
 
 DISTRIBUTION
     Added: Support for Ubuntu Bionic Beaver (18.04) LTS
-
+    Added: PHP 7.2 as PHP alternative (Only selectable for the clients) -- See the errata file for further details
 
 FRONTEND
     Fixed: Closing button being removed in all dialog UI while it must be removed only in alert and confirmation dialogs
@@ -33,6 +34,9 @@ INSTALLER
     Fixed: 'CLIENT_DOMAIN_ALT_URLS' configuration parameter reseted to 0 (disabled) while running installer (Fix backported from 1.6.x branch)
     Fixed: 'CLIENT_DOMAIN_ALT_URLS' parameter is not set on fresh installations (Fix backported from 1.6.x branch)
     Fixed: DIRMNGR(8) daemon not being terminated when expected (APT key management -- Debian adapter; Fix backported from 1.6.x branch)
+
+PACKAGES
+    Removed: Net2ftp package. See the errata file for further explanation.
 
 TOOLS
     Backported: imscp-get-master-sql-user-pwd.pl script from 1.6.x branch (Script that make possible to retrieve i-MSCP master SQL user and password)

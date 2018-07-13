@@ -25,13 +25,14 @@ package Servers::php;
 
 use strict;
 use warnings;
+use iMSCP::Debug qw/ error /;
+use iMSCP::Dir;
+use iMSCP::Service;
 use parent 'Servers::noserver';
 
 =head1 DESCRIPTION
 
  i-MSCP PHP server implementation.
- 
- This class does nothing yet.
 
 =head1 PUBLIC METHODS
 
@@ -48,6 +49,96 @@ use parent 'Servers::noserver';
 sub getPriority
 {
     60;
+}
+
+=item install()
+
+=cut
+
+sub install
+{
+    my ( $self ) = @_;
+
+    $self->_disableUnusedPhpVersions();
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _init
+
+ Initialize instance
+
+ Return Servers::php
+
+=cut
+
+sub _init
+{
+    my ( $self ) = @_;
+
+    $self->{'httpd'} = Servers::httpd->factory();
+    $self;
+}
+
+=item
+
+ Disable unused PHP versions (PHP-FPM)
+
+ Return 0 on success, other on failure
+
+=cut
+
+sub _disableUnusedPhpVersions
+{
+    my ( $self ) = @_;
+
+    eval {
+        my $srvProvider = iMSCP::Service->getInstance();
+
+        for my $version ( $self->getAvailablePhpVersions() ) {
+            next $srvProvider->hasService( "php$version-fpm" );
+            $srvProvider->stop( "php$version-fpm" );
+
+            # Disables the PHP-FPM service if one of the following conditions is met:
+            # The HTTP server implementation for customers is not FPM
+            # The PHP version is not used by customers
+            if ( ref $self->{'httpd'} ne 'Servers::httpd::apache_php_fpm'
+                || $self->{'httpd'}->{'phpConfig'}->{'PHP_VERSION'} ne $version
+            ) {
+                if ( $srvProvider->isSystemd() ) {
+                    # If systemd is the current init we mask the service. Service will be disabled and masked.
+                    $srvProvider->getProvider()->mask( "php$version-fpm" );
+                } else {
+                    $srvProvider->disable( "php$version-fpm" );
+                }
+            }
+        }
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item _getAvailablePhpVersions()
+
+ Return list of available PHP versions
+
+=cut
+
+sub _getAvailablePhpVersions
+{
+    CORE::state @versions;
+
+    # A Debian like distribution is assumed here
+    @versions = sort { $a <=> $b } iMSCP::Dir->new( dirname => '/etc/php' )->getDirs( qr/^\d+.\d+$/ ) unless @versions;
+    @versions;
 }
 
 =back

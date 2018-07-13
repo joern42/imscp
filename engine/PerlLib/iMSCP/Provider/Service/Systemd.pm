@@ -29,7 +29,7 @@ use Carp qw/ croak /;
 use File::Basename;
 use File::Spec;
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug /;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::File;
 use iMSCP::Dir;
 use parent 'iMSCP::Provider::Service::Sysvinit';
@@ -70,14 +70,14 @@ sub isEnabled
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    # We need to catch STDERR here as we do not want raise a failure when
+    # We need to catch STDERR here as we do not want croak on failure when
     # command status is other than 0 but no STDERR
     my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \my $stdout, \my $stderr );
     croak( $stderr ) if $ret && length $stderr;
 
     # The indirect state indicates that the unit is not enabled.
     chomp( $stdout );
-    return 0 if $stdout eq 'indirect';
+    return FALSE if $stdout eq 'indirect';
 
     # The command status 0 indicate that the service is enabled
     $ret == 0;
@@ -188,7 +188,8 @@ sub remove
         $dropInDir .= $unit . ( $suffix ? '' : '.service' ) . '.d';
         next unless -d $dropInDir;
         debug( sprintf( 'Removing the %s drop-in directory', $dropInDir ));
-        iMSCP::Dir->new( dirname => $dropInDir )->remove();
+        eval { iMSCP::Dir->new( dirname => $dropInDir )->remove(); };
+        !$@ or croak( $@ );
     }
 
     # Remove unit files if any
@@ -196,7 +197,9 @@ sub remove
         # We do not want remove units that are shipped by distribution packages
         last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
         debug( sprintf( 'Removing the %s unit', $unitFilePath ));
-        iMSCP::File->new( filename => $unitFilePath )->remove();
+        iMSCP::File->new( filename => $unitFilePath )->delFile() == 0 or croak(
+            getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+        );
     }
 
     $self->daemonReload();
@@ -274,10 +277,10 @@ sub isRunning
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    # We need to catch STDERR here as we do not want raise failure when command
+    # We need to catch STDERR here as we do not want croak on failure when command
     # status is other than 0 but no STDERR
     my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-active', $self->resolveUnit( $unit ) ], undef, \my $stderr );
-    die( $stderr ) if $ret && length $stderr;
+    croak( $stderr ) if $ret && length $stderr;
     $ret == 0;
 }
 
@@ -320,7 +323,7 @@ sub hasService
  Param string $unit Unit name
  Param bool withpath If true, full unit path will be returned
  Param bool $nocache OPTIONAL If true, no cache will be used
- Return string real unit file path or name, SysVinit file path or name, croak/die if the unit cannot be resolved
+ Return string real unit file path or name, SysVinit file path or name, croak if the unit cannot be resolved
 
 =cut
 
@@ -336,7 +339,7 @@ sub resolveUnit
     if ( $nocache ) {
         delete $resolved{$unit};
     } elsif ( exists $resolved{$unit} ) {
-        defined $resolved{$unit} or die( sprintf( "Couldn't resolve the %s unit", $unit ));
+        defined $resolved{$unit} or croak( sprintf( "Couldn't resolve the %s unit", $unit ));
         return $resolved{$unit}->[$withpath ? FALSE : TRUE];
     }
 
@@ -355,14 +358,14 @@ sub resolveUnit
         }
 
         $resolved{$unit} = undef unless $nocache;
-        die( sprintf( "Couldn't resolve the %s unit: %s", $unit, $@ ));
+        croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $@ ));
     }
 
     # Resolve the unit, unless it is not a symlink pointing to a regular file,
     # case of a masked unit that point to the /dev/null character special file
     # For the file test, we reuse the stat structure from the last stat() call
     # that has been done in the _searchUnitFile() method
-    $unitFilePath = readlink( $unitFilePath ) or die( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! )) if -f _ && -l $unitFilePath;
+    $unitFilePath = readlink( $unitFilePath ) or croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! )) if -f _ && -l $unitFilePath;
 
     if ( $nocache ) {
         return $unitFilePath if $withpath;
@@ -418,7 +421,7 @@ sub _searchUnitFile
         return $filepath if -f $filepath || -c _;
     }
 
-    die( sprintf( 'Unit %s not found', $unit ));
+    croak( sprintf( 'Unit %s not found', $unit ));
 }
 
 =back

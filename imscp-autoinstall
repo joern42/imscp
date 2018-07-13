@@ -102,8 +102,8 @@ require iMSCP::Getopt->listener if iMSCP::Getopt->listener;
 if ( iMSCP::Getopt->noprompt ) {
     debugRegisterCallBack(
         sub {
-            if ( $? ) { # We exit with status 5 from iMSCP::Dialog in noninteractive mode
-                if ( $? == 5 ) {
+            if ( $? ) { 
+                if ( $? == 5 ) { # We exit with status 5 from iMSCP::Dialog in noninteractive mode
                     if ( iMSCP::Getopt->preseed ) {
                         print STDERR output( 'Missing or bad entry found in your preseed file.', 'fatal' );
                     } else {

@@ -97,9 +97,9 @@ sub showDialog
             'per_domain', 'Per domain, including subdomains PHP configuration',
             'per_user', 'Per user PHP configuration'
         );
-        ( my $rs, $confLevel ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $confLevel eq $_, keys %choices ) )[0] || 'per_site' );
+        ( my $rs, $confLevel ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $confLevel eq $_, keys %choices ) )[0] || 'per_site' );
 
-\\Z4\\Zb\\ZuPHP configuration level\\Zn
+\Z4\Zb\ZuPHP configuration level\Zn
 
 Please choose the PHP configuration level for customers:
 \Z \Zn
@@ -336,7 +336,7 @@ sub _buildFastCgiConfFiles
     $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
     $rs ||= $file->mode( 0644 );
     $rs = $self->{'httpd'}->disableModules(
-        'actions', 'fastcgi', 'fcgid', 'fcgid_imscp', 'php5', 'php5_cgi', 'php5filter', 'php5.6', 'php7.0', 'php7.1',
+        'actions', 'fastcgi', 'fcgid', 'fcgid_imscp', 'php5', 'php5_cgi', 'php5filter', 'php5.6', 'php7.0', 'php7.1', 'php7.2',
         'proxy_fcgi', 'proxy_handler', 'mpm_itk', 'mpm_event', 'mpm_prefork', 'mpm_worker'
     );
     $rs ||= $self->{'httpd'}->enableModules( 'actions', 'authz_groupfile', 'fcgid_imscp', 'mpm_event', 'version' );
