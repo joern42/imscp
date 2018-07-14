@@ -112,6 +112,17 @@ sub AUTOLOAD
     goto &{ $AUTOLOAD };
 }
 
+=item DESTROY
+
+ Needed due to autoloading
+
+=cut
+
+sub DESTROY
+{
+
+}
+
 =back
 
 =head1 PRIVATE METHODS
