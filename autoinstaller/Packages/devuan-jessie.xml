@@ -23,18 +23,18 @@
         </nginx>
     </panel_httpd>
     <httpd description="Web server for the clients">
-        <apache2_fcgid description="Apache2 (MPM Event) server and PHP with CGI/FastCGI SAPI" class="Servers::httpd::apache_fcgid">
+        <apache_fcgid description="Apache2 (MPM Event) server and PHP with CGI/FastCGI SAPI" class="Servers::httpd::apache_fcgid">
             <package>apache2-suexec-pristine</package>
             <package>libapache2-mod-fcgid</package>
             <post_install_task>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_task>
-        </apache2_fcgid>
-        <apache2_itk description="Apache2 (MPM ITK) server and PHP with Apache2 SAPI" class="Servers::httpd::apache_itk">
+        </apache_fcgid>
+        <apache_itk description="Apache2 (MPM ITK) server and PHP with Apache2 SAPI" class="Servers::httpd::apache_itk">
             <package_delayed>libapache2-mpm-itk</package_delayed>
-        </apache2_itk>
-        <apache2_php_fpm default="1" description="Apache2 (MPM Event) server and PHP with FPM/FastCGI SAPI" class="Servers::httpd::apache_php_fpm">
+        </apache_itk>
+        <apache_php_fpm default="1" description="Apache2 (MPM Event) server and PHP with FPM/FastCGI SAPI" class="Servers::httpd::apache_php_fpm">
             <package>apache2-suexec-pristine</package>
             <post_install_tasks>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_tasks>
-        </apache2_php_fpm>
+        </apache_php_fpm>
         <package>apache2</package>
         <package>apache2-data</package>
         <package>apache2-dev</package>
@@ -42,7 +42,6 @@
     </httpd>
     <php
             description="PHP version for the clients"
-            class="Servers::php"
             repository="https://packages.sury.org/php/ jessie main"
             repository_key_uri="https://packages.sury.org/php/apt.gpg"
             pinning_package="*"
@@ -194,7 +193,7 @@
                 description="MySQL 5.5 server"
                 class="Servers::sqld::mysql"
                 pinning_package="libmysqlclient18 mysql-client-5.5 mysql-common mysql-server-5.5"
-                pinning_pin="release o=Debian,n=jessie"
+                pinning_pin="release o=Devuan,n=jessie"
                 pinning_pin_priority="1001"
         >
             <package>mysql-client-5.5</package>
@@ -231,7 +230,7 @@
                 description="MariaDB 10.0 server"
                 class="Servers::sqld::mariadb"
                 pinning_package="libmysqlclient18 mariadb-client-10.0 mariadb-common mariadb-server-10.0 mysql-common"
-                pinning_pin="release o=Debian,n=jessie"
+                pinning_pin="release o=Devuan,n=jessie"
                 pinning_pin_priority="1001"
         >
             <package>mariadb-client-10.0</package>
@@ -319,7 +318,7 @@
                 description="Remote SQL server"
                 class="Servers::sqld::remote"
                 pinning_package="libmysqlclient18 mysql-client-5.5 mysql-common"
-                pinning_pin="release o=Debian,n=jessie"
+                pinning_pin="release o=Devuan,n=jessie"
                 pinning_pin_priority="1001"
         >
             <package>mysql-client-5.5</package>
