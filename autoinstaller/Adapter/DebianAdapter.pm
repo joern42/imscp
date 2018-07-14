@@ -414,7 +414,7 @@ sub _processPackagesFile
     #
 
     # Sort sections to make sure to show dialogs always in same order
-    for my $section ( sort keys $pkgData ) {
+    for my $section ( sort keys %{ $pkgData } ) {
         my $data = $pkgData->{$section};
 
         # Per section packages to install
