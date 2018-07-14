@@ -28,7 +28,6 @@ use Fcntl qw/ :flock /;
 use File::Temp;
 use FindBin;
 use iMSCP::Boolean;
-use iMSCP::Dialog::InputValidation qw/ isStringInList /;
 use iMSCP::DistPackageManager;
 use iMSCP::Cwd;
 use iMSCP::Debug qw/ debug error output getMessageByType /;
@@ -81,7 +80,7 @@ sub installPreRequiredPackages
     0;
 }
 
-=item preBuild(\@steps)
+=item preBuild( \@steps )
 
  Process preBuild tasks
 
@@ -508,7 +507,7 @@ sub _processPackagesFile
             # We select the default alternative as defined in the packages file
             # or the first entry if there are no default, and we set the dialog
             # flag to make the user able to change it unless there is only one
-            # alternative.
+            # alternative available.
             ( $sAlt ) = grep { $data->{$_}->{'default'} } @sAlts;
             $sAlt ||= $sAlts[0];
             $showDialog = TRUE unless @sAlts < 2;
@@ -516,7 +515,7 @@ sub _processPackagesFile
 
         # Set the dialog flag in any case if there are many alternatives
         # available and if user asked for alternative reconfiguration
-        $showDialog ||= @sAlts > 1 && isStringInList( iMSCP::Getopt->reconfigure, $section, 'servers', 'all' );
+        $showDialog ||= @sAlts > 1 && grep( iMSCP::Getopt->reconfigure eq $_, $section, 'servers', 'all' );
 
         # Process alternative dialogs
         if ( $showDialog ) {
@@ -619,10 +618,10 @@ EOF
 
         debug( sprintf( 'Alternative for %s set to: %s', $section, $sAlt ));
 
-        # Set server name for selected aternative
+        # Set server name for the selected alternative if any
         $main::imscpConfig{$varname} = $sAlt if exists $main::imscpConfig{$varname};
 
-        # Set package name for the selected aternative
+        # Set package name for the selected aternative if any
         if ( exists $main::imscpConfig{uc( $section ) . '_PACKAGE'} ) {
             $main::imscpConfig{uc( $section ) . '_PACKAGE'} = $data->{$sAlt}->{'class'};
         }

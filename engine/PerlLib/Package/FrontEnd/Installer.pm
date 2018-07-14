@@ -603,7 +603,7 @@ sub _init
     $self->{'eventManager'} = $self->{'frontend'}->{'eventManager'};
     $self->{'cfgDir'} = $self->{'frontend'}->{'cfgDir'};
     $self->{'config'} = $self->{'frontend'}->{'config'};
-    $self->guessPhpVariables();
+    $self->guessPhpVariables() if defined $main::execmode && $main::execmode eq 'setup';
     $self;
 }
 

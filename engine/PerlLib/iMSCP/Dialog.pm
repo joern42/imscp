@@ -316,7 +316,7 @@ sub startGauge
     open
         $self->{'gauge'},
         '|-',
-        $self->{'bin'},
+        $self->_findBin(),
         $self->_buildCommonCommandOptions( 'noEscape' ),
         '--gauge',
         $text,
@@ -487,7 +487,6 @@ sub _init
     $self->{'_opts'}->{'aspect'} = undef;
     $self->{'_opts'}->{'separate-output'} = undef;
     $self->{'_opts'}->{'no-tags'} = undef;
-    $self->_findBin( $^O =~ /bsd$/ ? 'cdialog' : 'dialog' );
     $self->_resize();
     $SIG{'WINCH'} = sub { $self->_resize(); };
     $self;
@@ -533,19 +532,17 @@ sub _resize
 
  Find dialog variant (dialog|cdialog)
 
- Return iMSCP::Dialog::Dialog
+ Return string Dialog program binary path, die if dialog programm is not found
 
 =cut
 
 sub _findBin
 {
-    my ( $self, $variant ) = @_;
+    CORE::state $bin;
 
-    my $bindPath = iMSCP::ProgramFinder::find( $variant ) or die(
-        sprintf( "Couldn't find dialog program: %s", $variant )
+    $bin ||= iMSCP::ProgramFinder::find( $^O =~ /bsd$/ ? 'cdialog' : 'dialog' ) or die(
+        "Couldn't find dialog program"
     );
-    $self->{'bin'} = $bindPath;
-    $self;
 }
 
 =item _stripFormats( $string )
@@ -642,7 +639,7 @@ sub _execute
     my $height = $self->{'autosize'} ? 0 : $self->{'lines'};
     my $width = $self->{'autosize'} ? 0 : $self->{'columns'};
 
-    my $ret = execute( "$self->{'bin'} $command --$type $text $height $width $init", undef, \my $output );
+    my $ret = execute( $self->_findBin() . " $command --$type $text $height $width $init", undef, \my $output );
 
     $self->{'_opts'}->{'separate-output'} = undef;
     $self->_init() if $self->{'autoreset'};
