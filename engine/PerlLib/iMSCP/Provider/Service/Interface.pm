@@ -93,7 +93,7 @@ sub disable
 
  If the service doesn't exist, no failure *MUST* be raised.
  If the iMSCP::Provider::Service::Interface provider provide a compatibility
- layer for SysVinit scripts, the sysvinit script *SHOULD* be also removed.
+ layer for SysVinit scripts, the SysVinit script *SHOULD* be also removed.
 
  Param string $service Service name
  Return void, croak on failure
@@ -200,10 +200,11 @@ sub isRunning
 
  Does the given service exist?
 
- Due to the nature of this routine, its result *MUST* not be cached. This
- necessarily involve file resolving. A service can be non-existent at some
- point but this doesn't necessarily mean that will be still unavailable
- later on and of course, the other way around is also possible.
+ Due to the nature of this routine, its result *MUST* not be cached, nor rely
+ on a previously cached result. This necessarily involve file resolving. A
+ service can be non-existent at some time but this doesn't necessarily mean
+ that it will not be available later on and of course, the other way around is
+ also possible.
 
  Param string $service Service name
  Return bool TRUE if the service exits, FALSE otherwise
