@@ -196,12 +196,16 @@ sub isRunning
     croak( sprintf( 'The %s class must implement the isRunning() method', ref $self ));
 }
 
-=item hasService( $service [, 'nocache' = FALSE ] )
+=item hasService( $service )
 
- Does the given service exists?
+ Does the given service exist?
+
+ Due to the nature of this routine, its result *MUST* not be cached. This
+ necessarily involve file resolving. A service can be non-existent at some
+ point but this doesn't necessarily mean that will be still unavailable
+ later on and of course, the other way around is also possible.
 
  Param string $service Service name
- Param bool $nocache OPTIONAL If TRUE, no cache *MUST* be used
  Return bool TRUE if the service exits, FALSE otherwise
 
 =cut
