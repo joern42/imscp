@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Provider::Service::Debian::Systemd - Service provider for Debian `systemd' service/socket units
+ iMSCP::Provider::Service::Debian::Systemd - Debian systemd init provider
 
 =cut
 
@@ -27,13 +27,13 @@ use strict;
 use warnings;
 use File::Basename;
 use iMSCP::Boolean;
-use parent qw/ iMSCP::Provider::Service::Systemd iMSCP::Provider::Service::Debian::Sysvinit /;
+use parent qw/ iMSCP::Provider::Service::Systemd iMSCP::Provider::Service::Debian::SysVinit /;
 
 =head1 DESCRIPTION
 
- Systemd service provider for Debian like distributions.
+ systemd init provider for Debian-like distributions.
  
- Difference with the iMSCP::Provider::Service::Systemd base provider is the
+ Difference with the iMSCP::Provider::Service::Systemd init provider is the
  support for the 'is-enabled' API call that is not available till Systemd
  version 220-1 (Debian package) and support for SysVinit script removal.
 
@@ -56,7 +56,7 @@ sub isEnabled
 {
     my ( $self, $unit ) = @_;
 
-    # We need to catch STDERR here as we do not want raise failure when command
+    # We need to catch STDERR as we do not want raise failure when command
     # status is other than 0 but no STDERR
     my $ret = $self->_exec(
         [ $iMSCP::Provider::Service::Systemd::COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \my $stdout, \my $stderr
@@ -74,7 +74,7 @@ sub isEnabled
     if ( $ret > 0 && !length $self->_getLastExecOutput() ) {
         # For the SysVinit scripts, we want operate only on services
         ( $unit, undef, my $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
-        return $self->iMSCP::Provider::Service::Debian::Sysvinit::isEnabled( $unit ) if grep ( $suffix eq $_, '', '.service' );
+        return $self->iMSCP::Provider::Service::Debian::SysVinit::isEnabled( $unit ) if grep ( $suffix eq $_, '', '.service' );
     }
 
     # The command status 0 indicate that the service is enabled
@@ -95,7 +95,7 @@ sub remove
 
     # For the SysVinit scripts, we want operate only on services
     my ( $init, undef, $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
-    $self->iMSCP::Provider::Service::Debian::Sysvinit::remove( $init ) if grep ( $suffix eq $_, '', '.service' );
+    $self->iMSCP::Provider::Service::Debian::SysVinit::remove( $init ) if grep ( $suffix eq $_, '', '.service' );
     $self->SUPER::remove( $unit );
 }
 

@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Provider::Service::Sysvinit - Service provider for Debian `sysvinit' scripts
+ iMSCP::Provider::Service::Sysvinit - Debian SysVinit init provider
 
 =cut
 
@@ -21,13 +21,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Provider::Service::Debian::Sysvinit;
+package iMSCP::Provider::Service::Debian::SysVinit;
 
 use strict;
 use warnings;
 use Carp qw/ croak /;
 use iMSCP::Boolean;
-use parent 'iMSCP::Provider::Service::Sysvinit';
+use parent 'iMSCP::Provider::Service::SysVinit';
 
 # Commands used in that package
 my %COMMANDS = (
@@ -36,11 +36,11 @@ my %COMMANDS = (
 
 =head1 DESCRIPTION
 
- SysVinit service provider for Debian like distributions.
+ SysVinit init provider for Debian-like distributions.
 
- Differences with the base sysvinit provider are support for enabling,
- disabling and removing services via 'update-rc.d' and the ability to determine
- enabled status.
+ Differences with the iMSCP::Provider::Service::Sysvinit init provider are
+ support for enabling, disabling and removing services via UPDATE-RC.D(8) and
+ the ability to determine enabled status.
 
 
 =head1 PUBLIC METHODS
@@ -59,7 +59,7 @@ sub isEnabled
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    $self->_isSysvinit() or croak( sprintf( 'Unknown %s service', $service ));
+    $self->hasService( $service ) or croak( sprintf( 'Unknown %s service', $service ));
 
     scalar glob "/etc/rc[S5].d/S??$service" ? TRUE : FALSE;
 }
@@ -108,7 +108,7 @@ sub remove
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    return unless $self->_isSysvinit( $service, 'nocache' );
+    return unless $self->hasService( $service );
 
     $self->stop( $service );
     $self->_exec( [ $COMMANDS{'update-rc.d'}, '-f', $service, 'remove' ] );

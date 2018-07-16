@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Service - High-level interface for service providers
+ iMSCP::Service - High-level interface for init providers
 
 =cut
 
@@ -29,6 +29,7 @@ use Carp qw/ croak /;
 use File::Basename;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug getMessageByType /;
+use iMSCP::Dir;
 use iMSCP::Execute;
 use iMSCP::LsbRelease;
 use iMSCP::ProgramFinder;
@@ -41,7 +42,7 @@ $Module::Load::Conditional::FORCE_SAFE_INC = TRUE;
 
 =head1 DESCRIPTION
 
- High-level interface for service providers.
+ High-level interface for init providers.
 
 =head1 PUBLIC METHODS
 
@@ -97,9 +98,9 @@ sub disable
  See iMSCP::Provider::Service::Interface::remove()
  
  Because we want to remove service files, independently of the current
- init system, this method reimplement some parts of the Systemd and
- Upstart providers. Calling the remove() method on these providers when
- they are not the current init system would lead to a failure.
+ init system, this method reimplement some parts of the systemd and
+ Upstart init providers. Calling the remove() method on these providers
+ when they are not the current init system would lead to a failure.
 
 =cut
 
@@ -127,8 +128,8 @@ sub remove
                 iMSCP::Dir->new( dirname => $dropInDir )->remove();
             }
 
-            # Remove unit files if any
-            while ( my $unitFilePath = eval { $provider->resolveUnit( $service, 'withpath', 'nocache' ) } ) {
+            # Remove systemd unit files if any
+            while ( my $unitFilePath = eval { $provider->resolveUnit( $service, TRUE, TRUE ) } ) {
                 # We do not want remove units that are shipped by distribution packages
                 last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
                 debug( sprintf( 'Removing the %s unit', $unitFilePath ));
@@ -138,8 +139,8 @@ sub remove
 
         unless ( $self->{'init'} eq 'Upstart' ) {
             my $provider = $self->getProvider( 'Upstart' );
-            for my $file ( qw/ conf override / ) {
-                if ( my $jobfilePath = eval { $provider->getJobFilePath( $service, $file ); } ) {
+            for my $type ( qw/ conf override / ) {
+                if ( my $jobfilePath = eval { $provider->resolveJob( $service, $type, TRUE ); } ) {
                     debug( sprintf( "Removing the %s upstart file", $jobfilePath ));
                     iMSCP::File->new( filename => $jobfilePath )->remove();
                 }
@@ -228,7 +229,7 @@ sub isRunning
     $self->{'provider'}->isRunning( $service );
 }
 
-=item hasService( $service [, $nocache ] )
+=item hasService( $service )
 
  See iMSCP::Provider::Service::Interface::hasService()
 
@@ -236,18 +237,18 @@ sub isRunning
 
 sub hasService
 {
-    my ( $self, $service, $nocache ) = @_;
+    my ( $self, $service ) = @_;
 
     defined $service or croak( 'Missing or undefined $service parameter' );
 
-    $self->{'provider'}->hasService( $service, $nocache );
+    $self->{'provider'}->hasService( $service );
 }
 
 =item getInitSystem()
 
- Get init system
+ Get init system in use, that is, the program running with PID 1
 
- Return string Init system name (lowercase)
+ Return string Init system name
 
 =cut
 
@@ -256,24 +257,24 @@ sub getInitSystem( )
     $_[0]->{'init'};
 }
 
-=item isSysvinit( )
+=item isSysVinit( )
 
- Is sysvinit used as init system?
+ Is SysVinit used as init system, that is, the program running with PID 1?
 
- Return bool TRUE if sysvinit is the current init system, FALSE otherwise
+ Return boolean TRUE if sysvinit is the current init system, FALSE otherwise
 
 =cut
 
-sub isSysvinit
+sub isSysVinit
 {
-    $_[0]->{'init'} eq 'Sysvinit';
+    $_[0]->{'init'} eq 'SysVinit';
 }
 
 =item isUpstart( )
 
- Is upstart used as init system?
+ Is upstart used as init system, that is, the program running with PID 1?
 
- Return bool TRUE if upstart is is the current init system, FALSE otherwise
+ Return boolean TRUE if upstart is is the current init system, FALSE otherwise
 
 =cut
 
@@ -284,9 +285,9 @@ sub isUpstart
 
 =item isSystemd( )
 
- Is systemd used as init system?
+ Is systemd used as init system, that is, the program running with PID 1?
 
- Return bool TRUE if systemd is the current init system, FALSE otherwise
+ Return boolean TRUE if systemd is the current init system, FALSE otherwise
 
 =cut
 
@@ -299,8 +300,8 @@ sub isSystemd
 
  Get service provider instance
 
- Param string $providerName OPTIONAL Provider name (Systemd|Sysvinit|Upstart)
- Return iMSCP::Provider::Service::Sysvinit, croak on failure
+ Param string $providerName OPTIONAL Provider name (Systemd|SysVinit|Upstart)
+ Return iMSCP::Provider::Service::Interface, croak on failure
 
 =cut
 
@@ -308,7 +309,7 @@ sub getProvider
 {
     my ( $self, $providerName ) = @_;
 
-    $providerName = ucfirst( lc( $providerName // $self->{'init'} ));
+    $providerName //= $self->{'init'};
 
     my $id = iMSCP::LsbRelease->getInstance->getId( 'short' );
     $id = 'Debian' if grep ( lc $id eq $_, 'devuan', 'ubuntu' );
@@ -366,9 +367,9 @@ sub _init
 
 sub _detectInit
 {
-    return 'Systemd' if -d '/run/systemd/system';
+    return 'Systemd' if -d '/run/systemd/system' && !iMSCP::Dir->new( dirname => '/run/systemd/system' )->isEmpty();
     return 'Upstart' if iMSCP::ProgramFinder::find( 'initctl' ) && execute( 'initctl version 2>/dev/null | grep -q upstart' ) == 0;
-    'Sysvinit';
+    'SysVinit';
 }
 
 =item _getLastError( )

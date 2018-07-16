@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Provider::Service::Interface - Interface for init service providers
+ iMSCP::Provider::Service::Interface - Interface for init providers
 
 =cut
 
@@ -29,7 +29,7 @@ use Carp qw/ croak /;
 
 =head1 DESCRIPTION
 
- Interface for service (Systemd, SysVinit, Upstart...) init providers.
+ Interface for init providers.
 
 =head1 PUBLIC METHODS
 
@@ -40,7 +40,7 @@ use Carp qw/ croak /;
  Is the given service enabled?
 
  Param string $service Service name
- Return TRUE if the service is enabled, FALSE otherwise, croak if the service doesn't exist
+ Return boolean TRUE if the service is enabled, FALSE otherwise, croak if the service doesn't exist
 
 =cut
 
@@ -99,6 +99,8 @@ sub disable
  If the service doesn't exist, no failure *MUST* be raised.
  If the iMSCP::Provider::Service::Interface provider provide a compatibility
  layer for SysVinit scripts, the SysVinit script *SHOULD* be also removed.
+
+ Any cached result for service file resolving *MUST* be cleared.
 
  Param string $service Service name
  Return void, croak on failure
@@ -190,7 +192,7 @@ sub reload
  Is the given service running?
 
  Param string $service Service name
- Return bool TRUE if the service is running, FALSE otherwise, croak if the service doesn't exist
+ Return boolean TRUE if the service is running, FALSE otherwise, croak if the service doesn't exist
 
 =cut
 
@@ -212,7 +214,7 @@ sub isRunning
  also possible.
 
  Param string $service Service name
- Return bool TRUE if the service exits, FALSE otherwise
+ Return boolean TRUE if the service exits, FALSE otherwise
 
 =cut
 

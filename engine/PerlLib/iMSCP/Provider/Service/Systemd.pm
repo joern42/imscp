@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Provider::Service::Systemd - Base service provider for `systemd' service/socket units
+ iMSCP::Provider::Service::Systemd - systemd init provider
 
 =cut
 
@@ -32,7 +32,7 @@ use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::File;
 use iMSCP::Dir;
-use parent 'iMSCP::Provider::Service::Sysvinit';
+use parent 'iMSCP::Provider::Service::SysVinit';
 
 # Commands used in that package
 our %COMMANDS = (
@@ -50,7 +50,7 @@ my @UNITFILEPATHS = (
 
 =head1 DESCRIPTION
 
- Systemd base service provider implementation.
+ systemd init provider.
 
  See https://www.freedesktop.org/wiki/Software/systemd/
 
@@ -70,7 +70,7 @@ sub isEnabled
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    # We need to catch STDERR here as we do not want croak on failure when
+    # We need to catch STDERR as we do not want croak on failure when
     # command status is other than 0 but no STDERR
     my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-enabled', $self->resolveUnit( $unit ) ], \my $stdout, \my $stderr );
     croak( $stderr ) if $ret && length $stderr;
@@ -95,14 +95,15 @@ sub enable
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
+    $self->unmask( $unit );
+
     # We make use of the --force flag to overwrite any conflicting symlinks.
     # This is particularly usefull in case the unit provides an alias that is
     # also provided as a SysVinit script and which has been masked. For instance:
     # - mariadb.service unit that provides the mysql.service unit as alias
     # - mysql SysVinit script which is masked (/etc/systemd/system/mysql.service => /dev/null)
-    # In such a case, and without the --force option, Systemd would fails to create the symlink
+    # In such a case, and without the --force option, systemd would fails to create the symlink
     # for the mysql.service alias as the mysql.service symlink (masked unit) would already exist.
-    $self->unmask( $unit );
     $self->_exec( [ $COMMANDS{'systemctl'}, '--force', '--quiet', 'enable', $self->resolveUnit( $unit ) ] );
 }
 
@@ -119,13 +120,14 @@ sub disable
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
     $self->_exec( [ $COMMANDS{'systemctl'}, '--quiet', 'disable', $self->resolveUnit( $unit ) ] );
+    $self->mask();
 }
 
 =item mask( $unit )
 
  Mask the given unit
  
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure
 
 =cut
 
@@ -135,10 +137,8 @@ sub mask
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    $self->disable( $unit );
-
     # Units located in the /etc/systemd/system directory cannot be masked
-    unless ( index( $self->resolveUnit( $unit, 'withpath' ), '/etc/systemd/system/' ) == 0 ) {
+    unless ( index( $self->resolveUnit( $unit, TRUE ), '/etc/systemd/system/' ) == 0 ) {
         $self->_exec( [ $COMMANDS{'systemctl'}, '--quiet', 'mask', $self->resolveUnit( $unit ) ] );
     }
 }
@@ -147,7 +147,7 @@ sub mask
 
  Unmask the given unit
  
- Return bool TRUE on success, croak on failure
+ Return void, croak on failure
 
 =cut
 
@@ -172,14 +172,14 @@ sub remove
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    return unless $self->hasService( $unit, 'nocache' );
+    return unless $self->hasService( $unit );
 
     $self->stop( $unit );
     $self->unmask( $unit );
 
     # We need check again for existence of the unit because there could have
     # been an orphaned masked unit
-    $self->disable( $unit ) if $self->hasService( $unit, 'nocache' );
+    $self->disable( $unit ) if $self->hasService( $unit );
 
     # Remove drop-in directories if any
     for my $dir ( '/etc/systemd/system/', '/usr/local/lib/systemd/system/' ) {
@@ -193,7 +193,7 @@ sub remove
     }
 
     # Remove unit files if any
-    while ( my $unitFilePath = eval { $self->resolveUnit( $unit, 'withpath', 'nocache' ) } ) {
+    while ( my $unitFilePath = eval { $self->resolveUnit( $unit, TRUE, TRUE ) } ) {
         # We do not want remove units that are shipped by distribution packages
         last unless index( $unitFilePath, '/etc/systemd/system/' ) == 0 || index( $unitFilePath, '/usr/local/lib/systemd/system/' ) == 0;
         debug( sprintf( 'Removing the %s unit', $unitFilePath ));
@@ -277,14 +277,14 @@ sub isRunning
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    # We need to catch STDERR here as we do not want croak on failure when command
+    # We need to catch STDERR as we do not want croak on failure when command
     # status is other than 0 but no STDERR
     my $ret = $self->_exec( [ $COMMANDS{'systemctl'}, 'is-active', $self->resolveUnit( $unit ) ], undef, \my $stderr );
     croak( $stderr ) if $ret && length $stderr;
     $ret == 0;
 }
 
-=item hasService( $unit [, $nocache = FALSE ] )
+=item hasService( $unit )
 
  See iMSCP::Provider::Service::Interface::hasService()
 
@@ -292,38 +292,36 @@ sub isRunning
 
 sub hasService
 {
-    my ( $self, $unit, $nocache ) = @_;
+    my ( $self, $unit ) = @_;
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    eval { $self->resolveUnit( $unit, undef, $nocache ); };
+    eval { $self->resolveUnit( $unit, FALSE, TRUE ); };
 }
 
-=item resolveUnit( $unit [, $withpath =  FALSE, [ $nocache = FALSE ] ] )
+=item resolveUnit( $unit [, $withpath =  FALSE [, $nocache = FALSE ] ] )
 
  Resolves the given unit
 
  Units can be aliased (have an alternative name), by creating a symlink from
- the new name to the existing name in one of the unit search paths.
- 
- Due to unexpected behaviors when we're acting on alias units, this method make
- it possible to always act on the aliased units by resolving them.
- 
- See the following reports for a better understanding of the situation
+ the new name to the existing name in one of the unit search paths. Due to
+ unexpected behaviors when using alias names, this method always resolve the
+ alias units. See the following reports for a better understanding of the
+ situation:
   - https://github.com/systemd/systemd/issues/7875
   - https://github.com/systemd/systemd/issues/7874
 
  A fallback for SysVinit scripts is also provided. If $unit is not a native
- Systemd unit and that a SysVinit match the $unit name (without the .service
+ systemd unit and that a SysVinit match the $unit name (without the .service
  suffix), its name or path is returned.
  
  Units are resolved only once. However, it is possible to force new resolving by
  passing the $nocache flag.
 
  Param string $unit Unit name
- Param bool withpath If true, full unit path will be returned
- Param bool $nocache OPTIONAL If true, no cache will be used
- Return string real unit file path or name, SysVinit file path or name, croak if the unit cannot be resolved
+ Param boolean withpath If TRUE, full unit path will be returned
+ Param boolean $nocache OPTIONAL If true, no cache will be used
+ Return string real unit file path or name, SysVinit file path or name, croak if the unit can't be resolved
 
 =cut
 
@@ -333,25 +331,32 @@ sub resolveUnit
 
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
-    # Make sure that units are resolved only once
     CORE::state %resolved;
 
     if ( $nocache ) {
         delete $resolved{$unit};
     } elsif ( exists $resolved{$unit} ) {
-        defined $resolved{$unit} or croak( sprintf( "Couldn't resolve the %s unit", $unit ));
-        return $resolved{$unit}->[$withpath ? FALSE : TRUE];
+        $resolved{$unit} or croak( sprintf( "Couldn't resolve the %s unit", $unit ));
+        return $resolved{$unit}->[$withpath ? 0 : 1];
     }
 
-    my $unitFilePath = eval { $self->_searchUnitFile( $unit ); };
+    ( $unit, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
+    my $unitFQ .= length $suffix ? $unit : $unit . '.service';
 
-    if ( $@ ) {
+    my $unitFilePath;
+    for my $path ( @UNITFILEPATHS ) {
+        $unitFilePath = File::Spec->join( $path, $unitFQ );
+        # Either a regular file or character special file
+        # (Masked units point to /dev/null)
+        undef $unitFilePath unless -f $unitFilePath || -c _;
+        last if defined $unitFilePath;
+    }
+
+    unless ( $unitFilePath ) {
         # For the SysVinit scripts, we want operate only on services
-        ( $unit, undef, my $suffix ) = fileparse( $unit, qr/\.[^.]*/ );
         if ( grep ( $suffix eq $_, '', '.service') ) {
-            local $@;
-
-            if ( $unitFilePath = eval { $self->_searchInitScript( $unit, $nocache ) } ) {
+            if ( $unitFilePath = eval { $self->resolveSysVinitScript( $unit, $nocache ) } ) {
+                return $withpath ? $unitFilePath : $unit if $nocache;
                 $resolved{$unit} = [ $unitFilePath, $unit ];
                 goto &{ resolveUnit };
             }
@@ -361,16 +366,13 @@ sub resolveUnit
         croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $@ ));
     }
 
-    # Resolve the unit, unless it is not a symlink pointing to a regular file,
-    # case of a masked unit that point to the /dev/null character special file
-    # For the file test, we reuse the stat structure from the last stat() call
-    # that has been done in the _searchUnitFile() method
-    $unitFilePath = readlink( $unitFilePath ) or croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! )) if -f _ && -l $unitFilePath;
-
-    if ( $nocache ) {
-        return $unitFilePath if $withpath;
-        return basename( $unitFilePath );
+    # Resolve the unit, unless it is not a symlink pointing to a regular file
+    # (masked unit point to the /dev/null character special file)
+    if ( -f _ && -l $unitFilePath ) {
+        $unitFilePath = readlink( $unitFilePath ) or croak( sprintf( "Couldn't resolve the %s unit: %s", $unit, $! ));
     }
+
+    return $withpath ? $unitFilePath : basename( $unitFilePath ) if $nocache;
 
     $resolved{$unit} = [ $unitFilePath, basename( $unitFilePath ) ];
     goto &{ resolveUnit };
@@ -389,39 +391,6 @@ sub daemonReload
     my ( $self ) = @_;
 
     $self->_exec( [ $COMMANDS{'systemctl'}, 'daemon-reload' ] );
-}
-
-=back
-
-=head1 PRIVATE METHODS
-
-=over 4
-
-=item _searchUnitFile( $unit )
-
- Search the given unit file in all available paths
-
- Param string $unit Unit name
- Return string unit file path on success, croak on failure
-
-=cut
-
-sub _searchUnitFile
-{
-    my ( undef, $unit ) = @_;
-
-    defined $unit or croak( 'Missing or undefined $unit parameter' );
-
-    ( undef, undef, my $suffix ) = fileparse( $unit, qw/ .automount .device .mount .path .scope .service .slice .socket .swap .target .timer / );
-    $unit .= '.service' unless length $suffix;
-
-    for my $path ( @UNITFILEPATHS ) {
-        my $filepath = File::Spec->join( $path, $unit );
-        # Either a regular file or character special file (Masked units point to /dev/null)
-        return $filepath if -f $filepath || -c _;
-    }
-
-    croak( sprintf( 'Unit %s not found', $unit ));
 }
 
 =back

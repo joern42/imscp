@@ -112,13 +112,7 @@ sub _disableUnusedPhpVersions
             # The PHP version is not used by customers
             if ( ref $httpd ne 'Servers::httpd::apache_php_fpm' || $httpd->{'phpConfig'}->{'PHP_VERSION'} ne $version ) {
                 $srvProvider->stop( "php$version-fpm" );
-
-                if ( $srvProvider->isSystemd() ) {
-                    # If systemd is the current init we mask the service. Service will be disabled and masked.
-                    $srvProvider->getProvider()->mask( "php$version-fpm" );
-                } else {
-                    $srvProvider->disable( "php$version-fpm" );
-                }
+                $srvProvider->disable( "php$version-fpm" );
             }
         }
     };
