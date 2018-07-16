@@ -100,7 +100,7 @@ sub masterSqlUserDialog
     $rs = $self->_askSqlRootUser( $dialog ) if iMSCP::Getopt->preseed;
     return $rs if $rs;
 
-    if ( $main::reconfigure =~ /(?:sql|servers|all|forced)$/
+    if ( $main::reconfigure =~ /(?:sqld|servers|all|forced)$/
         || !isNotEmpty( $hostname )
         || !isNotEmpty( $port )
         || !isNotEmpty( $user )
@@ -172,7 +172,7 @@ sub sqlUserHostDialog
         $hostname = main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
     }
 
-    if ( $main::reconfigure =~ /^(?:sql|servers|all|forced)$/
+    if ( $main::reconfigure =~ /^(?:sqld|servers|all|forced)$/
         || ( $hostname ne '%' && !isValidHostname( $hostname ) && !isValidIpAddr( $hostname ) )
     ) {
         my ($rs, $msg) = ( 0, '' );
@@ -208,7 +208,7 @@ sub databaseNameDialog
 
     my $dbName = main::setupGetQuestion( 'DATABASE_NAME', 'imscp' );
 
-    if ( $main::reconfigure =~ /^(?:sql|servers|all|forced)$/
+    if ( $main::reconfigure =~ /^(?:sqld|servers|all|forced)$/
         || ( !$self->_setupIsImscpDb( $dbName ) && !iMSCP::Getopt->preseed )
     ) {
         my ($rs, $msg) = ( 0, '' );
@@ -269,7 +269,7 @@ sub databasePrefixDialog
     my $prefix = main::setupGetQuestion( 'MYSQL_PREFIX' );
     my %choices = ( 'behind', 'Behind', 'infront', 'Infront', 'none', 'None' );
 
-    if ( $main::reconfigure =~ /^(?:sql|servers|all|forced)$/
+    if ( $main::reconfigure =~ /^(?:sqld|servers|all|forced)$/
         || $prefix !~ /^(?:behind|infront|none)$/
     ) {
         ( my $rs, $prefix ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $prefix eq $_, keys %choices ) )[0] || 'none' );

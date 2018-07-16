@@ -729,9 +729,10 @@ sub _addAptRepositories
     return 0 unless @{ $self->{'aptRepositoriesToRemove'} } || @{ $self->{'aptRepositoriesToAdd'} };
     
     eval {
-        iMSCP::DistPackageManager->getInstance()->removeRepositories( @{ $self->{'aptRepositoriesToRemove'} } );
-        iMSCP::DistPackageManager->getInstance()->addRepositories( @{ $self->{'aptRepositoriesToAdd'} } );
-        iMSCP::DistPackageManager->getInstance()->updateRepositoryIndexes( @{ $self->{'aptRepositoriesToAdd'} } );
+        iMSCP::DistPackageManager->getInstance()
+            ->removeRepositories( @{ $self->{'aptRepositoriesToRemove'} } )
+            ->addRepositories( @{ $self->{'aptRepositoriesToAdd'} } )
+            ->updateRepositoryIndexes();
     };
     if( $@ ) {
         error( $@ );

@@ -271,7 +271,7 @@ sub updateRepositoryIndexes
   pinning_package       : List of pinned packages 
   pinning_pin           : origin, version, release
   pinning_pin_priority  : Pin priority
- Return void, die on failure
+ Return iMSCP::DistPackageManager::Debian, die on failure
 
 =cut
 
@@ -309,6 +309,7 @@ EOF
     $self->{'eventManager'}->trigger( 'afterAddDistributionAptPreferences', \@preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
+    $self;
 }
 
 =item removeAptPreferences( @preferences )
@@ -321,7 +322,7 @@ EOF
   pinning_package       : List of pinned packages 
   pinning_pin           : origin, version, release
   pinning_pin_priority  : Pin priority
- Return void, die on failure
+ Return iMSCP::DistPackageManager::Debian, die on failure
 
 =cut
 
@@ -354,6 +355,7 @@ EOF
     $self->{'eventManager'}->trigger( 'afterRemoveDistributionAptPreferences', \@preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
+    $self;
 }
 
 =back
