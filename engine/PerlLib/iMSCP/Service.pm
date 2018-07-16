@@ -261,7 +261,7 @@ sub getInitSystem( )
 
  Is SysVinit used as init system, that is, the program running with PID 1?
 
- Return boolean TRUE if sysvinit is the current init system, FALSE otherwise
+ Return boolean TRUE if SysVinit is the current init system, FALSE otherwise
 
 =cut
 
@@ -274,7 +274,7 @@ sub isSysVinit
 
  Is upstart used as init system, that is, the program running with PID 1?
 
- Return boolean TRUE if upstart is is the current init system, FALSE otherwise
+ Return boolean TRUE if Upstart is is the current init system, FALSE otherwise
 
 =cut
 
