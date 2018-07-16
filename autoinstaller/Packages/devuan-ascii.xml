@@ -33,7 +33,7 @@
         </apache_itk>
         <apache_php_fpm default="1" description="Apache2 (MPM Event) server and PHP with FPM/FastCGI SAPI" class="Servers::httpd::apache_php_fpm">
             <package>apache2-suexec-pristine</package>
-            <post_install_tasks>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_tasks>
+            <post_install_task>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_task>
         </apache_php_fpm>
         <package>apache2</package>
         <package>apache2-data</package>
@@ -227,7 +227,10 @@
             <package>mariadb-client-10.1</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.1</package>
-            <pre_install_tasks>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_tasks>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
+            <pre_install_task>
+                /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
+            </pre_install_task>
         </mariadb_10.1>
         <mariadb_10.2
                 description="MariaDB 10.2 server"
@@ -242,8 +245,29 @@
             <package>mariadb-client-10.2</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.2</package>
-            <pre_install_tasks>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_tasks>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
+            <pre_install_task>
+                /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
+            </pre_install_task>
         </mariadb_10.2>
+        <mariadb_10.3
+                description="MariaDB 10.3 server"
+                class="Servers::sqld::mariadb"
+                repository="http://mirror.netcologne.de/mariadb/repo/10.3/debian stretch main"
+                repository_key_id="C74CD1D8"
+                repository_key_srv="keyserver.ubuntu.com"
+                pinning_package="*"
+                pinning_pin="release o=MariaDB,n=stretch"
+                pinning_pin_priority="1001"
+        >
+            <package>mariadb-client-10.3</package>
+            <package>mariadb-common</package>
+            <package>mariadb-server-10.3</package>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
+            <pre_install_task>
+                /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
+            </pre_install_task>
+        </mariadb_10.3>
         <percona_5.7
                 description="Percona 5.7 server"
                 class="Servers::sqld::percona"

@@ -41,7 +41,7 @@
         </apache_itk>
         <apache_php_fpm default="1" description="Apache2 (MPM Event) server and PHP with FPM/FastCGI SAPI" class="Servers::httpd::apache_php_fpm">
             <package>apache2-suexec-pristine</package>
-            <post_install_tasks>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_tasks>
+            <post_install_task>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_task>
         </apache_php_fpm>
         <package>apache2</package>
         <package>apache2-data</package>

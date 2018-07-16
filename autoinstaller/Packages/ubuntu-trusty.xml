@@ -41,7 +41,7 @@
         </apache_itk>
         <apache_php_fpm default="1" description="Apache2 (MPM Event) server and PHP with FPM/FastCGI SAPI" class="Servers::httpd::apache_php_fpm">
             <package>apache2-suexec-pristine</package>
-            <post_install_tasks>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_tasks>
+            <post_install_task>update-alternatives --set suexec /usr/lib/apache2/suexec-pristine</post_install_task>
         </apache_php_fpm>
         <package>apache2</package>
         <package>apache2-data</package>
@@ -256,7 +256,7 @@
             <package>mariadb-client-10.0</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.0</package>
-            <pre_install_tasks>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_tasks>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
         </mariadb_10.0>
         <mariadb_10.1
                 description="MariaDB 10.1 server"
@@ -272,7 +272,7 @@
             <package>mariadb-client-10.1</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.1</package>
-            <pre_install_tasks>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_tasks>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
         </mariadb_10.1>
         <mariadb_10.2
                 description="MariaDB 10.2 server"
@@ -288,7 +288,7 @@
             <package>mariadb-client-10.2</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.2</package>
-            <pre_install_tasks>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_tasks>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
         </mariadb_10.2>
         <mariadb_10.3
                 description="MariaDB 10.3 server"
@@ -304,7 +304,7 @@
             <package>mariadb-client-10.3</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.3</package>
-            <pre_install_tasks>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_tasks>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
         </mariadb_10.3>
         <percona_5.5
                 description="Percona 5.5 server"
