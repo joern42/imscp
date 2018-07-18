@@ -557,7 +557,7 @@ sub dpkgPostInvokeTasks
 {
     my ( $self ) = @_;
 
-    my $systemPhpBin = iMSCP::ProgramFinder::find( $self->{'config'}->{'PHP_VERSION'} );
+    my $systemPhpBin = iMSCP::ProgramFinder::find( "php$self->{'config'}->{'PHP_VERSION'}" );
     my $frontendPhpBin = iMSCP::ProgramFinder::find( 'imscp_panel' );
 
     if ( defined $frontendPhpBin && !defined $systemPhpBin ) {
@@ -571,14 +571,14 @@ sub dpkgPostInvokeTasks
         my $v1 = $self->getFullPhpVersionFor( $systemPhpBin );
         my $v2 = $self->getFullPhpVersionFor( $frontendPhpBin );
 
-        if ( defined $v1 && defined $v2 && $v1 eq $v2 ) {
+        if ( $v1 eq $v2 ) {
             debug( "Both system PHP version and i-MSCP frontEnd PHP version are even. Nothing to do..." );
             return 0;
         } else {
             debug( sprintf( "Updating i-MSCP frontEnd PHP version '%s' to version '%s'", $v2, $v1 ));
         }
     } else {
-        debug( 'i-MSCP frontEnd PHP binary is missing. Creating it from system PHP version ()...' );
+        debug( 'i-MSCP frontEnd PHP binary is missing. Creating it...' );
     }
 
     my $rs = $self->_copyPhpBinary();
