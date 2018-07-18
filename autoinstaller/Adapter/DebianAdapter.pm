@@ -138,11 +138,12 @@ sub installPackages
         # - Prevent start failure when IPv6 stack is not enabled (Dovecot, Nginx)
         # - Prevent failure when resolvconf is not configured yet (bind9)
         # - ProFTPD daemon making too much time to start with default configuration
-        my @services = qw/ apache2 bind9 dovecot mysql nginx proftpd /;
+        my @services = qw/ apache2 bind9 dovecot nginx proftpd /;
 
         # - MariaDB upgrade failure
         # TODO: To be documented
         push @services, 'mysql', 'mariadb' if grep ( /mariadb-server/, @{ $self->{'packagesToUninstall'} } );
+
         print $policyrcd <<"EOF";
 #!/bin/sh
 
@@ -150,7 +151,7 @@ initscript=\$1
 action=\$2
 
 if [ "\$action" = "start" ] || [ "\$action" = "restart" ]; then
-    for i in @{ [ @services ] }; do
+    for i in @{ [ sort @services ] }; do
         if [ "\$initscript" = "\$i" ]; then
             exit 101;
         fi
