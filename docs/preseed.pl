@@ -57,7 +57,7 @@ use warnings;
 
     # SQL server vendor/version
     # Please consult the ../autoinstaller/Packages/<distro>-<codename>.xml file
-    # for available options, leave empty for default SQL server.
+    # for available options, leave empty for default SQL vendor/version.
     SQLD_SERVER                          => '',
 
     # Database name

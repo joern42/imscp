@@ -1186,7 +1186,7 @@ sub _getSqldInfo
     @info = ( 'none', 'none' );
 }
 
-=item _processSqldSection( \@sAlts, %dialog )
+=item _processSqldSection( \@sAlts, \%dialog )
 
  Process sqld section from the distribution packages file
 
