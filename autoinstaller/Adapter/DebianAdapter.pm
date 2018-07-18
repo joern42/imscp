@@ -1157,6 +1157,10 @@ sub _rebuildAndInstallPackage
 
 sub _getSqldInfo
 {
+    CORE::state @info;
+
+    return @info if scalar @info;
+
     if ( my $mysqld = iMSCP::ProgramFinder::find( 'mysqld' ) ) {
         my ( $stdout, $stderr );
         execute( [ $mysqld, '--version' ], \$stdout, \$stderr ) == 0 or die(
@@ -1169,11 +1173,11 @@ sub _getSqldInfo
         # ...
         if ( my ( $version, $vendor ) = $stdout =~ /Ver\s+(\d+.\d+).*?(\b(?:mariadb|percona|mysql|ubuntu)\b)/i ) {
             $vendor = 'mysql' if lc $vendor eq 'ubuntu';
-            return( lc $vendor, $version );
+            return @info = ( lc $vendor, $version );
         }
     }
 
-    ( 'none', 'none' );
+    @info = ( 'none', 'none' );
 }
 
 =item _processSqldSection( \@sAlts, \%dialog )
