@@ -557,28 +557,32 @@ sub dpkgPostInvokeTasks
 {
     my ( $self ) = @_;
 
-    $self->{'frontend'}->restartPhpFpm();
+    my $systemPhpBin = iMSCP::ProgramFinder::find( $self->{'config'}->{'PHP_VERSION'} );
+    my $frontendPhpBin = iMSCP::ProgramFinder::find( 'imscp_panel' );
 
-    if ( -f '/usr/local/sbin/imscp_panel'
-        && ( $self->{'config'}->{'PHP_FPM_BIN_PATH'} eq '' || !-f $self->{'config'}->{'PHP_FPM_BIN_PATH'} )
-    ) {
+    if ( defined $frontendPhpBin && !defined $systemPhpBin ) {
         # Cover case where administrator removed the package
         my $rs = $self->{'frontend'}->stop();
-        $rs ||= iMSCP::File->new( filename => '/usr/local/sbin/imscp_panel' )->delFile();
+        $rs ||= iMSCP::File->new( filename => $frontendPhpBin )->delFile();
         return $rs;
     }
 
-    if ( -f '/usr/local/sbin/imscp_panel' ) {
-        my $v1 = $self->getFullPhpVersionFor( $self->{'config'}->{'PHP_FPM_BIN_PATH'} );
-        my $v2 = $self->getFullPhpVersionFor( '/usr/local/sbin/imscp_panel' );
-        return 0 unless defined $v1 && defined $v2 && $v1 ne $v2; # Don't act when not necessary
-        debug( sprintf( "Updating imscp_panel service PHP binary from version `%s' to version `%s'", $v2, $v1 ));
+    if ( defined $frontendPhpBin ) {
+        my $v1 = $self->getFullPhpVersionFor( $systemPhpBin );
+        my $v2 = $self->getFullPhpVersionFor( $frontendPhpBin );
+
+        if ( defined $v1 && defined $v2 && $v1 eq $v2 ) {
+            debug( "Both system PHP version and i-MSCP frontEnd PHP version are even. Nothing to do..." );
+            return 0;
+        } else {
+            debug( sprintf( "Updating i-MSCP frontEnd PHP version '%s' to version '%s'", $v2, $v1 ));
+        }
+    } else {
+        debug( 'i-MSCP frontEnd PHP binary is missing. Creating it from system PHP version ()...' );
     }
 
     my $rs = $self->_copyPhpBinary();
-    return $rs if $rs || !-f '/usr/local/etc/imscp_panel/php-fpm.conf';
-
-    $self->{'frontend'}->restartPhpFpm();
+    $rs ||= $self->{'frontend'}->restartPhpFpm();
 }
 
 =back
@@ -913,11 +917,10 @@ sub _copyPhpBinary
     return $rs if $rs;
 
     if ( $self->{'config'}->{'PHP_FPM_BIN_PATH'} eq '' ) {
-        error( "PHP `PHP_FPM_BIN_PATH' configuration parameter is not set." );
+        error( "PHP 'PHP_FPM_BIN_PATH' configuration parameter is not set." );
         return 1;
     }
 
-    $rs = iMSCP::File->new( filename => '/usr/local/sbin/imscp_panel' )->delFile() if -f '/usr/local/sbin/imscp_panel';
     $rs ||= iMSCP::File->new( filename => $self->{'config'}->{'PHP_FPM_BIN_PATH'} )->copyFile( '/usr/local/sbin/imscp_panel' );
     $rs ||= $self->{'eventManager'}->trigger( 'afterFrontEndCopyPhpBinary' );
 }
