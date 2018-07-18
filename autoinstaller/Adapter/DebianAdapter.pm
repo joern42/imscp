@@ -142,7 +142,7 @@ sub installPackages
 
         # - MariaDB upgrade failure
         # TODO: To be documented
-        push @services, 'mysql', 'mariadb' if grep ( /mariadb-server/, @{ $self->{'packagesToUninstall'} } );
+        push @services, 'mysql', 'mariadb' if grep ( /mariadb-server/, @{ $self->{'packagesToInstall'} } );
 
         print $policyrcd <<"EOF";
 #!/bin/sh
