@@ -231,6 +231,7 @@
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
+            <post_install_task>/usr/sbin/service mysql start</post_install_task>
         </mariadb_10.1>
         <mariadb_10.2
                 description="MariaDB 10.2 server"
@@ -249,6 +250,7 @@
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
+            <post_install_task>/usr/sbin/service mysql start</post_install_task>
         </mariadb_10.2>
         <mariadb_10.3
                 description="MariaDB 10.3 server"
@@ -267,6 +269,7 @@
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
+            <post_install_task>/usr/sbin/service mysql start</post_install_task>
         </mariadb_10.3>
         <percona_5.7
                 description="Percona 5.7 server"

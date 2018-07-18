@@ -97,10 +97,20 @@ sub preBuild
 
     unshift @{ $steps },
         (
-            [ sub { $self->_processPackagesFile() }, 'Process distribution packages file' ],
-            [ sub { $self->_prefillDebconfDatabase() }, 'Pre-fill Debconf database' ],
-            [ sub { $self->_addAptRepositories() }, 'Processing APT repositories' ],
-            [ sub { $self->_addAptPreferences() }, 'Processing APT preferences' ]
+            [ sub { $self->_processPackagesFile() }, 'Processing distribution packages file' ],
+            [ sub { $self->_addAptRepositories() }, 'Adding APT repositories' ],
+            [ sub { $self->_addAptPreferences() }, 'Adding APT preferences' ],
+            [
+                sub {
+                    eval { $self->_prefillDebconfDatabase(); };
+                    if( $@ ) {
+                        error( $@ );
+                        return 1;
+                    }
+                    0;
+                },
+                'Prefilling of the Debconf database'
+            ]
         );
 
     0
@@ -128,15 +138,20 @@ sub installPackages
         # - Prevent start failure when IPv6 stack is not enabled (Dovecot, Nginx)
         # - Prevent failure when resolvconf is not configured yet (bind9)
         # - ProFTPD daemon making too much time to start with default configuration
-        print $policyrcd <<'EOF';
+        my @services = qw/ apache2 bind9 dovecot mysql nginx proftpd /;
+
+        # - MariaDB upgrade failure
+        # TODO: To be documented
+        push @services, 'mysql', 'mariadb' if grep ( /mariadb-server/, @{ $self->{'packagesToUninstall'} } );
+        print $policyrcd <<"EOF";
 #!/bin/sh
 
-initscript=$1
-action=$2
+initscript=\$1
+action=\$2
 
-if [ "$action" = "start" ] || [ "$action" = "restart" ]; then
-    for i in apache2 bind9 dovecot nginx proftpd; do
-        if [ "$initscript" = "$i" ]; then
+if [ "\$action" = "start" ] || [ "\$action" = "restart" ]; then
+    for i in @{ [ @services ] }; do
+        if [ "\$initscript" = "\$i" ]; then
             exit 101;
         fi
     done
@@ -254,7 +269,7 @@ sub _init
     $self->{'preRequiredPackages'} = [
         'apt-transport-https', 'binutils', 'ca-certificates', 'debconf-utils', 'dialog', 'dirmngr', 'dpkg-dev', 'libbit-vector-perl',
         'libclass-insideout-perl', 'libclone-perl', 'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libscalar-defer-perl',
-        'libsort-versions-perl', 'libxml-simple-perl', 'lsb-release', 'policyrcd-script-zg2', 'wget',
+        'libsort-versions-perl', 'libxml-simple-perl', 'lsb-release', 'policyrcd-script-zg2', 'wget'
     ];
     $self->{'aptRepositoriesToRemove'} = [];
     $self->{'aptRepositoriesToAdd'} = [];
@@ -270,9 +285,10 @@ sub _init
 
     delete $ENV{'DEBCONF_FORCE_DIALOG'};
 
-    $ENV{'DEBIAN_FRONTEND'} = 'noninteractive' if iMSCP::Getopt->noprompt;
+    $ENV{'DEBIAN_FRONTEND'} = iMSCP::Getopt->noprompt ? 'noninteractive' : 'dialog';
+    #$ENV{'DEBIAN_SCRIPT_DEBUG'} = TRUE if iMSCP::Getopt->debug;
     $ENV{'DEBFULLNAME'} = 'i-MSCP Installer';
-    $ENV{'DEBEMAIL'} = 'team@i-mscp.net';
+    $ENV{'DEBEMAIL'} = 'l.declercq@nuxwin.com';
 
     $self->_setupGetAddrinfoPrecedence();
     $self;
@@ -770,9 +786,9 @@ sub _addAptPreferences
 
 =item _prefillDebconfDatabase( )
 
- Pre-fill debconf database
+ Prefilling of the debconf database
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -782,17 +798,16 @@ sub _prefillDebconfDatabase
 
     my $fileContent = '';
 
-    # Pre-fill questions for Postfix SMTP server if required
+    # Postfix MTA
     if ( $main::imscpConfig{'MTA_PACKAGE'} eq 'Servers::mta::postfix' ) {
         chomp( my $mailname = `hostname --fqdn 2>/dev/null` || 'localdomain' );
         my $hostname = ( $mailname ne 'localdomain' ) ? $mailname : 'localhost';
         chomp( my $domain = `hostname --domain 2>/dev/null` || 'localdomain' );
 
-        # From postfix package postfix.config script
+        # Mimic behavior from the postfix package postfix.config maintainer script
         my $destinations = ( $mailname eq $hostname )
             ? join ', ', ( $mailname, 'localhost.' . $domain, ', localhost' )
             : join ', ', ( $mailname, $hostname, 'localhost.' . $domain . ', localhost' );
-
         $fileContent .= <<"EOF";
 postfix postfix/main_mailer_type select Internet Site
 postfix postfix/mailname string $mailname
@@ -800,113 +815,127 @@ postfix postfix/destinations string $destinations
 EOF
     }
 
-    # Pre-fill question for Proftpd FTP server if required
+    # ProFTPD
     if ( $main::imscpConfig{'FTPD_PACKAGE'} eq 'Servers::ftpd::proftpd' ) {
         $fileContent .= <<'EOF';
 proftpd-basic shared/proftpd/inetd_or_standalone select standalone
 EOF
     }
 
-    # Pre-fill questions for Courier IMAP/POP server if required
+    # Courier IMAP/POP
     if ( $main::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::courier' ) {
+        # Pre-fill debconf database for Courier
         $fileContent .= <<'EOF';
-courier-base courier-base/courier-user note
 courier-base courier-base/webadmin-configmode boolean false
-courier-ssl courier-ssl/certnotice note
+courier-base courier-base/maildirpath note
+courier-base courier-base/certnotice note
+courier-base courier-base/courier-user note
+courier-base courier-base/maildir string Maildir
 EOF
     }
 
-    # Pre-fill questions for Dovecot IMAP/POP server if required
-    if ( $main::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::dovecot' ) {
+    # Dovecot IMAP/POP
+    elsif ( $main::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::dovecot' ) {
         $fileContent .= <<'EOF';
-dovecot-core dovecot-core/create-ssl-cert boolean true
 dovecot-core dovecot-core/ssl-cert-name string localhost
+dovecot-core dovecot-core/create-ssl-cert boolean true
 EOF
     }
 
-    # Pre-fill question for sasl2-bin package if required
+    # sasl2-bin package
     if ( `echo GET cyrus-sasl2/purge-sasldb2 | debconf-communicate sasl2-bin 2>/dev/null` =~ /^0/ ) {
-        $fileContent .= <<'EOF'
-sasl2-bin cyrus-sasl2/purge-sasldb2 boolean true
-EOF
+        $fileContent .= "sasl2-bin cyrus-sasl2/purge-sasldb2 boolean true\n";
     }
 
-    # Pre-fill questions for SQL server (MySQL, MariaDB or Percona) if required
-    if ( my ( $sqlServerVendor, $sqlServerVersion ) = $main::imscpConfig{'SQLD_SERVER'} =~ /^(mysql|mariadb|percona)_(\d+\.\d+)/ ) {
-        if ( $main::imscpConfig{'DATABASE_PASSWORD'} ne '' && -d $main::imscpConfig{'DATABASE_DIR'} ) {
-            # Only show critical questions
-            $ENV{'DEBIAN_PRIORITY'} = 'critical';
-
-            # Allow switching to other vendor (e.g: MariaDB 10.0 to MySQL >= 5.6)
-            # unlink glob "$main::imscpConfig{'DATABASE_DIR'}/debian-*.flag";
-
-            # Don't show SQL root password dialog from package maintainer script
-            # when switching to another vendor or a newest version
-            # <DATABASE_DIR>/debian-5.0.flag is the file checked by maintainer script
-            my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'DATABASE_DIR'}/debian-5.0.flag" )->save();
-            return $rs if $rs;
-        }
-
-        my ( $qOwner, $qNamePrefix );
-        if ( $sqlServerVendor eq 'mysql' ) {
-            if ( grep ($_ eq 'mysql-community-server', @{ $self->{'packagesToInstall'} }) ) {
-                $qOwner = 'mysql-community-server';
-                $qNamePrefix = 'mysql-community-server';
-            } else {
-                $qOwner = 'mysql-server-' . $sqlServerVersion;
-                $qNamePrefix = 'mysql-server';
-            }
-        } elsif ( $sqlServerVendor eq 'mariadb' ) {
-            $qOwner = 'mariadb-server-' . $sqlServerVersion;
-            $qNamePrefix = 'mysql-server';
+    # SQL server (MariaDB, MySQL, Percona
+    if ( my ( $sqldVendor, $sqldVersion ) = $main::imscpConfig{'SQLD_SERVER'} =~ /^(mysql|mariadb|percona)_(\d+\.\d+)/ ) {
+        my $package;
+        if ( $sqldVendor eq 'mysql' ) {
+            $package = grep ($_ eq 'mysql-community-server', @{ $self->{'packagesToInstall'} })
+                ? 'mysql-community-server' : "mysql-server-$sqldVersion";
         } else {
-            $qOwner = 'percona-server-server-' . $sqlServerVersion;
-            $qNamePrefix = 'percona-server-server';
+            $package = ( $sqldVendor eq 'mariadb' ? 'mariadb-server-' : 'percona-server-server-' ) . $sqldVersion;
         }
 
-        # We do not want ask user for <DATABASE_DIR> removal (we want avoid mistakes as much as possible)
-        $fileContent .= <<"EOF";
-$qOwner $qNamePrefix/remove-data-dir boolean false
-$qOwner $qNamePrefix/postrm_remove_databases boolean false
-EOF
-        # Preset root SQL password using value from preseed file if required
-        if ( iMSCP::Getopt->preseed ) {
-            exit 5 unless exists $main::questions{'SQL_ROOT_PASSWORD'} & $main::questions{'SQL_ROOT_PASSWORD'} ne '';
+        # Only show critical questions if the SQL server has been already installed
+        #$ENV{'DEBIAN_PRIORITY'} = 'critical' if -d '/var/lib/mysql';
 
-            $fileContent .= <<"EOF";
-$qOwner $qNamePrefix/root_password password $main::questions{'SQL_ROOT_PASSWORD'}
-$qOwner $qNamePrefix/root-pass password $main::questions{'SQL_ROOT_PASSWORD'}
-$qOwner $qNamePrefix/root_password_again password $main::questions{'SQL_ROOT_PASSWORD'}
-$qOwner $qNamePrefix/re-root-pass password $main::questions{'SQL_ROOT_PASSWORD'}
-EOF
-            # Register an event listener to empty the password fields in Debconf database after package installation
-            $self->{'eventManager'}->register(
-                'postBuild',
-                sub {
-                    for ( 'root_password', 'root-pass', 'root_password_again', 're-root-pass' ) {
-                        my $rs = execute( "echo SET $qNamePrefix/$_ | debconf-communicate $qOwner", \my $stdout, \my $stderr );
-                        debug( $stdout ) if $stdout;
-                        error( $stderr || 'Unknown error' ) if $rs;
-                        return $rs if $rs;
-                    }
+        READ_DEBCONF_DB:
 
-                    0;
+        my $isManualTplLoading = FALSE;
+        open my $fh, '-|', "debconf-get-selections 2>/dev/null | grep $package" or die(
+            sprintf( "Couldn't pipe to debconf database: %s", $! || 'Unknown error' )
+        );
+
+        if ( eof $fh ) {
+            !$isManualTplLoading or die( "Couldn't pre-fill the debconf database for the SQL server. Debconf template not found." );
+
+            # The debconf template is not available -- the package has not been
+            # installed yet or something went wrong with the debconf database.
+            # In such case, we download the package into a temporary directory,
+            # we extract the debconf template manually and we load it into the
+            # debconf database. Once done, we process as usually. This is lot
+            # of work but we have not choice as question names for different
+            # SQL server vendors/versions are not consistent.
+            close( $fh );
+
+            my $tmpDir = File::Temp->newdir();
+
+            if ( my $uid = ( getpwnam( '_apt' ) )[2] ) {
+                # Prevent Fix 'W: Download is performed unsandboxed as root as file...' warning with newest APT versions
+                chown $uid, -1, $tmpDir or die( sprintf( "Couldn't change ownership for the %s directory: %s", $tmpDir, $! || 'Unknown error' ));
+            }
+
+            local $CWD = $tmpDir;
+
+            # Download the package into a temporary directory
+            startDetail;
+            my $rs = execute( [ 'apt-get', '--quiet=1', 'download', $package ], \my $stdout, \my $stderr );
+            debug( $stdout ) if length $stdout;
+
+            # Extract the debconf template into the temporary directory
+            $rs ||= execute( [ 'apt-extracttemplates', '-t', $tmpDir, <$tmpDir/*.deb> ], \$stdout, \$stderr );
+            $rs || debug( $stdout ) if length $stdout;
+
+            # Load the template into the debconf database
+            $rs ||= execute( [ 'debconf-loadtemplate', $package, <$tmpDir/$package.template.*> ], \$stdout, \$stderr );
+            $rs || debug( $stdout ) if length $stdout;
+
+            endDetail;
+
+            $rs == 0 or die( $stderr || 'Unknown errror' );
+
+            $isManualTplLoading = TRUE;
+            goto READ_DEBCONF_DB;
+        }
+
+        while ( my $line = <$fh> ) {
+            if ( my ( $qOwner, $qNamePrefix, $qName ) = $line =~ m%(.*?)\s+(.*?)/([^\s]+)% ) {
+                if ( grep ($qName eq $_, 'remove-data-dir', 'postrm_remove_databases') ) {
+                    # We do not want ask user for databases removal (we want avoid mistakes as much as possible)
+                    $fileContent .= "$qOwner $qNamePrefix/$qName boolean false\n";
+                } elsif ( grep ($qName eq $_, 'root_password', 'root-pass', 'root_password_again', 're-root-pass')
+                    && iMSCP::Getopt->preseed && length $::questions{'SQL_ROOT_PASSWORD'}
+                ) {
+                    # Preset the root user SQL password using value from preseed file if available
+                    # Password can be empty when 
+                    $fileContent .= "$qOwner $qNamePrefix/$qName password $::questions{'SQL_ROOT_PASSWORD'}\n";
                 }
-            );
+            }
         }
+
+        close( $fh );
     }
 
-    return 0 if $fileContent eq '';
+    return unless length $fileContent;
 
     my $debconfSelectionsFile = File::Temp->new();
     print $debconfSelectionsFile $fileContent;
-    $debconfSelectionsFile->flush();
     $debconfSelectionsFile->close();
 
     my $rs = execute( [ 'debconf-set-selections', $debconfSelectionsFile->filename ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    error( $stderr || "Couldn't pre-fill Debconf database" ) if $rs;
-    $rs;
+    $rs == 0 or die( sprintf( "Couldn't pre-fill Debconf database", $stderr || 'Unknown error' ));
 }
 
 =item _rebuildAndInstallPackage( $pkg, $pkgSrc, $patchesDir [, $patchesToDiscard = [] [,  $patchFormat = 'quilt' ]] )
