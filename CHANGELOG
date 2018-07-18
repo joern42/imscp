@@ -24,6 +24,7 @@ CONTRIB
     Fixed: Prevent uninstallation of the libsasl2-modules package (10_postfix_smarthost.pl listener file)
 
 DISTRIBUTION
+    Added: Support for MariaDB server 10.3 (all distributions)
     Added: Support for Ubuntu Bionic Beaver (18.04) LTS
     Added: PHP 7.2 as PHP alternative (Only selectable for the clients) -- See the errata file for further details
 

@@ -237,6 +237,10 @@
             <package>mariadb-common</package>
             <package>mariadb-server-10.0</package>
             <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
+            <pre_install_task>
+                /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
+            </pre_install_task>
+            <post_install_task>/usr/sbin/service mysql start</post_install_task>
         </mariadb_10.0>
         <mariadb_10.1
                 description="MariaDB 10.1 server"
@@ -252,6 +256,10 @@
             <package>mariadb-common</package>
             <package>mariadb-server-10.1</package>
             <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
+            <pre_install_task>
+                /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
+            </pre_install_task>
+            <post_install_task>/usr/sbin/service mysql start</post_install_task>
         </mariadb_10.1>
         <mariadb_10.2
                 description="MariaDB 10.2 server"
@@ -268,7 +276,31 @@
             <package>mariadb-common</package>
             <package>mariadb-server-10.2</package>
             <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
+            <pre_install_task>
+                /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
+            </pre_install_task>
+            <post_install_task>/usr/sbin/service mysql start</post_install_task>
         </mariadb_10.2>
+        <mariadb_10.3
+                description="MariaDB 10.3 server"
+                class="Servers::sqld::mariadb"
+                repository="http://mirror.netcologne.de/mariadb/repo/10.3/debian jessie main"
+                repository_key_id="1BB943DB"
+                repository_key_srv="keyserver.ubuntu.com"
+                pinning_package="*"
+                pinning_pin="release o=MariaDB,n=jessie"
+                pinning_pin_priority="1001"
+        >
+            <package>libmariadbclient18</package>
+            <package>mariadb-client-10.3</package>
+            <package>mariadb-common</package>
+            <package>mariadb-server-10.3</package>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
+            <pre_install_task>
+                /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
+            </pre_install_task>
+            <post_install_task>/usr/sbin/service mysql start</post_install_task>
+        </mariadb_10.3>
         <percona_5.5
                 description="Percona 5.5 server"
                 class="Servers::sqld::percona"
