@@ -516,7 +516,13 @@ sub _processPackagesFile
         } keys %{ $data };
 
         # The sqld section needs a specific treatment
-        _processSqldSection( \@sAlts, $dialog ) if $section eq 'sqld';
+        if ( $section eq 'sqld' ) {
+            _processSqldSection( \@sAlts, $dialog );
+            unless ( length $sAlt || !iMSCP::Getopt->preseed ) {
+                ( $sAlt ) = grep { $data->{$_}->{'default'} } @sAlts;
+                $sAlt ||= $sAlts[0];
+            }
+        }
 
         # If there is a selected alternative which is unknown, we discard
         # it. In the preseed mode this will lead to a FATAL error (expected).
@@ -1180,7 +1186,7 @@ sub _getSqldInfo
     @info = ( 'none', 'none' );
 }
 
-=item _processSqldSection( \@sAlts, \%dialog )
+=item _processSqldSection( \@sAlts, %dialog )
 
  Process sqld section from the distribution packages file
 

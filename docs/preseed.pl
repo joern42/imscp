@@ -5,7 +5,7 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.07.14
+# Last update: 2018.07.18
 
 use strict;
 use warnings;
@@ -55,10 +55,10 @@ use warnings;
     ## SQL server configuration parameters
     #
 
-    # SQL server implementation
+    # SQL server vendor/version
     # Please consult the ../autoinstaller/Packages/<distro>-<codename>.xml file
-    # for available options.
-    SQLD_SERVER                          => 'mysql_5.5',
+    # for available options, leave empty for default SQL server.
+    SQLD_SERVER                          => '',
 
     # Database name
     DATABASE_NAME                       => 'imscp',
@@ -80,6 +80,9 @@ use warnings;
     # This SQL user must have full privileges on the SQL server.
     # Note that this user used only while i-MSCP installation/reconfiguration.
     SQL_ROOT_USER                       => 'root',
+    # Not required when the (system) SQL root user can connect without password
+    # (like in recent Debian versions (case of unix_socket plugin usage).
+    # In such case you should leave the password empty.
     SQL_ROOT_PASSWORD                   => '',
 
     # i-MSCP Master SQL user
