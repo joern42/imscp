@@ -1,13 +1,17 @@
 
 <script>
+    <!-- BDP: add_record_js -->
     $(function () {
         $("#zone_id").on("change", function () {
-            $("#origin").html('<strong>' + $(this).find("option:selected").text() + '.</strong>');
+            $("#origin").html($(this).find("option:selected").text());
         }).trigger('change');
     });
+    <!-- EDP: add_record_js -->
 
-    var inputFields = ['name', 'ip_address', 'ip_address_v6', 'srv_name', 'srv_protocol', 'srv_ttl', 'srv_prio',
-        'srv_weight', 'srv_host', 'srv_port', 'cname', 'txt_data'];
+    var inputFields = [
+        'name', 'ip_address', 'ip_address_v6', 'srv_name', 'srv_protocol', 'srv_ttl', 'srv_prio', 'srv_weight', 'srv_host', 'srv_port', 'cname',
+        'txt_data'
+    ];
     var inputFieldsLength = inputFields.length;
 
     function dns_show_rows(inputFieldsToShow) {
@@ -15,7 +19,7 @@
             var trName = 'tr_dns_' + inputFields[i];
             var $o = $('#' + trName);
 
-            if ($.inArray(inputFields[i], inputFieldsToShow) != -1) {
+            if ($.inArray(inputFields[i], inputFieldsToShow) !== -1) {
                 $o.show();
             } else {
                 $o.hide();
@@ -24,19 +28,19 @@
     }
 
     function change_dns_type(value) {
-        if (value == 'A') {
+        if (value === 'A') {
             dns_show_rows(['name', 'srv_ttl', 'ip_address']);
-        } else if (value == 'AAAA') {
+        } else if (value === 'AAAA') {
             dns_show_rows(['name', 'srv_ttl', 'ip_address_v6']);
-        } else if (value == 'MX') {
+        } else if (value === 'MX') {
             dns_show_rows(['name', 'srv_ttl', 'srv_prio', 'srv_host']);
-        } else if (value == 'NS') {
+        } else if (value === 'NS') {
             dns_show_rows(['name', 'srv_ttl', 'srv_host']);
-        } else if (value == 'CNAME') {
+        } else if (value === 'CNAME') {
             dns_show_rows(['name', 'srv_ttl', 'cname']);
-        } else if (value == 'SPF' || value == 'TXT') {
+        } else if (value === 'SPF' || value === 'TXT') {
             dns_show_rows(['name', 'srv_ttl', 'txt_data']);
-        } else if (value == 'SRV') {
+        } else if (value === 'SRV') {
             dns_show_rows(['srv_name', 'srv_protocol', 'name', 'srv_ttl', 'srv_prio', 'srv_weight', 'srv_host', 'srv_port']);
         }
     }
@@ -56,13 +60,13 @@
             return true;
         }
 
-        if ((keynum == 8) || (keynum == 0)) {
+        if ((keynum === 8) || (keynum === 0)) {
             return true;
         }
 
         var keychar = String.fromCharCode(keynum);
 
-        if (e.ctrlKey && ((keychar == "C") || (keychar == "c") || (keychar == "V") || (keychar == "v"))) {
+        if (e.ctrlKey && ((keychar === "C") || (keychar === "c") || (keychar === "V") || (keychar === "v"))) {
             return true;
         }
 
@@ -79,7 +83,7 @@
     <?= tr('$ORIGIN is automatically appended to unqualified names, hosts and canonical names') ?>.<br>
     <?= tr('If the name field is filled with the @ sign or left blank, it will be automatically substituted by $ORIGIN value.') ?>
     <br>
-    <?= tr('$ORIGIN value is currently set to: %s', '<span id="origin"></span>') ?>
+    <?= tr('$ORIGIN value is currently set to: %s', '<span id="origin" style="font-weight:bold;">{ORIGIN}</span>') ?>
 </p>
 
 <form name="edit_dns_frm" method="post" action="{ACTION_MODE}">
