@@ -120,7 +120,7 @@ sub disable
     defined $unit or croak( 'Missing or undefined $unit parameter' );
 
     $self->_exec( [ $COMMANDS{'systemctl'}, '--quiet', 'disable', $self->resolveUnit( $unit ) ] );
-    $self->mask();
+    $self->mask( $unit );
 }
 
 =item mask( $unit )
