@@ -164,7 +164,7 @@ function generateServerStatsByDay(TemplateEngine $tpl, $day, $month, $year)
 function generateServerStatsByMonth(TemplateEngine $tpl, $month, $year)
 {
     $stmt = exec_query(
-        'SELECT COUNT(straff_id) FROM server_traffic WHERE traff_time BETWEEN ? AND ?',
+        'SELECT COUNT(*) FROM server_traffic WHERE traff_time BETWEEN ? AND ?',
         [getFirstDayOfMonth($month, $year), getLastDayOfMonth($month, $year)]
     );
 
@@ -181,9 +181,7 @@ function generateServerStatsByMonth(TemplateEngine $tpl, $month, $year)
         $startDate = mktime(0, 0, 0, $month, $day, $year);
         $endDate = mktime(23, 59, 59, $month, $day, $year);
 
-        list(
-            $webIn, $webOut, $smtpIn, $smtpOut, $popIn, $popOut, $otherIn, $otherOut, $allIn, $allOut
-            ) = getServerTraffic($startDate, $endDate);
+        list($webIn, $webOut, $smtpIn, $smtpOut, $popIn, $popOut, $otherIn, $otherOut, $allIn, $allOut) = getServerTraffic($startDate, $endDate);
 
         $tpl->assign([
             'DAY'       => tohtml($day),
