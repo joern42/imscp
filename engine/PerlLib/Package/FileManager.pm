@@ -127,11 +127,12 @@ sub preinstall
     # Ensure backward compatibility
     $oldPackage = 'Pydio' if $oldPackage eq 'AjaXplorer';
 
-    my $package = ::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
-    if ( $oldPackage ne '' && $oldPackage ne $package ) {
+    if ( grep ($_ eq $oldPackage, @{ $self->{'AVAILABLE_PACKAGES'} }) ) {
         my $rs = $self->uninstall( $oldPackage );
         return $rs if $rs;
     }
+
+    my $package = ::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
 
     $package = "Package::FileManager::${package}::${package}";
     eval "require $package";

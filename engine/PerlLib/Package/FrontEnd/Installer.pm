@@ -288,8 +288,7 @@ EOF
                 my $msg = '';
 
                 do {
-                    $dialog->msgbox( <<'EOF' );
-
+                    $dialog->msgbox( <<"EOF" );
 $msg
 Please select your private key in next dialog.
 EOF
@@ -375,7 +374,6 @@ EOF
 Please choose the default access mode for the control panel:
 \Z \Zn
 EOF
-                $baseServerVhostPrefix .= '://'
             }
         } else {
             $sslEnabled = 'no';

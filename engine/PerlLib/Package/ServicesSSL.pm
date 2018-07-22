@@ -103,7 +103,7 @@ EOF
                 my $msg = '';
 
                 do {
-                    $dialog->msgbox( <<'EOF' );
+                    $dialog->msgbox( <<"EOF" );
 $msg
 Please select your private key in next dialog.
 EOF
