@@ -37,8 +37,7 @@ iMSCP::EventManager->getInstance()->register(
 
         return 0 unless @{$data->{'DNS_RECORDS'}};
 
-        my $domainIP = iMSCP::Net->getInstance( )->isRoutableAddr( $data->{'DOMAIN_IP'} )
-            ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
+        my $domainIP = iMSCP::Net->getInstance( )->isValidAddr( $data->{'DOMAIN_IP'} ) ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
 
         for(@{$data->{'DNS_RECORDS'}}) {
             my ($name, $class, $type, $rdata) = @{$_};
@@ -80,8 +79,7 @@ iMSCP::EventManager->getInstance()->register(
         my ($wrkDbFileContent, $data) = @_;
 
         my $net = iMSCP::Net->getInstance();
-        my $domainIP = $net->isRoutableAddr( $data->{'DOMAIN_IP'} )
-            ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
+        my $domainIP = $net->isValidAddr( $data->{'DOMAIN_IP'} ) ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
         my $rrType = $net->getAddrVersion( $domainIP ) eq 'ipv4' ? 'A' : 'AAAA';
 
         # Re-add default A or AAAA record for $data->{'DOMAIN_NAME'}
