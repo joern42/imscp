@@ -15,6 +15,7 @@ CONFIG
     Added: Missing LOGROTATE(8) for SYSLOG-NG(8) which can be installed on some system in place of RSYSLOGD(8) (Fix backported from 1.6.x branch)
     Added: Specific LOGROTATE(8) configuration file for rsyslog (Ubuntu 14.04/Trusty Thar; Fix backported from 1.6.x branch)
     Fixed: Bad value for X-Forward-* headers (Proxy feature / Apache2 ssl vhosts; Fix backported from 1.6.x branch)
+    Fixed: Enforce TLS v1.2 as older versions are not longer considered safe (Apache2)
     Security: Protect both /var/www/virtual and /var/www/imscp directories from full access (Apache2)
     Review: SSL parameters for both Apache2 and Nginx Web servers (cipher suite)
     Review: Do not discard paths other than '/errors/' and '/.well-known/acme-challenge/' on redirect/proxy (Apache2)
