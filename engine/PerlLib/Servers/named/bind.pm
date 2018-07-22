@@ -440,8 +440,7 @@ sub addSub
         $subEntry = replaceBloc( "; sub OPTIONAL entries BEGIN\n", "; sub OPTIONAL entries ENDING\n", '', $subEntry );
     }
 
-    my $domainIP = $net->isRoutableAddr( $data->{'DOMAIN_IP'} )
-        ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
+    my $domainIP = $net->isValidAddr( $data->{'DOMAIN_IP'} ) ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
 
     $subEntry = process(
         {
@@ -1016,8 +1015,7 @@ sub _addDmnDb
     );
 
     my $net = iMSCP::Net->getInstance();
-    my $domainIP = $net->isRoutableAddr( $data->{'DOMAIN_IP'} )
-        ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
+    my $domainIP = $net->isValidAddr( $data->{'DOMAIN_IP'} ) ? $data->{'DOMAIN_IP'} : $data->{'BASE_SERVER_PUBLIC_IP'};
 
     unless ( $nsRecordB eq '' && $glueRecordB eq '' ) {
         my @nsIPs = (
