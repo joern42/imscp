@@ -43,6 +43,9 @@ INSTALLER
 PACKAGES
     Removed: Net2ftp package. See the errata file for further explanation.
 
+PLUGINS
+    Updated: API version to 1.5.1
+
 TOOLS
     Backported: imscp-get-master-sql-user-pwd.pl script from 1.6.x branch (Script that make possible to retrieve i-MSCP master SQL user and password)
 
