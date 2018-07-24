@@ -319,7 +319,7 @@ sub getProvider
         # Fallback to the base provider
         $provider = "iMSCP::Provider::Service::${providerName}";
         can_load( modules => { $provider => undef } ) or croak(
-            sprintf( "Couldn't load the %s service provider: %s", $provider, $Module::Load::Conditional::ERROR )
+            sprintf( "Couldn't load the '%s' service provider: %s", $provider, $Module::Load::Conditional::ERROR )
         );
     }
 
@@ -367,7 +367,7 @@ sub _init
 
 sub _detectInit
 {
-    return 'Systemd' if -d '/run/systemd/system' && !iMSCP::Dir->new( dirname => '/run/systemd/system' )->isEmpty();
+    return 'Systemd' if -d '/run/systemd/system';
     return 'Upstart' if iMSCP::ProgramFinder::find( 'initctl' ) && execute( 'initctl version 2>/dev/null | grep -q upstart' ) == 0;
     'SysVinit';
 }

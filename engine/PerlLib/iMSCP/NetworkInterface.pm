@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Provider::NetworkInterface - High-level interface for network interface providers
+ iMSCP::NetworkInterface - High-level interface for network interface providers
 
 =cut
 
@@ -21,16 +21,19 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::Provider::NetworkInterface;
+package iMSCP::NetworkInterface;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::LsbRelease;
 use Module::Load::Conditional qw/ can_load /;
 use Scalar::Util 'blessed';
 use parent qw/ Common::SingletonClass iMSCP::Provider::NetworkInterface::Interface /;
 
-$Module::Load::Conditional::FIND_VERSION = 0;
+$Module::Load::Conditional::FIND_VERSION = FALSE;
+$Module::Load::Conditional::VERBOSE = FALSE;
+$Module::Load::Conditional::FORCE_SAFE_INC = TRUE;
 
 =head1 DESCRIPTION
 
@@ -48,9 +51,9 @@ $Module::Load::Conditional::FIND_VERSION = 0;
 
 sub addIpAddr
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
-    $self->getProvider()->addIpAddr( $data );
+    $self->{'provider'}->addIpAddr( $data );
     $self;
 }
 
@@ -62,9 +65,31 @@ sub addIpAddr
 
 sub removeIpAddr
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
-    $self->getProvider()->removeIpAddr( $data );
+    $self->{'provider'}->removeIpAddr( $data );
+    $self;
+}
+
+=back
+
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item _init( )
+
+ Initialize instance
+ 
+ Return iMSCP::Provider::NetworkInterface
+
+=cut
+
+sub _init
+{
+    my ( $self ) = @_;
+
+    $self->{'provider'} = $self->_getProvider();
     $self;
 }
 
@@ -76,39 +101,19 @@ sub removeIpAddr
 
 =cut
 
-sub getProvider
+sub _getProvider
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'_provider'} ||= do {
-        my $provider = __PACKAGE__ . '::' . iMSCP::LsbRelease->getInstance->getId( 'short' );
-        can_load( modules => { $provider => undef } ) or die(
-            sprintf( "Couldn't load `%s' network interface provider: %s", $provider, $Module::Load::Conditional::ERROR )
-        );
-        $provider = $provider->new();
-        $self->setProvider( $provider );
-        $provider;
-    };
-}
+    my $id = iMSCP::LsbRelease->getInstance->getId( 'short' );
+    $id = 'Debian' if grep ( lc $id eq $_, 'devuan', 'ubuntu' );
+    my $provider = "iMSCP::Provider::NetworkInterface::${id}";
 
-=item setProvider( $provider )
-
- Set network interface provider
-
- Param iMSCP::Provider::NetworkInterface::Interface $provider
- Return iMSCP::Provider::NetworkInterface, die on failure
-
-=cut
-
-sub setProvider
-{
-    my ($self, $provider) = @_;
-
-    blessed( $provider ) && $provider->isa( 'iMSCP::Provider::NetworkInterface::Interface' ) or die(
-        '$provider parameter is either not defined or not an iMSCP::Provider::NetworkInterface::Interface object'
+    can_load( modules => { $provider => undef } ) or die(
+        sprintf( "Couldn't load the '%s' network interface provider: %s", $provider, $Module::Load::Conditional::ERROR )
     );
-    $self->{'_provider'} = $provider;
-    $self;
+
+    $provider->new();
 }
 
 =back

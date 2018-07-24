@@ -25,6 +25,7 @@ package iMSCP::Getopt;
 
 use strict;
 use warnings;
+use Cwd qw/ realpath /;
 use iMSCP::Debug qw/ debugRegisterCallBack /;
 use Text::Wrap;
 use fields qw / cleanPackageCache debug fixPermissions listener noprompt preseed reconfigure skipPackageUpdate verbose /;
@@ -234,7 +235,7 @@ sub preseed
     return $options->{'preseed'} unless defined $file;
 
     -f $file or die( sprintf( 'Preseed file not found: %s', $file ));
-    $options->{'preseed'} = $file;
+    $options->{'preseed'} = realpath($file);;
 }
 
 =item listener( [ $file = undef ] )

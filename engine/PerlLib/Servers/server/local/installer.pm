@@ -126,29 +126,20 @@ sub primaryIpDialog
     my (undef, $dialog) = @_;
 
     my @ipList = sort
-        grep(
-            isValidIpAddr( $_, qr/(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)/ ),
-            iMSCP::Net->getInstance()->getAddresses()
-        ),
-        'None';
-    unless ( @ipList ) {
-        error( "Couldn't get list of server IP addresses. At least one IP address must be configured." );
-        return 1;
-    }
+        grep(isValidIpAddr( $_, qr/(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)/ ), iMSCP::Net->getInstance()->getAddresses()), 'None';
 
     my $lanIP = main::setupGetQuestion( 'BASE_SERVER_IP' );
     $lanIP = 'None' if $lanIP eq '0.0.0.0';
-    my $wanIP = main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
 
-    if ( iMSCP::Getopt->preseed
-        && !$wanIP
-        && ( !isValidIpAddr( $lanIP, qr/(?:PUBLIC|GLOBAL-UNICAST)/ ) )
-    ) {
+    my $wanIP = main::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
+    if ( iMSCP::Getopt->preseed && $wanIP eq '' && ( !isValidIpAddr( $lanIP, qr/(?:PUBLIC|GLOBAL-UNICAST)/ ) ) ) {
         chomp( $wanIP = get( 'https://ipinfo.io/ip' ) || '' );
     }
 
     if ( $main::reconfigure =~ /^(?:local_server|primary_ip|all|forced)$/
+        # $lanIP not in list of configured IP addresses
         || !grep( $_ eq $lanIP, @ipList )
+        # $wanIP not equal to $lanIP and $wanIP is not a valid or not routable IP address
         || ( $wanIP ne $lanIP && !isValidIpAddr( $wanIP, qr/(?:PUBLIC|GLOBAL-UNICAST)/ ) )
     ) {
         my ($rs, $msg) = ( 0, '' );
@@ -161,14 +152,16 @@ sub primaryIpDialog
 Please select your server primary IP address:
 
 The \Zb'None'\ZB option means that i-MSCP will configure the services to listen on all interfaces.
-This option is more suitable for Cloud computing services such as Scaleway and Amazon EC2, or when using a Vagrant box where the IP that is set through DHCP can changes over the time.
+This option is more suitable for Cloud computing services such as Scaleway and Amazon EC2, or when the IP address obtained through DHCP can changes over the time.
 \Z \Zn
 EOF
             $lanIP = '0.0.0.0' if $lanIP && $lanIP eq 'None';
         } while $rs < 30 && !isValidIpAddr( $lanIP );
         return $rs if $rs >= 30;
 
-        # IP inside private IP range?
+        # If $lanIP is not a routable IP, we need ask user for the public IP
+        # address, even through the user must be still able to force usage of
+        # $lanIP, in which case, $wanIP is set to $lanIP.
         if ( !isValidIpAddr( $lanIP, qr/(?:PUBLIC|GLOBAL-UNICAST)/ ) ) {
             chomp( $wanIP = get( 'https://ipinfo.io/ip' ) || '' ) unless $wanIP;
 
@@ -180,10 +173,7 @@ The IP address that you have selected is in private IP range.
 Please enter your public IP address (WAN IP), or leave blank to force usage of the private IP address:$msg
 EOF
                 $msg = '';
-                if ( $wanIP
-                    && $wanIP ne $lanIP
-                    && !isValidIpAddr( $wanIP, qr/(?:PUBLIC|GLOBAL-UNICAST)/ )
-                ) {
+                if ( $wanIP && $wanIP ne $lanIP && !isValidIpAddr( $wanIP, qr/(?:PUBLIC|GLOBAL-UNICAST)/ ) ) {
                     $msg = $iMSCP::Dialog::InputValidation::lastValidationError;
                 } elsif ( !$wanIP ) {
                     $wanIP = $lanIP;
@@ -200,7 +190,7 @@ EOF
             } while $rs < 30 && $msg;
             return $rs if $rs >= 30;
         } else {
-            $wanIP = $lanIP
+            $wanIP = $lanIP;
         }
     } elsif ( $lanIP eq 'None' ) {
         $lanIP = '0.0.0.0';
