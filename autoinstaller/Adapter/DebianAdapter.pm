@@ -103,7 +103,7 @@ sub preBuild
             [
                 sub {
                     eval { $self->_prefillDebconfDatabase(); };
-                    if( $@ ) {
+                    if ( $@ ) {
                         error( $@ );
                         return 1;
                     }
@@ -541,7 +541,7 @@ sub _processPackagesFile
 
         # Set the dialog flag in any case if there are many alternatives
         # available and if user asked for alternative reconfiguration
-        $showDialog ||= @sAlts > 1 && grep( iMSCP::Getopt->reconfigure eq $_, $section, 'servers', 'all' );
+        $showDialog ||= @sAlts > 1 && grep ( iMSCP::Getopt->reconfigure eq $_, $section, 'servers', 'all' );
 
         # Process alternative dialogs
         if ( $showDialog ) {
@@ -646,6 +646,7 @@ EOF
 
         # Set server name for the selected alternative if any
         $main::imscpConfig{$varname} = $sAlt if exists $main::imscpConfig{$varname};
+        $main::questions{$varname} = $sAlt if exists $main::questions{$varname};
 
         # Set package name for the selected aternative if any
         if ( exists $main::imscpConfig{uc( $section ) . '_PACKAGE'} ) {
@@ -752,14 +753,14 @@ sub _addAptRepositories
     my ( $self ) = @_;
 
     return 0 unless @{ $self->{'aptRepositoriesToRemove'} } || @{ $self->{'aptRepositoriesToAdd'} };
-    
+
     eval {
         iMSCP::DistPackageManager->getInstance()
             ->removeRepositories( @{ $self->{'aptRepositoriesToRemove'} } )
             ->addRepositories( @{ $self->{'aptRepositoriesToAdd'} } )
             ->updateRepositoryIndexes();
     };
-    if( $@ ) {
+    if ( $@ ) {
         error( $@ );
         return 1;
     }
