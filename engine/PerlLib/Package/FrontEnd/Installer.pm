@@ -573,6 +573,8 @@ sub dpkgPostInvokeTasks
             debug( "Both system PHP version and i-MSCP frontEnd PHP version are even. Nothing to do..." );
             return 0;
         } else {
+            my $rs = $self->{'frontend'}->stopPhpFpm();
+            return $rs if $rs;
             debug( sprintf( "Updating i-MSCP frontEnd PHP version '%s' to version '%s'", $v2, $v1 ));
         }
     } else {
@@ -580,7 +582,7 @@ sub dpkgPostInvokeTasks
     }
 
     my $rs = $self->_copyPhpBinary();
-    $rs ||= $self->{'frontend'}->restartPhpFpm();
+    $rs ||= $self->{'frontend'}->startPhpFpm();
 }
 
 =back
