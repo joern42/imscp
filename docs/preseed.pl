@@ -150,7 +150,7 @@ use warnings;
 
     # SSL certificate path (only relevant for trusted SSL certificate)
     PANEL_SSL_CERTIFICATE_PATH          => '',
-    
+
     # Alternative URLs feature for client domains
     # Possible values: yes, no
     CLIENT_DOMAIN_ALT_URLS              => 'no',
