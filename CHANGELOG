@@ -50,6 +50,7 @@ TOOLS
     Backported: imscp-get-master-sql-user-pwd.pl script from 1.6.x branch (Script that make possible to retrieve i-MSCP master SQL user and password)
 
 YOUTRACK
+    IP-1689 Wrong link for password reset when using PanelRedirect plugin or core proxy feature to make the panel available through standard ports
     IP-1745 Rsyslog log rotation failure -- Initctl command (Upstart) doesn't know the 'rotate' action -- Ubuntu 14.04/Trusty Thar
     IP-1751 CLIENT_DOMAIN_ALT_URLS configuration parameter always reseted
     IP-1756 Reseller overview page is loading too slow due to a slow SQL query
