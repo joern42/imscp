@@ -5,7 +5,7 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.07.18
+# Last update: 2018.07.27
 
 use strict;
 use warnings;
@@ -191,11 +191,16 @@ use warnings;
     # Only relevant with slave mode
     # Possible value: 'no' or a list of IPv4/IPv6 each separated by semicolon or space
     SECONDARY_DNS                       => 'no',
-
+    
     # IPv6 support
     # Only relevant with 'bind' server implementation
     # Possible values: yes, no
     BIND_IPV6                           => 'no',
+
+    # IP addresses policy
+    # Whether or not routable IP address must be enforced in the
+    # DNS zone files.
+    BIND_ENFORCE_ROUTABLE_IPS           => 'yes',
 
     # Local DNS resolver (only relevant with 'bind' server implementation)
     # Possible values: yes, no

@@ -9,6 +9,7 @@ BIND_OPTIONS_CONF_FILE = /etc/bind/named.conf.options
 BIND_DB_ROOT_DIR = /var/cache/bind
 BIND_DB_MASTER_DIR = /var/cache/bind/imscp/master
 BIND_DB_SLAVE_DIR = /var/cache/bind/imscp/slave
+
 NAMED_SNAME = bind9
 NAMED_BNAME = named
 
@@ -17,7 +18,7 @@ NAMED_BNAME = named
 # See NAMED-CHECKZONE(8)
 BIND_DB_FORMAT = raw=0
 
-# Mode in which the server should acts (master|slave)
+# Mode in which the server must acts (master|slave)
 BIND_MODE =
 
 # List of IP addresses for master server(s)
@@ -28,7 +29,15 @@ PRIMARY_DNS =
 # Only relevant in master mode
 SECONDARY_DNS =
 
+# Whether routable IP addresses must be enforced
+# in DNS zone files
+# Possible values: yes, no
+BIND_ENFORCE_ROUTABLE_IPS =
+
+# Enable/Disable IPV6
+# Possible values: yes, no
 BIND_IPV6 =
 
 # DNS Resolver
+# Possible values: yes, no
 LOCAL_DNS_RESOLVER =

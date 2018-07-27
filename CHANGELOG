@@ -7,7 +7,7 @@ Git 1.5.x
 BACKEND
     Added: Support for .timer unit files (Systemd init provider)
     Added: Distribution packages manager (backported from 1.6.x branch)
-    Fixed: Do not enforce routable IP addresses in DNS zone files
+    Fixed: Do not enforce routable IP addresses in DNS zone files, let's the administrator choose
     Fixed: Use of uninitialized value in bitwise or ( |) (PHP memory_limit, Subdomain module)
     Fixed: Make sure that units are not masked when enabling them (Systemd service provider)
     Fixed: Resolve units before acting on them due to https://github.com/systemd/systemd/issues/7875 (Systemd service provider)

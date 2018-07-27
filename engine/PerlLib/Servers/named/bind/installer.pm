@@ -67,6 +67,7 @@ sub registerSetupListeners
             push @{$_[0]},
                 sub { $self->askDnsServerMode( @_ ) },
                 sub { $self->askIPv6Support( @_ ) },
+                sub { $self->askIPPolicy( @_ ) },
                 sub { $self->askLocalDnsResolver( @_ ) };
             0;
         }
@@ -226,6 +227,37 @@ EOF
     }
 
     $self->{'config'}->{'BIND_IPV6'} = $ipv6 if $rs < 30;
+    $rs;
+}
+
+=item askIPPolicy( \%dialog )
+
+ Ask user for IP addresses policy
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 on success, other on failure
+
+=cut
+
+sub askIPPolicy
+{
+    my ($self, $dialog) = @_;
+
+    my $enforceRoutableIPs = main::setupGetQuestion( 'BIND_ENFORCE_ROUTABLE_IPS', $self->{'config'}->{'BIND_ENFORCE_ROUTABLE_IPS'} );
+    my %choices = ( 'yes', 'Yes', 'no', 'No' );
+    my $rs = 0;
+
+    if ( $main::reconfigure =~ /^(?:named|all|forced)$/ || $enforceRoutableIPs !~ /^(?:yes|no)$/ ) {
+        ( $rs, $enforceRoutableIPs ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $enforceRoutableIPs eq $_, keys %choices ) )[0] || 'yes' );
+
+Do you want enforce routable IP addresses in DNS zone files?
+If you say 'yes', the server public IP that you have set will be used in place of the domain IP addresses when those are non-routable.
+Note that this parameter doesn't affect the custom DNS record feature.
+\\Z \\Zn
+EOF
+    }
+
+    $self->{'config'}->{'BIND_ENFORCE_ROUTABLE_IPS'} = $enforceRoutableIPs if $rs < 30;
     $rs;
 }
 
