@@ -551,7 +551,7 @@ sub _processPackagesFile
 
             ( my $ret, $sAlt ) = $dialog->radiolist( <<"EOF", \%choices, $sAlt );
 
-Please select the $altDesc:
+Please select the $altDesc that you want to use:
 \\Z \\Zn
 EOF
             exit $ret if $ret; # Handle ESC case
@@ -1178,9 +1178,10 @@ sub _getSqldInfo
         # mysqld  Ver 5.5.60-0ubuntu0.14.04.1 for debian-linux-gnu on x86_64 ((Ubuntu))
         # mysqld  Ver 5.7.22 for Linux on x86_64 (MySQL Community Server (GPL))
         # ...
-        if ( my ( $version, $vendor ) = $stdout =~ /Ver\s+(\d+.\d+).*?(\b(?:mariadb|percona|mysql|ubuntu)\b)/i ) {
-            $vendor = 'mysql' if lc $vendor eq 'ubuntu';
-            return @info = ( lc $vendor, $version );
+        if ( my ( $version, $vendor ) = $stdout =~ /Ver\s+(\d+.\d+).*?\b(debian|mariadb|mysql|percona|ubuntu)\b/i ) {
+            $vendor = lc $vendor;
+            $vendor = 'mysql' if grep( $_ eq $vendor, 'debian', 'ubuntu' );
+            return @info = ( $vendor, $version );
         }
     }
 
