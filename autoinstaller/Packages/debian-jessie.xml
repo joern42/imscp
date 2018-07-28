@@ -135,7 +135,7 @@
             mysqli pdo_mysql opcache pspell dom xml xmlreader xmlwriter zip
         </post_install_task>
     </php>
-    <po>
+    <po description="IMAP/POP server">
         <courier description="Courier IMAP/POP3 servers" class="Servers::po::courier">
             <package>courier-authlib-mysql</package>
             <package>courier-imap</package>
@@ -155,18 +155,18 @@
             <package>dovecot-mysql</package>
         </dovecot>
     </po>
-    <mta>
+    <mta description="SMTP server">
         <postfix default="1" description="Postfix server" class="Servers::mta::postfix">
             <package>postfix</package>
-            <package_conflict>procmail</package_conflict>
-            <package_conflict>sendmail</package_conflict>
-            <package_conflict>sendmail-base</package_conflict>
-            <package_conflict>sendmail-bin</package_conflict>
-            <package_conflict>sendmail-cf</package_conflict>
-            <package_conflict>sendmail-doc</package_conflict>
         </postfix>
+        <package_conflict>procmail</package_conflict>
+        <package_conflict>sendmail</package_conflict>
+        <package_conflict>sendmail-base</package_conflict>
+        <package_conflict>sendmail-bin</package_conflict>
+        <package_conflict>sendmail-cf</package_conflict>
+        <package_conflict>sendmail-doc</package_conflict>
     </mta>
-    <ftpd>
+    <ftpd description="FTP server">
         <proftpd default="1" description="ProFTPD server" class="Servers::ftpd::proftpd">
             <package>proftpd-basic</package>
             <package>proftpd-mod-mysql</package>
@@ -178,7 +178,7 @@
             <package_conflict>proftpd-basic</package_conflict>
         </vsftpd>
     </ftpd>
-    <named>
+    <named description="DNS server">
         <bind default="1" description="Bind9 server" class="Servers::named::bind">
             <package>resolvconf</package>
             <package>bind9</package>
@@ -187,7 +187,7 @@
             <package>resolvconf</package>
         </external_server>
     </named>
-    <sqld>
+    <sqld description="SQL server">
         <mysql_5.5
                 default="1"
                 description="MySQL 5.5 server"

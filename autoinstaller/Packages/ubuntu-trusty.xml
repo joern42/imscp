@@ -168,13 +168,13 @@
     <mta description="SMTP server">
         <postfix default="1" description="Postfix server" class="Servers::mta::postfix">
             <package>postfix</package>
-            <package_conflict>procmail</package_conflict>
-            <package_conflict>sendmail</package_conflict>
-            <package_conflict>sendmail-base</package_conflict>
-            <package_conflict>sendmail-bin</package_conflict>
-            <package_conflict>sendmail-cf</package_conflict>
-            <package_conflict>sendmail-doc</package_conflict>
         </postfix>
+        <package_conflict>procmail</package_conflict>
+        <package_conflict>sendmail</package_conflict>
+        <package_conflict>sendmail-base</package_conflict>
+        <package_conflict>sendmail-bin</package_conflict>
+        <package_conflict>sendmail-cf</package_conflict>
+        <package_conflict>sendmail-doc</package_conflict>
     </mta>
     <ftpd description="FTP server">
         <proftpd default="1" description="ProFTPD server" class="Servers::ftpd::proftpd">
