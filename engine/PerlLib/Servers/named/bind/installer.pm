@@ -122,8 +122,8 @@ sub askDnsServerIps
 
     my $dnsServerMode = $self->{'config'}->{'BIND_MODE'};
 
-    my @masterDnsIps = split /(?:[;,]| )/, main::setupGetQuestion( 'PRIMARY_DNS', $self->{'config'}->{'PRIMARY_DNS'} );
-    my @slaveDnsIps = split /(?:[;,]| )/, main::setupGetQuestion( 'SECONDARY_DNS', $self->{'config'}->{'SECONDARY_DNS'} );
+    my @masterDnsIps = split /([;,]| )/, main::setupGetQuestion( 'PRIMARY_DNS', $self->{'config'}->{'PRIMARY_DNS'} );
+    my @slaveDnsIps = split /([;,]| )/, main::setupGetQuestion( 'SECONDARY_DNS', $self->{'config'}->{'SECONDARY_DNS'} );
 
     my ($rs, $answer, $msg) = ( 0, '', '' );
 
