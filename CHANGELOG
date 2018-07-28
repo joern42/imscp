@@ -39,6 +39,7 @@ INSTALLER
     Fixed: 'CLIENT_DOMAIN_ALT_URLS' configuration parameter reseted to 0 (disabled) while running installer (Fix backported from 1.6.x branch)
     Fixed: 'CLIENT_DOMAIN_ALT_URLS' parameter is not set on fresh installations (Fix backported from 1.6.x branch)
     Fixed: DIRMNGR(8) daemon not being terminated when expected (APT key management -- Debian adapter; Fix backported from 1.6.x branch)
+    Fixed: "Missing or bad entry found in your preseed file" due to unhandled space separator (Slave DNS server)
 
 PACKAGES
     Removed: Net2ftp package. See the errata file for further explanation.

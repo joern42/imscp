@@ -94,7 +94,7 @@ sub askDnsServerMode
         my %choices = ( 'master', 'Master DNS server', 'slave', 'Slave DNS server' );
         ( $rs, $dnsServerMode ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $dnsServerMode eq $_, keys %choices ) )[0] || 'master' );
 
-Select DNS server type to configure:
+Select the DNS server type to configure:
 \Z \Zn
 EOF
     }
@@ -122,14 +122,14 @@ sub askDnsServerIps
 
     my $dnsServerMode = $self->{'config'}->{'BIND_MODE'};
 
-    my @masterDnsIps = split ';', main::setupGetQuestion( 'PRIMARY_DNS', $self->{'config'}->{'PRIMARY_DNS'} );
-    my @slaveDnsIps = split ';', main::setupGetQuestion( 'SECONDARY_DNS', $self->{'config'}->{'SECONDARY_DNS'} );
+    my @masterDnsIps = split /(?:[;,]| )/, main::setupGetQuestion( 'PRIMARY_DNS', $self->{'config'}->{'PRIMARY_DNS'} );
+    my @slaveDnsIps = split /(?:[;,]| )/, main::setupGetQuestion( 'SECONDARY_DNS', $self->{'config'}->{'SECONDARY_DNS'} );
 
     my ($rs, $answer, $msg) = ( 0, '', '' );
 
     if ( $dnsServerMode eq 'master' ) {
         if ( $main::reconfigure =~ /^(?:named|servers|all|forced)$/ || "@slaveDnsIps" eq ''
-            || ( "@slaveDnsIps" ne 'no' && !$self->_checkIps( @slaveDnsIps ) )
+            || ( "@slaveDnsIps" ne 'no' && !$self->_checkIpAdresses( @slaveDnsIps ) )
         ) {
             my %choices = ( 'yes', 'Yes', 'no', 'No' );
             ( $rs, $answer ) = $dialog->radiolist( <<'EOF', \%choices, !@slaveDnsIps || $slaveDnsIps[0] eq 'no' ? 'no' : 'yes' );
@@ -151,7 +151,7 @@ EOF
 
                         if ( "@slaveDnsIps" eq '' ) {
                             $msg = "\n\n\\Z1You must enter at least one IP address.\\Zn\n\nPlease try again:";
-                        } elsif ( !$self->_checkIps( @slaveDnsIps ) ) {
+                        } elsif ( !$self->_checkIpAdresses( @slaveDnsIps ) ) {
                             $msg = "\n\n\\Z1Wrong or disallowed IP address found.\\Zn\n\nPlease try again:";
                         }
                     }
@@ -161,7 +161,7 @@ EOF
             }
         }
     } elsif ( $main::reconfigure =~ /^(?:named|servers|all|forced)$/ || grep($_ eq "@masterDnsIps", ( '', 'no' ))
-        || !$self->_checkIps( @masterDnsIps )
+        || !$self->_checkIpAdresses( @masterDnsIps )
     ) {
         @masterDnsIps = () if "@masterDnsIps" eq 'no';
 
@@ -176,7 +176,7 @@ EOF
 
                 if ( "@masterDnsIps" eq '' ) {
                     $msg = "\n\n\\Z1You must enter a least one IP address.\\Zn\n\nPlease try again:";
-                } elsif ( !$self->_checkIps( @masterDnsIps ) ) {
+                } elsif ( !$self->_checkIpAdresses( @masterDnsIps ) ) {
                     $msg = "\n\n\\Z1Wrong or disallowed IP address found.\\Zn\n\nPlease try again:";
                 }
             }
@@ -186,9 +186,9 @@ EOF
     if ( $rs < 30 ) {
         if ( $dnsServerMode eq 'master' ) {
             $self->{'config'}->{'PRIMARY_DNS'} = 'no';
-            $self->{'config'}->{'SECONDARY_DNS'} = "@slaveDnsIps" ne 'no' ? join ';', @slaveDnsIps : 'no';
+            $self->{'config'}->{'SECONDARY_DNS'} = "@slaveDnsIps" ne 'no' ? join ' ', @slaveDnsIps : 'no';
         } else {
-            $self->{'config'}->{'PRIMARY_DNS'} = join ';', @masterDnsIps;
+            $self->{'config'}->{'PRIMARY_DNS'} = join ' ', @masterDnsIps;
             $self->{'config'}->{'SECONDARY_DNS'} = 'no';
         }
     }
@@ -589,24 +589,24 @@ sub _buildConf
     0;
 }
 
-=item _checkIps(@ips)
+=item _checkIpAdresses( @ipAddresses)
 
  Check IP addresses
 
- Param list @ips List of IP addresses to check
+ Param list @ipAddresses List of IP addresses to check
  Return bool TRUE if all IPs are valid, FALSE otherwise
 
 =cut
 
-sub _checkIps
+sub _checkIpAdresses
 {
-    my (undef, @ips) = @_;
+    my (undef, @ipAddresses) = @_;
 
     my $net = iMSCP::Net->getInstance();
 
-    for my $ipAddr( @ips ) {
-        return 0 unless $net->isValidAddr( $ipAddr )
-            && $net->getAddrType( $ipAddr ) =~ /^(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)$/;
+    for my $ipAddress( @ipAddresses ) {
+        return 0 unless $net->isValidAddr( $ipAddress )
+            && $net->getAddrType( $ipAddress ) =~ /^(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)$/;
     }
 
     1;
