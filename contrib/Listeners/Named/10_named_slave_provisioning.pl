@@ -53,6 +53,11 @@ my $IS_HTPASSWD_HASHED = 0;
 # Realm, default to 'SDSPS' (Slave DNS Server Provisioning Service)
 my $REALM = 'SDSPS';
 
+# Slave DNS zone file format
+# Possible values: text, raw or raw=N where N can be 0 or 1
+# See NAMED-CHECKZONE(8)
+my $DB_FILE_FORMAT = 'text';
+
 #
 ## Please don't edit anything below this line
 #
@@ -76,7 +81,8 @@ sub createHtpasswdFile
     $rs ||= $file->mode( 0640 );
 }
 
-iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub {
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub
+{
     my ( $tplContent, $tplName ) = @_;
 
     return 0 unless grep ($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
@@ -84,7 +90,6 @@ iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub 
     my $locationSnippet = <<"EOF";
     location ^~ /provisioning/ {
         root /var/www/imscp/gui/public;
-
         location ~ \\.php\$ {
             include imscp_fastcgi.conf;
             satisfy any;
@@ -105,30 +110,32 @@ EOF
 
 iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
 {
-    my $fileContent = <<'EOF';
+    my $fileContent = <<"EOF";
 <?php
 use iMSCP_Registry as Registry;
 
 require '../../library/imscp-lib.php';
 
-$config = Registry::get('config');
+\$config = Registry::get('config');
 
 if(Registry::isRegistered('bufferFilter')) {
-    $filter = Registry::get('bufferFilter');
-    $filter->compressionInformation = false;
+    \$filter = Registry::get('bufferFilter');
+    \$filter->compressionInformation = false;
 }
 
 print <<<"EOT"
-zone "{$config['BASE_SERVER_VHOST']}" {
+zone "{\$config['BASE_SERVER_VHOST']}" {
   type slave;
-  file "/var/cache/bind/{$config['BASE_SERVER_VHOST']}.db";
-  masters { {$config['BASE_SERVER_PUBLIC_IP']}; };
-  allow-notify { {$config['BASE_SERVER_PUBLIC_IP']}; };
+  notify no;
+  file "/var/cache/bind/{\$config['BASE_SERVER_VHOST']}.db";
+  masterfile-format $DB_FILE_FORMAT;
+  masters { {\$config['BASE_SERVER_PUBLIC_IP']}; };
+  allow-notify { {\$config['BASE_SERVER_IP']}; };
 };
 
 EOT;
 
-$stmt = exec_query(
+\$stmt = exec_query(
     "
         SELECT domain_name FROM domain WHERE domain_status <> 'todelete'
         UNION ALL
@@ -136,26 +143,30 @@ $stmt = exec_query(
     "
 );
 
-while ($row = $stmt->fetchRow()) {
-    if($row['domain_name'] == $config['BASE_SERVER_VHOST']) {
+while (\$row = \$stmt->fetchRow()) {
+    if(\$row['domain_name'] == \$config['BASE_SERVER_VHOST']) {
         continue;
     }
 
 print <<<"EOT"
 
-zone "{$row['domain_name']}" {
+zone "{\$row['domain_name']}" {
   type slave;
-  file "/var/cache/bind/{$row['domain_name']}.db";
-  masters { {$config['BASE_SERVER_PUBLIC_IP']}; };
-  allow-notify { {$config['BASE_SERVER_PUBLIC_IP']}; };
+  notify no;
+  file "/var/cache/bind/{\$row['domain_name']}.db";
+  masterfile-format $DB_FILE_FORMAT;
+  masters { {\$config['BASE_SERVER_PUBLIC_IP']}; };
+  allow-notify { {\$config['BASE_SERVER_IP']}; };
 };
 
 EOT;
-
 }
 EOF
     my $rs = eval {
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning" )->make( {
+        # Make sure to start with a clean directory
+        my $dir = iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning" );
+        $dir->remove();
+        $dir->make( {
             user  => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
             group => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
             mode  => 0550

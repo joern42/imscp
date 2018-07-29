@@ -23,6 +23,7 @@ CONFIG
 
 CONTRIB
     Added: i-MSCP Slave Server Provisioning client (contrib/scripts/named_slave_provisioning_client.pl)
+    Enhancement: Make it possible to setup DB zone file format (Slave DNS server - 10_named_slave_provisioning.pl listener file)
     Fixed: Possible duplicate DNS zone entry leading to server crash (Slave DNS server - 10_named_slave_provisioning.pl listener file)
     Fixed: Prevent uninstallation of the libsasl2-modules package (10_postfix_smarthost.pl listener file)
 
