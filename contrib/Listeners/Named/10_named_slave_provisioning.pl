@@ -1,6 +1,6 @@
 # i-MSCP Listener::Named::Slave::Provisioning listener file
-# Copyright (C) 2015 UncleJ, Arthur Mayer <mayer.arthur@gmail.com>
 # Copyright (C) 2016-2018 Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2015 UncleJ, Arthur Mayer <mayer.arthur@gmail.com>
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-# Provides slave DNS server(s) provisioning service.
+# Provides slave DNS server provisioning service.
 # This listener file requires i-MSCP 1.2.12 or newer.
 # Slave provisioning service will be available at:
 # - http://<panel.domain.tld>:8080/provisioning/slave_provisioning.php
@@ -42,16 +42,16 @@ use iMSCP::TemplateParser;
 #
 # Authentication username
 # Leave empty to disable authentication
-my $AUTH_USERNAME = '';
+my $HTUSER = '';
 # Authentication password
 # Either an hashed or plain password
-# If an hashed password, don't forget to set the $IS_AUTH_PASSWORD_HASHED
+# If an hashed password, don't forget to set the $IS_HTPASSWD_HASHED
 # parameter value to 1
-my $AUTH_PASSWORD = '';
+my $HTPASSWD = '';
 # Tells whether or not the provided authentication password is hashed
-my $IS_AUTH_PASSWORD_HASHED = 0;
-# Protected area identifier
-my $REALM = 'i-MSCP slave DNS provisioning';
+my $IS_HTPASSWD_HASHED = 0;
+# Realm, default to 'SDSPS' (Slave DNS Server Provisioning Service)
+my $REALM = 'SDSPS';
 
 #
 ## Please don't edit anything below this line
@@ -59,14 +59,14 @@ my $REALM = 'i-MSCP slave DNS provisioning';
 
 sub createHtpasswdFile
 {
-    if ( $AUTH_USERNAME =~ /:/ ) {
+    if ( $HTUSER =~ /:/ ) {
         error( "htpasswd: username contains illegal character ':'" );
         return 1;
     }
 
     require iMSCP::Crypt;
     my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/.htpasswd" );
-    $file->set( "$AUTH_USERNAME:" . ( $IS_AUTH_PASSWORD_HASHED ? $AUTH_PASSWORD : iMSCP::Crypt::htpasswd( $AUTH_PASSWORD ) ));
+    $file->set( "$HTUSER:" . ( $IS_HTPASSWD_HASHED ? $HTPASSWD : iMSCP::Crypt::htpasswd( $HTPASSWD ) ));
 
     my $rs = $file->save();
     $rs ||= $file->owner(
@@ -101,7 +101,7 @@ EOF
         ${ $tplContent }
     );
     0;
-} ) if $AUTH_USERNAME ne '';
+} ) if $HTUSER ne '';
 
 iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
 {
@@ -118,12 +118,15 @@ if(Registry::isRegistered('bufferFilter')) {
     $filter->compressionInformation = false;
 }
 
-echo "zone \"{$config['BASE_SERVER_VHOST']}\" {\n";
-echo "\ttype slave;\n";
-echo "\tfile \"/var/cache/bind/{$config['BASE_SERVER_VHOST']}.db\";\n";
-echo "\tmasters { {$config['BASE_SERVER_PUBLIC_IP']}; };\n";
-echo "\tallow-notify { {$config['BASE_SERVER_PUBLIC_IP']}; };\n";
-echo "};\n";
+print <<<"EOT"
+zone "{$config['BASE_SERVER_VHOST']}" {
+  type slave;
+  file "/var/cache/bind/{$config['BASE_SERVER_VHOST']}.db";
+  masters { {$config['BASE_SERVER_PUBLIC_IP']}; };
+  allow-notify { {$config['BASE_SERVER_PUBLIC_IP']}; };
+};
+
+EOT;
 
 $stmt = exec_query(
     "
@@ -138,14 +141,18 @@ while ($row = $stmt->fetchRow()) {
         continue;
     }
 
-    echo "zone \"{$row['domain_name']}\" {\n";
-    echo "\ttype slave;\n";
-    echo "\tfile \"/var/cache/bind/{$row['domain_name']}.db\";\n";
-    echo "\tmasters { {$config['BASE_SERVER_PUBLIC_IP']}; };\n";
-    echo "\tallow-notify { {$config['BASE_SERVER_PUBLIC_IP']}; };\n";
-    echo "};\n";
-}
+print <<<"EOT"
 
+zone "{$row['domain_name']}" {
+  type slave;
+  file "/var/cache/bind/{$row['domain_name']}.db";
+  masters { {$config['BASE_SERVER_PUBLIC_IP']}; };
+  allow-notify { {$config['BASE_SERVER_PUBLIC_IP']}; };
+};
+
+EOT;
+
+}
 EOF
     my $rs = eval {
         iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning" )->make( {
@@ -159,7 +166,7 @@ EOF
         $rs = 1;
     }
 
-    $rs ||= createHtpasswdFile() if $AUTH_USERNAME ne '';
+    $rs ||= createHtpasswdFile() if $HTUSER ne '';
     return $rs if $rs;
 
     my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/slave_provisioning.php" );
