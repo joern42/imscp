@@ -20,10 +20,6 @@
 
 use iMSCP\Crypt as Crypt;
 
-/***********************************************************************************************************************
- * Functions
- */
-
 /**
  * Get mail account data
  *
@@ -92,9 +88,7 @@ function client_editMailAccount()
         showBadRequestErrorPage();
     }
 
-    if (iMSCP_Registry::get('config')->{'SERVER_HOSTNAME'} == explode('@', $mailData['mail_addr'])[1]
-        && $mailTypeNormal
-    ) {
+    if (iMSCP_Registry::get('config')->{'SERVER_HOSTNAME'} == explode('@', $mailData['mail_addr'])[1] && $mailTypeNormal) {
         # SERVER_HOSTNAME is a canonical domain (local domain) which cannot be
         # listed in both `mydestination' and `virtual_mailbox_domains' Postfix
         # parameters. See http://www.postfix.org/VIRTUAL_README.html#canonical
@@ -146,10 +140,9 @@ function client_editMailAccount()
                 return false;
             }
 
-            $customerMailboxesQuotaSumBytes = exec_query(
-                'SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE mail_id <> ? AND domain_id = ?',
-                [$mailData['mail_id'], $mainDmnProps['domain_id']]
-            )->fetchRow(PDO::FETCH_COLUMN);
+            $customerMailboxesQuotaSumBytes = exec_query('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE mail_id <> ? AND domain_id = ?', [
+                $mailData['mail_id'], $mainDmnProps['domain_id']
+            ])->fetchRow(PDO::FETCH_COLUMN);
 
             if ($customerMailboxesQuotaSumBytes >= $customerEmailQuotaLimitBytes) {
                 showBadRequestErrorPage(); # Customer should never goes here excepted if it try to bypass js code
@@ -225,17 +218,10 @@ function client_editMailAccount()
     iMSCP_Events_Aggregator::getInstance()->dispatch(iMSCP_Events::onBeforeEditMail, [
         'mailId' => $mailData['mail_id']
     ]);
-    exec_query(
-        '
-                UPDATE mail_users
-                SET mail_pass = ?, mail_forward = ?, mail_type = ?, status = ?, po_active = ?, quota = ?
-                WHERE mail_id = ?
-            ',
-        [
-            $password, $forwardList, $mailType, 'tochange', $mailTypeNormal ? 'yes' : 'no', $mailQuotaLimitBytes,
-            $mailData['mail_id']
-        ]
-    );
+    exec_query('UPDATE mail_users SET mail_pass = ?, mail_forward = ?, mail_type = ?, status = ?, po_active = ?, quota = ? WHERE mail_id = ?', [
+        $password, $forwardList, $mailType, 'tochange', $mailTypeNormal ? 'yes' : 'no', $mailQuotaLimitBytes,
+        $mailData['mail_id']
+    ]);
 
     # Force synching of quota info on next load (or remove cached data in case of normal account changed to forward account)
     $postfixConfig = new iMSCP_Config_Handler_File(
@@ -244,16 +230,9 @@ function client_editMailAccount()
     list($user, $domain) = explode('@', $mailAddr);
     unset($_SESSION['maildirsize'][utils_normalizePath($postfixConfig['MTA_VIRTUAL_MAIL_DIR'] . "/$domain/$user/maildirsize")]);
 
-    iMSCP_Events_Aggregator::getInstance()->dispatch(iMSCP_Events::onAfterEditMail, [
-        'mailId' => $mailData['mail_id']
-    ]);
+    iMSCP_Events_Aggregator::getInstance()->dispatch(iMSCP_Events::onAfterEditMail, ['mailId' => $mailData['mail_id']]);
     send_request();
-    write_log(
-        sprintf(
-            'A mail account (%s) has been edited by %s', decode_idna($mailAddr), $_SESSION['user_logged']
-        ),
-        E_USER_NOTICE
-    );
+    write_log(sprintf('A mail account (%s) has been edited by %s', decode_idna($mailAddr), $_SESSION['user_logged']), E_USER_NOTICE);
     set_page_message(tr('Mail account successfully scheduled for update.'), 'success');
     return true;
 }
@@ -273,10 +252,9 @@ function client_generatePage($tpl)
     $mailData = client_getEmailAccountData($mailId);
     list($username, $domainName) = explode('@', $mailData['mail_addr']);
 
-    $customerMailboxesQuotaSumBytes = exec_query(
-        'SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE mail_id <> ? AND domain_id = ?',
-        [$mailId, $mainDmnProps['domain_id']]
-    )->fetchRow(PDO::FETCH_COLUMN);
+    $customerMailboxesQuotaSumBytes = exec_query('SELECT IFNULL(SUM(quota), 0) FROM mail_users WHERE mail_id <> ? AND domain_id = ?', [
+        $mailId, $mainDmnProps['domain_id']
+    ])->fetchRow(PDO::FETCH_COLUMN);
 
     $customerEmailQuotaLimitBytes = filter_digits($mainDmnProps['mail_quota'], 0);
 
@@ -286,17 +264,15 @@ function client_generatePage($tpl)
             'MIN_QUOTA' => 0,
             'MAX_QUOTA' => tohtml(17592186044416, 'htmlAttr'), // Max quota = MySQL UNSIGNED BIGINT in MiB
             'QUOTA'     => isset($_POST['quota'])
-                ? tohtml(filter_digits($_POST['quota']), 'htmlAttr')
-                : tohtml($mailData['quota'] / 1048576, 'htmlAttr') // Bytes to MiB conversion
+                ? tohtml(filter_digits($_POST['quota']), 'htmlAttr') : tohtml($mailData['quota'] / 1048576, 'htmlAttr') // Bytes to MiB conversion
         ]);
         $mailTypeForwardOnly = false;
     } else {
         if ($customerEmailQuotaLimitBytes > $customerMailboxesQuotaSumBytes) {
             $mailQuotaLimitBytes = $customerEmailQuotaLimitBytes - $customerMailboxesQuotaSumBytes;
             $mailMaxQuotaLimitMib = $mailQuotaLimitBytes / 1048576;
-            $mailQuotaLimitMiB = ($mailData['quota'] > 0 && $mailData['quota'] < $mailQuotaLimitBytes)
-                ? $mailData['quota'] / 1048576
-                : min(10, $mailMaxQuotaLimitMib);
+            $mailQuotaLimitMiB = ($mailData['quota'] > 0 && $mailData['quota'] <= $mailQuotaLimitBytes)
+                ? $mailData['quota'] / 1048576 : $mailMaxQuotaLimitMib;
             $mailTypeForwardOnly = false;
         } else {
             set_page_message(tr('You cannot make this account a normal mail account because you have already assigned all your mail quota. If you want make this account a normal mail account, you must first lower the quota assigned to one of your other mail account.'), 'static_info');
@@ -311,16 +287,13 @@ function client_generatePage($tpl)
             'TR_QUOTA'  => tohtml(tr('Quota in MiB (Max: %s)', bytesHuman($mailQuotaLimitBytes))),
             'MIN_QUOTA' => 1,
             'MAX_QUOTA' => tohtml($mailMaxQuotaLimitMib, 'htmlAttr'),
-            'QUOTA'     => isset($_POST['quota'])
-                ? tohtml(filter_digits($_POST['quota']), 'htmlAttr') : tohtml($mailQuotaLimitMiB, 'htmlAttr')
+            'QUOTA'     => isset($_POST['quota']) ? tohtml(filter_digits($_POST['quota']), 'htmlAttr') : tohtml($mailQuotaLimitMiB, 'htmlAttr')
         ]);
     }
 
     $mailType = '';
 
-    if (!isset($_POST['account_type'])
-        || !in_array($_POST['account_type'], ['1', '2', '3'])
-    ) {
+    if (!isset($_POST['account_type']) || !in_array($_POST['account_type'], ['1', '2', '3'])) {
         if (preg_match('/_mail/', $mailData['mail_type'])) {
             $mailType = '1';
         }
@@ -335,14 +308,13 @@ function client_generatePage($tpl)
     $tpl->assign([
         'MAIL_ID'                => tohtml($mailId),
         'USERNAME'               => tohtml($username),
-        'NORMAL_CHECKED'         => ($mailType == '1') ? ' checked' : '',
-        'FORWARD_CHECKED'        => ($mailType == '2') ? ' checked' : '',
-        'NORMAL_FORWARD_CHECKED' => ($mailType == '3') ? ' checked' : '',
+        'NORMAL_CHECKED'         => $mailType == '1' ? ' checked' : '',
+        'FORWARD_CHECKED'        => $mailType == '2' ? ' checked' : '',
+        'NORMAL_FORWARD_CHECKED' => $mailType == '3' ? ' checked' : '',
         'PASSWORD'               => isset($_POST['password']) ? tohtml($_POST['password']) : '',
         'PASSWORD_REP'           => isset($_POST['password_rep']) ? tohtml($_POST['password_rep']) : '',
         'FORWARD_LIST'           => isset($_POST['forward_list'])
-            ? tohtml($_POST['forward_list'])
-            : ($mailData['mail_forward'] != '_no_' ? tohtml($mailData['mail_forward']) : ''),
+            ? tohtml($_POST['forward_list']) : ($mailData['mail_forward'] != '_no_' ? tohtml($mailData['mail_forward']) : ''),
         'DOMAIN_NAME'            => tohtml($domainName),
         'DOMAIN_NAME_UNICODE'    => tohtml(decode_idna($domainName)),
         'DOMAIN_NAME_SELECTED'   => ' selected'
@@ -350,27 +322,17 @@ function client_generatePage($tpl)
 
     iMSCP_Events_Aggregator::getInstance()->registerListener(
         'onGetJsTranslations',
-        function ($event) use ($mailTypeForwardOnly) {
-            /** @var $event iMSCP_Events_Description */
-            $event->getParam('translations')->core['mail_add_forward_only'] = $mailTypeForwardOnly;
+        function (iMSCP_Events_Description $e) use ($mailTypeForwardOnly) {
+            $e->getParam('translations')->core['mail_add_forward_only'] = $mailTypeForwardOnly;
         }
     );
 }
-
-/***********************************************************************************************************************
- * Main
- */
 
 require 'imscp-lib.php';
 
 check_login('user');
 iMSCP_Events_Aggregator::getInstance()->dispatch(iMSCP_Events::onClientScriptStart);
-
-if (!customerHasFeature('mail') ||
-    !isset($_GET['id'])
-) {
-    showBadRequestErrorPage();
-}
+customerHasFeature('mail') && isset($_GET['id']) or showBadRequestErrorPage();
 
 if (!empty($_POST) && client_editMailAccount()) {
     redirectTo('mail_accounts.php');
