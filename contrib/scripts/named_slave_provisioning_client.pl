@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # i-MSCP Slave Server Provisioning client
-# Copyright (C) 2016-2018 Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -101,11 +101,11 @@ sub writeFile
 ## Main
 
 my $request = GET $SRV_URI;
-$request->authorization_basic( $HTUSER, $HTPASSWD );
+$request->authorization_basic( $HTUSER, $HTPASSWD ) if defined $HTUSER && defined $HTPASSWD;
 
 my $ua = LWP::UserAgent->new();
 $ua->timeout( 5 );
-$ua->agent( 'i-MSCP/1.0 (+https://i-mscp.net/)' );
+$ua->agent( 'SDSPC/1.0 (+https://i-mscp.net/)' );
 $ua->ssl_opts( verify_hostname => 0, SSL_verify_mode => 0x00 ); # handle case of self-signed SSL certificate;
 
 my $response = $ua->request( $request );
