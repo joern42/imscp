@@ -148,7 +148,7 @@ sub getPriority
 
  Initialize instance
 
- Return Package::PhpMyAdmin
+ Return Package::PostfixSRS
 
 =cut
 

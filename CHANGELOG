@@ -45,7 +45,7 @@ INSTALLER
     Fixed: "Missing or bad entry found in your preseed file" due to unhandled space separator (Slave DNS server)
 
 PACKAGES
-    Added: PostfixSRS - Provides Sender Rewriting Scheme (SRS) support for Postfix via TCP-based lookup tables
+    Added: PostfixSRS package - Provides Sender Rewriting Scheme (SRS) support for Postfix via TCP-based lookup tables
     Removed: Net2ftp package. See the errata file for further explanation.
 
 PLUGINS
