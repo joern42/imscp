@@ -25,6 +25,7 @@ package Package::PostfixSRS;
 
 use strict;
 use warnings;
+use iMSCP::Debug qw/ error /;
 use iMSCP::EventManager;
 use iMSCP::Service;
 use Servers::mta;
