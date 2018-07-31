@@ -158,6 +158,7 @@
     <mta>
         <postfix default="1" description="Postfix server" class="Servers::mta::postfix">
             <package>postfix</package>
+            <package>postsrsd</package>
         </postfix>
         <package_conflict>procmail</package_conflict>
         <package_conflict>sendmail</package_conflict>
