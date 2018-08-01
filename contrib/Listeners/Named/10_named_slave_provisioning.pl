@@ -21,6 +21,8 @@
 # Slave provisioning service will be available at:
 # - http://<panel.domain.tld>:8080/provisioning/slave_provisioning.php
 # - https://<panel.domain.tld>:4443/provisioning/slave_provisioning.php
+#
+# Please don't use that listener file with the i-MSCP SDSP client.
 
 package Listener::Named::Slave::Provisioning;
 
@@ -51,12 +53,12 @@ my $HTPASSWD = '';
 # Tells whether or not the provided authentication password is hashed
 my $IS_HTPASSWD_HASHED = 0;
 # Realm, default to 'SDSPS' (Slave DNS Server Provisioning Service)
-my $REALM = 'SDSPS';
+my $REALM = 'Slave DNS server provisioning service';
 
 # Slave DNS zone file format
-# Possible values: text, raw or raw=N where N can be 0 or 1
+# Possible values: text, raw
 # See NAMED-CHECKZONE(8)
-my $DB_FILE_FORMAT = 'text';
+my $DB_FILE_FORMAT = 'raw';
 
 #
 ## Please don't edit anything below this line
@@ -110,58 +112,6 @@ EOF
 
 iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
 {
-    my $fileContent = <<"EOF";
-<?php
-use iMSCP_Registry as Registry;
-
-require '../../library/imscp-lib.php';
-
-\$config = Registry::get('config');
-
-if(Registry::isRegistered('bufferFilter')) {
-    \$filter = Registry::get('bufferFilter');
-    \$filter->compressionInformation = false;
-}
-
-print <<<"EOT"
-zone "{\$config['BASE_SERVER_VHOST']}" {
-  type slave;
-  notify no;
-  file "/var/cache/bind/{\$config['BASE_SERVER_VHOST']}.db";
-  masterfile-format $DB_FILE_FORMAT;
-  masters { {\$config['BASE_SERVER_PUBLIC_IP']}; };
-  allow-notify { {\$config['BASE_SERVER_IP']}; };
-};
-
-EOT;
-
-\$stmt = exec_query(
-    "
-        SELECT domain_name FROM domain WHERE domain_status <> 'todelete'
-        UNION ALL
-        SELECT alias_name FROM domain_aliasses WHERE alias_status <> 'todelete'
-    "
-);
-
-while (\$row = \$stmt->fetchRow()) {
-    if(\$row['domain_name'] == \$config['BASE_SERVER_VHOST']) {
-        continue;
-    }
-
-print <<<"EOT"
-
-zone "{\$row['domain_name']}" {
-  type slave;
-  notify no;
-  file "/var/cache/bind/{\$row['domain_name']}.db";
-  masterfile-format $DB_FILE_FORMAT;
-  masters { {\$config['BASE_SERVER_PUBLIC_IP']}; };
-  allow-notify { {\$config['BASE_SERVER_IP']}; };
-};
-
-EOT;
-}
-EOF
     my $rs = eval {
         # Make sure to start with a clean directory
         my $dir = iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning" );
@@ -181,8 +131,7 @@ EOF
     return $rs if $rs;
 
     my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/slave_provisioning.php" );
-    $file->set( $fileContent );
-
+    $file->set( <DATA> =~ s/\{DB_FILE_FORMAT\}/$DB_FILE_FORMAT/gmr );
     $rs = $file->save();
     $rs ||= $file->owner(
         "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
@@ -193,3 +142,43 @@ EOF
 
 1;
 __END__
+<?php
+use iMSCP_Registry as Registry;
+
+try {
+  require '../../library/imscp-lib.php';
+
+  if(Registry::isRegistered('bufferFilter')) {
+    $filter = Registry::get('bufferFilter');
+    $filter->compressionInformation = false;
+  }
+
+  $zones = $stmt = exec_query(
+    "
+      SELECT domain_name FROM domain WHERE domain_status <> 'todelete'
+      UNION ALL
+      SELECT alias_name FROM domain_aliasses WHERE alias_status <> 'todelete'
+    "
+  )->fetchAll(\PDO::FETCH_COLUMN);
+
+  $config = Registry::get('config');
+  if(!in_array($config['BASE_SERVER_VHOST'], $zones) {
+    $zones[] = $config['BASE_SERVER_VHOST'];
+  }
+
+  foreach($zones as $zone) {
+    echo <<<"EOT"
+zone "{$row['domain_name']}" {
+  type slave;
+  notify no;
+  file "/var/cache/bind/{$row['domain_name']}.db";
+  masterfile-format {DB_FILE_FORMAT};
+  masters { {$config['BASE_SERVER_PUBLIC_IP']}; };
+  allow-notify { {$config['BASE_SERVER_IP']}; };
+};
+
+EOT;
+  }
+} catch(Exception $e) {
+    http_response_code(500);
+}
