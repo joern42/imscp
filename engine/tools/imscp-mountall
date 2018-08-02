@@ -54,7 +54,7 @@ sub run
         next if $line =~ /^(?:#|$)/; # Ignore comment and empty lines
         chomp $line;
         my $fields;
-        @{ $fields }{ qw/ fs_spec fs_file fs_vfstype fs_mntops ignore_failures / } = split '\s', $line;
+        @{ $fields }{ qw/ fs_spec fs_file fs_vfstype fs_mntops ignore_failures / } = split /\s+/, $line;
 
         if ( $action eq 'start' ) {
             next if $fields->{'fs_mntops'} =~ /\bnoauto\b/;
