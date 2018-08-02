@@ -290,6 +290,21 @@
         <package>libmysqlclient20</package>
         <package>mysql-common</package>
     </sqld>
+    <antispam description="SPAM filtering system" varname="ANTISPAM">
+        <rspamd
+                description="Rspamd spam filtering system"
+                repository="http://rspamd.com/apt-stable/ bionic main"
+                repository_key_uri="https://rspamd.com/apt/gpg.key"
+                pinning_package="*"
+                pinning_pin="release o=Rspamd,n=bionic"
+                pinning_pin_priority="1001"
+                class="Package::Rspamd"
+        >
+            <package>rspamd</package>
+            <package>redis-server</package>
+        </rspamd>
+        <none default="1" description="No Anti-Spam" />
+    </antispam>
     <perl>
         <package>perl</package>
         <package>libcrypt-blowfish-perl</package>
@@ -306,6 +321,7 @@
         <package>libfile-homedir-perl</package>
         <package>libhash-merge-perl</package>
         <package>libjson-perl</package>
+        <package>libjson-xs-perl</package>
         <package>libmailtools-perl</package>
         <package>libmime-tools-perl</package>
         <package>libnet-dns-perl</package>

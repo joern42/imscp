@@ -504,7 +504,9 @@ sub _processPackagesFile
         my $isAltSectionHidden = delete $data->{'hidden'};
 
         # Retrieve current selected alternative
-        my $sAlt = $main::questions{ $varname } || $main::imscpConfig{ $varname } || '';
+        my $sAlt = exists $main::questions{ $varname } ? $main::questions{ $varname } : (
+            exists $main::imscpConfig{ $varname } ? $main::imscpConfig{ $varname } : ''
+        );
 
         # Builds list of selectable alternatives through dialog:
         # - Discard hidden alternatives, that is, those which don't involve any
@@ -644,14 +646,10 @@ EOF
 
         debug( sprintf( 'Alternative for %s set to: %s', $section, $sAlt ));
 
-        # Set server name for the selected alternative if any
-        $main::imscpConfig{$varname} = $sAlt if exists $main::imscpConfig{$varname};
-        $main::questions{$varname} = $sAlt if exists $main::questions{$varname};
-
-        # Set package name for the selected aternative if any
-        if ( exists $main::imscpConfig{uc( $section ) . '_PACKAGE'} ) {
-            $main::imscpConfig{uc( $section ) . '_PACKAGE'} = $data->{$sAlt}->{'class'};
-        }
+        # Set configuration variables for alternatives
+        $main::imscpConfig{$varname} = $sAlt;
+        $main::questions{$varname} = $sAlt;
+        $main::imscpConfig{uc( $section ) . '_PACKAGE'} = $data->{$sAlt}->{'class'} if exists $data->{$sAlt}->{'class'};
     }
 
     require List::MoreUtils;
