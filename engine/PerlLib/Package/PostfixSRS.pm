@@ -41,6 +41,23 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
+=item preinstall( )
+
+ Process preinstall tasks
+ 
+ Return int 0 on success, other on failure
+ 
+=cut
+
+sub preinstall
+{
+    my ( $self ) = @_;
+
+    return 0 unless $self->{'has_postsrsd'};
+
+    $self->stop();
+}
+
 =item install( )
 
  Process install tasks
@@ -51,7 +68,9 @@ use parent 'Common::SingletonClass';
 
 sub install
 {
-    return 0 unless iMSCP::Service->getInstance()->hasService( 'postsrsd' );
+    my ( $self ) = @_;
+
+    return 0 unless $self->{'has_postsrsd'};
 
     Servers::mta->factory()->postconf( (
         sender_canonical_maps       => {
@@ -85,12 +104,10 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    my $serviceMngr = iMSCP::Service->getInstance();
-
-    return 0 unless $serviceMngr->hasService( 'postsrsd' );
+    return 0 unless $self->{'has_postsrsd'};
 
     local $@;
-    eval { $serviceMngr->enable( 'postsrsd' ); };
+    eval { iMSCP::Service->getInstance()->enable( 'postsrsd' ); };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -118,6 +135,26 @@ sub start
 {
     local $@;
     eval { iMSCP::Service->getInstance()->start( 'postsrsd' ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item stop( )
+
+ Stop Postfix SRS service
+ 
+ Return int 0 on success, other on failure
+
+=cut
+
+sub stop
+{
+    local $@;
+    eval { iMSCP::Service->getInstance()->stop( 'postsrsd' ); };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -158,6 +195,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
+    $self->{'has_postsrsd'} = iMSCP::Service->getInstance()->hasService( 'postsrsd' );
     $self;
 }
 
