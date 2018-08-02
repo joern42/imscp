@@ -333,7 +333,7 @@ sub _setupGetAddrinfoPrecedence
 
  param string|hashref $node Package node
  param arrayref \@target Target ($self->{'packagesToInstall'}|$self->{'packagesToInstallDelayed'})
- Return void
+ Return void, die on failure
 
 =cut
 
@@ -348,7 +348,7 @@ sub _parsePackageNode
     }
 
     # Skip packages for which evaluation of the 'condition' attribute expression (if any) is not TRUE
-    return if defined $node->{'condition'} && !eval expandVars( $node->{'condition'} );
+    return if defined $node->{'condition'} && _evalConditionFromPackagesFile( $node->{'condition'} );
 
     # Per package rebuild task to execute
     if ( $node->{'rebuild_with_patches'} ) {
@@ -514,7 +514,7 @@ sub _processPackagesFile
         # - Discard alternative for which evaluation of the 'condition'
         #   attribute expression (if any) is FALSE
         my @sAlts = $isAltSectionHidden ? keys %{ $data } : grep {
-            !$data->{$_}->{'hidden'} && !defined $data->{$_}->{'condition'} || eval expandVars( $data->{$_}->{'condition'} )
+            !$data->{$_}->{'hidden'} && !defined $data->{$_}->{'condition'} || _evalConditionFromPackagesFile( $data->{$_}->{'condition'} )
         } keys %{ $data };
 
         # The sqld section needs a specific treatment
@@ -660,6 +660,7 @@ EOF
     @{ $self->{'packagesToInstall'} } = sort (uniq( @{ $self->{'packagesToInstall'} } ));
     @{ $self->{'packagesToInstallDelayed'} } = sort (uniq( @{ $self->{'packagesToInstallDelayed'} } ));
 
+    exit;
     0;
 }
 
@@ -1226,6 +1227,24 @@ If you continue, you'll be asked for another SQL server vendor but bear in mind 
                 
 Are you sure you want to continue?
 EOF
+}
+
+=item _evalCondition
+
+ Evaluate a condition from a packages file
+ 
+ Return condition evaluation result on success, die on failure
+
+=cut
+
+sub _evalConditionFromPackagesFile
+{
+    my ( $condition ) = @_;
+
+    my $ret = eval expandVars( $condition );
+    !$@ or die;
+
+    $ret;
 }
 
 =back
