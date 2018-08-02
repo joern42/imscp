@@ -368,6 +368,7 @@
                 pinning_pin="release o=Rspamd,n=jessie"
                 pinning_pin_priority="1001"
                 class="Package::Rspamd"
+                condition="require iMSCP::Service; !iMSCP::Service->getInstance()->hasService('spamassassin')"
         >
             <package>rspamd</package>
             <package>redis-server</package>
