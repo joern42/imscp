@@ -5,7 +5,7 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.07.27
+# Last update: 2018.08.02
 
 use strict;
 use warnings;
@@ -347,7 +347,11 @@ use warnings;
 
     # Anti-rootkits packages
     # Possible values: 'no' or a list of packages, each comma separated
-    ANTI_ROOTKITS_PACKAGES              => 'Chkrootkit,Rkhunter'
+    ANTI_ROOTKITS_PACKAGES              => 'Chkrootkit,Rkhunter',
+
+    # Antispam package
+    # Possible values: 'none', 'rspamd'
+    ANTISPAM => 'none'
 );
 
 1;

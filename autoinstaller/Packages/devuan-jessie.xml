@@ -1,23 +1,23 @@
 <packages>
     <panel_php description="PHP version for the control panel" varname="PANEL_PHP_VERSION">
-        <php5.6 description="PHP 5.6">
+        <php5.6 description="PHP 5.6" class="Package::FrontEnd">
             <post_install_task>update-alternatives --set php /usr/bin/php5.6</post_install_task>
             <post_install_task>update-alternatives --set phar /usr/bin/phar5.6</post_install_task>
             <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar5.6</post_install_task>
         </php5.6>
-        <php7.0 description="PHP 7.0">
+        <php7.0 description="PHP 7.0" class="Package::FrontEnd">
             <post_install_task>update-alternatives --set php /usr/bin/php7.0</post_install_task>
             <post_install_task>update-alternatives --set phar /usr/bin/phar7.0</post_install_task>
             <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar7.0</post_install_task>
         </php7.0>
-        <php7.1 default="1" description="PHP 7.1">
+        <php7.1 default="1" description="PHP 7.1" class="Package::FrontEnd">
             <post_install_task>update-alternatives --set php /usr/bin/php7.1</post_install_task>
             <post_install_task>update-alternatives --set phar /usr/bin/phar7.1</post_install_task>
             <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar7.1</post_install_task>
         </php7.1>
     </panel_php>
     <panel_httpd description="Web server for the control panel" varname="PANEL_HTTPD_SERVER" hidden="1">
-        <nginx default="1" description="Nginx server">
+        <nginx default="1" description="Nginx server" class="Package::FrontEnd">
             <package>nginx-full</package>
             <package_conflict>nginx</package_conflict>
         </nginx>
