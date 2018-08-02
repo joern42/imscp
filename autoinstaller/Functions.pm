@@ -127,7 +127,7 @@ sub build
         && length $main::imscpConfig{'FTPD_SERVER'} && length $main::imscpConfig{'HTTPD_SERVER'}
         && length $main::imscpConfig{'NAMED_SERVER'} && length $main::imscpConfig{'MTA_SERVER'}
         && length $main::imscpConfig{'PHP_SERVER'} && length $main::imscpConfig{'PO_SERVER'}
-        && length $main::imscpConfig{'SQLD_SERVER'}
+        && length $main::imscpConfig{'SQLD_SERVER'} && length $main::imscpConfig{'ANTISPAM'}
     ) {
         iMSCP::Getopt->noprompt( FALSE ) unless iMSCP::Getopt->preseed;
         iMSCP::Getopt->verbose( FALSE ) unless iMSCP::Getopt->noprompt;
