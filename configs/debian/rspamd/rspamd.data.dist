@@ -1,0 +1,24 @@
+# i-MSCP configuration file for the RSPAMD(8) package
+
+# List of enabled modules each separated by a comma, a space or a semicolon
+# Managed modules: ASN, Classifier_Bayesian, DKIM_Signing, DMARC, Emails,
+# Greylist, Milter_Headers, Mime_Types, MX_Check, RBL, Redis_History, SPF
+# Surbl                 
+# Not all RSPAMD(8) modules are managed yet. For unmanaged modules, you
+# can always enable them manually.
+# See the documentation at: https://rspamd.com/doc/modules/
+#
+# Please don't edit this parameter manually. Trigger a reconfiguration as
+# follows instead:
+#   perl /var/www/imscp/engine/setup/imscp-reconfigure -dar antispam
+RSPAMD_MODULES =
+
+# Rspamd Web Interface
+# Possible values: yes, no
+# Please don't edit this parameter manually. Trigger a reconfiguration as
+# follow instead:
+#  perl /var/www/imscp/engine/setup/imscp-reconfigure -dar antispam
+RSPAMD_WEB_INTERFACE =
+
+# Rspamd local configuration directory path
+RSPAMD_LOCAL_CONFDIR = /etc/rspamd/local.d
