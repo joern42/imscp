@@ -1,0 +1,42 @@
+# i-MSCP configuration file for the ClamAV(8) package
+
+ClamavMilterConffilePath = /etc/clamav/clamav-milter.conf
+
+# Postfix smtpd milter for ClamAV
+PostfixMilterSocket        = unix:/clamav/clamav-milter.ctl
+
+MilterSocket               = /var/spool/postfix/clamav/clamav-milter.ctl
+MilterSocketGroup          = clamav
+MilterSocketMode           = 666
+FixStaleSocket             = true
+User                       = clamav
+ReadTimeout                = 120
+Foreground                 = false
+PidFile                    = /var/run/clamav/clamav-milter.pid
+TemporaryDirectory         = /tmp
+
+# Clamd options
+ClamdSocket                = unix:/var/run/clamav/clamd.ctl
+
+# Exclusions options
+MaxFileSize                = 25M
+
+# Actions options
+OnClean                    = Accept
+OnInfected                 = Reject
+OnFail                     = Defer
+RejectMsg                  = Blocked by ClamAV - FOUND VIRUS: %v
+AddHeader                  = Replace
+
+# Logging options
+LogFile                    = /var/log/clamav/clamav-milter.log
+LogFileUnlock              = false
+LogFileMaxSize             = 1M
+LogTime                    = true
+LogSyslog                  = true
+LogFacility                = LOG_LOCAL6
+LogVerbose                 = false
+LogInfected                = Basic
+LogClean                   = Off
+LogRotate                  = true
+SupportMultipleRecipients' = false

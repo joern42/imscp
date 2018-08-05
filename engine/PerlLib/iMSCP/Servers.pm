@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Servers - Package that allows to load and get list of available i-MSCP servers
+ iMSCP::Servers - Library for loading and retrieval of i-MSCP servers
 
 =cut
 
@@ -25,12 +25,13 @@ package iMSCP::Servers;
 
 use strict;
 use warnings;
-use File::Basename;
+use File::Basename qw/ dirname /;
+use iMSCP::Cwd;
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
 
- Package that allows to load and get list of available i-MSCP servers
+ Library for loading and retrieval of i-MSCP servers.
 
 =head1 PUBLIC METHODS
 
@@ -38,28 +39,15 @@ use parent 'Common::SingletonClass';
 
 =item getList( )
 
- Get server list, sorted in descending order of priority
+ Get list of servers sorted in descending order of priority
 
- Return server list
+ Return list of servers
 
 =cut
 
 sub getList
 {
-    @{$_[0]->{'servers'}};
-}
-
-=item getListWithFullNames( )
-
- Get server list with full names, sorted in descending order of priority
-
- Return server list
-
-=cut
-
-sub getListWithFullNames
-{
-    @{$_[0]->{'servers_full_names'}};
+    @{ $_[0]->{'_servers'} };
 }
 
 =back
@@ -78,25 +66,13 @@ sub getListWithFullNames
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $_ = basename( $_, '.pm' ) for @{$self->{'servers'}} = grep { $_ !~ /noserver.pm$/ } glob(
-        "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Servers/*.pm"
-    );
+    local $CWD = dirname( __FILE__ ) . '/../Servers';
 
-    # Load all server classes
-    for ( @{$self->{'servers'}} ) {
-        my $server = "Servers::${_}";
-        eval "require $server" or die( sprintf( "Couldn't load %s server class: %s", $server, $@ ));
-    }
-
-    # Sort servers in descending order of priority
-    @{$self->{'servers'}} = sort {
-        "Servers::${b}"->getPriority() <=> "Servers::${a}"->getPriority()
-    } @{$self->{'servers'}};
-
-    @{$self->{'servers_full_names'}} = map { "Servers::${_}" } @{$self->{'servers'}};
-
+    s%(.*)\.pm$%Servers::$1% for @{ $self->{'_servers'} } = grep !/noserver\.pm$/, <*.pm>;
+    eval "require $_; 1" or die( sprintf( "Couldn't load the  '%s' server class: %s", $_, $@ )) for @{ $self->{'_servers'} };
+    @{ $self->{'_servers'} } = sort { $b->getPriority() <=> $a->getPriority() } @{ $self->{'_servers'} };
     $self;
 }
 

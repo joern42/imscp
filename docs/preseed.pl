@@ -5,12 +5,12 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.08.02
+# Last update: 2018.08.03
 
 use strict;
 use warnings;
 
-%main::questions = (
+%::questions = (
     #
     ## System configuration
     #
@@ -20,9 +20,9 @@ use warnings;
     SERVER_HOSTNAME                     => '',
 
     # Server primary IP
-    # Possible values: An already configured IPv4, IPv6 or `None'
-    # The `None' option is more suitable for Cloud computing services such as Scaleway and Amazon EC2.
-    # Selecting the `None' option means that i-MSCP will configures the services to listen on all interfaces.
+    # Possible values: An already configured IPv4, IPv6 or 'None'
+    # The 'None' option is more suitable for Cloud computing services such as Scaleway and Amazon EC2.
+    # Selecting the 'None' option means that i-MSCP will configures the services to listen on all interfaces.
     BASE_SERVER_IP                      => '',
 
     # WAN IP (only relevant if your primary IP is in private range)
@@ -58,7 +58,7 @@ use warnings;
     # SQL server vendor/version
     # Please consult the ../autoinstaller/Packages/<distro>-<codename>.xml file
     # for available options, leave empty for default SQL vendor/version.
-    SQLD_SERVER                          => '',
+    SQLD_SERVER                         => '',
 
     # Database name
     DATABASE_NAME                       => 'imscp',
@@ -125,12 +125,12 @@ use warnings;
 
     # PHP version for the control panel
     # Possible value: php5.6, php7.0, php7.1
-    PANEL_PHP_VERSION                    => 'php7.1',
-    
+    PANEL_PHP_VERSION                   => 'php7.1',
+
     # Web server for the control panel
     # Possible value: nginx
-    PANEL_HTTPD_SERVER                   => 'nginx',
-    
+    PANEL_HTTPD_SERVER                  => 'nginx',
+
     # Enable or disable SSL
     # Possible values: yes, no
     PANEL_SSL_ENABLED                   => 'yes',
@@ -184,14 +184,16 @@ use warnings;
     # Allow to specify IP addresses of your primary DNS servers - Only relevant if you set BIND_MODE to 'slave'
     # Primary DNS server IP addresses
     # Only relevant with master mode
-    # Possible value: 'no' or a list of IPv4/IPv6 each separated by semicolon or space
+    # Possible value: 'no' or a list of IPv4/IPv6 each separated by a comma, a
+    #                 space or a semicolon
     PRIMARY_DNS                         => 'no',
 
     # Slave DNS server IP addresses
     # Only relevant with slave mode
-    # Possible value: 'no' or a list of IPv4/IPv6 each separated by semicolon or space
+    # Possible value: 'no' or a list of IPv4/IPv6 each separated by a comma, a
+    #                 space or a semicolon
     SECONDARY_DNS                       => 'no',
-    
+
     # IPv6 support
     # Only relevant with 'bind' server implementation
     # Possible values: yes, no
@@ -330,7 +332,9 @@ use warnings;
     PHPMYADMIN_SQL_PASSWORD             => '',
 
     # Webmmail packages
-    # Possible values: 'no' or a list of packages, each comma separated
+    # Possible values: 'no' for no packages or a list of packages, each comma
+    #                  separated
+    # Available packages: RainLoop, Roundcube
     WEBMAIL_PACKAGES                    => 'RainLoop,Roundcube',
 
     # SQL user for Roundcube package (only if you use Roundcube)
@@ -346,12 +350,50 @@ use warnings;
     RAINLOOP_SQL_PASSWORD               => '',
 
     # Anti-rootkits packages
-    # Possible values: 'no' or a list of packages, each comma separated
+    # Possible values: 'no' for no packages or a list of packages, each
+    #                   separated by a comma
+    # Available packages are: Chkrootkit, Rkhunter
     ANTI_ROOTKITS_PACKAGES              => 'Chkrootkit,Rkhunter',
 
     # Antispam package
     # Possible values: 'none', 'rspamd'
-    ANTISPAM => 'none'
+    ANTISPAM                            => 'none',
+
+    # Antivirus package
+    # Possible values: 'none', 'clamav'
+    #
+    # The ClamAV antivirus is executed in different ways depending on whether
+    # you choose `Rspamd` or not as antispam. If you choose `Rspamd` as
+    # antispam, `ClamAV` will be executed by the `Rspamd` antivirus module,
+    # else it will be executed through
+    # `ClamAV milter`.
+    ANTIVIRUS                           => 'none',
+
+    # Rspamd module to enable (only relevant if you choose Rspamd as antispam)
+    # Possible values: 'no' for no modules or a list of module, each
+    #                  separated by a comma, a space or a semicolon
+    #
+    # Available module are:
+    #
+    # - ASN
+    # - Classifier_Bayesian,
+    # - DKIM_Signing,
+    # - DMARC,
+    # - Emails,
+    # - Greylist
+    # - Milter_Headers
+    # - Mime_Types
+    # - MX_Check
+    # - RBL
+    # - Redis_History
+    # - SPF
+    # - Surbl
+    RSPAMD_MODULES                      => 'no',
+    
+    # Rspamd Web interface (only relevant if you choose Rspamd as antispam)
+    # Whether or not to enable the Rspamd Web interface
+    # Possible values: yes, no
+    RSPAMD_WEB_INTERFACE                 => 'no',
 );
 
 1;

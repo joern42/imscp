@@ -23,15 +23,14 @@ use strict;
 use warnings;
 use autoinstaller::Functions qw/ expandVars /;
 use autouse 'iMSCP::Stepper' => qw/ startDetail endDetail step /;
-use Class::Autouse qw/ :nostat File::HomeDir /;
 use Fcntl qw/ :flock /;
 use File::Temp;
 use FindBin;
 use iMSCP::Boolean;
-use iMSCP::DistPackageManager;
 use iMSCP::Cwd;
 use iMSCP::Debug qw/ debug error output getMessageByType /;
 use iMSCP::Dialog;
+use iMSCP::DistPackageManager;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
@@ -61,6 +60,7 @@ sub installPreRequiredPackages
 {
     my ( $self ) = @_;
 
+    return 0;
     print STDOUT output( 'Satisfying prerequisites... Please wait.', 'info' );
 
     eval {
@@ -93,25 +93,24 @@ sub preBuild
 {
     my ( $self, $steps ) = @_;
 
-    return 0 if $main::skippackages;
+    return 0 if $::skippackages;
 
-    unshift @{ $steps },
-        (
-            [ sub { $self->_processPackagesFile() }, 'Processing distribution packages file' ],
-            [ sub { $self->_addAptRepositories() }, 'Adding APT repositories' ],
-            [ sub { $self->_addAptPreferences() }, 'Adding APT preferences' ],
-            [
-                sub {
-                    eval { $self->_prefillDebconfDatabase(); };
-                    if ( $@ ) {
-                        error( $@ );
-                        return 1;
-                    }
-                    0;
-                },
-                'Prefilling of the Debconf database'
-            ]
-        );
+    unshift @{ $steps }, (
+        [ sub { $self->_processPackagesFile() }, 'Processing distribution packages file' ],
+        [ sub { $self->_addAptRepositories() }, 'Adding APT repositories' ],
+        [ sub { $self->_addAptPreferences() }, 'Adding APT preferences' ],
+        [
+            sub {
+                eval { $self->_seedDebconfValues(); };
+                if ( $@ ) {
+                    error( $@ );
+                    return 1;
+                }
+                0;
+            },
+            'Seeding debconf values'
+        ]
+    );
 
     0
 }
@@ -329,7 +328,11 @@ sub _setupGetAddrinfoPrecedence
 
 =item _parsePackageNode( \%node|$node, \@target )
 
- Parse a package or package_delayed node
+ Parse a package or package_delayed node for installation or uninstallation
+ 
+ The package is scheduled for installation unless there is a condition that
+ evaluate to FALSE, in which case, the package is scheduled for uninstallation
+ unless the 'skip_uninstall' attribute is set.
 
  param string|hashref $node Package node
  param arrayref \@target Target ($self->{'packagesToInstall'}|$self->{'packagesToInstallDelayed'})
@@ -341,14 +344,16 @@ sub _parsePackageNode
 {
     my ( $self, $node, $target ) = @_;
 
-    unless ( ref $node eq 'HASH' ) {
+    unless ( ref $node ) {
         # Package without further treatment
         push @{ $target }, $node;
         return;
     }
 
-    # Skip packages for which evaluation of the 'condition' attribute expression (if any) is not TRUE
-    return if defined $node->{'condition'} && _evalConditionFromPackagesFile( $node->{'condition'} );
+    if ( defined $node->{'condition'} && !_evalConditionFromPackagesFile( $node->{'condition'} ) ) {
+        push @{$self->{'packagesToUninstall'}}, $node->{'content'} unless $node->{'skip_uninstall'};
+        return;
+    }
 
     # Per package rebuild task to execute
     if ( $node->{'rebuild_with_patches'} ) {
@@ -384,12 +389,11 @@ sub _parsePackageNode
 
     # Per package APT preferences (pinning) to add
     if ( defined $node->{'pinning_package'} ) {
-        push @{ $self->{'aptPreferences'} },
-            {
-                pinning_package      => $node->{'pinning_package'},
-                pinning_pin          => $node->{'pinning_pin'},
-                pinning_pin_priority => $node->{'pinning_pin_priority'}
-            };
+        push @{ $self->{'aptPreferences'} }, {
+            pinning_package      => $node->{'pinning_package'},
+            pinning_pin          => $node->{'pinning_pin'},
+            pinning_pin_priority => $node->{'pinning_pin_priority'}
+        };
     }
 }
 
@@ -434,8 +438,9 @@ sub _processPackagesFile
     #
 
     # Sort sections to make sure to show dialogs always in same order
-    for my $section ( sort keys %{ $pkgData } ) {
+    for my $section ( sort { ( $pkgData->{$b}->{'dialog_priority'} || 0 ) <=> ( $pkgData->{$a}->{'dialog_priority'} || 0 ) } keys %{ $pkgData } ) {
         my $data = $pkgData->{$section};
+        delete $data->{'dialog_priority'};
 
         # Per section packages to install
         if ( defined $data->{'package'} ) {
@@ -496,6 +501,7 @@ sub _processPackagesFile
 
         # Alternative section description
         my $altDesc = ( delete $data->{'description'} ) || $section;
+        my $altFullDesc = delete $data->{'full_description'};
 
         # Alternative section variable name
         my $varname = ( delete $data->{'varname'} ) || uc( $section ) . '_SERVER';
@@ -504,8 +510,8 @@ sub _processPackagesFile
         my $isAltSectionHidden = delete $data->{'hidden'};
 
         # Retrieve current selected alternative
-        my $sAlt = exists $main::questions{ $varname } ? $main::questions{ $varname } : (
-            exists $main::imscpConfig{ $varname } ? $main::imscpConfig{ $varname } : ''
+        my $sAlt = exists $::questions{ $varname } ? $::questions{ $varname } : (
+            exists $::imscpConfig{ $varname } ? $::imscpConfig{ $varname } : ''
         );
 
         # Builds list of selectable alternatives through dialog:
@@ -554,6 +560,9 @@ sub _processPackagesFile
             ( my $ret, $sAlt ) = $dialog->radiolist( <<"EOF", \%choices, $sAlt );
 
 Please select the $altDesc that you want to use:
+
+@{ [ $altFullDesc // '' ] }
+
 \\Z \\Zn
 EOF
             exit $ret if $ret; # Handle ESC case
@@ -584,7 +593,7 @@ EOF
                 # Per alternative packages conflicting packages to pre-remove
                 if ( defined $altData->{'package_conflict'} ) {
                     for my $node ( @{ delete $altData->{'package_conflict'} } ) {
-                        push @{ $self->{'packagesToPreUninstall'} }, ref $node eq 'HASH' ? $node->{'content'} : $node;
+                        push @{ $self->{'packagesToPreUninstall'} }, ref $node ? $node->{'content'} : $node;
                     }
                 }
 
@@ -631,7 +640,7 @@ EOF
 
             # Per unselected alternative packages to uninstall
             for ( qw/ package package_delayed / ) {
-                next unless defined $altData->{$_};
+                next unless defined $altData->{$_} && !$altData->{'skip_uninstall'};
                 for my $node ( @{ delete $altData->{$_} } ) {
                     push @{ $self->{'packagesToUninstall'} }, ref $node ? $node->{'content'} : $node;
                 }
@@ -647,9 +656,8 @@ EOF
         debug( sprintf( 'Alternative for %s set to: %s', $section, $sAlt ));
 
         # Set configuration variables for alternatives
-        $main::imscpConfig{$varname} = $sAlt;
-        $main::questions{$varname} = $sAlt;
-        $main::imscpConfig{uc( $section ) . '_PACKAGE'} = $data->{$sAlt}->{'class'} if exists $data->{$sAlt}->{'class'};
+        $::imscpConfig{$varname} = $::questions{$varname} = $sAlt;
+        $::imscpConfig{uc( $section ) . '_PACKAGE'} = $data->{$sAlt}->{'class'} || 'none';
     }
 
     require List::MoreUtils;
@@ -792,22 +800,24 @@ sub _addAptPreferences
     0;
 }
 
-=item _prefillDebconfDatabase( )
+=item _seedDebconfValues( )
 
- Prefilling of the debconf database
+ Seed debconf values
+
+ See DEBCONF(1) , DEBCONF-SET-SELECTIONS(1)
 
  Return void, die on failure
 
 =cut
 
-sub _prefillDebconfDatabase
+sub _seedDebconfValues
 {
     my ( $self ) = @_;
 
     my $fileContent = '';
 
     # Postfix MTA
-    if ( $main::imscpConfig{'MTA_PACKAGE'} eq 'Servers::mta::postfix' ) {
+    if ( $::imscpConfig{'MTA_PACKAGE'} eq 'Servers::mta::postfix' ) {
         chomp( my $mailname = `hostname --fqdn 2>/dev/null` || 'localdomain' );
         my $hostname = ( $mailname ne 'localdomain' ) ? $mailname : 'localhost';
         chomp( my $domain = `hostname --domain 2>/dev/null` || 'localdomain' );
@@ -824,14 +834,14 @@ EOF
     }
 
     # ProFTPD
-    if ( $main::imscpConfig{'FTPD_PACKAGE'} eq 'Servers::ftpd::proftpd' ) {
+    if ( $::imscpConfig{'FTPD_PACKAGE'} eq 'Servers::ftpd::proftpd' ) {
         $fileContent .= <<'EOF';
 proftpd-basic shared/proftpd/inetd_or_standalone select standalone
 EOF
     }
 
     # Courier IMAP/POP
-    if ( $main::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::courier' ) {
+    if ( $::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::courier' ) {
         # Pre-fill debconf database for Courier
         $fileContent .= <<'EOF';
 courier-base courier-base/webadmin-configmode boolean false
@@ -843,7 +853,7 @@ EOF
     }
 
     # Dovecot IMAP/POP
-    elsif ( $main::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::dovecot' ) {
+    elsif ( $::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::dovecot' ) {
         $fileContent .= <<'EOF';
 dovecot-core dovecot-core/ssl-cert-name string localhost
 dovecot-core dovecot-core/create-ssl-cert boolean true
@@ -856,7 +866,7 @@ EOF
     }
 
     # SQL server (MariaDB, MySQL, Percona
-    if ( my ( $sqldVendor, $sqldVersion ) = $main::imscpConfig{'SQLD_SERVER'} =~ /^(mysql|mariadb|percona)_(\d+\.\d+)/ ) {
+    if ( my ( $sqldVendor, $sqldVersion ) = $::imscpConfig{'SQLD_SERVER'} =~ /^(mysql|mariadb|percona)_(\d+\.\d+)/ ) {
         my $package;
         if ( $sqldVendor eq 'mysql' ) {
             $package = grep ($_ eq 'mysql-community-server', @{ $self->{'packagesToInstall'} })
@@ -872,11 +882,11 @@ EOF
 
         my $isManualTplLoading = FALSE;
         open my $fh, '-|', "debconf-get-selections 2>/dev/null | grep $package" or die(
-            sprintf( "Couldn't pipe to debconf database: %s", $! || 'Unknown error' )
+            sprintf( "Couldn't pipe to the debconf-get-selections(1) command: %s", $! || 'Unknown error' )
         );
 
         if ( eof $fh ) {
-            !$isManualTplLoading or die( "Couldn't pre-fill the debconf database for the SQL server. Debconf template not found." );
+            !$isManualTplLoading or die( "Couldn't seed debconf values for the SQL server. The debconf template couldn't be found." );
 
             # The debconf template is not available -- the package has not been
             # installed yet or something went wrong with the debconf database.
@@ -891,7 +901,7 @@ EOF
 
             if ( my $uid = ( getpwnam( '_apt' ) )[2] ) {
                 # Prevent Fix 'W: Download is performed unsandboxed as root as file...' warning with newest APT versions
-                chown $uid, -1, $tmpDir or die( sprintf( "Couldn't change ownership for the %s directory: %s", $tmpDir, $! || 'Unknown error' ));
+                chown $uid, -1, $tmpDir or die( sprintf( "Couldn't change ownership for the '%s' directory: %s", $tmpDir, $! || 'Unknown error' ));
             }
 
             local $CWD = $tmpDir;
@@ -941,9 +951,9 @@ EOF
     print $debconfSelectionsFile $fileContent;
     $debconfSelectionsFile->close();
 
-    my $rs = execute( [ 'debconf-set-selections', $debconfSelectionsFile->filename ], \my $stdout, \my $stderr );
+    my $rs = execute( [ 'debconf-set-selections', $debconfSelectionsFile->filename() ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    $rs == 0 or die( sprintf( "Couldn't pre-fill Debconf database", $stderr || 'Unknown error' ));
+    $rs == 0 or die( sprintf( "Couldn't seed debconf values: %s", $stderr || 'Unknown error' ));
 }
 
 =item _rebuildAndInstallPackage( $pkg, $pkgSrc, $patchesDir [, $patchesToDiscard = [] [,  $patchFormat = 'quilt' ]] )
@@ -992,7 +1002,7 @@ sub _rebuildAndInstallPackage
 
     my $srcDownloadDir = File::Temp->newdir( CLEANUP => 1 );
 
-    # Fix `W: Download is performed unsandboxed as root as file...' warning with newest APT versions
+    # Fix 'W: Download is performed unsandboxed as root as file...' warning with newest APT versions
     if ( ( undef, undef, my $uid ) = getpwnam( '_apt' ) ) {
         unless ( chown $uid, -1, $srcDownloadDir ) {
             error( sprintf( "Couldn't change ownership for the %s directory: %s", $srcDownloadDir, $! ));
@@ -1003,8 +1013,8 @@ sub _rebuildAndInstallPackage
     # chdir() into download directory
     local $CWD = $srcDownloadDir;
 
-    # Avoid pbuilder warning due to missing $HOME/.pbuilderrc file
-    my $rs = iMSCP::File->new( filename => File::HomeDir->my_home . '/.pbuilderrc' )->save();
+    # Avoid pbuilder warning due to missing /root/.pbuilderrc file
+    my $rs = iMSCP::File->new( filename => '/root/.pbuilderrc' )->save();
     return $rs if $rs;
 
     startDetail();
@@ -1091,7 +1101,7 @@ sub _rebuildAndInstallPackage
                     \$stderr
                 );
                 debug( $stdout ) if $stdout;
-                error( sprintf( "Couldn't add `imscp' local suffix: %s", $stderr || 'Unknown error' )) if $rs;
+                error( sprintf( "Couldn't add 'imscp' local suffix: %s", $stderr || 'Unknown error' )) if $rs;
                 return $rs if $rs;
             },
             sprintf( 'Patching %s %s source package...', $pkgSrc, $lsbRelease->getId( 1 )), 5, 3
@@ -1230,9 +1240,9 @@ EOF
 
 =item _evalCondition
 
- Evaluate a condition from a packages file
+ Evaluate a condition from an installere distribution packages file
  
- Return condition evaluation result on success, die on failure
+ Return boolean Condition evaluation result on success, die on failure
 
 =cut
 
@@ -1242,8 +1252,7 @@ sub _evalConditionFromPackagesFile
 
     my $ret = eval expandVars( $condition );
     !$@ or die;
-
-    $ret;
+    !!$ret;
 }
 
 =back

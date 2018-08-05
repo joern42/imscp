@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Packages - Package that allows to load and get list of available i-MSCP packages
+ iMSCP::Packages - Library for loading and retrieval of i-MSCP packages
 
 =cut
 
@@ -25,12 +25,13 @@ package iMSCP::Packages;
 
 use strict;
 use warnings;
-use File::Basename;
+use File::Basename qw/ dirname /;
+use iMSCP::Cwd;
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
 
- Package that allows to load and get list of available i-MSCP packages
+ Library for loading and retrieval of i-MSCP packages.
 
 =head1 PUBLIC METHODS
 
@@ -38,28 +39,15 @@ use parent 'Common::SingletonClass';
 
 =item getList( )
 
- Get package list
+ Get list of packages sorted in descending order of priority
 
- Return package list, sorted in descending order of priority
+ Return list of packages
 
 =cut
 
 sub getList
 {
-    @{$_[0]->{'packages'}};
-}
-
-=item getListWithFullNames( )
-
- Get package list with full names, sorted in descending order of priority
-
- Return package list
-
-=cut
-
-sub getListWithFullNames
-{
-    @{$_[0]->{'packages_full_names'}};
+    @{ $_[0]->{'_packages'} };
 }
 
 =back
@@ -78,25 +66,20 @@ sub getListWithFullNames
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $_ = basename( $_, '.pm' ) for @{$self->{'packages'}} = glob (
-        "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/*.pm"
-    );
+    local $CWD = dirname( __FILE__ ) . '/../Package';
 
-    # Load all package classes
-    for ( @{$self->{'packages'}} ) {
-        my $package = "Package::${_}";
-        eval "require $package" or die( sprintf( "Couldn't load %s package class: %s", $package, $@ ));
+    s%(.*)\.pm$%Package::$1% for @{ $self->{'_packages'} } = <*.pm>;
+
+    # In installer/uninstaller contexts, also load setup packages
+    if ( defined $::execmode && grep ( $_ eq $::execmode, 'setup', 'uninstaller' ) ) {
+        local $CWD = $CWD . '/Setup';
+        push @{ $self->{'_packages'} }, map { s%(.*)\.pm$%Package::Setup::$1%r } <*.pm>;
     }
 
-    # Sort packages in descending order of priority
-    @{$self->{'packages'}} = sort {
-        "Package::${b}"->getPriority() <=> "Package::${a}"->getPriority()
-    } @{$self->{'packages'}};
-
-    @{$self->{'packages_full_names'}} = map { "Package::${_}" } @{$self->{'packages'}};
-
+    eval "require $_; 1" or die( sprintf( "Couldn't load the '%s' package: %s", $_, $@ )) for @{ $self->{'_packages'} };
+    @{ $self->{'_packages'} } = sort { $b->getPriority() <=> $a->getPriority() } @{ $self->{'_packages'} };
     $self;
 }
 
