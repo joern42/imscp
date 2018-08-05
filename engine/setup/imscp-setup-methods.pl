@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2017 by Laurent Declecq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 by Laurent Declecq <l.declercq@nuxwin.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -40,7 +40,7 @@ use iMSCP::Umask;
 
 sub setupInstallFiles
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupInstallFiles', $main::{'INST_PREF'} );
+    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupInstallFiles', $::{'INST_PREF'} );
     return $rs if $rs;
 
     # i-MSCP daemon must be stopped before changing any file on the files system
@@ -49,35 +49,33 @@ sub setupInstallFiles
     }
 
     # Process cleanup to avoid any security risks and conflicts
-    for( qw/ daemon engine gui / ) {
-        iMSCP::Dir->new( dirname => "$main::imscpConfig{'ROOT_DIR'}/$_" )->remove();
+    for ( qw/ daemon engine gui / ) {
+        iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/$_" )->remove();
     }
 
-    iMSCP::Dir->new( dirname => $main::{'INST_PREF'} )->rcopy( '/' );
-    iMSCP::EventManager->getInstance()->trigger( 'afterSetupInstallFiles', $main::{'INST_PREF'} );
+    iMSCP::Dir->new( dirname => $::{'INST_PREF'} )->rcopy( '/' );
+    iMSCP::EventManager->getInstance()->trigger( 'afterSetupInstallFiles', $::{'INST_PREF'} );
 }
 
 sub setupBoot
 {
-    iMSCP::Bootstrapper->getInstance()->boot(
-        {
-            mode            => 'setup', # Backend mode
-            config_readonly => 1, # We do not allow writing in conffile at this time
-            nodatabase      => 1 # We do not establish connection to the database at this time
-        }
-    );
+    iMSCP::Bootstrapper->getInstance()->boot( {
+        mode            => 'setup', # Backend mode
+        config_readonly => 1,       # We do not allow writing in conffile at this time
+        nodatabase      => 1        # We do not establish connection to the database at this time
+    } );
 
     untie( %main::imscpOldConfig ) if %main::imscpOldConfig;
 
-    unless ( -f "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
+    unless ( -f "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) {
         local $UMASK = 027;
-        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp.conf" )->copyFile(
-            "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf", { preserve => 'no' }
+        my $rs = iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/imscp.conf" )->copyFile(
+            "$::imscpConfig{'CONF_DIR'}/imscpOld.conf", { preserve => 'no' }
         );
         return $rs if $rs;
     }
 
-    tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf";
+    tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf";
 
     0;
 }
@@ -86,13 +84,13 @@ sub setupRegisterListeners
 {
     my $eventManager = iMSCP::EventManager->getInstance();
 
-    for ( iMSCP::Servers->getInstance()->getListWithFullNames() ) {
+    for ( iMSCP::Servers->getInstance()->getList() ) {
         ( my $subref = $_->can( 'registerSetupListeners' ) ) or next;
         my $rs = $subref->( $_->factory(), $eventManager );
         return $rs if $rs;
     }
 
-    for ( iMSCP::Packages->getInstance()->getListWithFullNames() ) {
+    for ( iMSCP::Packages->getInstance()->getList() ) {
         ( my $subref = $_->can( 'registerSetupListeners' ) ) or next;
         my $rs = $subref->( $_->getInstance(), $eventManager );
         return $rs if $rs;
@@ -112,7 +110,7 @@ sub setupDialog
     # Any dialog subroutine *should* allow user to step back by returning 30 when 'back' button is pushed
     # In case of yesno dialog box, there is no back button. Instead, user can back up using the ESC keystroke
     # In any other context, the ESC keystroke allows user to abort.
-    my ($state, $nbDialog, $dialog) = ( 0, scalar @{$dialogStack}, iMSCP::Dialog->getInstance() );
+    my ( $state, $nbDialog, $dialog ) = ( 0, scalar @{ $dialogStack }, iMSCP::Dialog->getInstance() );
     while ( $state < $nbDialog ) {
         $dialog->set( 'no-cancel', $state == 0 ? '' : undef );
 
@@ -121,12 +119,12 @@ sub setupDialog
         return $rs if $rs && $rs < 30;
 
         if ( $rs == 30 ) {
-            $main::reconfigure = 'forced' if $main::reconfigure eq 'none';
+            $::reconfigure = 'forced' if $::reconfigure eq 'none';
             $state--;
             next;
         }
 
-        $main::reconfigure = 'none' if $main::reconfigure eq 'forced';
+        $::reconfigure = 'none' if $::reconfigure eq 'forced';
         $state++;
     }
 
@@ -154,7 +152,7 @@ sub setupTasks
     my $nbSteps = @steps;
 
     for ( @steps ) {
-        $rs = step( @{$_}, $nbSteps, $step );
+        $rs = step( @{ $_ }, $nbSteps, $step );
         last if $rs;
         $step++;
     }
@@ -165,11 +163,11 @@ sub setupTasks
 
 sub setupDeleteBuildDir
 {
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDeleteBuildDir', $main::{'INST_PREF'} );
+    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDeleteBuildDir', $::{'INST_PREF'} );
     return $rs if $rs;
 
-    iMSCP::Dir->new( dirname => $main::{'INST_PREF'} )->remove();
-    iMSCP::EventManager->getInstance()->trigger( 'afterSetupDeleteBuildDir', $main::{'INST_PREF'} );
+    iMSCP::Dir->new( dirname => $::{'INST_PREF'} )->remove();
+    iMSCP::EventManager->getInstance()->trigger( 'afterSetupDeleteBuildDir', $::{'INST_PREF'} );
 }
 
 #
@@ -182,17 +180,15 @@ sub setupSaveConfig
     return $rs if $rs;
 
     # Re-open main configuration file in read/write mode
-    iMSCP::Bootstrapper->getInstance()->loadMainConfig(
-        {
-            nocreate        => 1,
-            nodeferring     => 1,
-            config_readonly => 0
-        }
-    );
+    iMSCP::Bootstrapper->getInstance()->loadMainConfig( {
+        nocreate        => 1,
+        nodeferring     => 1,
+        config_readonly => 0
+    } );
 
-    while ( my ($key, $value) = each( %main::questions ) ) {
-        next unless exists $main::imscpConfig{$key};
-        $main::imscpConfig{$key} = $value;
+    while ( my ( $key, $value ) = each( %main::questions ) ) {
+        next unless exists $::imscpConfig{$key};
+        $::imscpConfig{$key} = $value;
     }
 
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupSaveConfig' );
@@ -202,24 +198,22 @@ sub setupCreateMasterUser
 {
     my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupCreateMasterUser' );
 
-    $rs ||= iMSCP::SystemGroup->getInstance()->addSystemGroup( $main::imscpConfig{'IMSCP_GROUP'} );
+    $rs ||= iMSCP::SystemGroup->getInstance()->addSystemGroup( $::imscpConfig{'IMSCP_GROUP'} );
     $rs ||= iMSCP::SystemUser->new(
-        username => $main::imscpConfig{'IMSCP_USER'},
-        group    => $main::imscpConfig{'IMSCP_GROUP'},
+        username => $::imscpConfig{'IMSCP_USER'},
+        group    => $::imscpConfig{'IMSCP_GROUP'},
         comment  => 'i-MSCP master user',
-        home     => $main::imscpConfig{'IMSCP_HOMEDIR'}
+        home     => $::imscpConfig{'IMSCP_HOMEDIR'}
     )->addSystemUser();
     return $rs if $rs;
 
     # Ensure that correct permissions are set on i-MSCP master user homedir (handle upgrade case)
-    iMSCP::Dir->new( dirname => $main::imscpConfig{'IMSCP_HOMEDIR'} )->make(
-        {
-            user           => $main::imscpConfig{'IMSCP_USER'},
-            group          => $main::imscpConfig{'IMSCP_GROUP'},
-            mode           => 0755,
-            fixpermissions => 1 # We fix permissions in any case
-        }
-    );
+    iMSCP::Dir->new( dirname => $::imscpConfig{'IMSCP_HOMEDIR'} )->make( {
+        user           => $::imscpConfig{'IMSCP_USER'},
+        group          => $::imscpConfig{'IMSCP_GROUP'},
+        mode           => 0755,
+        fixpermissions => 1 # We fix permissions in any case
+    } );
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupCreateMasterUser' );
 }
 
@@ -232,7 +226,7 @@ sub setupCoreServices
 
 sub setupImportSqlSchema
 {
-    my ($db, $file) = @_;
+    my ( $db, $file ) = @_;
 
     my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupImportSqlSchema', \$file );
     return $rs if $rs;
@@ -273,14 +267,11 @@ sub setupSetPermissions
 
         my $stderr;
         $rs = executeNoWait(
-            [ 'perl', "$main::imscpConfig{'ENGINE_ROOT_DIR'}/setup/$script", @options ],
-            ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose
-                ? undef
-                : sub {
-                    return unless ( shift ) =~ /^(.*)\t(.*)\t(.*)/;
-                    step( undef, $1, $2, $3 );
-                }
-            ),
+            [ 'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/setup/$script", @options ],
+            ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : sub {
+                return unless ( shift ) =~ /^(.*)\t(.*)\t(.*)/;
+                step( undef, $1, $2, $3 );
+            } ),
             sub { $stderr .= shift; }
         );
 
@@ -325,7 +316,7 @@ sub setupDbTasks
             my $dbh = $db->getRawDb();
             local $dbh->{'RaiseError'};
 
-            while ( my ($table, $field) = each %{$tables} ) {
+            while ( my ( $table, $field ) = each %{ $tables } ) {
                 if ( ref $field eq 'ARRAY' ) {
                     $aditionalCondition = $field->[1];
                     $field = $field->[0];
@@ -338,9 +329,7 @@ sub setupDbTasks
                     "
                         UPDATE $table
                         SET $field = 'tochange'
-                        WHERE $field NOT IN(
-                            'toadd', 'torestore', 'toenable', 'todisable', 'disabled', 'ordered', 'todelete'
-                        )
+                        WHERE $field NOT IN('toadd', 'torestore', 'toenable', 'todisable', 'disabled', 'ordered', 'todelete')
                         $aditionalCondition
                     "
                 );
@@ -376,7 +365,7 @@ sub setupRegisterPluginListeners
     my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupRegisterPluginListeners' );
     return $rs if $rs;
 
-    my ($db, $pluginNames) = ( iMSCP::Database->factory(), undef );
+    my ( $db, $pluginNames ) = ( iMSCP::Database->factory(), undef );
 
     local $@;
 
@@ -394,12 +383,12 @@ sub setupRegisterPluginListeners
         return 1;
     }
 
-    if ( @{$pluginNames} ) {
+    if ( @{ $pluginNames } ) {
         my $eventManager = iMSCP::EventManager->getInstance();
         my $plugins = iMSCP::Plugins->getInstance();
 
-        for my $pluginName( $plugins->getList() ) {
-            next unless grep( $_ eq $pluginName, @{$pluginNames} );
+        for my $pluginName ( $plugins->getList() ) {
+            next unless grep ( $_ eq $pluginName, @{ $pluginNames } );
             my $pluginClass = $plugins->getClass( $pluginName );
             ( my $subref = $pluginClass->can( 'registerSetupListeners' ) ) or next;
             $rs = $subref->( $pluginClass, $eventManager );
@@ -413,12 +402,12 @@ sub setupRegisterPluginListeners
 sub setupServersAndPackages
 {
     my $eventManager = iMSCP::EventManager->getInstance();
-    my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
-    my @packages = iMSCP::Packages->getInstance()->getListWithFullNames();
+    my @servers = iMSCP::Servers->getInstance()->getList();
+    my @packages = iMSCP::Packages->getInstance()->getList();
     my $nSteps = @servers+@packages;
     my $rs = 0;
 
-    for my $task( qw/ PreInstall Install PostInstall / ) {
+    for my $task ( qw/ PreInstall Install PostInstall / ) {
         my $lcTask = lc( $task );
 
         $rs ||= $eventManager->trigger( 'beforeSetup' . $task . 'Servers' );
@@ -471,7 +460,7 @@ sub setupRestartServices
     my $rs = $eventManager->register(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]},
+            push @{ $_[0] },
                 [
                     sub {
                         iMSCP::Service->getInstance()->restart( 'imscp_mountall' );
@@ -487,7 +476,7 @@ sub setupRestartServices
     $rs ||= $eventManager->register(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]},
+            push @{ $_[0] },
                 [
                     sub {
                         iMSCP::Service->getInstance()->restart( 'imscp_traffic' );
@@ -502,7 +491,7 @@ sub setupRestartServices
     $rs ||= $eventManager->register(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]},
+            push @{ $_[0] },
                 [
                     sub {
                         iMSCP::Service->getInstance()->start( 'imscp_daemon' );
@@ -536,26 +525,26 @@ sub setupRestartServices
 sub setupRemoveOldConfig
 {
     untie %main::imscpOldConfig;
-    iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscpOld.conf" )->delFile();
+    iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" )->delFile();
 }
 
 sub setupGetQuestion
 {
-    my ($qname, $default) = @_;
+    my ( $qname, $default ) = @_;
     $default //= '';
 
     if ( iMSCP::Getopt->preseed ) {
-        return length $main::questions{$qname} ? $main::questions{$qname} : $default // '';
+        return length $::questions{$qname} ? $::questions{$qname} : $default // '';
     }
 
-    return $main::questions{$qname} if length $main::questions{$qname};
+    return $::questions{$qname} if length $::questions{$qname};
 
-    exists $main::imscpConfig{$qname} && length $main::imscpConfig{$qname} ? $main::imscpConfig{$qname} : $default // '';
+    exists $::imscpConfig{$qname} && length $::imscpConfig{$qname} ? $::imscpConfig{$qname} : $default // '';
 }
 
 sub setupSetQuestion
 {
-    $main::questions{$_[0]} = $_[1];
+    $::questions{$_[0]} = $_[1];
 }
 
 1;

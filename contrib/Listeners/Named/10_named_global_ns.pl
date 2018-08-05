@@ -90,7 +90,7 @@ iMSCP::EventManager->getInstance()->register(
                 );
 
                 # Glue RR must be set only if $data->{'DOMAIN_NAME'] is equal to $ZONE_NAME
-                # Note that if $name is out-of-zone, it will be automatically ignored by the `named-compilezone'
+                # Note that if $name is out-of-zone, it will be automatically ignored by the 'named-compilezone'
                 # command during the dump (expected behavior).
                 $glueRecords .= process(
                     {

@@ -1240,7 +1240,7 @@ EOF
 
 =item _evalCondition
 
- Evaluate a condition from an installere distribution packages file
+ Evaluate a condition from an installer distribution packages file
  
  Return boolean Condition evaluation result on success, die on failure
 

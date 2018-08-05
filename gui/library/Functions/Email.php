@@ -356,8 +356,8 @@ function encode_mime_header($string, $charset = 'UTF-8')
  *  - lname        : OPTIONAL Receiver lastname
  *  - username     : Receiver username
  *  - email        : Receiver email
- *  - sender_name  : OPTIONAL sender name (if present, passed through `Reply-To' header)
- *  - sender_email : OPTIONAL Sender email (if present, passed through `Reply-To' header)
+ *  - sender_name  : OPTIONAL sender name (if present, passed through 'Reply-To' header)
+ *  - sender_email : OPTIONAL Sender email (if present, passed through 'Reply-To' header)
  *  - subject      : Subject of the email to be sent
  *  - message      : Message to be sent
  *  - placeholders : OPTIONAL An array where keys are placeholders to replace
@@ -379,12 +379,12 @@ function send_mail($data)
 
     foreach (['mail_id', 'username', 'email', 'subject', 'message'] as $parameter) {
         if (!isset($data[$parameter]) || !is_string($data[$parameter])) {
-            throw new  iMSCPException(sprintf("`%s' parameter is not defined or not a string", $parameter));
+            throw new  iMSCPException(sprintf("'%s' parameter is not defined or not a string", $parameter));
         }
     }
 
     if (isset($data['placeholders']) && !is_array($data['placeholders'])) {
-        throw new  iMSCPException("`placeholders' parameter must be an array of placeholders/replacements");
+        throw new  iMSCPException("'placeholders' parameter must be an array of placeholders/replacements");
     }
 
     $username = decode_idna($data['username']);
@@ -445,7 +445,7 @@ function send_mail($data)
     if (isset($data['sender_email'])) {
         # Note: We cannot use the real sender email address in the FROM header because the email's domain could be
         # hosted on external server, meaning that if the domain implements SPF, the mail could be rejected. However we
-        # pass the real sender email through the `Reply-To' header
+        # pass the real sender email through the 'Reply-To' header
         if (isset($data['sender_name'])) {
             $headers[] = 'Reply-To: ' . encode_mime_header($data['sender_name']) . ' <' . $data['sender_email'] . '>';
         } else {

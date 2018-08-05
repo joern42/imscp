@@ -108,7 +108,7 @@ EOF
         ${ $tplContent }
     );
     0;
-} ) if $HTUSER ne '';
+} ) if $HTUSER ne '' && $HTPASSWD ne '';
 
 iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
 {
@@ -127,11 +127,14 @@ iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
         $rs = 1;
     }
 
-    $rs ||= createHtpasswdFile() if $HTUSER ne '';
+    $rs ||= createHtpasswdFile() if $HTUSER ne '' && $HTPASSWD ne '';
     return $rs if $rs;
 
     my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/slave_provisioning.php" );
-    $file->set( <DATA> =~ s/\{DB_FILE_FORMAT\}/$DB_FILE_FORMAT/gmr );
+    $file->set( do {
+        local $/;
+        <DATA> =~ s/\{DB_FILE_FORMAT\}/$DB_FILE_FORMAT/gmr;
+    } );
     $rs = $file->save();
     $rs ||= $file->owner(
         "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
@@ -146,6 +149,7 @@ __END__
 use iMSCP_Registry as Registry;
 
 try {
+  chdir(__DIR__);
   require '../../library/imscp-lib.php';
 
   if(Registry::isRegistered('bufferFilter')) {
@@ -182,3 +186,5 @@ EOT;
 } catch(Exception $e) {
     http_response_code(500);
 }
+
+session_destroy();

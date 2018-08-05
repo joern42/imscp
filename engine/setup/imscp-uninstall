@@ -55,7 +55,7 @@ $ENV{'LANG'} = 'C.UTF-8';
 $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 # Set backend mode
-$main::execmode = 'uninstall' unless defined $main::execmode;;
+$::execmode = 'uninstaller' unless defined $::execmode;;
 
 newDebug( 'imscp-uninstall.log' );
 
@@ -135,7 +135,7 @@ sub _userDialog
 
     exit 0 if $dialog->yesno( <<"EOF", 1 );
 
-Welcome to the \\Z4i-MSCP $main::imscpConfig{'Version'}\\Zn uninstaller dialog.
+Welcome to the \\Z4i-MSCP $::imscpConfig{'Version'}\\Zn uninstaller dialog.
 
 This program will uninstall i-MSCP from your server.
 
@@ -201,7 +201,7 @@ sub _uninstallPackages
 {
     startDetail();
 
-    my @packages = iMSCP::Packages->getInstance()->getListWithFullNames();
+    my @packages = iMSCP::Packages->getInstance()->getList();
     my $nbSteps = scalar @packages;
     my ($step, $rs) = ( 1, 0 );
 
@@ -224,7 +224,7 @@ sub _uninstallServers
 {
     startDetail();
 
-    my @servers = iMSCP::Servers->getInstance()->getListWithFullNames();
+    my @servers = iMSCP::Servers->getInstance()->getList();
     my $nbSteps = scalar @servers;
     my ($step, $rs) = ( 1, 0 );
 
@@ -347,3 +347,6 @@ exit $rs;
  i-MSCP Team <team@i-mscp.net>
 
 =cut
+
+1;
+__END__

@@ -465,7 +465,7 @@ class iMSCP_Update_Database extends iMSCP_Update
     }
 
     /**
-     * Please, add all the database update methods below. Don't forget to update the `lastUpdate' field above.
+     * Please, add all the database update methods below. Don't forget to update the 'lastUpdate' field above.
      */
 
     /**

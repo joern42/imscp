@@ -46,7 +46,6 @@ use autoinstaller::Functions qw/ loadConfig build install /;
 
 $ENV{'LANG'} = 'C.UTF-8';
 $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
-
 # Needed to make any sub-process aware of i-MSCP setup process
 $ENV{'IMSCP_SETUP'} = 1;
 
@@ -56,24 +55,22 @@ iMSCP::Requirements->new()->user();
 newDebug( 'imscp-autoinstall.log' );
 
 # Set backend mode
-$main::execmode = 'setup' unless defined $main::execmode;
-
+$::execmode = 'setup' unless defined $::execmode;
 # Init variable that holds questions
-%main::questions = () unless %main::questions;
-
+%::questions = () unless %::questions;
 # Initialize command line options
-$main::buildonly = 0;
-$main::forcereinstall = 0;
-$main::skippackages = 0;
+$::buildonly = 0;
+$::forcereinstall = 0;
+$::skippackages = 0;
 
 # Parse autoinstaller options
 iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
  -b,    --build-only            Process build steps only.
  -f,    --force-reinstall       Force reinstallation of distro packages.
  -s,    --skip-distro-packages  Do not install/update distro packages.},
-    'build-only|b'           => \$main::buildonly,
-    'force-reinstall|f'      => \$main::forcereinstall,
-    'skip-distro-packages|s' => \$main::skippackages
+    'build-only|b'           => \$::buildonly,
+    'force-reinstall|f'      => \$::forcereinstall,
+    'skip-distro-packages|s' => \$::skippackages
 );
 
 # Set debug and verbose mode
@@ -81,14 +78,14 @@ setDebug( iMSCP::Getopt->debug );
 setVerbose( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose );
 
 # Getting reconfigure option value
-$main::reconfigure = iMSCP::Getopt->reconfigure;
+$::reconfigure = iMSCP::Getopt->reconfigure;
 
 # Handle preseed option
 if ( iMSCP::Getopt->preseed ) {
     require iMSCP::Getopt->preseed;
     # The preseed option supersede the reconfigure option
     iMSCP::Getopt->reconfigure( 'none' );
-    $main::reconfigure = 'none';
+    $::reconfigure = 'none';
     iMSCP::Getopt->noprompt( 1 );
 }
 
@@ -111,7 +108,7 @@ if ( iMSCP::Getopt->noprompt ) {
                     }
                 }
             } else {
-                unless ( $main::buildonly ) {
+                unless ( $::buildonly ) {
                     print STDOUT output( 'i-MSCP has been successfully installed/updated.', 'ok' );
                 } else {
                     print STDOUT output( 'i-MSCP has been successfully built.', 'ok' );
@@ -120,7 +117,7 @@ if ( iMSCP::Getopt->noprompt ) {
         }
     );
 
-    unless ( $main::buildonly ) {
+    unless ( $::buildonly ) {
         print STDOUT output( 'Installation in progress... Please wait.', 'info' );
     } else {
         print STDOUT output( 'Build steps in progress... Please wait.', 'info' )
@@ -133,7 +130,7 @@ if ( iMSCP::Getopt->noprompt ) {
 my $ret = build();
 
 unless ( $ret ) {
-    unless ( $main::buildonly ) {
+    unless ( $::buildonly ) {
         $ret = install();
     } else {
         my $msg = <<"EOF";
@@ -142,10 +139,10 @@ unless ( $ret ) {
 
 Please run the following commands from your console:
 
-    # rm -fR $main::imscpConfig{'ROOT_DIR'}/{daemon,engine,gui}
-    # cp -fR $main::{'INST_PREF'}/* /
-    # rm -fR $main::{'INST_PREF'}
-    # perl $main::imscpConfig{'ROOT_DIR'}/engine/setup/imscp-reconfigure -d
+    # rm -fR $::imscpConfig{'ROOT_DIR'}/{daemon,engine,gui}
+    # cp -fR $::{'INST_PREF'}/* /
+    # rm -fR $::{'INST_PREF'}
+    # perl $::imscpConfig{'ROOT_DIR'}/engine/setup/imscp-reconfigure -d
 EOF
         $msg .= <<'EOF';
 

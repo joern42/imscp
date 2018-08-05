@@ -16,7 +16,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 #
-## Remount your own USER_WEB_DIR to USER_WEB_DIR. For instance `/home/virtual' to `/var/www/virtual'
+## Remount your own USER_WEB_DIR to USER_WEB_DIR. For instance '/home/virtual' to `/var/www/virtual'
 ## Note that when using this listener, you must not add the mount entry in the system /etc/fstab file.
 ## Listener file compatible with i-MSCP >= 1.3.4
 #

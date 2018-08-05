@@ -58,7 +58,7 @@ my $dbInitialized = undef;
 
 sub showDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     Package::Webmail::RainLoop::Installer->getInstance()->showDialog( $dialog );
 }
@@ -99,7 +99,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return 0 if $self->{'skip_uninstall'};
 
@@ -119,26 +119,20 @@ sub setGuiPermissions
     return 0 unless -d "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop";
 
     my $panelUName = my $panelGName = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'};
-    my $rs = setRights(
-        "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop",
-        {
-            user      => $panelUName,
-            group     => $panelGName,
-            dirmode   => '0550',
-            filemode  => '0440',
-            recursive => 1
-        }
-    );
-    $rs ||= setRights(
-        "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/data",
-        {
-            user      => $panelUName,
-            group     => $panelGName,
-            dirmode   => '0750',
-            filemode  => '0640',
-            recursive => 1
-        }
-    );
+    my $rs = setRights( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop", {
+        user      => $panelUName,
+        group     => $panelGName,
+        dirmode   => '0550',
+        filemode  => '0440',
+        recursive => 1
+    } );
+    $rs ||= setRights( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/data", {
+        user      => $panelUName,
+        group     => $panelGName,
+        dirmode   => '0750',
+        filemode  => '0640',
+        recursive => 1
+    } );
 }
 
 =item deleteMail( \%data )
@@ -152,7 +146,7 @@ sub setGuiPermissions
 
 sub deleteMail
 {
-    my (undef, $data) = @_;
+    my ( undef, $data ) = @_;
 
     return 0 unless $data->{'MAIL_TYPE'} =~ /_mail/;
 
@@ -192,7 +186,7 @@ sub deleteMail
     ( my $email = $data->{'MAIL_ADDR'} ) =~ s/[^a-z0-9\-\.@]+/_/;
     ( my $storagePath = substr( $email, 0, 2 ) ) =~ s/\@$//;
 
-    for my $storageType( qw/ cfg data files / ) {
+    for my $storageType ( qw/ cfg data files / ) {
         iMSCP::Dir->new( dirname => "$storageDir/$storageType/$storagePath/$email" )->remove();
         next unless -d "$storageDir/$storageType/$storagePath";
         my $dir = iMSCP::Dir->new( dirname => "$storageDir/$storageType/$storagePath" );
@@ -219,12 +213,12 @@ sub deleteMail
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/rainloop";
 
     if ( -f "$self->{'cfgDir'}/rainloop.data" ) {
-        tie %{$self->{'config'}}, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/rainloop.data", readonly => 1;
+        tie %{ $self->{'config'} }, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/rainloop.data", readonly => 1;
     } else {
         $self->{'config'} = {};
         $self->{'skip_uninstall'} = 1;

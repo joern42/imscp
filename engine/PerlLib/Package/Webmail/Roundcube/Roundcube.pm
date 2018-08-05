@@ -59,7 +59,7 @@ use parent 'Common::SingletonClass';
 
 sub showDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
     Package::Webmail::Roundcube::Installer->getInstance()->showDialog( $dialog );
 }
@@ -100,7 +100,7 @@ sub install
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return 0 if $self->{'skip_uninstall'};
 
@@ -123,26 +123,20 @@ sub setGuiPermissions
 
     my $panelUName = my $panelGName = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
-    my $rs = setRights(
-        "$guiPublicDir/tools/webmail",
-        {
-            user      => $panelUName,
-            group     => $panelGName,
-            dirmode   => '0550',
-            filemode  => '0440',
-            recursive => 1
-        }
-    );
-    $rs ||= setRights(
-        "$guiPublicDir/tools/webmail/logs",
-        {
-            user      => $panelUName,
-            group     => $panelGName,
-            dirmode   => '0750',
-            filemode  => '0640',
-            recursive => 1
-        }
-    );
+    my $rs = setRights( "$guiPublicDir/tools/webmail", {
+        user      => $panelUName,
+        group     => $panelGName,
+        dirmode   => '0550',
+        filemode  => '0440',
+        recursive => 1
+    } );
+    $rs ||= setRights( "$guiPublicDir/tools/webmail/logs", {
+        user      => $panelUName,
+        group     => $panelGName,
+        dirmode   => '0750',
+        filemode  => '0640',
+        recursive => 1
+    } );
 }
 
 =item deleteMail( \%data )
@@ -156,7 +150,7 @@ sub setGuiPermissions
 
 sub deleteMail
 {
-    my (undef, $data) = @_;
+    my ( undef, $data ) = @_;
 
     return 0 unless $data->{'MAIL_TYPE'} =~ /_mail/;
 
@@ -193,14 +187,14 @@ sub deleteMail
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/roundcube";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
 
     if ( -f "$self->{'cfgDir'}/roundcube.data" ) {
-        tie %{$self->{'config'}}, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/roundcube.data", readonly => 1;
+        tie %{ $self->{'config'} }, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/roundcube.data", readonly => 1;
     } else {
         $self->{'config'} = {};
         $self->{'skip_uninstall'} = 1;

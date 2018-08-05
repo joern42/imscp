@@ -187,7 +187,7 @@ sub guessPhpVariables
 
     unless ( -d $self->{'phpConfig'}->{'PHP_FPM_POOL_DIR_PATH'} ) {
         $self->{'phpConfig'}->{'PHP_FPM_POOL_DIR_PATH'} = '';
-        die( sprintf( "Couldn't guess `%s' PHP configuration parameter value: directory doesn't exists.", $_ ));
+        die( sprintf( "Couldn't guess '%s' PHP configuration parameter value: directory doesn't exists.", $_ ));
     }
 
     $self->{'phpConfig'}->{'PHP_CLI_BIN_PATH'} = iMSCP::ProgramFinder::find( "php$self->{'phpConfig'}->{'PHP_VERSION'}" );
@@ -196,7 +196,7 @@ sub guessPhpVariables
 
     for ( qw/ PHP_CLI_BIN_PATH PHP_FCGI_BIN_PATH PHP_FPM_BIN_PATH / ) {
         next if $self->{'phpConfig'}->{$_};
-        die( sprintf( "Couldn't guess `%s' PHP configuration parameter value.", $_ ));
+        die( sprintf( "Couldn't guess '%s' PHP configuration parameter value.", $_ ));
     }
 
     0;

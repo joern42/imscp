@@ -55,7 +55,7 @@ use parent 'Common::SingletonClass';
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->_disableDefaultConfig();
     $rs ||= $self->_createCacheDir();
@@ -72,7 +72,7 @@ sub install
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_addAwstatsCronTask();
 }
@@ -93,7 +93,7 @@ sub postinstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'httpd'} = Servers::httpd->factory();
     $self;
@@ -109,15 +109,13 @@ sub _init
 
 sub _createCacheDir
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->make(
-        {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $self->{'httpd'}->getRunningGroup(),
-            mode  => 02750
-        }
-    );
+    iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->make( {
+        user  => $main::imscpConfig{'ROOT_USER'},
+        group => $self->{'httpd'}->getRunningGroup(),
+        mode  => 02750
+    } );
     0;
 }
 
@@ -131,7 +129,7 @@ sub _createCacheDir
 
 sub _setupApache2
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Create Basic authentication file
 
@@ -144,24 +142,18 @@ sub _setupApache2
 
     # Enable required Apache2 modules
 
-    $rs = $self->{'httpd'}->enableModules(
-        'rewrite', 'authn_core', 'authn_basic', 'authn_socache', 'proxy', 'proxy_http'
-    );
+    $rs = $self->{'httpd'}->enableModules( 'rewrite', 'authn_core', 'authn_basic', 'authn_socache', 'proxy', 'proxy_http' );
     return $rs if $rs;
 
     # Create Apache2 vhost
 
-    $self->{'httpd'}->setData(
-        {
-            AWSTATS_AUTH_USER_FILE_PATH => "$self->{'httpd'}->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats",
-            AWSTATS_ENGINE_DIR          => $main::imscpConfig{'AWSTATS_ENGINE_DIR'},
-            AWSTATS_WEB_DIR             => $main::imscpConfig{'AWSTATS_WEB_DIR'}
-        }
-    );
+    $self->{'httpd'}->setData( {
+        AWSTATS_AUTH_USER_FILE_PATH => "$self->{'httpd'}->{'config'}->{'HTTPD_CONF_DIR'}/.imscp_awstats",
+        AWSTATS_ENGINE_DIR          => $main::imscpConfig{'AWSTATS_ENGINE_DIR'},
+        AWSTATS_WEB_DIR             => $main::imscpConfig{'AWSTATS_WEB_DIR'}
+    } );
 
-    $rs = $self->{'httpd'}->buildConfFile(
-        "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webstats/Awstats/Config/01_awstats.conf"
-    );
+    $rs = $self->{'httpd'}->buildConfFile( "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webstats/Awstats/Config/01_awstats.conf" );
     $rs ||= $self->{'httpd'}->enableSites( '01_awstats.conf' );
 }
 

@@ -38,7 +38,7 @@
 #         - Avoid useless SELECT query
 # 1.10   Version by i-MSCP Team (bugfix release):
 #         - Possible out of memory problems (Closes: #IP-1638)
-#         - Possible `Unknown MySQL server host' on reconnect (Closes: #IP-1638)
+#         - Possible 'Unknown MySQL server host' on reconnect (Closes: #IP-1638)
 #         - Usage of cached MySQL connection (Performance improvement)
 #         - Usage of cached prepared statement (Performance improvement)
 #         - CS fixes
@@ -349,7 +349,7 @@ if ($OPTS{'s'}) {
 chdir($LOGDIR);
 
 # Temporarely disabled. Once chroot() has been called, SQL server hostname
-# cannot longer be resolved, leading to `Unknown MySQL server host' error.
+# cannot longer be resolved, leading to 'Unknown MySQL server host' error.
 # FIXME: Retrieve SQL server hostname and resolve it before the chroot() call,
 # then use the resulting IP for connection.
 #chroot('.');  

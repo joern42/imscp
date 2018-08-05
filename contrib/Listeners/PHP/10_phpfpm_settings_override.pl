@@ -49,7 +49,7 @@ my %SETTINGS = (
         'pm.max_requests'         => 1000
     },
 
-    # Per domain PHP-FPM settings - Any setting added here will apply to the `test.domain.tld' domains only
+    # Per domain PHP-FPM settings - Any setting added here will apply to the 'test.domain.tld' domains only
     'test.domain.tld' => {
         'pm'                   => 'dynamic',
         'pm.max_children'      => 10,
