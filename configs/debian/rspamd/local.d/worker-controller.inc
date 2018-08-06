@@ -6,6 +6,9 @@
 # You can add your own configuration in the
 # '$LOCAL_CONFDIR/local.d/worker-controller.inc.local file
 
-password = "REPLACEWITHYOUROWNSECRETPASSWORDVALUELIKEITISTOLDINTHETHREAD";
+enabled = false;
+count = 5
+password = "";
+bind_socket = "localhost:11334";
 
 .include(try=true,priority=2,duplicate=merge) "${LOCAL_CONFDIR}/local.d/worker-controller.inc.local"
