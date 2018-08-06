@@ -79,10 +79,10 @@ sub showDialog
 
     if ( $main::reconfigure =~ /^(?:webmails|all|forced)$/
         || !@{ $selectedPackages }
-        || grep { !exists $choices{$_} && $_ ne 'no' } @{ $selectedPackages }
+        || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages }
     ) {
         ( my $rs, $selectedPackages ) = $dialog->checkbox(
-            <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $selectedPackages } ] );
+            <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages } ] );
 
 Please select the webmail packages you want to install:
 \Z \Zn
@@ -90,9 +90,9 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    @{ $selectedPackages } = grep ( $_ ne 'no', @{ $selectedPackages } );
+    @{ $selectedPackages } = grep ( $_ ne 'none', @{ $selectedPackages } );
 
-    ::setupSetQuestion( 'WEBMAIL_PACKAGES', @{ $selectedPackages } ? join ',', @{ $selectedPackages } : 'no' );
+    ::setupSetQuestion( 'WEBMAIL_PACKAGES', @{ $selectedPackages } ? join ',', @{ $selectedPackages } : 'none' );
 
     for ( @{ $selectedPackages } ) {
         my $package = "Package::Webmail::${_}::${_}";
@@ -199,7 +199,7 @@ sub install
     @{selectedPackages}{ split ',', ::setupGetQuestion( 'WEBMAIL_PACKAGES' ) } = ();
 
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-        next unless exists $selectedPackages{$_} && $_ ne 'No';
+        next unless exists $selectedPackages{$_} && $_ ne 'none';
         my $package = "Package::Webmail::${_}::${_}";
         eval "require $package";
         if ( $@ ) {

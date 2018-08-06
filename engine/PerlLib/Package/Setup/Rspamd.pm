@@ -27,10 +27,15 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::Config;
+use iMSCP::Crypt qw/ randomStr /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Dialog::InputValidation qw/ isValidPassword /;
 use iMSCP::EventManager;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Service;
+use iMSCP::TemplateParser qw/ getBloc replaceBloc /;
+use Net::LibIDN qw/ idn_to_unicode /;
 use Servers::mta;
 use parent 'Common::SingletonClass';
 
@@ -57,12 +62,13 @@ sub registerSetupListeners
 {
     my ( $self, $eventManager ) = @_;
 
-    return 0 unless $self->{'has_rspamd'};
+    return 0 unless $main::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->_askForModules( @_ ) };
+        push @{ $_[0] }, sub { $self->_askForModules( @_ ) }, sub { $self->_askForWebUI( @_ ) }, sub { $self->_askForWebUIPassword( @_ ) };
         0;
     } );
+
 }
 
 =item preinstall( )
@@ -77,9 +83,10 @@ sub preinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_rspamd'};
+    return 0 unless $main::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
-    $self->stop();
+    my $rs = $self->stop();
+    $rs ||= $self->{'eventManager'}->register( 'afterFrontEndBuildConfFile', \&afterFrontEndBuildConfFile );
 }
 
 =item install( )
@@ -94,7 +101,7 @@ sub install
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_rspamd'};
+    return 0 unless $main::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     my $rs = $self->{'eventManager'}->register( 'afterMtaBuildConf', \&_configurePostfix, -100 );
 
@@ -106,6 +113,9 @@ sub install
         return configurePostfix() if $_[0] eq 'SpamAssassin';
         0;
     } );
+
+    $rs ||= $self->_setupModules();
+    $rs ||= $self->_setupWebUI();
 }
 
 =item postinstall( )
@@ -120,10 +130,14 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_rspamd'};
+    return 0 unless $main::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     local $@;
-    eval { iMSCP::Service->getInstance()->enable( 'rspamd' ); };
+    eval {
+        my $srvMngr = iMSCP::Service->getInstance();
+        $srvMngr->enable( 'redis-server' );
+        $srvMngr->enable( 'rspamd' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -150,7 +164,11 @@ sub postinstall
 sub start
 {
     local $@;
-    eval { iMSCP::Service->getInstance()->start( 'rspamd' ); };
+    eval {
+        my $srvMngr = iMSCP::Service->getInstance();
+        $srvMngr->start( 'redis-server' );
+        $srvMngr->start( 'rspamd' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -170,7 +188,11 @@ sub start
 sub stop
 {
     local $@;
-    eval { iMSCP::Service->getInstance()->stop( 'rspamd' ); };
+    eval {
+        my $srvMngr = iMSCP::Service->getInstance();
+        $srvMngr->stop( 'redis-server' );
+        $srvMngr->stop( 'rspamd' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -190,7 +212,11 @@ sub stop
 sub restart
 {
     local $@;
-    eval { iMSCP::Service->getInstance()->restart( 'rspamd' ); };
+    eval {
+        my $srvMngr = iMSCP::Service->getInstance();
+        $srvMngr->restart( 'redis-server' );
+        $srvMngr->restart( 'rspamd' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -210,7 +236,11 @@ sub restart
 sub reload
 {
     local $@;
-    eval { iMSCP::Service->getInstance()->reload( 'rspamd' ); };
+    eval {
+        my $srvMngr = iMSCP::Service->getInstance();
+        $srvMngr->reload( 'redis-server' );
+        $srvMngr->reload( 'rspamd' );
+    };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -232,26 +262,51 @@ sub getPriority
     7;
 }
 
-=item getManagedModules( )
+=back
 
- Get list of managed Rspamd modules
+=head1 EVENT LISTENERS
 
- Return list List of managed Rspamd module
+=over 4
+
+=item afterFrontEndBuildConfFile( \$tplContent, $filename )
+
+ Include httpd configuration into frontEnd vhost files
+
+ Param string \$tplContent Template file tplContent
+ Param string $tplName Template name
+ Return int 0 on success, other on failure
 
 =cut
 
-sub getManagedModules
+sub afterFrontEndBuildConfFile
 {
-    my ( $self ) = @_;
+    my ( $tplContent, $tplName ) = @_;
 
-    CORE::state @modules;
+    return 0 unless grep ( $_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx' );
 
-    unless ( scalar @modules ) {
-        @modules = qw/ ASN Classifier_Bayesian DKIM_Signing DMARC Emails Greylist Milter_Headers Mime_Types MX_Check RBL Redis_History SPF Surbl /;
-        push @modules, 'Antivirus' if $::imscpConfig{'ANTIVIRUS'} eq 'clamav';
+    my $locationSnippet = <<'EOF';
+    location = /rspamd {
+        return 301 /rspamd/;
     }
 
-    @modules;
+    location /rspamd/ {
+        proxy_pass       http://localhost:11334/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For "";
+    }
+EOF
+    ${ $tplContent } = replaceBloc(
+        "# SECTION custom BEGIN.\n",
+        "# SECTION custom END.\n",
+        "    # SECTION custom BEGIN.\n"
+            . getBloc( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", ${ $tplContent } )
+            . "$locationSnippet\n"
+            . "    # SECTION custom END.\n",
+        ${ $tplContent }
+    );
+
+    0;
 }
 
 =back
@@ -272,8 +327,10 @@ sub _init
 {
     my ( $self ) = @_;
 
+    return $self unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
+
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'has_rspamd'} = iMSCP::Service->getInstance()->hasService( 'rspamd' );
+
     $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/rspamd";
     $self->_mergeConfig() if -f "$self->{'cfgDir'}/rspamd.data.dist";
     tie %{ $self->{'config'} },
@@ -316,6 +373,28 @@ sub _mergeConfig
     );
 }
 
+=item _getManagedModules( )
+
+ Get list of managed Rspamd modules
+
+ Return list List of managed Rspamd module
+
+=cut
+
+sub _getManagedModules
+{
+    my ( $self ) = @_;
+
+    CORE::state @modules;
+
+    return @modules if @modules;
+
+    @modules = (
+        $::imscpConfig{'ANTIVIRUS'} eq 'clamav' ? 'Antivirus' : (), 'ASN', 'DKIM', 'DKIM Signing', 'DMARC', 'Emails', 'Greylisting', 'Milter Headers',
+        'Mime Types', 'MX Check', 'RBL', 'Redis History', 'SPF', 'Surbl'
+    );
+}
+
 =item _askForModules( $dialog )
 
  Ask for Rspamd modules to enable
@@ -329,20 +408,22 @@ sub _askForModules
 {
     my ( $self, $dialog ) = @_;
 
-    my $selectedModules = [ split /(?:[,; ]+)/, ::setupGetQuestion( 'RSPAMD_MODULES', $self->{'config'}->{'RSPAMD_MODULES'} ) ];
-    my %choices = map { $_ => s/_/ /gr } $self->getManagedModules();
+    my $selectedModules = [ grep ( $_ ne 'Antivirus', split /[,;]/, ::setupGetQuestion( 'RSPAMD_MODULES', $self->{'config'}->{'RSPAMD_MODULES'} ) ) ];
+    my %choices = map { $_ => $_ } grep ( $_ ne 'Antivirus', $self->_getManagedModules() );
 
     if ( $::reconfigure =~ /^(?:antispam|all|forced)$/
         || !@{ $selectedModules }
-        || grep { !exists $choices{$_} && $_ ne 'no' } @{ $selectedModules }
+        || grep { !exists $choices{$_} && $_ ne 'none' } ( @{ $selectedModules } )
     ) {
         ( my $rs, $selectedModules ) = $dialog->checkbox(
-            <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'no' } @{ $selectedModules } ] );
+            <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $selectedModules } ] );
 
 Please select the Rspamd modules you want to enable.
 
-Note that not all Rspamd modules are managed by i-MSCP yet.
+Note that some of Rspamd modules are not managed yet.
 You can always enable unmanaged modules manually.
+
+The Rspamd antivirus module is managed internally and enabled only if you choose ClamAV as antivirus solution.
 
 See https://rspamd.com/doc/modules/ for further details.
 \Z \Zn
@@ -350,12 +431,118 @@ EOF
         return $rs unless $rs < 30;
     }
 
-    @{ $selectedModules } = grep ( $_ ne 'no', @{ $selectedModules } );
-    $self->{'config'}->{'RSPAMD_MODULES'} = @{ $selectedModules } ? join ' ', @{ $selectedModules } : 'no';
+    @{ $selectedModules } = grep ( $_ ne 'none', @{ $selectedModules } );
+    push @{ $selectedModules }, 'Antivirus' if $::imscpConfig{'ANTIVIRUS'} eq 'ClamAV';
+    $self->{'config'}->{'RSPAMD_MODULES'} = @{ $selectedModules } ? join ',', sort @{ $selectedModules } : 'none';
     0;
 }
 
-=item _setupRspamdModules
+
+=item _askForWebUI( \%dialog )
+
+ Ask for Rspamd Web UI
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 or 30
+
+=cut
+
+sub _askForWebUI
+{
+    my ( $self, $dialog ) = @_;
+
+    my $webInterface = ::setupGetQuestion( 'RSPAMD_WEBUI', $self->{'config'}->{'RSPAMD_WEBUI'} );
+    my $rs = 0;
+
+    if ( $::reconfigure =~ /^(?:antispam|all|forced)$/ || $webInterface !~ /^(?:yes|no)$/
+        || $webInterface eq 'yes' && $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} eq ''
+    ) {
+        my $port = $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'} eq 'http://'
+            ? $::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
+        my $vhost = idn_to_unicode( $::imscpConfig{'BASE_SERVER_VHOST'}, 'utf-8' );
+
+        $rs = $dialog->yesno( <<"EOF", $webInterface eq 'no' ? 1 : 0 );
+Do you want to enable the Rspamd Web interface?
+
+The Rspamd Web interface provides basic functions for setting metric actions, scores, viewing statistic and learning. 
+If enabled, the Web interface is made available at $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'}$vhost:$port/rspamd
+EOF
+        return $rs if $rs >= 30;
+    }
+
+    $self->{'config'}->{'RSPAMD_WEBUI'} = $rs ? 'no' : 'yes';
+    0;
+}
+
+=item _askForWebUIPassword( \%dialog )
+
+ Ask for Rspamd Web interface password
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 or 30
+
+=cut
+
+sub _askForWebUIPassword
+{
+    my ( $self, $dialog ) = @_;
+
+    return 0 unless $self->{'config'}->{'RSPAMD_WEBUI'} eq 'yes';
+
+    my ( $rs, $msg, $password ) = ( 0, '', ::setupGetQuestion( 'RSPAMD_WEBUI_PASSWORD', $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} ) );
+
+    if ( $::reconfigure =~ /^(?:antispam|all|forced)$/ || $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} eq '' ) {
+        do {
+            $password = '';
+            ( $rs, $password ) = $dialog->inputbox( <<"EOF", randomStr( 16, iMSCP::Crypt::ALNUM ));
+
+Please enter a password for the Rspamd Web interface:$msg
+EOF
+            $msg = isValidPassword( $password ) ? '' : $iMSCP::Dialog::InputValidation::lastValidationError;
+        } while $rs < 30 && $msg;
+
+        return $rs if $rs >= 30;
+    }
+
+    ::setupSetQuestion( 'RSPAMD_UI_PASSWORD', $password );
+    0;
+}
+
+=item _getModuleConffilesMap( )
+
+ Get configuration files map for Rspamd modules
+
+ Return hash Rspamd module configuration files map
+
+=cut
+
+sub _getModuleConffilesMap
+{
+    my ( $self ) = @_;
+
+    CORE::state %map;
+
+    return %map if %map;
+
+    %map = (
+        Antivirus        => 'antivirus.conf',
+        ASN              => 'asn.conf',
+        DKIM             => 'dkim.conf',
+        'DKIM Signing'   => 'dkim_signing.conf',
+        DMARC            => 'dmarc.conf',
+        Emails           => 'emails.conf',
+        Greylisting      => 'greylist.conf',
+        'Milter Headers' => 'milter_headers.conf',
+        'Mime Types'     => 'mime_types.conf',
+        'MX Check'       => 'mx_check.conf',
+        RBL              => 'rbl.conf',
+        'Redis History'  => 'history_redis.conf',
+        SPF              => 'spf.conf',
+        Surbl            => 'surbl.conf'
+    );
+}
+
+=item _setupModules( )
 
  Setup Rspamd modules
 
@@ -363,21 +550,19 @@ EOF
 
 =cut
 
-sub _setupRspamdModules
+sub _setupModules
 {
     my ( $self ) = @_;
 
-    my @selectedModules = split /(?:[,; ]+)/, $self->{'config'}->{'RSPAMD_MODULES'};
-    for my $module ( $self->getManagedModules() ) {
-        my $file = iMSCP::File->new( filename => $self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'} . '/' . lc( $module ) . '.conf' );
+    my %conffilesMap = $self->_getModuleConffilesMap();
+    my @selectedModules = grep ( $_ ne 'none', split /[,;]/, $self->{'config'}->{'RSPAMD_MODULES'} );
+
+    for my $module ( $self->_getManagedModules() ) {
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}/$conffilesMap{$module}" );
         my $fileContent = $file->getAsRef();
         return 1 unless defined $fileContent;
 
-        if ( grep ( $_ eq $module, @selectedModules ) ) {
-            ${ $fileContent } =~ s/^enabled\s+=\s+false;/enabled = true;/;
-        } else {
-            ${ $fileContent } =~ s/^enabled\s+=\s+true;/enabled = false;/;
-        }
+        ${ $fileContent } =~ s/^(enabled\s*=)[^\n]+/$1 @{ [ grep ( $_ eq $module, @selectedModules ) ? 'true' : 'false' ] };/m;
 
         return 1 if $file->save();
     }
@@ -385,7 +570,44 @@ sub _setupRspamdModules
     0;
 }
 
-=item _configurePostfix
+=item _setupWebUI( )
+
+ Setup Rspamd Web interface
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _setupWebUI
+{
+    my ( $self ) = @_;
+
+    my $file = iMSCP::File->new( filename => "$self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}/worker-controller.inc" );
+    my $fileContent = $file->getAsRef();
+    return 1 unless defined $fileContent;
+
+    if ( $self->{'config'}->{'RSPAMD_WEBUI'} eq 'yes' ) {
+        my $rs = execute(
+            [ 'rspamadm', 'pw', '--quiet', '--encrypt', '--password', ::setupGetQuestion( 'RSPAMD_UI_PASSWORD' ) ], \my $stdout, \my $stderr
+        );
+        error( $stderr || 'Unknown error' ) if $rs;
+        return $rs if $rs;
+
+        chomp( $stdout );
+
+        ${ $fileContent } =~ s/^(enabled\s*=)[^\n]+/$1 true;/m;
+        ${ $fileContent } =~ s/^(password\s*=)[^\n]+/$1 "$stdout";/m;
+        ${ $fileContent } =~ s/^(count\s*=)[^\n]+/$1 $self->{'config'}->{'RSPAMD_WEBUI'};/m;
+        $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} = $stdout;
+    } else {
+        ${ $fileContent } =~ s/^(enabled\s*=)[^\n]+/$1 false;/m;
+        ${ $fileContent } =~ s/^password\s*=[^\n]+/$1 "";/m;
+    }
+
+    return 1 if $file->save();
+}
+
+=item _configurePostfix( )
 
  Configure Postfix for use of RSPAMD(8) through milter
 
@@ -434,7 +656,6 @@ sub _configurePostfix
         }
     ));
 }
-
 
 =back
 

@@ -5,7 +5,7 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.08.03
+# Last update: 2018.08.06
 
 use strict;
 use warnings;
@@ -322,7 +322,7 @@ use warnings;
     WEBSTATS_PACKAGES                   => 'Awstats',
 
     # FTP Web file manager packages
-    # Possible values: Pydio (only if the PHP version for the control panel is < 7.0), MonstaFTP
+    # Possible values: MonstaFTP, Pydio (only if the PHP version for the control panel is < 7.0)
     FILEMANAGER_PACKAGE                 => 'MonstaFTP',
 
     # SQL user for PhpMyAdmin
@@ -332,7 +332,7 @@ use warnings;
     PHPMYADMIN_SQL_PASSWORD             => '',
 
     # Webmmail packages
-    # Possible values: 'no' for no packages or a list of packages, each comma
+    # Possible values: 'none' for no packages, or a list of packages, each comma
     #                  separated
     # Available packages: RainLoop, Roundcube
     WEBMAIL_PACKAGES                    => 'RainLoop,Roundcube',
@@ -350,14 +350,14 @@ use warnings;
     RAINLOOP_SQL_PASSWORD               => '',
 
     # Anti-rootkits packages
-    # Possible values: 'no' for no packages or a list of packages, each
-    #                   separated by a comma
+    # Possible values: 'none' for no packages, or a list of packages, each
+    #                   separated by a comma.
     # Available packages are: Chkrootkit, Rkhunter
     ANTI_ROOTKITS_PACKAGES              => 'Chkrootkit,Rkhunter',
 
     # Antispam package
     # Possible values: 'none', 'rspamd'
-    ANTISPAM                            => 'none',
+    ANTISPAM                            => 'rspamd',
 
     # Antivirus package
     # Possible values: 'none', 'clamav'
@@ -367,33 +367,39 @@ use warnings;
     # antispam, `ClamAV` will be executed by the `Rspamd` antivirus module,
     # else it will be executed through
     # `ClamAV milter`.
-    ANTIVIRUS                           => 'none',
+    ANTIVIRUS                           => 'clamav',
 
     # Rspamd module to enable (only relevant if you choose Rspamd as antispam)
-    # Possible values: 'no' for no modules or a list of module, each
-    #                  separated by a comma, a space or a semicolon
+    # Possible values: 'none' for no modules, or a list of module, each
+    #                  separated by a comma or semicolon.
     #
-    # Available module are:
+    # Available modules are:
     #
     # - ASN
-    # - Classifier_Bayesian,
-    # - DKIM_Signing,
+    # - DKIM
+    # - DKIM Signing,
     # - DMARC,
     # - Emails,
-    # - Greylist
-    # - Milter_Headers
-    # - Mime_Types
-    # - MX_Check
+    # - Greylisting
+    # - Milter Headers
+    # - Mime Types
+    # - MX Check
     # - RBL
-    # - Redis_History
+    # - Redis History
     # - SPF
     # - Surbl
-    RSPAMD_MODULES                      => 'no',
-    
+    #
+    # The Rspamd antivirus module is managed internally and enabled only if you
+    # choose ClamAV as antivirus solution.
+    RSPAMD_MODULES                      => 'ASN,DKIM,DKIM Signing DMARC,Emails,Greylisting,Milter Headers,Mime Types,MX check,RBL,Redis History,SPF,Surbl',
+
     # Rspamd Web interface (only relevant if you choose Rspamd as antispam)
     # Whether or not to enable the Rspamd Web interface
     # Possible values: yes, no
-    RSPAMD_WEB_INTERFACE                 => 'no',
+    RSPAMD_WEBUI                        => 'yes',
+    # Only ASCII alphabet characters and numbers are allowed in password.
+    # Leave this parameter empty for automatic password generation.
+    RSPAMD_WEBUI_PASSWORD               => '',
 );
 
 1;

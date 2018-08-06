@@ -468,7 +468,7 @@ sub _init
     $self->{'_opts'}->{'no-ok'} ||= undef;
     $self->{'_opts'}->{'clear'} ||= undef;
     $self->{'_opts'}->{'column-separator'} = undef;
-    $self->{'_opts'}->{'cr-wrap'} = undef;
+    $self->{'_opts'}->{'cr-wrap'} = '';
     $self->{'_opts'}->{'no-collapse'} = undef;
     $self->{'_opts'}->{'trim'} = undef;
     $self->{'_opts'}->{'date-format'} = undef;
@@ -476,8 +476,8 @@ sub _init
     $self->{'_opts'}->{'insecure'} = undef;
     $self->{'_opts'}->{'item-help'} = undef;
     $self->{'_opts'}->{'max-input'} = undef;
-    $self->{'_opts'}->{'no-shadow'} = '';
-    $self->{'_opts'}->{'shadow'} = undef;
+    $self->{'_opts'}->{'no-shadow'} = undef;
+    $self->{'_opts'}->{'shadow'} = '';
     $self->{'_opts'}->{'single-quoted'} = undef;
     $self->{'_opts'}->{'tab-correct'} = undef;
     $self->{'_opts'}->{'tab-len'} = undef;
@@ -518,12 +518,12 @@ sub _resize
         $cols ||= 80;
     }
 
-    if ( $lines < 24 || $cols < 80 ) {
+    if ( $lines < 23 || $cols < 79 ) {
         fatal( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
     }
 
-    $self->{'lines'} = $lines-2;
-    $self->{'columns'} = $cols-2;
+    $self->{'lines'} = $lines-10;
+    $self->{'columns'} = $cols-4;
 
     $self->endGauge();
 }
@@ -634,7 +634,7 @@ sub _execute
     my $command = $self->_buildCommonCommandOptions();
 
     $text = escapeShell( $text );
-    $init = $init ? $init : '';
+    $init //= '';
 
     my $height = $self->{'autosize'} ? 0 : $self->{'lines'};
     my $width = $self->{'autosize'} ? 0 : $self->{'columns'};
@@ -672,7 +672,6 @@ sub _textbox
 {
     my ( $self, $text, $type, $init ) = @_;
 
-    $init //= 0;
     my $autosize = $self->{'autosize'};
     $self->{'autosize'} = undef;
     my ( $ret, $output ) = $self->_execute( $text, $init, $type );

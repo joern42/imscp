@@ -422,7 +422,7 @@ sub _processPackagesFile
     my $pkgData = $xml->XMLin(
         $pkgFile || "$FindBin::Bin/autoinstaller/Packages/$distroID-$distroCodename.xml",
         ForceArray     => [ 'package', 'package_delayed', 'package_conflict', 'pre_install_task', 'post_install_task' ],
-        NormaliseSpace => 2
+        NormalizeSpace => 2
     );
 
     my $dialog = iMSCP::Dialog->getInstance();
@@ -561,9 +561,7 @@ sub _processPackagesFile
 
 Please select the $altDesc that you want to use:
 
-@{ [ $altFullDesc // '' ] }
-
-\\Z \\Zn
+@{ [ ( $altFullDesc // '' )] }
 EOF
             exit $ret if $ret; # Handle ESC case
         }
