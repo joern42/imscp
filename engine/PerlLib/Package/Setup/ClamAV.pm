@@ -74,7 +74,7 @@ sub install
 {
     my ( $self ) = @_;
 
-    return 0 unless $::imscpConfig{'ANTIVIRUS'} eq 'clamav' && $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
+    return 0 unless $::imscpConfig{'ANTIVIRUS'} eq 'clamav' && $::imscpConfig{'ANTISPAM'} ne 'rspamd';
 
     my $rs = $self->{'eventManager'}->register( 'afterMtaBuildConf', \&_configurePostfix, -100 );
     $rs ||= $self->_configureClamavMilter();
@@ -95,7 +95,7 @@ sub postinstall
     return 0 unless $::imscpConfig{'ANTIVIRUS'} eq 'clamav';
 
     local $@;
-    eval { iMSCP::Service->getInstance()->enable( 'clamav' ); };
+    eval { iMSCP::Service->getInstance()->enable( 'clamav-daemon' ); };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -127,8 +127,8 @@ sub start
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
         $srvMngr->start( 'clamav-freshclam' );
-        $srvMngr->start( 'clamav-milter' ) if $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
-        $srvMngr->start( 'clamav' );
+        $srvMngr->start( 'clamav-milter' ) if $::imscpConfig{'ANTISPAM'} ne 'rspamd';
+        $srvMngr->start( 'clamav-daemon' );
     };
     if ( $@ ) {
         error( $@ );
@@ -154,8 +154,8 @@ sub stop
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
         $srvMngr->stop( 'clamav-freshclam' );
-        $srvMngr->stop( 'clamav-milter' ) if $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
-        $srvMngr->stop( 'clamav' );
+        $srvMngr->stop( 'clamav-milter' ) if $::imscpConfig{'ANTISPAM'} ne 'rspamd';
+        $srvMngr->stop( 'clamav-daemon' );
     };
     if ( $@ ) {
         error( $@ );
@@ -181,8 +181,8 @@ sub restart
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
         $srvMngr->restart( 'clamav-freshclam' );
-        $srvMngr->restart( 'clamav-milter' ) if $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
-        $srvMngr->restart( 'clamav' );
+        $srvMngr->restart( 'clamav-milter' ) if $::imscpConfig{'ANTISPAM'} ne 'rspamd';
+        $srvMngr->restart( 'clamav-daemon' );
     };
     if ( $@ ) {
         error( $@ );
