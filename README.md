@@ -5,7 +5,7 @@ easing shared hosting management on Linux servers. It comes with a large choice
 of modules for various services such as Apache2, ProFTPD, Dovecot, Courier,
 Bind9..., and can be easily extended through plugins and/or event listeners.
 
-i-MSCP has been developped for professional Hosting service Providers (HSPs),
+i-MSCP has been developped for professional Hosting Service Providers (HSPs),
 Internet Services Providers (ISPs) and IT professionals.
 
 ### Official Site & Documentation

@@ -6,6 +6,7 @@
 # You can add your own configuration in the
 # '$LOCAL_CONFDIR/local.d/worker-proxy.inc.local file
 
+enabled = yes;
 milter = yes;
 timeout = 120s;
 

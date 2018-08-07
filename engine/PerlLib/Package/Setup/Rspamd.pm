@@ -105,16 +105,7 @@ sub install
 
     return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
-    # In case the i-MSCP SA plugin has just been installed or enabled, we need to
-    # redo the job because that plugin puts its smtpd_milters and non_smtpd_milters
-    # parameters at first position what we want avoid as mails must first pass
-    # through the rspamd(8) spam filtering system.
-    my $rs = $self->{'eventManager'}->register( [ 'onAfterInstallPlugin', 'onAfterEnablePlugin' ], sub {
-        return configurePostfix() if $_[0] eq 'SpamAssassin';
-        0;
-    } );
-
-    $rs ||= $self->_setupModules();
+    my $rs ||= $self->_setupModules();
     $rs ||= $self->_setupWebUI();
 }
 
@@ -135,6 +126,7 @@ sub postinstall
     local $@;
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
+        # FIXME: Redis server is a dependency. Should we provide a dedicated for it?
         $srvMngr->enable( 'redis-server' );
         $srvMngr->enable( 'rspamd' );
     };
@@ -146,6 +138,16 @@ sub postinstall
     $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
         sub {
+            # We do not want manage it further as this service could be used
+            # by other service, outside of i-MSCP.
+            push @{ $_[0] }, [ sub {
+                eval { iMSCP::Service->getInstance()->start( 'redis-server' ); };
+                if ( $@ ) {
+                    error( $@ );
+                    return 1
+                }
+                0;
+            }, 'Redis server' ];
             push @{ $_[0] }, [ sub { $self->start(); }, 'Rspamd spam filtering system' ];
             0;
         },
@@ -189,7 +191,6 @@ sub start
     local $@;
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
-        $srvMngr->start( 'redis-server' );
         $srvMngr->start( 'rspamd' );
     };
     if ( $@ ) {
@@ -213,7 +214,6 @@ sub stop
     local $@;
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
-        $srvMngr->stop( 'redis-server' );
         $srvMngr->stop( 'rspamd' );
     };
     if ( $@ ) {
@@ -237,7 +237,6 @@ sub restart
     local $@;
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
-        $srvMngr->restart( 'redis-server' );
         $srvMngr->restart( 'rspamd' );
     };
     if ( $@ ) {
@@ -261,7 +260,6 @@ sub reload
     local $@;
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
-        $srvMngr->reload( 'redis-server' );
         $srvMngr->reload( 'rspamd' );
     };
     if ( $@ ) {

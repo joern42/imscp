@@ -24,7 +24,7 @@ return [
         'uri'   => '/admin/index.php',
         'class' => 'general',
         'pages' => [
-            'overview'      => [
+            'overview'          => [
                 'label'       => tr('Overview'),
                 'uri'         => '/admin/index.php',
                 'title_class' => 'general'
@@ -34,7 +34,7 @@ return [
                 'uri'         => '/admin/service_statuses.php',
                 'title_class' => 'serverstatus'
             ],
-            'admin_log'     => [
+            'admin_log'         => [
                 'label'       => tr('Admin log'),
                 'uri'         => '/admin/admin_log.php',
                 'title_class' => 'adminlog'
@@ -155,6 +155,16 @@ return [
                 'privilege_callback' => [
                     'name' => 'systemHasAntiRootkits'
                 ]
+            ],
+            'rspamd'               => [
+                'label'              => tr('Rspamd UI'),
+                'uri'                => '/rspamd/',
+                'privilege_callback' => [
+                    'name' => function () {
+                        return iMSCP_Registry::get('config')['ANTISPAM'] == 'rspamd';
+                    }
+                ],
+                'target'             => '_blank'
             ]
         ]
     ],

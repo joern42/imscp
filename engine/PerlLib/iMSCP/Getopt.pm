@@ -25,10 +25,12 @@ package iMSCP::Getopt;
 
 use strict;
 use warnings;
+use File::Basename qw/ basename /;
 use Cwd qw/ realpath /;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debugRegisterCallBack /;
 use Text::Wrap;
-use fields qw / cleanPackageCache debug fixPermissions listener noprompt preseed reconfigure skipPackageUpdate verbose /;
+use fields qw/ cleanPackageCache debug fixPermissions listener noprompt preseed reconfigure skipPackageUpdate verbose /;
 
 $Text::Wrap::columns = 80;
 $Text::Wrap::break = qr/[\s\n\|]/;
@@ -63,23 +65,23 @@ my $showUsage;
 
 sub parse
 {
-    my ($class, $usage, @options) = @_;
+    my ( $class, $usage, @options ) = @_;
 
     $showUsage = sub {
         my $exitCode = shift || 0;
         print STDERR wrap( '', '', <<"EOF" );
 
 $usage
- -a,    --skip-package-update   Skip i-MSCP packages update.
- -c,    --clean-package-cache   Cleanup i-MSCP package cache.
- -d,    --debug                 Force debug mode.
- -h,-?  --help                  Show this help.
- -l,    --listener <file>       Path to listener file.
- -n,    --noprompt              Switch to non-interactive mode.
- -p,    --preseed <file>        Path to preseed file.
- -r,    --reconfigure [item]    Type `help` for list of allowed items.
- -v,    --verbose               Enable verbose mode.
- -x,    --fix-permissions       Fix permissions recursively.
+ -a,    --skip-package-update    Skip i-MSCP packages update.
+ -c,    --clean-package-cache    Cleanup i-MSCP package cache.
+ -d,    --debug                  Force debug mode.
+ -h,-?  --help                   Show this help.
+ -l,    --listener <file>        Path to listener file.
+ -n,    --noprompt               Switch to non-interactive mode.
+ -p,    --preseed <file>         Path to preseed file.
+ -r,    --reconfigure [item,...] Type `help` for list of available items.
+ -v,    --verbose                Enable verbose mode.
+ -x,    --fix-permissions        Fix permissions recursively.
 
 $optionHelp
 EOF
@@ -106,7 +108,7 @@ EOF
         'listener|l=s', sub { $class->listener( $_[1] ) },
         'noprompt|n', sub { $options->{'noprompt'} = 1 },
         'preseed|p=s', sub { $class->preseed( $_[1] ) },
-        'reconfigure|r:s', sub { $class->reconfigure( $_[1] ) },
+        'reconfigure|r:s', sub { $class->reconfigure( $_[1], TRUE ) },
         'skip-package-update|a', sub { $options->{'skipPackageUpdate'} = 1 },
         'verbose|v', sub { $options->{'verbose'} = 1 },
         @options,
@@ -129,7 +131,7 @@ EOF
 
 sub parseNoDefault
 {
-    my ($class, $usage, @options) = @_;
+    my ( $class, $usage, @options ) = @_;
 
     $showUsage = sub {
         my $exitCode = shift || 0;
@@ -169,54 +171,104 @@ EOF
 
 sub showUsage
 {
-    my (undef, $exitCode) = @_;
+    my ( undef, $exitCode ) = @_;
 
     $exitCode //= 1;
     ref $showUsage eq 'CODE' or die( 'ShowUsage( ) is not defined.' );
     $showUsage->( $exitCode );
 }
 
-our @reconfigurationItems = sort(
-    'all', 'antispam', 'antivirus', 'panel_php', 'panel_httpd', 'servers', 'httpd', 'mta', 'po', 'ftpd', 'named', 'sqld', 'hostnames',
-    'system_hostname',  'panel_hostname', 'panel_ports', 'primary_ip', 'admin', 'admin_credentials', 'admin_email', 'php', 'timezone', 'panel',
-    'panel_ssl', 'system_server', 'services_ssl', 'ssl', 'backup', 'webstats', 'sqlmanager', 'webmails', 'filemanager', 'antirootkits',
-    'alt_urls_feature'
+my %reconfigurationItems = (
+    all               => 'All items',
+    admin             => 'Master administrator',
+    admin_credentials => 'Credential for the master administrator',
+    admin_email       => 'Master administrator email',
+    alt_urls_feature  => 'Alternative URL feature',
+    antirootkits      => 'Anti-rootkits',
+    antispam          => 'Spam filtering system',
+    antivirus         => 'Antivirus solution',
+    backup            => 'Backup feature',
+    filemanager       => 'File managers',
+    ftpd              => 'FTP server',
+    hostnames         => 'Server and control panel hostnames',
+    httpd             => 'Httpd server',
+    mta               => 'SMTP server',
+    named             => 'DNS server',
+    panel             => 'Control panel',
+    panel_hostname    => 'Hostname for the control panel',
+    panel_php         => 'PHP version for the control panel',
+    panel_ports       => 'Http(s) ports for the control panel',
+    panel_ssl         => 'SSL for the control panel',
+    php               => 'PHP version for customers',
+    po                => 'IMAP/POP servers',
+    primary_ip        => 'Server primary IP address',
+    resolver          => 'Local DNS resolver',
+    servers           => 'All servers',
+    services_ssl      => 'SSL for the IMAP/POP, SMTP and FTP servers',
+    sqld              => 'SQL server',
+    sqlmanager        => 'SQL manager',
+    ssl               => 'SSL for the servers and control panel',
+    system_hostname   => 'System hostname',
+    system_server     => 'System server',
+    timezone          => 'System timezone',
+    webmails          => 'Webmails packages',
+    webstats          => 'Webstats packages'
 );
 
-=item reconfigure( [ $item = 'none' ] )
+=item reconfigure( [ $items = 'none', [ $viaCmdLine = FALSE, [ $append = FALSE ] ] ] )
 
  Reconfiguration item
 
- Param string $item OPTIONAL Reconfiguration item
- Return string Name of item to reconfigure or none
+ Param string $items OPTIONAL List of comma separated items to reconfigure
+ Param boolean $viaCmdLineOpt Flag indicating whether or not $items were been passed through command line option rather than programmatically
+ Param boolean $append Flag indicating whether $items must be appended
+ Return array_ref List of item to reconfigure
 
 =cut
 
 sub reconfigure
 {
-    my (undef, $item) = @_;
+    my ( undef, $items, $viaCmdLineOpt, $append ) = @_;
 
-    return $options->{'reconfigure'} ||= 'none' unless defined $item;
+    return $options->{'reconfigure'} ||= [ 'none' ] unless defined $items;
 
-    if ( $item eq 'help' ) {
-        $optionHelp = <<'EOF';
-Reconfigure option usage:
+    my @items = split /,/, $items;
 
-Without any argument, this option allows to reconfigure all items. You can reconfigure a specific item by passing it name as argument.
+    if ( grep ( 'help' eq $_, @items ) ) {
+        $optionHelp = <<"EOF";
+Reconfiguration option usage:
 
-Available items are:
+Without any argument, this option make it possible to reconfigure all items. You can reconfigure many items at once by providing a list of comma separated items as follows:
+
+ perl @{[ basename( $0 ) ]} --reconfigure httpd,php,po
+
+Bear in mind that even when only one item is reconfigured, all i-MSCP configuration files are regenerated, even those that don't belong to the item being reconfigured.
+
+Each item belong to one i-MSCP package/server.
+
+The following items are available:
 
 EOF
-        $optionHelp .= ' ' . ( join '|', @reconfigurationItems );
+        $optionHelp .= " - $_" . ( ' ' x ( 17-length( $_ ) ) ) . " : $reconfigurationItems{$_}\n" for sort keys %reconfigurationItems;
         die();
-    } elsif ( $item eq '' ) {
-        $item = 'all';
+    } elsif ( !@items ) {
+        # The 'all' flag item MUST not be set programatically
+        die() unless $viaCmdLineOpt;
+        push @items, 'all';
+    } else {
+        for my $item ( @items ) {
+            grep ($_ eq $item, keys %reconfigurationItems, 'none', 'forced') or die(
+                sprintf( "Error: '%s' is not a valid item for the the --reconfigure option.", $item )
+            );
+        }
+
+        # Both the 'node' and 'forced' items MUST not be set through command
+        # line options as those are used internally only.
+        die() if $viaCmdLineOpt && grep (/^(?:forced|none)$/, @items);
     }
 
-    $item eq 'none' || grep($_ eq $item, @reconfigurationItems) or die(
-        sprintf( "Error: '%s' is not a valid argument for the --reconfigure option.", $item )
-    );
-    $options->{'reconfigure'} = $item;
+    push @items, @{ $options->{'reconfigure'} } if $options->{'reconfigure'} && $append;
+    $options->{'reconfigure'} = [ do { my %seen;grep { !$seen{$_}++ } @items } ];
 }
 
 =item preseed( [ $file = undef ] )
@@ -230,12 +282,12 @@ EOF
 
 sub preseed
 {
-    my (undef, $file) = @_;
+    my ( undef, $file ) = @_;
 
     return $options->{'preseed'} unless defined $file;
 
     -f $file or die( sprintf( 'Preseed file not found: %s', $file ));
-    $options->{'preseed'} = realpath($file);;
+    $options->{'preseed'} = realpath( $file );;
 }
 
 =item listener( [ $file = undef ] )
@@ -249,7 +301,7 @@ sub preseed
 
 sub listener
 {
-    my (undef, $file) = @_;
+    my ( undef, $file ) = @_;
 
     return $options->{'listener'} unless defined $file;
 
@@ -271,12 +323,12 @@ sub AUTOLOAD
     ( my $field = our $AUTOLOAD ) =~ s/.*://;
 
     no strict 'refs';
-    *{$AUTOLOAD} = sub {
+    *{ $AUTOLOAD } = sub {
         shift;
         return $options->{$field} unless @_;
         $options->{$field} = shift;
     };
-    goto &{$AUTOLOAD};
+    goto &{ $AUTOLOAD };
 }
 
 =head1 AUTHOR
