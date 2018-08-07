@@ -587,7 +587,7 @@ EOF
 
 =item _askForSpamLearningCronjob
 
- Ask for Rspamd Web interface password
+ Ask for Rspamd spam learning cron job
 
  Param iMSCP::Dialog \%dialog
  Return int 0 or 30
@@ -603,7 +603,7 @@ sub _askForSpamLearningCronjob
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] ) || isStringNotInList( $learningCronJob, 'yes', 'no' ) ) {
         $rs = $dialog->yesno( <<"EOF", $learningCronJob eq 'no' ? 1 : 0 );
-Do you want to enable the Rspamd SPAM learning cron job?
+Do you want to enable the Rspamd spam learning cron job?
 
 If enabled, Rspamd will learn spam by analyzing the customer .Junk mailboxes at regular interval time (every 12 hours by default).
 EOF
