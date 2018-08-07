@@ -74,11 +74,11 @@ sub registerSetupListeners
     } );
 }
 
-=item sqlUserDialog( \%dialog )
+=item sqlUserDialog( $dialog )
 
  Show dialog
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -139,11 +139,11 @@ EOF
     0;
 }
 
-=item passivePortRangeDialog( \%dialog )
+=item passivePortRangeDialog( $dialog )
 
  Ask for VsFTPd port range to use for passive data transfers
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut

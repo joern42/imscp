@@ -84,11 +84,11 @@ sub registerSetupListeners
     } );
 }
 
-=item askMasterAdminCredentials( \%dialog )
+=item askMasterAdminCredentials( $dialog )
 
  Ask for master administrator credentials
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -174,11 +174,11 @@ EOF
     0;
 }
 
-=item askMasterAdminEmail( \%dialog )
+=item askMasterAdminEmail( $dialog )
 
  Ask for master administrator email address
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -205,11 +205,11 @@ EOF
     0;
 }
 
-=item askDomain( \%dialog )
+=item askDomain( $dialog )
 
  Show for frontEnd domain name
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -244,11 +244,11 @@ EOF
     0;
 }
 
-=item askSsl( \%dialog )
+=item askSsl( $dialog )
 
  Ask for frontEnd SSL certificate
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -393,11 +393,11 @@ EOF
     0;
 }
 
-=item askHttpPorts( \%dialog )
+=item askHttpPorts( $dialog )
 
  Ask for frontEnd http ports
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -453,11 +453,11 @@ EOF
     0;
 }
 
-=item askAltUrlsFeature( \%dialog )
+=item askAltUrlsFeature( $dialog )
 
  Ask for alternative URL feature
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut

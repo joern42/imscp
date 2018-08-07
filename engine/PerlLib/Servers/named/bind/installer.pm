@@ -73,11 +73,11 @@ sub registerSetupListeners
     } );
 }
 
-=item askDnsServerMode( \%dialog )
+=item askDnsServerMode( $dialog )
 
  Ask user for DNS server type to configure
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -106,11 +106,11 @@ EOF
     $rs;
 }
 
-=item askDnsServerIps( \%dialog )
+=item askDnsServerIps( $dialog )
 
  Ask user for DNS server adresses IP
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -195,11 +195,11 @@ EOF
     $rs;
 }
 
-=item askIPv6Support( \%dialog )
+=item askIPv6Support( $dialog )
 
  Ask user for DNS server IPv6 support
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -229,11 +229,11 @@ EOF
     $rs;
 }
 
-=item askIPPolicy( \%dialog )
+=item askIPPolicy( $dialog )
 
  Ask user for IP addresses policy
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -260,11 +260,11 @@ EOF
     $rs;
 }
 
-=item askLocalDnsResolver( \%dialog )
+=item askLocalDnsResolver( $dialog )
 
  Ask user for local DNS resolver
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut

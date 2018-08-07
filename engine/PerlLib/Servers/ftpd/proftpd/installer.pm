@@ -72,11 +72,11 @@ sub registerSetupListeners
     } );
 }
 
-=item sqlUserDialog( \%dialog )
+=item sqlUserDialog( $dialog )
 
  Ask for ProFTPD SQL user
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -137,11 +137,11 @@ EOF
     0;
 }
 
-=item passivePortRangeDialog( \%dialog )
+=item passivePortRangeDialog( $dialog )
 
  Ask for ProtFTPD port range to use for passive data transfers
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut

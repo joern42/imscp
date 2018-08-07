@@ -72,11 +72,11 @@ sub registerSetupListeners
     } );
 }
 
-=item showPhpConfigLevelDialog( \%dialog )
+=item showPhpConfigLevelDialog( $dialog )
 
  Ask for PHP configuration level to use
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 to go on next question, 30 to go back to the previous question
 
 =cut
@@ -109,11 +109,11 @@ EOF
     0;
 }
 
-=item showListenModeDialog( )
+=item showListenModeDialog( $dialog )
 
  Ask for FPM listen mode
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 to go on next question, 30 to go back to the previous question
 
 =cut

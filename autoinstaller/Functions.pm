@@ -371,11 +371,11 @@ sub _installPreRequiredPackages
     _getDistroAdapter()->installPreRequiredPackages();
 }
 
-=item _showWelcomeMsg( \%dialog )
+=item _showWelcomeMsg( $dialog )
 
  Show welcome message
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other otherwise
 
 =cut
@@ -404,7 +404,7 @@ All rights reserved.\\ZB
 EOF
 }
 
-=item _showUpdateWarning( \%dialog )
+=item _showUpdateWarning( $dialog )
 
  Show update warning
 
@@ -453,11 +453,11 @@ EOF
     0;
 }
 
-=item _confirmDistro( \%dialog )
+=item _confirmDistro( $dialog )
 
  Distribution confirmation dialog
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return 0 on success, other on failure on when user is aborting
 
 =cut
@@ -522,11 +522,11 @@ EOF
     0;
 }
 
-=item _askInstallerMode( \%dialog )
+=item _askInstallerMode( $dialog )
 
  Asks for installer mode
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, 50 otherwise
 
 =cut

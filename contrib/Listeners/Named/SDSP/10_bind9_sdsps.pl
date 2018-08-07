@@ -71,7 +71,7 @@ sub createHtpasswdFile
     }
 
     require iMSCP::Crypt;
-    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/.htpasswd" );
+    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/.htpasswd" );
     $file->set( "$HTUSER:" . ( $IS_HTPASSWD_HASHED ? $HTPASSWD : iMSCP::Crypt::htpasswd( $HTPASSWD ) ));
 
     my $rs = $file->save();
@@ -89,14 +89,14 @@ iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub
     return 0 unless grep ($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
 
     my $locationSnippet = <<"EOF";
-    location ^~ /sdsps/ {
+    location ^~ /sdsp/ {
         root /var/www/imscp/gui/public;
         location ~ \\.php\$ {
             include imscp_fastcgi.conf;
             satisfy any;
             deny all;
             auth_basic "$REALM";
-            auth_basic_user_file $main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsps/.htpasswd;
+            auth_basic_user_file $main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/.htpasswd;
         }
     }
 EOF
@@ -107,13 +107,13 @@ EOF
         ${ $tplContent }
     );
     0;
-} ) if $HTUSER ne '';
+} ) if $HTUSER ne '' && $HTPASSWD ne '';
 
 iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
 {
     my $rs = eval {
         # Make sure to start with a clean directory
-        my $dir = iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning" );
+        my $dir = iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp" );
         $dir->remove();
         $dir->make( {
             user  => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
@@ -126,11 +126,14 @@ iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
         $rs = 1;
     }
 
-    $rs ||= createHtpasswdFile() if $HTUSER ne '';
+    $rs ||= createHtpasswdFile() if $HTUSER ne '' && $HTPASSWD ne '';
     return $rs if $rs;
 
-    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/provisioning/slave_provisioning.php" );
-    $file->set( <DATA> );
+    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/sdsps.php" );
+    $file->set( do {
+        local $/;
+        <DATA>;
+    } );
     $rs = $file->save();
     $rs ||= $file->owner(
         "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
@@ -139,11 +142,13 @@ iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
     $rs ||= $file->mode( 0640 );
 } );
 
-__END__
+1;
+__DATA__
 <?php
 use iMSCP_Registry as Registry;
 
 try {
+  chdir(__DIR__);
   require '../../library/imscp-lib.php';
 
   $config = Registry::get('config');
@@ -168,10 +173,13 @@ try {
    ];
   }
 
-  header('Content-Type: application/json');
-  echo json_encode($zones);
-} catch( Exception \$e ) {
+  $zones = json_encode($zones);
+} catch( Exception $e ) {
+  $zones = '{}
   http_response_code(500);
-  header('Content-Type: application/json');
-  echo '[]';
 }
+
+header('Content-Type: application/json');
+header('Content-Length: ' . mb_strlen($zones)');
+echo $zones;
+session_destroy();

@@ -75,11 +75,11 @@ sub registerSetupListeners
     }, );
 }
 
-=item masterSqlUserDialog( \%dialog )
+=item masterSqlUserDialog( $dialog )
 
  Ask for i-MSCP master SQL user
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -141,11 +141,11 @@ EOF
     0;
 }
 
-=item sqlUserHostDialog( \%dialog )
+=item sqlUserHostDialog( $dialog )
 
  Ask for i-MSCP database name
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -187,11 +187,11 @@ EOF
     0;
 }
 
-=item databaseNameDialog( \%dialog )
+=item databaseNameDialog( $dialog )
 
  Ask for i-MSCP database name
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -244,11 +244,11 @@ EOF
     0;
 }
 
-=item databasePrefixDialog( \%dialog )
+=item databasePrefixDialog( $dialog )
 
  Ask for database prefix
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut

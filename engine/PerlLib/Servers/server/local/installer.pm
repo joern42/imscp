@@ -73,11 +73,11 @@ sub registerSetupListeners
     );
 }
 
-=item hostnameDialog( \%dialog )
+=item hostnameDialog( $dialog )
 
  Ask for server hostname
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -110,11 +110,11 @@ EOF
     0;
 }
 
-=item primaryIpDialog( \%dialog )
+=item primaryIpDialog( $dialog )
 
  Ask for server primary IP
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
@@ -199,11 +199,11 @@ EOF
     0;
 }
 
-=item timezoneDialog( \%dialog )
+=item timezoneDialog( $dialog )
 
  Ask for server timezone
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut

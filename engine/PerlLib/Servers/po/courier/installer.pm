@@ -80,11 +80,11 @@ sub registerSetupListeners
     $rs ||= $eventManager->register( 'beforeMtaBuildMasterCfFile', sub { $self->configurePostfix( @_ ); } );
 }
 
-=item authdaemonSqlUserDialog(\%dialog)
+=item authdaemonSqlUserDialog( $dialog )
 
  Authdaemon SQL user dialog
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut

@@ -55,11 +55,11 @@ sub registerSetupListeners
     } );
 }
 
-=item imscpBackupDialog( \%dialog )
+=item imscpBackupDialog( $dialog )
 
  Ask for i-MSCP backup
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -86,11 +86,11 @@ EOF
     0;
 }
 
-=item customerBackupDialog( \%dialog )
+=item customerBackupDialog( $dialog )
 
  Ask for customer backup
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut

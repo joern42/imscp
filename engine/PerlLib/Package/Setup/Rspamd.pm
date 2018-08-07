@@ -475,7 +475,7 @@ sub _getManagedModules
 
  Ask for Rspamd modules to enable
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -514,11 +514,11 @@ EOF
 }
 
 
-=item _askForWebUI( \%dialog )
+=item _askForWebUI( $dialog )
 
  Ask for Rspamd Web UI
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -549,11 +549,11 @@ EOF
     0;
 }
 
-=item _askForWebUIPassword( \%dialog )
+=item _askForWebUIPassword( $dialog )
 
  Ask for Rspamd Web interface password
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut
@@ -585,11 +585,11 @@ EOF
     0;
 }
 
-=item _askForSpamLearningCronjob
+=item _askForSpamLearningCronjob( $dialog )
 
  Ask for Rspamd spam learning cron job
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut

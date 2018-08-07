@@ -1195,12 +1195,12 @@ sub _getSqldInfo
     @info = ( 'none', 'none' );
 }
 
-=item _processSqldSection( \@sAlts, \%dialog )
+=item _processSqldSection( \@sAlts, $dialog )
 
  Process sqld section from the distribution packages file
 
  Param arrayref \@sAlts List of supported alternatives
- Param iMSCP::Dialog \%dialog Dialog instance
+ Param iMSCP::Dialog $dialog Dialog instance
  Return void, die on failure
 
 =cut

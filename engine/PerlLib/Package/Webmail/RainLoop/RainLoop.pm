@@ -47,11 +47,11 @@ my $dbInitialized = undef;
 
 =over 4
 
-=item showDialog( \%dialog )
+=item showDialog( $dialog )
 
  Show dialog
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut

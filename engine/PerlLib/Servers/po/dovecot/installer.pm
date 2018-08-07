@@ -73,11 +73,11 @@ sub registerSetupListeners
     $rs ||= $eventManager->register( 'beforeMtaBuildMasterCfFile', sub { $self->configurePostfix( @_ ); } );
 }
 
-=item showDialog( \%dialog )
+=item showDialog( $dialog )
 
  Ask user for Dovecot restricted SQL user
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut

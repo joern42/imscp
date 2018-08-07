@@ -57,7 +57,7 @@ sub preinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_clamav'};
+    return 0 unless $::imscpConfig{'ANTIVIRUS'} eq 'clamav';
 
     $self->stop();
 }
@@ -74,7 +74,7 @@ sub install
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_clamav'} && $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
+    return 0 unless $::imscpConfig{'ANTIVIRUS'} eq 'clamav' && $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
 
     my $rs = $self->{'eventManager'}->register( 'afterMtaBuildConf', \&_configurePostfix, -100 );
     $rs ||= $self->_configureClamavMilter();
@@ -92,7 +92,7 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_clamav'};
+    return 0 unless $::imscpConfig{'ANTIVIRUS'} eq 'clamav';
 
     local $@;
     eval { iMSCP::Service->getInstance()->enable( 'clamav' ); };
@@ -127,7 +127,7 @@ sub start
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
         $srvMngr->start( 'clamav-freshclam' );
-        $srvMngr->start( 'clamav-milter' ) if $self->{'has_clamav_milter'};
+        $srvMngr->start( 'clamav-milter' ) if $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
         $srvMngr->start( 'clamav' );
     };
     if ( $@ ) {
@@ -154,7 +154,7 @@ sub stop
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
         $srvMngr->stop( 'clamav-freshclam' );
-        $srvMngr->stop( 'clamav-milter' ) if $self->{'has_clamav_milter'};
+        $srvMngr->stop( 'clamav-milter' ) if $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
         $srvMngr->stop( 'clamav' );
     };
     if ( $@ ) {
@@ -181,7 +181,7 @@ sub restart
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
         $srvMngr->restart( 'clamav-freshclam' );
-        $srvMngr->restart( 'clamav-milter' ) if $self->{'has_clamav_milter'};
+        $srvMngr->restart( 'clamav-milter' ) if $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
         $srvMngr->restart( 'clamav' );
     };
     if ( $@ ) {
@@ -208,7 +208,7 @@ sub reload
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
         $srvMngr->reload( 'clamav-freshclam' );
-        $srvMngr->reload( 'clamav-milter' ) if $self->{'has_clamav_milter'};
+        $srvMngr->reload( 'clamav-milter' ) if $::imscpConfig{'ANTIVIRUS'} ne 'rspamd';
         $srvMngr->reload( 'clamav' );
     };
     if ( $@ ) {
@@ -250,9 +250,9 @@ sub _init
 {
     my ( $self ) = @_;
 
+    return 0 unless $::imscpConfig{'ANTIVIRUS'} eq 'clamav';
+
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'has_clamav'} = iMSCP::Service->getInstance()->hasService( 'clamav' );
-    $self->{'has_clamav_milter'} = iMSCP::Service->getInstance()->hasService( 'clamav-milter' );
 
     $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/clamav";
     $self->_mergeConfig() if -f "$self->{'cfgDir'}/clamav.data.dist";
@@ -307,16 +307,6 @@ sub _mergeConfig
 sub _initClamavDatabases
 {
     my ( $self ) = @_;
-
-    local $@;
-    eval {
-        $self->stop();
-        iMSCP::Service->getInstance()->stop( 'clamav-freshclam' );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
 
     my $rs = execute( 'freshclam', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;

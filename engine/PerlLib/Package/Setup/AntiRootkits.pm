@@ -64,11 +64,11 @@ sub registerSetupListeners
     } );
 }
 
-=item askAntiRootkits(\%dialog)
+=item askAntiRootkits( $dialog )
 
  Show dialog
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 or 30
 
 =cut

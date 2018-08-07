@@ -72,11 +72,11 @@ sub registerSetupListeners
     } );
 }
 
-=item showDialog( \%dialog )
+=item showDialog( $dialog )
 
  Show dialog
 
- Param iMSCP::Dialog \%dialog
+ Param iMSCP::Dialog $dialog
  Return int 0 on success, other on failure
 
 =cut
