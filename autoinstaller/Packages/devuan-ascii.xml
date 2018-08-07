@@ -339,14 +339,18 @@
                 class="Package::Setup::Rspamd"
         >
             <package>rspamd</package>
-            <package>redis-server</package>
+            <package skip_uninstall="1">redis-server</package>
         </rspamd>
         <none default="1" description="No antispam"/>
     </antispam>
     <antivirus description="antivirus" varname="ANTIVIRUS" dialog_priority="1">
         <full_description>
             ClamAV is executed differently depending on whether or not you have chosen Rspamd for the antispam solution.
-            If you have chosen Rspamd, ClamAV will be run through the Rspamd antivirus module, otherwise it will be run through ClamAV milter.
+            \nIf you have chosen Rspamd, ClamAV will be run through the Rspamd antivirus module, otherwise it will be run through ClamAV milter.
+            \n\nIf you currently make use of the ClamAV plugin and want switch to the ClamAV core integration, you should first uninstall the ClamAV
+            plugin.
+            \nThe behavior will be undefined if you have both the ClamAV core integration and the ClamAV plugin enabled at the same time.
+            \n\nWe highly recommend to switch to the ClamAV core integration as the ClamAV plugin will be deprecated in a near future.
         </full_description>
         <clamav default="1" description="ClamAV antivirus" class="Package::Setup::ClamAV">
             <package>clamav</package>
