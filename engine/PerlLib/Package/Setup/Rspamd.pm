@@ -29,7 +29,7 @@ use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Crypt qw/ randomStr /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
-use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isValidPassword /;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList isValidPassword /;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -37,6 +37,7 @@ use iMSCP::Rights qw/ setRights /;
 use iMSCP::Service;
 use iMSCP::TemplateParser qw/ getBloc replaceBloc /;
 use Net::LibIDN qw/ idn_to_unicode /;
+use Servers::cron;
 use Servers::mta;
 use parent 'Common::SingletonClass';
 
@@ -66,7 +67,8 @@ sub registerSetupListeners
     return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->_askForModules( @_ ) }, sub { $self->_askForWebUI( @_ ) }, sub { $self->_askForWebUIPassword( @_ ) };
+        push @{ $_[0] }, sub { $self->_askForModules( @_ ) }, sub { $self->_askForWebUI( @_ ) }, sub { $self->_askForWebUIPassword( @_ ) },
+            sub { $self->_askForSpamLearningCronjob( @_ ), };
         0;
     } );
 
@@ -107,6 +109,8 @@ sub install
 
     my $rs ||= $self->_setupModules();
     $rs ||= $self->_setupWebUI();
+    $rs ||= _setupSpamLearning() if $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} eq 'yes';
+    $rs;
 }
 
 =item postinstall( )
@@ -526,9 +530,7 @@ sub _askForWebUI
     my $webInterface = ::setupGetQuestion( 'RSPAMD_WEBUI', $self->{'config'}->{'RSPAMD_WEBUI'} );
     my $rs = 0;
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] )
-        || $webInterface eq 'yes' && $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} eq ''
-    ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] ) || isStringNotInList( $webInterface, 'yes', 'no' ) ) {
         my $port = $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'} eq 'http://'
             ? $::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
         my $vhost = idn_to_unicode( $::imscpConfig{'BASE_SERVER_VHOST'}, 'utf-8' );
@@ -580,6 +582,35 @@ EOF
     }
 
     ::setupSetQuestion( 'RSPAMD_UI_PASSWORD', $password );
+    0;
+}
+
+=item _askForSpamLearningCronjob
+
+ Ask for Rspamd Web interface password
+
+ Param iMSCP::Dialog \%dialog
+ Return int 0 or 30
+
+=cut
+
+sub _askForSpamLearningCronjob
+{
+    my ( $self, $dialog ) = @_;
+
+    my $learningCronJob = ::setupGetQuestion( 'RSPAMD_SPAM_LEARNING_FROM_JUNK', $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} );
+    my $rs = 0;
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] ) || isStringNotInList( $learningCronJob, 'yes', 'no' ) ) {
+        $rs = $dialog->yesno( <<"EOF", $learningCronJob eq 'no' ? 1 : 0 );
+Do you want to enable the Rspamd SPAM learning cron job?
+
+If enabled, Rspamd will learn spam by analyzing the customer .Junk mailboxes at regular interval time (every 12 hours by default).
+EOF
+        return $rs if $rs >= 30;
+    }
+
+    $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} = $rs ? 'no' : 'yes';
     0;
 }
 
@@ -680,6 +711,32 @@ sub _setupWebUI
     }
 
     return 1 if $file->save();
+}
+
+=item _setupSpamLearning
+
+ Setup Rspamd SPAM learning
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _setupSpamLearning
+{
+    my ( $self ) = @_;
+
+    my $mtaConfig = Servers::mta->factory()->{'config'};
+
+    Servers::cron->factory()->addTask( {
+        TASKID  => __PACKAGE__,
+        MINUTE  => '0',
+        HOUR    => $self->{'RSPAMD_SPAM_LEARNING_FROM_JUNK_INTERVAL'} || '*/12',
+        DAY     => '*',
+        MONTH   => '*',
+        DWEEK   => '*',
+        USER    => $main::imscpConfig{'ROOT_USER'},
+        COMMAND => "nice -n 10 ionice -c2 -n5 find $mtaConfig->{'MTA_VIRTUAL_MAIL_DIR'}/*/*/.Junk/cur -type f -exec /usr/bin/rspamc -h 127.0.0.1:11334 learn_spam -- {} \\+"
+    } );
 }
 
 =back

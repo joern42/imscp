@@ -30,3 +30,14 @@ RSPAMD_WEBUI_PROCESS_COUNT = 2
 
 # Rspamd local configuration directory path
 RSPAMD_LOCAL_CONFDIR = /etc/rspamd/local.d
+
+# Whether or not a cron job must be added
+# to enable SPAM learning from customers junk mailbox directories?
+# Possible values: yes, no
+# Please don't edit this parameter manually. Trigger a reconfiguration as
+# follow instead:
+#  perl /var/www/imscp/engine/setup/imscp-reconfigure -dar antispam
+RSPAMD_SPAM_LEARNING_FROM_JUNK =
+
+Interval time (in hours) for the SPAM learning cron job
+RSPAMD_SPAM_LEARNING_FROM_JUNK_INTERVAL = 12
