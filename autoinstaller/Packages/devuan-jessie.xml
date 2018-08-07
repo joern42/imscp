@@ -380,9 +380,14 @@
             <package>dovecot-mysql</package>
         </dovecot>
     </po>
-    <antispam description="spam filtering system" varname="ANTISPAM" dialog_priority="2">
+    <antispam description="antispam" varname="ANTISPAM" dialog_priority="2">
+        <full_description>
+            If you currently make use of the SpamAssassin plugin and want switch to Rspamd, you should really considere to uninstall it.
+            \nHaving both SpamAssassin and Rspamd running on the same system can lead to serious performance penalties.
+            \n\nWe highly recommend to switch to the Rspamd core integration as the SpamAssassin plugin will be abandoned in a near future.
+        </full_description>
         <rspamd
-                description="Rspamd spam filtering system"
+                description="Rspamd"
                 repository="http://rspamd.com/apt-stable/ jessie main"
                 repository_key_uri="https://rspamd.com/apt/gpg.key"
                 pinning_package="*"
@@ -399,12 +404,11 @@
         <full_description>
             ClamAV is executed differently depending on whether or not you have chosen Rspamd for the antispam solution.
             \nIf you have chosen Rspamd, ClamAV will be run through the Rspamd antivirus module, otherwise it will be run through ClamAV milter.
-            \n\nIf you currently make use of the ClamAV plugin and want switch to the ClamAV core integration, you should first uninstall the ClamAV
-            plugin.
+            \n\nIf you currently make use of the ClamAV plugin and want switch to the ClamAV core integration, you should first uninstall the ClamAV plugin.
             \nThe behavior will be undefined if you have both the ClamAV core integration and the ClamAV plugin enabled at the same time.
-            \n\nWe highly recommend to switch to the ClamAV core integration as the ClamAV plugin will be deprecated in a near future.
+            \n\nWe highly recommend to switch to the ClamAV core integration as the ClamAV plugin will be abandoned in a near future.
         </full_description>
-        <clamav default="1" description="ClamAV antivirus" class="Package::Setup::ClamAV">
+        <clamav default="1" description="ClamAV" class="Package::Setup::ClamAV">
             <package>clamav</package>
             <package>clamav-freshclam</package>
             <package>clamdscan</package>
