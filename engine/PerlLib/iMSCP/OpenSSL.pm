@@ -51,15 +51,15 @@ use parent 'Common::Object';
 
 sub validatePrivateKey
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     unless ( $self->{'private_key_container_path'} ) {
-        error( 'Path to SSL private key is not set' );
+        error( 'Path to SSL private key container is not set' );
         return 1;
     }
 
     unless ( -f $self->{'private_key_container_path'} ) {
-        error( sprintf( "%s SSL private key doesn't exists", $self->{'private_key_container_path'} ));
+        error( sprintf( "The '%s' container for the SSL private key doesn't exist", $self->{'private_key_container_path'} ));
         return 1;
     }
 
@@ -74,17 +74,12 @@ sub validatePrivateKey
 
     my $cmd = [
         'openssl', 'pkey', '-in', $self->{'private_key_container_path'}, '-noout',
-        ( ( $passphraseFile ) ? ( '-passin', 'file:' . $passphraseFile->filename ) : () )
+        $passphraseFile ? ( '-passin', 'file:' . $passphraseFile->filename ) : ()
     ];
 
-    my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
+    my $rs = execute( $cmd, \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    error(
-        sprintf(
-            "Couldn't import SSL private key from %s file: %s",
-            $self->{'private_key_container_path'},
-            $stderr || 'unknown error'
-        )
+    error( sprintf( "Couldn't import SSL private key from the '%s' container: %s", $self->{'private_key_container_path'}, $stderr || 'unknown error' )
     ) if $rs;
     $rs;
 }
@@ -101,15 +96,15 @@ sub validatePrivateKey
 
 sub validateCertificate
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     unless ( $self->{'certificate_container_path'} ) {
-        error( 'Path to SSL certificate is not set' );
+        error( 'Path to SSL certificate container is not set' );
         return 1;
     }
 
     unless ( -f $self->{'certificate_container_path'} ) {
-        error( sprintf( "%s SSL certificate doesn't exists", $self->{'certificate_container_path'} ));
+        error( sprintf( "The '%s' container for the SSL certificate doesn't exist", $self->{'certificate_container_path'} ));
         return 1;
     }
 
@@ -117,7 +112,7 @@ sub validateCertificate
 
     if ( $self->{'ca_bundle_container_path'} ) {
         unless ( -f $self->{'ca_bundle_container_path'} ) {
-            error( sprintf( "%s SSL CA Bundle doesn't exists", $self->{'ca_bundle_container_path'} ));
+            error( sprintf( "The '%s' container for the SSL CA bundle doesn't exist", $self->{'ca_bundle_container_path'} ));
             return 1;
         }
 
@@ -130,16 +125,14 @@ sub validateCertificate
     }
 
     my $cmd = [
-        'openssl', 'verify',
-        ( ( $self->{'ca_bundle_container_path'} ne '' ) ? ( '-CAfile', $self->{'ca_bundle_container_path'} ) : () ),
+        'openssl', 'verify', ( ( $self->{'ca_bundle_container_path'} ne '' ) ? ( '-CAfile', $self->{'ca_bundle_container_path'} ) : () ),
         '-purpose', 'sslserver', $self->{'certificate_container_path'}
     ];
 
-    my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
+    my $rs = execute( $cmd, \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( sprintf(
-        "SSL certificate is not valid: %s",
-        ( $stderr || $stdout || 'Unknown error' ) =~ s/$self->{'certificate_container_path'}:\s+//r
+        "SSL certificate is not valid: %s", ( $stderr || $stdout || 'Unknown error' ) =~ s/$self->{'certificate_container_path'}:\s+//r
     )) if $rs;
 
     $self->{'ca_bundle_container_path'} = '' unless $caBundle;
@@ -156,7 +149,7 @@ sub validateCertificate
 
 sub validateCertificateChain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->validatePrivateKey();
     $rs ||= $self->validateCertificate();
@@ -172,7 +165,7 @@ sub validateCertificateChain
 
 sub importPrivateKey
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $passphraseFile;
     if ( $self->{'private_key_passphrase'} ) {
@@ -186,10 +179,10 @@ sub importPrivateKey
     my $cmd = [
         'openssl', 'pkey', '-in', $self->{'private_key_container_path'},
         '-out', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem",
-        ( ( $passphraseFile ) ? ( '-passin', 'file:' . $passphraseFile->filename ) : () )
+        $passphraseFile ? ( '-passin', 'file:' . $passphraseFile->filename ) : ()
     ];
 
-    my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
+    my $rs = execute( $cmd, \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( sprintf( "Couldn't import SSL private key: %s", $stderr || 'unknown error' )) if $rs;
     $rs;
@@ -205,7 +198,7 @@ sub importPrivateKey
 
 sub importCertificate
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $file = iMSCP::File->new( filename => $self->{'certificate_container_path'} );
     my $certificateRef = $file->getAsRef();
@@ -214,8 +207,8 @@ sub importCertificate
         return 1;
     }
 
-    ${$certificateRef} =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
-    ${$certificateRef} .= "\n";
+    ${ $certificateRef } =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
+    ${ $certificateRef } .= "\n";
 
     my $rs = $file->save();
     return $rs if $rs;
@@ -225,9 +218,9 @@ sub importCertificate
         '>>', escapeShell( "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" )
     );
 
-    $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
+    $rs = execute( "@cmd", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    error( sprintf( "Couldn't import SSL certificate: %s", $stderr || 'unknown error' )) if $rs;
+    error( sprintf( "Couldn't import the SSL certificate: %s", $stderr || 'unknown error' )) if $rs;
     $rs;
 }
 
@@ -241,19 +234,19 @@ sub importCertificate
 
 sub importCaBundle
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return 0 unless $self->{'ca_bundle_container_path'};
 
     my $file = iMSCP::File->new( filename => $self->{'ca_bundle_container_path'} );
     my $caBundleRef = $file->getAsRef();
     unless ( defined $caBundleRef ) {
-        error( sprintf( "Couldn't read %s file", $self->{'ca_bundle_container_path'} ));
+        error( sprintf( "Couldn't read the '%s' container", $self->{'ca_bundle_container_path'} ));
         return 1;
     }
 
-    ${$caBundleRef} =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
-    ${$caBundleRef} .= "\n";
+    ${ $caBundleRef } =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
+    ${ $caBundleRef } .= "\n";
 
     my $rs = $file->save();
     return $rs if $rs;
@@ -263,9 +256,9 @@ sub importCaBundle
         '>>', escapeShell( "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem" )
     );
 
-    $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
+    $rs = execute( "@cmd", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    error( sprintf( "Couldn't import SSL CA Bundle: %s", $stderr || 'unknown error' )) if $rs;
+    error( sprintf( "Couldn't import the SSL CA Bundle: %s", $stderr || 'unknown error' )) if $rs;
     $rs;
 }
 
@@ -281,7 +274,7 @@ sub importCaBundle
 
 sub createSelfSignedCertificate
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     ref $data eq 'HASH' or die( 'Wrong $data parameter. Hash expected' );
     $data->{'common_name'} or die( 'Missing common_name parameter' );
@@ -303,9 +296,7 @@ sub createSelfSignedCertificate
         {
             COMMON_NAME   => $commonName,
             EMAIL_ADDRESS => $data->{'email'},
-            ALT_NAMES     => ( $data->{'wildcard'}
-                ? "DNS.1 = $commonName\n" : "DNS.1 = $commonName\nDNS.2 = www.$commonName\n"
-            )
+            ALT_NAMES     => ( $data->{'wildcard'} ? "DNS.1 = $commonName\n" : "DNS.1 = $commonName\nDNS.2 = www.$commonName\n" )
         },
         $openSSLConffileTplContent
     );
@@ -318,9 +309,9 @@ sub createSelfSignedCertificate
         '-out', "$self->{'certificate_chains_storage_dir'}/$self->{'certificate_chain_name'}.pem"
     ];
 
-    my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
+    my $rs = execute( $cmd, \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
-    error( sprintf( "Couldn't generate self-signed certificate: %s", $stderr || 'unknown error' )) if $rs;
+    error( sprintf( "Couldn't generate the self-signed SSL certificate: %s", $stderr || 'unknown error' )) if $rs;
     $rs
 }
 
@@ -334,7 +325,7 @@ sub createSelfSignedCertificate
 
 sub createCertificateChain
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->importPrivateKey();
     $rs ||= $self->importCertificate();
@@ -352,17 +343,15 @@ sub createCertificateChain
 
 sub getCertificateExpiryTime
 {
-    my ($self, $certificatePath) = @_;
+    my ( $self, $certificatePath ) = @_;
     $certificatePath ||= $self->{'certificate_container_path'};
 
     unless ( $certificatePath ) {
-        error( 'Invalide SSL certificate path provided' );
+        error( 'Invalide SSL certificate container path' );
         return undef;
     }
 
-    my $rs = execute(
-        [ 'openssl', 'x509', '-enddate', '-noout', '-in', $certificatePath ], \ my $stdout, \ my $stderr
-    );
+    my $rs = execute( [ 'openssl', 'x509', '-enddate', '-noout', '-in', $certificatePath ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
 
     unless ( $rs == 0 && $stdout =~ /^notAfter=(.*)/i ) {
@@ -389,26 +378,20 @@ sub getCertificateExpiryTime
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Full path to the certificate chains storage directory
-    $self->{'certificate_chains_storage_dir'} = '' unless $self->{'certificate_chains_storage_dir'};
-
+    $self->{'certificate_chains_storage_dir'} //= '';
     # Certificate chain name
-    $self->{'certificate_chain_name'} = '' unless $self->{'certificate_chain_name'};
-
+    $self->{'certificate_chain_name'} //= '';
     # Full path to the private key container
-    $self->{'private_key_container_path'} = '' unless $self->{'private_key_container_path'};
-
+    $self->{'private_key_container_path'} //= '';
     # Private key passphrase if any
-    $self->{'private_key_passphrase'} = '' unless $self->{'private_key_passphrase'};
-
+    $self->{'private_key_passphrase'} //= '';
     # Full path to the SSL certificate container
-    $self->{'certificate_container_path'} = '' unless $self->{'certificate_container_path'};
-
+    $self->{'certificate_container_path'} //= '';
     # Full path to the CA Bundle container (Container which contain one or many intermediate certificates)
-    $self->{'ca_bundle_container_path'} = '' unless $self->{'ca_bundle_container_path'};
-
+    $self->{'ca_bundle_container_path'} //= '';
     $self;
 }
 

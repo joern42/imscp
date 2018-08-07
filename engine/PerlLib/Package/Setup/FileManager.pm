@@ -26,9 +26,11 @@ package Package::Setup::FileManager;
 use strict;
 use warnings;
 use iMSCP::Debug;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute;
+use iMSCP::Getopt;
 use Package::Setup::FrontEnd;
 use version;
 use parent 'Common::SingletonClass';
@@ -79,11 +81,10 @@ sub showDialog
     my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
 
     my $rs = 0;
-    if ( $main::reconfigure =~ /^(?:filemanager|all|forced)$/
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'filemanager', 'all', 'forced' ] )
         || !grep ($_ eq $package, @{ $self->{'AVAILABLE_PACKAGES'} })
     ) {
-        ( $rs, $package ) = $dialog->radiolist(
-            <<'EOF', \%choices, ( grep ( $package eq $_, keys %choices ) )[0] || ( keys %choices )[0] );
+        ( $rs, $package ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $package eq $_, keys %choices ) )[0] || ( keys %choices )[0] );
 
 Please select the Web FTP file manager package you want to install:
 \Z \Zn
@@ -120,9 +121,9 @@ sub preinstall
 {
     my ( $self ) = @_;
 
-    my $oldPackage = exists $main::imscpOldConfig{'FILEMANAGER_ADDON'}
-        ? $main::imscpOldConfig{'FILEMANAGER_ADDON'} # backward compatibility with 1.1.x Serie (upgrade process)
-        : $main::imscpOldConfig{'FILEMANAGER_PACKAGE'};
+    my $oldPackage = exists $::imscpOldConfig{'FILEMANAGER_ADDON'}
+        ? $::imscpOldConfig{'FILEMANAGER_ADDON'} # backward compatibility with 1.1.x Serie (upgrade process)
+        : $::imscpOldConfig{'FILEMANAGER_PACKAGE'};
 
     # Ensure backward compatibility
     $oldPackage = 'Pydio' if $oldPackage eq 'AjaXplorer';
@@ -182,7 +183,7 @@ sub uninstall
 {
     my ( undef, $package ) = @_;
 
-    $package ||= $main::imscpConfig{'FILEMANAGER_PACKAGE'};
+    $package ||= $::imscpConfig{'FILEMANAGER_PACKAGE'};
     return 0 unless $package ne '';
 
     $package = "Package::Setup::FileManager::${package}::${package}";
@@ -225,7 +226,7 @@ sub setGuiPermissions
     my $rs = $self->{'eventManager'}->trigger( 'beforeFileManagerSetGuiPermissions' );
     return $rs if $rs;
 
-    my $package = $main::imscpConfig{'FILEMANAGER_PACKAGE'};
+    my $package = $::imscpConfig{'FILEMANAGER_PACKAGE'};
     return 0 unless grep { $_ eq $package } @{ $self->{'AVAILABLE_PACKAGES'} };
 
     $package = "Package::Setup::FileManager::${package}::${package}";
@@ -262,12 +263,11 @@ sub _init
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new(
-        dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Setup/FileManager"
+        dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Setup/FileManager"
     )->getDirs();
 
     # Quick fix for disabling Pydio package if PHP >= 7 is detected
-    if ( defined $main::execmode
-        && $main::execmode eq 'setup'
+    if ( defined $::execmode && $::execmode eq 'setup'
         && version->parse( Package::Setup::FrontEnd->getInstance()->{'config'}->{'PHP_VERSION'} ) >= version->parse( '7.0.0' )
     ) {
         @{ $self->{'AVAILABLE_PACKAGES'} } = grep { $_ ne 'Pydio' } @{ $self->{'AVAILABLE_PACKAGES'} };

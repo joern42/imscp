@@ -19,11 +19,13 @@
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Database;
 use iMSCP::DbTasksProcessor;
 use iMSCP::Debug;
 use iMSCP::Dialog;
+use iMSCP::Dialog::InputValidation qw/ isStringInList /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ executeNoWait /;
@@ -107,7 +109,7 @@ sub setupDialog
     return $rs if $rs;
 
     # Implements a simple state machine (backup capability)
-    # Any dialog subroutine *should* allow user to step back by returning 30 when 'back' button is pushed
+    # Any dialog subroutine *SHOULD* allow to step back by returning 30 when 'back' button is pushed
     # In case of yesno dialog box, there is no back button. Instead, user can back up using the ESC keystroke
     # In any other context, the ESC keystroke allows user to abort.
     my ( $state, $nbDialog, $dialog ) = ( 0, scalar @{ $dialogStack }, iMSCP::Dialog->getInstance() );
@@ -115,18 +117,20 @@ sub setupDialog
         $dialog->set( 'no-cancel', $state == 0 ? '' : undef );
 
         $rs = $dialogStack->[$state]->( $dialog );
-        exit( $rs ) if $rs > 30;
+        exit( $rs ) if $rs == 50;
         return $rs if $rs && $rs < 30;
 
         if ( $rs == 30 ) {
-            $::reconfigure = 'forced' if $::reconfigure eq 'none';
+            iMSCP::Getopt->reconfigure( 'forced', FALSE, TRUE );
             $state--;
             next;
         }
 
-        $::reconfigure = 'none' if $::reconfigure eq 'forced';
+        iMSCP::Getopt->reconfigure( grep ( $_ ne 'forced', @{ iMSCP::Getopt->reconfigure } ));
         $state++;
     }
+
+    $dialog->set( 'no-cancel', undef );
 
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupDialog' );
 }

@@ -26,10 +26,12 @@ package Package::Webmail;
 use strict;
 use warnings;
 use iMSCP::Debug;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
 use iMSCP::DistPackageManager;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::EventManager;
+use iMSCP::Getopt;
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
@@ -77,7 +79,7 @@ sub showDialog
     my $selectedPackages = [ split ',', ::setupGetQuestion( 'WEBMAIL_PACKAGES' ) ];
     my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
 
-    if ( $main::reconfigure =~ /^(?:webmails|all|forced)$/
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webmails', 'all', 'forced' ] )
         || !@{ $selectedPackages }
         || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages }
     ) {
@@ -149,7 +151,7 @@ sub preinstall
         push @distroPackages, $subref->( $package->getInstance());
     }
 
-    if ( defined $main::skippackages && !$main::skippackages && @distroPackages ) {
+    if ( defined $::skippackages && !$::skippackages && @distroPackages ) {
         my $rs = $self->_removePackages( @distroPackages );
         return $rs if $rs;
     }
@@ -175,7 +177,7 @@ sub preinstall
         push @distroPackages, $subref->( $package->getInstance());
     }
 
-    if ( defined $main::skippackages && !$main::skippackages && @distroPackages ) {
+    if ( defined $::skippackages && !$::skippackages && @distroPackages ) {
         my $rs = $self->_installPackages( @distroPackages );
         return $rs if $rs;
     }
@@ -281,7 +283,7 @@ sub setGuiPermissions
     return $rs if $rs;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', $main::imscpConfig{'WEBMAIL_PACKAGES'} } = ();
+    @{selectedPackages}{ split ',', $::imscpConfig{'WEBMAIL_PACKAGES'} } = ();
 
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
@@ -316,7 +318,7 @@ sub deleteMail
     my ( $self, $data ) = @_;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', $main::imscpConfig{'WEBMAIL_PACKAGES'} } = ();
+    @{selectedPackages}{ split ',', $::imscpConfig{'WEBMAIL_PACKAGES'} } = ();
 
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
@@ -355,7 +357,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webmail" )->getDirs();
+    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webmail" )->getDirs();
     $self;
 }
 

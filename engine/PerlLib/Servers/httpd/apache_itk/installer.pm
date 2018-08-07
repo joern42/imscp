@@ -29,6 +29,7 @@ use File::Basename;
 use iMSCP::Crypt qw/ randomStr /;
 use iMSCP::Database;
 use iMSCP::Debug;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute;
@@ -65,13 +66,10 @@ sub registerSetupListeners
 {
     my ( $self, $eventManager ) = @_;
 
-    $eventManager->register(
-        'beforeSetupDialog',
-        sub {
-            push @{ $_[0] }, sub { $self->showDialog( @_ ) };
-            0;
-        }
-    );
+    $eventManager->register( 'beforeSetupDialog', sub {
+        push @{ $_[0] }, sub { $self->showDialog( @_ ) };
+        0;
+    } );
 }
 
 =item showDialog( \%dialog )
@@ -89,7 +87,9 @@ sub showDialog
 
     my $confLevel = ::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
 
-    if ( $main::reconfigure =~ /^(?:httpd|php|servers|all|forced)$/ || $confLevel !~ /^per_(?:site|domain|user)$/ ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'php', 'servers', 'all', 'forced' ] )
+        || $confLevel !~ /^per_(?:site|domain|user)$/
+    ) {
         my %choices = (
             'per_site', 'Per site PHP configuration (recommended)',
             'per_domain', 'Per domain, including subdomains PHP configuration',
@@ -171,11 +171,11 @@ sub guessPhpVariables
 {
     my ( $self ) = @_;
 
-    ( $self->{'phpConfig'}->{'PHP_VERSION'} ) = `$main::imscpConfig{'PHP_SERVER'} -nv 2> /dev/null` =~ /^PHP\s+(\d+.\d+)/ or die(
+    ( $self->{'phpConfig'}->{'PHP_VERSION'} ) = `$::imscpConfig{'PHP_SERVER'} -nv 2> /dev/null` =~ /^PHP\s+(\d+.\d+)/ or die(
         "Couldn't guess PHP version"
     );
 
-    my ( $phpConfDir ) = `$main::imscpConfig{'PHP_SERVER'} -ni 2> /dev/null | grep '(php.ini) Path'` =~ /([^\s]+)$/ or die(
+    my ( $phpConfDir ) = `$::imscpConfig{'PHP_SERVER'} -ni 2> /dev/null | grep '(php.ini) Path'` =~ /([^\s]+)$/ or die(
         "Couldn't guess PHP configuration directory path"
     );
 
@@ -242,11 +242,11 @@ sub _makeDirs
     return $rs if $rs;
 
     for (
-        [ $self->{'config'}->{'HTTPD_LOG_DIR'}, $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ADM_GROUP'}, 0750 ],
+        [ $self->{'config'}->{'HTTPD_LOG_DIR'}, $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ADM_GROUP'}, 0750 ],
         [
             "$self->{'config'}->{'HTTPD_LOG_DIR'}/" . ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
-            $main::imscpConfig{'ROOT_USER'},
-            $main::imscpConfig{'ROOT_GROUP'},
+            $::imscpConfig{'ROOT_USER'},
+            $::imscpConfig{'ROOT_GROUP'},
             0750
         ]
     ) {
@@ -270,8 +270,8 @@ sub _makeDirs
 
 sub _copyDomainDisablePages
 {
-    iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->rcopy(
-        "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages", { preserve => 'no' }
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->rcopy(
+        "$::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages", { preserve => 'no' }
     );
 }
 
@@ -407,14 +407,14 @@ sub _installLogrotate
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdInstallLogrotate', 'apache2' );
 
     $self->{'httpd'}->setData( {
-        ROOT_USER     => $main::imscpConfig{'ROOT_USER'},
-        ADM_GROUP     => $main::imscpConfig{'ADM_GROUP'},
+        ROOT_USER     => $::imscpConfig{'ROOT_USER'},
+        ADM_GROUP     => $::imscpConfig{'ADM_GROUP'},
         HTTPD_LOG_DIR => $self->{'config'}->{'HTTPD_LOG_DIR'},
         PHP_VERSION   => $self->{'CONFIG'}->{'PHP_VERSION'}
     } );
 
     $rs ||= $self->{'httpd'}->buildConfFile( 'logrotate.conf', {}, {
-        destination => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/apache2"
+        destination => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/apache2"
     } );
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdInstallLogrotate', 'apache2' );
 }
@@ -438,7 +438,7 @@ sub _setupVlogger
     my $user = 'vlogger_user';
     my $userHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     $userHost = '127.0.0.1' if $userHost eq 'localhost';
-    my $oldUserHost = $main::imscpOldConfig{'DATABASE_USER_HOST'};
+    my $oldUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
     my $pass = randomStr( 16, iMSCP::Crypt::ALNUM );
 
     my $db = iMSCP::Database->factory();
@@ -538,7 +538,7 @@ sub _cleanup
     }
 
     # Remove customer's logs file if any (no longer needed since we are now use bind mount)
-    $rs = execute( "rm -f $main::imscpConfig{'USER_WEB_DIR'}/*/logs/*.log", \my $stdout, \my $stderr );
+    $rs = execute( "rm -f $::imscpConfig{'USER_WEB_DIR'}/*/logs/*.log", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
@@ -547,8 +547,8 @@ sub _cleanup
     ## Cleanup and disable unused PHP versions/SAPIs
     #
 
-    if ( -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" ) {
-        $rs = iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->delFile();
+    if ( -f "$::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" ) {
+        $rs = iMSCP::File->new( filename => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->delFile();
         return $rs if $rs;
     }
 

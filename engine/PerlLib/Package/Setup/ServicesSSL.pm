@@ -25,7 +25,9 @@ package Package::Setup::ServicesSSL;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ getMessageByType /;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug getMessageByType /;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::OpenSSL;
@@ -51,15 +53,12 @@ use parent 'Common::SingletonClass';
 
 sub registerSetupListeners
 {
-    my ($self, $eventManager) = @_;
+    my ( $self, $eventManager ) = @_;
 
-    $eventManager->register(
-        'beforeSetupDialog',
-        sub {
-            push @{$_[0]}, sub { $self->servicesSslDialog( @_ ) };
-            0;
-        }
-    );
+    $eventManager->register( 'beforeSetupDialog', sub {
+        push @{ $_[0] }, sub { $self->servicesSslDialog( @_ ) };
+        0;
+    } );
 }
 
 =item serviceSslDialog( \%dialog )
@@ -73,25 +72,25 @@ sub registerSetupListeners
 
 sub servicesSslDialog
 {
-    my (undef, $dialog) = @_;
+    my ( undef, $dialog ) = @_;
 
-    my $hostname = main::setupGetQuestion( 'SERVER_HOSTNAME' );
+    my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $hostnameUnicode = idn_to_unicode( $hostname, 'utf-8' );
-    my $sslEnabled = main::setupGetQuestion( 'SERVICES_SSL_ENABLED' );
-    my $selfSignedCertificate = main::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE', 'no' );
-    my $privateKeyPath = main::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH', '/root' );
-    my $passphrase = main::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' );
-    my $certificatePath = main::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH', '/root' );
-    my $caBundlePath = main::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH', '/root' );
+    my $sslEnabled = ::setupGetQuestion( 'SERVICES_SSL_ENABLED' );
+    my $selfSignedCertificate = ::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE', 'no' );
+    my $privateKeyPath = ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH', '/root' );
+    my $passphrase = ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' );
+    my $certificatePath = ::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH', '/root' );
+    my $caBundlePath = ::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH', '/root' );
     my $openSSL = iMSCP::OpenSSL->new();
 
-    if ( $main::reconfigure =~ /^(?:services_ssl|ssl|all|forced)$/
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'services_ssl', 'ssl', 'all', 'forced' ] )
         || $sslEnabled !~ /^(?:yes|no)$/
-        || ( $sslEnabled eq 'yes' && $main::reconfigure =~ /^(?:system_hostname|hostnames)$/ )
+        || ( $sslEnabled eq 'yes' && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'system_hostname', 'hostnames' ] ) )
     ) {
         my $rs = $dialog->yesno( <<'EOF', $sslEnabled eq 'no' ? 1 : 0 );
 
-Do you want to enable SSL for FTP and MAIL services?
+Do you want to enable SSL for the FTP, IMAP/POP and SMTP services?
 EOF
         if ( $rs == 0 ) {
             $sslEnabled = 'yes';
@@ -105,7 +104,7 @@ EOF
                 do {
                     $dialog->msgbox( <<"EOF" );
 $msg
-Please select your private key in next dialog.
+Please select the private key associated to your SSL certificate in next dialog.
 EOF
                     do {
                         ( $rs, $privateKeyPath ) = $dialog->fselect( $privateKeyPath );
@@ -123,13 +122,7 @@ EOF
 
                     $msg = '';
                     if ( $openSSL->validatePrivateKey() ) {
-                        getMessageByType(
-                            'error',
-                            {
-                                amount => 1,
-                                remove => 1
-                            }
-                        );
+                        debug( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
                         $msg = "\n\\Z1Invalid private key or passphrase.\\Zn\n\nPlease try again.";
                     }
                 } while $rs < 30 && $msg;
@@ -137,7 +130,7 @@ EOF
 
                 $rs = $dialog->yesno( <<'EOF' );
 
-Do you have a SSL CA Bundle?
+Do you have a CA bundle (file containing root and intermediate certificates)?
 EOF
                 if ( $rs == 0 ) {
                     do {
@@ -165,13 +158,7 @@ EOF
                     } while $rs < 30 && !( $certificatePath && -f $certificatePath );
                     return $rs if $rs >= 30;
 
-                    getMessageByType(
-                        'error',
-                        {
-                            amount => 1,
-                            remove => 1
-                        }
-                    );
+                    debug( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
                     $openSSL->{'certificate_container_path'} = $certificatePath;
                 } while $rs < 30 && $openSSL->validateCertificate();
                 return $rs if $rs >= 30;
@@ -182,36 +169,30 @@ EOF
             $sslEnabled = 'no';
         }
     } elsif ( $sslEnabled eq 'yes' && !iMSCP::Getopt->preseed ) {
-        $openSSL->{'private_key_container_path'} = "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem";
-        $openSSL->{'ca_bundle_container_path'} = "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem";
-        $openSSL->{'certificate_container_path'} = "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem";
+        $openSSL->{'private_key_container_path'} = "$::imscpConfig{'CONF_DIR'}/imscp_services.pem";
+        $openSSL->{'ca_bundle_container_path'} = "$::imscpConfig{'CONF_DIR'}/imscp_services.pem";
+        $openSSL->{'certificate_container_path'} = "$::imscpConfig{'CONF_DIR'}/imscp_services.pem";
 
         if ( $openSSL->validateCertificateChain() ) {
-            getMessageByType(
-                'error',
-                {
-                    amount => 1,
-                    remove => 1
-                }
-            );
+            debug( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
             $dialog->getInstance()->msgbox( <<'EOF' );
 
-Your SSL certificate for the FTP and MAIL services is missing or invalid.
+Your SSL certificate for the FTP, IMAP/POP and SMTP services is missing or invalid.
 EOF
-            main::setupSetQuestion( 'SERVICES_SSL_ENABLED', '' );
-            goto &{servicesSslDialog};
+            iMSCP::Getopt->reconfigure( 'forced', FALSE, TRUE );
+            goto &{ servicesSslDialog };
         }
 
         # In case the certificate is valid, we skip SSL setup process
-        main::setupSetQuestion( 'SERVICES_SSL_SETUP', 'no' );
+        ::setupSetQuestion( 'SERVICES_SSL_SETUP', 'no' );
     }
 
-    main::setupSetQuestion( 'SERVICES_SSL_ENABLED', $sslEnabled );
-    main::setupSetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE', $selfSignedCertificate );
-    main::setupSetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH', $privateKeyPath );
-    main::setupSetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE', $passphrase );
-    main::setupSetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH', $certificatePath );
-    main::setupSetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH', $caBundlePath );
+    ::setupSetQuestion( 'SERVICES_SSL_ENABLED', $sslEnabled );
+    ::setupSetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE', $selfSignedCertificate );
+    ::setupSetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH', $privateKeyPath );
+    ::setupSetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE', $passphrase );
+    ::setupSetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH', $certificatePath );
+    ::setupSetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH', $caBundlePath );
     0;
 }
 
@@ -225,36 +206,34 @@ EOF
 
 sub preinstall
 {
-    my $sslEnabled = main::setupGetQuestion( 'SERVICES_SSL_ENABLED' );
+    my $sslEnabled = ::setupGetQuestion( 'SERVICES_SSL_ENABLED' );
 
-    if ( $sslEnabled eq 'no' || main::setupGetQuestion( 'SERVICES_SSL_SETUP', 'yes' ) eq 'no' ) {
-        if ( $sslEnabled eq 'no' && -f "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem" ) {
-            my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem" )->delFile();
+    if ( $sslEnabled eq 'no' || ::setupGetQuestion( 'SERVICES_SSL_SETUP', 'yes' ) eq 'no' ) {
+        if ( $sslEnabled eq 'no' && -f "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ) {
+            my $rs = iMSCP::File->new( filename => "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" )->delFile();
             return $rs if $rs;
         }
 
         return 0;
     }
 
-    if ( main::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE' ) eq 'yes' ) {
+    if ( ::setupGetQuestion( 'SERVICES_SSL_SELFSIGNED_CERTIFICATE' ) eq 'yes' ) {
         return iMSCP::OpenSSL->new(
-            certificate_chains_storage_dir => $main::imscpConfig{'CONF_DIR'},
+            certificate_chains_storage_dir => $::imscpConfig{'CONF_DIR'},
             certificate_chain_name         => 'imscp_services'
-        )->createSelfSignedCertificate(
-            {
-                common_name => main::setupGetQuestion( 'SERVER_HOSTNAME' ),
-                email       => main::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' )
-            }
-        );
+        )->createSelfSignedCertificate( {
+            common_name => ::setupGetQuestion( 'SERVER_HOSTNAME' ),
+            email       => ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' )
+        } );
     }
 
     iMSCP::OpenSSL->new(
-        certificate_chains_storage_dir => $main::imscpConfig{'CONF_DIR'},
+        certificate_chains_storage_dir => $::imscpConfig{'CONF_DIR'},
         certificate_chain_name         => 'imscp_services',
-        private_key_container_path     => main::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH' ),
-        private_key_passphrase         => main::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' ),
-        certificate_container_path     => main::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH' ),
-        ca_bundle_container_path       => main::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH' )
+        private_key_container_path     => ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PATH' ),
+        private_key_passphrase         => ::setupGetQuestion( 'SERVICES_SSL_PRIVATE_KEY_PASSPHRASE' ),
+        certificate_container_path     => ::setupGetQuestion( 'SERVICES_SSL_CERTIFICATE_PATH' ),
+        ca_bundle_container_path       => ::setupGetQuestion( 'SERVICES_SSL_CA_BUNDLE_PATH' )
     )->createCertificateChain();
 }
 

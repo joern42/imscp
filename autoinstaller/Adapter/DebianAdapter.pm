@@ -21,7 +21,7 @@ package autoinstaller::Adapter::DebianAdapter;
 
 use strict;
 use warnings;
-use autoinstaller::Functions qw/ expandVars /;
+use autoinstaller::Functions qw/ evalConditionFromXmlFile /;
 use autouse 'iMSCP::Stepper' => qw/ startDetail endDetail step /;
 use Fcntl qw/ :flock /;
 use File::Temp;
@@ -30,6 +30,7 @@ use iMSCP::Boolean;
 use iMSCP::Cwd;
 use iMSCP::Debug qw/ debug error output getMessageByType /;
 use iMSCP::Dialog;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::DistPackageManager;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute executeNoWait /;
@@ -350,7 +351,7 @@ sub _parsePackageNode
         return;
     }
 
-    if ( defined $node->{'condition'} && !_evalConditionFromPackagesFile( $node->{'condition'} ) ) {
+    if ( defined $node->{'condition'} && !evalConditionFromXmlFile( $node->{'condition'} ) ) {
         push @{$self->{'packagesToUninstall'}}, $node->{'content'} unless $node->{'skip_uninstall'};
         return;
     }
@@ -520,7 +521,7 @@ sub _processPackagesFile
         # - Discard alternative for which evaluation of the 'condition'
         #   attribute expression (if any) is FALSE
         my @sAlts = $isAltSectionHidden ? keys %{ $data } : grep {
-            !$data->{$_}->{'hidden'} && !defined $data->{$_}->{'condition'} || _evalConditionFromPackagesFile( $data->{$_}->{'condition'} )
+            !$data->{$_}->{'hidden'} && !defined $data->{$_}->{'condition'} || evalConditionFromXmlFile( $data->{$_}->{'condition'} )
         } keys %{ $data };
 
         # The sqld section needs a specific treatment
@@ -549,7 +550,7 @@ sub _processPackagesFile
 
         # Set the dialog flag in any case if there are many alternatives
         # available and if user asked for alternative reconfiguration
-        $showDialog ||= @sAlts > 1 && grep ( iMSCP::Getopt->reconfigure eq $_, $section, 'servers', 'all' );
+        $showDialog ||= @sAlts > 1 && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] );
 
         # Process alternative dialogs
         if ( $showDialog ) {
@@ -1234,23 +1235,6 @@ If you continue, you'll be asked for another SQL server vendor but bear in mind 
                 
 Are you sure you want to continue?
 EOF
-}
-
-=item _evalCondition
-
- Evaluate a condition from an installer distribution packages file
- 
- Return boolean Condition evaluation result on success, die on failure
-
-=cut
-
-sub _evalConditionFromPackagesFile
-{
-    my ( $condition ) = @_;
-
-    my $ret = eval expandVars( $condition );
-    !$@ or die;
-    !!$ret;
 }
 
 =back

@@ -5,7 +5,7 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright 2010-2017 by internet Multi Server Control Panel
+# Copyright 2010-2018 by internet Multi Server Control Panel
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -34,6 +34,7 @@ use iMSCP::Config;
 use iMSCP::Cwd;
 use iMSCP::Debug;
 use iMSCP::Dialog;
+use iMSCP::Dialog::InputValidation qw/ isStringInList /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute;
@@ -45,7 +46,7 @@ use iMSCP::Rights;
 use version;
 use parent 'Exporter';
 
-our @EXPORT_OK = qw/ loadConfig build install expandVars /;
+our @EXPORT_OK = qw/ loadConfig build install expandVars evalConditionFromXmlFile /;
 
 my $autoinstallerAdapterInstance;
 my $eventManager;
@@ -80,8 +81,7 @@ sub loadConfig
     if ( -f "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) { # Recovering following an installation or upgrade failure
         tie %::imscpOldConfig, 'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf", readonly => 1, temporary => 1;
     } elsif ( -f "$::imscpConfig{'CONF_DIR'}/imscp.conf" ) { # Upgrade case
-        tie %main::imscpOldConfig,
-            'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => 1, temporary => 1;
+        tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => 1, temporary => 1;
     } else { # Frech installation case
         %main::imscpOldConfig = %main::imscpConfig;
     }
@@ -138,25 +138,17 @@ sub build
 
     my $dialog = iMSCP::Dialog->getInstance();
 
-    unless ( iMSCP::Getopt->noprompt || $::reconfigure ne 'none' ) {
+    if ( !iMSCP::Getopt->noprompt && isStringInList( 'none', @{ iMSCP::Getopt->reconfigure } ) ) {
         $rs = _showWelcomeMsg( $dialog );
-        return $rs if $rs;
-
-        if ( %::imscpOldConfig ) {
-            $rs = _showUpdateWarning( $dialog );
-            return $rs if $rs;
-        }
-
-        $rs = _confirmDistro( $dialog );
+        $rs ||= _showUpdateWarning( $dialog ) if %::imscpOldConfig;
+        $rs ||= _confirmDistro( $dialog );
+        $rs ||= _askInstallerMode( $dialog ) unless $::buildonly;
         return $rs if $rs;
     }
 
-    $rs = _askInstallerMode( $dialog ) unless iMSCP::Getopt->noprompt || $::buildonly
-        || $::reconfigure ne 'none';
-
     my @steps = (
         [ \&_buildDistributionFiles, 'Building distribution files' ],
-        ( ( $::skippackages || $::buildonly ) ? () : [ \&_installDistroPackages, 'Installing distribution packages' ] ),
+        ( $::skippackages ? () : [ \&_installDistroPackages, 'Installing distribution packages' ] ),
         [ \&_checkRequirements, 'Checking for requirements' ],
         [ \&_compileDaemon, 'Compiling daemon' ],
         [ \&_removeObsoleteFiles, 'Removing obsolete files' ],
@@ -183,14 +175,17 @@ sub build
 
     undef $autoinstallerAdapterInstance;
 
-    # Clean build directory (remove any .gitkeep file)
-    find(
-        sub {
-            return unless $_ eq '.gitkeep';
-            unlink or fatal( sprintf( "Couldn't remove %s file: %s", $File::Find::name, $! ));
-        },
-        $::{'INST_PREF'}
-    );
+    # Make $::DESTDIR free of any .gitkeep file
+    {
+        local $SIG{'__WARN__'} = sub { die @_ };
+        find(
+            {
+                wanted   => sub { unlink or die( sprintf( "Failed to remove the %s file: %s", $_, $! )) if /\.gitkeep$/; },
+                no_chdir => TRUE
+            },
+            $::{'INST_PREF'}
+        );
+    }
 
     $rs = $eventManager->trigger( 'afterPostBuild' );
     return $rs if $rs;
@@ -211,7 +206,7 @@ sub build
         @config{ keys %{ $config } } = values %{ $config };
         untie %config;
     }
-    undef % confmap;
+    undef %confmap;
 
     endDebug();
 }
@@ -340,6 +335,23 @@ sub expandVars
     $string;
 }
 
+=item evalConditionFromXmlFile
+
+ Evaluate a condition from an xml file
+ 
+ Return boolean Condition evaluation result on success, die on failure
+
+=cut
+
+sub evalConditionFromXmlFile
+{
+    my ( $condition ) = @_;
+
+    my $ret = eval expandVars( $condition );
+    !$@ or die;
+    !!$ret;
+}
+
 =back
 
 =head1 PRIVATE FUNCTIONS
@@ -377,18 +389,18 @@ sub _showWelcomeMsg
 \\Zb\\Z4i-MSCP - internet Multi Server Control Panel
 ============================================\\Zn\\ZB
 
-Welcome to the i-MSCP setup dialog.
+Welcome to the i-MSCP installer.
 
-i-MSCP (internet Multi Server Control Panel) is a software (OSS) easing shared hosting environments management on Linux servers. It comes with a large choice of modules for various services such as Apache2, ProFTPd, Dovecot, Courier, Bind9, and can be easily extended through plugins, or listener files using its events-based API.
+i-MSCP is an open source software (OSS) easing shared hosting management on Linux servers. It comes with a large choice of modules for various services such as Apache2, ProFTPD, Dovecot, Courier, Bind9..., and can be easily extended through plugins and/or event listeners.
 
-i-MSCP was designed for professional Hosting Service Providers (HSPs), Internet Service Providers (ISPs) and IT professionals.
+i-MSCP has been developped for professional Hosting service Providers (HSPs), Internet Services Providers (ISPs) and IT professionals.
 
 \\Zb\\Z4License\\Zn\\ZB
 
-Unless otherwise stated all code is licensed under GPL 2.0 and has the following copyright:
+Unless otherwise stated all code is licensed under LGPL 2.1 and has the following copyright:
 
-        \\ZbCopyright 2010-2017, Laurent Declercq (i-MSCP)
-        All rights reserved\\ZB
+\\ZbCopyright © 2010-2018, Laurent Declercq (i-MSCP™)
+All rights reserved.\\ZB
 EOF
 }
 
@@ -924,6 +936,14 @@ sub _processFolder
     my ( $data ) = @_;
 
     my $dir = iMSCP::Dir->new( dirname => $data->{'content'} );
+
+    if ( defined $data->{'if'} && !evalConditionFromXmlFile( $data->{'if'} ) ) {
+        ( my $syspath = $data->{'content'} ) =~ s/^$::{'INST_PREF'}//;
+        return unless $syspath ne '/' && -e $syspath;
+        $dir->remove();
+        return;
+    }
+
     # Needed to be sure to not keep any file from a previous build that has failed
     $dir->remove() if defined $::{'INST_PREF'} && $::{'INST_PREF'} eq $data->{'content'};
     $dir->make( {
@@ -946,7 +966,7 @@ sub _copyConfig
 {
     my ( $data ) = @_;
 
-    if ( defined $data->{'if'} && !eval expandVars( $data->{'if'} ) ) {
+    if ( defined $data->{'if'} && !evalConditionFromXmlFile( $data->{'if'} ) ) {
         return if defined $data->{'kept'} && eval expandVars( $data->{'kept'} );
 
         my $syspath;

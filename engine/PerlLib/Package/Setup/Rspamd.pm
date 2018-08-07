@@ -29,10 +29,11 @@ use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Crypt qw/ randomStr /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
-use iMSCP::Dialog::InputValidation qw/ isValidPassword /;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isValidPassword /;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
+use iMSCP::Rights qw/ setRights /;
 use iMSCP::Service;
 use iMSCP::TemplateParser qw/ getBloc replaceBloc /;
 use Net::LibIDN qw/ idn_to_unicode /;
@@ -62,7 +63,7 @@ sub registerSetupListeners
 {
     my ( $self, $eventManager ) = @_;
 
-    return 0 unless $main::imscpConfig{'ANTISPAM'} eq 'rspamd';
+    return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     $eventManager->register( 'beforeSetupDialog', sub {
         push @{ $_[0] }, sub { $self->_askForModules( @_ ) }, sub { $self->_askForWebUI( @_ ) }, sub { $self->_askForWebUIPassword( @_ ) };
@@ -83,9 +84,10 @@ sub preinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $main::imscpConfig{'ANTISPAM'} eq 'rspamd';
+    return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     my $rs = $self->stop();
+    $rs ||= $self->{'eventManager'}->register( 'afterMtaBuildConf', \&configurePostfix, -100 );
     $rs ||= $self->{'eventManager'}->register( 'afterFrontEndBuildConfFile', \&afterFrontEndBuildConfFile );
 }
 
@@ -101,15 +103,13 @@ sub install
 {
     my ( $self ) = @_;
 
-    return 0 unless $main::imscpConfig{'ANTISPAM'} eq 'rspamd';
-
-    my $rs = $self->{'eventManager'}->register( 'afterMtaBuildConf', \&_configurePostfix, -100 );
+    return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     # In case the i-MSCP SA plugin has just been installed or enabled, we need to
     # redo the job because that plugin puts its smtpd_milters and non_smtpd_milters
     # parameters at first position what we want avoid as mails must first pass
     # through the rspamd(8) spam filtering system.
-    $rs ||= $self->{'eventManager'}->register( [ 'onAfterInstallPlugin', 'onAfterEnablePlugin' ], sub {
+    my $rs = $self->{'eventManager'}->register( [ 'onAfterInstallPlugin', 'onAfterEnablePlugin' ], sub {
         return configurePostfix() if $_[0] eq 'SpamAssassin';
         0;
     } );
@@ -130,7 +130,7 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $main::imscpConfig{'ANTISPAM'} eq 'rspamd';
+    return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     local $@;
     eval {
@@ -151,6 +151,29 @@ sub postinstall
         },
         $self->getPriority()
     );
+}
+
+=item setEnginePermissons( )
+
+ Set engine permlissions
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub setEnginePermissions
+{
+    my ( $self ) = @_;
+
+    return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
+
+    setRights( $self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}, {
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'ROOT_GROUP'},
+        dirmode   => '0755',
+        filemode  => '0644',
+        recursive => TRUE
+    } );
 }
 
 =item start( )
@@ -267,6 +290,56 @@ sub getPriority
 =head1 EVENT LISTENERS
 
 =over 4
+
+=item configurePostfix( )
+
+ Configure Postfix for use of RSPAMD(8) through milter
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub configurePostfix
+{
+    Servers::mta->factory()->postconf( (
+        # Our i-MSCP SA, ClamAV ... plugins set this value to 'tempfail'
+        # but 'accept' is OK if we want ignore milter failures and accept
+        # the mails, even if those are potentially SPAMs.
+        milter_default_action => {
+            action => 'replace',
+            values => [ 'accept' ]
+        },
+        # We want filter incoming mails, that is, those that arrive via
+        # smtpd(8) server.
+        smtpd_milters         => {
+            action => 'add',
+            # Make sure that rspamd(8) filtering is processed first.
+            before => qr/.*/,
+            values => [ 'inet:localhost:11332' ]
+        },
+        # we want also filter customer outbound mails, that is,
+        # those that arrive via sendmail(1).
+        non_smtpd_milters     => {
+            action => 'add',
+            # Make sure that rspamd(8) filtering is processed first.
+            before => qr/.*/,
+            values => [ 'inet:localhost:11332' ]
+        },
+        # MILTER mail macros required for rspamd(8)
+        # There should be no clash with our i-MSCP SA, ClamAV ... plugins as
+        # these don't make use of those macros.
+        milter_mail_macros    => {
+            action => 'replace',
+            values => [ 'i {mail_addr} {client_addr} {client_name} {auth_authen}' ]
+        },
+        # This should be default value already. We add it here for safety only.
+        # (see postconf -d milter_protocol)
+        milter_protocol       => {
+            action => 'replace',
+            values => [ 6 ]
+        }
+    ));
+}
 
 =item afterFrontEndBuildConfFile( \$tplContent, $filename )
 
@@ -411,9 +484,9 @@ sub _askForModules
     my $selectedModules = [ grep ( $_ ne 'Antivirus', split /[,;]/, ::setupGetQuestion( 'RSPAMD_MODULES', $self->{'config'}->{'RSPAMD_MODULES'} ) ) ];
     my %choices = map { $_ => $_ } grep ( $_ ne 'Antivirus', $self->_getManagedModules() );
 
-    if ( $::reconfigure =~ /^(?:antispam|all|forced)$/
-        || !@{ $selectedModules }
-        || grep { !exists $choices{$_} && $_ ne 'none' } ( @{ $selectedModules } )
+    if (
+        isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] )
+            || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedModules }
     ) {
         ( my $rs, $selectedModules ) = $dialog->checkbox(
             <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $selectedModules } ] );
@@ -432,7 +505,7 @@ EOF
     }
 
     @{ $selectedModules } = grep ( $_ ne 'none', @{ $selectedModules } );
-    push @{ $selectedModules }, 'Antivirus' if $::imscpConfig{'ANTIVIRUS'} eq 'ClamAV';
+    push @{ $selectedModules }, 'Antivirus' if $::imscpConfig{'ANTIVIRUS'} eq 'clamav';
     $self->{'config'}->{'RSPAMD_MODULES'} = @{ $selectedModules } ? join ',', sort @{ $selectedModules } : 'none';
     0;
 }
@@ -454,7 +527,7 @@ sub _askForWebUI
     my $webInterface = ::setupGetQuestion( 'RSPAMD_WEBUI', $self->{'config'}->{'RSPAMD_WEBUI'} );
     my $rs = 0;
 
-    if ( $::reconfigure =~ /^(?:antispam|all|forced)$/ || $webInterface !~ /^(?:yes|no)$/
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] )
         || $webInterface eq 'yes' && $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} eq ''
     ) {
         my $port = $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'} eq 'http://'
@@ -464,7 +537,8 @@ sub _askForWebUI
         $rs = $dialog->yesno( <<"EOF", $webInterface eq 'no' ? 1 : 0 );
 Do you want to enable the Rspamd Web interface?
 
-The Rspamd Web interface provides basic functions for setting metric actions, scores, viewing statistic and learning. 
+The Rspamd Web interface provides basic functions for setting metric actions, scores, viewing statistic and learning.
+
 If enabled, the Web interface is made available at $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'}$vhost:$port/rspamd
 EOF
         return $rs if $rs >= 30;
@@ -491,7 +565,9 @@ sub _askForWebUIPassword
 
     my ( $rs, $msg, $password ) = ( 0, '', ::setupGetQuestion( 'RSPAMD_WEBUI_PASSWORD', $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} ) );
 
-    if ( $::reconfigure =~ /^(?:antispam|all|forced)$/ || $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} eq '' ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] )
+        || $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} eq ''
+    ) {
         do {
             $password = '';
             ( $rs, $password ) = $dialog->inputbox( <<"EOF", randomStr( 16, iMSCP::Crypt::ALNUM ));
@@ -596,8 +672,8 @@ sub _setupWebUI
         chomp( $stdout );
 
         ${ $fileContent } =~ s/^(enabled\s*=)[^\n]+/$1 true;/m;
+        ${ $fileContent } =~ s/^(count\s*=)[^\n]+/$1 $self->{'config'}->{'RSPAMD_WEBUI_PROCESS_COUNT'};/m;
         ${ $fileContent } =~ s/^(password\s*=)[^\n]+/$1 "$stdout";/m;
-        ${ $fileContent } =~ s/^(count\s*=)[^\n]+/$1 $self->{'config'}->{'RSPAMD_WEBUI'};/m;
         $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} = $stdout;
     } else {
         ${ $fileContent } =~ s/^(enabled\s*=)[^\n]+/$1 false;/m;
@@ -605,56 +681,6 @@ sub _setupWebUI
     }
 
     return 1 if $file->save();
-}
-
-=item _configurePostfix( )
-
- Configure Postfix for use of RSPAMD(8) through milter
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub _configurePostfix
-{
-    Servers::mta->factory()->postconf( (
-        # Our i-MSCP SA, ClamAV ... plugins set this value to 'tempfail'
-        # but 'accept' is OK if we want ignore milter failures and accept
-        # the mails, even if those are potentially SPAMs.
-        milter_default_action => {
-            action => 'replace',
-            values => [ 'accept' ]
-        },
-        # We want filter incoming mails, that is, those that arrive via
-        # smtpd(8) server.
-        smtpd_milters         => {
-            action => 'add',
-            # Make sure that rspamd(8) filtering is processed first.
-            before => qr/.*/,
-            values => [ 'inet:localhost:11332' ]
-        },
-        # we want also filter customer outbound mails, that is,
-        # those that arrive via sendmail(1).
-        non_smtpd_milters     => {
-            action => 'add',
-            # Make sure that rspamd(8) filtering is processed first.
-            before => qr/.*/,
-            values => [ 'inet:localhost:11332' ]
-        },
-        # MILTER mail macros required for rspamd(8)
-        # There should be no clash with our i-MSCP SA, ClamAV ... plugins as
-        # these don't make use of those macros.
-        milter_mail_macros    => {
-            action => 'replace',
-            values => [ 'i {mail_addr} {client_addr} {client_name} {auth_authen}' ]
-        },
-        # This should be default value already. We add it here for safety only.
-        # (see postconf -d milter_protocol)
-        milter_protocol       => {
-            action => 'replace',
-            values => [ 6 ]
-        }
-    ));
 }
 
 =back

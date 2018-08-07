@@ -31,7 +31,7 @@ use iMSCP::Config;
 use iMSCP::Crypt qw/ randomStr /;
 use iMSCP::Database;
 use iMSCP::Debug;
-use iMSCP::Dialog::InputValidation;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isValidUsername isStringNotInList isValidPassword isAvailableSqlUser /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute;
@@ -73,13 +73,11 @@ sub showDialog
     my $dbUser = ::setupGetQuestion( 'ROUNDCUBE_SQL_USER', $self->{'config'}->{'DATABASE_USER'} || 'imscp_srv_user' );
     my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = ::setupGetQuestion(
-        'ROUNDCUBE_SQL_PASSWORD', ( ( iMSCP::Getopt->preseed ) ? randomStr( 16, iMSCP::Crypt::ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'} )
+        'ROUNDCUBE_SQL_PASSWORD', iMSCP::Getopt->preseed ? randomStr( 16, iMSCP::Crypt::ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'}
     );
 
-    if ( $main::reconfigure =~ /^(?:webmails|all|forced)$/
-        || !isValidUsername( $dbUser )
-        || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' )
-        || !isValidPassword( $dbPass )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webmails', 'all', 'forced' ] ) || !isValidUsername( $dbUser )
+        || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' ) || !isValidPassword( $dbPass )
         || !isAvailableSqlUser( $dbUser )
     ) {
         my ( $rs, $msg ) = ( 0, '' );
@@ -90,8 +88,7 @@ sub showDialog
 Please enter a username for the RoundCube SQL user:$msg
 EOF
             $msg = '';
-            if ( !isValidUsername( $dbUser )
-                || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' )
+            if ( !isValidUsername( $dbUser ) || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' )
                 || !isAvailableSqlUser( $dbUser )
             ) {
                 $msg = $iMSCP::Dialog::InputValidation::lastValidationError;
@@ -99,7 +96,7 @@ EOF
         } while $rs < 30 && $msg;
         return $rs if $rs >= 30;
 
-        unless ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        unless ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
             do {
                 ( $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass || randomStr( 16, iMSCP::Crypt::ALNUM ));
 
@@ -109,14 +106,14 @@ EOF
             } while $rs < 30 && $msg;
             return $rs if $rs >= 30;
 
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+            $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
         } else {
-            $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+            $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
         }
-    } elsif ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
-        $dbPass = $main::sqlUsers{$dbUser . '@' . $dbUserHost};
+    } elsif ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        $dbPass = $::sqlUsers{$dbUser . '@' . $dbUserHost};
     } else {
-        $main::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
+        $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
     }
 
     ::setupSetQuestion( 'ROUNDCUBE_SQL_USER', $dbUser );
@@ -152,7 +149,7 @@ sub install
 {
     my ( $self ) = @_;
 
-    my $rs = $self->_backupConfigFile( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
+    my $rs = $self->_backupConfigFile( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
     $rs ||= $self->_installFiles();
     $rs ||= $self->_mergeConfig();
     $rs ||= $self->_setupDatabase();
@@ -188,13 +185,9 @@ sub afterFrontEndBuildConfFile
     ${ $tplContent } = replaceBloc(
         "# SECTION custom BEGIN.\n",
         "# SECTION custom END.\n",
-        "    # SECTION custom BEGIN.\n" .
-            getBloc(
-                "# SECTION custom BEGIN.\n",
-                "# SECTION custom END.\n",
-                ${ $tplContent }
-            ) .
-            "    include imscp_roundcube.conf;\n" .
+        "    # SECTION custom BEGIN.\n"
+            . getBloc( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", ${ $tplContent } )
+            . "    include imscp_roundcube.conf;\n" .
             "    # SECTION custom END.\n",
         ${ $tplContent }
     );
@@ -260,14 +253,14 @@ sub _installFiles
 {
     my ( $self ) = @_;
 
-    my $packageDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/roundcube";
+    my $packageDir = "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/roundcube";
 
     unless ( -d $packageDir ) {
         error( "Couldn't find the imscp/roundcube package into the packages cache directory" );
         return 1;
     }
 
-    my $destDir = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail";
+    my $destDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail";
 
     iMSCP::Dir->new( dirname => $destDir )->remove();
     iMSCP::Dir->new( dirname => "$packageDir/iMSCP/config" )->rcopy( $self->{'cfgDir'}, { preserve => 'no' } );
@@ -318,12 +311,12 @@ sub _setupDatabase
 {
     my ( $self ) = @_;
 
-    my $roundcubeDir = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail";
+    my $roundcubeDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail";
     my $imscpDbName = ::setupGetQuestion( 'DATABASE_NAME' );
     my $roundcubeDbName = $imscpDbName . '_roundcube';
     my $dbUser = ::setupGetQuestion( 'ROUNDCUBE_SQL_USER' );
     my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
-    my $oldDbUserHost = $main::imscpOldConfig{'DATABASE_USER_HOST'};
+    my $oldDbUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
     my $dbPass = ::setupGetQuestion( 'ROUNDCUBE_SQL_PASSWORD' );
     my $dbOldUser = $self->{'config'}->{'DATABASE_USER'};
 
@@ -356,17 +349,16 @@ sub _setupDatabase
             next unless $sqlUser;
 
             for my $host ( $dbUserHost, $oldDbUserHost ) {
-                next if !$host
-                    || exists $main::sqlUsers{$sqlUser . '@' . $host} && !defined $main::sqlUsers{$sqlUser . '@' . $host};
+                next if !$host || exists $::sqlUsers{$sqlUser . '@' . $host} && !defined $::sqlUsers{$sqlUser . '@' . $host};
                 $sqlServer->dropUser( $sqlUser, $host );
             }
         }
 
         # Create SQL user if required
-        if ( defined $main::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
+        if ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
             debug( sprintf( 'Creating %s@%s SQL user', $dbUser, $dbUserHost ));
             $sqlServer->createUser( $dbUser, $dbUserHost, $dbPass );
-            $main::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
+            $::sqlUsers{$dbUser . '@' . $dbUserHost} = undef;
         }
 
         # Give required privileges to this SQL user
@@ -375,10 +367,7 @@ sub _setupDatabase
 
         # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
         $quotedDbName = $dbh->quote_identifier( $imscpDbName );
-        $dbh->do(
-            "GRANT SELECT (mail_addr, mail_pass), UPDATE (mail_pass) ON $quotedDbName.mail_users TO ?\@?",
-            undef, $dbUser, $dbUserHost
-        );
+        $dbh->do( "GRANT SELECT (mail_addr, mail_pass), UPDATE (mail_pass) ON $quotedDbName.mail_users TO ?\@?", undef, $dbUser, $dbUserHost );
     };
     if ( $@ ) {
         error( $@ );
@@ -403,7 +392,7 @@ sub _buildRoundcubeConfig
     my ( $self ) = @_;
 
     my $panelUName =
-        my $panelGName = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . $main::imscpConfig{'SYSTEM_USER_MIN_UID'};
+        my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
     my $dbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_roundcube';
     my $dbHost = ::setupGetQuestion( 'DATABASE_HOST' );
     my $dbPort = ::setupGetQuestion( 'DATABASE_PORT' );
@@ -417,7 +406,7 @@ sub _buildRoundcubeConfig
         DB_PORT           => $dbPort,
         DB_USER           => $dbUser,
         DB_PASS           => $dbPass,
-        TMP_PATH          => "$main::imscpConfig{'GUI_ROOT_DIR'}/data/tmp",
+        TMP_PATH          => "$::imscpConfig{'GUI_ROOT_DIR'}/data/tmp",
         DES_KEY           => randomStr( 24, iMSCP::Crypt::ALNUM )
     };
 
@@ -439,7 +428,7 @@ sub _buildRoundcubeConfig
     $rs = $file->save();
     $rs ||= $file->owner( $panelUName, $panelGName );
     $rs ||= $file->mode( 0640 );
-    $rs ||= $file->copyFile( "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
+    $rs ||= $file->copyFile( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
 }
 
 =item _updateDatabase( )
@@ -454,7 +443,7 @@ sub _updateDatabase
 {
     my ( $self ) = @_;
 
-    my $roundcubeDir = "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail";
+    my $roundcubeDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail";
     my $roundcubeDbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_roundcube';
     my $fromVersion = $self->{'config'}->{'ROUNDCUBE_VERSION'} || '0.8.4';
 
@@ -509,7 +498,7 @@ sub _setVersion
 {
     my ( $self ) = @_;
 
-    my $repoDir = "$main::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/roundcube";
+    my $repoDir = "$::imscpConfig{'IMSCP_HOMEDIR'}/packages/vendor/imscp/roundcube";
     my $json = iMSCP::File->new( filename => "$repoDir/composer.json" )->get();
     unless ( defined $json ) {
         error( sprintf( "Couldn't read %s file", "$repoDir/composer.json" ));
@@ -542,7 +531,7 @@ sub _buildHttpdConfig
     my $frontEnd = Package::Setup::FrontEnd->getInstance();
     my $rs = $frontEnd->buildConfFile(
         "$self->{'cfgDir'}/nginx/imscp_roundcube.conf",
-        { WEB_DIR => $main::imscpConfig{'GUI_ROOT_DIR'} },
+        { WEB_DIR => $::imscpConfig{'GUI_ROOT_DIR'} },
         { destination => "$self->{'wrkDir'}/imscp_roundcube.conf" }
     );
     $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/imscp_roundcube.conf" )->copyFile(

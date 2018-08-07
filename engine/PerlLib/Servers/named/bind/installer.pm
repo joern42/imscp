@@ -5,7 +5,7 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2017 by internet Multi Server Control Panel
+# Copyright (C) 2010-2018 by internet Multi Server Control Panel
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -27,10 +27,12 @@ use strict;
 use warnings;
 use File::Basename;
 use iMSCP::Debug;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute;
 use iMSCP::File;
+use iMSCP::Getopt;
 use iMSCP::Net;
 use iMSCP::ProgramFinder;
 use iMSCP::Service;
@@ -61,17 +63,14 @@ sub registerSetupListeners
 {
     my ( $self, $eventManager ) = @_;
 
-    $eventManager->register(
-        'beforeSetupDialog',
-        sub {
-            push @{ $_[0] },
-                sub { $self->askDnsServerMode( @_ ) },
-                sub { $self->askIPv6Support( @_ ) },
-                sub { $self->askIPPolicy( @_ ) },
-                sub { $self->askLocalDnsResolver( @_ ) };
-            0;
-        }
-    );
+    $eventManager->register( 'beforeSetupDialog', sub {
+        push @{ $_[0] },
+            sub { $self->askDnsServerMode( @_ ) },
+            sub { $self->askIPv6Support( @_ ) },
+            sub { $self->askIPPolicy( @_ ) },
+            sub { $self->askLocalDnsResolver( @_ ) };
+        0;
+    } );
 }
 
 =item askDnsServerMode( \%dialog )
@@ -90,7 +89,7 @@ sub askDnsServerMode
     my $dnsServerMode = ::setupGetQuestion( 'BIND_MODE', $self->{'config'}->{'BIND_MODE'} );
     my $rs = 0;
 
-    if ( $main::reconfigure =~ /^(?:named|servers|all|forced)$/ || $dnsServerMode !~ /^(?:master|slave)$/ ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || $dnsServerMode !~ /^(?:master|slave)$/ ) {
         my %choices = ( 'master', 'Master DNS server', 'slave', 'Slave DNS server' );
         ( $rs, $dnsServerMode ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $dnsServerMode eq $_, keys %choices ) )[0] || 'master' );
 
@@ -128,7 +127,7 @@ sub askDnsServerIps
     my ( $rs, $answer, $msg ) = ( 0, '', '' );
 
     if ( $dnsServerMode eq 'master' ) {
-        if ( $main::reconfigure =~ /^(?:named|servers|all|forced)$/ || "@slaveDnsIps" eq ''
+        if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || "@slaveDnsIps" eq ''
             || ( "@slaveDnsIps" ne 'no' && !$self->_checkIpAdresses( @slaveDnsIps ) )
         ) {
             my %choices = ( 'yes', 'Yes', 'no', 'No' );
@@ -160,8 +159,8 @@ EOF
                 @slaveDnsIps = ( 'no' );
             }
         }
-    } elsif ( $main::reconfigure =~ /^(?:named|servers|all|forced)$/ || grep ($_ eq "@masterDnsIps", ( '', 'no' ))
-        || !$self->_checkIpAdresses( @masterDnsIps )
+    } elsif ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] )
+        || grep ($_ eq "@masterDnsIps", ( '', 'no' )) || !$self->_checkIpAdresses( @masterDnsIps )
     ) {
         @masterDnsIps = () if "@masterDnsIps" eq 'no';
 
@@ -218,7 +217,7 @@ sub askIPv6Support
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
     my $rs = 0;
 
-    if ( $main::reconfigure =~ /^(?:named|servers|all|forced)$/ || $ipv6 !~ /^(?:yes|no)$/ ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || $ipv6 !~ /^(?:yes|no)$/ ) {
         ( $rs, $ipv6 ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $ipv6 eq $_, keys %choices ) )[0] || 'no' );
 
 Do you want enable IPv6 support for your DNS server?
@@ -247,7 +246,7 @@ sub askIPPolicy
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
     my $rs = 0;
 
-    if ( $main::reconfigure =~ /^(?:named|all|forced)$/ || $enforceRoutableIPs !~ /^(?:yes|no)$/ ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || $enforceRoutableIPs !~ /^(?:yes|no)$/ ) {
         ( $rs, $enforceRoutableIPs ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $enforceRoutableIPs eq $_, keys %choices ) )[0] || 'yes' );
 
 Do you want enforce routable IP addresses in DNS zone files?
@@ -278,7 +277,9 @@ sub askLocalDnsResolver
     my %choices = ( 'yes', 'Yes', 'no', 'No' );
     my $rs = 0;
 
-    if ( $main::reconfigure =~ /^(?:resolver|named|all|forced)$/ || $localDnsResolver !~ /^(?:yes|no)$/ ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'resolver', 'named', 'servers', 'all', 'forced' ] )
+        || $localDnsResolver !~ /^(?:yes|no)$/
+    ) {
         ( $rs, $localDnsResolver ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $localDnsResolver eq $_, keys %choices ) )[0] || 'yes' );
 
 Do you want use the local DNS resolver?
@@ -334,7 +335,7 @@ sub _init
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'named'} = Servers::named::bind->getInstance();
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/bind";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/bind";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
     $self->{'config'} = $self->{'named'}->{'config'};
@@ -473,7 +474,7 @@ sub _buildConf
         $file->set( $tplContent );
 
         $rs = $file->save();
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
+        $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} );
         $rs ||= $file->mode( 0644 );
         $rs ||= $file->copyFile( $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} );
         return $rs if $rs;
@@ -516,7 +517,7 @@ sub _buildConf
         local $UMASK = 027;
 
         $rs = $file->save();
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
+        $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
         $rs ||= $file->mode( 0640 );
         $rs ||= $file->copyFile( $self->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
         return $rs if $rs;
@@ -549,7 +550,7 @@ sub _buildConf
         local $UMASK = 027;
 
         $rs = $file->save();
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
+        $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
         $rs ||= $file->mode( 0640 );
         $rs ||= $file->copyFile( $self->{'config'}->{'BIND_CONF_FILE'} );
         return $rs if $rs;
@@ -578,7 +579,7 @@ sub _buildConf
         local $UMASK = 027;
 
         $rs = $file->save();
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
+        $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
         $rs ||= $file->mode( 0640 );
         $rs ||= $file->copyFile( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} );
         return $rs if $rs;

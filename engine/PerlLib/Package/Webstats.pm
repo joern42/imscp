@@ -26,7 +26,7 @@ package Package::Webstats;
 use strict;
 use warnings;
 use iMSCP::Debug;
-use iMSCP::Dialog;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
 use iMSCP::DistPackageManager;
 use iMSCP::EventManager;
@@ -82,8 +82,7 @@ sub showDialog
     my $selectedPackages = [ split ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES' ) ];
     my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
 
-    if ( $main::reconfigure =~ /^(?:webstats|all|forced)$/
-        || !@{ $selectedPackages }
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webstats', 'all', 'forced' ] ) || !@{ $selectedPackages }
         || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages }
     ) {
         ( my $rs, $selectedPackages ) = $dialog->checkbox(
@@ -154,7 +153,7 @@ sub preinstall
         push @distroPackages, $subref->( $package->getInstance());
     }
 
-    if ( defined $main::skippackages && !$main::skippackages && @distroPackages ) {
+    if ( defined $::skippackages && !$::skippackages && @distroPackages ) {
         my $rs = $self->_removePackages( @distroPackages );
         return $rs if $rs;
     }
@@ -180,7 +179,7 @@ sub preinstall
         push @distroPackages, $subref->( $package->getInstance());
     }
 
-    if ( defined $main::skippackages && !$main::skippackages && @distroPackages ) {
+    if ( defined $::skippackages && !$::skippackages && @distroPackages ) {
         my $rs = $self->_installPackages( @distroPackages );
         return $rs if $rs;
     }
@@ -315,7 +314,7 @@ sub setEnginePermissions
     my ( $self ) = @_;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
+    @{selectedPackages}{ split ',', $::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
@@ -349,7 +348,7 @@ sub addUser
     my ( $self, $data ) = @_;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
+    @{selectedPackages}{ split ',', $::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
@@ -383,7 +382,7 @@ sub preaddDmn
     my ( $self, $data ) = @_;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
+    @{selectedPackages}{ split ',', $::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
@@ -417,7 +416,7 @@ sub addDmn
     my ( $self, $data ) = @_;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
+    @{selectedPackages}{ split ',', $::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
@@ -451,7 +450,7 @@ sub deleteDmn
     my ( $self, $data ) = @_;
 
     my %selectedPackages;
-    @{selectedPackages}{ split ',', $main::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
+    @{selectedPackages}{ split ',', $::imscpConfig{'WEBSTATS_PACKAGES'} } = ();
 
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
@@ -538,7 +537,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => "$main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webstats" )->getDirs();
+    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new( dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webstats" )->getDirs();
     $self;
 }
 

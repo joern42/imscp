@@ -30,6 +30,7 @@ use File::Basename;
 use iMSCP::Crypt qw/ randomStr /;
 use iMSCP::Database;
 use iMSCP::Debug;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::EventManager;
@@ -65,13 +66,10 @@ sub registerSetupListeners
 {
     my ( $self, $eventManager ) = @_;
 
-    $eventManager->register(
-        'beforeSetupDialog',
-        sub {
-            push @{ $_[0] }, sub { $self->showPhpConfigLevelDialog( @_ ) }, sub { $self->showListenModeDialog( @_ ) };
-            0;
-        }
-    );
+    $eventManager->register( 'beforeSetupDialog', sub {
+        push @{ $_[0] }, sub { $self->showPhpConfigLevelDialog( @_ ) }, sub { $self->showListenModeDialog( @_ ) };
+        0;
+    } );
 }
 
 =item showPhpConfigLevelDialog( \%dialog )
@@ -89,7 +87,9 @@ sub showPhpConfigLevelDialog
 
     my $confLevel = ::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
 
-    if ( $main::reconfigure =~ /^(?:httpd|php|servers|all|forced)$/ || $confLevel !~ /^per_(?:site|domain|user)$/ ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'php', 'servers', 'all', 'forced' ] )
+        || $confLevel !~ /^per_(?:site|domain|user)$/
+    ) {
         my %choices = (
             'per_site', 'Per site PHP configuration (recommended)',
             'per_domain', 'Per domain, including subdomains PHP configuration',
@@ -125,7 +125,9 @@ sub showListenModeDialog
     my $rs = 0;
     my $listenMode = ::setupGetQuestion( 'PHP_FPM_LISTEN_MODE', $self->{'phpConfig'}->{'PHP_FPM_LISTEN_MODE'} );
 
-    if ( $main::reconfigure =~ /^(?:httpd|php|servers|all|forced)$/ || $listenMode !~ /^(?:uds|tcp)$/ ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'php', 'servers', 'all', 'forced' ] )
+        || $listenMode !~ /^(?:uds|tcp)$/
+    ) {
         my %choices = (
             'tcp', 'TCP sockets over the loopback interface',
             'uds', 'Unix Domain Sockets (recommended)'
@@ -206,11 +208,11 @@ sub guessPhpVariables
 {
     my ( $self ) = @_;
 
-    ( $self->{'phpConfig'}->{'PHP_VERSION'} ) = `$main::imscpConfig{'PHP_SERVER'} -nv 2> /dev/null` =~ /^PHP\s+(\d+.\d+)/ or die(
+    ( $self->{'phpConfig'}->{'PHP_VERSION'} ) = `$::imscpConfig{'PHP_SERVER'} -nv 2> /dev/null` =~ /^PHP\s+(\d+.\d+)/ or die(
         "Couldn't guess PHP version"
     );
 
-    my ( $phpConfDir ) = `$main::imscpConfig{'PHP_SERVER'} -ni 2> /dev/null | grep '(php.ini) Path'` =~ /([^\s]+)$/ or die(
+    my ( $phpConfDir ) = `$::imscpConfig{'PHP_SERVER'} -ni 2> /dev/null | grep '(php.ini) Path'` =~ /([^\s]+)$/ or die(
         "Couldn't guess PHP configuration directory path"
     );
 
@@ -277,8 +279,8 @@ sub _makeDirs
     return $rs if $rs;
 
     iMSCP::Dir->new( dirname => $self->{'config'}->{'HTTPD_LOG_DIR'} )->make( {
-        user  => $main::imscpConfig{'ROOT_USER'},
-        group => $main::imscpConfig{'ADM_GROUP'},
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ADM_GROUP'},
         mode  => 0750
     } );
 
@@ -297,8 +299,8 @@ sub _makeDirs
 
 sub _copyDomainDisablePages
 {
-    iMSCP::Dir->new( dirname => "$main::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->rcopy(
-        "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages", { preserve => 'no' }
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->rcopy(
+        "$::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages", { preserve => 'no' }
     );
     0;
 }
@@ -474,21 +476,21 @@ sub _installLogrotate
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdInstallLogrotate', 'apache2' );
 
     $self->{'httpd'}->setData( {
-        ROOT_USER     => $main::imscpConfig{'ROOT_USER'},
-        ADM_GROUP     => $main::imscpConfig{'ADM_GROUP'},
+        ROOT_USER     => $::imscpConfig{'ROOT_USER'},
+        ADM_GROUP     => $::imscpConfig{'ADM_GROUP'},
         HTTPD_LOG_DIR => $self->{'config'}->{'HTTPD_LOG_DIR'},
         PHP_VERSION   => $self->{'phpConfig'}->{'PHP_VERSION'}
     } );
 
     $rs ||= $self->{'httpd'}->buildConfFile( 'logrotate.conf', {}, {
-        destination => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/apache2"
+        destination => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/apache2"
     } );
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdInstallLogrotate', 'apache2' );
 
     if ( !$rs && version->parse( "$self->{'phpConfig'}->{'PHP_VERSION'}" ) < version->parse( '7.0' ) ) {
         $rs ||= $self->{'eventManager'}->trigger( 'beforeHttpdInstallLogrotate', 'php5-fpm' );
         $rs ||= $self->{'httpd'}->buildConfFile( "$self->{'phpCfgDir'}/fpm/logrotate.tpl", {}, {
-            destination => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm"
+            destination => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm"
         } );
         $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdInstallLogrotate', 'php5-fpm' );
     }
@@ -515,7 +517,7 @@ sub _setupVlogger
     my $user = 'vlogger_user';
     my $userHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     $userHost = '127.0.0.1' if $userHost eq 'localhost';
-    my $oldUserHost = $main::imscpOldConfig{'DATABASE_USER_HOST'};
+    my $oldUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
     my $pass = randomStr( 16, iMSCP::Crypt::ALNUM );
 
     my $db = iMSCP::Database->factory();
@@ -621,7 +623,7 @@ sub _cleanup
         return $rs if $rs;
     }
 
-    $rs = execute( "rm -f $main::imscpConfig{'USER_WEB_DIR'}/*/logs/*.log", \my $stdout, \my $stderr );
+    $rs = execute( "rm -f $::imscpConfig{'USER_WEB_DIR'}/*/logs/*.log", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
@@ -630,8 +632,8 @@ sub _cleanup
     ## Cleanup and disable unused PHP versions/SAPIs
     #
 
-    if ( -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" ) {
-        $rs = iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->delFile();
+    if ( -f "$::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" ) {
+        $rs = iMSCP::File->new( filename => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/php5-fpm" )->delFile();
         return $rs if $rs;
     }
 
