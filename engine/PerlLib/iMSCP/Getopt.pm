@@ -287,7 +287,7 @@ sub preseed
     return $options->{'preseed'} unless defined $file;
 
     -f $file or die( sprintf( 'Preseed file not found: %s', $file ));
-    $options->{'preseed'} = realpath( $file );;
+    $options->{'preseed'} = realpath( $file );
 }
 
 =item listener( [ $file = undef ] )

@@ -56,7 +56,7 @@ $ENV{'LANG'} = 'C.UTF-8';
 $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 # Set execution mode
-$::execmode = 'uninstaller' unless defined $::execmode;;
+$::execmode = 'uninstaller' unless defined $::execmode;
 
 newDebug( 'imscp-uninstall.log' );
 

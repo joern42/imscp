@@ -126,7 +126,8 @@ sub postinstall
     local $@;
     eval {
         my $srvMngr = iMSCP::Service->getInstance();
-        # FIXME: Redis server is a dependency. Should we provide a dedicated for it?
+        # FIXME: Redis server is a dependency. Should we provide a dedicated
+        # package for it?
         $srvMngr->enable( 'redis-server' );
         $srvMngr->enable( 'rspamd' );
     };
