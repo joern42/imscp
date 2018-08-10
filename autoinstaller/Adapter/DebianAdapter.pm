@@ -62,7 +62,6 @@ sub installPreRequiredPackages
 {
     my ( $self ) = @_;
 
-    return 0;
     print STDOUT output( 'Satisfying prerequisites... Please wait.', 'info' );
 
     eval {
@@ -687,10 +686,6 @@ EOF
             @{ $self->{ $target }->{ $section } } = uniq( @{ $self->{ $target }->{ $section } } );
         }
     }
-
-    use Data::Dumper;
-    print Dumper( $self );
-    exit;
 
     0;
 }
