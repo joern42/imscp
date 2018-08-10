@@ -710,7 +710,7 @@ sub _setupWebUI
         ${ $fileContent } =~ s/^password\s*=[^\n]+/$1 "";/m;
     }
 
-    return 1 if $file->save();
+    $file->save();
 }
 
 =item _setupSpamLearning
