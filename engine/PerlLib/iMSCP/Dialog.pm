@@ -43,22 +43,15 @@ use parent 'Common::SingletonClass';
 
  Reset labels to their default values
 
- Return int 0
+ Return void
 
 =cut
 
 sub resetLabels
 {
-    my %defaultLabels = (
-        exit   => 'Abort',
-        ok     => 'Ok',
-        yes    => 'Yes',
-        no     => 'No',
-        cancel => 'Back',
-        help   => 'Help',
-        extra  => undef
+    @{ $_[0]->{'_opts'} }{qw/ exit-label ok-label yes-label no-label cancel-label help-label extra-label /} = (
+        'Abort', 'Ok', 'Yes', 'No', 'Back', 'Help', undef
     );
-    $_[0]->{'_opts'}->{"$_-label"} = $defaultLabels{$_} for keys %defaultLabels;
     0;
 }
 
@@ -75,9 +68,8 @@ sub fselect
 {
     my ( $self, $file ) = @_;
 
-    $self->{'lines'} = $self->{'lines'}-8;
+    local $self->{'lines'} = $self->{'lines'}-8;
     my ( $ret, $output ) = $self->_execute( $file, undef, 'fselect' );
-    $self->{'lines'} = $self->{'lines'}+8;
     wantarray ? ( $ret, $output ) : $output;
 }
 
@@ -194,9 +186,8 @@ sub dselect
 {
     my ( $self, $directory ) = @_;
 
-    $self->{'lines'} = $self->{'lines'}-8;
+    local $self->{'lines'} = $self->{'lines'}-8;
     my ( $ret, $output ) = $self->_execute( $directory, undef, 'dselect' );
-    $self->{'lines'} = $self->{'lines'}+8;
     wantarray ? ( $ret, $output ) : $output;
 }
 
@@ -216,9 +207,22 @@ sub msgbox
     ( $self->_textbox( $text, 'msgbox' ) )[0];
 }
 
-=item yesno( $text [, $defaultno =  FALSE ] )
+=item yesno( $text [, $defaultno =  FALSE [, $backbutton = FALSE ] ] )
 
  Show boolean dialog box
+
+ For the 'yesno' dialog box, the code used for 'Yes' and 'No' buttons match
+ those used for the 'Ok' and 'Cancel'. See dialog man page. We do not want this behavior. To
+ workaround, we process as follow:
+
+  - If not 'Back' button is needed:
+    We temporary change code of the 'Cancel' button to 1 (default is 30).
+    So 'Yes' = 0, 'No' = 1, ESC = 50
+ 
+  - If a "Back" button is needed:
+    We make use of the extra button (code 1) which replace the default 'No' button.
+    We change default labels
+    So: 'Yes' = 0, 'No' = 1, 'Back' = 30, ESC = 50
 
  Param string $text Text to show
  Param string bool defaultno Set the default value of the box to 'No'
@@ -228,12 +232,20 @@ sub msgbox
 
 sub yesno
 {
-    my ( $self, $text, $defaultno ) = @_;
+    my ( $self, $text, $defaultno, $backbutton ) = @_;
 
-    $self->{'_opts'}->{'defaultno'} = $defaultno ? '' : undef;
-    my $ret = ( $self->_textbox( $text, 'yesno' ) )[0];
-    $self->{'_opts'}->{'defaultno'} = undef;
-    $ret;
+    unless ( $backbutton ) {
+        local $self->{'_opts'}->{'defaultno'} = $defaultno ? '' : undef;
+        local $ENV{'DIALOG_CANCEL'} = 1;
+        return ( $self->_textbox( $text, 'yesno' ) )[0];
+    }
+
+    local $ENV{'DIALOG_EXTRA'} = 1;
+    local $self->{'_opts'}->{'default-button'} = $defaultno ? 'extra' : undef;
+    local $self->{'_opts'}->{'ok-label'} = 'Yes';
+    local $self->{'_opts'}->{'extra-label'} = 'No';
+    local $self->{'_opts'}->{'extra-button'} = '';
+    ( $self->_textbox( $text, 'yesno' ) )[0];
 }
 
 =item inputbox( $text [, $init = '' ] )
@@ -267,9 +279,9 @@ sub inputbox
 sub passwordbox
 {
     my ( $self, $text, $init ) = @_;
-
     $init //= '';
-    $self->{'_opts'}->{'insecure'} = '';
+
+    local $self->{'_opts'}->{'insecure'} = '';
     $self->_textbox( $text, 'passwordbox', escapeShell( $init ));
 }
 
@@ -286,13 +298,8 @@ sub infobox
 {
     my ( $self, $text ) = @_;
 
-    my $clear = $self->{'_opts'}->{'clear'};
-    $self->{'_opts'}->{'clear'} = undef;
-
-    my ( $ret ) = $self->_textbox( $text, 'infobox' );
-
-    $self->{'_opts'}->{'clear'} = $clear;
-    $ret;
+    local $self->{'_opts'}->{'clear'} = undef;
+    ( $self->_textbox( $text, 'infobox' ) )[0];
 }
 
 =item startGauge( $text [, $percent = 0 ] )
@@ -301,7 +308,7 @@ sub infobox
 
  Param string $text Text to show
  Param int $percent OPTIONAL Initial percentage show in the meter
- Return 0
+ Return void
 
 =cut
 
@@ -313,21 +320,15 @@ sub startGauge
 
     defined $_[0] or die( '$text parameter is undefined' );
 
-    open
-        $self->{'gauge'},
-        '|-',
-        $self->_findBin(),
-        $self->_buildCommonCommandOptions( 'noEscape' ),
-        '--gauge',
-        $text,
+    open $self->{'gauge'}, '|-',
+        $self->_findBin(), $self->_buildCommonCommandOptions( 'noEscape' ),
+        '--gauge', $text,
         $self->{'autosize'} ? 0 : $self->{'lines'},
         $self->{'autosize'} ? 0 : $self->{'columns'},
         $percent // 0 or die( "Couldn't start gauge" );
 
     $self->{'gauge'}->autoflush( 1 );
     debugRegisterCallBack( sub { $self->endGauge(); } );
-    $SIG{'PIPE'} = sub { $self->endGauge(); };
-    0;
 }
 
 =item setGauge( $percent, $text )
@@ -336,7 +337,7 @@ sub startGauge
 
  Param int $percent New percentage to show in gauge dialog box
  Param string $text New text to show in gauge dialog box
- Return int 0
+ Return void
 
 =cut
 
@@ -344,29 +345,25 @@ sub setGauge
 {
     my ( $self, $percent, $text ) = @_;
 
-    return 0 unless defined $self->{'gauge'};
+    return unless defined $self->{'gauge'};
 
     print { $self->{'gauge'} } sprintf( "XXX\n%d\n%s\nXXX\n", $percent, $text );
-    0
 }
 
 =item endGauge( )
 
  Terminate gauge dialog box
 
- Return int 0
+ Return void
 
 =cut
 
 sub endGauge
 {
-    my ( $self ) = @_;
+    return unless $_[0]->{'gauge'};
 
-    return 0 unless defined $self->{'gauge'};
-
-    $self->{'gauge'}->close();
-    undef $self->{'gauge'};
-    0;
+    $_[0]->{'gauge'}->close();
+    undef $_[0]->{'gauge'};
 }
 
 =item hasGauge( )
@@ -381,7 +378,7 @@ sub hasGauge
 {
     my ( $self ) = @_;
 
-    defined $self->{'gauge'}
+    !!$self->{'gauge'}
 }
 
 =item set( $option, $value )
@@ -431,7 +428,7 @@ sub _init
 
     # Detect all the ways people have managed to screw up their
     # terminals (so far...)
-    if ( !exists $ENV{'TERM'} || !defined $ENV{'TERM'} || $ENV{'TERM'} eq '' ) {
+    if ( !exists $ENV{'TERM'} || !defined $ENV{'TERM'} || length $ENV{'TERM'} eq 0 ) {
         fatal( 'TERM is not set, so the dialog frontend is not usable.' );
     } elsif ( $ENV{'TERM'} =~ /emacs/i ) {
         fatal( 'Dialog frontend is incompatible with emacs shell buffers' );
@@ -496,6 +493,8 @@ sub _init
 
  This method is called whenever the tty is resized, and probes to determine the new screen size.
 
+ return void
+
 =cut
 
 sub _resize
@@ -518,10 +517,7 @@ sub _resize
         $cols ||= 80;
     }
 
-    if ( $lines < 23 || $cols < 79 ) {
-        fatal( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
-    }
-
+    $lines > 23 && $cols > 79 or die( 'A screen at least 24 lines tall and 80 columns wide is required. Please enlarge your screen.' );
     $self->{'lines'} = $lines-10;
     $self->{'columns'} = $cols-4;
 
@@ -540,9 +536,7 @@ sub _findBin
 {
     CORE::state $bin;
 
-    $bin ||= iMSCP::ProgramFinder::find( $^O =~ /bsd$/ ? 'cdialog' : 'dialog' ) or die(
-        "Couldn't find dialog program"
-    );
+    $bin ||= iMSCP::ProgramFinder::find( $^O =~ /bsd$/ ? 'cdialog' : 'dialog' ) or die( "Couldn't find dialog program" );
 }
 
 =item _stripFormats( $string )
@@ -576,8 +570,11 @@ sub _buildCommonCommandOptions
     my ( $self, $noEscape ) = @_;
 
     my @options = map {
-        defined $self->{'_opts'}->{$_} ? ( "--$_", $noEscape ? ( $self->{'_opts'}->{$_} eq '' ? () : $self->{'_opts'}->{$_} )
-            : ( $self->{'_opts'}->{$_} eq '' ? () : escapeShell( $self->{'_opts'}->{$_} ) ) ) : ()
+        defined $self->{'_opts'}->{$_}
+            ? ( "--$_", $noEscape
+            ? ( $self->{'_opts'}->{$_} eq '' ? () : $self->{'_opts'}->{$_} )
+            : ( $self->{'_opts'}->{$_} eq '' ? () : escapeShell( $self->{'_opts'}->{$_} ) ) )
+            : ()
     } keys %{ $self->{'_opts'} };
 
     wantarray ? @options : "@options";
@@ -644,16 +641,6 @@ sub _execute
     $self->{'_opts'}->{'separate-output'} = undef;
     $self->_init() if $self->{'autoreset'};
 
-    # The exit status returned when pressing the "No" button matches the exit status returned for the "Cancel" button.
-    # Internally, no distinction is made... Therefore, for the "yesno" dialog box, we map exit status 30 to 1
-    # and we make the backup feature available through the ESC keystroke. This necessarily means that user cannot abort
-    # through a "yesno" dialog box
-    if ( $ret == 50 && $type eq 'yesno' ) {
-        $ret = 30;
-    } elsif ( $ret == 30 && $type eq 'yesno' ) {
-        $ret = 1;
-    }
-
     wantarray ? ( $ret, $output ) : $output;
 }
 
@@ -672,11 +659,20 @@ sub _textbox
 {
     my ( $self, $text, $type, $init ) = @_;
 
-    my $autosize = $self->{'autosize'};
-    $self->{'autosize'} = undef;
+    local $self->{'autosize'} = undef;
     my ( $ret, $output ) = $self->_execute( $text, $init, $type );
-    $self->{'autosize'} = $autosize;
     wantarray ? ( $ret, $output ) : $output;
+}
+
+=item DESTROY()
+
+ Destroy dialog object
+
+=cut
+
+sub DESTROY
+{
+    $_[0]->endGauge();
 }
 
 =back

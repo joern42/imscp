@@ -194,6 +194,11 @@ my %reconfigurationItems = (
     httpd             => 'Httpd server',
     mta               => 'SMTP server',
     named             => 'DNS server',
+    named_names       => 'DNS server names',
+    named_ips         => 'DNS server IP addresses',
+    named_ips_policy  => 'DNS IP addresse policy',
+    named_ipv6        => 'named IPv6 support',
+    named_resolver    => 'Local DNS resolver',
     panel             => 'Control panel',
     panel_hostname    => 'Hostname for the control panel',
     panel_php         => 'PHP version for the control panel',
@@ -201,8 +206,8 @@ my %reconfigurationItems = (
     panel_ssl         => 'SSL for the control panel',
     php               => 'PHP version for customers',
     po                => 'IMAP/POP servers',
+    postfix_srs       => 'Postfix SRS',
     primary_ip        => 'Server primary IP address',
-    resolver          => 'Local DNS resolver',
     servers           => 'All servers',
     services_ssl      => 'SSL for the IMAP/POP, SMTP and FTP servers',
     sqld              => 'SQL server',
@@ -252,12 +257,10 @@ EOF
         $optionHelp .= " - $_" . ( ' ' x ( 17-length( $_ ) ) ) . " : $reconfigurationItems{$_}\n" for sort keys %reconfigurationItems;
         die();
     } elsif ( !@items ) {
-        # The 'all' flag item MUST not be set programatically
-        die() unless $viaCmdLineOpt;
         push @items, 'all';
     } else {
         for my $item ( @items ) {
-            grep ($_ eq $item, keys %reconfigurationItems, 'none', 'forced') or die(
+            !$viaCmdLineOpt || grep ($_ eq $item, keys %reconfigurationItems, 'none', 'forced') or die(
                 sprintf( "Error: '%s' is not a valid item for the the --reconfigure option.", $item )
             );
         }

@@ -30,6 +30,7 @@ use File::Basename qw/ basename /;
 use File::Copy qw/ copy mv /;
 use File::Spec;
 use iMSCP::Debug qw/ error /;
+use overload '""' => \&__toString, fallback => 1;
 use parent 'Common::Object';
 
 =head1 DESCRIPTION
@@ -347,6 +348,18 @@ sub _init
 
     $self->{'filename'} //= undef;
     $self;
+}
+
+=item __toString( )
+
+ Return string representation of this object, that is the value of the 'filename'
+ attribute.
+
+=cut
+
+sub __toString
+{
+    $_[0]->{'filename'};
 }
 
 =back

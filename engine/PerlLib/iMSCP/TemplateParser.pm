@@ -28,94 +28,156 @@ use warnings;
 use iMSCP::Debug;
 use parent 'Exporter';
 
-our @EXPORT = qw/ process getBloc replaceBloc /;
+our @EXPORT = qw/ processByRef process getBloc getBlocByRef replaceBlocByRef replaceBloc /;
 
 =head1 DESCRIPTION
 
- The template parser allow to parse pseudo-variables within i-MSCP template files. It can parse simple variables
- or variable tag pairs
+ Library for processing of i-MSCP templates
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item process( \%data, $template )
+=item processByRef( \%data, \$tpl [, $emptyUnknownVars = FALSE ] )
 
- Replace placeholders in the given template
+ Substitutes pseudo-variables within the given template using the given data
 
  Param hash \%data A hash of data where the keys are the pseudo-variable names and the values, the replacement values
- Param string ref $template The template content to be parsed
- Return string Parsed template content
+ Param scalarref $tpl Reference to template content
+ Param boolean $emptyUnknownVars Flag indicating whether unknown variables must be emptied
+ Return void, die on invalid parameters
 
 =cut
 
-sub process( $$ )
+sub processByRef( $$;$ )
 {
-    my ($data, $template) = @_;
+    my ( $data, $tpl, $emptyUnknownVars ) = @_;
 
-    return $template unless ref $data eq 'HASH';
+    ref $tpl eq 'SCALAR' or die( 'Invalid $tpl parameter. Scalar reference expected.' );
+    ref $data eq 'HASH' or die( 'Invalid $data parameter. Hash reference expected.' );
 
-    while ( my ($placeholder, $value) = each( %{$data} ) ) {
-        next unless defined $value;
-        $template =~ s/(?<!%)\Q{$placeholder}\E/$value/gim
-    }
-
-    $template;
+    ${ $tpl } =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // ( $emptyUnknownVars ? '' : "{$1}" )#ge;
+    return;
 }
 
-=item getBloc( $beginTag, $endingTag, $template [, $includeTags = false ] )
+=item process( \%data, $tpl [, $emptyUnknownVars = FALSE ] )
+
+ Substitutes pseudo-variables within the given template using the given data
+
+ Param hash \%data A hash of data where the keys are the pseudo-variable names and the values, the replacement values
+ Param string ref $tpl The template content to be processed
+ Param boolean $emptyUnknownVars Flag indicating whether unknown variables must be emptied
+ Return string Template content
+
+=cut
+
+sub process( $$;$ )
+{
+    my ( $data, $tpl, $emptyUnknownVars ) = @_;
+
+    processByRef( $data, \$tpl, $emptyUnknownVars );
+    $tpl;
+}
+
+=item getBlocByRef( $beginTag, $eTag, \$tpl [, $iTags = false ] )
 
  Get the first block matching the given begin and ending tags within the given template
 
  Param string $beginTag Bloc begin tag
- Param string $endingTag Bloc ending tag
- param string $template Template content
- Param bool $includeTags OPTIONAL Whether or not begin and ending tag should be included in result
- Return string Bloc content, including or not the begin and ending tags
+ Param string $eTag Bloc ending tag
+ param scalarref $tpl Reference to template content
+ Param bool $iTags OPTIONAL Flag indicating whether or not begin and ending tag should be included in result
+ Return string Bloc content (including or not the begin and ending tags), die on invalid $tpl parameter
+
+=cut
+
+sub getBlocByRef( $$$;$ )
+{
+    my ( $bTag, $eTag, $tpl, $iTags ) = @_;
+
+    ref $tpl eq 'SCALAR' or die( 'Invalid $tpl parameter. Scalar reference expected.' );
+
+    $bTag = "\Q$bTag\E" unless ref $bTag eq 'Regexp';
+    $eTag = "\Q$eTag\E" unless ref $eTag eq 'Regexp';
+    ( $iTags ? ${ $tpl } =~ /([\t ]*$bTag.*?[\t ]*$eTag)/s : ${ $tpl } =~ /[\t ]*$bTag(.*?)[\t ]*$eTag/s ) ? $1 : '';
+}
+
+=item getBloc( $bTag, $eTag, $tpl [, $iTags = false ] )
+
+ Get the first block matching the given begin and ending tags within the given template
+
+ Param string $bTag Bloc begin tag
+ Param string $eTag Bloc ending tag
+ param string $tpl Template content
+ Param bool $iTags OPTIONAL Flag indicating whether or not begin and ending tag should be included in result
+ Return string Bloc content (including or not the begin and ending tags), die on invalid $tpl parameter
 
 =cut
 
 sub getBloc( $$$;$ )
 {
-    my ($beginTag, $endingTag, $template, $includeTags) = @_;
+    my ( $bTag, $eTag, $tpl, $iTags ) = @_;
 
-    $beginTag = "\Q$beginTag\E" unless ref $beginTag eq 'Regexp';
-    $endingTag = "\Q$endingTag\E" unless ref $endingTag eq 'Regexp';
-    ( $includeTags
-        ? $template =~ /([\t ]*$beginTag.*?[\t ]*$endingTag)/s
-        : $template =~ /[\t ]*$beginTag(.*?)[\t ]*$endingTag/s
-    ) ? $1 : '';
+    getBlocByRef( $bTag, $eTag, \$tpl, $iTags );
 }
 
-=item replaceBloc( $beginTag, $endingTag, $repl, $template [, $preserveTags = false ] )
+=item replaceBlocByRef( $bTag, $eTag, $repl, \$tpl [, $pTags = false ] )
 
  Replace all blocs matching the given begin and ending tags within the given template
  
  Note that when passing Regexp for begin or ending tags and that you want preserve tags,
  you're responsible for adding capturing parentheses.
 
- Param string|Regexp $beginTag Bloc begin tag
- Param string|Regexp $endingTag Bloc ending tag
+ Param string|Regexp $bTag Bloc begin tag
+ Param string|Regexp eTag Bloc ending tag
  Param string $repl Bloc replacement string
- param string $template Template content
- Param bool $preserveTags OPTIONAL Whether or not begin and ending tags must be preverved
+ param scalarref $tpl Reference to template content
+ Param bool $pTags OPTIONAL Flag indicating whether or not begin and ending tags must be preverved
+ Return void, die on invalid parameter $tpl parameter
+
+=cut
+
+sub replaceBlocByRef( $$$$;$ )
+{
+    my ( $bTag, $eTag, $repl, $tpl, $pTags ) = @_;
+
+    ref $tpl eq 'SCALAR' or die( 'Invalid $tpl parameter. Scalar reference expected.' );
+
+    if ( $pTags ) {
+        $bTag = "(\Q$bTag\E)" unless ref $bTag eq 'Regexp';
+        $eTag = "(\Q$eTag\E)" unless ref $eTag eq 'Regexp';
+        ${ $tpl } =~ s/[\t ]*$bTag.*?[\t ]*$eTag/$repl$1$2/gs;
+        return
+    }
+
+    $bTag = "\Q$bTag\E" unless ref $bTag eq 'Regexp';
+    $eTag = "\Q$eTag\E" unless ref $eTag eq 'Regexp';
+    ${ $tpl } =~ s/[\t ]*$bTag.*?[\t ]*$eTag/$repl/gs;
+    return;
+}
+
+=item replaceBloc( $bTag, $eTag, $repl, $tpl [, $pTags = false ] )
+
+ Replace all blocs matching the given begin and ending tags within the given template
+ 
+ Note that when passing Regexp for begin or ending tags and that you want preserve tags,
+ you're responsible for adding capturing parentheses.
+
+ Param string|Regexp $bTag Bloc begin tag
+ Param string|Regexp $eTag Bloc ending tag
+ Param string $repl Bloc replacement string
+ param string $tpl Template content
+ Param bool $pTags OPTIONAL FLag indicating whether or not begin and ending tags must be preverved
  Return string Template content
 
 =cut
 
 sub replaceBloc( $$$$;$ )
 {
-    my ($beginTag, $endingTag, $repl, $template, $preserveTags) = @_;
+    my ( $bTag, $eTag, $repl, $tpl, $pTags ) = @_;
 
-    if ( $preserveTags ) {
-        $beginTag = "(\Q$beginTag\E)" unless ref $beginTag eq 'Regexp';
-        $endingTag = "(\Q$endingTag\E)" unless ref $endingTag eq 'Regexp';
-        return $template =~ s/[\t ]*$beginTag.*?[\t ]*$endingTag/$repl$1$2/grs;
-    }
-
-    $beginTag = "\Q$beginTag\E" unless ref $beginTag eq 'Regexp';
-    $endingTag = "\Q$endingTag\E" unless ref $endingTag eq 'Regexp';
-    $template =~ s/[\t ]*$beginTag.*?[\t ]*$endingTag/$repl/grs;
+    replaceBlocByRef( $bTag, $eTag, $repl, \$tpl, $pTags );
+    $tpl;
 }
 
 =back
