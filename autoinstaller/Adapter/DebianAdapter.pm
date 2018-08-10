@@ -23,7 +23,8 @@ use strict;
 use warnings;
 use autoinstaller::Functions qw/ evalConditionFromXmlFile /;
 use autouse 'iMSCP::Stepper' => qw/ startDetail endDetail step /;
-use Fcntl qw/ :flock /;
+use autouse 'List::MoreUtils' => qw/ uniq /;
+#use Fcntl qw/ :flock /;
 use File::Temp;
 use FindBin;
 use iMSCP::Boolean;
@@ -266,25 +267,20 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-
-    $self->{'repositorySections'} = [ 'main', 'contrib', 'non-free' ];
-    $self->{'preRequiredPackages'} = [
-        'apt-transport-https', 'binutils', 'ca-certificates', 'debconf-utils', 'dialog', 'dirmngr', 'dpkg-dev', 'libbit-vector-perl',
-        'libclass-insideout-perl', 'libclone-perl', 'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libscalar-defer-perl',
-        'libsort-versions-perl', 'libxml-simple-perl', 'lsb-release', 'policyrcd-script-zg2', 'wget'
-    ];
-    $self->{'aptRepositoriesToRemove'} = [];
-    $self->{'aptRepositoriesToAdd'} = [];
-    $self->{'aptPreferences'} = [];
-    $self->{'packagesToInstall'} = [];
-    $self->{'packagesToInstallDelayed'} = [];
-    $self->{'packagesToPreUninstall'} = [];
-    $self->{'packagesToUninstall'} = [];
-    $self->{'packagesToRebuild'} = {};
-    $self->{'packagesPreInstallTasks'} = {};
-    $self->{'packagesPostInstallTasks'} = {};
-    $self->{'need_pbuilder_update'} = TRUE;
+    @{ $self }{qw/
+        eventManager repositorySections preRequiredPackages aptRepositoriesToRemove aptRepositoriesToAdd aptPreferences packagesToInstall
+        packagesToInstallDelayed packagesToPreUninstall packagesToUninstall packagesToRebuild packagesPreInstallTasks packagesPostInstallTasks
+        need_pbuilder_update
+    /} = (
+        iMSCP::EventManager->getInstance(),
+        [ 'main', 'contrib', 'non-free' ],
+        [
+            'apt-transport-https', 'binutils', 'ca-certificates', 'debconf-utils', 'dialog', 'dirmngr', 'dpkg-dev', 'libbit-vector-perl',
+            'libclass-insideout-perl', 'libclone-perl', 'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libscalar-defer-perl',
+            'libsort-versions-perl', 'libxml-simple-perl', 'lsb-release', 'policyrcd-script-zg2', 'wget'
+        ],
+        [], [], [], [], [], [], [], [], {}, {}, TRUE
+    );
 
     delete $ENV{'DEBCONF_FORCE_DIALOG'};
 
@@ -327,7 +323,7 @@ sub _setupGetAddrinfoPrecedence
     $file->save();
 }
 
-=item _parsePackageNode( \%node|$node, \@target )
+=item _parsePackageNode( \%node|$node, $section, \%container [, $target = 'packagesToInstall' ] )
 
  Parse a package or package_delayed node for installation or uninstallation
  
@@ -336,51 +332,54 @@ sub _setupGetAddrinfoPrecedence
  unless the 'skip_uninstall' attribute is set.
 
  param string|hashref $node Package node
- param arrayref \@target Target ($self->{'packagesToInstall'}|$self->{'packagesToInstallDelayed'})
+ param string $section Section name
+ pararm hashref \%container Data container
+ param string $target Target (packagesToInstall|packagesToInstallDelayed)
  Return void, die on failure
 
 =cut
 
 sub _parsePackageNode
 {
-    my ( $self, $node, $target ) = @_;
+    my ( $node, $section, $container, $target ) = @_;
+    $target //= 'packagesToInstall';
 
     unless ( ref $node ) {
         # Package without further treatment
-        push @{ $target }, $node;
+        push @{ $container->{ $target } }, $node;
         return;
     }
 
     if ( defined $node->{'condition'} && !evalConditionFromXmlFile( $node->{'condition'} ) ) {
-        push @{$self->{'packagesToUninstall'}}, $node->{'content'} unless $node->{'skip_uninstall'};
+        push @{ $container->{'packagesToUninstall'} }, $node->{'content'} unless $node->{'skip_uninstall'};
         return;
     }
 
     # Per package rebuild task to execute
     if ( $node->{'rebuild_with_patches'} ) {
-        $self->{'packagesToRebuild'}->{$node->{'content'}} = {
+        $container->{'packagesToRebuild'}->{$node->{'content'}} = {
             pkg_src_name      => $node->{'pkg_src_name'} || $node->{'content'},
             patches_directory => $node->{'rebuild_with_patches'},
             discard_patches   => [ defined $node->{'discard_patches'} ? split ',', $node->{'discard_patches'} : () ],
             patch_sys_type    => $node->{'patch_sys_type'} || 'quilt'
         };
     } else {
-        push @{ $target }, $node->{'content'};
+        push @{ $container->{ $target } }, $node->{'content'};
     }
 
     # Per package pre-installation task to execute
     if ( defined $node->{'pre_install_task'} ) {
-        push @{ $self->{'packagesPreInstallTasks'}->{$node->{'content'}} }, $_ for @{ $node->{'pre_install_task'} };
+        push @{ $container->{'packagesPreInstallTasks'}->{$section} }, $_ for @{ $node->{'pre_install_task'} };
     }
 
     # Per package post-installation task to execute
     if ( defined $node->{'post_install_task'} ) {
-        push @{ $self->{'packagesPostInstallTasks'}->{$node->{'content'}} }, $_ for @{ $node->{'post_install_task'} };
+        push @{ $container->{'packagesPostInstallTasks'}->{$section} }, $_ for @{ $node->{'post_install_task'} };
     }
 
     # Per package APT repository to add
     if ( defined $node->{'repository'} ) {
-        push @{ $self->{'aptRepositoriesToAdd'} }, {
+        push @{ $container->{'aptRepositoriesToAdd'} }, {
             repository         => $node->{'repository'},
             repository_key_uri => $node->{'repository_key_uri'},
             repository_key_id  => $node->{'repository_key_id'},
@@ -390,7 +389,7 @@ sub _parsePackageNode
 
     # Per package APT preferences (pinning) to add
     if ( defined $node->{'pinning_package'} ) {
-        push @{ $self->{'aptPreferences'} }, {
+        push @{ $container->{'aptPreferences'} }, {
             pinning_package      => $node->{'pinning_package'},
             pinning_pin          => $node->{'pinning_pin'},
             pinning_pin_priority => $node->{'pinning_pin_priority'}
@@ -427,108 +426,114 @@ sub _processPackagesFile
     );
 
     my $dialog = iMSCP::Dialog->getInstance();
-    $dialog->set( 'no-cancel', '' );
 
     # Make sure that all mandatory sections are defined in the packages file
     for my $section ( qw/ panel_php panel_httpd httpd php po mta ftpd sqld named perl other / ) {
         defined $pkgData->{$section} or die( sprintf( 'Missing %s section in the distribution packages file.', $section ));
     }
 
-    #
-    ## Process sections
-    #
+    # Sort sections to make sure to process them in expected order
+    my @sections = sort { ( $pkgData->{$b}->{'dialog_priority'} || 0 ) <=> ( $pkgData->{$a}->{'dialog_priority'} || 0 ) } keys %{ $pkgData };
 
-    # Sort sections to make sure to show dialogs always in same order
-    for my $section ( sort { ( $pkgData->{$b}->{'dialog_priority'} || 0 ) <=> ( $pkgData->{$a}->{'dialog_priority'} || 0 ) } keys %{ $pkgData } ) {
-        my $data = $pkgData->{$section};
-        delete $data->{'dialog_priority'};
+    # Implements a simple state machine (backup capability)
+    my ( $state, $countSections, %container ) = ( 0, scalar @sections );
+    while ( $state < $countSections ) {
+        my $section = $sections[$state];
+
+        # Init/Reset container for the current section (backup capability)
+        @{ $container{$section} }{qw/
+            aptRepositoriesToRemove aptRepositoriesToAdd aptPreferences packagesToInstall packagesToInstallDelayed packagesToPreUninstall
+            packagesToUninstall packagesToRebuild packagesPreInstallTasks packagesPostInstallTasks
+        /} = ( [], [], [], [], [], [], [], [], {}, {} );
+
+        # We don't operate on original data (backup capability)
+        my %data = %{ $pkgData->{$section} };
+
+        delete $data{'dialog_priority'};
 
         # Per section packages to install
-        if ( defined $data->{'package'} ) {
-            for my $node ( @{ delete $data->{'package'} } ) {
-                $self->_parsePackageNode( $node, $self->{'packagesToInstall'} );
+        if ( defined $data{'package'} ) {
+            for my $node ( @{ delete $data{'package'} } ) {
+                _parsePackageNode( $node, $section, $container{$section} );
             }
         }
 
         # Per section packages to install (delayed)
-        if ( defined $data->{'package_delayed'} ) {
-            for my $node ( @{ delete $data->{'package_delayed'} } ) {
-                $self->_parsePackageNode( $node, $self->{'packagesToInstallDelayed'} );
+        if ( defined $data{'package_delayed'} ) {
+            for my $node ( @{ delete $data{'package_delayed'} } ) {
+                _parsePackageNode( $node, $section, $container{$section}, 'packagesToInstallDelayed' );
             }
         }
 
         # Per section conflicting packages to pre-remove
-        if ( defined $data->{'package_conflict'} ) {
-            for my $node ( @{ delete $data->{'package_conflict'} } ) {
-                push @{ $self->{'packagesToPreUninstall'} }, ref $node eq 'HASH' ? $node->{'content'} : $node;
+        if ( defined $data{'package_conflict'} ) {
+            for my $node ( @{ delete $data{'package_conflict'} } ) {
+                push @{ $container{$section}->{'packagesToPreUninstall'} }, ref $node eq 'HASH' ? $node->{'content'} : $node;
             }
         }
 
         # Per section APT repository to add
-        if ( defined $data->{'repository'} ) {
-            push @{ $self->{'aptRepositoriesToAdd'} }, {
-                repository         => delete $data->{'repository'},
-                repository_key_uri => delete $data->{'repository_key_uri'},
-                repository_key_id  => delete $data->{'repository_key_id'},
-                repository_key_srv => delete $data->{'repository_key_srv'}
+        if ( defined $data{'repository'} ) {
+            push @{ $container{$section}->{'aptRepositoriesToAdd'} }, {
+                repository         => delete $data{'repository'},
+                repository_key_uri => delete $data{'repository_key_uri'},
+                repository_key_id  => delete $data{'repository_key_id'},
+                repository_key_srv => delete $data{'repository_key_srv'}
             };
         }
 
         # Per section APT preferences (pinning) to add
-        if ( defined $data->{'pinning_package'} ) {
-            push @{ $self->{'aptPreferences'} }, {
-                pinning_package      => delete $data->{'pinning_package'},
-                pinning_pin          => delete $data->{'pinning_pin'},
-                pinning_pin_priority => delete $data->{'pinning_pin_priority'},
+        if ( defined $data{'pinning_package'} ) {
+            push @{ $container{$section}->{'aptPreferences'} }, {
+                pinning_package      => delete $data{'pinning_package'},
+                pinning_pin          => delete $data{'pinning_pin'},
+                pinning_pin_priority => delete $data{'pinning_pin_priority'},
             };
         }
 
         # Per section pre-installation tasks to execute
-        if ( defined $data->{'pre_install_task'} ) {
-            push @{ $self->{'packagesPreInstallTasks'}->{$section} }, $_ for @{ delete $data->{'pre_install_task'} };
+        if ( defined $data{'pre_install_task'} ) {
+            push @{ $container{$section}->{'packagesPreInstallTasks'}->{$section} }, $_ for @{ delete $data{'pre_install_task'} };
         }
 
         # Per section post-installation tasks to execute
-        if ( defined $data->{'post_install_task'} ) {
-            push @{ $self->{'packagesPostInstallTasks'}->{$section} }, $_ for @{ delete $data->{'post_install_task'} };
+        if ( defined $data{'post_install_task'} ) {
+            push @{ $container{$section}->{'packagesPostInstallTasks'}->{$section} }, $_ for @{ delete $data{'post_install_task'} };
         }
 
         # Jump in next section, unless the section defines alternatives
-        next unless %{ $data };
+        unless ( %data ) {
+            $state++;
+            next;
+        };
 
         # Dialog flag indicating whether or not user must be asked for
         # alternative
         my $showDialog = FALSE;
-
         # Alternative section description
-        my $altDesc = ( delete $data->{'description'} ) || $section;
-        my $altFullDesc = delete $data->{'full_description'};
-
+        my $altDesc = ( delete $data{'description'} ) || $section;
+        my $altFullDesc = delete $data{'full_description'};
         # Alternative section variable name
-        my $varname = ( delete $data->{'varname'} ) || uc( $section ) . '_SERVER';
-
+        my $varname = ( delete $data{'varname'} ) || uc( $section ) . '_SERVER';
         # Whether or not full alternative section is hidden
-        my $isAltSectionHidden = delete $data->{'hidden'};
-
+        my $isAltSectionHidden = delete $data{'hidden'};
         # Retrieve current selected alternative
-        my $sAlt = exists $::questions{ $varname } ? $::questions{ $varname } : (
-            exists $::imscpConfig{ $varname } ? $::imscpConfig{ $varname } : ''
-        );
+        my $sAlt = exists $::questions{ $varname } ? $::questions{ $varname } : ( exists $::imscpConfig{ $varname } ? $::imscpConfig{ $varname } : '' );
 
         # Builds list of selectable alternatives through dialog:
         # - Discard hidden alternatives, that is, those which don't involve any
         #   dialog
         # - Discard alternative for which evaluation of the 'condition'
         #   attribute expression (if any) is FALSE
-        my @sAlts = $isAltSectionHidden ? keys %{ $data } : grep {
-            !$data->{$_}->{'hidden'} && !defined $data->{$_}->{'condition'} || evalConditionFromXmlFile( $data->{$_}->{'condition'} )
-        } keys %{ $data };
+        my @sAlts = $isAltSectionHidden ? keys %data : grep {
+            !$data{$_}->{'hidden'} && !defined $data{$_}->{'condition'} || evalConditionFromXmlFile( $data{$_}->{'condition'} )
+        } keys %data;
 
         # The sqld section needs a specific treatment
         if ( $section eq 'sqld' ) {
             _processSqldSection( \@sAlts, $dialog );
             unless ( length $sAlt || !iMSCP::Getopt->preseed ) {
-                ( $sAlt ) = grep { $data->{$_}->{'default'} } @sAlts;
+                ( $sAlt ) = grep { $data{$_}->{'default'} } @sAlts;
                 $sAlt ||= $sAlts[0];
             }
         }
@@ -543,7 +548,7 @@ sub _processPackagesFile
             # or the first entry if there are no default, and we set the dialog
             # flag to make the user able to change it unless there is only one
             # alternative available.
-            ( $sAlt ) = grep { $data->{$_}->{'default'} } @sAlts;
+            ( $sAlt ) = grep { $data{$_}->{'default'} } @sAlts;
             $sAlt ||= $sAlts[0];
             $showDialog = TRUE unless @sAlts < 2;
         }
@@ -554,51 +559,62 @@ sub _processPackagesFile
 
         # Process alternative dialogs
         if ( $showDialog ) {
-            local $dialog->{'_opts'}->{'no-cancel'} = '';
+            local $dialog->{'_opts'}->{'no-cancel'} = $state ? undef : '';
             my %choices;
-            @choices{ values @sAlts } = map { $data->{$_}->{'description'} // $_ } @sAlts;
-
+            @choices{ values @sAlts } = map { $data{$_}->{'description'} // $_ } @sAlts;
             ( my $ret, $sAlt ) = $dialog->radiolist( <<"EOF", \%choices, $sAlt );
 
 Please select the $altDesc that you want to use:
 
 @{ [ ( $altFullDesc // '' )] }
 EOF
-            exit $ret if $ret; # Handle ESC case
+            exit $ret if $ret == 50; # ESC
+            if ( $ret == 30 ) { # backup capability
+                do {
+                    $state--;
+                    %data = %{ $pkgData->{$sections[$state]} };
+                    delete @data{qw/
+                        description varname dialog_priority package package_delayed package_conflict repository repository_key_uri
+                        repository_key_id repository_key_srv pinning_package pinning_pin pinning_pin_priority pre_install_task post_install_task
+                        full_description
+                    /};
+                    @sAlts = delete $data{'hidden'} ? keys %data : grep {
+                        !$data{$_}->{'hidden'} && !defined $data{$_}->{'condition'} || evalConditionFromXmlFile( $data{$_}->{'condition'} )
+                    } keys %data;
+                } while @sAlts < 2;
+                next;
+            }
         }
 
-        #
-        ## Process alternatives data
-        #
-
-        while ( my ( $alt, $altData ) = each( %{ $data } ) ) {
+        # Process alternatives
+        while ( my ( $alt, $altData ) = each( %data ) ) {
             # Process data for the selected alternative or those which need to
             # be always installed
             if ( $alt eq $sAlt || $altData->{'install_always'} ) {
                 # Per alternative packages to install
                 if ( defined $altData->{'package'} ) {
                     for my $node ( @{ delete $altData->{'package'} } ) {
-                        $self->_parsePackageNode( $node, $self->{'packagesToInstall'} );
+                        _parsePackageNode( $node, $section, $container{$section} );
                     }
                 }
 
                 # Per alternative packages to install (delayed)
                 if ( defined $altData->{'package_delayed'} ) {
                     for my $node ( @{ delete $altData->{'package_delayed'} } ) {
-                        $self->_parsePackageNode( $node, $self->{'packagesToInstallDelayed'} );
+                        _parsePackageNode( $node, $section, $container{$section}, 'packagesToInstallDelayed' );
                     }
                 }
 
                 # Per alternative packages conflicting packages to pre-remove
                 if ( defined $altData->{'package_conflict'} ) {
                     for my $node ( @{ delete $altData->{'package_conflict'} } ) {
-                        push @{ $self->{'packagesToPreUninstall'} }, ref $node ? $node->{'content'} : $node;
+                        push @{ $container{$section}->{'packagesToPreUninstall'} }, ref $node ? $node->{'content'} : $node;
                     }
                 }
 
                 # Per alternative APT repository to add
                 if ( defined $altData->{'repository'} ) {
-                    push @{ $self->{'aptRepositoriesToAdd'} }, {
+                    push @{ $container{$section}->{'aptRepositoriesToAdd'} }, {
                         repository         => delete $altData->{'repository'},
                         repository_key_uri => delete $altData->{'repository_key_uri'},
                         repository_key_id  => delete $altData->{'repository_key_id'},
@@ -608,7 +624,7 @@ EOF
 
                 # Per alternative APT preferences (pinning) to add
                 if ( defined $altData->{'pinning_package'} ) {
-                    push @{ $self->{'aptPreferences'} }, {
+                    push @{ $container{$section}->{'aptPreferences'} }, {
                         pinning_package      => delete $altData->{'pinning_package'},
                         pinning_pin          => delete $altData->{'pinning_pin'},
                         pinning_pin_priority => delete $altData->{'pinning_pin_priority'},
@@ -618,20 +634,20 @@ EOF
                 # Per alternative pre-installation tasks to execute
                 if ( defined $altData->{'pre_install_task'} ) {
                     for my $task ( @{ delete $altData->{'pre_install_task'} } ) {
-                        push @{ $self->{'packagesPreInstallTasks'}->{$sAlt} }, $task;
+                        push @{ $container{$section}->{'packagesPreInstallTasks'}->{$section} }, $task;
                     }
                 }
 
                 # Per alternative post-installation tasks to execute
                 if ( defined $altData->{'post_install_task'} ) {
                     for my $task ( @{ delete $altData->{'post_install_task'} } ) {
-                        push @{ $self->{'packagesPostInstallTasks'}->{$sAlt} }, $task;
+                        push @{ $container{$section}->{'packagesPostInstallTasks'}->{$section} }, $task;
                     }
                 }
 
                 # Per alternative conflicting APT repositories to remove
-                if ( defined $data->{$sAlt}->{'repository_conflict'} ) {
-                    push @{ $self->{'aptRepositoriesToRemove'} }, delete $data->{$sAlt}->{'repository_conflict'}
+                if ( defined $data{$sAlt}->{'repository_conflict'} ) {
+                    push @{ $container{$section}->{'aptRepositoriesToRemove'} }, delete $data{$sAlt}->{'repository_conflict'}
                 }
 
                 next;
@@ -641,31 +657,40 @@ EOF
             for ( qw/ package package_delayed / ) {
                 next unless defined $altData->{$_} && !$altData->{'skip_uninstall'};
                 for my $node ( @{ delete $altData->{$_} } ) {
-                    push @{ $self->{'packagesToUninstall'} }, ref $node ? $node->{'content'} : $node;
+                    push @{ $container{$section}->{'packagesToUninstall'} }, ref $node ? $node->{'content'} : $node;
                 }
             }
 
             # Per unselected alternative APT repositories to remove
             for ( qw/ repository repository_conflict / ) {
                 next unless defined $altData->{$_};
-                push @{ $self->{'aptRepositoriesToRemove'} }, delete $altData->{$_};
+                push @{ $container{$section}->{'aptRepositoriesToRemove'} }, delete $altData->{$_};
             }
         }
 
-        debug( sprintf( 'Alternative for %s set to: %s', $section, $sAlt ));
-
         # Set configuration variables for alternatives
         $::imscpConfig{$varname} = $::questions{$varname} = $sAlt;
-        $::imscpConfig{uc( $section ) . '_PACKAGE'} = $data->{$sAlt}->{'class'} || 'none';
+        $::imscpConfig{uc( $section ) . '_PACKAGE'} = $data{$sAlt}->{'class'} || 'none';
+        $state++;
     }
 
-    require List::MoreUtils;
-    List::MoreUtils->import( 'uniq' );
+    for my $section ( @sections ) {
+        while ( my ( $target, $data ) = each( %{ $container{$section} } ) ) {
+            if ( ref $data eq 'ARRAY' ) {
+                push @{ $self->{ $target } }, @{ $data };
+                @{ $self->{ $target } } = uniq( @{ $self->{ $target } } );
+                next;
+            }
 
-    @{ $self->{'packagesToPreUninstall'} } = sort (uniq( @{ $self->{'packagesToPreUninstall'} } ));
-    @{ $self->{'packagesToUninstall'} } = sort (uniq( @{ $self->{'packagesToUninstall'} } ));
-    @{ $self->{'packagesToInstall'} } = sort (uniq( @{ $self->{'packagesToInstall'} } ));
-    @{ $self->{'packagesToInstallDelayed'} } = sort (uniq( @{ $self->{'packagesToInstallDelayed'} } ));
+            next unless exists $data->{$section};
+            push @{ $self->{ $target }->{ $section } }, @{ $data->{$section} };
+            @{ $self->{ $target }->{ $section } } = uniq( @{ $self->{ $target }->{ $section } } );
+        }
+    }
+
+    use Data::Dumper;
+    print Dumper( $self );
+    exit;
 
     0;
 }
@@ -1144,8 +1169,7 @@ sub _rebuildAndInstallPackage
                 ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : sub { step( undef, $msgHeader . ( shift ), 5, 5 ) } ),
                 sub { $stderr .= shift }
             );
-            error( sprintf( "Couldn't install local %s %s package: %s", $pkg, $lsbRelease->getId( 1 ),
-                $stderr || 'Unknown error' )) if $rs;
+            error( sprintf( "Couldn't install local %s %s package: %s", $pkg, $lsbRelease->getId( 1 ), $stderr || 'Unknown error' )) if $rs;
             return $rs if $rs;
 
             # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
@@ -1187,7 +1211,7 @@ sub _getSqldInfo
         # ...
         if ( my ( $version, $vendor ) = $stdout =~ /Ver\s+(\d+.\d+).*?\b(debian|mariadb|mysql|percona|ubuntu)\b/i ) {
             $vendor = lc $vendor;
-            $vendor = 'mysql' if grep( $_ eq $vendor, 'debian', 'ubuntu' );
+            $vendor = 'mysql' if grep ( $_ eq $vendor, 'debian', 'ubuntu' );
             return @info = ( $vendor, $version );
         }
     }
@@ -1225,7 +1249,7 @@ sub _processSqldSection
     # Ask for confirmation if current SQL server vendor is no longer
     # supported (safety measure)
     $dialog->endGauge();
-    local $dialog->{'_opts'}->{'no-cancel'} = undef;
+
     exit 50 if $dialog->yesno( <<"EOF", TRUE );
 
 \\Zb\\Z1WARNING \\Z0CURRENT SQL SERVER VENDOR IS NOT SUPPORTED \\Z1WARNING\\Zn

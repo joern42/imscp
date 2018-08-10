@@ -114,7 +114,7 @@ sub setupDialog
     # In any other context, the ESC keystroke allows user to abort.
     my ( $state, $nbDialog, $dialog ) = ( 0, scalar @{ $dialogStack }, iMSCP::Dialog->getInstance() );
     while ( $state < $nbDialog ) {
-        $dialog->set( 'no-cancel', $state == 0 ? '' : undef );
+        local $dialog->{_opts}->{'no-cancel'} = $state ? undef : '';
 
         $rs = $dialogStack->[$state]->( $dialog );
         exit( $rs ) if $rs == 50;
@@ -129,8 +129,6 @@ sub setupDialog
         iMSCP::Getopt->reconfigure( grep ( $_ ne 'forced', @{ iMSCP::Getopt->reconfigure } ));
         $state++;
     }
-
-    $dialog->set( 'no-cancel', undef );
 
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupDialog' );
 }
