@@ -355,7 +355,6 @@
     <mta description="SMTP server" dialog_priority="4">
         <postfix default="1" description="Postfix server" class="Servers::mta::postfix">
             <package>postfix</package>
-            <package>postsrsd</package>
         </postfix>
         <package_conflict>procmail</package_conflict>
         <package_conflict>sendmail</package_conflict>
@@ -364,6 +363,12 @@
         <package_conflict>sendmail-cf</package_conflict>
         <package_conflict>sendmail-doc</package_conflict>
     </mta>
+    <postfix_srs description="Postfix Sender Rewritting Scheme (SRS)" varname="POSTFIX_SRS" dialog_priority="4">
+        <postsrsd description=" Postsrsd" class="Package::Setup::PostfixSRS">
+            <package>postsrsd</package>
+        </postsrsd>
+        <none default="1" description="No SRS"/>
+    </postfix_srs>
     <po description="IMAP/POP server" dialog_priority="3">
         <courier description="Courier IMAP/POP3 servers" class="Servers::po::courier">
             <package>courier-authlib-mysql</package>
@@ -408,18 +413,19 @@
         <full_description>
             ClamAV is executed differently depending on whether or not you have chosen Rspamd for the antispam solution.
             \nIf you have chosen Rspamd, ClamAV will be run through the Rspamd antivirus module, otherwise it will be run through ClamAV milter.
-            \n\nIf you currently make use of the ClamAV plugin and want switch to the ClamAV core integration, you should first uninstall the ClamAV plugin.
+            \n\nIf you currently make use of the ClamAV plugin and want switch to the ClamAV core integration, you should first uninstall the ClamAV
+            plugin.
             \nThe behavior will be undefined if you have both the ClamAV core integration and the ClamAV plugin enabled at the same time.
             \n\nWe highly recommend to switch to the ClamAV core integration as the ClamAV plugin will be deprecated in a near future.
         </full_description>
-        <clamav default="1" description="ClamAV" class="Package::Setup::ClamAV">
+        <clamav description="ClamAV" class="Package::Setup::ClamAV">
             <package>clamav</package>
             <package>clamav-freshclam</package>
             <package>clamdscan</package>
             <package>clamav-daemon</package>
             <package condition="'${ANTISPAM}' ne 'rspamd'">clamav-milter</package>
         </clamav>
-        <none description="No antivirus"/>
+        <none default="1" description="No antivirus"/>
     </antivirus>
     <perl>
         <package>perl</package>

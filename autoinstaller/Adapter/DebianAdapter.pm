@@ -23,6 +23,7 @@ use strict;
 use warnings;
 use autoinstaller::Functions qw/ evalConditionFromXmlFile /;
 use autouse 'iMSCP::Stepper' => qw/ startDetail endDetail step /;
+use autouse 'Clone' => qw/ clone /;
 use File::Temp;
 use iMSCP::Boolean;
 use iMSCP::Cwd;
@@ -36,7 +37,6 @@ use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::LsbRelease;
 use iMSCP::ProgramFinder;
-use Storable qw/ dclone /;
 use version;
 use parent 'autoinstaller::Adapter::AbstractAdapter';
 
@@ -456,7 +456,7 @@ sub _processPackagesFile
         /} = ( [], [], [], [], [], [], [], {}, {}, {} );
 
         # We don't operate on original data (backup capability)
-        my $data = dclone $pkgData->{$section};
+        my $data = clone $pkgData->{$section};
 
         delete $data->{'dialog_priority'};
 
@@ -583,7 +583,8 @@ EOF
             if ( $ret == 30 ) {
                 do {
                     $state--;
-                    $data = dclone $pkgData->{$sections[$state]};
+                    iMSCP::Getopt->reconfigure($sections[$state], FALSE, TRUE);
+                    $data = clone $pkgData->{$sections[$state]};
                     delete @{ $data }{qw/
                         description varname dialog_priority package package_delayed package_conflict repository repository_key_uri
                         repository_key_id repository_key_srv pinning_package pinning_pin pinning_pin_priority pre_install_task post_install_task
