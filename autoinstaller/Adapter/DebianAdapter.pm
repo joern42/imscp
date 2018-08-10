@@ -28,7 +28,7 @@ use iMSCP::Boolean;
 use iMSCP::Cwd;
 use iMSCP::Debug qw/ debug error output getMessageByType /;
 use iMSCP::Dialog;
-use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringInList /;
 use iMSCP::DistPackageManager;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute executeNoWait /;
@@ -37,6 +37,7 @@ use iMSCP::Getopt;
 use iMSCP::LsbRelease;
 use iMSCP::ProgramFinder;
 use version;
+use Storable qw/ dclone /;
 use parent 'autoinstaller::Adapter::AbstractAdapter';
 
 =head1 DESCRIPTION
@@ -59,7 +60,6 @@ sub installPreRequiredPackages
 {
     my ( $self ) = @_;
 
-    return 0;
     print STDOUT output( 'Satisfying prerequisites... Please wait.', 'info' );
 
     eval {
@@ -276,7 +276,7 @@ sub _init
             'libclass-insideout-perl', 'libclone-perl', 'liblchown-perl', 'liblist-compare-perl', 'liblist-moreutils-perl', 'libscalar-defer-perl',
             'libsort-versions-perl', 'libxml-simple-perl', 'lsb-release', 'policyrcd-script-zg2', 'wget'
         ],
-        [], [], [], [], [], [], [], [], {}, {}, TRUE
+        [], [], [], [], [], [], [], {}, {}, {}, TRUE
     );
 
     delete $ENV{'DEBCONF_FORCE_DIALOG'};
@@ -422,18 +422,30 @@ sub _processPackagesFile
         NormalizeSpace => 2
     );
 
-    my $dialog = iMSCP::Dialog->getInstance();
+    # List of required sections in packages file
+    my @requiredSections = qw/ sqld named panel_httpd panel_php httpd php ftpd mta postfix_srs po antispam antivirus perl other /;
 
     # Make sure that all mandatory sections are defined in the packages file
-    for my $section ( qw/ panel_php panel_httpd httpd php po mta ftpd sqld named perl other / ) {
+    for my $section ( @requiredSections ) {
         defined $pkgData->{$section} or die( sprintf( 'Missing %s section in the distribution packages file.', $section ));
     }
+
+    # Flag indicating whether or not we are in second pass
+    my $secPass = FALSE;
+
+    sections_processing:
 
     # Sort sections to make sure to process them in expected order
     my @sections = sort { ( $pkgData->{$b}->{'dialog_priority'} || 0 ) <=> ( $pkgData->{$a}->{'dialog_priority'} || 0 ) } keys %{ $pkgData };
 
+    # In reconfiguration mode, we do a first pass with selected items to
+    # reconfigure only, unless all item must be reconfigured
+    if ( !$secPass && isOneOfStringsInList( iMSCP::Getopt->reconfigure, \@requiredSections ) ) {
+        @sections = grep ( isStringInList( $_, @{ iMSCP::Getopt->reconfigure } ), @sections )
+    }
+
     # Implements a simple state machine (backup capability)
-    my ( $state, $countSections, %container ) = ( 0, scalar @sections );
+    my ( $state, $countSections, $dialog, %container ) = ( 0, scalar @sections, iMSCP::Dialog->getInstance() );
     while ( $state < $countSections ) {
         my $section = $sections[$state];
 
@@ -441,65 +453,65 @@ sub _processPackagesFile
         @{ $container{$section} }{qw/
             aptRepositoriesToRemove aptRepositoriesToAdd aptPreferences packagesToInstall packagesToInstallDelayed packagesToPreUninstall
             packagesToUninstall packagesToRebuild packagesPreInstallTasks packagesPostInstallTasks
-        /} = ( [], [], [], [], [], [], [], [], {}, {} );
+        /} = ( [], [], [], [], [], [], [], {}, {}, {} );
 
         # We don't operate on original data (backup capability)
-        my %data = %{ $pkgData->{$section} };
+        my $data = dclone $pkgData->{$section};
 
-        delete $data{'dialog_priority'};
+        delete $data->{'dialog_priority'};
 
         # Per section packages to install
-        if ( defined $data{'package'} ) {
-            for my $node ( @{ delete $data{'package'} } ) {
+        if ( defined $data->{'package'} ) {
+            for my $node ( @{ delete $data->{'package'} } ) {
                 _parsePackageNode( $node, $section, $container{$section} );
             }
         }
 
         # Per section packages to install (delayed)
-        if ( defined $data{'package_delayed'} ) {
-            for my $node ( @{ delete $data{'package_delayed'} } ) {
+        if ( defined $data->{'package_delayed'} ) {
+            for my $node ( @{ delete $data->{'package_delayed'} } ) {
                 _parsePackageNode( $node, $section, $container{$section}, 'packagesToInstallDelayed' );
             }
         }
 
         # Per section conflicting packages to pre-remove
-        if ( defined $data{'package_conflict'} ) {
-            for my $node ( @{ delete $data{'package_conflict'} } ) {
+        if ( defined $data->{'package_conflict'} ) {
+            for my $node ( @{ delete $data->{'package_conflict'} } ) {
                 push @{ $container{$section}->{'packagesToPreUninstall'} }, ref $node eq 'HASH' ? $node->{'content'} : $node;
             }
         }
 
         # Per section APT repository to add
-        if ( defined $data{'repository'} ) {
+        if ( defined $data->{'repository'} ) {
             push @{ $container{$section}->{'aptRepositoriesToAdd'} }, {
-                repository         => delete $data{'repository'},
-                repository_key_uri => delete $data{'repository_key_uri'},
-                repository_key_id  => delete $data{'repository_key_id'},
-                repository_key_srv => delete $data{'repository_key_srv'}
+                repository         => delete $data->{'repository'},
+                repository_key_uri => delete $data->{'repository_key_uri'},
+                repository_key_id  => delete $data->{'repository_key_id'},
+                repository_key_srv => delete $data->{'repository_key_srv'}
             };
         }
 
         # Per section APT preferences (pinning) to add
-        if ( defined $data{'pinning_package'} ) {
+        if ( defined $data->{'pinning_package'} ) {
             push @{ $container{$section}->{'aptPreferences'} }, {
-                pinning_package      => delete $data{'pinning_package'},
-                pinning_pin          => delete $data{'pinning_pin'},
-                pinning_pin_priority => delete $data{'pinning_pin_priority'},
+                pinning_package      => delete $data->{'pinning_package'},
+                pinning_pin          => delete $data->{'pinning_pin'},
+                pinning_pin_priority => delete $data->{'pinning_pin_priority'},
             };
         }
 
         # Per section pre-installation tasks to execute
-        if ( defined $data{'pre_install_task'} ) {
-            push @{ $container{$section}->{'packagesPreInstallTasks'}->{$section} }, $_ for @{ delete $data{'pre_install_task'} };
+        if ( defined $data->{'pre_install_task'} ) {
+            push @{ $container{$section}->{'packagesPreInstallTasks'}->{$section} }, $_ for @{ delete $data->{'pre_install_task'} };
         }
 
         # Per section post-installation tasks to execute
-        if ( defined $data{'post_install_task'} ) {
-            push @{ $container{$section}->{'packagesPostInstallTasks'}->{$section} }, $_ for @{ delete $data{'post_install_task'} };
+        if ( defined $data->{'post_install_task'} ) {
+            push @{ $container{$section}->{'packagesPostInstallTasks'}->{$section} }, $_ for @{ delete $data->{'post_install_task'} };
         }
 
         # Jump in next section, unless the section defines alternatives
-        unless ( %data ) {
+        unless ( %{ $data } ) {
             $state++;
             next;
         };
@@ -508,12 +520,12 @@ sub _processPackagesFile
         # alternative
         my $showDialog = FALSE;
         # Alternative section description
-        my $altDesc = ( delete $data{'description'} ) || $section;
-        my $altFullDesc = delete $data{'full_description'};
+        my $altDesc = ( delete $data->{'description'} ) || $section;
+        my $altFullDesc = delete $data->{'full_description'};
         # Alternative section variable name
-        my $varname = ( delete $data{'varname'} ) || uc( $section ) . '_SERVER';
+        my $varname = ( delete $data->{'varname'} ) || uc( $section ) . '_SERVER';
         # Whether or not full alternative section is hidden
-        my $isAltSectionHidden = delete $data{'hidden'};
+        my $isAltSectionHidden = delete $data->{'hidden'};
         # Retrieve current selected alternative
         my $sAlt = exists $::questions{ $varname } ? $::questions{ $varname } : ( exists $::imscpConfig{ $varname } ? $::imscpConfig{ $varname } : '' );
 
@@ -522,15 +534,15 @@ sub _processPackagesFile
         #   dialog
         # - Discard alternative for which evaluation of the 'condition'
         #   attribute expression (if any) is FALSE
-        my @sAlts = $isAltSectionHidden ? keys %data : grep {
-            !$data{$_}->{'hidden'} && !defined $data{$_}->{'condition'} || evalConditionFromXmlFile( $data{$_}->{'condition'} )
-        } keys %data;
+        my @sAlts = $isAltSectionHidden ? keys %{ $data } : grep {
+            !$data->{$_}->{'hidden'} && !defined $data->{$_}->{'condition'} || evalConditionFromXmlFile( $data->{$_}->{'condition'} )
+        } keys %{ $data };
 
         # The sqld section needs a specific treatment
         if ( $section eq 'sqld' ) {
             _processSqldSection( \@sAlts, $dialog );
             unless ( length $sAlt || !iMSCP::Getopt->preseed ) {
-                ( $sAlt ) = grep { $data{$_}->{'default'} } @sAlts;
+                ( $sAlt ) = grep { $data->{$_}->{'default'} } @sAlts;
                 $sAlt ||= $sAlts[0];
             }
         }
@@ -545,20 +557,20 @@ sub _processPackagesFile
             # or the first entry if there are no default, and we set the dialog
             # flag to make the user able to change it unless there is only one
             # alternative available.
-            ( $sAlt ) = grep { $data{$_}->{'default'} } @sAlts;
+            ( $sAlt ) = grep { $data->{$_}->{'default'} } @sAlts;
             $sAlt ||= $sAlts[0];
             $showDialog = TRUE unless @sAlts < 2;
         }
 
         # Set the dialog flag in any case if there are many alternatives
         # available and if user asked for alternative reconfiguration
-        $showDialog ||= @sAlts > 1 && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] );
+        $showDialog ||= @sAlts > 1 && !$secPass && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] );
 
         # Process alternative dialogs
         if ( $showDialog ) {
             local $dialog->{'_opts'}->{'no-cancel'} = $state ? undef : '';
             my %choices;
-            @choices{ values @sAlts } = map { $data{$_}->{'description'} // $_ } @sAlts;
+            @choices{ values @sAlts } = map { $data->{$_}->{'description'} // $_ } @sAlts;
             ( my $ret, $sAlt ) = $dialog->radiolist( <<"EOF", \%choices, $sAlt );
 
 Please select the $altDesc that you want to use:
@@ -566,25 +578,27 @@ Please select the $altDesc that you want to use:
 @{ [ ( $altFullDesc // '' )] }
 EOF
             exit $ret if $ret == 50; # ESC
-            if ( $ret == 30 ) { # backup capability
+
+            # backup capability
+            if ( $ret == 30 ) {
                 do {
                     $state--;
-                    %data = %{ $pkgData->{$sections[$state]} };
-                    delete @data{qw/
+                    $data = dclone $pkgData->{$sections[$state]};
+                    delete @{ $data }{qw/
                         description varname dialog_priority package package_delayed package_conflict repository repository_key_uri
                         repository_key_id repository_key_srv pinning_package pinning_pin pinning_pin_priority pre_install_task post_install_task
                         full_description
                     /};
-                    @sAlts = delete $data{'hidden'} ? keys %data : grep {
-                        !$data{$_}->{'hidden'} && !defined $data{$_}->{'condition'} || evalConditionFromXmlFile( $data{$_}->{'condition'} )
-                    } keys %data;
+                    @sAlts = delete $data->{'hidden'} ? keys %{ $data } : grep {
+                        !$data->{$_}->{'hidden'} && !defined $data->{$_}->{'condition'} || evalConditionFromXmlFile( $data->{$_}->{'condition'} )
+                    } keys %{ $data };
                 } while @sAlts < 2;
                 next;
             }
         }
 
         # Process alternatives
-        while ( my ( $alt, $altData ) = each( %data ) ) {
+        while ( my ( $alt, $altData ) = each( %{ $data } ) ) {
             # Process data for the selected alternative or those which need to
             # be always installed
             if ( $alt eq $sAlt || $altData->{'install_always'} ) {
@@ -643,8 +657,8 @@ EOF
                 }
 
                 # Per alternative conflicting APT repositories to remove
-                if ( defined $data{$sAlt}->{'repository_conflict'} ) {
-                    push @{ $container{$section}->{'aptRepositoriesToRemove'} }, delete $data{$sAlt}->{'repository_conflict'}
+                if ( defined $data->{$sAlt}->{'repository_conflict'} ) {
+                    push @{ $container{$section}->{'aptRepositoriesToRemove'} }, delete $data->{$sAlt}->{'repository_conflict'}
                 }
 
                 next;
@@ -667,8 +681,15 @@ EOF
 
         # Set configuration variables for alternatives
         $::imscpConfig{$varname} = $::questions{$varname} = $sAlt;
-        $::imscpConfig{uc( $section ) . '_PACKAGE'} = $data{$sAlt}->{'class'} || 'none';
+        $::imscpConfig{uc( $section ) . '_PACKAGE'} = $data->{$sAlt}->{'class'} || 'none';
         $state++;
+    }
+
+    # In reconfiguration mode, we need redo the job silently to make sure that
+    # all sections are processed.
+    unless ( $secPass ) {
+        $secPass = TRUE;
+        goto sections_processing;
     }
 
     require List::MoreUtils;
