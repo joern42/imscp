@@ -23,10 +23,7 @@ use strict;
 use warnings;
 use autoinstaller::Functions qw/ evalConditionFromXmlFile /;
 use autouse 'iMSCP::Stepper' => qw/ startDetail endDetail step /;
-use autouse 'List::MoreUtils' => qw/ uniq /;
-#use Fcntl qw/ :flock /;
 use File::Temp;
-use FindBin;
 use iMSCP::Boolean;
 use iMSCP::Cwd;
 use iMSCP::Debug qw/ debug error output getMessageByType /;
@@ -62,6 +59,7 @@ sub installPreRequiredPackages
 {
     my ( $self ) = @_;
 
+    return 0;
     print STDOUT output( 'Satisfying prerequisites... Please wait.', 'info' );
 
     eval {
@@ -308,7 +306,7 @@ sub _setupGetAddrinfoPrecedence
     if ( -f '/etc/gai.conf' ) {
         $fileContent = $file->get();
         unless ( defined $fileContent ) {
-            error( sprintf( "Couldn't read %s file ", $file->{'filename'} ));
+            error( sprintf( "Couldn't read the '%s' file ", $file->{'filename'} ));
             return 1;
         }
 
@@ -673,11 +671,14 @@ EOF
         $state++;
     }
 
+    require List::MoreUtils;
+    List::MoreUtils->import( qw/ uniq / );
+
     for my $section ( @sections ) {
         while ( my ( $target, $data ) = each( %{ $container{$section} } ) ) {
             if ( ref $data eq 'ARRAY' ) {
                 push @{ $self->{ $target } }, @{ $data };
-                @{ $self->{ $target } } = uniq( @{ $self->{ $target } } );
+                @{ $self->{ $target } } = sort( uniq( @{ $self->{ $target } } ) );
                 next;
             }
 
