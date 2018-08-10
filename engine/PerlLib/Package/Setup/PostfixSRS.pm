@@ -27,6 +27,7 @@ use strict;
 use warnings;
 use iMSCP::Debug qw/ error /;
 use iMSCP::EventManager;
+use iMSCP::File;
 use iMSCP::Service;
 use Servers::mta;
 use parent 'Common::SingletonClass';
@@ -53,7 +54,7 @@ sub preinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_postsrsd'};
+    return 0 unless $::imscpConfig{'POSTFIX_SRS'} eq 'postsrsd';
 
     $self->stop();
 }
@@ -70,9 +71,11 @@ sub install
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_postsrsd'};
+    return 0 unless $::imscpConfig{'POSTFIX_SRS'} eq 'postsrsd';
 
-    Servers::mta->factory()->postconf( (
+    my $rs = $self->_setupPostsrsDaemon();
+
+    $rs ||= Servers::mta->factory()->postconf( (
         sender_canonical_maps       => {
             action => 'add',
             values => [ 'tcp:127.0.0.1:10001' ]
@@ -104,7 +107,7 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $self->{'has_postsrsd'};
+    return 0 unless $::imscpConfig{'POSTFIX_SRS'} eq 'postsrsd';
 
     local $@;
     eval { iMSCP::Service->getInstance()->enable( 'postsrsd' ); };
@@ -195,8 +198,28 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'has_postsrsd'} = iMSCP::Service->getInstance()->hasService( 'postsrsd' );
     $self;
+}
+
+=item _setupPostsrsDaemon( )
+
+ Setup postsrs daemon
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _setupPostsrsDaemon
+{
+    my ( $self ) = @_;
+
+    my $file = iMSCP::File->new( filename => '/etc/default/postsrsd' );
+    my $fileContent = $file->getAsRef();
+    return 1 unless defined $fileContent;
+
+    ${ $fileContent } =~ s/^(SRS_DOMAIN\s*=)[^\n]+/$1 $::imscpConfig{'SERVER_HOSTNAME'};/m;
+
+    $file->save() || 0;
 }
 
 =back
