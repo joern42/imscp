@@ -36,8 +36,8 @@ use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::LsbRelease;
 use iMSCP::ProgramFinder;
-use version;
 use Storable qw/ dclone /;
+use version;
 use parent 'autoinstaller::Adapter::AbstractAdapter';
 
 =head1 DESCRIPTION
@@ -438,8 +438,8 @@ sub _processPackagesFile
     # Sort sections to make sure to process them in expected order
     my @sections = sort { ( $pkgData->{$b}->{'dialog_priority'} || 0 ) <=> ( $pkgData->{$a}->{'dialog_priority'} || 0 ) } keys %{ $pkgData };
 
-    # In reconfiguration mode, we do a first pass with selected items to
-    # reconfigure only, unless all item must be reconfigured
+    # In reconfiguration mode, we do a first pass with selected section to
+    # reconfigure only, unless all sections must be reconfigured
     if ( !$secPass && isOneOfStringsInList( iMSCP::Getopt->reconfigure, \@requiredSections ) ) {
         @sections = grep ( isStringInList( $_, @{ iMSCP::Getopt->reconfigure } ), @sections )
     }
@@ -564,7 +564,7 @@ sub _processPackagesFile
 
         # Set the dialog flag in any case if there are many alternatives
         # available and if user asked for alternative reconfiguration
-        $showDialog ||= @sAlts > 1 && !$secPass && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] );
+        $showDialog ||= !$secPass && @sAlts > 1 && isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ $section, 'servers', 'all' ] );
 
         # Process alternative dialogs
         if ( $showDialog ) {
