@@ -38,9 +38,9 @@ use constant ALPHA64 => './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 use constant BASE64 => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 our @EXPORT_OK = qw/
-    randomStr md5 sha256 sha512 bcrypt apr1MD5 htpasswd verify hashEqual encryptBlowfishCBC decryptBlowfishCBC
+    ALNUM ALPHA64 BASE64 randomStr md5 sha256 sha512 bcrypt apr1MD5 htpasswd verify hashEqual encryptBlowfishCBC decryptBlowfishCBC
     encryptRijndaelCBC decryptRijndaelCBC
-    /;
+/;
 
 =head1 DESCRIPTION
 
