@@ -57,7 +57,7 @@ sub resetLabels
 
 =item fselect( $file )
 
- Show file selection dialog
+ Show file selection dialog box
 
  Param string $file File path
  Return string|array Dialog output or array containing both dialog exit code and dialog output
@@ -75,7 +75,7 @@ sub fselect
 
 =item radiolist( $text, \%choices [, $defaultTag = none [, $showTags = FALSE ] ] )
 
- Show radio list dialog
+ Show radiolist dialog box
 
  Param string $text Text to show
  Param hashref \%choices List of choices where keys are tags and values are items.
@@ -107,9 +107,9 @@ sub radiolist
     wantarray ? ( $ret, $tag ) : $tag;
 }
 
-=item checkbox( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] ] )
+=item checklist( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] ] )
 
- Show check list dialog
+ Show checklist dialog box
 
  Param string $text Text to show
  Param hashref \%choices List of choices where keys are tags and values are items.
@@ -119,7 +119,7 @@ sub radiolist
 
 =cut
 
-sub checkbox
+sub checklist
 {
     my ( $self, $text, $choices, $defaultTags, $showTags ) = @_;
     $defaultTags //= [];
@@ -143,7 +143,7 @@ sub checkbox
 
 =item tailbox( $file )
 
- Show tail dialog
+ Show tail dialog box
 
  Param string $file File path
  Return int Dialog exit code
@@ -159,7 +159,7 @@ sub tailbox
 
 =item editbox( $file )
 
- Show edit dialog
+ Show edit dialog box
 
  Param string $file File path
  Return string|array Dialog output or array containing both dialog exit code and dialog output
@@ -193,7 +193,7 @@ sub dselect
 
 =item msgbox( $text )
 
- Show message dialog
+ Show message dialog box
 
  Param string $text Text to show in message dialog box
  Return int Dialog exit code
@@ -209,7 +209,7 @@ sub msgbox
 
 =item yesno( $text [, $defaultno =  FALSE [, $backbutton = FALSE ] ] )
 
- Show boolean dialog box
+ Show yesno dialog box
 
  For the 'yesno' dialog box, the code used for 'Yes' and 'No' buttons match
  those used for the 'Ok' and 'Cancel'. See dialog man page. We do not want this behavior. To
@@ -250,7 +250,7 @@ sub yesno
 
 =item inputbox( $text [, $init = '' ] )
 
- Show input dialog
+ Show input dialog box
 
  Param string $text Text to show
  Param string $init Default string value
@@ -268,7 +268,7 @@ sub inputbox
 
 =item passwordbox( $text [, $init = '' ])
 
- Show password dialog
+ Show password dialog box
 
  Param string $text Text to show
  Param string $init Default password value
@@ -287,7 +287,7 @@ sub passwordbox
 
 =item infobox( $text )
 
- Show info dialog
+ Show info dialog box
 
  Param string $text Text to show
  Return int Dialog exit code
@@ -466,7 +466,7 @@ sub _init
     $self->{'_opts'}->{'clear'} ||= undef;
     $self->{'_opts'}->{'column-separator'} = undef;
     $self->{'_opts'}->{'cr-wrap'} = '';
-    $self->{'_opts'}->{'no-collapse'} = undef;
+    $self->{'_opts'}->{'no-collapse'} = '';
     $self->{'_opts'}->{'trim'} = undef;
     $self->{'_opts'}->{'date-format'} = undef;
     $self->{'_opts'}->{'help-status'} = undef;
@@ -649,9 +649,9 @@ sub _execute
  Wrap execution of several dialog box
 
  Param string $text Text to show
- Param string $mode Text dialog box type (radiolist|checklist|msgbox|yesno|inputbox|passwordbox|infobox)
+ Param string $mode Text dialog box type (checklist|infobox|inputbox|msgbox|passwordbox|radiolist|yesno)
  Param string $init Default value
- Return string|array Dialog output or array containing both dialog exit code and dialog output
+ Return string|list Dialog output or list containing both dialog exit code and dialog output
 
 =cut
 
@@ -661,6 +661,12 @@ sub _textbox
 
     local $self->{'autosize'} = undef;
     my ( $ret, $output ) = $self->_execute( $text, $init, $type );
+
+    # For the radiolist, input and password boxes, we do not want lose
+    # previous value when backing up
+    # TODO checklist and yesno dialog boxes
+    $output = $init if $ret == 30 && grep( $type eq $_, 'radiolist','inputbox', 'passwordbox' );
+
     wantarray ? ( $ret, $output ) : $output;
 }
 
