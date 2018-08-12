@@ -25,8 +25,9 @@ package iMSCP::Dialog;
 
 use strict;
 use warnings;
-use iMSCP::Debug;
-use iMSCP::Execute;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug error debugRegisterCallBack/;
+use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
 use parent 'Common::SingletonClass';
@@ -636,6 +637,8 @@ sub _execute
     my $height = $self->{'autosize'} ? 0 : $self->{'lines'};
     my $width = $self->{'autosize'} ? 0 : $self->{'columns'};
 
+    # Turn off debug messages for dialog commands
+    local $iMSCP::Execute::Debug = FALSE;
     my $ret = execute( $self->_findBin() . " $command --$type $text $height $width $init", undef, \my $output );
 
     $self->{'_opts'}->{'separate-output'} = undef;

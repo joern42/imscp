@@ -8,6 +8,7 @@ BACKEND
     Added: Support for .timer unit files (Systemd init provider)
     Added: Distribution packages manager (backported from 1.6.x branch)
     Enhancement: Make it possible to reconfigure many items at once by passing comma separated list of items (iMSCP::Getopt)
+    Enhancement: Make it possible to turn off debug messages for external commands (iMSCP::Execute)
     Fixed: Do not enforce routable IP addresses in DNS zone files, let's the administrator choose
     Fixed: Use of uninitialized value in bitwise or ( |) (PHP memory_limit, Subdomain module)
     Fixed: Make sure that units are not masked when enabling them (Systemd service provider)
@@ -43,6 +44,7 @@ INSTALLER
     Fixed: 'CLIENT_DOMAIN_ALT_URLS' configuration parameter reseted to 0 (disabled) while running installer (Fix backported from 1.6.x branch)
     Fixed: 'CLIENT_DOMAIN_ALT_URLS' parameter is not set on fresh installations (Fix backported from 1.6.x branch)
     Fixed: DIRMNGR(8) daemon not being terminated when expected (APT key management -- Debian adapter; Fix backported from 1.6.x branch)
+    Fixed: For the radiolist, input and password boxes, we do not want lose previous value when backing up (backup capability - iMSCP::Dialog)
     Fixed: "Missing or bad entry found in your preseed file" due to unhandled space separator (Slave DNS server)
 
 PACKAGES
