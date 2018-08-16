@@ -58,8 +58,8 @@ BIND_MASTER_IP_ADDRESSES =
 # or semicolon separated master DNS server names (NS, glue recors), one for
 # each master DNS server IP address, following the same order.
 #
-# In historical behavior, names are generated on a per zone basis,
-# using client domain names.
+# In historical behavior, names are generated on a per zone basis, using client
+# domain names.
 #
 # Slave DNS server (BIND_TYPE = slave)
 #
@@ -76,8 +76,8 @@ BIND_MASTER_NAMES =
 # In historical behavior, the hostmaster email address is configured on a per
 # zone basis, using client domain names.
 #
-# This parameter is only relevant when the BIND_MASTER_IP_ADDRESSES is set to a
-# value other than 'none'.
+# This parameter is only relevant when the BIND_MASTER_IP_ADDRESSES parameter
+# is set to a value other than 'none'.
 #
 # Slave DNS server (BIND_TYPE = slave)
 #
@@ -88,10 +88,11 @@ BIND_HOSTMASTER_EMAIL =
 
 # Master DNS server (BIND_TYPE = master)
 #
-# Possible values: A list of space, comma or semicolon separated IP addresses
-# for the slave DNS servers.
+# Possible values: 'none' for no slave DNS servers, or a list of space, comma
+# or semicolon separated IP addresses for the slave DNS servers.
 #
-# IPv6 addresses are only allowed if the BIND_IPV6 value is set to 'yes'.
+# IPv6 addresses are only allowed if the BIND_IPV6 parameter value is set to
+# 'yes'.
 #
 # Slave DNS server (BIND_TYPE = slave)
 #
@@ -108,6 +109,9 @@ BIND_SLAVE_IP_ADDRESSES =
 #
 # In historical behavior, names are generated on a per zone basis,
 # using client domain names.
+#
+# This parameter is only relevant when the BIND_SLAVE_IP_ADDRESSES parameter
+# is set to a value other than 'none'.
 #
 # Slave DNS server (BIND_TYPE = slave)
 #
