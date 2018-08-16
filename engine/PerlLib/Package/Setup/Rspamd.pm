@@ -701,7 +701,7 @@ sub _setupWebUI
         $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} = $stdout;
     } else {
         ${ $fileC } =~ s/^(enabled\s*=)[^\n]+/$1 false;/m;
-        ${ $fileC } =~ s/^password\s*=[^\n]+/$1 "";/m;
+        ${ $fileC } =~ s/^(password\s*=)[^\n]+/$1 "";/m;
     }
 
     $file->save();

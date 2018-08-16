@@ -105,8 +105,7 @@ sub setupDialog
     my $dialogs = [];
 
     my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDialog', $dialogs );
-    $rs = iMSCP::Dialog->getInstance()->executeDialogs( $dialogs );
-    exit;
+    $rs ||= iMSCP::Dialog->getInstance()->executeDialogs( $dialogs );
     $rs ||= iMSCP::EventManager->getInstance()->trigger( 'afterSetupDialog' );
 }
 

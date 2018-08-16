@@ -353,18 +353,18 @@ sub _buildMainCfFile
     my ( $self ) = @_;
 
     my $baseServerIp = ::setupGetQuestion( 'BASE_SERVER_IP' );
-        my $baseServerPublicIp = ::setupGetQuestion( 'BASE_SEVER_PUBLIC_IP' ),
-        my $baseServerIpType = iMSCP::Net->getInstance->getAddrVersion( $baseServerIp );
+    my $baseServerPublicIp = ::setupGetQuestion( 'BASE_SERVER_PUBLIC_IP' );
+    my $baseServerIpType = iMSCP::Net->getInstance->getAddrVersion( $baseServerIp );
     my $gid = getgrnam( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} );
     my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} );
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $data = {
         MTA_INET_PROTOCOLS       => $baseServerIpType,
-        MTA_SMTP_BIND_ADDRESS    => ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '',
-        MTA_SMTP_BIND_ADDRESS6   => ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '',
-        MTA_PROXY_INTERFACE      => ( $baseServerIp ne $baseServerPublicIp ) ? $baseServerPublicIp : '',
+        MTA_SMTP_BIND_ADDRESS    => $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ? $baseServerIp : '',
+        MTA_SMTP_BIND_ADDRESS6   => $baseServerIpType eq 'ipv6' ? $baseServerIp : '',
+        MTA_PROXY_INTERFACES     => $baseServerIp ne $baseServerPublicIp ? $baseServerPublicIp : '',
         MTA_HOSTNAME             => $hostname,
-        MTA_LOCAL_DOMAIN         => "$hostname.local",
+        MTA__DOMAIN              => ( split /\./, $hostname )[0],
         MTA_VERSION              => $main::imscpConfig{'Version'},
         MTA_TRANSPORT_HASH       => $self->{'config'}->{'MTA_TRANSPORT_HASH'},
         MTA_LOCAL_MAIL_DIR       => $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'},

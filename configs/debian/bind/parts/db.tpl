@@ -1,6 +1,6 @@
 $TTL 3H
 $ORIGIN {DOMAIN_NAME}.
-@	IN	SOA	{NS_NAME}. hostmaster.{DOMAIN_NAME}. (
+@	IN	SOA	{NS_NAME}. {HOSTMASTER_EMAIL}. (
 	{TIMESTAMP}; Serial
 	3H; Refresh
 	1H; Retry

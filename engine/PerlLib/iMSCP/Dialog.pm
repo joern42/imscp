@@ -434,7 +434,6 @@ sub executeDialogs
     
     my ( $ret, $state, $countDialogs ) = ( 0, 0, scalar @{ $dialogs } );
     while ( $state < $countDialogs ) {
-        #print "Dialog IDX: $state\n";
         local $self->{'_opts'}->{'no-cancel'} = $state  ||! $dialOuter ? undef : '';
 
         $ret = $dialogs->[$state]->( $self );
