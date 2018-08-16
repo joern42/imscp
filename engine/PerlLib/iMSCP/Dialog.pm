@@ -27,6 +27,7 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error debugRegisterCallBack/;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
@@ -403,6 +404,57 @@ sub set
     $return;
 }
 
+=item executeDialogs( \@dialogs )
+
+ Execute the given stack of dialogs
+
+ Implements a simple state machine (backup capability)
+  - Dialog subroutines SHOULD not fail. However, they can die() on unrecoverable errors
+  - On success, 0 (NEXT) MUST be returned
+  - On skip, 20 (SKIP) MUST be returned (e.g. when no dialog is to be shown)
+  - On back up, 30 (BACK) MUST be returned. For grouped dialogs, goto previous dialog.
+  - On escape, 50 (ESC) MUST be returned
+
+ @param $dialogs \@dialogs Dialogs stack
+ @return int 0 (SUCCESS), 30 (BACK), 50 (ESC)
+
+=cut
+
+my $ExecuteDialogsFirstCall = TRUE;
+my $ExecuteDialogsBackupContext = FALSE;
+
+sub executeDialogs
+{
+    my ( $self, $dialogs ) = @_;
+
+    ref $dialogs eq 'ARRAY' or die( 'Invalid $dialog parameter. Expect an array of dialog subroutines ');
+    
+    my $dialOuter = $ExecuteDialogsFirstCall;
+    $ExecuteDialogsFirstCall = FALSE if $dialOuter;
+    
+    my ( $ret, $state, $countDialogs ) = ( 0, 0, scalar @{ $dialogs } );
+    while ( $state < $countDialogs ) {
+        #print "Dialog IDX: $state\n";
+        local $self->{'_opts'}->{'no-cancel'} = $state  ||! $dialOuter ? undef : '';
+
+        $ret = $dialogs->[$state]->( $self );
+        last if $ret == 50 || ( $ret == 30 && $state == 0 );
+
+        #$ret = $ExecuteDialogsBackupContext && !isOneOfStringsInList( [ 'all', @_ ], iMSCP::Getopt->reconfigure ) ? 20 : 0 unless $ret == 30;
+        
+        if ( $state && ( $ret == 30 || $ret == 20 && $ExecuteDialogsBackupContext ) ) {
+            $ExecuteDialogsBackupContext = TRUE if $ret == 30;
+            $state--;
+            next;
+        }
+
+        $ExecuteDialogsBackupContext = FALSE if $ExecuteDialogsBackupContext;
+        $state++;
+    }
+
+    $ret;
+}
+
 =back
 
 =head1 PRIVATE METHODS
@@ -638,7 +690,7 @@ sub _execute
     my $width = $self->{'autosize'} ? 0 : $self->{'columns'};
 
     # Turn off debug messages for dialog commands
-    local $iMSCP::Execute::Debug = FALSE;
+    #local $iMSCP::Execute::Debug = FALSE;
     my $ret = execute( $self->_findBin() . " $command --$type $text $height $width $init", undef, \my $output );
 
     $self->{'_opts'}->{'separate-output'} = undef;
@@ -668,7 +720,7 @@ sub _textbox
     # For the radiolist, input and password boxes, we do not want lose
     # previous value when backing up
     # TODO checklist and yesno dialog boxes
-    $output = $init if $ret == 30 && grep( $type eq $_, 'radiolist','inputbox', 'passwordbox' );
+    $output = $init if $ret == 30 && grep( $type eq $_, 'checklist', 'radiolist','inputbox', 'passwordbox' );
 
     wantarray ? ( $ret, $output ) : $output;
 }

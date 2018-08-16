@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::Webmail::RainLoop::Installer - i-MSCP RainLoop package installer
+ Package::Webmails::RainLoop::Installer - i-MSCP RainLoop package installer
 
 =cut
 
@@ -21,14 +21,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Package::Webmail::RainLoop::Installer;
+package Package::Webmails::RainLoop::Installer;
 
 use strict;
 use warnings;
 use File::Basename;
 use iMSCP::Composer;
 use iMSCP::Config;
-use iMSCP::Crypt qw/ randomStr /;
+use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Database;
 use iMSCP::Debug;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isValidUsername isStringNotInList isValidPassword isAvailableSqlUser /;
@@ -50,7 +50,7 @@ our $VERSION = '0.2.0.*@dev';
 
  This is the installer for the i-MSCP RainLoop package.
 
- See Package::Webmail::RainLoop::RainLoop for more information.
+ See Package::Webmails::RainLoop::RainLoop for more information.
 
 =head1 PUBLIC METHODS
 
@@ -58,10 +58,10 @@ our $VERSION = '0.2.0.*@dev';
 
 =item showDialog( $dialog )
 
- Show dialog
+ Ask for RainLoop SQL user
 
  Param iMSCP::Dialog $dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
@@ -73,38 +73,35 @@ sub showDialog
     my $dbUser = ::setupGetQuestion( 'RAINLOOP_SQL_USER', $self->{'config'}->{'DATABASE_USER'} || 'imscp_srv_user' );
     my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = ::setupGetQuestion(
-        'RAINLOOP_SQL_PASSWORD', iMSCP::Getopt->preseed ? randomStr( 16, iMSCP::Crypt::ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'}
+        'RAINLOOP_SQL_PASSWORD', iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'}
     );
+    $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webmails', 'all', 'forced' ] )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webmails', 'all' ] ) || !isValidUsername( $dbUser )
         || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' ) || !isValidPassword( $dbPass )
         || !isAvailableSqlUser( $dbUser )
     ) {
-        my ( $rs, $msg ) = ( 0, '' );
-
+        Q1:
         do {
-            ( $rs, $dbUser ) = $dialog->inputbox( <<"EOF", $dbUser );
-
-Please enter a username for the RainLoop SQL user:$msg
+            ( my $rs, $dbUser ) = $dialog->inputbox( <<"EOF", $dbUser );
+$iMSCP::Dialog::InputValidation::lastValidationError
+Please enter a username for the RainLoop SQL user:
+\\Z \\Zn
 EOF
-            $msg = '';
-            if ( !isValidUsername( $dbUser ) || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' )
-                || !isAvailableSqlUser( $dbUser )
-            ) {
-                $msg = $iMSCP::Dialog::InputValidation::lastValidationError;
-            }
-        } while $rs < 30 && $msg;
-        return $rs if $rs >= 30;
+            return $rs unless $rs < 30;
+        } while !isValidUsername( $dbUser ) || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' )
+            || !isAvailableSqlUser( $dbUser );
 
         unless ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
             do {
-                ( $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass || randomStr( 16, iMSCP::Crypt::ALNUM ));
-
-Please enter a password for the RainLoop SQL user:$msg
+                ( my $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass || randomStr( 16, ALNUM ));
+$iMSCP::Dialog::InputValidation::lastValidationError
+Please enter a password for the RainLoop SQL user:
+\\Z \\Zn
 EOF
-                $msg = isValidPassword( $dbPass ) ? '' : $iMSCP::Dialog::InputValidation::lastValidationError;
-            } while $rs < 30 && $msg;
-            return $rs if $rs >= 30;
+                goto Q1 if $rs == 30;
+                return $rs if $rs == 50;
+            } while !isValidPassword( $dbPass );
 
             $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
         } else {
@@ -203,7 +200,7 @@ sub afterFrontEndBuildConfFile
 
  Initialize instance
 
- Return Package::Webmail::RainLoop::Installer
+ Return Package::Webmails::RainLoop::Installer
 
 =cut
 
@@ -211,7 +208,7 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'rainloop'} = Package::Webmail::RainLoop::RainLoop->getInstance();
+    $self->{'rainloop'} = Package::Webmails::RainLoop::RainLoop->getInstance();
     $self->{'frontend'} = Package::Setup::FrontEnd->getInstance();
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'cfgDir'} = $self->{'rainloop'}->{'cfgDir'};

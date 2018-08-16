@@ -179,45 +179,56 @@ sub showUsage
 }
 
 my %reconfigurationItems = (
-    all               => 'All items',
-    admin             => 'Master administrator',
-    admin_credentials => 'Credential for the master administrator',
-    admin_email       => 'Master administrator email',
-    alt_urls_feature  => 'Alternative URL feature',
-    antirootkits      => 'Anti-rootkits',
-    antispam          => 'Spam filtering system',
-    antivirus         => 'Antivirus solution',
-    backup            => 'Backup feature',
-    filemanager       => 'File managers',
-    ftpd              => 'FTP server',
-    hostnames         => 'Server and control panel hostnames',
-    httpd             => 'Httpd server',
-    mta               => 'SMTP server',
-    named             => 'DNS server',
-    named_names       => 'DNS server names',
-    named_ips         => 'DNS server IP addresses',
-    named_ips_policy  => 'DNS IP addresse policy',
-    named_ipv6        => 'named IPv6 support',
-    named_resolver    => 'Local DNS resolver',
-    panel             => 'Control panel',
-    panel_hostname    => 'Hostname for the control panel',
-    panel_php         => 'PHP version for the control panel',
-    panel_ports       => 'Http(s) ports for the control panel',
-    panel_ssl         => 'SSL for the control panel',
-    php               => 'PHP version for customers',
-    po                => 'IMAP/POP servers',
-    postfix_srs       => 'Postfix SRS',
-    primary_ip        => 'Server primary IP address',
-    servers           => 'All servers',
-    services_ssl      => 'SSL for the IMAP/POP, SMTP and FTP servers',
-    sqld              => 'SQL server',
-    sqlmanager        => 'SQL manager',
-    ssl               => 'SSL for the servers and control panel',
-    system_hostname   => 'System hostname',
-    system_server     => 'System server',
-    timezone          => 'System timezone',
-    webmails          => 'Webmails packages',
-    webstats          => 'Webstats packages'
+    all                  => 'All items',
+    alternatives         => 'All alternatives',
+    antirootkits         => 'Antirootkits packages',
+    antispam             => 'Spam filtering system',
+    antivirus            => 'Antivirus solution',
+    backup               => 'Backup feature',
+
+    client_alt_url       => 'Client alternative URL feature',
+    client_backup        => 'Client data backup',
+
+    filemanager          => 'File manager',
+    ftpd                 => 'FTP server',
+    hostnames            => 'System and control panel hostnames',
+    httpd                => 'Httpd server',
+    mta                  => 'SMTP server',
+
+    named                => 'DNS servers',
+    named_ips_policy     => 'Policy for DNS IP addresse',
+    named_ipv6           => 'IPv6 support for name server',
+    named_master         => 'Master name',
+    named_resolver       => 'Local DNS resolver',
+    named_slave          => 'Slave name server(s)',
+    named_type           => 'DNS server type',
+
+    cp                   => 'Control panel',
+    cp_backup            => 'Backup for the control panel database and configuration files',
+    cp_admin             => 'Master administrator',
+    cp_admin_credentials => 'Credential for the master administrator',
+    cp_admin_email       => 'Master administrator email',
+    cp_hostname          => 'Hostname for the control panel',
+    cp_php               => 'PHP version for the control panel',
+    cp_ports             => 'Http(s) ports for the control panel',
+    cp_ssl               => 'SSL for the control panel',
+
+    php                  => 'PHP version for customers',
+    po                   => 'IMAP/POP servers',
+    postfix_srs          => 'Postfix SRS',
+
+    system               => 'System',
+    system_ipv6          => 'System IPv6 support',
+    system_hostname      => 'System hostname',
+    system_primary_ip    => 'System primary IP address',
+    system_timezone      => 'System timezone',
+
+    services_ssl         => 'SSL for the IMAP/POP, SMTP and FTP services',
+    sqld                 => 'SQL server',
+    sqlmanager           => 'SQL manager packages',
+    ssl                  => 'SSL for the servers and control panel',
+    webmails             => 'Webmails packages',
+    webstats             => 'Webstats packages'
 );
 
 =item reconfigure( [ $items = 'none', [ $viaCmdLine = FALSE, [ $append = FALSE ] ] ] )
@@ -260,18 +271,21 @@ EOF
         push @items, 'all';
     } else {
         for my $item ( @items ) {
-            !$viaCmdLineOpt || grep ($_ eq $item, keys %reconfigurationItems, 'none', 'forced') or die(
+            !$viaCmdLineOpt || grep ( $_ eq $item, keys %reconfigurationItems, 'none' ) or die(
                 sprintf( "Error: '%s' is not a valid item for the the --reconfigure option.", $item )
             );
         }
 
         # Both the 'node' and 'forced' items MUST not be set through command
         # line options as those are used internally only.
-        die() if $viaCmdLineOpt && grep (/^(?:forced|none)$/, @items);
+        die() if $viaCmdLineOpt && grep (/^(?:force|none)$/, @items);
     }
 
     push @items, @{ $options->{'reconfigure'} } if $options->{'reconfigure'} && $append;
-    $options->{'reconfigure'} = [ do { my %seen;grep { !$seen{$_}++ } @items } ];
+    $options->{'reconfigure'} = [ do {
+        my %seen;
+        grep { !$seen{$_}++ } @items
+    } ];
 }
 
 =item preseed( [ $file = undef ] )

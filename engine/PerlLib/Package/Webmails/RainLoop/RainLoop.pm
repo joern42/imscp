@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::Webmail::RainLoop::RainLoop - i-MSCP RainLoop package
+ Package::Webmails::RainLoop::RainLoop - i-MSCP RainLoop package
 
 =cut
 
@@ -21,11 +21,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Package::Webmail::RainLoop::RainLoop;
+package Package::Webmails::RainLoop::RainLoop;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat Package::Webmail::RainLoop::Installer Package::Webmail::RainLoop::Uninstaller /;
+use Class::Autouse qw/ :nostat Package::Webmails::RainLoop::Installer Package::Webmails::RainLoop::Uninstaller /;
 use iMSCP::Config;
 use iMSCP::Debug;
 use iMSCP::Database;
@@ -60,7 +60,7 @@ sub showDialog
 {
     my ( undef, $dialog ) = @_;
 
-    Package::Webmail::RainLoop::Installer->getInstance()->showDialog( $dialog );
+    Package::Webmails::RainLoop::Installer->getInstance()->showDialog( $dialog );
 }
 
 =item preinstall( )
@@ -73,7 +73,7 @@ sub showDialog
 
 sub preinstall
 {
-    Package::Webmail::RainLoop::Installer->getInstance()->preinstall();
+    Package::Webmails::RainLoop::Installer->getInstance()->preinstall();
 }
 
 =item install( )
@@ -86,7 +86,7 @@ sub preinstall
 
 sub install
 {
-    Package::Webmail::RainLoop::Installer->getInstance()->install();
+    Package::Webmails::RainLoop::Installer->getInstance()->install();
 }
 
 =item uninstall( )
@@ -103,7 +103,7 @@ sub uninstall
 
     return 0 if $self->{'skip_uninstall'};
 
-    Package::Webmail::RainLoop::Uninstaller->getInstance()->uninstall();
+    Package::Webmails::RainLoop::Uninstaller->getInstance()->uninstall();
 }
 
 =item setGuiPermissions( )
@@ -207,7 +207,7 @@ sub deleteMail
 
  Initialize instance
 
- Return Package::Webmail::RainLoop::RainLoop
+ Return Package::Webmails::RainLoop::RainLoop
 
 =cut
 

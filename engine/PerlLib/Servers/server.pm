@@ -1,6 +1,6 @@
 =head1 NAME
 
- Servers::server - i-MSCP local server implementation
+ Servers::server - i-MSCP server implementation
 
 =cut
 
@@ -25,14 +25,13 @@ package Servers::server;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ fatal /;
 
 # system server instance
 my $instance;
 
 =head1 DESCRIPTION
 
- i-MSCP local server implementation.
+ i-MSCP server implementation.
 
 =head1 PUBLIC METHODS
 
@@ -50,10 +49,8 @@ sub factory
 {
     return $instance if defined $instance;
 
-    my $package = "Servers::server::local";
-
-    eval "require $package";
-    fatal( $@ ) if $@;
+    my $package = "Servers::server::system";
+    eval "require $package" or die;
     $instance = $package->getInstance();
 }
 
@@ -68,11 +65,10 @@ sub factory
 
 sub can
 {
-    my (undef, $method) = @_;
+    my ( undef, $method ) = @_;
 
-    my $package = "Servers::server::local";
-    eval "require $package";
-    fatal( $@ ) if $@;
+    my $package = "Servers::server::system";
+    eval "require $package" or die;
     $package->can( $method );
 }
 

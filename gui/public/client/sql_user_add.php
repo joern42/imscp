@@ -166,7 +166,7 @@ function addSqlUser($sqldId)
         $passwordConf = clean_input($_POST['pass_rep']);
 
         if ($user === '') {
-            set_page_message(tr('Please enter an username.'), 'error');
+            set_page_message(tr('Please enter a username.'), 'error');
             return;
         }
 

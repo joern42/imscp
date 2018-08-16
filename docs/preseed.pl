@@ -161,7 +161,7 @@ use warnings;
 
     # Alternative URLs feature for client domains
     # Possible values: yes, no
-    CLIENT_DOMAIN_ALT_URLS              => 'no',
+    CLIENT_DOMAIN_ALT_URLS              => 'yes',
 
     # Control panel default access mode (only relevant if SSL is enabled)
     # Possible values: http://, https://
@@ -189,7 +189,7 @@ use warnings;
     # Type of DNS server to configure (only relevant with the 'bind' server)
     #
     # Possible values: master, slave
-    BIND_IPV6                           => 'no',
+    BIND_IPV6                           => 'yes',
 
     # IP addresses policy for the DNS server (only relevant with the 'bind' server)
     #
@@ -479,10 +479,9 @@ use warnings;
     # Possible values: none, clamav
     #
     # The ClamAV antivirus is executed in different ways depending on whether
-    # you choose `Rspamd` or not as antispam. If you choose `Rspamd` as
-    # antispam, `ClamAV` will be executed by the `Rspamd` antivirus module,
-    # else it will be executed through
-    # `ClamAV milter`.
+    # you choose Rspamd or not as antispam. If you choose Rspamd as antispam,
+    # ClamAV will be executed by the `Rspamd` antivirus module, else it will
+    # be executed through ClamAV milter.
     ANTIVIRUS                           => 'none',
 
     # Postfix SRS package

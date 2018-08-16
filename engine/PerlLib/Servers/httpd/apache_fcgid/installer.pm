@@ -26,7 +26,7 @@ package Servers::httpd::apache_fcgid::installer;
 use strict;
 use warnings;
 use File::Basename;
-use iMSCP::Crypt qw/ randomStr /;
+use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Database;
 use iMSCP::Debug;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
@@ -53,11 +53,11 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager \%eventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -67,45 +67,41 @@ sub registerSetupListeners
     my ( $self, $eventManager ) = @_;
 
     $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->showDialog( @_ ) };
+        push @{ $_[0] }, sub { $self->askForPhpConfigLevel( @_ ) };
         0;
     } );
 }
 
-=item showDialog( $dialog )
+=item askForPhpConfigLevel( $dialog )
 
- Show dialog
+ Ask for PHP configuration level
 
  Param iMSCP::Dialog $dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub showDialog
+sub askForPhpConfigLevel
 {
     my ( $self, $dialog ) = @_;
 
-    my $confLevel = ::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
+    my $value = ::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'php', 'servers', 'all', 'forced' ] )
-        || $confLevel !~ /^per_(?:site|domain|user)$/
-    ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'alternatives', 'all' ] ) || $value !~ /^per_(?:site|domain|user)$/ ) {
         my %choices = (
             'per_site', 'Per site PHP configuration (recommended)',
             'per_domain', 'Per domain, including subdomains PHP configuration',
             'per_user', 'Per user PHP configuration'
         );
-        ( my $rs, $confLevel ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $confLevel eq $_, keys %choices ) )[0] || 'per_site' );
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'per_site' );
 
-\Z4\Zb\ZuPHP configuration level\Zn
-
-Please choose the PHP configuration level for customers:
+Please choose the PHP configuration level for the clients:
 \Z \Zn
 EOF
-        return $rs if $rs >= 30;
+        return $rs unless $rs < 30;
     }
 
-    $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $confLevel;
+    $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $value;
     0;
 }
 
@@ -452,7 +448,7 @@ sub _setupVlogger
     my $userHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     $userHost = '127.0.0.1' if $userHost eq 'localhost';
     my $oldUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
-    my $pass = randomStr( 16, iMSCP::Crypt::ALNUM );
+    my $pass = randomStr( 16, ALNUM );
 
     my $db = iMSCP::Database->factory();
     my $rs = ::setupImportSqlSchema( $db, "$self->{'apacheCfgDir'}/vlogger.sql" );

@@ -27,10 +27,10 @@ use strict;
 use warnings;
 use Cwd;
 use File::Basename;
-use iMSCP::Crypt qw/ randomStr /;
+use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Database;
 use iMSCP::Debug;
-use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList /;
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::EventManager;
@@ -53,11 +53,11 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager \%eventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -67,82 +67,76 @@ sub registerSetupListeners
     my ( $self, $eventManager ) = @_;
 
     $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->showPhpConfigLevelDialog( @_ ) }, sub { $self->showListenModeDialog( @_ ) };
+        push @{ $_[0] },
+            sub { $self->askForPhpConfigLevel( @_ ) },
+            sub { $self->askForFpmListenMode( @_ ) };
         0;
     } );
 }
 
-=item showPhpConfigLevelDialog( $dialog )
+=item askForPhpConfigLevel( $dialog )
 
- Ask for PHP configuration level to use
+ Ask for PHP configuration level
 
  Param iMSCP::Dialog $dialog
- Return int 0 to go on next question, 30 to go back to the previous question
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub showPhpConfigLevelDialog
+sub askForPhpConfigLevel
 {
     my ( $self, $dialog ) = @_;
 
-    my $confLevel = ::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
+    my $value = ::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'php', 'servers', 'all', 'forced' ] )
-        || $confLevel !~ /^per_(?:site|domain|user)$/
-    ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'alternatives', 'all' ] ) || $value !~ /^per_(?:site|domain|user)$/ ) {
         my %choices = (
             'per_site', 'Per site PHP configuration (recommended)',
             'per_domain', 'Per domain, including subdomains PHP configuration',
             'per_user', 'Per user PHP configuration'
         );
-        ( my $rs, $confLevel ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $confLevel eq $_, keys %choices ) )[0] || 'per_site' );
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'per_site' );
 
-\Z4\Zb\ZuPHP configuration level\Zn
-
-Please choose the PHP configuration level for customers:
+Please choose the PHP configuration level the clients:
 \Z \Zn
 EOF
-        return $rs if $rs >= 30;
+        return $rs unless $rs < 30;
     }
 
-    $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $confLevel;
+    $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $value;
     0;
 }
 
-=item showListenModeDialog( $dialog )
+=item askForFpmListenMode( $dialog )
 
  Ask for FPM listen mode
 
  Param iMSCP::Dialog $dialog
- Return int 0 to go on next question, 30 to go back to the previous question
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub showListenModeDialog
+sub askForFpmListenMode
 {
     my ( $self, $dialog ) = @_;
 
-    my $rs = 0;
-    my $listenMode = ::setupGetQuestion( 'PHP_FPM_LISTEN_MODE', $self->{'phpConfig'}->{'PHP_FPM_LISTEN_MODE'} );
+    my $value = ::setupGetQuestion( 'PHP_FPM_LISTEN_MODE', $self->{'phpConfig'}->{'PHP_FPM_LISTEN_MODE'} );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'httpd', 'php', 'servers', 'all', 'forced' ] )
-        || $listenMode !~ /^(?:uds|tcp)$/
-    ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'alternatives', 'all' ] ) || isStringNotInList( $value, 'tcp', 'uds') ) {
         my %choices = (
             'tcp', 'TCP sockets over the loopback interface',
             'uds', 'Unix Domain Sockets (recommended)'
         );
-        ( $rs, $listenMode ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $listenMode eq $_, keys %choices ) )[0] || 'uds' );
-
-\Z4\Zb\ZuPHP-FPM - FastCGI connection type\Zn
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'uds' );
 
 Please choose the FastCGI connection type that you want use:
 \Z \Zn
 EOF
+        return $rs unless $rs < 30;
     }
 
-    $self->{'phpConfig'}->{'PHP_FPM_LISTEN_MODE'} = $listenMode if $rs < 30;
-    $rs;
+    $self->{'phpConfig'}->{'PHP_FPM_LISTEN_MODE'} = $value;
+    0;
 }
 
 =item install( )
@@ -518,7 +512,7 @@ sub _setupVlogger
     my $userHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     $userHost = '127.0.0.1' if $userHost eq 'localhost';
     my $oldUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
-    my $pass = randomStr( 16, iMSCP::Crypt::ALNUM );
+    my $pass = randomStr( 16, ALNUM );
 
     my $db = iMSCP::Database->factory();
     my $rs = ::setupImportSqlSchema( $db, "$self->{'apacheCfgDir'}/vlogger.sql" );

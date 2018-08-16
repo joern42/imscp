@@ -25,6 +25,7 @@ package Package::Webstats;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Debug;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
@@ -47,11 +48,11 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager \%eventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -61,31 +62,31 @@ sub registerSetupListeners
     my ( $self, $eventManager ) = @_;
 
     $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->showDialog( @_ ) };
+        push @{ $_[0] }, sub { $self->askForWebstatPackages( @_ ) };
         0;
     } );
 }
 
-=item showDialog( $dialog )
+=item askForWebstatPackages( $dialog )
 
- Show dialog
+ Ask for Webstats packages
 
  Param iMSCP::Dialog $dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub showDialog
+sub askForWebstatPackages
 {
     my ( $self, $dialog ) = @_;
 
     my $selectedPackages = [ split ',', ::setupGetQuestion( 'WEBSTATS_PACKAGES' ) ];
     my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webstats', 'all', 'forced' ] ) || !@{ $selectedPackages }
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'webstats', 'all' ] ) || !@{ $selectedPackages }
         || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages }
     ) {
-        ( my $rs, $selectedPackages ) = $dialog->checkbox(
+        ( my $rs, $selectedPackages ) = $dialog->checklist(
             <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages } ] );
 
 Please select the Webstats packages you want to install:
@@ -95,24 +96,17 @@ EOF
     }
 
     @{ $selectedPackages } = grep ( $_ ne 'none', @{ $selectedPackages } );
-
     ::setupSetQuestion( 'WEBSTATS_PACKAGES', @{ $selectedPackages } ? join ',', @{ $selectedPackages } : 'none' );
 
-    for ( @{ $selectedPackages } ) {
-        my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
-        ( my $subref = $package->can( 'showDialog' ) ) or next;
-        debug( sprintf( 'Executing showDialog action on %s', $package ));
-        my $rs = $subref->( $package->getInstance(), $dialog );
-        return $rs if $rs;
+    my @dialogs;
+    for my $package ( @{ $selectedPackages } ) {
+        $package = "Package::Webstats::${package}::${package}";
+        eval "require $package" or die;
+        my $subref = $package->can( 'showDialog' );
+        push @dialogs, sub { $subref->( $package->getInstance(), @_ ) } if $subref;
     }
 
-    0;
+    $dialog->executeDialogs( \@dialogs );
 }
 
 =item preinstall( )
@@ -162,11 +156,7 @@ sub preinstall
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
+        eval "require $package" or die;
 
         if ( my $subref = $package->can( 'preinstall' ) ) {
             debug( sprintf( 'Executing preinstall action on %s', $package ));
@@ -205,12 +195,7 @@ sub install
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_} && $_ ne 'none';
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
+        eval "require $package" or die;
         ( my $subref = $package->can( 'install' ) ) or next;
         debug( sprintf( 'Executing install action on %s', $package ));
         my $rs = $subref->( $package->getInstance());
@@ -238,12 +223,7 @@ sub postinstall
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_} && $_ ne 'none';
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
+        eval "require $package" or die;
         ( my $subref = $package->can( 'postinstall' ) ) or next;
         debug( sprintf( 'Executing postinstall action on %s', $package ));
         my $rs = $subref->( $package->getInstance());
@@ -268,11 +248,7 @@ sub uninstall
     my @distroPackages = ();
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
+        eval "require $package" or die;
 
         if ( my $subref = $package->can( 'uninstall' ) ) {
             debug( sprintf( 'Executing uninstall action on %s', $package ));
@@ -319,12 +295,7 @@ sub setEnginePermissions
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
+        eval "require $package" or die;
         ( my $subref = $package->can( 'setEnginePermissions' ) ) or next;
         debug( sprintf( 'Executing setEnginePermissions action on %s', $package ));
         my $rs = $subref->( $package->getInstance());
@@ -353,12 +324,7 @@ sub addUser
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
+        eval "require $package" or die;
         ( my $subref = $package->can( 'addUser' ) ) or next;
         debug( sprintf( 'Executing addUser action on %s', $package ));
         my $rs = $subref->( $package->getInstance(), $data );
@@ -387,12 +353,7 @@ sub preaddDmn
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
+        eval "require $package" or die;
         ( my $subref = $package->can( 'preaddDmn' ) ) or next;
         debug( sprintf( 'Executing preaddDmn action on %s', $package ));
         my $rs = $subref->( $package->getInstance(), $data );
@@ -421,12 +382,7 @@ sub addDmn
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
+        eval "require $package" or die;
         ( my $subref = $package->can( 'addDmn' ) ) or next;
         debug( sprintf( 'Executing addDmn action on %s', $package ));
         my $rs = $subref->( $package->getInstance(), $data );
@@ -455,12 +411,7 @@ sub deleteDmn
     for ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
         next unless exists $selectedPackages{$_};
         my $package = "Package::Webstats::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
+        eval "require $package" or die;
         ( my $subref = $package->can( 'deleteDmn' ) ) or next;
         debug( sprintf( 'Executing deleteDmn action on %s', $package ));
         my $rs = $subref->( $package->getInstance(), $data );

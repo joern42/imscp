@@ -7,7 +7,7 @@
 # '$LOCAL_CONFDIR/local.d/worker-controller.inc.local file
 
 enabled = false;
-count = 2;
+count = 1;
 password = "";
 
 .include(try=true,priority=2,duplicate=merge) "${LOCAL_CONFDIR}/local.d/worker-controller.inc.local"

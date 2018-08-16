@@ -276,6 +276,7 @@ EOF
     my $nbSteps = scalar @steps;
     for ( @steps ) {
         $rs = step( @{ $_ }, $nbSteps, $step );
+        exit if $rs == 50;
         error( 'An error occurred while performing installation steps' ) if $rs;
         return $rs if $rs;
         $step++;
@@ -376,7 +377,7 @@ sub _installPreRequiredPackages
  Show welcome message
 
  Param iMSCP::Dialog $dialog
- Return int 0 on success, other otherwise
+ Return int 0, 50 (ESC)
 
 =cut
 
@@ -458,7 +459,7 @@ EOF
  Distribution confirmation dialog
 
  Param iMSCP::Dialog $dialog
- Return 0 on success, other on failure on when user is aborting
+ Return 0 on success, other on failure or when user is aborting
 
 =cut
 

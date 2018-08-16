@@ -26,10 +26,10 @@ package Servers::po::dovecot::installer;
 use strict;
 use warnings;
 use File::Basename;
-use iMSCP::Crypt qw/ randomStr /;
+use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Database;
 use iMSCP::Debug;
-use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isValidUsername isStringNotInList isValidPassword isAvailableSqlUser /;
+use iMSCP::Dialog::InputValidation qw/ isStringInList isOneOfStringsInList isValidUsername isStringNotInList isValidPassword isAvailableSqlUser /;
 use iMSCP::EventManager;
 use iMSCP::Execute;
 use iMSCP::File;
@@ -52,11 +52,11 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager \%eventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -66,23 +66,23 @@ sub registerSetupListeners
     my ( $self, $eventManager ) = @_;
 
     my $rs = $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->showDialog( @_ ) };
+        push @{ $_[0] }, sub { $self->askForDovecotSqlUser( @_ ) };
         0;
     } );
     $rs ||= $eventManager->register( 'beforeMtaBuildMainCfFile', sub { $self->configurePostfix( @_ ); } );
     $rs ||= $eventManager->register( 'beforeMtaBuildMasterCfFile', sub { $self->configurePostfix( @_ ); } );
 }
 
-=item showDialog( $dialog )
+=item askForDovecotSqlUser( $dialog )
 
- Ask user for Dovecot restricted SQL user
+ Ask for Dovecot SQL user
 
  Param iMSCP::Dialog $dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub showDialog
+sub askForDovecotSqlUser
 {
     my ( $self, $dialog ) = @_;
 
@@ -90,38 +90,35 @@ sub showDialog
     my $dbUser = ::setupGetQuestion( 'DOVECOT_SQL_USER', $self->{'config'}->{'DATABASE_USER'} || 'imscp_srv_user' );
     my $dbUserHost = ::setupGetQuestion( 'DATABASE_USER_HOST' );
     my $dbPass = ::setupGetQuestion(
-        'DOVECOT_SQL_PASSWORD', iMSCP::Getopt->preseed ? randomStr( 16, iMSCP::Crypt::ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'}
+        'DOVECOT_SQL_PASSWORD', iMSCP::Getopt->preseed ? randomStr( 16, ALNUM ) : $self->{'config'}->{'DATABASE_PASSWORD'}
     );
+    $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'servers', 'all', 'forced' ] ) || !isValidUsername( $dbUser )
-        || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' ) || !isValidPassword( $dbPass )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'po', 'alternatives', 'all' ] ) || !isValidUsername( $dbUser )
+        || isStringInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' ) || !isValidPassword( $dbPass )
         || !isAvailableSqlUser( $dbUser )
     ) {
-        my ( $rs, $msg ) = ( 0, '' );
-
+        Q1:
         do {
-            ( $rs, $dbUser ) = $dialog->inputbox( <<"EOF", $dbUser );
-
-Please enter a username for the Dovecot SQL user:$msg
+            ( my $rs, $dbUser ) = $dialog->inputbox( <<"EOF", $dbUser );
+$iMSCP::Dialog::InputValidation::lastValidationError
+Please enter a username for the Dovecot SQL user:
+\\Z \\Zn
 EOF
-            $msg = '';
-            if ( !isValidUsername( $dbUser ) || !isStringNotInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' )
-                || !isAvailableSqlUser( $dbUser )
-            ) {
-                $msg = $iMSCP::Dialog::InputValidation::lastValidationError;
-            }
-        } while $rs < 30 && $msg;
-        return $rs if $rs >= 30;
+            return $rs unless $rs < 30;
+        } while !isValidUsername( $dbUser ) || isStringInList( $dbUser, 'root', 'debian-sys-maint', $masterSqlUser, 'vlogger_user' )
+            || !isAvailableSqlUser( $dbUser );
 
         unless ( defined $::sqlUsers{$dbUser . '@' . $dbUserHost} ) {
             do {
-                ( $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass || randomStr( 16, iMSCP::Crypt::ALNUM ));
-
-Please enter a password for the Dovecot SQL user:$msg
+                ( my $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass || randomStr( 16, ALNUM ));
+$iMSCP::Dialog::InputValidation::lastValidationError
+Please enter a password for the Dovecot SQL user:
+\\Z \\Zn
 EOF
-                $msg = isValidPassword( $dbPass ) ? '' : $iMSCP::Dialog::InputValidation::lastValidationError;
-            } while $rs < 30 && $msg;
-            return $rs if $rs >= 30;
+                goto Q1 if $rs == 30;
+                return $rs if $rs == 50;
+            } while !isValidPassword( $dbPass );
 
             $::sqlUsers{$dbUser . '@' . $dbUserHost} = $dbPass;
         } else {
@@ -440,7 +437,7 @@ sub _buildConf
         MTA_MAILBOX_GID_NAME          => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
         MTA_MAILBOX_UID               => ( scalar getpwnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'} ) ),
         MTA_MAILBOX_GID               => ( scalar getgrnam( $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} ) ),
-        NETWORK_PROTOCOLS             => ::setupGetQuestion( 'IPV6_SUPPORT' ) ? '*, [::]' : '*',
+        NETWORK_PROTOCOLS             => ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'yes' ? '*, [::]' : '*',
         POSTFIX_SENDMAIL_PATH         => $self->{'mta'}->{'config'}->{'POSTFIX_SENDMAIL_PATH'},
         DOVECOT_CONF_DIR              => $self->{'config'}->{'DOVECOT_CONF_DIR'},
         DOVECOT_DELIVER_PATH          => $self->{'config'}->{'DOVECOT_DELIVER_PATH'},
@@ -459,21 +456,21 @@ sub _buildConf
     my %cfgFiles = (
         'dovecot.conf'     => [
             "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot.conf", # Destpath
-            $::imscpConfig{'ROOT_USER'},                        # Owner
+            $::imscpConfig{'ROOT_USER'},                            # Owner
             $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},   # Group
             0640                                                    # Permissions
         ],
         'dovecot-sql.conf' => [
             "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-sql.conf", # Destpath
-            $::imscpConfig{'ROOT_USER'},                            # owner
+            $::imscpConfig{'ROOT_USER'},                                # owner
             $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},       # Group
             0640                                                        # Permissions
         ],
         'quota-warning'    => [
             "$::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh", # Destpath
-            $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},                 # Owner
-            $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},                 # Group
-            0750                                                                  # Permissions
+            $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},             # Owner
+            $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},             # Group
+            0750                                                              # Permissions
         ]
     );
 

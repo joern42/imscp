@@ -25,9 +25,6 @@ RSPAMD_WEBUI =
 # Rspamd password hash
 RSPAMD_WEBUI_PASSWORD =
 
-# Number of processes to spawn for the Rspamd Web UI (worker controller)
-RSPAMD_WEBUI_PROCESS_COUNT = 1
-
 # Rspamd local configuration directory path
 RSPAMD_LOCAL_CONFDIR = /etc/rspamd/local.d
 

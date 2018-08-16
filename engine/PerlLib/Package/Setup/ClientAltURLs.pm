@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::Setup::Backup - i-MSCP backup
+ Package::Setup::ClientAltURLs - i-MSCP Client alternative URLs
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Package::Setup::Backup;
+package Package::Setup::ClientAltURLs;
 
 use strict;
 use warnings;
@@ -31,7 +31,7 @@ use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
 
- i-MSCP backup.
+ i-MSCP client alternative URLs.
 
 =head1 PUBLIC METHODS
 
@@ -51,66 +51,38 @@ sub registerSetupListeners
     my ( $self, $eventManager ) = @_;
 
     $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] },
-            sub { $self->askForCpBackup( @_ ) },
-            sub { $self->askForClientsBackup( @_ ) };
+        push @{ $_[0] }, sub { $self->askForClientAltURLs( @_ ) };
         0;
     } );
 }
 
-=item askForCpBackup( $dialog )
+=item askForClientAltURLs( $dialog )
 
- Ask for control panel backup
-
- Param iMSCP::Dialog $dialog
- Return int 0 (NEXT), 30 (BACK), 50 (ESC)
-
-=cut
-
-sub askForCpBackup
-{
-    my ( undef, $dialog ) = @_;
-
-    my $value = ::setupGetQuestion( 'BACKUP_IMSCP' );
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'cp_backup', 'backup', 'all' ] ) || !isStringInList( $value, 'yes', 'no' ) ) {
-        my $rs = $dialog->yesno( <<'EOF', $value eq 'no', TRUE );
-
-Do you want enable daily backup for the control panel (database and configuration files)?
-EOF
-        return $rs unless $rs < 30;
-        $value = $rs ? 'no' : 'yes'
-    }
-
-    ::setupSetQuestion( 'BACKUP_IMSCP', $value );
-    0;
-}
-
-=item askForClientsBackup( $dialog )
-
- Ask for clients backup
+ Ask for alternative URL feature
 
  Param iMSCP::Dialog $dialog
  Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub askForClientsBackup
+sub askForClientAltURLs
 {
     my ( undef, $dialog ) = @_;
 
-    my $value = ::setupGetQuestion( 'BACKUP_DOMAINS' );
+    my $value = ::setupGetQuestion( 'CLIENT_DOMAIN_ALT_URLS' );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'client_backup', 'backup', 'all' ] ) || !isStringInList( $value, 'yes', 'no' ) ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'client_alt_url', 'all' ] ) || !isStringInList( $value, 'yes', 'no' ) ) {
         my $rs = $dialog->yesno( <<'EOF', $value eq 'no', TRUE );
 
-Do you want to activate the backup feature for the clients?
+Do you want to enable the alternative URLs feature for the clients?
+
+This feature make the clients able to access their websites through alternative URLs such as http://dmn1.panel.domain.tld
 EOF
         return $rs unless $rs < 30;
         $value = $rs ? 'no' : 'yes'
     }
 
-    ::setupSetQuestion( 'BACKUP_DOMAINS', $value );
+    ::setupSetQuestion( 'CLIENT_DOMAIN_ALT_URLS', $value );
     0;
 }
 

@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::Webmail::Roundcube::Uninstaller - i-MSCP Roundcube package uninstaller
+ Package::Webmails::Roundcube::Uninstaller - i-MSCP Roundcube package uninstaller
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Package::Webmail::Roundcube::Uninstaller;
+package Package::Webmails::Roundcube::Uninstaller;
 
 use strict;
 use warnings;
@@ -30,7 +30,7 @@ use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::Database;
 use Package::Setup::FrontEnd;
-use Package::Webmail::Roundcube::Roundcube;
+use Package::Webmails::Roundcube::Roundcube;
 use Servers::sqld;
 use parent 'Common::SingletonClass';
 
@@ -72,7 +72,7 @@ sub uninstall
 
  Initialize instance
 
- Return Package::Webmail::Roundcube::Uninstaller
+ Return Package::Webmails::Roundcube::Uninstaller
 
 =cut
 
@@ -81,7 +81,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'frontend'} = Package::Setup::FrontEnd->getInstance();
-    $self->{'roundcube'} = Package::Webmail::Roundcube::Roundcube->getInstance();
+    $self->{'roundcube'} = Package::Webmails::Roundcube::Roundcube->getInstance();
     $self->{'db'} = iMSCP::Database->factory();
     $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/roundcube";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";

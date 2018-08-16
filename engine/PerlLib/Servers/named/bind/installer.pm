@@ -26,8 +26,9 @@ package Servers::named::bind::installer;
 use strict;
 use warnings;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Debug;
-use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList isValidEmail isValidHostname /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute;
@@ -38,7 +39,9 @@ use iMSCP::ProgramFinder;
 use iMSCP::Service;
 use iMSCP::TemplateParser;
 use iMSCP::Umask;
+use List::MoreUtils qw/ uniq /;
 use Servers::named::bind;
+use Socket qw/ :DEFAULT inet_ntop inet_pton getnameinfo /;
 use version;
 use parent 'Common::SingletonClass';
 
@@ -50,11 +53,11 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager \%eventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -63,232 +66,432 @@ sub registerSetupListeners
 {
     my ( $self, $eventManager ) = @_;
 
-    $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] },
-            sub { $self->askDnsServerMode( @_ ) },
-            sub { $self->askIPv6Support( @_ ) },
-            sub { $self->askIPPolicy( @_ ) },
-            sub { $self->askLocalDnsResolver( @_ ) };
-        0;
-    } );
-}
-
-=item askDnsServerMode( $dialog )
-
- Ask user for DNS server type to configure
-
- Param iMSCP::Dialog $dialog
- Return int 0 on success, other on failure
-
-=cut
-
-sub askDnsServerMode
-{
-    my ( $self, $dialog ) = @_;
-
-    my $dnsServerMode = ::setupGetQuestion( 'BIND_MODE', $self->{'config'}->{'BIND_MODE'} );
-    my $rs = 0;
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || $dnsServerMode !~ /^(?:master|slave)$/ ) {
-        my %choices = ( 'master', 'Master DNS server', 'slave', 'Slave DNS server' );
-        ( $rs, $dnsServerMode ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $dnsServerMode eq $_, keys %choices ) )[0] || 'master' );
-
-Select the DNS server type to configure:
-\Z \Zn
-EOF
-    }
-
-    if ( $rs < 30 ) {
-        $self->{'config'}->{'BIND_MODE'} = $dnsServerMode;
-        $rs = $self->askDnsServerIps( $dialog );
-    }
-
-    $rs;
-}
-
-=item askDnsServerIps( $dialog )
-
- Ask user for DNS server adresses IP
-
- Param iMSCP::Dialog $dialog
- Return int 0 on success, other on failure
-
-=cut
-
-sub askDnsServerIps
-{
-    my ( $self, $dialog ) = @_;
-
-    my $dnsServerMode = $self->{'config'}->{'BIND_MODE'};
-
-    my @masterDnsIps = split /[;,\s]+/, ::setupGetQuestion( 'PRIMARY_DNS', $self->{'config'}->{'PRIMARY_DNS'} );
-    my @slaveDnsIps = split /[;,\s]+/, ::setupGetQuestion( 'SECONDARY_DNS', $self->{'config'}->{'SECONDARY_DNS'} );
-
-    my ( $rs, $answer, $msg ) = ( 0, '', '' );
-
-    if ( $dnsServerMode eq 'master' ) {
-        if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || "@slaveDnsIps" eq ''
-            || ( "@slaveDnsIps" ne 'no' && !$self->_checkIpAdresses( @slaveDnsIps ) )
-        ) {
-            my %choices = ( 'yes', 'Yes', 'no', 'No' );
-            ( $rs, $answer ) = $dialog->radiolist( <<'EOF', \%choices, !@slaveDnsIps || $slaveDnsIps[0] eq 'no' ? 'no' : 'yes' );
-
-Do you want add slave DNS servers?
-\Z \Zn
-EOF
-            if ( $rs < 30 && $answer eq 'yes' ) {
-                @slaveDnsIps = () if "@slaveDnsIps" eq 'no';
-
-                do {
-                    ( $rs, $answer ) = $dialog->inputbox( <<"EOF", "@slaveDnsIps" );
-
-Please enter IP addresses for the slave DNS servers, each separated by a space:$msg
-EOF
-                    $msg = '';
-                    if ( $rs < 30 ) {
-                        @slaveDnsIps = split ' ', $answer;
-
-                        if ( "@slaveDnsIps" eq '' ) {
-                            $msg = "\n\n\\Z1You must enter at least one IP address.\\Zn\n\nPlease try again:";
-                        } elsif ( !$self->_checkIpAdresses( @slaveDnsIps ) ) {
-                            $msg = "\n\n\\Z1Wrong or disallowed IP address found.\\Zn\n\nPlease try again:";
-                        }
-                    }
-                } while $rs < 30 && $msg;
-            } else {
-                @slaveDnsIps = ( 'no' );
-            }
+    $eventManager->register(
+        'beforeSetupDialog',
+        sub {
+            push @{ $_[0] },
+                sub { $self->askForDnsServerType( @_ ) },
+                sub { $self->askForDnsIPv6Support( @_ ) },
+                sub { $self->askForMasterDnsServer( @_ ) },
+                sub { $self->askForMasterDnsServerIpPolicy( @_ ) },
+                sub { $self->askForSlaveDnsServers( @_ ) },
+                sub { $self->askForLocalDnsResolver( @_ ) };
+            0;
         }
-    } elsif ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] )
-        || grep ($_ eq "@masterDnsIps", ( '', 'no' )) || !$self->_checkIpAdresses( @masterDnsIps )
+    );
+}
+
+=item askForDnsServerType( $dialog )
+
+ Ask for the DNS server type to configure
+
+ Param iMSCP::Dialog $dialog
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
+
+=cut
+
+sub askForDnsServerType
+{
+    my ( $self, $dialog ) = @_;
+
+    my $value = ::setupGetQuestion( 'BIND_TYPE', $self->{'config'}->{'BIND_TYPE'} );
+    $self->{'oldBindType'} = $value unless length $self->{'oldBindType'};
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named_type', 'named', 'alternatives', 'all' ] )
+        || isStringNotInList( $value, 'master', 'slave' )
     ) {
-        @masterDnsIps = () if "@masterDnsIps" eq 'no';
+        my %choices = ( 'master', 'Master DNS server', 'slave', 'Slave DNS server' );
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'master' );
 
-        do {
-            ( $rs, $answer ) = $dialog->inputbox( <<"EOF", "@masterDnsIps" );
-
-Please enter master DNS server IP addresses, each separated by space:$msg
-EOF
-            $msg = '';
-            if ( $rs < 30 ) {
-                @masterDnsIps = split ' ', $answer;
-
-                if ( "@masterDnsIps" eq '' ) {
-                    $msg = "\n\n\\Z1You must enter a least one IP address.\\Zn\n\nPlease try again:";
-                } elsif ( !$self->_checkIpAdresses( @masterDnsIps ) ) {
-                    $msg = "\n\n\\Z1Wrong or disallowed IP address found.\\Zn\n\nPlease try again:";
-                }
-            }
-        } while $rs < 30 && $msg;
-    }
-
-    if ( $rs < 30 ) {
-        if ( $dnsServerMode eq 'master' ) {
-            $self->{'config'}->{'PRIMARY_DNS'} = 'no';
-            $self->{'config'}->{'SECONDARY_DNS'} = "@slaveDnsIps" ne 'no' ? join ' ', @slaveDnsIps : 'no';
-        } else {
-            $self->{'config'}->{'PRIMARY_DNS'} = join ' ', @masterDnsIps;
-            $self->{'config'}->{'SECONDARY_DNS'} = 'no';
-        }
-    }
-
-    $rs;
-}
-
-=item askIPv6Support( $dialog )
-
- Ask user for DNS server IPv6 support
-
- Param iMSCP::Dialog $dialog
- Return int 0 on success, other on failure
-
-=cut
-
-sub askIPv6Support
-{
-    my ( $self, $dialog ) = @_;
-
-    unless ( ::setupGetQuestion( 'IPV6_SUPPORT' ) ) {
-        $self->{'config'}->{'BIND_IPV6'} = 'no';
-        return 0;
-    }
-
-    my $ipv6 = ::setupGetQuestion( 'BIND_IPV6', $self->{'config'}->{'BIND_IPV6'} );
-    my %choices = ( 'yes', 'Yes', 'no', 'No' );
-    my $rs = 0;
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || $ipv6 !~ /^(?:yes|no)$/ ) {
-        ( $rs, $ipv6 ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $ipv6 eq $_, keys %choices ) )[0] || 'no' );
-
-Do you want enable IPv6 support for your DNS server?
+Please select the type of DNS server that you want to configure:
 \Z \Zn
 EOF
+        return $rs unless $rs < 30;
     }
 
-    $self->{'config'}->{'BIND_IPV6'} = $ipv6 if $rs < 30;
-    $rs;
+    $self->{'config'}->{'BIND_TYPE'} = $value;
+    ::setupSetQuestion( 'BIND_TYPE', $self->{'config'}->{'BIND_TYPE'} );
+    0;
 }
 
-=item askIPPolicy( $dialog )
+=item askForDnsIPv6Support( $dialog )
 
- Ask user for IP addresses policy
+ Ask for DNS IPv6 support
 
  Param iMSCP::Dialog $dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 20 (SKIP), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub askIPPolicy
+sub askForDnsIPv6Support
 {
     my ( $self, $dialog ) = @_;
 
-    my $enforceRoutableIPs = ::setupGetQuestion( 'BIND_ENFORCE_ROUTABLE_IPS', $self->{'config'}->{'BIND_ENFORCE_ROUTABLE_IPS'} );
-    my %choices = ( 'yes', 'Yes', 'no', 'No' );
-    my $rs = 0;
+    if ( ::setupGetQuestion( 'IPV6_SUPPORT' ) eq 'no' ) {
+        $self->{'config'}->{'BIND_IPV6'} = 'no';
+        ::setupGetQuestion( 'BIND_IPV6', 'no' );
+        return 20;
+    }
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named', 'servers', 'all', 'forced' ] ) || $enforceRoutableIPs !~ /^(?:yes|no)$/ ) {
-        ( $rs, $enforceRoutableIPs ) = $dialog->radiolist( <<"EOF", \%choices, ( grep ( $enforceRoutableIPs eq $_, keys %choices ) )[0] || 'yes' );
+    my $value = ::setupGetQuestion( 'BIND_IPV6', $self->{'config'}->{'BIND_IPV6'} );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named_ipv6', 'named', 'alternatives', 'all' ] )
+        || isStringNotInList( $value, 'yes', 'no' )
+    ) {
+        my $rs = $dialog->yesno( <<'EOF', $value eq 'no', TRUE );
+
+Do you want to enable the IPv6 support for the DNS server?
+EOF
+        return $rs unless $rs < 30;
+        $value = $rs ? 'no' : 'yes';
+    }
+
+    $self->{'config'}->{'BIND_IPV6'} = $value;
+    ::setupSetQuestion( 'BIND_IPV6', $value );
+    0;
+}
+
+=item askForMasterDnsServerIpPolicy( $dialog )
+
+ Ask for master DNS server IP addresses policy
+
+ Param iMSCP::Dialog $dialog
+ Return int 0 (NEXT), 20 (SKIP), 30 (BACK), 50 (ESC)
+
+=cut
+
+sub askForMasterDnsServerIpPolicy
+{
+    my ( $self, $dialog ) = @_;
+
+    if ( ::setupGetQuestion( 'BIND_TYPE' ) eq 'slave' ) {
+        $self->{'config'}->{'BIND_ENFORCE_ROUTABLE_IPS'} = '';
+        return 20;
+    }
+
+    my $value = ::setupGetQuestion( 'BIND_ENFORCE_ROUTABLE_IPS', $self->{'config'}->{'BIND_ENFORCE_ROUTABLE_IPS'} );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named_ips_policy', 'named', 'alternatives', 'all' ] )
+        || isStringNotInList( $value, 'yes', 'no' )
+    ) {
+        ( my $rs, $value ) = $dialog->yesno( <<"EOF", $value eq 'no', TRUE );
 
 Do you want enforce routable IP addresses in DNS zone files?
-If you say 'yes', the server public IP that you have set will be used in place of the domain IP addresses when those are non-routable.
-Note that this parameter doesn't affect the custom DNS record feature.
-\\Z \\Zn
+
+If you say 'yes', the server public IP will be used in place of the client domain IP addresses (A/AAAA records) when those are non-routable.
 EOF
+        return $rs unless $rs < 30;
+        $value = $rs ? 'no' : 'yes';
     }
 
-    $self->{'config'}->{'BIND_ENFORCE_ROUTABLE_IPS'} = $enforceRoutableIPs if $rs < 30;
-    $rs;
+    $self->{'config'}->{'BIND_ENFORCE_ROUTABLE_IPS'} = $value;
+    ::setupSetQuestion( 'BIND_ENFORCE_ROUTABLE_IPS', $value );
+    0;
 }
 
-=item askLocalDnsResolver( $dialog )
+=item askForMasterDnsServer( $dialog )
 
- Ask user for local DNS resolver
-
+ Ask for master name server IP addresses and names (depending of nameserver type)
+ 
  Param iMSCP::Dialog $dialog
- Return int 0 on success, other on failure
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub askLocalDnsResolver
+sub askForMasterDnsServer
 {
     my ( $self, $dialog ) = @_;
 
-    my $localDnsResolver = ::setupGetQuestion( 'LOCAL_DNS_RESOLVER', $self->{'config'}->{'LOCAL_DNS_RESOLVER'} );
-    my %choices = ( 'yes', 'Yes', 'no', 'No' );
-    my $rs = 0;
+    my $type = ::setupGetQuestion( 'BIND_TYPE' );
+    my @ips = split /[,; ]+/, ::setupGetQuestion( 'BIND_MASTER_IP_ADDRESSES', $self->{'config'}->{'BIND_MASTER_IP_ADDRESSES'} );
+    my @names = split /[,; ]+/, ::setupGetQuestion( 'BIND_MASTER_NAMES', $self->{'config'}->{'BIND_MASTER_NAMES'} );
+    my $email = ::setupGetQuestion( 'BIND_HOSTMASTER_EMAIL', $self->{'config'}->{'BIND_HOSTMASTER_EMAIL'} );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'resolver', 'named', 'servers', 'all', 'forced' ] )
-        || $localDnsResolver !~ /^(?:yes|no)$/
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named_master', 'named', 'alternatives', 'all' ] )
+        # Not configured yet, badly configured, invalid IP address(s) or invalid name(s)
+        || ( $type eq 'master' && (
+            !@ips || !@names || !length $email || ( $email ne 'none' && !isValidEmail( $email ) )
+            || @ips != @names || ( $ips[0] eq 'none' && $names[0] ne 'none' ) || ( $ips[0] ne 'none' && @names eq 'none' )  
+            || ( $ips[0] ne 'none' && !$self->_checkIpAdresses( @ips ) ) || ( $ips[0] ne 'none' && grep ( isValidHostname( $_ ), @names) < @names )
+        ) )
+        # Not configured yet, badly configured or invalid IP address(es)
+        || ( $type eq 'slave' && ( !@ips || @names || $ips[0] eq 'none' || !$self->_checkIpAdresses( @ips ) ) )
     ) {
-        ( $rs, $localDnsResolver ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $localDnsResolver eq $_, keys %choices ) )[0] || 'yes' );
+        my $rs = 0;
 
-Do you want use the local DNS resolver?
-\Z \Zn
+        Q1:
+        return $rs if $rs == 30 && $type eq 'slave';
+
+        if ( $type eq 'master' ) {
+            $rs = $dialog->yesno( <<'EOF', !@ips || $ips[0] eq 'none', TRUE );
+
+Do you want to set the IP addresses and names for the master DNS server?
+
+Historically, the master DNS server was configured on a per zone basis, using the client domain names and associated IP addresses. However, a DNS server \ZbSHOULD\ZB have a correct reverse DNS (PTR record) what is difficult to achieve with the historical behavior as this involve different IP addresses per DNS zone while in a shared hosting environment, IP addresses are often shared.
+
+Furthermore, it is not viable for the administrator to create new DNS glue records each time a new domain is added through the control panel.
+
+That is why the installer now give the possibility to set the IP addresses and names for the master DNS server which will be used in all DNS zone files.
+
+If you say 'no' (default), i-MSCP will stick to historical behavior as explained above.
 EOF
+            return $rs unless $rs < 30;
+        }
+
+        if ( $rs == 0 || $type eq 'slave' ) {
+            ( my $msg, @ips ) = ( '', grep ( $_ ne 'none', @ips ) );
+
+            Q2:
+            do {
+                ( $rs, my $ips ) = $dialog->inputbox( <<"EOF", ::setupGetQuestion( 'BIND_TYPE' ) eq $self->{'oldBindType'} ? "@ips" : '' );
+$msg
+@{ [ 
+    ( $self->{'config'}->{'BIND_IPV6'} eq 'yes'
+        ? ( $type eq 'master'
+            ? 'Please enter a space separated list of IP addresses for the master DNS server, generally one IPv4 and one IPv6 if you want to enable dual-stack:'
+            : 'Please enter a space separated list of IP addresses for the authoritative DNS servers:'
+        )
+        : ($type eq 'master'
+            ? 'Please enter the IP address (IPv4) for the master DNS server:'
+            : 'Please enter a space separated list of IP addresses for the authoritative DNS servers (IPv4 only):'
+        )
+    ) . ( $type eq 'master' ? '' : "\n\nAuthoritative name servers are those listed in the \\Zb'masters'\\ZB statement of the slave zones." )
+] }
+\\Z \\Zn
+EOF
+                return $rs if $rs == 50;
+                goto Q1 if $rs == 30;
+
+                @ips = uniq( split ' ', $ips );
+                $msg = !@ips || !$self->_checkIpAdresses( @ips ) ? <<"EOF" : '';
+
+@{ [ @ips ? '\Z1Invalid IP address found.\Zn' : '\Z1At least one IP address is required\Zn' ] } 
+EOF
+            } while !@ips || length $msg;
+
+            if ( $type eq 'master' && grep ( $_ ne 'none', @ips ) ) {
+                Q3:
+                @names = () if $names[0] && $names[0] eq 'none';
+                @names = splice @names, 0, @ips if @names > @ips;
+
+                my @dialogs;
+                for my $idx ( 0 .. $#ips ) {
+                    push @dialogs, sub {
+                        do {
+                            ( $rs, $names[$idx] ) = $dialog->inputbox(
+                                <<"EOF", $names[$idx] || _getReverseDNS( $ips[$idx] ));
+$msg
+Please enter the DNS server name associated with the $ips[$idx] IP address (leave empty for default):
+
+Default value is the result of a reverse DNS lookup.
+\\Z \\Zn
+EOF
+                            return $rs unless $rs < 30;
+
+                            $msg = !length $names[$idx] || isValidHostname( $names[$idx] ) ? '' : <<'EOF';
+
+\Z1Invalid DNS server name.\Zn
+EOF
+                        } while !length $names[$idx] || length $msg;
+                        0;
+                    };
+                }
+
+                $rs = $dialog->executeDialogs( \@dialogs );
+                goto Q2 if $rs == 30;
+                return $rs if $rs == 50;
+
+                $iMSCP::Dialog::InputValidation::lastValidationError = '';
+
+                do {
+                    $iMSCP::Dialog::InputValidation::lastValidationError = '' unless length $email;
+
+                    ( $rs, $email ) = $dialog->inputbox( <<"EOF", $email && $email ne 'none' ? $email : "hostmaster\@$names[0]" );
+$iMSCP::Dialog::InputValidation::lastValidationError
+Please enter the email address for the person responsible for the DNS zones (leave emtpy for default):
+
+Default value is generated using DNS server name. 
+
+Enter 'none' if you prefer historical behavior where the email address is generated on a per zone basis, using the client domains such as hostmaster\@domain.tld.
+
+See https://tools.ietf.org/html/rfc2142#section-7 for further details.
+\\Z \\Zn
+EOF
+                    goto Q3 if $rs == 30;
+                    return $rs if $rs == 50;
+                } while $email ne 'none' && !isValidEmail( $email );
+            } elsif ( $type eq 'master' ) {
+                @names = ( 'none' );
+                $email = 'none';
+            } else {
+                @names = ();
+                $email = '';
+            }
+        } elsif ( $type eq 'master' ) {
+            @ips = @names = ( 'none' );
+            $email = 'none';
+        } else {
+            @names = ();
+            $email = '';
+        }
     }
 
-    $self->{'config'}->{'LOCAL_DNS_RESOLVER'} = $localDnsResolver if $rs < 30;
-    $rs;
+    $self->{'config'}->{'BIND_MASTER_IP_ADDRESSES'} = "@ips";
+    $self->{'config'}->{'BIND_MASTER_NAMES'} = "@names";
+    $self->{'config'}->{'BIND_HOSTMASTER_EMAIL'} = $email;
+    ::setupSetQuestion( 'BIND_MASTER_IP_ADDRESSES', $self->{'config'}->{'BIND_MASTER_IP_ADDRESSES'} );
+    ::setupSetQuestion( 'BIND_MASTER_NAMES', $self->{'config'}->{'BIND_MASTER_NAMES'} );
+    ::setupSetQuestion( 'BIND_HOSTMASTER_EMAIL', $self->{'config'}->{'BIND_HOSTMASTER_EMAIL'} );
+    0;
+}
+
+=item askForSlaveDnsServers( $dialog )
+
+ Ask for the slave DNS server IP addresses
+
+ Param iMSCP::Dialog $dialog
+ Return int 0 (NEXT), 20 (SKIP), 30 (BACK), 50 (ESC)
+ 
+=cut
+
+sub askForSlaveDnsServers
+{
+    my ( $self, $dialog ) = @_;
+
+    if ( ::setupGetQuestion( 'BIND_TYPE' ) eq 'slave' ) {
+        $self->{'config'}->{'BIND_SLAVE_IP_ADDRESSES'} = '';
+        $self->{'config'}->{'BIND_SLAVE_NAMES'} = '';
+        return 20;
+    }
+
+    my @ips = split /[,; ]+/, ::setupGetQuestion( 'BIND_SLAVE_IP_ADDRESSES', $self->{'config'}->{'BIND_SLAVE_IP_ADDRESSES'} );
+    my @names = split /[,; ]+/, ::setupGetQuestion( 'BIND_SLAVE_NAMES', $self->{'config'}->{'BIND_SLAVE_NAMES'} );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named_slave', 'named', 'alternatives', 'all' ] )
+        # Not configured yet or badly configured
+        || !@ips || !@names || @ips != @names || ( $ips[0] eq 'none' && $names[0] ne 'none' ) || ( $ips[0] ne 'none' && $names[0] eq 'none' )
+        # Invalid IP address(es) or invalid name(s)
+        || ( $ips[0] ne 'none' && !$self->_checkIpAdresses( @ips ) ) || ( $ips[0] ne 'none' && grep ( isValidHostname( $_ ), @names) < @names )
+    ) {
+        Q1:
+        my $rs = $dialog->yesno( <<'EOF', !@ips || $ips[0] eq 'none', TRUE );
+
+Do you want to configure slave DNS servers?
+EOF
+        return $rs unless $rs < 30;
+
+        if ( $rs == 0 ) {
+            Q2:
+            ( my $msg, @ips ) = ( '', grep ( $_ ne 'none', @ips ) );
+
+            do {
+                ( $rs, my $ips ) = $dialog->inputbox( <<"EOF", "@ips" );
+$msg
+Please enter a space separated list of IP addresses for the slave DNS servers@{ [ $self->{'config'}->{'BIND_IPV6'} eq 'yes' ? '' : ' (IPv4 only)' ] }
+\\Z \\Zn
+EOF
+                return $rs if $rs == 50;
+                goto Q1 if $rs == 30;
+
+                @ips = uniq( split ' ', $ips );
+                $msg = !@ips || !$self->_checkIpAdresses( @ips ) ? <<"EOF" : '';
+
+@{ [ @ips ? '\Z1Invalid IP address found.\Zn' : '\Z1At least one IP address is required\Zn' ] } 
+EOF
+                return $rs if $rs == 50;
+                goto Q2 if $rs == 30;
+            } while !@ips || length $msg;
+
+            Q3:
+            $rs = $dialog->yesno( <<'EOF', !@ips || $ips[0] eq 'none', TRUE );
+
+Do you want to set the names for the slave DNS servers?
+
+Historically, the slave DNS servers were configured on a per zone basis, using client domain names. However, a DNS server \ZbSHOULD\ZB have a correct reverse DNS (PTR record) what is difficult to achieve with the historical behavior as this involve different IP addresses per DNS zone while in a shared hosting environment, IP addresses are often shared.
+
+Furthermore, it is not viable for the administrator to create new DNS glue records each time a new domain is added through the control panel.
+
+That is why the installer now give the possibility to set the names for the slave DNS servers which will be used in all DNS zone files.
+
+If you say 'no' (default), i-MSCP will stick to historical behavior as explained above.
+EOF
+
+            return $rs if $rs == 50;
+            goto Q2 if $rs == 30;
+
+            if ( $rs == 0 ) {
+                @names = () if $names[0] && $names[0] eq 'none';
+                @names = splice @names, 0, @ips if @names > @ips;
+
+                my @dialogs;
+                for my $idx ( 0 .. $#ips ) {
+                    push @dialogs, sub {
+                        do {
+                            ( $rs, $names[$idx] ) = $dialog->inputbox( <<"EOF", $names[$idx] || _getReverseDNS( $ips[$idx] ));
+$msg
+Please enter the DNS server name associated with the $ips[$idx] IP address (leave empty for default):
+
+Default value is the result of a reverse DNS lookup.
+\\Z \\Zn
+EOF
+                            return $rs unless $rs < 30;
+
+                            $msg = !length $names[$idx] || isValidHostname( $names[$idx] ) ? '' : <<'EOF';
+
+\Z1Invalid DNS server name.\Zn
+EOF
+                        } while !length $names[$idx] || length $msg;
+                        0;
+                    };
+                }
+
+                $rs = $dialog->executeDialogs( \@dialogs );
+                return $rs if $rs == 50;
+                goto Q3 if $rs == 30;
+            } else {
+                @names = ( 'none' );
+            }
+        } else {
+            @ips = @names = ( 'none' );
+        }
+    }
+
+    $self->{'config'}->{'BIND_SLAVE_IP_ADDRESSES'} = "@ips";
+    $self->{'config'}->{'BIND_SLAVE_NAMES'} = "@names";
+    ::setupSetQuestion( 'BIND_SLAVE_IP_ADDRESSES', $self->{'config'}->{'BIND_SLAVE_IP_ADDRESSES'} );
+    ::setupSetQuestion( 'BIND_SLAVE_NAMES', $self->{'config'}->{'BIND_SLAVE_NAMES'} );
+    0;
+}
+
+=item askForLocalDnsResolver( $dialog )
+
+ Ask for local DNS resolver
+
+ Param iMSCP::Dialog $dialog
+ Return int 0 (NEXT), 20 (SKIP), 30 (BACK), 50 (ESC)
+
+=cut
+
+sub askForLocalDnsResolver
+{
+    my ( $self, $dialog ) = @_;
+
+    my $value = ::setupGetQuestion( 'LOCAL_DNS_RESOLVER', $self->{'config'}->{'LOCAL_DNS_RESOLVER'} );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named_resolver', 'named', 'alternatives', 'all' ] )
+        || isStringNotInList( $value, 'yes', 'no' )
+    ) {
+        ( my $rs, $value ) = $dialog->yesno( <<'EOF', $value ne 'yes', TRUE );
+
+Do you want use the DNS server as local DNS resolver?
+EOF
+        return $rs unless $rs < 30;
+        $value = $rs ? 'no' : 'yes';
+    }
+
+    $self->{'config'}->{'LOCAL_DNS_RESOLVER'} = $value;
+    ::setupSetQuestion( 'LOCAL_DNS_RESOLVER', $value );
+    0;
 }
 
 =item install( )
@@ -386,18 +589,8 @@ sub _makeDirs
     my ( $self ) = @_;
 
     my @directories = (
-        [
-            $self->{'config'}->{'BIND_DB_MASTER_DIR'},
-            $self->{'config'}->{'BIND_USER'},
-            $self->{'config'}->{'BIND_GROUP'},
-            02750
-        ],
-        [
-            $self->{'config'}->{'BIND_DB_SLAVE_DIR'},
-            $self->{'config'}->{'BIND_USER'},
-            $self->{'config'}->{'BIND_GROUP'},
-            02750
-        ]
+        [ $self->{'config'}->{'BIND_DB_MASTER_DIR'}, $self->{'config'}->{'BIND_USER'}, $self->{'config'}->{'BIND_GROUP'}, 02750 ],
+        [ $self->{'config'}->{'BIND_DB_SLAVE_DIR'}, $self->{'config'}->{'BIND_USER'}, $self->{'config'}->{'BIND_GROUP'}, 02750 ]
     );
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeNamedMakeDirs', \@directories );
@@ -413,7 +606,7 @@ sub _makeDirs
 
     iMSCP::Dir->new( dirname => $self->{'config'}->{'BIND_DB_MASTER_DIR'} )->clear();
 
-    if ( $self->{'config'}->{'BIND_MODE'} ne 'slave' ) {
+    if ( $self->{'config'}->{'BIND_TYPE'} ne 'slave' ) {
         iMSCP::Dir->new( dirname => $self->{'config'}->{'BIND_DB_SLAVE_DIR'} )->clear();
     }
 
@@ -588,27 +781,46 @@ sub _buildConf
     0;
 }
 
-=item _checkIpAdresses( @ipAddresses)
+=item _checkIpAdresses( @ips)
 
  Check IP addresses
 
- Param list @ipAddresses List of IP addresses to check
+ Param list @ips List of IP addresses to check
  Return bool TRUE if all IPs are valid, FALSE otherwise
 
 =cut
 
 sub _checkIpAdresses
 {
-    my ( undef, @ipAddresses ) = @_;
+    my ( $self, @ips ) = @_;
 
+    my $reg = $self->{'config'}->{'BIND_IPV6'} eq 'yes' ? qr/^(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)$/ : qr/^(?:PRIVATE|PUBLIC)$/;
     my $net = iMSCP::Net->getInstance();
 
-    for my $ipAddress ( @ipAddresses ) {
-        return 0 unless $net->isValidAddr( $ipAddress )
-            && $net->getAddrType( $ipAddress ) =~ /^(?:PRIVATE|UNIQUE-LOCAL-UNICAST|PUBLIC|GLOBAL-UNICAST)$/;
+    for my $ip ( @ips ) {
+        return FALSE unless $net->isValidAddr( $ip ) && $net->getAddrType( $ip ) =~ /$reg/;
     }
 
-    1;
+    TRUE;
+}
+
+=item _getReverseDNS( $ipAddress )
+
+ Get reverse DNS
+
+ Param string $ipAddress
+ Return string Reverse DNS or empty string on failure
+
+=cut
+
+sub _getReverseDNS
+{
+    my ( $ipAddress ) = @_;
+
+    my $sockAddr = iMSCP::Net->getInstance()->getAddrVersion( $ipAddress ) eq 'ipv4'
+        ? sockaddr_in( 0, inet_pton( AF_INET, $ipAddress ))
+        : sockaddr_in6( 0, inet_pton( AF_INET6, $ipAddress ));
+    ( getnameinfo( $sockAddr ) )[1] || '';
 }
 
 =item _getVersion( )

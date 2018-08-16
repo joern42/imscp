@@ -58,7 +58,7 @@ use parent 'Common::SingletonClass';
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->_createUserAndGroup();
     $rs ||= $self->_makeDirs();
@@ -74,7 +74,7 @@ sub preinstall
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->_setPostfixVersion();
     $rs ||= $self->_createPostfixMaps();
@@ -99,7 +99,7 @@ sub install
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'mta'} = Servers::mta::postfix->getInstance();
@@ -118,7 +118,7 @@ sub _init
 
 sub _createUserAndGroup
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = iMSCP::SystemGroup->getInstance()->addSystemGroup( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'}, 1 );
     return $rs if $rs;
@@ -144,7 +144,7 @@ sub _createUserAndGroup
 
 sub _makeDirs
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my @directories = (
         [
@@ -161,13 +161,13 @@ sub _makeDirs
         ]
     );
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeMtaMakeDirs', \ @directories );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeMtaMakeDirs', \@directories );
     return $rs if $rs;
 
     # Make sure to start with clean directory
     iMSCP::Dir->new( dirname => $self->{'config'}->{'MTA_VIRTUAL_CONF_DIR'} )->remove();
 
-    for my $dir( @directories ) {
+    for my $dir ( @directories ) {
         iMSCP::Dir->new( dirname => $dir->[0] )->make(
             {
                 user           => $dir->[1],
@@ -191,7 +191,7 @@ sub _makeDirs
 
 sub _buildConf
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeMtaBuildConf' );
     $rs ||= $self->_buildMasterCfFile();
@@ -209,9 +209,9 @@ sub _buildConf
 
 sub _setPostfixVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $rs = execute( [ 'postconf', '-d', '-h', 'mail_version' ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ 'postconf', '-d', '-h', 'mail_version' ], \my $stdout, \my $stderr );
     debug( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
 
@@ -235,7 +235,7 @@ sub _setPostfixVersion
 
 sub _createPostfixMaps
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my @lookupTables = (
         $self->{'config'}->{'MTA_VIRTUAL_ALIAS_HASH'}, $self->{'config'}->{'MTA_VIRTUAL_DMN_HASH'},
@@ -243,7 +243,7 @@ sub _createPostfixMaps
         $self->{'config'}->{'MTA_RELAY_HASH'}
     );
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeCreatePostfixMaps', \ @lookupTables );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeCreatePostfixMaps', \@lookupTables );
     return $rs if $rs;
 
     for ( @lookupTables ) {
@@ -251,7 +251,7 @@ sub _createPostfixMaps
         return $rs if $rs;
     }
 
-    $self->{'eventManager'}->trigger( 'afterCreatePostfixMaps', \ @lookupTables );
+    $self->{'eventManager'}->trigger( 'afterCreatePostfixMaps', \@lookupTables );
 }
 
 =item _buildAliasesDb( )
@@ -264,10 +264,10 @@ sub _createPostfixMaps
 
 sub _buildAliasesDb
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeMtaBuildAliasesDb' );
-    $rs ||= $self->{'eventManager'}->trigger( 'onLoadTemplate', 'postfix', 'aliases', \ my $cfgTpl, {} );
+    $rs ||= $self->{'eventManager'}->trigger( 'onLoadTemplate', 'postfix', 'aliases', \my $cfgTpl, {} );
     return $rs if $rs;
 
     unless ( defined $cfgTpl ) {
@@ -275,14 +275,14 @@ sub _buildAliasesDb
         $cfgTpl = '' unless defined $cfgTpl;
     }
 
-    $rs = $self->{'eventManager'}->trigger( 'beforeMtaBuildAliasesDbFile', \ $cfgTpl, 'aliases' );
+    $rs = $self->{'eventManager'}->trigger( 'beforeMtaBuildAliasesDbFile', \$cfgTpl, 'aliases' );
     return $rs if $rs;
 
     # Add alias for local root user
     $cfgTpl =~ s/^root:.*\n//gim;
-    $cfgTpl .= 'root: ' . main::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' ) . "\n";
+    $cfgTpl .= 'root: ' . ::setupGetQuestion( 'DEFAULT_ADMIN_ADDRESS' ) . "\n";
 
-    $rs = $self->{'eventManager'}->trigger( 'afterMtaBuildAliasesDbFile', \ $cfgTpl, 'aliases' );
+    $rs = $self->{'eventManager'}->trigger( 'afterMtaBuildAliasesDbFile', \$cfgTpl, 'aliases' );
     return $rs if $rs;
 
     my $file = iMSCP::File->new( filename => $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'} );
@@ -291,7 +291,7 @@ sub _buildAliasesDb
     $rs = $file->save();
     return $rs if $rs;
 
-    $rs = execute( 'newaliases', \ my $stdout, \ my $stderr );
+    $rs = execute( 'newaliases', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
 
@@ -308,7 +308,7 @@ sub _buildAliasesDb
 
 sub _buildMasterCfFile
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $data = {
         MTA_MAILBOX_UID_NAME => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
@@ -316,7 +316,7 @@ sub _buildMasterCfFile
         ARPL_PATH            => $main::imscpConfig{'ROOT_DIR'} . "/engine/messenger/imscp-arpl-msgr"
     };
 
-    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'postfix', 'master.cf', \ my $cfgTpl, $data );
+    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'postfix', 'master.cf', \my $cfgTpl, $data );
     return $rs if $rs;
 
     unless ( defined $cfgTpl ) {
@@ -327,12 +327,12 @@ sub _buildMasterCfFile
         }
     }
 
-    $rs = $self->{'eventManager'}->trigger( 'beforeMtaBuildMasterCfFile', \ $cfgTpl, 'master.cf' );
+    $rs = $self->{'eventManager'}->trigger( 'beforeMtaBuildMasterCfFile', \$cfgTpl, 'master.cf' );
     return $rs if $rs;
 
     $cfgTpl = process( $data, $cfgTpl );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterMtaBuildMasterCfFile', \ $cfgTpl, 'master.cf' );
+    $rs = $self->{'eventManager'}->trigger( 'afterMtaBuildMasterCfFile', \$cfgTpl, 'master.cf' );
     return $rs if $rs;
 
     my $file = iMSCP::File->new( filename => $self->{'config'}->{'POSTFIX_MASTER_CONF_FILE'} );
@@ -350,17 +350,19 @@ sub _buildMasterCfFile
 
 sub _buildMainCfFile
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $baseServerIp = main::setupGetQuestion( 'BASE_SERVER_IP' );
-    my $baseServerIpType = iMSCP::Net->getInstance->getAddrVersion( $baseServerIp );
+    my $baseServerIp = ::setupGetQuestion( 'BASE_SERVER_IP' );
+        my $baseServerPublicIp = ::setupGetQuestion( 'BASE_SEVER_PUBLIC_IP' ),
+        my $baseServerIpType = iMSCP::Net->getInstance->getAddrVersion( $baseServerIp );
     my $gid = getgrnam( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} );
     my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} );
-    my $hostname = main::setupGetQuestion( 'SERVER_HOSTNAME' );
+    my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
     my $data = {
         MTA_INET_PROTOCOLS       => $baseServerIpType,
         MTA_SMTP_BIND_ADDRESS    => ( $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ) ? $baseServerIp : '',
         MTA_SMTP_BIND_ADDRESS6   => ( $baseServerIpType eq 'ipv6' ) ? $baseServerIp : '',
+        MTA_PROXY_INTERFACE      => ( $baseServerIp ne $baseServerPublicIp ) ? $baseServerPublicIp : '',
         MTA_HOSTNAME             => $hostname,
         MTA_LOCAL_DOMAIN         => "$hostname.local",
         MTA_VERSION              => $main::imscpConfig{'Version'},
@@ -377,7 +379,7 @@ sub _buildMainCfFile
         MTA_MAILBOX_GID          => $gid
     };
 
-    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'postfix', 'main.cf', \ my $cfgTpl, $data );
+    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'postfix', 'main.cf', \my $cfgTpl, $data );
     return $rs if $rs;
 
     unless ( defined $cfgTpl ) {
@@ -393,7 +395,7 @@ sub _buildMainCfFile
 
     $cfgTpl = process( $data, $cfgTpl );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterMtaBuildMainCfFile', \ $cfgTpl, 'main.cf' );
+    $rs = $self->{'eventManager'}->trigger( 'afterMtaBuildMainCfFile', \$cfgTpl, 'main.cf' );
     return $rs if $rs;
 
     my $file = iMSCP::File->new( filename => $self->{'config'}->{'POSTFIX_CONF_FILE'} );
@@ -403,7 +405,7 @@ sub _buildMainCfFile
     return $rs if $rs;
 
     # Add TLS parameters if required
-    return 0 unless main::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes';
+    return 0 unless ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes';
 
     $self->{'eventManager'}->register(
         'afterMtaBuildConf',
@@ -515,7 +517,7 @@ sub _buildMainCfFile
 
 sub _oldEngineCompatibility
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeMtaOldEngineCompatibility' );
     return $rs if $rs;

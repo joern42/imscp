@@ -35,9 +35,9 @@ use iMSCP::Net;
 use Net::LibIDN qw/ idn_to_ascii /;
 use parent 'Exporter';
 
-our @EXPORT = qw/isValidUsername isValidPassword isValidEmail isValidHostname isValidDomain isValidIpAddr
-isValidTimezone isValidDbName isNumber isNumberInRange isStringInList isStringNotInList isOneOfStringsInList isValidNumberRange isNotEmpty
-isAvailableSqlUser/;
+our @EXPORT = qw/ isValidUsername isValidPassword isValidEmail isValidHostname isValidDomain isValidIpAddr
+    isValidTimezone isValidDbName isNumber isNumberInRange isStringInList isStringNotInList isOneOfStringsInList isValidNumberRange isNotEmpty
+    isAvailableSqlUser /;
 
 our $lastValidationError = '';
 
@@ -60,7 +60,7 @@ our $lastValidationError = '';
 
 sub isValidUsername( $ )
 {
-    my ($username) = @_;
+    my ( $username ) = @_;
 
     defined $username or die( 'Missing $username parameter' );
     my $length = length $username;
@@ -69,15 +69,11 @@ sub isValidUsername( $ )
 
     $lastValidationError = <<"EOF";
 
-
-\\Z1Invalid or unauthorized username.\\Zn
+\\Z1Invalid or unallowed username.\\Zn
 
  - Username must be between 3 and 16 characters long.
  - Only ASCII alphabet, number and underscore characters are allowed.
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -92,7 +88,7 @@ EOF
 
 sub isValidPassword( $ )
 {
-    my ($password) = @_;
+    my ( $password ) = @_;
 
     defined $password or die( 'Missing $password parameter' );
     my $length = length $password;
@@ -101,15 +97,11 @@ sub isValidPassword( $ )
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid password.\\Zn
 
  - Password must be between 6 and 32 characters long.
  - Only ASCII alphabet and number characters are allowed.
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -124,7 +116,7 @@ EOF
 
 sub isValidEmail( $ )
 {
-    my ($email) = @_;
+    my ( $email ) = @_;
 
     defined $email or die( 'Missing $email parameter' );
 
@@ -132,12 +124,8 @@ sub isValidEmail( $ )
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid email address.\\Zn
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -152,7 +140,7 @@ EOF
 
 sub isValidHostname( $ )
 {
-    my ($hostname) = @_;
+    my ( $hostname ) = @_;
 
     defined $hostname or die( 'Missing $hostname parameter' );
 
@@ -160,15 +148,11 @@ sub isValidHostname( $ )
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid hostname.\\Zn
 
  - Hostname must comply to RFC 1123 and 5890
  - The hostname must be a fully qualified hostname (FQHN).
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -183,7 +167,7 @@ EOF
 
 sub isValidDomain( $ )
 {
-    my ($domainName) = @_;
+    my ( $domainName ) = @_;
 
     defined $domainName or die( 'Missing $domainName parameter' );
 
@@ -193,14 +177,10 @@ sub isValidDomain( $ )
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid domain name.\\Zn
 
  - Domain name must comply to RFC 1123 and 5890
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -216,7 +196,7 @@ EOF
 
 sub isValidIpAddr( $;$ )
 {
-    my ($ipAddr, $typeReg) = @_;
+    my ( $ipAddr, $typeReg ) = @_;
 
     defined $ipAddr or die( 'Missing $ipAddr parameter' );
 
@@ -225,12 +205,8 @@ sub isValidIpAddr( $;$ )
 
     $lastValidationError = <<"EOF";
 
-
-\\Z1Invalid or unauthorized IP address.\\Zn
-
-Please try again:
+\\Z1Invalid or unallowed IP address.\\Zn
 EOF
-
     FALSE;
 }
 
@@ -243,9 +219,9 @@ EOF
 
 =cut
 
-sub isValidDbName($)
+sub isValidDbName( $ )
 {
-    my ($dbName) = @_;
+    my ( $dbName ) = @_;
 
     defined $dbName or die( 'Missing $dbName parameter' );
     my $length = length $dbName;
@@ -254,15 +230,11 @@ sub isValidDbName($)
 
     $lastValidationError = <<"EOF";
 
-
-\\Z1Invalid or unauthorized database name.\\Zn
+\\Z1Invalid or unallowed database name.\\Zn
 
  - Database name must be between 3 and 16 characters long.
  - Only ASCII alphabet, number and underscore characters are allowed.
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -277,7 +249,7 @@ EOF
 
 sub isValidTimezone
 {
-    my ($timezone) = @_;
+    my ( $timezone ) = @_;
 
     defined $timezone or die( 'Missing $timezone parameter' );
 
@@ -285,14 +257,10 @@ sub isValidTimezone
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid timezone.\\Zn
 
  - Consult http://php.net/manual/en/timezones.php for a list of valid timezones.
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -305,9 +273,9 @@ EOF
 
 =cut
 
-sub isNumber($)
+sub isNumber( $ )
 {
-    my ($number) = @_;
+    my ( $number ) = @_;
 
     defined $number or die( 'Missing $timezone parameter' );
 
@@ -315,12 +283,8 @@ sub isNumber($)
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid number.\\Zn
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -337,24 +301,20 @@ EOF
 
 sub isValidNumberRange( $$$ )
 {
-    my ($numberRange, $n1, $n2) = @_;
+    my ( $numberRange, $n1, $n2 ) = @_;
 
     defined $numberRange or die( 'Missing $numberRange parameter' );
     defined $n1 or die( 'Missing $n1 parameter' );
     defined $n2 or die( 'Missing $n2 parameter' );
 
-    return TRUE if ( ${$n1}, ${$n2} ) = $numberRange =~ /^([\x30-\x39]+)\s+([\x30-\x39]+)$/;
+    return TRUE if ( ${ $n1 }, ${ $n2 } ) = $numberRange =~ /^([\x30-\x39]+)\s+([\x30-\x39]+)$/;
 
     $lastValidationError = <<"EOF";
-
 
 \\Z1Invalid number range.\\Zn
 
 - Number range must be two numbers separated by a space.
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -371,7 +331,7 @@ EOF
 
 sub isNumberInRange( $$$ )
 {
-    my ($number, $start, $end) = @_;
+    my ( $number, $start, $end ) = @_;
 
     defined $number or die( 'Missing $number parameter' );
     defined $start or die( 'Missing $start parameter' );
@@ -382,14 +342,10 @@ sub isNumberInRange( $$$ )
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid number.\\Zn
 
  - Number $number must be in range from $start to $end.
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -417,6 +373,7 @@ sub isStringInList( $@ )
 
     my $entries = join ', ', @stringList;
     $lastValidationError = <<"EOF";
+
 \\Z1Invalid entry.\\Zn
 
  - Following entries are allowed: $entries
@@ -438,7 +395,7 @@ EOF
 
 sub isStringNotInList( $@ )
 {
-    my ($string, @stringList) = @_;
+    my ( $string, @stringList ) = @_;
 
     defined $string or die( 'Missing $string parameter' );
 
@@ -447,14 +404,10 @@ sub isStringNotInList( $@ )
     my $entries = join ', ', @stringList;
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid entry.\\Zn
 
  - Following entries are not allowed: $entries
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -488,7 +441,7 @@ sub isOneOfStringsInList
 
 sub isNotEmpty( $ )
 {
-    my ($string) = @_;
+    my ( $string ) = @_;
 
     defined $string or die( 'Missing $string parameter' );
 
@@ -496,12 +449,8 @@ sub isNotEmpty( $ )
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Entry cannot be empty.\\Zn
-
-Please try again:
 EOF
-
     FALSE;
 }
 
@@ -516,16 +465,16 @@ EOF
 
 =cut
 
-sub isAvailableSqlUser ( $ )
+sub isAvailableSqlUser( $ )
 {
-    my ($username) = @_;
+    my ( $username ) = @_;
 
     defined $username or die( 'Missing $username parameter' );
 
     my $db = iMSCP::Database->factory();
 
     local $@;
-    my $oldDbName = eval { $db->useDatabase( main::setupGetQuestion( 'DATABASE_NAME' )); };
+    my $oldDbName = eval { $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); };
     if ( $@ ) {
         return TRUE if $@ =~ /unknown database/i; # On fresh installation, there is no database yet
         die;
@@ -541,14 +490,10 @@ sub isAvailableSqlUser ( $ )
 
     $lastValidationError = <<"EOF";
 
-
 \\Z1Invalid SQL username.\\Zn
 
  - The given SQL user is already used by one of your customers.
-
-Please try again:
 EOF
-
     FALSE;
 }
 

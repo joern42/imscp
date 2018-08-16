@@ -27,9 +27,9 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::Config;
-use iMSCP::Crypt qw/ randomStr /;
+use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
-use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList isValidPassword /;
+use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringInList isValidPassword /;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
@@ -51,11 +51,11 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager \%eventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -66,12 +66,18 @@ sub registerSetupListeners
 
     return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
-    $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->_askForModules( @_ ) }, sub { $self->_askForWebUI( @_ ) }, sub { $self->_askForWebUIPassword( @_ ) },
-            sub { $self->_askForSpamLearningCronjob( @_ ), };
-        0;
-    } );
-
+    $eventManager->register(
+        'beforeSetupDialog',
+        sub {
+            push @{ $_[0] },
+                sub { $self->_askForModules( @_ ) },
+                sub { $self->_askForWebUI( @_ ) },
+                sub { $self->_askForWebUIPassword( @_ ) },
+                sub { $self->_askForSpamLearningCronTask( @_ ), };
+            0;
+        },
+        39 # Show dialogs after MTA dialogs
+    );
 }
 
 =item preinstall( )
@@ -109,7 +115,7 @@ sub install
 
     my $rs ||= $self->_setupModules();
     $rs ||= $self->_setupWebUI();
-    $rs ||= _setupSpamLearning() if $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} eq 'yes';
+    $rs ||= _setupCronTaskForSpamLearning() if $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} eq 'yes';
     $rs;
 }
 
@@ -459,13 +465,7 @@ sub _mergeConfig
 
 sub _getManagedModules
 {
-    my ( $self ) = @_;
-
-    CORE::state @modules;
-
-    return @modules if @modules;
-
-    @modules = (
+    (
         $::imscpConfig{'ANTIVIRUS'} eq 'clamav' ? 'Antivirus' : (), 'ASN', 'DKIM', 'DKIM Signing', 'DMARC', 'Emails', 'Greylisting', 'Milter Headers',
         'Mime Types', 'MX Check', 'RBL', 'Redis History', 'SPF', 'Surbl'
     );
@@ -476,7 +476,7 @@ sub _getManagedModules
  Ask for Rspamd modules to enable
 
  Param iMSCP::Dialog $dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
@@ -487,11 +487,10 @@ sub _askForModules
     my $selectedModules = [ grep ( $_ ne 'Antivirus', split /[,;]/, ::setupGetQuestion( 'RSPAMD_MODULES', $self->{'config'}->{'RSPAMD_MODULES'} ) ) ];
     my %choices = map { $_ => $_ } grep ( $_ ne 'Antivirus', $self->_getManagedModules() );
 
-    if (
-        isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] )
-            || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedModules }
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all' ] )
+        || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedModules }
     ) {
-        ( my $rs, $selectedModules ) = $dialog->checkbox(
+        ( my $rs, $selectedModules ) = $dialog->checklist(
             <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $selectedModules } ] );
 
 Please select the Rspamd modules you want to enable.
@@ -519,7 +518,7 @@ EOF
  Ask for Rspamd Web UI
 
  Param iMSCP::Dialog $dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
@@ -527,25 +526,27 @@ sub _askForWebUI
 {
     my ( $self, $dialog ) = @_;
 
-    my $webInterface = ::setupGetQuestion( 'RSPAMD_WEBUI', $self->{'config'}->{'RSPAMD_WEBUI'} );
-    my $rs = 0;
+    my $value = ::setupGetQuestion( 'RSPAMD_WEBUI', $self->{'config'}->{'RSPAMD_WEBUI'} );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] ) || isStringNotInList( $webInterface, 'yes', 'no' ) ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'alternatives', 'all' ] ) || !isStringInList( $value, 'yes', 'no' ) ) {
         my $port = $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'} eq 'http://'
             ? $::imscpConfig{'BASE_SERVER_VHOST_HTTP_PORT'} : $::imscpConfig{'BASE_SERVER_VHOST_HTTPS_PORT'};
         my $vhost = idn_to_unicode( $::imscpConfig{'BASE_SERVER_VHOST'}, 'utf-8' );
 
-        $rs = $dialog->yesno( <<"EOF", $webInterface eq 'no' ? 1 : 0 );
+        my $rs = $dialog->yesno( <<"EOF", $value eq 'no', TRUE );
+
 Do you want to enable the Rspamd Web interface?
 
-The Rspamd Web interface provides basic functions for setting metric actions, scores, viewing statistic and learning.
+The Rspamd Web interface is a simple control interface that provide basic functions for setting metric actions, scores, viewing statistic and learning.
 
-If enabled, the Web interface is made available at $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'}$vhost:$port/rspamd
+If enabled, the Web interface is made available at $::imscpConfig{'BASE_SERVER_VHOST_PREFIX'}$vhost:$port/rspamd/
 EOF
-        return $rs if $rs >= 30;
+        return $rs unless $rs < 30;
+        $value = $rs ? 'no' : 'yes'
     }
 
-    $self->{'config'}->{'RSPAMD_WEBUI'} = $rs ? 'no' : 'yes';
+    $self->{'config'}->{'RSPAMD_WEBUI'} = $value;
+
     0;
 }
 
@@ -554,7 +555,7 @@ EOF
  Ask for Rspamd Web interface password
 
  Param iMSCP::Dialog $dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 20 (SKIP), 30 (BACK), 50 (ESC)
 
 =cut
 
@@ -562,55 +563,56 @@ sub _askForWebUIPassword
 {
     my ( $self, $dialog ) = @_;
 
-    return 0 unless $self->{'config'}->{'RSPAMD_WEBUI'} eq 'yes';
+    return 20 unless $self->{'config'}->{'RSPAMD_WEBUI'} eq 'yes';
 
-    my ( $rs, $msg, $password ) = ( 0, '', ::setupGetQuestion( 'RSPAMD_WEBUI_PASSWORD', $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} ) );
+    my $password = ::setupGetQuestion( 'RSPAMD_WEBUI_PASSWORD', $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} );
+    $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] )
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'alternatives', 'all' ] )
         || $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} eq ''
+        || ( !$self->_isExpectedRspamdWebUIPassword( $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} ) && !isValidPassword( $password ) )
     ) {
         do {
-            $password = '';
-            ( $rs, $password ) = $dialog->inputbox( <<"EOF", randomStr( 16, iMSCP::Crypt::ALNUM ));
-
-Please enter a password for the Rspamd Web interface:$msg
+            ( my $rs, $password ) = $dialog->inputbox( <<"EOF", randomStr( 16, ALNUM ));
+$iMSCP::Dialog::InputValidation::lastValidationError
+Please enter a password for the Rspamd Web interface:
+\\Z \\Zn
 EOF
-            $msg = isValidPassword( $password ) ? '' : $iMSCP::Dialog::InputValidation::lastValidationError;
-        } while $rs < 30 && $msg;
-
-        return $rs if $rs >= 30;
+            return $rs unless $rs < 30;
+        } while !isValidPassword( $password );
     }
 
     ::setupSetQuestion( 'RSPAMD_UI_PASSWORD', $password );
     0;
 }
 
-=item _askForSpamLearningCronjob( $dialog )
+=item _askForSpamLearningCronTask( $dialog )
 
- Ask for Rspamd spam learning cron job
+ Ask for Rspamd spam learning cron task
 
  Param iMSCP::Dialog $dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub _askForSpamLearningCronjob
+sub _askForSpamLearningCronTask
 {
     my ( $self, $dialog ) = @_;
 
-    my $learningCronJob = ::setupGetQuestion( 'RSPAMD_SPAM_LEARNING_FROM_JUNK', $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} );
-    my $rs = 0;
+    my $value = ::setupGetQuestion( 'RSPAMD_SPAM_LEARNING_FROM_JUNK', $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all', 'forced' ] ) || isStringNotInList( $learningCronJob, 'yes', 'no' ) ) {
-        $rs = $dialog->yesno( <<"EOF", $learningCronJob eq 'no' ? 1 : 0 );
-Do you want to enable the Rspamd spam learning cron job?
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'alternatives', 'all' ] ) || !isStringInList( $value, 'yes', 'no' ) ) {
+        my $rs = $dialog->yesno( <<"EOF", $value eq 'no', TRUE );
+
+Do you want to enable the cron task for spam learning?
 
 If enabled, Rspamd will learn spam by analyzing the customer .Junk mailboxes at regular interval time (every 12 hours by default).
 EOF
-        return $rs if $rs >= 30;
+        return $rs unless $rs < 30;
+        $value = $rs ? 'no' : 'yes'
     }
 
-    $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} = $rs ? 'no' : 'yes';
+    $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} = $value;
     0;
 }
 
@@ -624,13 +626,7 @@ EOF
 
 sub _getModuleConffilesMap
 {
-    my ( $self ) = @_;
-
-    CORE::state %map;
-
-    return %map if %map;
-
-    %map = (
+    (
         Antivirus        => 'antivirus.conf',
         ASN              => 'asn.conf',
         DKIM             => 'dkim.conf',
@@ -665,11 +661,10 @@ sub _setupModules
 
     for my $module ( $self->_getManagedModules() ) {
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}/$conffilesMap{$module}" );
-        my $fileContent = $file->getAsRef();
-        return 1 unless defined $fileContent;
+        my $fileC = $file->getAsRef();
+        return 1 unless defined $fileC;
 
-        ${ $fileContent } =~ s/^(enabled\s*=)[^\n]+/$1 @{ [ grep ( $_ eq $module, @selectedModules ) ? 'true' : 'false' ] };/m;
-
+        ${ $fileC } =~ s/^(enabled\s*=)[^\n]+/$1 @{ [ grep ( $_ eq $module, @selectedModules ) ? 'true' : 'false' ] };/m;
         return 1 if $file->save();
     }
 
@@ -678,7 +673,7 @@ sub _setupModules
 
 =item _setupWebUI( )
 
- Setup Rspamd Web interface
+ Setup Rspamd Web UI
 
  Return int 0 on success, other on failure
 
@@ -689,8 +684,8 @@ sub _setupWebUI
     my ( $self ) = @_;
 
     my $file = iMSCP::File->new( filename => "$self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}/worker-controller.inc" );
-    my $fileContent = $file->getAsRef();
-    return 1 unless defined $fileContent;
+    my $fileC = $file->getAsRef();
+    return 1 unless defined $fileC;
 
     if ( $self->{'config'}->{'RSPAMD_WEBUI'} eq 'yes' ) {
         my $rs = execute(
@@ -701,27 +696,26 @@ sub _setupWebUI
 
         chomp( $stdout );
 
-        ${ $fileContent } =~ s/^(enabled\s*=)[^\n]+/$1 true;/m;
-        ${ $fileContent } =~ s/^(count\s*=)[^\n]+/$1 $self->{'config'}->{'RSPAMD_WEBUI_PROCESS_COUNT'};/m;
-        ${ $fileContent } =~ s/^(password\s*=)[^\n]+/$1 "$stdout";/m;
+        ${ $fileC } =~ s/^(enabled\s*=)[^\n]+/$1 true;/m;
+        ${ $fileC } =~ s/^(password\s*=)[^\n]+/$1 "$stdout";/m;
         $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} = $stdout;
     } else {
-        ${ $fileContent } =~ s/^(enabled\s*=)[^\n]+/$1 false;/m;
-        ${ $fileContent } =~ s/^password\s*=[^\n]+/$1 "";/m;
+        ${ $fileC } =~ s/^(enabled\s*=)[^\n]+/$1 false;/m;
+        ${ $fileC } =~ s/^password\s*=[^\n]+/$1 "";/m;
     }
 
     $file->save();
 }
 
-=item _setupSpamLearning
+=item _setupCronTaskForSpamLearning
 
- Setup Rspamd SPAM learning
+ Setup a cron task for Rspamd SPAM learning
 
  Return int 0 on success, other on failure
 
 =cut
 
-sub _setupSpamLearning
+sub _setupCronTaskForSpamLearning
 {
     my ( $self ) = @_;
 
@@ -737,6 +731,25 @@ sub _setupSpamLearning
         USER    => $main::imscpConfig{'ROOT_USER'},
         COMMAND => "nice -n 10 ionice -c2 -n5 find $mtaConfig->{'MTA_VIRTUAL_MAIL_DIR'}/*/*/.Junk/cur -type f -exec /usr/bin/rspamc -h 127.0.0.1:11334 learn_spam -- {} \\+"
     } );
+}
+
+=item _isValidRspamdWebUIPassword( $password )
+
+ Checks that both the provided password and the password from the Rspamd worker controller conffile match
+
+ Return boolean TRUE if both passwords match, FALSE otherwise, die on failure
+
+=cut
+
+sub _isExpectedRspamdWebUIPassword
+{
+    my ( $self, $password ) = @_;
+
+    my $file = iMSCP::File->new( filename => "$self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}/worker-controller.inc" );
+    my $fileC = $file->getAsRef();
+    defined $fileC or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+
+    !!$fileC =~ /^password\s+=\s+"\Q$password\E"\n/m;
 }
 
 =back

@@ -1,6 +1,6 @@
 =head1 NAME
 
- Servers::server::local - i-MSCP local server implementation
+ Servers::server::system - i-MSCP system server implementation
 
 =cut
 
@@ -21,26 +21,26 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Servers::server::local;
+package Servers::server::system;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat Servers::server::local::installer /;
+use Class::Autouse qw/ :nostat Servers::server::system::installer /;
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
 
- i-MSCP local server implementation
+ i-MSCP system server implementation
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager \%eventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -49,7 +49,7 @@ sub registerSetupListeners
 {
     my (undef, $eventManager) = @_;
 
-    Servers::server::local::installer->getInstance()->registerSetupListeners( $eventManager );
+    Servers::server::system::installer->getInstance()->registerSetupListeners( $eventManager );
 }
 
 =item preinstall( )
@@ -65,7 +65,7 @@ sub preinstall
     my ($self) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeServerPreInstall', 'local' );
-    $rs ||= Servers::server::local::installer->getInstance()->preinstall();
+    $rs ||= Servers::server::system::installer->getInstance()->preinstall();
     $rs ||= $self->{'eventManager'}->trigger( 'afterServerPreInstall', 'local' );
 }
 
@@ -82,7 +82,7 @@ sub install
     my ($self) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeServerInstall', 'local' );
-    $rs ||= Servers::server::local::installer->getInstance()->install();
+    $rs ||= Servers::server::system::installer->getInstance()->install();
     $rs ||= $self->{'eventManager'}->trigger( 'afterServerInstall', 'local' );
 }
 
@@ -96,7 +96,7 @@ sub install
 
  Initialize instance
 
- Return Servers::server::local::installer
+ Return Servers::system::local::installer
 
 =cut
 

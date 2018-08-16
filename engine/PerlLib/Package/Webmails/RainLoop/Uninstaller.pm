@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::Webmail::RainLoop::Uninstaller - i-MSCP RainLoop package uninstaller
+ Package::Webmails::RainLoop::Uninstaller - i-MSCP RainLoop package uninstaller
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Package::Webmail::RainLoop::Uninstaller;
+package Package::Webmails::RainLoop::Uninstaller;
 
 use strict;
 use warnings;
@@ -30,7 +30,7 @@ use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::Database;
 use Package::Setup::FrontEnd;
-use Package::Webmail::RainLoop::RainLoop;
+use Package::Webmails::RainLoop::RainLoop;
 use Servers::sqld;
 use parent 'Common::SingletonClass';
 
@@ -72,7 +72,7 @@ sub uninstall
 
  Initialize instance
 
- Return Package::Webmail::RainLoop::Uninstaller
+ Return Package::Webmails::RainLoop::Uninstaller
 
 =cut
 
@@ -80,7 +80,7 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'rainloop'} = Package::Webmail::RainLoop::RainLoop->getInstance();
+    $self->{'rainloop'} = Package::Webmails::RainLoop::RainLoop->getInstance();
     $self->{'frontend'} = Package::Setup::FrontEnd->getInstance();
     $self->{'db'} = iMSCP::Database->factory();
     $self->{'config'} = $self->{'rainloop'}->{'config'};

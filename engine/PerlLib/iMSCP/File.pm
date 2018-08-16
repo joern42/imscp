@@ -205,7 +205,7 @@ sub mode
 
  Symlinks are not dereferenced.
 
- Param int|string $owner Either an username or userid
+ Param int|string $owner Either a username or userid
  Param int|string $group Either a groupname or groupid
  Return int 0 on success, 1 on failure
 

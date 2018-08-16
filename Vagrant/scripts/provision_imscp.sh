@@ -39,7 +39,7 @@ unless($::questions{'BASE_SERVER_IP'} eq 'None') {
 1;
 EOT
 else
- echo "The i-MSCP preseed.pl file has not been found. Please create it first."
+ echo "The i-MSCP preseed.pl file has not been found. Please create it first." > /dev/stderr
  exit 1
 fi
 

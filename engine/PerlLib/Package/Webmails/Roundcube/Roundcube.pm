@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::Webmail::Roundcube::Roundcube - i-MSCP Roundcube package
+ Package::Webmails::Roundcube::Roundcube - i-MSCP Roundcube package
 
 =cut
 
@@ -21,11 +21,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Package::Webmail::Roundcube::Roundcube;
+package Package::Webmails::Roundcube::Roundcube;
 
 use strict;
 use warnings;
-use Class::Autouse qw/ :nostat Package::Webmail::Roundcube::Installer Package::Webmail::Roundcube::Uninstaller /;
+use Class::Autouse qw/ :nostat Package::Webmails::Roundcube::Installer Package::Webmails::Roundcube::Uninstaller /;
 use iMSCP::Config;
 use iMSCP::Debug;
 use iMSCP::Database;
@@ -61,7 +61,7 @@ sub showDialog
 {
     my ( undef, $dialog ) = @_;
 
-    Package::Webmail::Roundcube::Installer->getInstance()->showDialog( $dialog );
+    Package::Webmails::Roundcube::Installer->getInstance()->showDialog( $dialog );
 }
 
 =item preinstall( )
@@ -74,7 +74,7 @@ sub showDialog
 
 sub preinstall
 {
-    Package::Webmail::Roundcube::Installer->getInstance()->preinstall();
+    Package::Webmails::Roundcube::Installer->getInstance()->preinstall();
 }
 
 =item install( )
@@ -87,7 +87,7 @@ sub preinstall
 
 sub install
 {
-    Package::Webmail::Roundcube::Installer->getInstance()->install();
+    Package::Webmails::Roundcube::Installer->getInstance()->install();
 }
 
 =item uninstall( )
@@ -104,7 +104,7 @@ sub uninstall
 
     return 0 if $self->{'skip_uninstall'};
 
-    Package::Webmail::Roundcube::Uninstaller->getInstance()->uninstall();
+    Package::Webmails::Roundcube::Uninstaller->getInstance()->uninstall();
 }
 
 =item setGuiPermissions( )
@@ -181,7 +181,7 @@ sub deleteMail
 
  Initialize instance
 
- Return Package::Webmail::Roundcube::Roundcube
+ Return Package::Webmails::Roundcube::Roundcube
 
 =cut
 

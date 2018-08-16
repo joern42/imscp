@@ -45,11 +45,11 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager \%eventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -59,29 +59,29 @@ sub registerSetupListeners
     my ( $self, $eventManager ) = @_;
 
     $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->showDialog( @_ ) };
+        push @{ $_[0] }, sub { $self->askForFilemanagerPackage( @_ ) };
         0;
     } );
 }
 
-=item showDialog( $dialog )
+=item askForFilemanagerPackage( $dialog )
 
- Show dialog
+ Ask for filemanager package
 
  Param iMSCP::Dialog $dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub showDialog
+sub askForFilemanagerPackage
 {
     my ( $self, $dialog ) = @_;
 
     my $package = ::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
     my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
-
     my $rs = 0;
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'filemanager', 'all', 'forced' ] )
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'filemanager', 'all' ] )
         || !grep ($_ eq $package, @{ $self->{'AVAILABLE_PACKAGES'} })
     ) {
         ( $rs, $package ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $package eq $_, keys %choices ) )[0] || ( keys %choices )[0] );
@@ -89,22 +89,20 @@ sub showDialog
 Please select the Web FTP file manager package you want to install:
 \Z \Zn
 EOF
+        return $rs unless $rs < 30;
     }
-
-    return $rs unless $rs < 30;
 
     ::setupSetQuestion( 'FILEMANAGER_PACKAGE', $package );
 
     $package = "Package::Setup::FileManager::${package}::${package}";
-    eval "require $package";
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    eval "require $package" or die;
 
     return 0 unless my $subref = $package->can( 'showDialog' );
     debug( sprintf( 'Executing showDialog action on %s', $package ));
-    $subref->( $package->getInstance(), $dialog );
+    $rs = $subref->( $package->getInstance(), $dialog );
+    goto &{ askForFilemanagerPackage } if $rs == 30;
+    return $rs if $rs == 50;
+    0;
 }
 
 =item preinstall( )
@@ -134,14 +132,8 @@ sub preinstall
     }
 
     my $package = ::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
-
     $package = "Package::Setup::FileManager::${package}::${package}";
-    eval "require $package";
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    eval "require $package" or die;
     return 0 unless my $subref = $package->can( 'preinstall' );
     debug( sprintf( 'Executing preinstall action on %s', $package ));
     $subref->( $package->getInstance());
@@ -159,12 +151,7 @@ sub install
 {
     my $package = ::setupGetQuestion( 'FILEMANAGER_PACKAGE' );
     $package = "Package::Setup::FileManager::${package}::${package}";
-    eval "require $package";
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    eval "require $package" or die;
     return 0 unless my $subref = $package->can( 'install' );
     debug( sprintf( 'Executing install action on %s', $package ));
     $subref->( $package->getInstance());
@@ -187,12 +174,7 @@ sub uninstall
     return 0 unless $package ne '';
 
     $package = "Package::Setup::FileManager::${package}::${package}";
-    eval "require $package";
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    eval "require $package" or die;
     return 0 unless my $subref = $package->can( 'uninstall' );
     debug( sprintf( 'Executing uninstall action on %s', $package ));
     $subref->( $package->getInstance());
@@ -230,14 +212,8 @@ sub setGuiPermissions
     return 0 unless grep { $_ eq $package } @{ $self->{'AVAILABLE_PACKAGES'} };
 
     $package = "Package::Setup::FileManager::${package}::${package}";
-    eval "require $package";
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    eval "require $package" or die;
     return 0 unless my $subref = $package->can( 'setGuiPermissions' );
-
     debug( sprintf( 'Executing setGuiPermissions action on %s', $package ));
     $rs = $subref->( $package->getInstance());
     $rs ||= $self->{'eventManager'}->trigger( 'afterFileManagerSetGuiPermissions' );

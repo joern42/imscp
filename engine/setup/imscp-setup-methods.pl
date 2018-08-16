@@ -25,7 +25,7 @@ use iMSCP::Database;
 use iMSCP::DbTasksProcessor;
 use iMSCP::Debug;
 use iMSCP::Dialog;
-use iMSCP::Dialog::InputValidation qw/ isStringInList /;
+use iMSCP::Dialog::InputValidation qw/ isStringInList isOneOfStringsInList /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::Execute qw/ executeNoWait /;
@@ -63,8 +63,8 @@ sub setupBoot
 {
     iMSCP::Bootstrapper->getInstance()->boot( {
         mode            => 'setup', # Backend mode
-        config_readonly => 1,       # We do not allow writing in conffile at this time
-        nodatabase      => 1        # We do not establish connection to the database at this time
+        config_readonly => TRUE,    # We do not allow writing in conffile at this time
+        nodatabase      => TRUE     # We do not establish connection to the database at this time
     } );
 
     untie( %main::imscpOldConfig ) if %main::imscpOldConfig;
@@ -78,7 +78,6 @@ sub setupBoot
     }
 
     tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf";
-
     0;
 }
 
@@ -103,34 +102,12 @@ sub setupRegisterListeners
 
 sub setupDialog
 {
-    my $dialogStack = [];
+    my $dialogs = [];
 
-    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDialog', $dialogStack );
-    return $rs if $rs;
-
-    # Implements a simple state machine (backup capability)
-    # Any dialog subroutine *SHOULD* allow to step back by returning 30 when 'back' button is pushed
-    # In case of yesno dialog box, there is no back button. Instead, user can back up using the ESC keystroke
-    # In any other context, the ESC keystroke allows user to abort.
-    my ( $state, $nbDialog, $dialog ) = ( 0, scalar @{ $dialogStack }, iMSCP::Dialog->getInstance() );
-    while ( $state < $nbDialog ) {
-        local $dialog->{_opts}->{'no-cancel'} = $state ? undef : '';
-
-        $rs = $dialogStack->[$state]->( $dialog );
-        exit( $rs ) if $rs == 50;
-        return $rs if $rs && $rs < 30;
-
-        if ( $rs == 30 ) {
-            iMSCP::Getopt->reconfigure( 'forced', FALSE, TRUE );
-            $state--;
-            next;
-        }
-
-        iMSCP::Getopt->reconfigure( grep ( $_ ne 'forced', @{ iMSCP::Getopt->reconfigure } ));
-        $state++;
-    }
-
-    iMSCP::EventManager->getInstance()->trigger( 'afterSetupDialog' );
+    my $rs = iMSCP::EventManager->getInstance()->trigger( 'beforeSetupDialog', $dialogs );
+    $rs = iMSCP::Dialog->getInstance()->executeDialogs( $dialogs );
+    exit;
+    $rs ||= iMSCP::EventManager->getInstance()->trigger( 'afterSetupDialog' );
 }
 
 sub setupTasks
@@ -183,9 +160,9 @@ sub setupSaveConfig
 
     # Re-open main configuration file in read/write mode
     iMSCP::Bootstrapper->getInstance()->loadMainConfig( {
-        nocreate        => 1,
-        nodeferring     => 1,
-        config_readonly => 0
+        nocreate        => TRUE,
+        nodeferring     => TRUE,
+        config_readonly => FALSE
     } );
 
     while ( my ( $key, $value ) = each( %main::questions ) ) {
@@ -214,7 +191,7 @@ sub setupCreateMasterUser
         user           => $::imscpConfig{'IMSCP_USER'},
         group          => $::imscpConfig{'IMSCP_GROUP'},
         mode           => 0755,
-        fixpermissions => 1 # We fix permissions in any case
+        fixpermissions => TRUE # We fix permissions in any case
     } );
     iMSCP::EventManager->getInstance()->trigger( 'afterSetupCreateMasterUser' );
 }
@@ -242,7 +219,7 @@ sub setupImportSqlSchema
     local $@;
     eval {
         my $dbh = $db->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
+        local $dbh->{'RaiseError'} = TRUE;
         $dbh->do( $_ ) for split /;\n/, $content =~ s/^(--[^\n]{0,})?\n//gmr;
     };
     if ( $@ ) {
@@ -376,7 +353,7 @@ sub setupRegisterPluginListeners
 
     eval {
         my $dbh = $db->getRawDb();
-        $dbh->{'RaiseError'} = 1;
+        $dbh->{'RaiseError'} = TRUE;
         $pluginNames = $dbh->selectcol_arrayref( "SELECT plugin_name FROM plugin WHERE plugin_status = 'enabled'" );
         $db->useDatabase( $oldDbName ) if $oldDbName;
     };
@@ -420,9 +397,7 @@ sub setupServersAndPackages
 
         for ( @servers ) {
             ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
-            $rs = step(
-                sub { $subref->( $_->factory()) }, sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep
-            );
+            $rs = step( sub { $subref->( $_->factory()) }, sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep );
             last if $rs;
             $nStep++;
         }
@@ -434,10 +409,7 @@ sub setupServersAndPackages
             unless ( $rs ) {
                 for ( @packages ) {
                     ( my $subref = $_->can( $lcTask ) ) or $nStep++ && next;
-                    $rs = step(
-                        sub { $subref->( $_->getInstance()) },
-                        sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep
-                    );
+                    $rs = step( sub { $subref->( $_->getInstance()) }, sprintf( "Executing %s %s tasks...", $_, $lcTask ), $nSteps, $nStep );
                     last if $rs;
                     $nStep++;
                 }

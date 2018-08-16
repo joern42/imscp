@@ -211,15 +211,12 @@ sub _init
 
 sub _setupPostsrsDaemon
 {
-    my ( $self ) = @_;
-
     my $file = iMSCP::File->new( filename => '/etc/default/postsrsd' );
-    my $fileContent = $file->getAsRef();
-    return 1 unless defined $fileContent;
+    my $fileC = $file->getAsRef();
+    return 1 unless defined $fileC;
 
-    ${ $fileContent } =~ s/^(SRS_DOMAIN\s*=)[^\n]+/$1 $::imscpConfig{'SERVER_HOSTNAME'};/m;
-
-    $file->save() || 0;
+    ${ $fileC } =~ s/^(SRS_DOMAIN\s*=)[^\n]+/$1 $::imscpConfig{'SERVER_HOSTNAME'};/m;
+    $file->save();
 }
 
 =back

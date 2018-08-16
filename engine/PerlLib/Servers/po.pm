@@ -25,7 +25,6 @@ package Servers::po;
 
 use strict;
 use warnings;
-use iMSCP::Debug;
 
 # po server instance
 my $instance;
@@ -59,15 +58,12 @@ sub factory
         && $main::imscpOldConfig{'PO_PACKAGE'} ne ''
         && $main::imscpOldConfig{'PO_PACKAGE'} ne $package
     ) {
-        eval "require $main::imscpOldConfig{'PO_PACKAGE'}";
-        fatal( $@ ) if $@;
-
+        eval "require $main::imscpOldConfig{'PO_PACKAGE'}" or die;
         my $rs = $main::imscpOldConfig{'PO_PACKAGE'}->getInstance()->uninstall();
-        fatal( sprintf( "Couldn't uninstall the '%s' server", $main::imscpOldConfig{'PO_PACKAGE'} )) if $rs;
+        $rs == 0 or die( sprintf( "Couldn't uninstall the '%s' server", $main::imscpOldConfig{'PO_PACKAGE'} ));
     }
 
-    eval "require $package";
-    fatal( $@ ) if $@;
+    eval "require $package" or die;
     $instance = $package->getInstance();
 }
 
@@ -82,11 +78,10 @@ sub factory
 
 sub can
 {
-    my (undef, $method) = @_;
+    my ( undef, $method ) = @_;
 
     my $package = $main::imscpConfig{'PO_PACKAGE'} || 'Servers::noserver';
-    eval "require $package";
-    fatal( $@ ) if $@;
+    eval "require $package" or die;
     $package->can( $method );
 }
 

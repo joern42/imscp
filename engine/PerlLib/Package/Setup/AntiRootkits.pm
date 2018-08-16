@@ -25,6 +25,7 @@ package Package::Setup::AntiRootkits;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Debug;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
@@ -45,11 +46,11 @@ use parent 'Common::SingletonClass';
 
 =over
 
-=item registerSetupListeners( \%eventManager )
+=item registerSetupListeners( $eventManager )
 
  Register setup event listeners
 
- Param iMSCP::EventManager
+ Param iMSCP::EventManager $eventManager
  Return int 0 on success, other on failure
 
 =cut
@@ -59,31 +60,31 @@ sub registerSetupListeners
     my ( $self, $eventManager ) = @_;
 
     $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->showDialog( @_ ) };
+        push @{ $_[0] }, sub { $self->askForAntirootkitPackages( @_ ) };
         0,
     } );
 }
 
-=item askAntiRootkits( $dialog )
+=item askForAntirootkitPackages( $dialog )
 
- Show dialog
+ Ask for antirootkit packages
 
  Param iMSCP::Dialog $dialog
- Return int 0 or 30
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
 
 =cut
 
-sub showDialog
+sub askForAntirootkitPackages
 {
     my ( $self, $dialog ) = @_;
 
     my $selectedPackages = [ split ',', ::setupGetQuestion( 'ANTI_ROOTKITS_PACKAGES' ) ];
     my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antirootkits', 'all', 'forced' ] ) || !@{ $selectedPackages }
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antirootkits', 'all' ] ) || !@{ $selectedPackages }
         || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages }
     ) {
-        ( my $rs, $selectedPackages ) = $dialog->checkbox(
+        ( my $rs, $selectedPackages ) = $dialog->checklist(
             <<'EOF', \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages } ] );
 
 Please select the Anti-Rootkits packages you want to install:
@@ -93,24 +94,17 @@ EOF
     }
 
     @{ $selectedPackages } = grep ( $_ ne 'none', @{ $selectedPackages } );
-
     ::setupSetQuestion( 'ANTI_ROOTKITS_PACKAGES', @{ $selectedPackages } ? join ',', @{ $selectedPackages } : 'none' );
 
-    for ( @{ $selectedPackages } ) {
-        my $package = "Package::Setup::AntiRootkits::${_}::${_}";
-        eval "require $package";
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
-
-        ( my $subref = $package->can( 'showDialog' ) ) or next;
-        debug( sprintf( 'Executing showDialog action on %s', $package ));
-        my $rs = $subref->( $package->getInstance(), $dialog );
-        return $rs if $rs;
+    my @dialogs;
+    for my $package ( @{ $selectedPackages } ) {
+        $package = "Package::Setup::AntiRootkits::${package}::${package}";
+        eval "require $package" or die;
+        my $subref = $package->can( 'showDialog' );
+        push @dialogs, sub { $subref->( $package->getInstance(), @_ ) } if $subref;
     }
 
-    0;
+    $dialog->executeDialogs( \@dialogs );
 }
 
 =item preinstall( )

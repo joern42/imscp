@@ -26,6 +26,9 @@ BIND_IPV6 =
 #
 # Whether routable IP addresses must be enforced in DNS zone files.
 #
+# When set to yes the server public IP will be used in place of the
+# client domain IP addresses (A/AAAA records) when those are non-routable.
+#
 # Possible values: yes, no
 #
 # Slave DNS server (BIND_TYPE = slave)
@@ -49,14 +52,13 @@ BIND_ENFORCE_ROUTABLE_IPS =
 # for the authoritative DND servers (masters statement in the DNS zone files).
 #
 # IPv6 addresses are only allowed if the BIND_IPV6 value is set to 'yes'.
-# 
 BIND_MASTER_IP_ADDRESSES =
 
 # Master DNS server (BIND_TYPE = master)
 #
 # Possible value: 'none' for historical behavior, or a list of space, comma
 # or semicolon separated master DNS server names (NS, glue recors), one for
-# each master DNS server IP address, following the same order.
+# each master DNS server IP address and following the same order.
 #
 # In historical behavior, names are generated on a per zone basis, using client
 # domain names.
