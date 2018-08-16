@@ -747,14 +747,21 @@ sub _addDmnConfig
         {
             BIND_DB_FORMAT => $self->{'config'}->{'BIND_DB_FORMAT'} =~ s/=\d//r,
             ZONE_NAME      => $data->{'DOMAIN_NAME'},
-            IP_ADDRESSES   => $self->{'config'}->{'BIND_TYPE'} eq 'master' ? ( $self->{'config'}->{'BIND_SLAVE_IP_ADDRESSES'} ne 'none'
-                ? join( '; ', split( /[;, ]+/, $self->{'config'}->{'BIND_SLAVE_IP_ADDRESSES'} )) . '; localhost;' : 'localhost;'
-            ) : join( '; ', split( /[;, ]+/, $self->{'config'}->{'BIND_MASTER_IP_ADDRESSES'} )) . ';'
+            IP_ADDRESSES   => $self->{'config'}->{'BIND_TYPE'} eq 'master' ?
+                (
+                    $self->{'config'}->{'BIND_SLAVE_IP_ADDRESSES'} ne 'none'
+                        # There are slave DNS servers: We allow AXFR queries from the slave DNS servers and localhost
+                        ? join( '; ', split( /[;, ]+/, $self->{'config'}->{'BIND_SLAVE_IP_ADDRESSES'} )) . '; localhost;'
+                        # There are no slave DNS servers. We allow AXFR quries from localhost only
+                        : 'localhost;'
+                ) :
+                # Authoritative DNS servers (masters statement)
+                join( '; ', split( /[;, ]+/, $self->{'config'}->{'BIND_MASTER_IP_ADDRESSES'} ))
         },
         \$cfgTplC
     );
-    replaceBlocByRef( "// imscp [$data->{'DOMAIN_NAME'}] begin.\n", "// imscp [$data->{'DOMAIN_NAME'}] ending.\n", '', $fileC );
-    replaceBlocByRef( "// imscp [{ZONE_NAME}] entry begin.\n", "// imscp [{ZONE_NAME}] entry ending.\n", $cfgTplC, $fileC, TRUE );
+    replaceBlocByRef( "// imscp [$data->{'DOMAIN_NAME'}] begin.\n", qr#\Q// imscp [$data->{'DOMAIN_NAME'}] ending.\E\n\n?#, '', $fileC );
+    replaceBlocByRef( "// imscp [{ZONE_NAME}] begin.\n", "// imscp [{ZONE_NAME}] ending.\n", $cfgTplC, $fileC, TRUE );
 
     $rs = $self->{'eventManager'}->trigger( 'afterNamedAddDmnConfig', $fileC, $data );
     $rs ||= $file->save();
