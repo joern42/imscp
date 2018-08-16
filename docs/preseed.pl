@@ -5,7 +5,7 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.08.06
+# Last update: 2018.08.16
 
 use strict;
 use warnings;
@@ -31,6 +31,14 @@ use warnings;
     # automatic detection of your public IP using ipinfo.io Web service.
     # Possible values: Ipv4 or IPv6
     BASE_SERVER_PUBLIC_IP               => '',
+
+    # IPv6 support
+    #
+    # Possible values: yes, no
+    #
+    # Bear in mind that if IPv6 support is disabled on your system, setting
+    # this parameter to 'yes' will not change anything.
+    IPV6_SUPPORT                        => 'yes',
 
     # Timezone
     # Possible values: A valid timezone such as Europe/Paris
@@ -168,57 +176,144 @@ use warnings;
     # Possible value: A valid email address. Be aware that mails sent to local root user will be forwarded to that email.
     DEFAULT_ADMIN_ADDRESS               => '',
 
-    #
     ## DNS server configuration
-    #
 
     # DNS server implementation
     # Possible values: bind, external_server
     NAMED_SERVER                        => 'bind',
 
-    # DNS server mode
-    # Only relevant with 'bind' server implementation
+    # DNS server type to configure (only relevant with the 'bind' server)
     # Possible values: master, slave
-    BIND_MODE                           => 'master',
+    BIND_TYPE                           => 'master',
 
-    # Allow to specify IP addresses of your primary DNS servers - Only relevant if you set BIND_MODE to 'slave'
-    # Primary DNS server IP addresses
-    # Only relevant with master mode
-    # Possible value: 'no' or a list of IPv4/IPv6 each separated by a comma, a
-    #                 space or a semicolon
-    PRIMARY_DNS                         => 'no',
-
-    # Slave DNS server IP addresses
-    # Only relevant with slave mode
-    # Possible value: 'no' or a list of IPv4/IPv6 each separated by a comma, a
-    #                 space or a semicolon
-    SECONDARY_DNS                       => 'no',
-
-    # IPv6 support
-    # Only relevant with 'bind' server implementation
-    # Possible values: yes, no
+    # Type of DNS server to configure (only relevant with the 'bind' server)
+    #
+    # Possible values: master, slave
     BIND_IPV6                           => 'no',
 
-    # IP addresses policy
-    # Whether or not routable IP address must be enforced in the
-    # DNS zone files.
+    # IP addresses policy for the DNS server (only relevant with the 'bind' server)
+    #
+    # Master DNS server (BIND_TYPE = master)
+    #
+    # Whether routable IP addresses must be enforced in DNS zone files.
+    #
+    # When set to yes the server public IP will be used in place of the
+    # client domain IP addresses (A/AAAA records) when those are non-routable.
+    #
+    # Possible values: yes, no
+    #
+    # Slave DNS server (BIND_TYPE = slave)
+    #
+    # This parameter is not relevant in the context of a Slave DNS server.
+    #
+    # Possible values: empty value.
     BIND_ENFORCE_ROUTABLE_IPS           => 'yes',
+
+    # IP addresses for the master/authoritative DNS server (only relevant with the 'bind' server)
+    #
+    # Master DNS server (BIND_TYPE = master)
+    #
+    # Possible values: 'none' for historical behavior, or a list of space, comma or
+    # semicolon separated IP addresses for the master DNS server (NS, glue recors).
+    #
+    # In historical behavior, the IP addresses are set on a per zone basis using
+    # client IP addresses.
+    #
+    # Slave DNS server (BIND_TYPE = slave)
+    #
+    # Possible values: A list of space, comma or semicolon separated IP addresses
+    # for the authoritative DND servers (masters statement in the DNS zone files).
+    #
+    # IPv6 addresses are only allowed if the BIND_IPV6 value is set to 'yes'.
+    BIND_MASTER_IP_ADDRESSES            => 'none',
+
+    # DNS names for the DNS server (only relevant with the 'bind' server)
+    #
+    # Master DNS server (BIND_TYPE = master)
+    #
+    # Possible value: 'none' for historical behavior, or a list of space, comma
+    # or semicolon separated master DNS server names (NS, glue recors), one for
+    # each master DNS server IP address and following the same order.
+    #
+    # In historical behavior, names are generated on a per zone basis, using client
+    # domain names.
+    #
+    # Slave DNS server (BIND_TYPE = slave)
+    #
+    # This parameter is not relevant in the context of a slave DNS server.
+    #
+    # Possible values: empty value.
+    BIND_MASTER_NAMES                   => 'none',
+
+    # Hostmaster email address for the DNS server (only relevant with the 'bind' server)
+    #
+    # Master DNS server (BIND_TYPE = master)
+    #
+    # Possible value: 'none' for historical behavior or a valid email address for
+    # the person responsible of the DNS zone management (SOA hostmaster). 
+    #
+    # In historical behavior, the hostmaster email address is configured on a per
+    # zone basis, using client domain names.
+    #
+    # This parameter is only relevant when the BIND_MASTER_IP_ADDRESSES parameter
+    # is set to a value other than 'none'.
+    #
+    # Slave DNS server (BIND_TYPE = slave)
+    #
+    # This parameter is not relevant in the context of a slave DNS server.
+    #
+    # Possible values: empty value.
+    BIND_HOSTMASTER_EMAIL               => 'none',
+
+    # IP addresses for the slave DNS server (only relevant with the 'bind' server)
+    #
+    # Master DNS server (BIND_TYPE = master)
+    #
+    # Possible values: 'none' for no slave DNS servers, or a list of space, comma
+    # or semicolon separated IP addresses for the slave DNS servers.
+    #
+    # IPv6 addresses are only allowed if the BIND_IPV6 parameter value is set to
+    # 'yes'.
+    #
+    # Slave DNS server (BIND_TYPE = slave)
+    #
+    # This parameter is not relevant in the context of a slave DNS server.
+    #
+    # Possible values: empty value.
+    BIND_SLAVE_IP_ADDRESSES             => '',
+
+    # Names for the slave DNS servers (only relevant with the 'bind' server)
+    #
+    # Master DNS server (BIND_TYPE = master)
+    #
+    # Possible value: 'none' for historical behavior, or a list of space, comma
+    # or semicolon separated master DNS server names (NS, glue recors), one for
+    # each slave DNS server IP address and following the same order.
+    #
+    # In historical behavior, names are generated on a per zone basis,
+    # using client domain names.
+    #
+    # This parameter is only relevant when the BIND_SLAVE_IP_ADDRESSES parameter
+    # is set to a value other than 'none'.
+    #
+    # Slave DNS server (BIND_TYPE = slave)
+    #
+    # This parameter is not relevant in the context of a slave DNS server.
+    #
+    # Possible values: empty value.
+    BIND_SLAVE_NAMES                    => '',
 
     # Local DNS resolver (only relevant with 'bind' server implementation)
     # Possible values: yes, no
     LOCAL_DNS_RESOLVER                  => 'yes',
 
-    #
     ## HTTTPd server configuration parameters
-    #
 
     # HTTPd server implementation
     # Possible values: apache_itk, apache_fcgid, apache_php_fpm
     HTTPD_SERVER                        => 'apache_php_fpm',
 
-    #
     ## PHP configuration parameters
-    #
 
     # PHP version for customers
     # Popssible values: php5.6, php7.0, php7.1, php7.2
@@ -233,9 +328,7 @@ use warnings;
     # Possible values: uds, tcp
     PHP_FPM_LISTEN_MODE                 => 'uds',
 
-    #
-    ## FTPd server configuration parameters
-    #
+    ## FTP server configuration parameters
 
     # FTPd server implementation
     # Possible values: proftpd, vsftpd
@@ -253,17 +346,13 @@ use warnings;
     # Don't forgot to forward TCP traffic on those ports on your server if you're behind a firewall
     FTPD_PASSIVE_PORT_RANGE             => '32800 33800',
 
-    #
     ## MTA server configuration parameters
-    #
 
     # MTA server implementation
     # Possible values: postfix
     MTA_SERVER                          => 'postfix',
 
-    #
     ## IMAP, POP server configuration parameters
-    #
 
     # POP/IMAP servers implementation
     # Possible values: courier, dovecot
@@ -284,9 +373,7 @@ use warnings;
     # Leave this parameter empty for automatic password generation.
     DOVECOT_SQL_PASSWORD                => '',
 
-    #
     ## SSL configuration for FTP, IMAP/POP and SMTP services
-    #
 
     # Enable or disable SSL
     # Possible values: yes, no
@@ -313,9 +400,7 @@ use warnings;
     # Possible values: Path to SSL certificate
     SERVICES_SSL_CERTIFICATE_PATH       => '',
 
-    #
     ## Packages configuration parameters
-    #
 
     # Webstats packages
     # Possible values: 'no' or a list of packages, each comma separated
@@ -356,18 +441,8 @@ use warnings;
     ANTI_ROOTKITS_PACKAGES              => 'Chkrootkit,Rkhunter',
 
     # Antispam package
-    # Possible values: 'none', 'rspamd'
-    ANTISPAM                            => 'rspamd',
-
-    # Antivirus package
-    # Possible values: 'none', 'clamav'
-    #
-    # The ClamAV antivirus is executed in different ways depending on whether
-    # you choose `Rspamd` or not as antispam. If you choose `Rspamd` as
-    # antispam, `ClamAV` will be executed by the `Rspamd` antivirus module,
-    # else it will be executed through
-    # `ClamAV milter`.
-    ANTIVIRUS                           => 'clamav',
+    # Possible values: none, 'rspamd'
+    ANTISPAM                            => 'none',
 
     # Rspamd module to enable (only relevant if you choose Rspamd as antispam)
     # Possible values: 'none' for no modules, or a list of module, each
@@ -398,8 +473,21 @@ use warnings;
     # Possible values: yes, no
     RSPAMD_WEBUI                        => 'yes',
     # Only ASCII alphabet characters and numbers are allowed in password.
-    # Leave this parameter empty for automatic password generation.
     RSPAMD_WEBUI_PASSWORD               => '',
+
+    # Antivirus package
+    # Possible values: none, clamav
+    #
+    # The ClamAV antivirus is executed in different ways depending on whether
+    # you choose `Rspamd` or not as antispam. If you choose `Rspamd` as
+    # antispam, `ClamAV` will be executed by the `Rspamd` antivirus module,
+    # else it will be executed through
+    # `ClamAV milter`.
+    ANTIVIRUS                           => 'none',
+
+    # Postfix SRS package
+    # Possible values: none, postsrsd
+    POSTFIX_SRS                         => 'none'
 );
 
 1;
