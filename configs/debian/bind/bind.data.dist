@@ -13,30 +13,113 @@ BIND_DB_SLAVE_DIR = /var/cache/bind/imscp/slave
 NAMED_SNAME = bind9
 NAMED_BNAME = named
 
+# Type of DNS server to configure
+#
+# Possible values: master, slave
+BIND_TYPE =
+
+# IPv6 support
+# Possible values: yes, no
+BIND_IPV6 =
+
+# Master DNS server (BIND_TYPE = master)
+#
+# Whether routable IP addresses must be enforced in DNS zone files.
+#
+# Possible values: yes, no
+#
+# Slave DNS server (BIND_TYPE = slave)
+#
+# This parameter is not relevant in the context of a Slave DNS server.
+#
+# Possible values: empty value.
+BIND_ENFORCE_ROUTABLE_IPS =
+
+# Master DNS server (BIND_TYPE = master)
+#
+# Possible values: 'none' for historical behavior, or a list of space, comma or
+# semicolon separated IP addresses for the master DNS server (NS, glue recors).
+#
+# In historical behavior, the IP addresses are set on a per zone basis using
+# client IP addresses.
+#
+# Slave DNS server (BIND_TYPE = slave)
+#
+# Possible values: A list of space, comma or semicolon separated IP addresses
+# for the authoritative DND servers (masters statement in the DNS zone files).
+#
+# IPv6 addresses are only allowed if the BIND_IPV6 value is set to 'yes'.
+# 
+BIND_MASTER_IP_ADDRESSES =
+
+# Master DNS server (BIND_TYPE = master)
+#
+# Possible value: 'none' for historical behavior, or a list of space, comma
+# or semicolon separated master DNS server names (NS, glue recors), one for
+# each master DNS server IP address, following the same order.
+#
+# In historical behavior, names are generated on a per zone basis,
+# using client domain names.
+#
+# Slave DNS server (BIND_TYPE = slave)
+#
+# This parameter is not relevant in the context of a slave DNS server.
+#
+# Possible values: empty value.
+BIND_MASTER_NAMES =
+
+# Master DNS server (BIND_TYPE = master)
+#
+# Possible value: 'none' for historical behavior or a valid email address for
+# the person responsible of the DNS zone management (SOA hostmaster). 
+#
+# In historical behavior, the hostmaster email address is configured on a per
+# zone basis, using client domain names.
+#
+# This parameter is only relevant when the BIND_MASTER_IP_ADDRESSES is set to a
+# value other than 'none'.
+#
+# Slave DNS server (BIND_TYPE = slave)
+#
+# This parameter is not relevant in the context of a slave DNS server.
+#
+# Possible values: empty value.
+BIND_HOSTMASTER_EMAIL =
+
+# Master DNS server (BIND_TYPE = master)
+#
+# Possible values: A list of space, comma or semicolon separated IP addresses
+# for the slave DNS servers.
+#
+# IPv6 addresses are only allowed if the BIND_IPV6 value is set to 'yes'.
+#
+# Slave DNS server (BIND_TYPE = slave)
+#
+# This parameter is not relevant in the context of a slave DNS server.
+#
+# Possible values: empty value.
+BIND_SLAVE_IP_ADDRESSES =
+
+# Master DNS server (BIND_TYPE = master)
+#
+# Possible value: 'none' for historical behavior, or a list of space, comma
+# or semicolon separated master DNS server names (NS, glue recors), one for
+# each slave DNS server IP address and following the same order.
+#
+# In historical behavior, names are generated on a per zone basis,
+# using client domain names.
+#
+# Slave DNS server (BIND_TYPE = slave)
+#
+# This parameter is not relevant in the context of a slave DNS server.
+#
+# Possible values: empty value.
+BIND_SLAVE_NAMES =
+
 # Format for compiled zone files
 # Possible values: text, raw or raw=N where N can be 0 or 1
 # See NAMED-CHECKZONE(8)
 BIND_DB_FORMAT = raw=0
-
-# Mode in which the server must acts (master|slave)
-BIND_MODE =
-
-# List of IP addresses for master server(s)
-# Only relevant in slave mode
-PRIMARY_DNS =
-
-# List of IP addresses for slave server(s)
-# Only relevant in master mode
-SECONDARY_DNS =
-
-# Whether routable IP addresses must be enforced
-# in DNS zone files
-# Possible values: yes, no
-BIND_ENFORCE_ROUTABLE_IPS =
-
-# Enable/Disable IPV6
-# Possible values: yes, no
-BIND_IPV6 =
 
 # DNS Resolver
 # Possible values: yes, no
