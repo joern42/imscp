@@ -65,11 +65,9 @@ sub factory
 
 sub can
 {
-    my ( undef, $method ) = @_;
+    my ( $self, $method ) = @_;
 
-    my $package = $main::imscpConfig{'HTTPD_PACKAGE'} || 'Servers::noserver';
-    eval "require $package" or die;
-    $package->can( $method );
+    $self->factory()->can( $method );
 }
 
 =item getPriority( )

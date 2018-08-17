@@ -65,11 +65,9 @@ sub factory
 
 sub can
 {
-    my ( undef, $method ) = @_;
+    my ( $self, $method ) = @_;
 
-    my $package = 'Servers::cron::cron';
-    eval "require $package" or die;
-    $package->can( $method );
+    return $self->factory()->can( $method );
 }
 
 =item getPriority( )
