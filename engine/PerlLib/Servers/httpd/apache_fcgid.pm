@@ -43,7 +43,7 @@ use iMSCP::Mount qw/ mount umount isMountpoint addMountEntry removeMountEntry /;
 use iMSCP::Net;
 use iMSCP::ProgramFinder;
 use iMSCP::Rights;
-use iMSCP::TemplateParser;
+use iMSCP::TemplateParser qw/ replaceBlocByRef processByRef /;
 use iMSCP::Service;
 use iMSCP::Umask;
 use List::MoreUtils qw/ uniq /;
@@ -341,9 +341,7 @@ sub disableDmn
         HTTP_URI_SCHEME => 'http://',
         HTTPD_LOG_DIR   => $self->{'config'}->{'HTTPD_LOG_DIR'},
         USER_WEB_DIR    => $main::imscpConfig{'USER_WEB_DIR'},
-        SERVER_ALIASES  => "www.$data->{'DOMAIN_NAME'}" . ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes'
-            ? " $data->{'ALIAS'}.$main::imscpConfig{'BASE_SERVER_VHOST'}" : ''
-        )
+        SERVER_ALIASES  => grep ( $data->{'DOMAIN_TYPE'} eq $_, 'dmn', 'als' ) ? "www.$data->{'DOMAIN_NAME'}" : ''
     } );
 
     # Create http vhost
@@ -757,7 +755,7 @@ sub addHtaccess
         $tagContent .= "Require user $data->{'HTUSERS'}\n";
     }
 
-    $fileContent = replaceBloc( $bTag, $eTag, '', $fileContent );
+    replaceBlocByRef( $bTag, $eTag, '', \$fileContent );
     $fileContent = $bTag . $tagContent . $eTag . $fileContent;
 
     $rs = $self->{'eventManager'}->trigger( 'afterHttpdAddHtaccess', \$fileContent, $data );
@@ -806,7 +804,7 @@ sub deleteHtaccess
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDelHtaccess', \$fileContent, $data );
     return $rs if $rs;
 
-    $fileContent = replaceBloc( "### START i-MSCP PROTECTION ###\n", "### END i-MSCP PROTECTION ###\n", '', $fileContent );
+    replaceBlocByRef( "### START i-MSCP PROTECTION ###\n", "### END i-MSCP PROTECTION ###\n", '', \$fileContent );
 
     $rs = $self->{'eventManager'}->trigger( 'afterHttpdDelHtaccess', \$fileContent, $data );
     return $rs if $rs;
@@ -844,26 +842,23 @@ sub buildConf
     $data ||= {};
 
     if ( grep ( $_ eq $filename, ( 'domain.tpl', 'domain_disabled.tpl' ) ) ) {
-        if ( grep ( $_ eq $data->{'VHOST_TYPE'}, ( 'domain', 'domain_disabled' ) ) ) {
+        if ( grep ( $data->{'VHOST_TYPE'} eq $_, ( 'domain', 'domain_disabled' ) ) ) {
             # Remove ssl and forward sections
-            $cfgTpl = replaceBloc( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', $cfgTpl );
-            $cfgTpl = replaceBloc( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', $cfgTpl );
-        } elsif ( grep ( $_ eq $data->{'VHOST_TYPE'}, ( 'domain_fwd', 'domain_ssl_fwd', 'domain_disabled_fwd' ) ) ) {
+            replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', \$cfgTpl );
+            replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', \$cfgTpl );
+        } elsif ( grep ( $data->{'VHOST_TYPE'} eq $_, ( 'domain_fwd', 'domain_ssl_fwd', 'domain_disabled_fwd' ) ) ) {
             # Remove ssl if needed
-            unless ( $data->{'VHOST_TYPE'} eq 'domain_ssl_fwd' ) {
-                $cfgTpl = replaceBloc( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', $cfgTpl );
-            }
-
+            replaceBlocByRef( "# SECTION ssl BEGIN.\n", "# SECTION ssl END.\n", '', \$cfgTpl ) unless $data->{'VHOST_TYPE'} eq 'domain_ssl_fwd';
             # Remove domain section
-            $cfgTpl = replaceBloc( "# SECTION dmn BEGIN.\n", "# SECTION dmn END.\n", '', $cfgTpl );
-        } elsif ( grep ( $_ eq $data->{'VHOST_TYPE'}, ( 'domain_ssl', 'domain_disabled_ssl' ) ) ) {
+            replaceBlocByRef( "# SECTION dmn BEGIN.\n", "# SECTION dmn END.\n", '', \$cfgTpl );
+        } elsif ( grep ( $data->{'VHOST_TYPE'} eq $_, ( 'domain_ssl', 'domain_disabled_ssl' ) ) ) {
             # Remove forward section
-            $cfgTpl = replaceBloc( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', $cfgTpl );
+            replaceBlocByRef( "# SECTION fwd BEGIN.\n", "# SECTION fwd END.\n", '', \$cfgTpl );
         }
     }
 
     $self->{'eventManager'}->trigger( 'beforeHttpdBuildConf', \$cfgTpl, $filename, $data );
-    $cfgTpl = process( $self->{'data'}, $cfgTpl );
+    processByRef( $self->getData(), \$cfgTpl );
     $self->{'eventManager'}->trigger( 'afterHttpdBuildConf', \$cfgTpl, $filename, $data );
     $cfgTpl;
 }
@@ -920,9 +915,24 @@ sub buildConfFile
     $rs ||= $fileHandler->mode( $options->{'mode'} // 0644 );
 }
 
+=item getData( )
+
+ Get server data
+
+ Return hashref Server data
+
+=cut
+
+sub getData
+{
+    my ( $self ) = @_;
+
+    $self->{'_data'};
+}
+
 =item setData( \%data )
 
- Make the given data available for this server
+ Set server data
 
  Param hash \%data Server data
  Return int 0
@@ -933,13 +943,13 @@ sub setData
 {
     my ( $self, $data ) = @_;
 
-    @{ $self->{'data'} }{keys %{ $data }} = values %{ $data };
+    @{ $self->{'_data'} }{keys %{ $data }} = values %{ $data };
     0;
 }
 
 =item flushData( )
 
- Flush all data set via the setData( ) method
+ Flush server data
 
  Return int 0
 
@@ -949,7 +959,7 @@ sub flushData
 {
     my ( $self ) = @_;
 
-    delete $self->{'data'};
+    $self->{'_data'} = {};
     0;
 }
 
@@ -1377,6 +1387,7 @@ sub _init
 
     $self->{'start'} = 0;
     $self->{'restart'} = 0;
+    $self->{'_data'} = {};
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'apacheCfgDir'} = "$main::imscpConfig{'CONF_DIR'}/apache";
     $self->{'apacheTplDir'} = "$self->{'apacheCfgDir'}/parts";
@@ -1477,9 +1488,7 @@ sub _addCfg
         HTTPD_CUSTOM_SITES_DIR => $self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'},
         HTTPD_LOG_DIR          => $self->{'config'}->{'HTTPD_LOG_DIR'},
         PHP_FCGI_STARTER_DIR   => $self->{'phpConfig'}->{'PHP_FCGI_STARTER_DIR'},
-        SERVER_ALIASES         => "www.$data->{'DOMAIN_NAME'}" . ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes'
-            ? " $data->{'ALIAS'}.$main::imscpConfig{'BASE_SERVER_VHOST'}" : ''
-        )
+        SERVER_ALIASES         => grep ( $data->{'DOMAIN_TYPE'} eq $_, 'dmn', 'als' ) ? "www.$data->{'DOMAIN_NAME'}" : ''
     } );
 
     # Create http vhost
@@ -1898,30 +1907,25 @@ sub _cleanTemplate
 
     if ( $name eq 'domain.tpl' ) {
         if ( $data->{'VHOST_TYPE'} !~ /fwd/ ) {
-            unless ( $data->{'CGI_SUPPORT'} eq 'yes' ) {
-                ${ $tpl } = replaceBloc( "# SECTION cgi BEGIN.\n", "# SECTION cgi END.\n", '', ${ $tpl } );
-            }
+            replaceBlocByRef( "# SECTION cgi BEGIN.\n", "# SECTION cgi END.\n", '', $tpl ) unless $data->{'CGI_SUPPORT'} eq 'yes';
 
             if ( $data->{'PHP_SUPPORT'} eq 'yes' ) {
-                ${ $tpl } = replaceBloc( "# SECTION php_off BEGIN.\n", "# SECTION php_off END.\n", '', ${ $tpl } );
+                replaceBlocByRef( "# SECTION php_off BEGIN.\n", "# SECTION php_off END.\n", '', $tpl );
             } else {
-                ${ $tpl } = replaceBloc( "# SECTION php_on BEGIN.\n", "# SECTION php_on END.\n", '', ${ $tpl } );
+                replaceBlocByRef( "# SECTION php_on BEGIN.\n", "# SECTION php_on END.\n", '', $tpl );
             }
 
-            ${ $tpl } = replaceBloc( "# SECTION itk BEGIN.\n", "# SECTION itk END.\n", '', ${ $tpl } );
-            ${ $tpl } = replaceBloc( "# SECTION php_fpm BEGIN.\n", "# SECTION php_fpm END.\n", '', ${ $tpl } );
+            replaceBlocByRef( "# SECTION itk BEGIN.\n", "# SECTION itk END.\n", '', $tpl );
+            replaceBlocByRef( "# SECTION php_fpm BEGIN.\n", "# SECTION php_fpm END.\n", '', $tpl );
         } elsif ( $data->{'FORWARD'} ne 'no' ) {
             if ( $data->{'FORWARD_TYPE'} eq 'proxy' && ( !$data->{'HSTS_SUPPORT'} || $data->{'VHOST_TYPE'} =~ /ssl/ ) ) {
-                ${ $tpl } = replaceBloc( "# SECTION std_fwd BEGIN.\n", "# SECTION std_fwd END.\n", '', ${ $tpl } );
-
-                if ( index( $data->{'FORWARD'}, 'https' ) != 0 ) {
-                    ${ $tpl } = replaceBloc( "# SECTION ssl_proxy BEGIN.\n", "# SECTION ssl_proxy END.\n", '', ${ $tpl } );
-                }
+                replaceBlocByRef( "# SECTION std_fwd BEGIN.\n", "# SECTION std_fwd END.\n", '', $tpl );
+                replaceBlocByRef( "# SECTION ssl_proxy BEGIN.\n", "# SECTION ssl_proxy END.\n", '', $tpl ) if index( $data->{'FORWARD'}, 'https' ) != 0;
             } else {
-                ${ $tpl } = replaceBloc( "# SECTION proxy_fwd BEGIN.\n", "# SECTION proxy_fwd END.\n", '', ${ $tpl } );
+                replaceBlocByRef( "# SECTION proxy_fwd BEGIN.\n", "# SECTION proxy_fwd END.\n", '', $tpl );
             }
         } else {
-            ${ $tpl } = replaceBloc( "# SECTION proxy_fwd BEGIN.\n", "# SECTION proxy_fwd END.\n", '', ${ $tpl } );
+            replaceBlocByRef( "# SECTION proxy_fwd BEGIN.\n", "# SECTION proxy_fwd END.\n", '', $tpl );
         }
     }
 
