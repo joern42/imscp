@@ -1,6 +1,6 @@
 =head1 NAME
 
-Package::Webstats::Awstats::Installer - i-MSCP AWStats package installer
+ Package::Webstats::Awstats::Installer - i-MSCP AWStats package installer
 
 =cut
 
@@ -25,11 +25,10 @@ package Package::Webstats::Awstats::Installer;
 
 use strict;
 use warnings;
-use iMSCP::Database;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
+use iMSCP::Ext2Attributes qw/ isImmutable setImmutable clearImmutable /;
 use iMSCP::File;
-use iMSCP::TemplateParser;
 use Servers::cron;
 use Servers::httpd;
 use version;
@@ -60,6 +59,7 @@ sub install
     my $rs = $self->_disableDefaultConfig();
     $rs ||= $self->_createCacheDir();
     $rs ||= $self->_setupApache2();
+    $rs ||= $self->_cleanup();
 }
 
 =item postinstall( )
@@ -111,11 +111,19 @@ sub _createCacheDir
 {
     my ( $self ) = @_;
 
-    iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->make( {
-        user  => $main::imscpConfig{'ROOT_USER'},
-        group => $self->{'httpd'}->getRunningGroup(),
-        mode  => 02750
-    } );
+    local $@;
+    eval {
+        iMSCP::Dir->new( dirname => $main::imscpConfig{'AWSTATS_CACHE_DIR'} )->make( {
+            user  => $main::imscpConfig{'ROOT_USER'},
+            group => $self->{'httpd'}->getRunningGroup(),
+            mode  => 02750
+        } );
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
     0;
 }
 
@@ -167,21 +175,15 @@ sub _setupApache2
 
 sub _disableDefaultConfig
 {
-    my $rs = 0;
-
     if ( -f "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" ) {
-        $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" )->moveFile(
+        my $rs = iMSCP::File->new( filename => "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf" )->moveFile(
             "$main::imscpConfig{'AWSTATS_CONFIG_DIR'}/awstats.conf.disabled"
         );
         return $rs if $rs;
     }
 
     my $cronDir = Servers::cron->factory()->{'config'}->{'CRON_D_DIR'};
-    if ( -f "$cronDir/awstats" ) {
-        $rs = iMSCP::File->new( filename => "$cronDir/awstats" )->moveFile( "$cronDir/awstats.disable" );
-    }
-
-    $rs;
+    -f "$cronDir/awstats" ? iMSCP::File->new( filename => "$cronDir/awstats" )->moveFile( "$cronDir/awstats.disable" ) : 0;
 }
 
 =item _addAwstatsCronTask( )
@@ -194,20 +196,50 @@ sub _disableDefaultConfig
 
 sub _addAwstatsCronTask
 {
-    Servers::cron->factory()->addTask(
-        {
-            TASKID  => 'Package::Webstats::Awstats',
-            MINUTE  => '15',
-            HOUR    => '3-21/6',
-            DAY     => '*',
-            MONTH   => '*',
-            DWEEK   => '*',
-            USER    => $main::imscpConfig{'ROOT_USER'},
-            COMMAND => 'nice -n 10 ionice -c2 -n5 ' .
-                "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webstats/Awstats/Scripts/awstats_updateall.pl now " .
-                "-awstatsprog=$main::imscpConfig{'AWSTATS_ENGINE_DIR'}/awstats.pl > /dev/null 2>&1"
+    Servers::cron->factory()->addTask( {
+        TASKID  => 'Package::Webstats::Awstats',
+        MINUTE  => '15',
+        HOUR    => '3-21/6',
+        DAY     => '*',
+        MONTH   => '*',
+        DWEEK   => '*',
+        USER    => $main::imscpConfig{'ROOT_USER'},
+        COMMAND => 'nice -n 10 ionice -c2 -n5 ' .
+            "perl $main::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/Webstats/Awstats/Scripts/awstats_updateall.pl now " .
+            "-awstatsprog=$main::imscpConfig{'AWSTATS_ENGINE_DIR'}/awstats.pl > /dev/null 2>&1"
+    } );
+}
+
+=item _cleanup
+
+ Proces cleanup tasks
+
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _cleanup
+{
+    my ( $self ) = @_;
+
+    return 0 unless version->parse( $::imscpConfig{'PluginApi'} ) < version->parse( '1.5.1' );
+
+    local $@;
+    eval {
+        for my $dir ( iMSCP::Dir->new( dirname => $::imscpConfig{'USER_WEB_DIR'} )->getDirs() ) {
+            next unless -d "$::imscpConfig{'USER_WEB_DIR'}/$dir/statistics";
+            my $isImmutable = isImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" );
+            clearImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" ) if $isImmutable;
+            iMSCP::Dir->new( dirname => "$::imscpConfig{'USER_WEB_DIR'}/$dir/statistics" )->remove();
+            setImmutable( "$::imscpConfig{'USER_WEB_DIR'}/$dir" ) if $isImmutable;
         }
-    );
+    };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
 }
 
 =back
