@@ -194,7 +194,7 @@ sub askForClientDomainsAltURLs
 
     my $value = ::setupGetQuestion( 'CLIENT_DOMAIN_ALT_URLS' );
 
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'client_alt_url', 'all' ] ) || !isStringInList( $value, 'yes', 'no' ) ) {
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'client_domains_alt_urls', 'all' ] ) || !isStringInList( $value, 'yes', 'no' ) ) {
         my $rs = $dialog->yesno( <<'EOF', $value eq 'no', TRUE );
 
 Do you want to enable the alternative URLs for the client domains?
@@ -225,13 +225,16 @@ EOF
 
 sub beforeHttpdBuildConfFile
 {
-    my ( undef, undef, $data ) = @_;
+    my ( $self, undef, $filename ) = @_;
 
-    return 0 unless defined $data->{'SERVER_ALIASES'} && $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes';
+    return 0 unless $filename eq 'domain.tpl' && $::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes';
 
-    my $alias = "$data->{'DOMAIN_TYPE'}$data->{'DOMAIN_ID'}.$::imscpConfig{'BASE_SERVER_VHOST'}";
-    $data->{'SERVER_ALIASES'} .= length $data->{'SERVER_ALIASES'} ? ' ' . $alias : $alias;
-    0;
+    my $serverData = $self->{'httpd'}->getData();
+    my $alias = "$serverData->{'DOMAIN_TYPE'}$serverData->{'DOMAIN_ID'}.$::imscpConfig{'BASE_SERVER_VHOST'}";
+
+    $self->{'httpd'}->setData( {
+        SERVER_ALIASES => length $serverData->{'SERVER_ALIASES'} ? $serverData->{'SERVER_ALIASES'} . ' ' . $alias : $alias
+    } );
 }
 
 =back
@@ -252,7 +255,11 @@ sub _init
 {
     my ( $self ) = @_;
 
-    iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', \&beforeHttpdBuildConfFile );
+    iMSCP::EventManager->getInstance()->register( 'beforeHttpdBuildConfFile', sub { $self->beforeHttpdBuildConfFile( @_ ); } );
+    $self->{'httpd'} = lazy {
+        require Servers::httpd;
+        Servers::httpd->factory();
+    };
     $self->{'named'} = lazy {
         require Servers::named;
         Servers::named->factory();
