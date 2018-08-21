@@ -72,9 +72,9 @@ sub registerSetupListeners
     } );
 }
 
-=item askForWebstatPackages( $dialog )
+=item askForPackages( $dialog )
 
- Ask for Webstats packages
+ Ask for packages to install
 
  Param iMSCP::Dialog $dialog
  Return int 0 (NEXT), 30 (BACK), 50 (ESC)
