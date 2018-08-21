@@ -70,7 +70,7 @@ sub _init
 
     local $CWD = dirname( __FILE__ ) . '/../Package';
 
-    s%(.*)\.pm$%Package::$1% for @{ $self->{'_packages'} } = <*.pm>;
+    s%(.*)\.pm$%Package::$1% for @{ $self->{'_packages'} } = grep !/^Abstract(?:Collection)?\.pm$/, <*.pm>;
 
     # In installer/uninstaller contexts, also load setup packages
     if ( defined $::execmode && grep ( $_ eq $::execmode, 'setup', 'uninstaller' ) ) {
