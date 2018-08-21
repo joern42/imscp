@@ -53,7 +53,7 @@ sub getType
 {
     my ( $self ) = @_;
 
-    die( 'The %s package must implement the getType() method', $self );
+    die( sprintf( 'The %s package must implement the getType() method', ref $self || $self ));
 }
 
 =item registerSetupListeners( $eventManager )
@@ -144,7 +144,7 @@ sub preinstall
         }
     }
 
-    if ( defined $::skippackages && !$::skippackages && @distroPackages ) {
+    if ( defined $::skippackages && !$::skippackages ) {
         my $rs = $self->removePackages( @distroPackages );
         return $rs if $rs;
     }
@@ -159,13 +159,13 @@ sub preinstall
         my $rs = $instance->preinstall();
         return $rs if $rs;
 
-        if ( defined $::skippackages && !$::skippackages && @distroPackages ) {
+        if ( defined $::skippackages && !$::skippackages ) {
             debug( sprintf( 'Executing getDistPackages action on %s', $package ));
             push @distroPackages, $instance->getDistPackages();
         }
     }
 
-    if ( defined $::skippackages && !$::skippackages && @distroPackages ) {
+    if ( defined $::skippackages && !$::skippackages ) {
         my $rs = $self->installPackages( @distroPackages );
         return $rs if $rs;
     }
