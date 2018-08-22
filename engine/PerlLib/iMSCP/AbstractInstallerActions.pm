@@ -42,54 +42,6 @@ sub registerSetupListeners
     0;
 }
 
-=item installPackages( \@packages )
-
- Schedule the given distribution packages for installation
-
- Param arrayref \@packages Array containing a list of distribution packages to install
- Return int 0 on success, other on failure
-
-=cut
-
-sub installPackages
-{
-    my ( $self, $packages ) = @_;
-
-    return 0 unless @{ $packages };
-
-    eval { iMSCP::DistPackageManager->getInstance()->installPackages( $packages, TRUE ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
-=item uninstallPackages( \@packages )
-
- Schedule the given distribution packages for uninstallation
-
- Param arrayref \@packages Array containing a list of distribution packages to uninstall
- Return int 0 on success, other on failure
-
-=cut
-
-sub removePackages
-{
-    my ( $self, $packages ) = @_;
-
-    return 0 unless @{ $packages };
-
-    eval { iMSCP::DistPackageManager->getInstance()->uninstallPackages( $packages, TRUE ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
 =item preinstall( )
 
  Process the preinstall tasks
@@ -176,6 +128,62 @@ sub uninstall
 sub postuninstall
 {
     my ( $self ) = @_;
+
+    0;
+}
+
+=item installPackages( \@packages )
+
+ Schedule the given distribution packages for installation
+ 
+ Processing of delayed tasks for the distribution package manager is triggered
+ by the installer after the call of the preinstall action on the servers and
+ packages. Thus, those last MUST call this method in the preinstall action.
+
+ Param arrayref \@packages Array containing a list of distribution packages to install
+ Return int 0 on success, other on failure
+
+=cut
+
+sub installPackages
+{
+    my ( $self, $packages ) = @_;
+
+    return 0 unless @{ $packages };
+
+    eval { iMSCP::DistPackageManager->getInstance()->installPackages( $packages, TRUE ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
+
+    0;
+}
+
+=item uninstallPackages( \@packages )
+
+ Schedule the given distribution packages for uninstallation
+
+ Processing of delayed tasks for the distribution package manager is triggered
+ by the installer after the call of the preinstall action on the servers and
+ packages. Thus, those last MUST call this method in the preinstall action.
+
+ Param arrayref \@packages Array containing a list of distribution packages to uninstall
+ Return int 0 on success, other on failure
+
+=cut
+
+sub removePackages
+{
+    my ( $self, $packages ) = @_;
+
+    return 0 unless @{ $packages };
+
+    eval { iMSCP::DistPackageManager->getInstance()->uninstallPackages( $packages, TRUE ); };
+    if ( $@ ) {
+        error( $@ );
+        return 1;
+    }
 
     0;
 }
