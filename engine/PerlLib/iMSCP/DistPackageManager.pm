@@ -10,7 +10,7 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 use iMSCP::LsbRelease;
-use parent qw/ Common::Object iMSCP::DistPackageManager::Interface /;
+use parent qw/ Common::SingletonClass iMSCP::DistPackageManager::Interface /;
 
 =head1 DESCRIPTION
 
@@ -24,7 +24,7 @@ use parent qw/ Common::Object iMSCP::DistPackageManager::Interface /;
 
  See iMSCP::DistPackageManager::Interface::addRepositories()
  
- Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayed() method
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
 
 =cut
 
@@ -45,7 +45,7 @@ sub addRepositories
 
  See iMSCP::DistPackageManager::Interface::removeRepositories()
  
- Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayed() method
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
 
 =cut
 
@@ -66,7 +66,7 @@ sub removeRepositories
 
  See iMSCP::DistPackageManager::Interface::installPackages()
  
- Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayed() method
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
 
 =cut
 
@@ -87,7 +87,7 @@ sub installPackages
 
  See iMSCP::DistPackageManager::Interface:uninstallPackages()
 
- Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayed() method
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
 
 =cut
 
@@ -130,13 +130,16 @@ sub processDelayedTasks
 {
     my ( $self ) = @_;
 
-    $self
-        ->removeRepositories( delete $self->{'packagesToInstall'} )
-        ->addRepositories( delete $self->{'repositoriesToAdd'} )
-        ->updateRepositoryIndexes()
-        ->installPackages( delete $self->{'repositoriesToRemove'} )
-        ->uninstallPackages( delete $self->{'packagesToUninstall'} );
+    if ( @{ $self->{'repositoriesToRemove'} } || @{ $self->{'repositoriesToAdd'} } ) {
+        $self
+            ->removeRepositories( delete $self->{'repositoriesToRemove'} )
+            ->addRepositories( delete $self->{'repositoriesToAdd'} )
+            ->updateRepositoryIndexes()
+    }
 
+    $self
+        ->installPackages( delete $self->{'packagesToInstall'} )
+        ->uninstallPackages( delete $self->{'packagesToUninstall'} );
     $self;
 }
 
@@ -150,13 +153,11 @@ sub AUTOLOAD
 {
     ( my $method = $iMSCP::DistPackageManager::AUTOLOAD ) =~ s/.*:://;
 
-    my $sub = __PACKAGE__->getInstance()->_getDistroPackageManager()->can( $method ) or die(
-        sprintf( 'Unknown %s method', $iMSCP::DistPackageManager::AUTOLOAD )
-    );
-
     # Define the subroutine to prevent further evaluation
     no strict 'refs';
-    *{ $iMSCP::DistPackageManager::AUTOLOAD } = $sub;
+    *{ $iMSCP::DistPackageManager::AUTOLOAD } = __PACKAGE__->getInstance()->_getDistroPackageManager()->can( $method ) or die(
+        sprintf( 'Unknown %s method', $iMSCP::DistPackageManager::AUTOLOAD )
+    );
 
     # Execute the subroutine, erasing AUTOLOAD stack frame without trace
     goto &{ $iMSCP::DistPackageManager::AUTOLOAD };
