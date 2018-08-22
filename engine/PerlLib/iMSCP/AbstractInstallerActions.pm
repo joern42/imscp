@@ -8,7 +8,8 @@ package iMSCP::AbstractInstallerActions;
 
 use strict;
 use warnings;
-use Carp qw / confess /;
+use Carp qw/ confess /;
+use iMSCP::Debug qw/ error /;
 use iMSCP::Boolean;
 use iMSCP::DistPackageManager;
 use parent 'Common::SingletonClass';
@@ -17,7 +18,7 @@ use parent 'Common::SingletonClass';
 
  i-MSCP installer actions.
  
- This class is meant to be subclassed by i-MSCP server and packages classes. It
+ This class is meant to be subclassed by i-MSCP server and package classes. It
  provide action methods which are called by the i-MSCP installer and some other
  scripts.
 
@@ -41,23 +42,22 @@ sub registerSetupListeners
     0;
 }
 
-=item installPackages( @packages )
+=item installPackages( \@packages )
 
- Install distribution packages
+ Schedule the given distribution packages for installation
 
- Param list @packages List of packages to install
- Param hashref \%data Module data
+ Param arrayref \@packages Array containing a list of packages to install
  Return int 0 on success, other on failure
 
 =cut
 
 sub installPackages
 {
-    my ( $self, @packages ) = @_;
+    my ( $self, $packages ) = @_;
 
-    return 0 unless @packages;
+    return 0 unless @{ $packages };
 
-    eval { iMSCP::DistPackageManager->getInstance()->installPackages( @packages, TRUE ); };
+    eval { iMSCP::DistPackageManager->getInstance()->installPackages( $packages, TRUE ); };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -66,23 +66,22 @@ sub installPackages
     0;
 }
 
-=item removePackages( @packages )
+=item uninstallPackages( \@packages )
 
- Remove distribution packages
+ Schedule the given distribution packages for uninstallation
 
- Param list @packages Packages to remove
- Param hashref \%data Module data
+ Param arrayref \@packages Array containing a list of distribution packages to uninstall
  Return int 0 on success, other on failure
 
 =cut
 
 sub removePackages
 {
-    my ( $self, @packages ) = @_;
+    my ( $self, $packages ) = @_;
 
-    return 0 unless @packages;
+    return 0 unless @{ $packages };
 
-    eval { iMSCP::DistPackageManager->getInstance()->uninstallPackages( @packages, TRUE ); };
+    eval { iMSCP::DistPackageManager->getInstance()->uninstallPackages( $packages, TRUE ); };
     if ( $@ ) {
         error( $@ );
         return 1;
