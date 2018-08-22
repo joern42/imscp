@@ -65,7 +65,7 @@ sub getPriority
 
  Initialize instance
 
- Return Package::Abstract
+ Return Servers::abstract
 
 =cut
 
