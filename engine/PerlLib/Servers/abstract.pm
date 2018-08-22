@@ -86,8 +86,6 @@ sub _init
 
  Laurent Declercq <l.declercq@nuxwin.com>
 
- Return int 0 on success, other on failure
-
 =cut
 
 1;
