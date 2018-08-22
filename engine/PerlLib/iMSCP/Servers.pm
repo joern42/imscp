@@ -69,8 +69,7 @@ sub _init
     my ( $self ) = @_;
 
     local $CWD = dirname( __FILE__ ) . '/../Servers';
-
-    s%(.*)\.pm$%Servers::$1% for @{ $self->{'_servers'} } = grep !/noserver\.pm$/, <*.pm>;
+    s%(.*)\.pm$%Servers::$1% for @{ $self->{'_servers'} } = grep !/^(?:abstract|noserver)\.pm$/, <*.pm>;
     eval "require $_; 1" or die( sprintf( "Couldn't load the  '%s' server class: %s", $_, $@ )) for @{ $self->{'_servers'} };
     @{ $self->{'_servers'} } = sort { $b->getPriority() <=> $a->getPriority() } @{ $self->{'_servers'} };
     $self;
