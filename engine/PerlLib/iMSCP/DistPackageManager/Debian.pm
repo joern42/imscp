@@ -46,11 +46,11 @@ my $APT_PREFERENCES_FILE_PATH = '/etc/apt/preferences.d/imscp';
 
 =over 4
 
-=item addRepositories( @repositories )
+=item addRepositories( \@repositories )
 
  See iMSCP::DistPackageManager::Interface::addRepositories()
  
- Param list @repositories List of repositories, each represented as a hash with the following key/value pairs:
+ Param arrayref \@repositories List of repositories, each represented as a hash with the following key/value pairs:
   repository         : APT repository in format 'uri suite [component1] [component2] [...]' 
   repository_key_srv : APT repository key server such as keyserver.ubuntu.com  (not needed if repository_key_uri is provided)
   repository_key_id  : APT repository key identifier such as 5072E1F5 (not needed if repository_key_uri is provided)
@@ -60,21 +60,23 @@ my $APT_PREFERENCES_FILE_PATH = '/etc/apt/preferences.d/imscp';
 
 sub addRepositories
 {
-    my ( $self, @repositories ) = @_;
+    my ( $self, $repositories ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeAddDistributionRepositories', \@repositories ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'beforeAddDistributionRepositories', $repositories ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
+    return $self unless @{ $repositories };
+
     # Make sure that repositories are not added twice
-    $self->removeRepositories( map { $_->{'repository'} } @repositories );
+    $self->removeRepositories( map { $_->{'repository'} } @{ $repositories } );
 
     my $file = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH );
-    my $fileContent = $file->getAsRef();
+    my $fileC = $file->getAsRef();
 
     # Add APT repositories
-    for my $repository ( @repositories ) {
-        ${ $fileContent } .= <<"EOF";
+    for my $repository ( @{ $repositories } ) {
+        ${ $fileC } .= <<"EOF";
 
 deb $repository->{'repository'}
 deb-src $repository->{'repository'}
@@ -113,38 +115,43 @@ EOF
 
     $file->save();
 
-    $self->{'eventManager'}->trigger( 'afterAddDistributionRepositories', \@repositories ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'afterAddDistributionRepositories', $repositories ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 }
 
-=item removeRepositories( @repositories )
+=item removeRepositories( \@repositories )
 
  See iMSCP::DistPackageManager::Interface::removeRepositories()
  
- Param list @repositories List of repositories in following format: 'uri suite [component1] [component2] [...]' 
+ Param arrayref \@repositories Array containing list of repositories in following format: 'uri suite [component1] [component2] [...]' 
 
 =cut
 
 sub removeRepositories
 {
-    my ( $self, @repositories ) = @_;
+    my ( $self, $repositories ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeRemoveDistributionRepositories', \@repositories ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'beforeRemoveDistributionRepositories', $repositories ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
+    return $self unless @{ $repositories };
+
     my $file = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH );
-    my $fileContent = $file->getAsRef();
-    ${ $fileContent } =~ s/^\n?(?:#\s*)?deb(?:-src)?\s+\Q$_\E.*?\n//gm for @repositories;
+    my $fileC = $file->getAsRef();
+    return 1 unless defined $fileC;
+
+    ${ $fileC } =~ s/^\n?(?:#\s*)?deb(?:-src)?\s+\Q$_\E.*?\n//gm for @{ $repositories };
+
     $file->save();
 
-    $self->{'eventManager'}->trigger( 'afterRemoveDistributionRepositories', \@repositories ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'afterRemoveDistributionRepositories', $repositories ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 }
 
-=item installPackages( @packages )
+=item installPackages( \@packages )
 
  See iMSCP::DistPackageManager::Interface::installPackages()
 
@@ -152,14 +159,16 @@ sub removeRepositories
 
 sub installPackages
 {
-    my ( $self, @packages ) = @_;
+    my ( $self, $packages ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeInstallDistributionPackages', \@packages ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'beforeInstallDistributionPackages', $packages ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
+    return $self unless @{ $packages };
+
     # Ignores exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
-    execute( [ 'apt-mark', 'unhold', @packages ], \my $stdout, \my $stderr );
+    execute( [ 'apt-mark', 'unhold', @{ $packages } ], \my $stdout, \my $stderr );
 
     iMSCP::Dialog->getInstance()->endGauge();
 
@@ -176,18 +185,17 @@ sub installPackages
         'install'
     );
 
-    execute( [ @cmd, @packages ], ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ), \$stderr ) == 0 or die(
+    execute( [ @cmd, @{ $packages } ], ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ), \$stderr ) == 0 or die(
         sprintf( "Couldn't install packages: %s", $stderr || 'Unknown error' )
     );
 
-    $self->{'eventManager'}->trigger( 'afterInstallDistributionPackages', \@packages ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'afterInstallDistributionPackages', $packages ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
-
     $self;
 }
 
-=item uninstallPackages( @packages )
+=item uninstallPackages( \@packages )
 
  See iMSCP::DistPackageManager::Interface::uninstallPackages()
 
@@ -195,29 +203,31 @@ sub installPackages
 
 sub uninstallPackages
 {
-    my ( $self, @packages ) = @_;
+    my ( $self, $packages ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeUninstallDistributionPackages', \@packages ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'beforeUninstallDistributionPackages', $packages ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
+
+    return $self unless @{ $packages };
 
     local $ENV{'LANG'} = 'C';
 
     # Filter packages that are no longer available or not installed
     # Ignore exit code as dpkg-query exit with status 1 when a queried package is not found
-    execute( [ 'dpkg-query', '-W', '-f=${Package}\n', @packages ], \my $stdout, \my $stderr );
-    @packages = split /\n/, $stdout;
+    execute( [ 'dpkg-query', '-W', '-f=${Package}\n', $packages ], \my $stdout, \my $stderr );
+    @{ $packages } = split /\n/, $stdout;
 
-    return $self unless @packages;
+    return $self unless @{ $packages };
 
     iMSCP::Dialog->getInstance()->endGauge();
 
     # Ignores exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
-    execute( [ 'apt-mark', 'unhold', @packages ], \$stdout, \$stderr );
+    execute( [ 'apt-mark', 'unhold', @{ $packages } ], \$stdout, \$stderr );
     execute(
         [
             ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-            'apt-get', '--assume-yes', '--auto-remove', 'purge', @packages
+            'apt-get', '--assume-yes', '--auto-remove', 'purge', @{ $packages }
         ],
         ( iMSCP::Getopt->noprompt && !iMSCP::Getopt->verbose ? \$stdout : undef ),
         \$stderr
@@ -230,10 +240,9 @@ sub uninstallPackages
         \$stderr
     ) == 0 or die( sprintf( "Couldn't purge packages that are in RC state: %s", $stderr || 'Unknown error' ));
 
-    $self->{'eventManager'}->trigger( 'afterUninstallDistributionPackages', \@packages ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'afterUninstallDistributionPackages', $packages ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
-
     $self;
 }
 
@@ -261,98 +270,98 @@ sub updateRepositoryIndexes
     $self;
 }
 
-=item addAPTPreferences( @preferences )
+=item addAPTPreferences( \@preferences )
 
  Add the given APT preferences
  
  See APT_PREFERENCES(5) for further details.
 
- Param list @preferences List of APT preferences each represented as a hash containing the following key/value pairs:
+ Param arrayref \@preferences Array containing a list of APT preferences each represented as a hash containing the following key/value pairs:
   pinning_package       : List of pinned packages 
   pinning_pin           : origin, version, release
   pinning_pin_priority  : Pin priority
- Return iMSCP::DistPackageManager::Debian, die on failure
+ Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
 
 sub addAptPreferences
 {
-    my ( $self, @preferences ) = @_;
+    my ( $self, $preferences ) = @_;
 
-    $self->{'eventManager'}->trigger( 'beforeAddDistributionAptPreferences', \@preferences ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'beforeAddDistributionAptPreferences', $preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
     # Make sure that preferences are not added twice
-    $self->removeAptPreferences( @preferences );
+    $self->removeAptPreferences( $preferences );
 
     my $file = iMSCP::File->new( filename => $APT_PREFERENCES_FILE_PATH );
-    my $fileContent = -f $file->{'filename'} ? $file->get() : <<'EOF';
+    my $fileC = -f $file->{'filename'} ? $file->get() : <<'EOF';
 # APT_PREFERENCES(5) configuration file - auto-generated by i-MSCP
 #     DO NOT EDIT THIS FILE BY HAND -- YOUR CHANGES WILL BE OVERWRITTEN
 EOF
 
-    for my $preferences ( @preferences ) {
-        $fileContent .= <<"EOF";
+    for my $preference ( @{ $preferences } ) {
+        $fileC .= <<"EOF";
 
-Package: @{ [ $preferences->{'pinning_package'} // '*' ] }
-Pin: @{ [ $preferences->{'pinning_pin'} ] // 'origin ""' }
-Pin-Priority: @{ [ $preferences->{'pinning_pin_priority'} // '1001' ] }
+Package: @{ [ $preference->{'pinning_package'} // '*' ] }
+Pin: @{ [ $preference->{'pinning_pin'} ] // 'origin ""' }
+Pin-Priority: @{ [ $preference->{'pinning_pin_priority'} // '1001' ] }
 EOF
     }
 
-    $file->set( $fileContent );
+    $file->set( $fileC );
     $file->save() == 0 or die( sprintf(
         "Couldn't add APT preferences: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     ));
 
-    $self->{'eventManager'}->trigger( 'afterAddDistributionAptPreferences', \@preferences ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'afterAddDistributionAptPreferences', $preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
     $self;
 }
 
-=item removeAptPreferences( @preferences )
+=item removeAptPreferences( \@preferences )
 
  Remove the given APT preferences
  
  See APT_PREFERENCES(5) for further details.
 
- Param list @preferences List of APT preferences each represented as a hash with the following key/value pairs:
+ Param arrayref \@preferences Array containing a list of APT preferences each represented as a hash with the following key/value pairs:
   pinning_package       : List of pinned packages 
   pinning_pin           : origin, version, release
   pinning_pin_priority  : Pin priority
- Return iMSCP::DistPackageManager::Debian, die on failure
+ Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
 
 sub removeAptPreferences
 {
-    my ( $self, @preferences ) = @_;
+    my ( $self, $preferences ) = @_;
 
     return unless -f $APT_PREFERENCES_FILE_PATH;
 
-    $self->{'eventManager'}->trigger( 'beforeRemoveDistributionAptPreferences', \@preferences ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'beforeRemoveDistributionAptPreferences', $preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
     my $file = iMSCP::File->new( filename => $APT_PREFERENCES_FILE_PATH );
-    my $fileContent = $file->getAsRef();
+    my $fileC = $file->getAsRef();
 
-    for my $preferences ( @preferences ) {
+    for my $preference ( @{ $preferences } ) {
         my $preferencesStanza .= <<"EOF";
-Package:\\s+\Q@{ [ $preferences->{'pinning_package'} // '*' ] }\E
-Pin:\\s+\Q@{ [ $preferences->{'pinning_pin'} ] // 'origin ""' }\E
-Pin-Priority:\\s+\Q@{ [ $preferences->{'pinning_pin_priority'} // 1001 ] }\E
+Package:\\s+\Q@{ [ $preference->{'pinning_package'} // '*' ] }\E
+Pin:\\s+\Q@{ [ $preference->{'pinning_pin'} ] // 'origin ""' }\E
+Pin-Priority:\\s+\Q@{ [ $preference->{'pinning_pin_priority'} // 1001 ] }\E
 EOF
-        ${ $fileContent } =~ s/\n*$preferencesStanza//gm;
+        ${ $fileC } =~ s/\n*$preferencesStanza//gm;
     }
 
     $file->save() == 0 or die( sprintf(
         "Couldn't add APT preferences: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     ));
 
-    $self->{'eventManager'}->trigger( 'afterRemoveDistributionAptPreferences', \@preferences ) == 0 or die(
+    $self->{'eventManager'}->trigger( 'afterRemoveDistributionAptPreferences', $preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
     $self;

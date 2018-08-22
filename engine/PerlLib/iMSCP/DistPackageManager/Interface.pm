@@ -34,7 +34,7 @@ use warnings;
 
 =over 4
 
-=item addRepositories( @repositories )
+=item addRepositories( \@repositories )
 
  Add the given distribution repositories
 
@@ -42,7 +42,7 @@ use warnings;
   - beforeAddDistributionRepositories( \@repositories )
   - afterAddDistributionRepositories( \@repositories )
 
- Param list @repositories List of distribution repositories to add
+ Param arrayref @repositories Array containing a list of distribution repositories to add
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
@@ -54,7 +54,7 @@ sub addRepositories
     die( sprintf( 'The %s class must implement the addRepositories() method', ref $self ));
 }
 
-=item removeRepositories( @repositories )
+=item removeRepositories( \@repositories )
 
  Remove the given distribution repositories
 
@@ -62,7 +62,7 @@ sub addRepositories
   - beforeRemoveDistributionRepositories( \@repositories )
   - afterRemoveDistributionRepositories( \@repositories )
 
- Param list @repositories List of distribution repositories to remove
+ Param arrayref \@repositories Array containing a list of distribution repositories to remove
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
@@ -74,7 +74,7 @@ sub removeRepositories
     die( sprintf( 'The %s class must implement the removeRepositories() method', ref $self ));
 }
 
-=item installPackages( @packages )
+=item installPackages( \@packages )
 
  Install the given distribution packages
 
@@ -82,7 +82,7 @@ sub removeRepositories
   - beforeInstallDistributionPackages( \@packages )
   - afterInstallDistributionPackages( \@packages )
 
- Param list @packages List of distribution packages to install
+ Param arrayref \@packages Array containing a list of distribution packages to install
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
@@ -94,7 +94,7 @@ sub installPackages
     die( sprintf( 'The %s class must implement the installPackages() method', ref $self ));
 }
 
-=item uninstallPackages( @packages )
+=item uninstallPackages( \@packages )
 
  Uninstall the given distribution packages
 
@@ -102,7 +102,7 @@ sub installPackages
   - beforeUninstallDistributionPackages( \@packages )
   - afterUninstallDistributionPackages( \@packages )
 
- Param list @packages List of distribution package to uninstall
+ Param arrayref \@packages Array containing a list of distribution package to uninstall
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut

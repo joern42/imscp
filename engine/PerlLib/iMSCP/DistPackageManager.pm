@@ -10,7 +10,7 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 use iMSCP::LsbRelease;
-use parent qw/ Common::SingletonClass iMSCP::DistPackageManager::Interface /;
+use parent qw/ Common::Object iMSCP::DistPackageManager::Interface /;
 
 =head1 DESCRIPTION
 
@@ -20,59 +20,87 @@ use parent qw/ Common::SingletonClass iMSCP::DistPackageManager::Interface /;
 
 =over 4
 
-=item addRepositories( @repositories )
+=item addRepositories( \@repositories [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::addRepositories()
+ 
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayed() method
 
 =cut
 
 sub addRepositories
 {
-    my ( $self ) = shift;
+    my ( $self, $repositories, $delayed ) = @_;
+
+    if ( $delayed ) {
+        push @{ $self->{'repositoriesToAdd'} }, $repositories;
+        return $self;
+    }
 
     $self->_getDistroPackageManager()->addRepositories( @_ );
     $self;
 }
 
-=item removeRepositories( @repositories )
+=item removeRepositories( \@repositories [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::removeRepositories()
+ 
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayed() method
 
 =cut
 
 sub removeRepositories
 {
-    my ( $self ) = shift;
+    my ( $self, $repositories, $delayed ) = @_;
+
+    if ( $delayed ) {
+        push @{ $self->{'repositoriesToRemove'} }, $repositories;
+        return $self;
+    }
 
     $self->_getDistroPackageManager()->removeRepositories( @_ );
     $self;
 }
 
-=item installPackages( @packages )
+=item installPackages( \@packages [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::installPackages()
+ 
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayed() method
 
 =cut
 
 sub installPackages
 {
-    my ( $self ) = shift;
+    my ( $self, $packages, $delayed ) = @_;
+
+    if ( $delayed ) {
+        push @{ $self->{'packagesToInstall'} }, $packages;
+        return $self;
+    }
 
     $self->_getDistroPackageManager()->installPackages( @_ );
     $self;
 }
 
-=item uninstallPackages( @packages )
+=item uninstallPackages( \@packages [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface:uninstallPackages()
+
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayed() method
 
 =cut
 
 sub uninstallPackages
 {
-    my ( $self ) = shift;
+    my ( $self, $packages, $delayed ) = @_;
 
-    $self->_getDistroPackageManager()->uninstallPackages( @_ );
+    if ( $delayed ) {
+        push @{ $self->{'packagesToUninstall'} }, $packages;
+        return $self;
+    }
+
+    $self->_getDistroPackageManager()->uninstallPackages( $packages );
     $self;
 }
 
@@ -90,6 +118,28 @@ sub updateRepositoryIndexes
     $self;
 }
 
+=item processDelayedTasks( )
+
+ Process delayed tasks if any
+
+ Return iMSCP::DistPackageManager::Interface, die on failure
+
+=cut
+
+sub processDelayedTasks
+{
+    my ( $self ) = @_;
+
+    $self
+        ->removeRepositories( delete $self->{'packagesToInstall'} )
+        ->addRepositories( delete $self->{'repositoriesToAdd'} )
+        ->updateRepositoryIndexes()
+        ->installPackages( delete $self->{'repositoriesToRemove'} )
+        ->uninstallPackages( delete $self->{'packagesToUninstall'} );
+
+    $self;
+}
+
 =item AUTOLOAD
 
  Provide autoloading for distribution package managers
@@ -98,18 +148,18 @@ sub updateRepositoryIndexes
 
 sub AUTOLOAD
 {
-    ( my $method = our $AUTOLOAD ) =~ s/.*:://;
+    ( my $method = $iMSCP::DistPackageManager::AUTOLOAD ) =~ s/.*:://;
 
     my $sub = __PACKAGE__->getInstance()->_getDistroPackageManager()->can( $method ) or die(
-        sprintf( 'Unknown %s method', $AUTOLOAD )
+        sprintf( 'Unknown %s method', $iMSCP::DistPackageManager::AUTOLOAD )
     );
 
     # Define the subroutine to prevent further evaluation
     no strict 'refs';
-    *{ $AUTOLOAD } = $sub;
+    *{ $iMSCP::DistPackageManager::AUTOLOAD } = $sub;
 
     # Execute the subroutine, erasing AUTOLOAD stack frame without trace
-    goto &{ $AUTOLOAD };
+    goto &{ $iMSCP::DistPackageManager::AUTOLOAD };
 }
 
 =item DESTROY
@@ -142,6 +192,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
+    @{ $self }{qw/ repositoriesToAdd repositoriesToRemove packagesToInstall packagesToUninstall /} = ( [], [], [], [] );
     $self;
 }
 

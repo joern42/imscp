@@ -46,7 +46,7 @@ sub registerSetupListeners
 
  Schedule the given distribution packages for installation
 
- Param arrayref \@packages Array containing a list of packages to install
+ Param arrayref \@packages Array containing a list of distribution packages to install
  Return int 0 on success, other on failure
 
 =cut
