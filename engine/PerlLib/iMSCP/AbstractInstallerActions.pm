@@ -9,8 +9,8 @@ package iMSCP::AbstractInstallerActions;
 use strict;
 use warnings;
 use Carp qw/ confess /;
-use iMSCP::Debug qw/ error /;
 use iMSCP::Boolean;
+use iMSCP::Debug qw/ error /;
 use iMSCP::DistPackageManager;
 use parent 'Common::SingletonClass';
 
@@ -31,7 +31,7 @@ use parent 'Common::SingletonClass';
  Process the registerSetupListeners tasks
 
  Param iMSCP::EventManager $eventManager
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -42,11 +42,27 @@ sub registerSetupListeners
     0;
 }
 
+=item registerSetupDialogs( $dialog )
+
+ Process the registerSetupDialogs tasks
+
+ Param arrayref dialogs
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub registerSetupDialogs
+{
+    my ( $self, $dialogs ) = @_;
+
+    0;
+}
+
 =item preinstall( )
 
  Process the preinstall tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -61,7 +77,7 @@ sub preinstall
 
  Process the install tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -76,7 +92,7 @@ sub install
 
  Process the postinstall tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -91,7 +107,7 @@ sub postinstall
 
  Process the preuninstall tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -106,7 +122,7 @@ sub preuninstall
 
  Process the uninstall tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -121,7 +137,7 @@ sub uninstall
 
  Process the postuninstall tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -136,12 +152,12 @@ sub postuninstall
 
  Schedule the given distribution packages for installation
  
- Processing of delayed tasks for the distribution package manager is triggered
+ Processing of delayed tasks on the distribution package manager is triggered
  by the installer after the call of the preinstall action on the servers and
  packages. Thus, those last MUST call this method in the preinstall action.
 
  Param arrayref \@packages Array containing a list of distribution packages to install
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -164,12 +180,12 @@ sub installPackages
 
  Schedule the given distribution packages for uninstallation
 
- Processing of delayed tasks for the distribution package manager is triggered
+ Processing of delayed tasks on the distribution package manager is triggered
  by the installer after the call of the preinstall action on the servers and
  packages. Thus, those last MUST call this method in the preinstall action.
 
  Param arrayref \@packages Array containing a list of distribution packages to uninstall
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -192,7 +208,7 @@ sub removePackages
 
  Process the setEnginePermissions tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -207,7 +223,7 @@ sub setEnginePermissions
 
  Process the setGuiPermissions tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -222,9 +238,10 @@ sub setGuiPermissions
 
  Process the dpkgPostInvokeTasks tasks
 
- Only relevant for Debian like distributions.
+ Only relevant for Debian like distributions. This method is called after a
+ call of DPKG(8) though a i-MSCP script dedicated to this purpose.
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 

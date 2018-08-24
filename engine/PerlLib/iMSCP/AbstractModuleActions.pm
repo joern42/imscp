@@ -25,7 +25,7 @@ package iMSCP::AbstractModuleActions;
 
 use strict;
 use warnings;
-use Carp qw / confess /;
+use Carp qw/ confess /;
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
@@ -50,7 +50,7 @@ use parent 'Common::SingletonClass';
  Process the preaddDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -66,7 +66,7 @@ sub preaddDmn
  Process the addDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -82,7 +82,7 @@ sub addDmn
  Process the postaddDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -98,7 +98,7 @@ sub postaddDmn
  Process the predeleteDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -114,7 +114,7 @@ sub predeleteDmn
  Process the deleteDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -130,7 +130,7 @@ sub deleteDmn
  Process the postdeleteDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -146,7 +146,7 @@ sub postdeleteDmn
  Process the prerestoreDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -162,7 +162,7 @@ sub prerestoreDmn
  Process the restoreDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -178,7 +178,7 @@ sub restoreDmn
  Process the postrestoreDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -194,7 +194,7 @@ sub postrestoreDmn
  Process the predisableDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -210,7 +210,7 @@ sub predisableDmn
  Process the disableDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -226,7 +226,7 @@ sub disableDmn
  Process the postdisableDmn tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -242,7 +242,7 @@ sub postdisableDmn
  Process the preaddCustomDNS tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -258,7 +258,7 @@ sub preaddCustomDNS
  Process the addCustomDNS tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -274,7 +274,7 @@ sub addCustomDNS
  Process the postaddCustomDNS tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -285,156 +285,156 @@ sub postaddCustomDNS
     0;
 }
 
-=item predeleteCustomDNS( \%data )
+#=item predeleteCustomDNS( \%data )
+#
+# Process the predeleteCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub predeleteCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the predeleteCustomDNS tasks
+#=item deleteCustomDNS( \%data )
+#
+# Process the deleteCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub deleteCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
+#=item postdeleteCustomDNS( \%data )
+#
+# Process the postdeleteCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postdeleteCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-=cut
+#=item prerestoreCustomDNS( \%data )
+#
+# Process the prerestoreCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-sub predeleteCustomDNS
-{
-    my ( $self ) = @_;
+#=item restoreCustomDNS( \%data )
+#
+# Process the restoreCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-    0;
-}
+#=item postrestoreCustomDNS( \%data )
+#
+# Process the postrestoreCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-=item deleteCustomDNS( \%data )
+#=item predisableCustomDNS( \%data )
+#
+# Process the predisableCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub predisableCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the deleteCustomDNS tasks
+#=item disableCustomDNS( \%data )
+#
+# Process the disableCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub disableCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub deleteCustomDNS
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postdeleteCustomDNS( \%data )
-
- Process the postdeleteCustomDNS tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postdeleteCustomDNS
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item prerestoreCustomDNS( \%data )
-
- Process the prerestoreCustomDNS tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub prerestoreCustomDNS
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item restoreCustomDNS( \%data )
-
- Process the restoreCustomDNS tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreCustomDNS
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreCustomDNS( \%data )
-
- Process the postrestoreCustomDNS tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreCustomDNS
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item predisableCustomDNS( \%data )
-
- Process the predisableCustomDNS tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub predisableCustomDNS
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item disableCustomDNS( \%data )
-
- Process the disableCustomDNS tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub disableCustomDNS
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postdisableCustomDNS( \%data )
-
- Process the postdisableCustomDNS tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postdisableCustomDNS
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postdisableCustomDNS( \%data )
+#
+# Process the postdisableCustomDNS tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postdisableCustomDNS
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 =item preaddFtpUser( \%data )
 
  Process the preaddFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -450,7 +450,7 @@ sub preaddFtpUser
  Process the addFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -466,7 +466,7 @@ sub addFtpUser
  Process the postaddFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -482,7 +482,7 @@ sub postaddFtpUser
  Process the predeleteFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -498,7 +498,7 @@ sub predeleteFtpUser
  Process the deleteFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -514,7 +514,7 @@ sub deleteFtpUser
  Process the postdeleteFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -525,60 +525,60 @@ sub postdeleteFtpUser
     0;
 }
 
-=item prerestoreFtpUser( \%data )
+#=item prerestoreFtpUser( \%data )
+#
+# Process the prerestoreFtpUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreFtpUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the prerestoreFtpUser tasks
+#=item restoreFtpUser( \%data )
+#
+# Process the restoreFtpUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreFtpUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub prerestoreFtpUser
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item restoreFtpUser( \%data )
-
- Process the restoreFtpUser tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreFtpUser
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreFtpUser( \%data )
-
- Process the postrestoreFtpUser tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreFtpUser
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postrestoreFtpUser( \%data )
+#
+# Process the postrestoreFtpUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreFtpUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 =item predisableFtpUser( \%data )
 
  Process the predisableFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -594,7 +594,7 @@ sub predisableFtpUser
  Process the disableFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -610,7 +610,7 @@ sub disableFtpUser
  Process the postdisableFtpUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -626,7 +626,7 @@ sub postdisableFtpUser
  Process the preaddHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -642,7 +642,7 @@ sub preaddHtaccess
  Process the addHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -658,7 +658,7 @@ sub addHtaccess
  Process the postaddHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -674,7 +674,7 @@ sub postaddHtaccess
  Process the predeleteHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -690,7 +690,7 @@ sub predeleteHtaccess
  Process the deleteHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -706,7 +706,7 @@ sub deleteHtaccess
  Process the postdeleteHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -717,60 +717,60 @@ sub postdeleteHtaccess
     0;
 }
 
-=item prerestoreHtaccess( \%data )
+#=item prerestoreHtaccess( \%data )
+#
+# Process the prerestoreHtaccess tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreHtaccess
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the prerestoreHtaccess tasks
+#=item restoreHtaccess( \%data )
+#
+# Process the restoreHtaccess tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreHtaccess
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub prerestoreHtaccess
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item restoreHtaccess( \%data )
-
- Process the restoreHtaccess tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreHtaccess
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreHtaccess( \%data )
-
- Process the postrestoreHtaccess tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreHtaccess
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postrestoreHtaccess( \%data )
+#
+# Process the postrestoreHtaccess tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreHtaccess
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 =item predisableHtaccess( \%data )
 
  Process the predisableHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -786,7 +786,7 @@ sub predisableHtaccess
  Process the disableHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -802,7 +802,7 @@ sub disableHtaccess
  Process the postdisableHtaccess tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -818,7 +818,7 @@ sub postdisableHtaccess
  Process the preaddHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -834,7 +834,7 @@ sub preaddHtgroup
  Process the addHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -850,7 +850,7 @@ sub addHtgroup
  Process the postaddHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -866,7 +866,7 @@ sub postaddHtgroup
  Process the predeleteHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -882,7 +882,7 @@ sub predeleteHtgroup
  Process the deleteHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -898,7 +898,7 @@ sub deleteHtgroup
  Process the postdeleteHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -909,60 +909,60 @@ sub postdeleteHtgroup
     0;
 }
 
-=item prerestoreHtgroup( \%data )
+#=item prerestoreHtgroup( \%data )
+#
+# Process the prerestoreHtgroup tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreHtgroup
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the prerestoreHtgroup tasks
+#=item restoreHtgroup( \%data )
+#
+# Process the restoreHtgroup tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreHtgroup
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub prerestoreHtgroup
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item restoreHtgroup( \%data )
-
- Process the restoreHtgroup tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreHtgroup
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreHtgroup( \%data )
-
- Process the postrestoreHtgroup tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreHtgroup
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postrestoreHtgroup( \%data )
+#
+# Process the postrestoreHtgroup tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreHtgroup
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 =item predisableHtgroup( \%data )
 
  Process the predisableHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -978,7 +978,7 @@ sub predisableHtgroup
  Process the disableHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -994,7 +994,7 @@ sub disableHtgroup
  Process the postdisableHtgroup tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1010,7 +1010,7 @@ sub postdisableHtgroup
  Process the preaddHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1026,7 +1026,7 @@ sub preaddHtpasswd
  Process the addHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1042,7 +1042,7 @@ sub addHtpasswd
  Process the postaddHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1058,7 +1058,7 @@ sub postaddHtpasswd
  Process the predeleteHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1074,7 +1074,7 @@ sub predeleteHtpasswd
  Process the deleteHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1090,7 +1090,7 @@ sub deleteHtpasswd
  Process the postdeleteHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1101,60 +1101,60 @@ sub postdeleteHtpasswd
     0;
 }
 
-=item prerestoreHtpasswd( \%data )
+#=item prerestoreHtpasswd( \%data )
+#
+# Process the prerestoreHtpasswd tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreHtpasswd
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the prerestoreHtpasswd tasks
+#=item restoreHtpasswd( \%data )
+#
+# Process the restoreHtpasswd tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreHtpasswd
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub prerestoreHtpasswd
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item restoreHtpasswd( \%data )
-
- Process the restoreHtpasswd tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreHtpasswd
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreHtpasswd( \%data )
-
- Process the postrestoreHtpasswd tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreHtpasswd
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postrestoreHtpasswd( \%data )
+#
+# Process the postrestoreHtpasswd tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreHtpasswd
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 =item predisableHtpasswd( \%data )
 
  Process the predisableHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1170,7 +1170,7 @@ sub predisableHtpasswd
  Process the disableHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1186,7 +1186,7 @@ sub disableHtpasswd
  Process the postdisableHtpasswd tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1202,7 +1202,7 @@ sub postdisableHtpasswd
  Process the preaddMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1218,7 +1218,7 @@ sub preaddMail
  Process the addMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1234,7 +1234,7 @@ sub addMail
  Process the postaddMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1250,7 +1250,7 @@ sub postaddMail
  Process the predeleteMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1266,7 +1266,7 @@ sub predeleteMail
  Process the deleteMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1282,7 +1282,7 @@ sub deleteMail
  Process the postdeleteMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1293,60 +1293,60 @@ sub postdeleteMail
     0;
 }
 
-=item prerestoreMail( \%data )
+#=item prerestoreMail( \%data )
+#
+# Process the prerestoreMail tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreMail
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the prerestoreMail tasks
+#=item restoreMail( \%data )
+#
+# Process the restoreMail tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreMail
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub prerestoreMail
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item restoreMail( \%data )
-
- Process the restoreMail tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreMail
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreMail( \%data )
-
- Process the postrestoreMail tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreMail
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postrestoreMail( \%data )
+#
+# Process the postrestoreMail tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreMail
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 =item predisableMail( \%data )
 
  Process the predisableMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1362,7 +1362,7 @@ sub predisableMail
  Process the disableMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1378,7 +1378,7 @@ sub disableMail
  Process the postdisableMail tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1394,7 +1394,7 @@ sub postdisableMail
  Process the preaddServerIP tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1410,7 +1410,7 @@ sub preaddServerIP
  Process the addServerIP tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1426,7 +1426,7 @@ sub addServerIP
  Process the postaddServerIP tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1442,7 +1442,7 @@ sub postaddServerIP
  Process the predeleteServerIP tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1458,7 +1458,7 @@ sub predeleteServerIP
  Process the deleteServerIP tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1474,7 +1474,7 @@ sub deleteServerIP
  Process the postdeleteServerIP tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1485,101 +1485,101 @@ sub postdeleteServerIP
     0;
 }
 
-=item prerestoreServerIP( \%data )
+#=item prerestoreServerIP( \%data )
+#
+# Process the prerestoreServerIP tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreServerIP
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the prerestoreServerIP tasks
+#=item restoreServerIP( \%data )
+#
+# Process the restoreServerIP tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreServerIP
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
+#=item postrestoreServerIP( \%data )
+#
+# Process the postrestoreServerIP tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreServerIP
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-=cut
+#=item predisableServerIP( \%data )
+#
+# Process the predisableServerIP tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub predisableServerIP
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-sub prerestoreServerIP
-{
-    my ( $self ) = @_;
+#=item disableServerIP( \%data )
+#
+# Process the disableServerIP tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub disableServerIP
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-    0;
-}
-
-=item restoreServerIP( \%data )
-
- Process the restoreServerIP tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreServerIP
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreServerIP( \%data )
-
- Process the postrestoreServerIP tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreServerIP
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item predisableServerIP( \%data )
-
- Process the predisableServerIP tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub predisableServerIP
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item disableServerIP( \%data )
-
- Process the disableServerIP tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub disableServerIP
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postdisableServerIP( \%data )
-
- Process the postdisableServerIP tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postdisableServerIP
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postdisableServerIP( \%data )
+#
+# Process the postdisableServerIP tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postdisableServerIP
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 
 =item preaddSSLcertificate( \%data )
@@ -1587,7 +1587,7 @@ sub postdisableServerIP
  Process the preaddSSLcertificate tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1603,7 +1603,7 @@ sub preaddSSLcertificate
  Process the addSSLcertificate tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1619,7 +1619,7 @@ sub addSSLcertificate
  Process the postaddSSLcertificate tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1635,7 +1635,7 @@ sub postaddSSLcertificate
  Process the predeleteSSLcertificate tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1651,7 +1651,7 @@ sub predeleteSSLcertificate
  Process the deleteSSLcertificate tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1667,7 +1667,7 @@ sub deleteSSLcertificate
  Process the postdeleteSSLcertificate tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1678,108 +1678,108 @@ sub postdeleteSSLcertificate
     0;
 }
 
-=item prerestoreSSLcertificate( \%data )
+#=item prerestoreSSLcertificate( \%data )
+#
+# Process the prerestoreSSLcertificate tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreSSLcertificate
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the prerestoreSSLcertificate tasks
+#=item restoreSSLcertificate( \%data )
+#
+# Process the restoreSSLcertificate tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreSSLcertificate
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
+#=item postrestoreSSLcertificate( \%data )
+#
+# Process the postrestoreSSLcertificate tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreSSLcertificate
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-=cut
+#=item predisableSSLcertificate( \%data )
+#
+# Process the predisableSSLcertificate tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub predisableSSLcertificate
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-sub prerestoreSSLcertificate
-{
-    my ( $self ) = @_;
+#=item disableSSLcertificate( \%data )
+#
+# Process the disableSSLcertificate tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub disableSSLcertificate
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-    0;
-}
-
-=item restoreSSLcertificate( \%data )
-
- Process the restoreSSLcertificate tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreSSLcertificate
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreSSLcertificate( \%data )
-
- Process the postrestoreSSLcertificate tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreSSLcertificate
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item predisableSSLcertificate( \%data )
-
- Process the predisableSSLcertificate tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub predisableSSLcertificate
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item disableSSLcertificate( \%data )
-
- Process the disableSSLcertificate tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub disableSSLcertificate
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postdisableSSLcertificate( \%data )
-
- Process the postdisableSSLcertificate tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postdisableSSLcertificate
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postdisableSSLcertificate( \%data )
+#
+# Process the postdisableSSLcertificate tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postdisableSSLcertificate
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 =item preaddUser( \%data )
 
  Process the preaddUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1795,7 +1795,7 @@ sub preaddUser
  Process the addUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1811,7 +1811,7 @@ sub addUser
  Process the postaddUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1827,7 +1827,7 @@ sub postaddUser
  Process the predeleteUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1843,7 +1843,7 @@ sub predeleteUser
  Process the deleteUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1859,7 +1859,7 @@ sub deleteUser
  Process the postdeleteUser tasks
 
  Param hashref \%data Module data
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1870,101 +1870,101 @@ sub postdeleteUser
     0;
 }
 
-=item prerestoreUser( \%data )
+#=item prerestoreUser( \%data )
+#
+# Process the prerestoreUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub prerestoreUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Process the prerestoreUser tasks
+#=item restoreUser( \%data )
+#
+# Process the restoreUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub restoreUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
- Param hashref \%data Module data
- Return int 0 on success, other on failure
+#=item postrestoreUser( \%data )
+#
+# Process the postrestoreUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postrestoreUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-=cut
+#=item predisableUser( \%data )
+#
+# Process the predisableUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub predisableUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-sub prerestoreUser
-{
-    my ( $self ) = @_;
+#=item disableUser( \%data )
+#
+# Process the disableUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub disableUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
-    0;
-}
-
-=item restoreUser( \%data )
-
- Process the restoreUser tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub restoreUser
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postrestoreUser( \%data )
-
- Process the postrestoreUser tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postrestoreUser
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item predisableUser( \%data )
-
- Process the predisableUser tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub predisableUser
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item disableUser( \%data )
-
- Process the disableUser tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub disableUser
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postdisableUser( \%data )
-
- Process the postdisableUser tasks
-
- Param hashref \%data Module data
- Return int 0 on success, other on failure
-
-=cut
-
-sub postdisableUser
-{
-    my ( $self ) = @_;
-
-    0;
-}
+#=item postdisableUser( \%data )
+#
+# Process the postdisableUser tasks
+#
+# Param hashref \%data Module data
+# Return int 0 on success, other or die on failure
+#
+#=cut
+#
+#sub postdisableUser
+#{
+#    my ( $self ) = @_;
+#
+#    0;
+#}
 
 =back
 
