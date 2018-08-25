@@ -21,10 +21,10 @@ use iMSCP::DistPackageManager;
  last MUST override these methods to provide concret implementations when
  applyable.
  
- The following methods are called by specific scripts
-    setEnginePermissions: engine/setup/set-engine-permissions.pl
-    setGuiPermissions:    engine/setup/set-gui-permissions.pl
-    dpkgPostInvokeTasks:  engine/tools/imscp-dpkg-post-invoke.pl
+ The following methods are called by specific scripts:
+  - setEnginePermissions : engine/setup/set-engine-permissions.pl
+  - setGuiPermissions    : engine/setup/set-gui-permissions.pl
+  - dpkgPostInvokeTasks  : engine/tools/imscp-dpkg-post-invoke.pl
     
  All other methods (public) are called by the installer directly.
 
@@ -109,51 +109,6 @@ sub postinstall
     0;
 }
 
-=item preuninstall( )
-
- Process the preuninstall tasks
-
- Return int 0 on success, other or die on failure
-
-=cut
-
-sub preuninstall
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item uninstall( )
-
- Process the uninstall tasks
-
- Return int 0 on success, other or die on failure
-
-=cut
-
-sub uninstall
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
-=item postuninstall( )
-
- Process the postuninstall tasks
-
- Return int 0 on success, other or die on failure
-
-=cut
-
-sub postuninstall
-{
-    my ( $self ) = @_;
-
-    0;
-}
-
 =item setEnginePermissions( )
 
  Process the setEnginePermissions tasks
@@ -211,18 +166,11 @@ sub dpkgPostInvokeTasks
 =item _installPackages( \@packages )
 
  Schedule the given distribution packages for installation
- 
- Installer context
-  In installer context, processing of delayed tasks on the distribution
-  package manager is triggered by the installer after the call of the
-  preinstall action on the packages and servers. Thus, those last SHOULD
-  call this method in the preinstall action.
- 
- Uninstaller context
-  In uninstaller context, processing of delayed tasks on the distribution
-  package manager is triggered by the uninstaller after the call of the
-  postinstall action on the packages and servers. Thus, those last SHOULD
-  call this method in the postinstall action.
+
+ In installer context, processing of delayed tasks on the distribution
+ package manager is triggered by the installer after the call of the
+ preinstall action on the packages and servers. Thus, those last SHOULD
+ call this method in the preinstall action.
 
  Param arrayref \@packages Array containing a list of distribution packages to install
  Return int 0 on success, other or die on failure
@@ -236,37 +184,6 @@ sub _installPackages
     return 0 unless @{ $packages };
 
     iMSCP::DistPackageManager->getInstance()->installPackages( $packages, TRUE );
-    0;
-}
-
-=item _uninstallPackages( \@packages )
-
- Schedule the given distribution packages for uninstallation
-
- Installer context
-  In installer context, processing of delayed tasks on the distribution
-  package manager is triggered by the installer after the call of the
-  preinstall action on the packages and servers. Thus, those last SHOULD
-  call this method in the preinstall action.
- 
- Uninstaller context
-  In uninstaller context, processing of delayed tasks on the distribution
-  package manager is triggered by the uninstaller after the call of the
-  postinstall action on the packages and servers. Thus, those last SHOULD
-  call this method in the postinstall action.
-
- Param arrayref \@packages Array containing a list of distribution packages to uninstall
- Return int 0 on success, other or die on failure
-
-=cut
-
-sub _removePackages
-{
-    my ( $self, $packages ) = @_;
-
-    return 0 unless @{ $packages };
-
-    iMSCP::DistPackageManager->getInstance()->uninstallPackages( $packages, TRUE );
     0;
 }
 
