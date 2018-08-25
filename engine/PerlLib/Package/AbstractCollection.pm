@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::AbstractCollection - Abstract class for package collection
+ Package::AbstractCollection - Abstract class for i-MSCP package collection
 
 =cut
 
@@ -26,20 +26,1163 @@ package Package::AbstractCollection;
 use strict;
 use warnings;
 use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList /;
-use iMSCP::Boolean;
+use Carp qw/ confess /;
 use iMSCP::Debug qw/ debug /;
 use iMSCP::Dir;
-use iMSCP::EventManager;
 use iMSCP::Getopt;
 use parent 'Package::Abstract';
 
 =head1 DESCRIPTION
 
- Abstract class for package collection.
+ Abstract class for i-MSCP package collection.
+ 
+ An i-MSCP package collection gather in-MSCP packages which serve the same purpose.
+ 
+ This class is meant to be subclassed by i-MSCP package collection classes.
 
 =head1 PUBLIC METHODS
 
 =over 4
+
+=item registerInstallerDialogs( $dialogs )
+
+ See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+
+=cut
+
+sub registerInstallerDialogs
+{
+    my ( $self, $dialogs ) = @_;
+
+    push @{ $dialogs }, sub { $self->_askForPackages( @_ ) };
+    0;
+}
+
+=item preinstall( )
+
+ See iMSCP::AbstractInstallerActions::preinstall()
+ 
+ This will first uninstall unselected packages
+
+=cut
+
+sub preinstall
+{
+    my ( $self ) = @_;
+
+    for my $package ( @{ $self->getUnselectedPackages() } ) {
+        debug( sprintf( 'Executing uninstall action on %s', ref $package ));
+        $package->uninstall();
+    }
+
+    $self->_executeActionOnSelectedPackages( 'preinstall' );
+}
+
+=item install( )
+
+ See iMSCP::AbstractInstallerActions::install()
+
+=cut
+
+sub install
+{
+    my ( $self ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'install' );
+}
+
+=item postinstall( )
+
+ See iMSCP::AbstractInstallerActions::postinstall()
+
+=cut
+
+sub postinstall
+{
+    my ( $self ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postinstall' );
+}
+
+=item preuninstall( )
+
+ See iMSCP::AbstractInstallerActions::preuninstall()
+
+=cut
+
+sub preuninstall
+{
+    my ( $self ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preuninstall' );
+}
+
+=item postuninstall( )
+
+ See iMSCP::AbstractInstallerActions::postuninstall()
+
+=cut
+
+sub postuninstall
+{
+    my ( $self ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postuninstall' );
+}
+
+=item setEnginePermissions( )
+
+ See iMSCP::AbstractInstallerActions::setEnginePermissions()
+
+=cut
+
+sub setEnginePermissions
+{
+    my ( $self ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'setEnginePermissions' );
+}
+
+=item setGuiPermissions( )
+
+ See iMSCP::AbstractInstallerActions::setGuiPermissions()
+
+=cut
+
+sub setGuiPermissions
+{
+    my ( $self ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'setGuiPermissions' );
+}
+
+=item dpkgPostInvokeTasks( )
+
+ See iMSCP::AbstractInstallerActions::dpkgPostInvokeTasks()
+
+=cut
+
+sub dpkgPostInvokeTasks
+{
+    my ( $self ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'dpkgPostInvokeTasks' );
+}
+
+=item preaddDmn( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddDmn()
+
+=cut
+
+sub preaddDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddDmn', $data );
+}
+
+=item addDmn( \%data )
+
+ See iMSCP::AbstractModuleActionsaddDmn()
+
+=cut
+
+sub addDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addDmn', $data );
+}
+
+=item postaddDmn( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddDmn()
+
+=cut
+
+sub postaddDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddDmn', $data );
+}
+
+=item predeleteDmn( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteDmn()
+
+=cut
+
+sub predeleteDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteDmn', $data );
+}
+
+=item deleteDmn( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteDmn()
+
+=cut
+
+sub deleteDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteDmn', $data );
+}
+
+=item postdeleteDmn( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteDmn()
+
+=cut
+
+sub postdeleteDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteDmn', $data );
+}
+
+=item prerestoreDmn( \%data )
+
+ See iMSCP::AbstractModuleActionsprerestoreDmn()
+
+=cut
+
+sub prerestoreDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'prerestoreDmn', $data );
+}
+
+=item restoreDmn( \%data )
+
+ See iMSCP::AbstractModuleActionsrestoreDmn()
+
+=cut
+
+sub restoreDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'restoreDmn', $data );
+}
+
+=item postrestoreDmn( \%data )
+
+ See iMSCP::AbstractModuleActionspostrestoreDmn()
+
+=cut
+
+sub postrestoreDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postrestoreDmn', $data );
+}
+
+=item predisableDmn( \%data )
+
+ See iMSCP::AbstractModuleActionspredisableDmn()
+
+=cut
+
+sub predisableDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predisableDmn', $data );
+}
+
+=item disableDmn( \%data )
+
+ See iMSCP::AbstractModuleActionsdisableDmn()
+
+=cut
+
+sub disableDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'disableDmn', $data );
+}
+
+=item postdisableDmn( \%data )
+
+ See iMSCP::AbstractModuleActionspostdisableDmn()
+
+=cut
+
+sub postdisableDmn
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdisableDmn', $data );
+}
+
+=item preaddCustomDNS( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddCustomDNS()
+
+=cut
+
+sub preaddCustomDNS
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddCustomDNS', $data );
+}
+
+=item addCustomDNS( \%data )
+
+ See iMSCP::AbstractModuleActionsaddCustomDNS()
+
+=cut
+
+sub addCustomDNS
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addCustomDNS', $data );
+}
+
+=item postaddCustomDNS( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddCustomDNS()
+
+=cut
+
+sub postaddCustomDNS
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddCustomDNS', $data );
+}
+
+=item preaddFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddFtpUser()
+
+=cut
+
+sub preaddFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddFtpUser', $data );
+}
+
+=item addFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionsaddFtpUser()
+
+=cut
+
+sub addFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addFtpUser', $data );
+}
+
+=item postaddFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddFtpUser()
+
+=cut
+
+sub postaddFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddFtpUser', $data );
+}
+
+=item predeleteFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteFtpUser()
+
+=cut
+
+sub predeleteFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteFtpUser', $data );
+}
+
+=item deleteFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteFtpUser()
+
+=cut
+
+sub deleteFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteFtpUser', $data );
+}
+
+=item postdeleteFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteFtpUser()
+
+=cut
+
+sub postdeleteFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteFtpUser', $data );
+}
+
+=item predisableFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionspredisableFtpUser()
+
+=cut
+
+sub predisableFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predisableFtpUser', $data );
+}
+
+=item disableFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionsdisableFtpUser()
+
+=cut
+
+sub disableFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'disableFtpUser', $data );
+}
+
+=item postdisableFtpUser( \%data )
+
+ See iMSCP::AbstractModuleActionspostdisableFtpUser()
+
+=cut
+
+sub postdisableFtpUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdisableFtpUser', $data );
+}
+
+=item preaddHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddHtaccess()
+
+=cut
+
+sub preaddHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddHtaccess', $data );
+}
+
+=item addHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionsaddHtaccess()
+
+=cut
+
+sub addHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addHtaccess', $data );
+}
+
+=item postaddHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddHtaccess()
+
+=cut
+
+sub postaddHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteHtaccess', $data );
+}
+
+=item predeleteHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteHtaccess()
+
+=cut
+
+sub predeleteHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteHtaccess', $data );
+}
+
+=item deleteHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteHtaccess()
+
+=cut
+
+sub deleteHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteHtaccess', $data );
+}
+
+=item postdeleteHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteHtaccess()
+
+=cut
+
+sub postdeleteHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteHtaccess', $data );
+}
+
+=item predisableHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionspredisableHtaccess()
+
+=cut
+
+sub predisableHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predisableHtaccess', $data );
+}
+
+=item disableHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionsdisableHtaccess()
+
+=cut
+
+sub disableHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'disableHtaccess', $data );
+}
+
+=item postdisableHtaccess( \%data )
+
+ See iMSCP::AbstractModuleActionspostdisableHtaccess()
+
+=cut
+
+sub postdisableHtaccess
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdisableHtaccess', $data );
+}
+
+=item preaddHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddHtgroup()
+
+=cut
+
+sub preaddHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddHtgroup', $data );
+}
+
+=item addHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionsaddHtgroup()
+
+=cut
+
+sub addHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addHtgroup', $data );
+}
+
+=item postaddHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddHtgroup()
+
+=cut
+
+sub postaddHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddHtgroup', $data );
+}
+
+=item predeleteHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteHtgroup()
+
+=cut
+
+sub predeleteHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteHtgroup', $data );
+}
+
+=item deleteHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteHtgroup()
+
+=cut
+
+sub deleteHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteHtgroup', $data );
+}
+
+=item postdeleteHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteHtgroup()
+
+=cut
+
+sub postdeleteHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteHtgroup', $data );
+}
+
+=item predisableHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionspredisableHtgroup()
+
+=cut
+
+sub predisableHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predisableHtgroup', $data );
+}
+
+=item disableHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionsdisableHtgroup()
+
+=cut
+
+sub disableHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'disableHtgroup', $data );
+}
+
+=item postdisableHtgroup( \%data )
+
+ See iMSCP::AbstractModuleActionspostdisableHtgroup()
+
+=cut
+
+sub postdisableHtgroup
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdisableHtgroup', $data );
+}
+
+=item preaddHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddHtpasswd()
+
+=cut
+
+sub preaddHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddHtpasswd', $data );
+}
+
+=item addHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionsaddHtpasswd()
+
+=cut
+
+sub addHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addHtpasswd', $data );
+}
+
+=item postaddHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddHtpasswd()
+
+=cut
+
+sub postaddHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddHtpasswd', $data );
+}
+
+=item predeleteHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteHtpasswd()
+
+=cut
+
+sub predeleteHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteHtpasswd', $data );
+}
+
+=item deleteHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteHtpasswd()
+
+=cut
+
+sub deleteHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteHtpasswd', $data );
+}
+
+=item postdeleteHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteHtpasswd()
+
+=cut
+
+sub postdeleteHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteHtpasswd', $data );
+}
+
+=item predisableHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionspredisableHtpasswd()
+
+=cut
+
+sub predisableHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predisableHtpasswd', $data );
+}
+
+=item disableHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionsdisableHtpasswd()
+
+=cut
+
+sub disableHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'disableHtpasswd', $data );
+}
+
+=item postdisableHtpasswd( \%data )
+
+ See iMSCP::AbstractModuleActionspostdisableHtpasswd()
+
+=cut
+
+sub postdisableHtpasswd
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdisableHtpasswd', $data );
+}
+
+=item preaddMail( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddMail()
+
+=cut
+
+sub preaddMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddMail', $data );
+}
+
+=item addMail( \%data )
+
+ See iMSCP::AbstractModuleActionsaddMail()
+
+=cut
+
+sub addMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addMail', $data );
+}
+
+=item postaddMail( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddMail()
+
+=cut
+
+sub postaddMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddMail', $data );
+}
+
+=item predeleteMail( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteMail()
+
+=cut
+
+sub predeleteMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteMail', $data );
+}
+
+=item deleteMail( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteMail()
+
+=cut
+
+sub deleteMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteMail', $data );
+}
+
+=item postdeleteMail( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteMail()
+
+=cut
+
+sub postdeleteMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteMail', $data );
+}
+
+=item predisableMail( \%data )
+
+ See iMSCP::AbstractModuleActionspredisableMail()
+
+=cut
+
+sub predisableMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predisableMail', $data );
+}
+
+=item disableMail( \%data )
+
+ See iMSCP::AbstractModuleActionsdisableMail()
+
+=cut
+
+sub disableMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'disableMail', $data );
+}
+
+=item postdisableMail( \%data )
+
+ See iMSCP::AbstractModuleActionspostdisableMail()
+
+=cut
+
+sub postdisableMail
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdisableMail', $data );
+}
+
+
+=item preaddServerIP( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddServerIP()
+
+=cut
+
+sub preaddServerIP
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddServerIP', $data );
+}
+
+=item addServerIP( \%data )
+
+ See iMSCP::AbstractModuleActionsaddServerIP()
+
+=cut
+
+sub addServerIP
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addServerIP', $data );
+}
+
+=item postaddServerIP( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddServerIP()
+
+=cut
+
+sub postaddServerIP
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddServerIP', $data );
+}
+
+=item predeleteServerIP( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteServerIP()
+
+=cut
+
+sub predeleteServerIP
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteServerIP', $data );
+}
+
+=item deleteServerIP( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteServerIP()
+
+=cut
+
+sub deleteServerIP
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteServerIP', $data );
+}
+
+=item postdeleteServerIP( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteServerIP()
+
+=cut
+
+sub postdeleteServerIP
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteServerIP', $data );
+}
+
+=item preaddSSLcertificate( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddSSLcertificate()
+
+=cut
+
+sub preaddSSLcertificate
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddSSLcertificate', $data );
+}
+
+=item addSSLcertificate( \%data )
+
+ See iMSCP::AbstractModuleActionsaddSSLcertificate()
+
+=cut
+
+sub addSSLcertificate
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addSSLcertificate', $data );
+}
+
+=item postaddSSLcertificate( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddSSLcertificate()
+
+=cut
+
+sub postaddSSLcertificate
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddSSLcertificate', $data );
+}
+
+=item predeleteSSLcertificate( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteSSLcertificate()
+
+=cut
+
+sub predeleteSSLcertificate
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteSSLcertificate', $data );
+}
+
+=item deleteSSLcertificate( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteSSLcertificate()
+
+=cut
+
+sub deleteSSLcertificate
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteSSLcertificate', $data );
+}
+
+=item postdeleteSSLcertificate( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteSSLcertificate()
+
+=cut
+
+sub postdeleteSSLcertificate
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteSSLcertificate', $data );
+}
+
+=item preaddUser( \%data )
+
+ See iMSCP::AbstractModuleActionspreaddUser()
+
+=cut
+
+sub preaddUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'preaddUser', $data );
+}
+
+=item addUser( \%data )
+
+ See iMSCP::AbstractModuleActionsaddUser()
+
+=cut
+
+sub addUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'addUser', $data );
+}
+
+=item postaddUser( \%data )
+
+ See iMSCP::AbstractModuleActionspostaddUser()
+
+=cut
+
+sub postaddUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postaddUser', $data );
+}
+
+=item predeleteUser( \%data )
+
+ See iMSCP::AbstractModuleActionspredeleteUser()
+
+=cut
+
+sub predeleteUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'predeleteUser', $data );
+}
+
+=item deleteUser( \%data )
+
+ See iMSCP::AbstractModuleActionsdeleteUser()
+
+=cut
+
+sub deleteUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'deleteUser', $data );
+}
+
+=item postdeleteUser( \%data )
+
+ See iMSCP::AbstractModuleActionspostdeleteUser()
+
+=cut
+
+sub postdeleteUser
+{
+    my ( $self, $data ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'postdeleteUser', $data );
+}
 
 =item getType( )
 
@@ -53,1803 +1196,59 @@ sub getType
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s package must implement the getType() method', ref $self || $self ));
+    die( sprintf( 'The %s package must implement the getType() method', ref $self ));
 }
 
-=item registerSetupListeners( $eventManager )
+=item getSelectedPackages( )
 
- See Package::Abstract::registerSetupListers()
+ Get list of selected package instances from this collection, sorted in descending order of priority
+
+ Return arrayref Array containing list of selected package instances
 
 =cut
 
-sub registerSetupListeners
-{
-    my ( $self, $eventManager ) = @_;
-
-    $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->askForPackages( @_ ) };
-        0;
-    } );
-}
-
-=item askForPackages( $dialog )
-
- Ask for packages to install
-
- Param iMSCP::Dialog $dialog
- Return int 0 (NEXT), 30 (BACK), 50 (ESC)
-
-=cut
-
-sub askForPackages
-{
-    my ( $self, $dialog ) = @_;
-
-    my $selectedPackages = [ split ',', ::setupGetQuestion( uc $self->getType() . '_PACKAGES' ) ];
-    my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ lc $self->getType(), 'all' ] ) || !@{ $selectedPackages }
-        || grep { !exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages }
-    ) {
-        ( my $rs, $selectedPackages ) = $dialog->checklist(
-            <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $selectedPackages } ] );
-
-Please select the @{ [ $self->getType() ] } packages you want to install:
-\Z \Zn
-EOF
-        return $rs unless $rs < 30;
-    }
-
-    @{ $selectedPackages } = grep ( $_ ne 'none', @{ $selectedPackages } );
-    ::setupSetQuestion( uc $self->getType() . '_PACKAGES', @{ $selectedPackages } ? join ',', @{ $selectedPackages } : 'none' );
-
-    my @dialogs;
-    for my $package ( @{ $selectedPackages } ) {
-        $package = "Package::@{ [ $self->getType() ] }::${package}::${package}";
-        eval "require $package" or die;
-        my $subref = $package->can( 'showDialog' );
-        push @dialogs, sub { $subref->( $package->getInstance(), @_ ) } if $subref;
-    }
-
-    $dialog->executeDialogs( \@dialogs );
-}
-
-=item preinstall( )
-
- See Package::Abstract::preinstall()
-
-=cut
-
-sub preinstall
+sub getSelectedPackages
 {
     my ( $self ) = @_;
 
-    my %selectedPackages;
-    @{selectedPackages}{ split ',', ::setupGetQuestion( uc $self->getType() . '_PACKAGES' ) } = ();
-    my @distroPackages = ();
-
-    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-        next if exists $selectedPackages{$package};
-        my $class = "Package::Webstats::${package}::${package}";
-        eval "require $class" or die;
-        my $instance = $class->getInstance();
-
-        debug( sprintf( 'Executing uninstall action on %s', $package ));
-        my $rs = $instance->uninstall();
-        return $rs if $rs;
-
-        if ( defined $::skippackages && !$::skippackages ) {
-            debug( sprintf( 'Executing getDistPackages action on %s', $package ));
-            push @distroPackages, $instance->getDistPackages();
-        }
-    }
-
-    if ( defined $::skippackages && !$::skippackages ) {
-        my $rs = $self->removePackages( @distroPackages );
-        return $rs if $rs;
-    }
-
-    @distroPackages = ();
-    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-        my $class = "Package::Webstats::${package}::${package}";
-        eval "require $class" or die;
-        my $instance = $class->getInstance();
-
-        debug( sprintf( 'Executing preinstall action on %s', $package ));
-        my $rs = $instance->preinstall();
-        return $rs if $rs;
-
-        if ( defined $::skippackages && !$::skippackages ) {
-            debug( sprintf( 'Executing getDistPackages action on %s', $package ));
-            push @distroPackages, $instance->getDistPackages();
-        }
-    }
-
-    if ( defined $::skippackages && !$::skippackages ) {
-        my $rs = $self->installPackages( @distroPackages );
-        return $rs if $rs;
-    }
-
-    0;
+    @{ $self->{'SELECTED_PACKAGE_INSTANCES'} } ||= do {
+        [
+            sort { $b->getPriority() <=> $a->getPriority() } map {
+                my $package = "Packages::@{ [ $self->getType() ] }::${_}";
+                eval "require $package; 1" or die( sprintf( "Couldn't load the '%s' package: %s", $_, $@ ));
+                $package->getInstance()
+            } @{ $self->{'SELECTED_PACKAGES'} }
+        ]
+    };
 }
 
-=item install( )
+=item getUnselectedPackages( )
 
- See Package::Abstract::install()
+ Get list of unselected package instances from this collection, sorted in descending order of priority
+
+ Return array Array containing list of unselected package instances
 
 =cut
 
-sub install
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postinstall( )
-
- See Package::Abstract::postinstall()
-
-=cut
-
-sub postinstall
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preuninstall( )
-
- See Package::Abstract::preuninstall()
-
-=cut
-
-sub preuninstall
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item uninstall( \%data )
-
- See Package::Abstract::uninstall()
-
-=cut
-
-sub uninstall
+sub getUnselectedPackages
 {
     my ( $self ) = @_;
 
-    my @distroPackages = ();
-    for my $package ( @{ $self->{'AVAILABLE_PACKAGES'} } ) {
-        my $class = "Package::Webstats::${package}::${package}";
-        eval "require $class" or die;
-        my $instance = $class->getInstance();
-
-        debug( sprintf( 'Executing uninstall action on %s', $package ));
-        my $rs = $instance->uninstall();
-        return $rs if $rs;
-
-        debug( sprintf( 'Executing getDistPackages action on %s', $package ));
-        push @distroPackages, $instance->getDistPackages();
-    }
-
-    $self->removePackages( @distroPackages );
-}
-
-=item postuninstall( )
-
- See Package::Abstract::postuninstall()
-
-=cut
-
-sub postuninstall
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item setEnginePermissions( )
-
- See Package::Abstract::setEnginePermissions()
-
-=cut
-
-sub setEnginePermissions
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item setGuiPermissions( )
-
- See Package::Abstract::setGuiPermissions()
-
-=cut
-
-sub setGuiPermissions
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item dpkgPostInvokeTasks( )
-
- See Package::Abstract::dpkgPostInvokeTasks()
-
-=cut
-
-sub dpkgPostInvokeTasks
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddDmn( \%data )
-
- See Package::Abstract::preaddDmn()
-
-=cut
-
-sub preaddDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addDmn( \%data )
-
- See Package::Abstract::addDmn()
-
-=cut
-
-sub addDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddDmn( \%data )
-
- See Package::Abstract::postaddDmn()
-
-=cut
-
-sub postaddDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteDmn( \%data )
-
- See Package::Abstract::predeleteDmn()
-
-=cut
-
-sub predeleteDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteDmn( \%data )
-
- See Package::Abstract::deleteDmn()
-
-=cut
-
-sub deleteDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteDmn( \%data )
-
- See Package::Abstract::postdeleteDmn()
-
-=cut
-
-sub postdeleteDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreDmn( \%data )
-
- See Package::Abstract::prerestoreDmn()
-
-=cut
-
-sub prerestoreDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreDmn( \%data )
-
- See Package::Abstract::restoreDmn()
-
-=cut
-
-sub restoreDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreDmn( \%data )
-
- See Package::Abstract::postrestoreDmn()
-
-=cut
-
-sub postrestoreDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableDmn( \%data )
-
- See Package::Abstract::predisableDmn()
-
-=cut
-
-sub predisableDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableDmn( \%data )
-
- See Package::Abstract::disableDmn()
-
-=cut
-
-sub disableDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableDmn( \%data )
-
- See Package::Abstract::postdisableDmn()
-
-=cut
-
-sub postdisableDmn
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddCustomDNS( \%data )
-
- See Package::Abstract::preaddCustomDNS()
-
-=cut
-
-sub preaddCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addCustomDNS( \%data )
-
- See Package::Abstract::addCustomDNS()
-
-=cut
-
-sub addCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddCustomDNS( \%data )
-
- See Package::Abstract::postaddCustomDNS()
-
-=cut
-
-sub postaddCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteCustomDNS( \%data )
-
- See Package::Abstract::predeleteCustomDNS()
-
-=cut
-
-sub predeleteCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteCustomDNS( \%data )
-
- See Package::Abstract::deleteCustomDNS()
-
-=cut
-
-sub deleteCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteCustomDNS( \%data )
-
- See Package::Abstract::postdeleteCustomDNS()
-
-=cut
-
-sub postdeleteCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreCustomDNS( \%data )
-
- See Package::Abstract::prerestoreCustomDNS()
-
-=cut
-
-sub prerestoreCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreCustomDNS( \%data )
-
- See Package::Abstract::restoreCustomDNS()
-
-=cut
-
-sub restoreCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreCustomDNS( \%data )
-
- See Package::Abstract::postrestoreCustomDNS()
-
-=cut
-
-sub postrestoreCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableCustomDNS( \%data )
-
- See Package::Abstract::predisableCustomDNS()
-
-=cut
-
-sub predisableCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableCustomDNS( \%data )
-
- See Package::Abstract::disableCustomDNS()
-
-=cut
-
-sub disableCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableCustomDNS( \%data )
-
- See Package::Abstract::postdisableCustomDNS()
-
-=cut
-
-sub postdisableCustomDNS
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddFtpUser( \%data )
-
- See Package::Abstract::preaddFtpUser()
-
-=cut
-
-sub preaddFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addFtpUser( \%data )
-
- See Package::Abstract::addFtpUser()
-
-=cut
-
-sub addFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddFtpUser( \%data )
-
- See Package::Abstract::postaddFtpUser()
-
-=cut
-
-sub postaddFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteFtpUser( \%data )
-
- See Package::Abstract::predeleteFtpUser()
-
-=cut
-
-sub predeleteFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteFtpUser( \%data )
-
- See Package::Abstract::deleteFtpUser()
-
-=cut
-
-sub deleteFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteFtpUser( \%data )
-
- See Package::Abstract::postdeleteFtpUser()
-
-=cut
-
-sub postdeleteFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreFtpUser( \%data )
-
- See Package::Abstract::prerestoreFtpUser()
-
-=cut
-
-sub prerestoreFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreFtpUser( \%data )
-
- See Package::Abstract::restoreFtpUser()
-
-=cut
-
-sub restoreFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreFtpUser( \%data )
-
- See Package::Abstract::postrestoreFtpUser()
-
-=cut
-
-sub postrestoreFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableFtpUser( \%data )
-
- See Package::Abstract::predisableFtpUser()
-
-=cut
-
-sub predisableFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableFtpUser( \%data )
-
- See Package::Abstract::disableFtpUser()
-
-=cut
-
-sub disableFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableFtpUser( \%data )
-
- See Package::Abstract::postdisableFtpUser()
-
-=cut
-
-sub postdisableFtpUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddHtaccess( \%data )
-
- See Package::Abstract::preaddHtaccess()
-
-=cut
-
-sub preaddHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addHtaccess( \%data )
-
- See Package::Abstract::addHtaccess()
-
-=cut
-
-sub addHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddHtaccess( \%data )
-
- See Package::Abstract::postaddHtaccess()
-
-=cut
-
-sub postaddHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteHtaccess( \%data )
-
- See Package::Abstract::predeleteHtaccess()
-
-=cut
-
-sub predeleteHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteHtaccess( \%data )
-
- See Package::Abstract::deleteHtaccess()
-
-=cut
-
-sub deleteHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteHtaccess( \%data )
-
- See Package::Abstract::postdeleteHtaccess()
-
-=cut
-
-sub postdeleteHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreHtaccess( \%data )
-
- See Package::Abstract::prerestoreHtaccess()
-
-=cut
-
-sub prerestoreHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreHtaccess( \%data )
-
- See Package::Abstract::restoreHtaccess()
-
-=cut
-
-sub restoreHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreHtaccess( \%data )
-
- See Package::Abstract::postrestoreHtaccess()
-
-=cut
-
-sub postrestoreHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableHtaccess( \%data )
-
- See Package::Abstract::predisableHtaccess()
-
-=cut
-
-sub predisableHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableHtaccess( \%data )
-
- See Package::Abstract::disableHtaccess()
-
-=cut
-
-sub disableHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableHtaccess( \%data )
-
- See Package::Abstract::postdisableHtaccess()
-
-=cut
-
-sub postdisableHtaccess
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddHtgroup( \%data )
-
- See Package::Abstract::preaddHtgroup()
-
-=cut
-
-sub preaddHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addHtgroup( \%data )
-
- See Package::Abstract::addHtgroup()
-
-=cut
-
-sub addHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddHtgroup( \%data )
-
- See Package::Abstract::postaddHtgroup()
-
-=cut
-
-sub postaddHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteHtgroup( \%data )
-
- See Package::Abstract::predeleteHtgroup()
-
-=cut
-
-sub predeleteHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteHtgroup( \%data )
-
- See Package::Abstract::deleteHtgroup()
-
-=cut
-
-sub deleteHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteHtgroup( \%data )
-
- See Package::Abstract::postdeleteHtgroup()
-
-=cut
-
-sub postdeleteHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreHtgroup( \%data )
-
- See Package::Abstract::prerestoreHtgroup()
-
-=cut
-
-sub prerestoreHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreHtgroup( \%data )
-
- See Package::Abstract::restoreHtgroup()
-
-=cut
-
-sub restoreHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreHtgroup( \%data )
-
- See Package::Abstract::postrestoreHtgroup()
-
-=cut
-
-sub postrestoreHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableHtgroup( \%data )
-
- See Package::Abstract::predisableHtgroup()
-
-=cut
-
-sub predisableHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableHtgroup( \%data )
-
- See Package::Abstract::disableHtgroup()
-
-=cut
-
-sub disableHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableHtgroup( \%data )
-
- See Package::Abstract::postdisableHtgroup()
-
-=cut
-
-sub postdisableHtgroup
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddHtpasswd( \%data )
-
- See Package::Abstract::preaddHtpasswd()
-
-=cut
-
-sub preaddHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addHtpasswd( \%data )
-
- See Package::Abstract::addHtpasswd()
-
-=cut
-
-sub addHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddHtpasswd( \%data )
-
- See Package::Abstract::postaddHtpasswd()
-
-=cut
-
-sub postaddHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteHtpasswd( \%data )
-
- See Package::Abstract::predeleteHtpasswd()
-
-=cut
-
-sub predeleteHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteHtpasswd( \%data )
-
- See Package::Abstract::deleteHtpasswd()
-
-=cut
-
-sub deleteHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteHtpasswd( \%data )
-
- See Package::Abstract::postdeleteHtpasswd()
-
-=cut
-
-sub postdeleteHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreHtpasswd( \%data )
-
- See Package::Abstract::prerestoreHtpasswd()
-
-=cut
-
-sub prerestoreHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreHtpasswd( \%data )
-
- See Package::Abstract::restoreHtpasswd()
-
-=cut
-
-sub restoreHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreHtpasswd( \%data )
-
- See Package::Abstract::postrestoreHtpasswd()
-
-=cut
-
-sub postrestoreHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableHtpasswd( \%data )
-
- See Package::Abstract::predisableHtpasswd()
-
-=cut
-
-sub predisableHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableHtpasswd( \%data )
-
- See Package::Abstract::disableHtpasswd()
-
-=cut
-
-sub disableHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableHtpasswd( \%data )
-
- See Package::Abstract::postdisableHtpasswd()
-
-=cut
-
-sub postdisableHtpasswd
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddMail( \%data )
-
- See Package::Abstract::preaddMail()
-
-=cut
-
-sub preaddMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addMail( \%data )
-
- See Package::Abstract::addMail()
-
-=cut
-
-sub addMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddMail( \%data )
-
- See Package::Abstract::postaddMail()
-
-=cut
-
-sub postaddMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteMail( \%data )
-
- See Package::Abstract::predeleteMail()
-
-=cut
-
-sub predeleteMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteMail( \%data )
-
- See Package::Abstract::deleteMail()
-
-=cut
-
-sub deleteMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteMail( \%data )
-
- See Package::Abstract::postdeleteMail()
-
-=cut
-
-sub postdeleteMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreMail( \%data )
-
- See Package::Abstract::prerestoreMail()
-
-=cut
-
-sub prerestoreMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreMail( \%data )
-
- See Package::Abstract::restoreMail()
-
-=cut
-
-sub restoreMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreMail( \%data )
-
- See Package::Abstract::postrestoreMail()
-
-=cut
-
-sub postrestoreMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableMail( \%data )
-
- See Package::Abstract::predisableMail()
-
-=cut
-
-sub predisableMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableMail( \%data )
-
- See Package::Abstract::disableMail()
-
-=cut
-
-sub disableMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableMail( \%data )
-
- See Package::Abstract::postdisableMail()
-
-=cut
-
-sub postdisableMail
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-
-=item preaddServerIP( \%data )
-
- See Package::Abstract::preaddServerIP()
-
-=cut
-
-sub preaddServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addServerIP( \%data )
-
- See Package::Abstract::addServerIP()
-
-=cut
-
-sub addServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddServerIP( \%data )
-
- See Package::Abstract::postaddServerIP()
-
-=cut
-
-sub postaddServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteServerIP( \%data )
-
- See Package::Abstract::predeleteServerIP()
-
-=cut
-
-sub predeleteServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteServerIP( \%data )
-
- See Package::Abstract::deleteServerIP()
-
-=cut
-
-sub deleteServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteServerIP( \%data )
-
- See Package::Abstract::postdeleteServerIP()
-
-=cut
-
-sub postdeleteServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreServerIP( \%data )
-
- See Package::Abstract::prerestoreServerIP()
-
-=cut
-
-sub prerestoreServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreServerIP( \%data )
-
- See Package::Abstract::restoreServerIP()
-
-=cut
-
-sub restoreServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreServerIP( \%data )
-
- See Package::Abstract::postrestoreServerIP()
-
-=cut
-
-sub postrestoreServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableServerIP( \%data )
-
- See Package::Abstract::predisableServerIP()
-
-=cut
-
-sub predisableServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableServerIP( \%data )
-
- See Package::Abstract::disableServerIP()
-
-=cut
-
-sub disableServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableServerIP( \%data )
-
- See Package::Abstract::postdisableServerIP()
-
-=cut
-
-sub postdisableServerIP
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddSSLcertificate( \%data )
-
- See Package::Abstract::preaddSSLcertificate()
-
-=cut
-
-sub preaddSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addSSLcertificate( \%data )
-
- See Package::Abstract::addSSLcertificate()
-
-=cut
-
-sub addSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddSSLcertificate( \%data )
-
- See Package::Abstract::postaddSSLcertificate()
-
-=cut
-
-sub postaddSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteSSLcertificate( \%data )
-
- See Package::Abstract::predeleteSSLcertificate()
-
-=cut
-
-sub predeleteSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteSSLcertificate( \%data )
-
- See Package::Abstract::deleteSSLcertificate()
-
-=cut
-
-sub deleteSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteSSLcertificate( \%data )
-
- See Package::Abstract::postdeleteSSLcertificate()
-
-=cut
-
-sub postdeleteSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreSSLcertificate( \%data )
-
- See Package::Abstract::prerestoreSSLcertificate()
-
-=cut
-
-sub prerestoreSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreSSLcertificate( \%data )
-
- See Package::Abstract::restoreSSLcertificate()
-
-=cut
-
-sub restoreSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreSSLcertificate( \%data )
-
- See Package::Abstract::postrestoreSSLcertificate()
-
-=cut
-
-sub postrestoreSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableSSLcertificate( \%data )
-
- See Package::Abstract::predisableSSLcertificate()
-
-=cut
-
-sub predisableSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableSSLcertificate( \%data )
-
- See Package::Abstract::disableSSLcertificate()
-
-=cut
-
-sub disableSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableSSLcertificate( \%data )
-
- See Package::Abstract::postdisableSSLcertificate()
-
-=cut
-
-sub postdisableSSLcertificate
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item preaddUser( \%data )
-
- See Package::Abstract::preaddUser()
-
-=cut
-
-sub preaddUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item addUser( \%data )
-
- See Package::Abstract::addUser()
-
-=cut
-
-sub addUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postaddUser( \%data )
-
- See Package::Abstract::postaddUser()
-
-=cut
-
-sub postaddUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predeleteUser( \%data )
-
- See Package::Abstract::predeleteUser()
-
-=cut
-
-sub predeleteUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item deleteUser( \%data )
-
- See Package::Abstract::deleteUser()
-
-=cut
-
-sub deleteUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdeleteUser( \%data )
-
- See Package::Abstract::postdeleteUser()
-
-=cut
-
-sub postdeleteUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item prerestoreUser( \%data )
-
- See Package::Abstract::prerestoreUser()
-
-=cut
-
-sub prerestoreUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item restoreUser( \%data )
-
- See Package::Abstract::restoreUser()
-
-=cut
-
-sub restoreUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postrestoreUser( \%data )
-
- See Package::Abstract::postrestoreUser()
-
-=cut
-
-sub postrestoreUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item predisableUser( \%data )
-
- See Package::Abstract::predisableUser()
-
-=cut
-
-sub predisableUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item disableUser( \%data )
-
- See Package::Abstract::disableUser()
-
-=cut
-
-sub disableUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
-}
-
-=item postdisableUser( \%data )
-
- See Package::Abstract::postdisableUser()
-
-=cut
-
-sub postdisableUser
-{
-    my ( $self ) = shift;
-
-    $self->_executePackageAction( @_ );
+    $self->{'UNSELECTED_PACKAGE_INSTANCES'} ||= do {
+        my @unselectedPackages;
+        for my $package ( $self->{'AVAILABLE_PACKAGES'} ) {
+            next if grep ( $package eq $_, @{ $self->{'SELECTED_PACKAGES'} } );
+            push @unselectedPackages, $package;
+        }
+
+        [
+            sort { $b->getPriority() <=> $a->getPriority() } map {
+                my $package = "Packages::@{ [ $self->getType() ] }::${_}";
+                eval "require $package; 1" or die( sprintf( "Couldn't load the '%s' package: %s", $_, $@ ));
+                $package->getInstance();
+            } @unselectedPackages
+        ]
+    };
 }
 
 =back
@@ -1858,11 +1257,9 @@ sub postdisableUser
 
 =over 4
 
-=item init( \%data )
+=item init( )
 
- Initialize instance
-
- Return Package::AbstractCollection
+ See Package::Abstract::_init()
 
 =cut
 
@@ -1870,35 +1267,106 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new(
-        dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/@{ [ $self->getType() ] }"
-    )->getDirs();
+    ref $self ne __PACKAGE__ or confess( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
+
+    $self->SUPER::_init();
+    $self->_loadAvailablePackages() if iMSCP::Getopt->context() eq 'installer';
+    $self->_loadSelectedPackages();
     $self;
 }
 
-=item _executePackageAction( [ \%data ] )
+=item _askForPackages( $dialog )
 
- Call action on selected packages
+ Ask for packages to install
 
- Param hashref \$data Module data if action called by a module
+ Param iMSCP::Dialog $dialog
+ Return int 0 (NEXT), 20 (SKIP), 30 (BACK), 50 (ESC)
+
+=cut
+
+sub _askForPackages
+{
+    my ( $self, $dialog ) = @_;
+
+    my $packageType = $self->getType();
+    my $ucPackageType = uc $packageType;
+
+    @{ $self->{'SELECTED_PACKAGES'} } = split ',', ::setupGetQuestion( $ucPackageType . '_PACKAGES' );
+    my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ lc $packageType, 'all' ] ) || !@{ $self->{'SELECTED_PACKAGES'} }
+        || grep { !exists $choices{$_} && $_ ne 'none' } @{ $self->{'SELECTED_PACKAGES'} }
+    ) {
+        ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checklist(
+            <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $self->{'SELECTED_PACKAGES'} } ] );
+
+Please select the $packageType packages you want to install:
+\Z \Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'none', @{ $self->{'SELECTED_PACKAGES'} } );
+    ::setupSetQuestion( $ucPackageType . '_PACKAGES', @{ $self->{'SELECTED_PACKAGES'} } ? join( ',', @{ $self->{'SELECTED_PACKAGES'} } ) : 'none' );
+
+    my $dialogs = [];
+    for my $package ( @{ $self->getSelectedPackages() } ) {
+        my $rs = $package->registerInstallerDialogs( $dialogs );
+        return $rs if $rs;
+    }
+
+    $dialog->executeDialogs( $dialogs )
+}
+
+=item _loadAvailablePackages()
+
+ Load list of available packages for this collection
+
+ Return void, die on failure
+
+=cut
+
+sub _loadAvailablePackages
+{
+    my ( $self ) = @_;
+
+    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new(
+        dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/Package/" . $self->getType()
+    )->getFiles();
+}
+
+=item _loadAvailablePackages()
+
+ Load list of selected packages for this collection
+
+ Return void, die on failure
+
+=cut
+
+sub _loadSelectedPackages
+{
+    my ( $self ) = @_;
+
+    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'none', split( ',', $::imscpConfig{ $self->getType() . '_PACKAGES' } ) );
+}
+
+=item _executeActionOnSelectedPackages( $action [, @params ] )
+
+ Execute the given action on selected packages
+
+ Param coderef $action Action to execute on packages
+ Param List @params List of parameters to pass to the package action method
  Return int 0 on success, other on failure
 
 =cut
 
-sub _executePackageAction
+sub _executeActionOnSelectedPackages
 {
-    my ( $self ) = shift;
-    ( my $method = $Package::Webstats::AUTOLOAD ) =~ s/.*:://;
+    my ( $self, $action, @params ) = @_;
 
-    CORE::state @packages;
-    @packages = split ',', $::imscpConfig{uc $self->getType() } unless @packages;
-
-    for my $package ( @packages ) {
-        my $class = "Package::Webstats::${package}::${package}";
-        eval "require $package" or die;
-        debug( sprintf( "Executing '%s' action on %s", $method, $package ));
-        my $rs = $class->getInstance()->$method( @_ );
+    for my $package ( @{ $self->getSelectedPackages() } ) {
+        debug( sprintf( "Executing '%s' action on %s", $action, $package ));
+        my $rs = $package->$action( @params );
         return $rs if $rs;
     }
 

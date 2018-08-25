@@ -28,7 +28,7 @@ use warnings;
 use Carp qw/ confess /;
 use iMSCP::Database;
 use iMSCP::EventManager;
-use parent qw/ Common::SingletonClass iMSCP::AbstractInstallerActions iMSCP::AbstractModuleActions /;
+use parent qw/ Common::SingletonClass iMSCP::AbstractInstallerActions iMSCP::AbstractUninstallerActions iMSCP::AbstractModuleActions /;
 
 =head1 DESCRIPTION
 
@@ -63,9 +63,7 @@ sub getPriority
 
 =item _init( )
 
- Initialize instance
-
- Return Servers::abstract
+ See Common::SingletonClass::_init()
 
 =cut
 
