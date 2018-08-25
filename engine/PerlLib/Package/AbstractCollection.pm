@@ -106,7 +106,7 @@ sub postinstall
 
 =item preuninstall( )
 
- See iMSCP::AbstractInstallerActions::preuninstall()
+ See iMSCP::AbstractUninstallerActions::preuninstall()
 
 =cut
 
@@ -117,9 +117,22 @@ sub preuninstall
     $self->_executeActionOnSelectedPackages( 'preuninstall' );
 }
 
+=item uninstall( )
+
+ See iMSCP::AbstractUninstallerActions::uninstall()
+
+=cut
+
+sub uninstall
+{
+    my ( $self ) = @_;
+
+    $self->_executeActionOnSelectedPackages( 'uninstall' );
+}
+
 =item postuninstall( )
 
- See iMSCP::AbstractInstallerActions::postuninstall()
+ See iMSCP::AbstractUninstallerActions::postuninstall()
 
 =cut
 
@@ -171,7 +184,7 @@ sub dpkgPostInvokeTasks
 
 =item preaddDmn( \%data )
 
- See iMSCP::AbstractModuleActionspreaddDmn()
+ See iMSCP::AbstractModuleActions::preaddDmn()
 
 =cut
 
@@ -184,7 +197,7 @@ sub preaddDmn
 
 =item addDmn( \%data )
 
- See iMSCP::AbstractModuleActionsaddDmn()
+ See iMSCP::AbstractModuleActions::addDmn()
 
 =cut
 
@@ -197,7 +210,7 @@ sub addDmn
 
 =item postaddDmn( \%data )
 
- See iMSCP::AbstractModuleActionspostaddDmn()
+ See iMSCP::AbstractModuleActions::postaddDmn()
 
 =cut
 
@@ -210,7 +223,7 @@ sub postaddDmn
 
 =item predeleteDmn( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteDmn()
+ See iMSCP::AbstractModuleActions::predeleteDmn()
 
 =cut
 
@@ -223,7 +236,7 @@ sub predeleteDmn
 
 =item deleteDmn( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteDmn()
+ See iMSCP::AbstractModuleActions::deleteDmn()
 
 =cut
 
@@ -236,7 +249,7 @@ sub deleteDmn
 
 =item postdeleteDmn( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteDmn()
+ See iMSCP::AbstractModuleActions::postdeleteDmn()
 
 =cut
 
@@ -249,7 +262,7 @@ sub postdeleteDmn
 
 =item prerestoreDmn( \%data )
 
- See iMSCP::AbstractModuleActionsprerestoreDmn()
+ See iMSCP::AbstractModuleActions::prerestoreDmn()
 
 =cut
 
@@ -262,7 +275,7 @@ sub prerestoreDmn
 
 =item restoreDmn( \%data )
 
- See iMSCP::AbstractModuleActionsrestoreDmn()
+ See iMSCP::AbstractModuleActions::restoreDmn()
 
 =cut
 
@@ -275,7 +288,7 @@ sub restoreDmn
 
 =item postrestoreDmn( \%data )
 
- See iMSCP::AbstractModuleActionspostrestoreDmn()
+ See iMSCP::AbstractModuleActions::postrestoreDmn()
 
 =cut
 
@@ -288,7 +301,7 @@ sub postrestoreDmn
 
 =item predisableDmn( \%data )
 
- See iMSCP::AbstractModuleActionspredisableDmn()
+ See iMSCP::AbstractModuleActions::predisableDmn()
 
 =cut
 
@@ -301,7 +314,7 @@ sub predisableDmn
 
 =item disableDmn( \%data )
 
- See iMSCP::AbstractModuleActionsdisableDmn()
+ See iMSCP::AbstractModuleActions::disableDmn()
 
 =cut
 
@@ -314,7 +327,7 @@ sub disableDmn
 
 =item postdisableDmn( \%data )
 
- See iMSCP::AbstractModuleActionspostdisableDmn()
+ See iMSCP::AbstractModuleActions::postdisableDmn()
 
 =cut
 
@@ -327,7 +340,7 @@ sub postdisableDmn
 
 =item preaddCustomDNS( \%data )
 
- See iMSCP::AbstractModuleActionspreaddCustomDNS()
+ See iMSCP::AbstractModuleActions::preaddCustomDNS()
 
 =cut
 
@@ -340,7 +353,7 @@ sub preaddCustomDNS
 
 =item addCustomDNS( \%data )
 
- See iMSCP::AbstractModuleActionsaddCustomDNS()
+ See iMSCP::AbstractModuleActions::addCustomDNS()
 
 =cut
 
@@ -353,7 +366,7 @@ sub addCustomDNS
 
 =item postaddCustomDNS( \%data )
 
- See iMSCP::AbstractModuleActionspostaddCustomDNS()
+ See iMSCP::AbstractModuleActions::postaddCustomDNS()
 
 =cut
 
@@ -366,7 +379,7 @@ sub postaddCustomDNS
 
 =item preaddFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionspreaddFtpUser()
+ See iMSCP::AbstractModuleActions::preaddFtpUser()
 
 =cut
 
@@ -379,7 +392,7 @@ sub preaddFtpUser
 
 =item addFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionsaddFtpUser()
+ See iMSCP::AbstractModuleActions::addFtpUser()
 
 =cut
 
@@ -392,7 +405,7 @@ sub addFtpUser
 
 =item postaddFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionspostaddFtpUser()
+ See iMSCP::AbstractModuleActions::postaddFtpUser()
 
 =cut
 
@@ -405,7 +418,7 @@ sub postaddFtpUser
 
 =item predeleteFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteFtpUser()
+ See iMSCP::AbstractModuleActions::predeleteFtpUser()
 
 =cut
 
@@ -418,7 +431,7 @@ sub predeleteFtpUser
 
 =item deleteFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteFtpUser()
+ See iMSCP::AbstractModuleActions::deleteFtpUser()
 
 =cut
 
@@ -431,7 +444,7 @@ sub deleteFtpUser
 
 =item postdeleteFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteFtpUser()
+ See iMSCP::AbstractModuleActions::postdeleteFtpUser()
 
 =cut
 
@@ -444,7 +457,7 @@ sub postdeleteFtpUser
 
 =item predisableFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionspredisableFtpUser()
+ See iMSCP::AbstractModuleActions::predisableFtpUser()
 
 =cut
 
@@ -457,7 +470,7 @@ sub predisableFtpUser
 
 =item disableFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionsdisableFtpUser()
+ See iMSCP::AbstractModuleActions::disableFtpUser()
 
 =cut
 
@@ -470,7 +483,7 @@ sub disableFtpUser
 
 =item postdisableFtpUser( \%data )
 
- See iMSCP::AbstractModuleActionspostdisableFtpUser()
+ See iMSCP::AbstractModuleActions::postdisableFtpUser()
 
 =cut
 
@@ -483,7 +496,7 @@ sub postdisableFtpUser
 
 =item preaddHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionspreaddHtaccess()
+ See iMSCP::AbstractModuleActions::preaddHtaccess()
 
 =cut
 
@@ -496,7 +509,7 @@ sub preaddHtaccess
 
 =item addHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionsaddHtaccess()
+ See iMSCP::AbstractModuleActions::addHtaccess()
 
 =cut
 
@@ -509,7 +522,7 @@ sub addHtaccess
 
 =item postaddHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionspostaddHtaccess()
+ See iMSCP::AbstractModuleActions::postaddHtaccess()
 
 =cut
 
@@ -522,7 +535,7 @@ sub postaddHtaccess
 
 =item predeleteHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteHtaccess()
+ See iMSCP::AbstractModuleActions::predeleteHtaccess()
 
 =cut
 
@@ -535,7 +548,7 @@ sub predeleteHtaccess
 
 =item deleteHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteHtaccess()
+ See iMSCP::AbstractModuleActions::deleteHtaccess()
 
 =cut
 
@@ -548,7 +561,7 @@ sub deleteHtaccess
 
 =item postdeleteHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteHtaccess()
+ See iMSCP::AbstractModuleActions::postdeleteHtaccess()
 
 =cut
 
@@ -561,7 +574,7 @@ sub postdeleteHtaccess
 
 =item predisableHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionspredisableHtaccess()
+ See iMSCP::AbstractModuleActions::predisableHtaccess()
 
 =cut
 
@@ -574,7 +587,7 @@ sub predisableHtaccess
 
 =item disableHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionsdisableHtaccess()
+ See iMSCP::AbstractModuleActions::disableHtaccess()
 
 =cut
 
@@ -587,7 +600,7 @@ sub disableHtaccess
 
 =item postdisableHtaccess( \%data )
 
- See iMSCP::AbstractModuleActionspostdisableHtaccess()
+ See iMSCP::AbstractModuleActions::postdisableHtaccess()
 
 =cut
 
@@ -600,7 +613,7 @@ sub postdisableHtaccess
 
 =item preaddHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionspreaddHtgroup()
+ See iMSCP::AbstractModuleActions::preaddHtgroup()
 
 =cut
 
@@ -613,7 +626,7 @@ sub preaddHtgroup
 
 =item addHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionsaddHtgroup()
+ See iMSCP::AbstractModuleActions::addHtgroup()
 
 =cut
 
@@ -626,7 +639,7 @@ sub addHtgroup
 
 =item postaddHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionspostaddHtgroup()
+ See iMSCP::AbstractModuleActions::postaddHtgroup()
 
 =cut
 
@@ -639,7 +652,7 @@ sub postaddHtgroup
 
 =item predeleteHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteHtgroup()
+ See iMSCP::AbstractModuleActions::predeleteHtgroup()
 
 =cut
 
@@ -652,7 +665,7 @@ sub predeleteHtgroup
 
 =item deleteHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteHtgroup()
+ See iMSCP::AbstractModuleActions::deleteHtgroup()
 
 =cut
 
@@ -665,7 +678,7 @@ sub deleteHtgroup
 
 =item postdeleteHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteHtgroup()
+ See iMSCP::AbstractModuleActions::postdeleteHtgroup()
 
 =cut
 
@@ -678,7 +691,7 @@ sub postdeleteHtgroup
 
 =item predisableHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionspredisableHtgroup()
+ See iMSCP::AbstractModuleActions::predisableHtgroup()
 
 =cut
 
@@ -691,7 +704,7 @@ sub predisableHtgroup
 
 =item disableHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionsdisableHtgroup()
+ See iMSCP::AbstractModuleActions::disableHtgroup()
 
 =cut
 
@@ -704,7 +717,7 @@ sub disableHtgroup
 
 =item postdisableHtgroup( \%data )
 
- See iMSCP::AbstractModuleActionspostdisableHtgroup()
+ See iMSCP::AbstractModuleActions::postdisableHtgroup()
 
 =cut
 
@@ -717,7 +730,7 @@ sub postdisableHtgroup
 
 =item preaddHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionspreaddHtpasswd()
+ See iMSCP::AbstractModuleActions::preaddHtpasswd()
 
 =cut
 
@@ -730,7 +743,7 @@ sub preaddHtpasswd
 
 =item addHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionsaddHtpasswd()
+ See iMSCP::AbstractModuleActions::addHtpasswd()
 
 =cut
 
@@ -743,7 +756,7 @@ sub addHtpasswd
 
 =item postaddHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionspostaddHtpasswd()
+ See iMSCP::AbstractModuleActions::postaddHtpasswd()
 
 =cut
 
@@ -756,7 +769,7 @@ sub postaddHtpasswd
 
 =item predeleteHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteHtpasswd()
+ See iMSCP::AbstractModuleActions::predeleteHtpasswd()
 
 =cut
 
@@ -769,7 +782,7 @@ sub predeleteHtpasswd
 
 =item deleteHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteHtpasswd()
+ See iMSCP::AbstractModuleActions::deleteHtpasswd()
 
 =cut
 
@@ -782,7 +795,7 @@ sub deleteHtpasswd
 
 =item postdeleteHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteHtpasswd()
+ See iMSCP::AbstractModuleActions::postdeleteHtpasswd()
 
 =cut
 
@@ -795,7 +808,7 @@ sub postdeleteHtpasswd
 
 =item predisableHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionspredisableHtpasswd()
+ See iMSCP::AbstractModuleActions::predisableHtpasswd()
 
 =cut
 
@@ -808,7 +821,7 @@ sub predisableHtpasswd
 
 =item disableHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionsdisableHtpasswd()
+ See iMSCP::AbstractModuleActions::disableHtpasswd()
 
 =cut
 
@@ -821,7 +834,7 @@ sub disableHtpasswd
 
 =item postdisableHtpasswd( \%data )
 
- See iMSCP::AbstractModuleActionspostdisableHtpasswd()
+ See iMSCP::AbstractModuleActions::postdisableHtpasswd()
 
 =cut
 
@@ -834,7 +847,7 @@ sub postdisableHtpasswd
 
 =item preaddMail( \%data )
 
- See iMSCP::AbstractModuleActionspreaddMail()
+ See iMSCP::AbstractModuleActions::preaddMail()
 
 =cut
 
@@ -847,7 +860,7 @@ sub preaddMail
 
 =item addMail( \%data )
 
- See iMSCP::AbstractModuleActionsaddMail()
+ See iMSCP::AbstractModuleActions::addMail()
 
 =cut
 
@@ -860,7 +873,7 @@ sub addMail
 
 =item postaddMail( \%data )
 
- See iMSCP::AbstractModuleActionspostaddMail()
+ See iMSCP::AbstractModuleActions::postaddMail()
 
 =cut
 
@@ -873,7 +886,7 @@ sub postaddMail
 
 =item predeleteMail( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteMail()
+ See iMSCP::AbstractModuleActions::predeleteMail()
 
 =cut
 
@@ -886,7 +899,7 @@ sub predeleteMail
 
 =item deleteMail( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteMail()
+ See iMSCP::AbstractModuleActions::deleteMail()
 
 =cut
 
@@ -899,7 +912,7 @@ sub deleteMail
 
 =item postdeleteMail( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteMail()
+ See iMSCP::AbstractModuleActions::postdeleteMail()
 
 =cut
 
@@ -912,7 +925,7 @@ sub postdeleteMail
 
 =item predisableMail( \%data )
 
- See iMSCP::AbstractModuleActionspredisableMail()
+ See iMSCP::AbstractModuleActions::predisableMail()
 
 =cut
 
@@ -925,7 +938,7 @@ sub predisableMail
 
 =item disableMail( \%data )
 
- See iMSCP::AbstractModuleActionsdisableMail()
+ See iMSCP::AbstractModuleActions::disableMail()
 
 =cut
 
@@ -938,7 +951,7 @@ sub disableMail
 
 =item postdisableMail( \%data )
 
- See iMSCP::AbstractModuleActionspostdisableMail()
+ See iMSCP::AbstractModuleActions::postdisableMail()
 
 =cut
 
@@ -952,7 +965,7 @@ sub postdisableMail
 
 =item preaddServerIP( \%data )
 
- See iMSCP::AbstractModuleActionspreaddServerIP()
+ See iMSCP::AbstractModuleActions::preaddServerIP()
 
 =cut
 
@@ -965,7 +978,7 @@ sub preaddServerIP
 
 =item addServerIP( \%data )
 
- See iMSCP::AbstractModuleActionsaddServerIP()
+ See iMSCP::AbstractModuleActions::addServerIP()
 
 =cut
 
@@ -978,7 +991,7 @@ sub addServerIP
 
 =item postaddServerIP( \%data )
 
- See iMSCP::AbstractModuleActionspostaddServerIP()
+ See iMSCP::AbstractModuleActions::postaddServerIP()
 
 =cut
 
@@ -991,7 +1004,7 @@ sub postaddServerIP
 
 =item predeleteServerIP( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteServerIP()
+ See iMSCP::AbstractModuleActions::predeleteServerIP()
 
 =cut
 
@@ -1004,7 +1017,7 @@ sub predeleteServerIP
 
 =item deleteServerIP( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteServerIP()
+ See iMSCP::AbstractModuleActions::deleteServerIP()
 
 =cut
 
@@ -1017,7 +1030,7 @@ sub deleteServerIP
 
 =item postdeleteServerIP( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteServerIP()
+ See iMSCP::AbstractModuleActions::postdeleteServerIP()
 
 =cut
 
@@ -1030,7 +1043,7 @@ sub postdeleteServerIP
 
 =item preaddSSLcertificate( \%data )
 
- See iMSCP::AbstractModuleActionspreaddSSLcertificate()
+ See iMSCP::AbstractModuleActions::preaddSSLcertificate()
 
 =cut
 
@@ -1043,7 +1056,7 @@ sub preaddSSLcertificate
 
 =item addSSLcertificate( \%data )
 
- See iMSCP::AbstractModuleActionsaddSSLcertificate()
+ See iMSCP::AbstractModuleActions::addSSLcertificate()
 
 =cut
 
@@ -1056,7 +1069,7 @@ sub addSSLcertificate
 
 =item postaddSSLcertificate( \%data )
 
- See iMSCP::AbstractModuleActionspostaddSSLcertificate()
+ See iMSCP::AbstractModuleActions::postaddSSLcertificate()
 
 =cut
 
@@ -1069,7 +1082,7 @@ sub postaddSSLcertificate
 
 =item predeleteSSLcertificate( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteSSLcertificate()
+ See iMSCP::AbstractModuleActions::predeleteSSLcertificate()
 
 =cut
 
@@ -1082,7 +1095,7 @@ sub predeleteSSLcertificate
 
 =item deleteSSLcertificate( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteSSLcertificate()
+ See iMSCP::AbstractModuleActions::deleteSSLcertificate()
 
 =cut
 
@@ -1095,7 +1108,7 @@ sub deleteSSLcertificate
 
 =item postdeleteSSLcertificate( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteSSLcertificate()
+ See iMSCP::AbstractModuleActions::postdeleteSSLcertificate()
 
 =cut
 
@@ -1108,7 +1121,7 @@ sub postdeleteSSLcertificate
 
 =item preaddUser( \%data )
 
- See iMSCP::AbstractModuleActionspreaddUser()
+ See iMSCP::AbstractModuleActions::preaddUser()
 
 =cut
 
@@ -1121,7 +1134,7 @@ sub preaddUser
 
 =item addUser( \%data )
 
- See iMSCP::AbstractModuleActionsaddUser()
+ See iMSCP::AbstractModuleActions::addUser()
 
 =cut
 
@@ -1134,7 +1147,7 @@ sub addUser
 
 =item postaddUser( \%data )
 
- See iMSCP::AbstractModuleActionspostaddUser()
+ See iMSCP::AbstractModuleActions::postaddUser()
 
 =cut
 
@@ -1147,7 +1160,7 @@ sub postaddUser
 
 =item predeleteUser( \%data )
 
- See iMSCP::AbstractModuleActionspredeleteUser()
+ See iMSCP::AbstractModuleActions::predeleteUser()
 
 =cut
 
@@ -1160,7 +1173,7 @@ sub predeleteUser
 
 =item deleteUser( \%data )
 
- See iMSCP::AbstractModuleActionsdeleteUser()
+ See iMSCP::AbstractModuleActions::deleteUser()
 
 =cut
 
@@ -1173,7 +1186,7 @@ sub deleteUser
 
 =item postdeleteUser( \%data )
 
- See iMSCP::AbstractModuleActionspostdeleteUser()
+ See iMSCP::AbstractModuleActions::postdeleteUser()
 
 =cut
 
