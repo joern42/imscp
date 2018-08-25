@@ -4,7 +4,7 @@
 
 =cut
 
-package AbstractUninstallerActions;
+package iMSCP::AbstractUninstallerActions;
 
 use strict;
 use warnings;
