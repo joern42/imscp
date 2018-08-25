@@ -25,7 +25,6 @@ package Servers::abstract;
 
 use strict;
 use warnings;
-use Carp qw/ confess /;
 use iMSCP::Database;
 use iMSCP::EventManager;
 use parent qw/ Common::SingletonClass iMSCP::AbstractInstallerActions iMSCP::AbstractUninstallerActions iMSCP::AbstractModuleActions /;
@@ -42,9 +41,9 @@ use parent qw/ Common::SingletonClass iMSCP::AbstractInstallerActions iMSCP::Abs
 
 =item getPriority( \%data )
 
- Get package priority
+ Get server priority
 
- Return int package priority
+ Return int server priority
 
 =cut
 
@@ -70,8 +69,6 @@ sub getPriority
 sub _init
 {
     my ( $self ) = @_;
-
-    ref $self ne __PACKAGE__ or confess( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'dbh'} = iMSCP::Database->factory();

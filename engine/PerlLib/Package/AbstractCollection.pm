@@ -36,7 +36,7 @@ use parent 'Package::Abstract';
 
  Abstract class for i-MSCP package collection.
  
- An i-MSCP package collection gather in-MSCP packages which serve the same purpose.
+ An i-MSCP package collection gather i-MSCP packages which serve the same purpose.
  
  This class is meant to be subclassed by i-MSCP package collection classes.
 
@@ -1209,7 +1209,7 @@ sub getType
 {
     my ( $self ) = @_;
 
-    die( sprintf( 'The %s package must implement the getType() method', ref $self ));
+    confess( sprintf( 'The %s package must implement the getType() method', ref $self ));
 }
 
 =item getSelectedPackages( )
@@ -1279,8 +1279,6 @@ sub getUnselectedPackages
 sub _init
 {
     my ( $self ) = @_;
-
-    ref $self ne __PACKAGE__ or confess( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
 
     $self->SUPER::_init();
     $self->_loadAvailablePackages() if iMSCP::Getopt->context() eq 'installer';
