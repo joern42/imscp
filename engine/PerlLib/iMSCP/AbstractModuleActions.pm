@@ -25,15 +25,15 @@ package iMSCP::AbstractModuleActions;
 
 use strict;
 use warnings;
-use Carp qw/ confess /;
-use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
 
  i-MSCP module actions.
  
  This class is meant to be subclassed by i-MSCP server and package classes. It
- provide action methods which are called by the i-MSCP modules.
+ provide default implementation for actions that are called by the i-MSCP
+ modules on i-MSCP server and package classes. Thoses last MUST override these
+ methods to provide concret implementations when applyable.
 
 =head1 CLASS METHODS
 
@@ -1965,28 +1965,6 @@ sub postdeleteUser
 #
 #    0;
 #}
-
-=back
-
-=head1 PRIVATE METHODS
-
-=over 4
-
-=item _init( )
-
- Initialize instance
-
- Return iMSCP::AbstractModuleActions
-
-=cut
-
-sub _init
-{
-    my ( $self ) = @_;
-
-    ref $self ne __PACKAGE__ or confess( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-    $self;
-}
 
 =back
 

@@ -8,50 +8,56 @@ package iMSCP::AbstractInstallerActions;
 
 use strict;
 use warnings;
-use Carp qw/ confess /;
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ error /;
 use iMSCP::DistPackageManager;
-use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
 
  i-MSCP installer actions.
- 
+
  This class is meant to be subclassed by i-MSCP server and package classes. It
- provide action methods which are called by the i-MSCP installer and some other
- scripts.
+ provide default implementation for actions that are called by the i-MSCP
+ installer and some other script on i-MSCP server and package classes. Thoses
+ last MUST override these methods to provide concret implementations when
+ applyable.
+ 
+ The following methods are called by specific scripts
+    setEnginePermissions: engine/setup/set-engine-permissions.pl
+    setGuiPermissions:    engine/setup/set-gui-permissions.pl
+    dpkgPostInvokeTasks:  engine/tools/imscp-dpkg-post-invoke.pl
+    
+ All other methods (public) are called by the installer directly.
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item registerSetupListeners( $eventManager )
+=item registerInstallerEventListeners( $eventManager )
 
- Process the registerSetupListeners tasks
+ Register installer event listeners
 
  Param iMSCP::EventManager $eventManager
  Return int 0 on success, other or die on failure
 
 =cut
 
-sub registerSetupListeners
+sub registerInstallerEventListeners
 {
     my ( $self, $eventManager ) = @_;
 
     0;
 }
 
-=item registerSetupDialogs( $dialog )
+=item registerInstallerDialogs( $dialogs )
 
- Process the registerSetupDialogs tasks
+ Register installer dialogs
 
- Param arrayref dialogs
+ Param arrayref $dialogs Array into which dialog routine must be pushed
  Return int 0 on success, other or die on failure
 
 =cut
 
-sub registerSetupDialogs
+sub registerInstallerDialogs
 {
     my ( $self, $dialogs ) = @_;
 
@@ -148,62 +154,6 @@ sub postuninstall
     0;
 }
 
-=item installPackages( \@packages )
-
- Schedule the given distribution packages for installation
- 
- Processing of delayed tasks on the distribution package manager is triggered
- by the installer after the call of the preinstall action on the servers and
- packages. Thus, those last MUST call this method in the preinstall action.
-
- Param arrayref \@packages Array containing a list of distribution packages to install
- Return int 0 on success, other or die on failure
-
-=cut
-
-sub installPackages
-{
-    my ( $self, $packages ) = @_;
-
-    return 0 unless @{ $packages };
-
-    eval { iMSCP::DistPackageManager->getInstance()->installPackages( $packages, TRUE ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
-=item uninstallPackages( \@packages )
-
- Schedule the given distribution packages for uninstallation
-
- Processing of delayed tasks on the distribution package manager is triggered
- by the installer after the call of the preinstall action on the servers and
- packages. Thus, those last MUST call this method in the preinstall action.
-
- Param arrayref \@packages Array containing a list of distribution packages to uninstall
- Return int 0 on success, other or die on failure
-
-=cut
-
-sub removePackages
-{
-    my ( $self, $packages ) = @_;
-
-    return 0 unless @{ $packages };
-
-    eval { iMSCP::DistPackageManager->getInstance()->uninstallPackages( $packages, TRUE ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
 =item setEnginePermissions( )
 
  Process the setEnginePermissions tasks
@@ -238,8 +188,8 @@ sub setGuiPermissions
 
  Process the dpkgPostInvokeTasks tasks
 
- Only relevant for Debian like distributions. This method is called after a
- call of DPKG(8) though a i-MSCP script dedicated to this purpose.
+ Only relevant for Debian like distributions. This method is called after an
+ invocation of DPKG(8). See APT.CONF(5)
 
  Return int 0 on success, other or die on failure
 
@@ -254,24 +204,70 @@ sub dpkgPostInvokeTasks
 
 =back
 
-=head1 PRIVATE METHODS
+=head1 PUBLIC METHODS
 
 =over 4
 
-=item _init( )
+=item _installPackages( \@packages )
 
- Initialize instance
+ Schedule the given distribution packages for installation
+ 
+ Installer context
+  In installer context, processing of delayed tasks on the distribution
+  package manager is triggered by the installer after the call of the
+  preinstall action on the packages and servers. Thus, those last SHOULD
+  call this method in the preinstall action.
+ 
+ Uninstaller context
+  In uninstaller context, processing of delayed tasks on the distribution
+  package manager is triggered by the uninstaller after the call of the
+  postinstall action on the packages and servers. Thus, those last SHOULD
+  call this method in the postinstall action.
 
- Return iMSCP::AbstractInstallerAction
+ Param arrayref \@packages Array containing a list of distribution packages to install
+ Return int 0 on success, other or die on failure
 
 =cut
 
-sub _init
+sub _installPackages
 {
-    my ( $self ) = @_;
+    my ( $self, $packages ) = @_;
 
-    ref $self ne __PACKAGE__ or confess( sprintf( 'The %s class is an abstract class which cannot be instantiated', __PACKAGE__ ));
-    $self;
+    return 0 unless @{ $packages };
+
+    iMSCP::DistPackageManager->getInstance()->installPackages( $packages, TRUE );
+    0;
+}
+
+=item _uninstallPackages( \@packages )
+
+ Schedule the given distribution packages for uninstallation
+
+ Installer context
+  In installer context, processing of delayed tasks on the distribution
+  package manager is triggered by the installer after the call of the
+  preinstall action on the packages and servers. Thus, those last SHOULD
+  call this method in the preinstall action.
+ 
+ Uninstaller context
+  In uninstaller context, processing of delayed tasks on the distribution
+  package manager is triggered by the uninstaller after the call of the
+  postinstall action on the packages and servers. Thus, those last SHOULD
+  call this method in the postinstall action.
+
+ Param arrayref \@packages Array containing a list of distribution packages to uninstall
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub _removePackages
+{
+    my ( $self, $packages ) = @_;
+
+    return 0 unless @{ $packages };
+
+    iMSCP::DistPackageManager->getInstance()->uninstallPackages( $packages, TRUE );
+    0;
 }
 
 =back
