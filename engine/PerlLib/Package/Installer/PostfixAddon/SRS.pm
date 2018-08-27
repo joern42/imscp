@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::Setup::PostfixSRS - i-MSCP Postfix SRS
+ Package::Installer::MtaAddon::PostfixSRS - Postfix SRS daemon
 
 =cut
 
@@ -21,16 +21,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Package::Setup::PostfixSRS;
+package Package::Installer::MtaAddon::PostfixSRS;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
-use iMSCP::EventManager;
+use iMSCP::Boolean;
+use iMSCP::DistPackageManager;
 use iMSCP::File;
+use LsbRelease;
 use iMSCP::Service;
 use Servers::mta;
-use parent 'Common::SingletonClass';
+use parent 'Package::Abstract';
 
 =head1 DESCRIPTION
 
@@ -38,15 +39,45 @@ use parent 'Common::SingletonClass';
 
  Project homepage: https://github.com/roehling/postsrsd
 
+=head1 CLASS METHODS
+
+=over 4
+
+=item getPriority( )
+
+ See Package::Abstract::getPriority()
+
+=cut
+
+sub getPriority
+{
+    my ( $self ) = @_;
+
+    7;
+}
+
+=item checkRequirements
+
+=cut
+
+sub checkRequirements
+{
+    my ( $self ) = @_;
+
+    # The postsrsd distribution package is not available in Ubuntu Trusty Thar
+    # (14.04) repositories
+    lc iMSCP::LsbRelease->getInstance->getCodename( TRUE ) ne 'trusty';
+}
+
+=back
+
 =head1 PUBLIC METHODS
 
 =over 4
 
 =item preinstall( )
 
- Process preinstall tasks
- 
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::preinstall()
  
 =cut
 
@@ -54,16 +85,29 @@ sub preinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $::imscpConfig{'POSTFIX_SRS'} eq 'postsrsd';
+    if ( iMSCP::LsbRelease->getInstance->getCodename( TRUE ) eq 'jessie' ) {
+        # The postsrsd distribution package is made available through backports
+        iMSCP::DistPackageManager->getInstance()
+            ->addRepositories( [ { repository => "deb http://deb.debian.org/debian jessie-backports main", } ], TRUE )
+            ->addAptPreferences(
+            [
+                {
+                    pinning_package      => 'postsrsd',
+                    pinning_pin          => "release o=Debian,n=jessie-backports",
+                    pinning_pin_priority => '1001'
+                }
+            ],
+            TRUE
+        )
+    }
 
-    $self->stop();
+    iMSCP::DistPackageManager->getInstance->installPackages( $self->_getDistPackages(), TRUE );
+    0;
 }
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::install()
 
 =cut
 
@@ -71,10 +115,7 @@ sub install
 {
     my ( $self ) = @_;
 
-    return 0 unless $::imscpConfig{'POSTFIX_SRS'} eq 'postsrsd';
-
     my $rs = $self->_setupPostsrsDaemon();
-
     $rs ||= Servers::mta->factory()->postconf( (
         sender_canonical_maps       => {
             action => 'add',
@@ -97,9 +138,7 @@ sub install
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::postinstall()
 
 =cut
 
@@ -107,76 +146,46 @@ sub postinstall
 {
     my ( $self ) = @_;
 
-    return 0 unless $::imscpConfig{'POSTFIX_SRS'} eq 'postsrsd';
-
-    local $@;
-    eval { iMSCP::Service->getInstance()->enable( 'postsrsd' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( 'postsrsd' );
 
     $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
         sub {
-            push @{ $_[0] }, [ sub { $self->start(); }, 'Postfix SRS service' ];
+            push @{ $_[0] }, [ sub { $self->restart(); }, 'Postfix SRS daemon' ];
             0;
         },
         $self->getPriority()
     );
 }
 
-=item start( )
+=item postuninstall
 
- Start Postfix SRS service
+ See iMSCP::AbstractUninstallerActions::postuninstall()
+
+=cut
+
+sub postuninstall
+{
+    my ( $self ) = @_;
+
+    iMSCP::DistPackageManager->getInstance->uninstallPackages( $self->_getDistPackages(), TRUE );
+    0;
+}
+
+=item restart( )
+
+ Restart Postfix SRS service
  
  Return int 0 on success, other on failure
 
 =cut
 
-sub start
+sub restart
 {
-    local $@;
-    eval { iMSCP::Service->getInstance()->start( 'postsrsd' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    my ( $self ) = @_;
 
+    iMSCP::Service->getInstance()->restart( 'postsrsd' );
     0;
-}
-
-=item stop( )
-
- Stop Postfix SRS service
- 
- Return int 0 on success, other on failure
-
-=cut
-
-sub stop
-{
-    local $@;
-    eval { iMSCP::Service->getInstance()->stop( 'postsrsd' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    0;
-}
-
-=item getPriority( )
-
- Get package priority
-
- Return int package priority
-
-=cut
-
-sub getPriority
-{
-    7;
 }
 
 =back
@@ -185,20 +194,19 @@ sub getPriority
 
 =over 4
 
-=item _init( )
+=item _getDistPackages( )
 
- Initialize instance
+ Get list of distribution packages to install or uninstall, depending on context
 
- Return Package::Setup::PostfixSRS
+ Return array List of distribution packages
 
 =cut
 
-sub _init
+sub _getDistPackages
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self;
+    [ 'postsrsd' ];
 }
 
 =item _setupPostsrsDaemon( )
@@ -211,11 +219,13 @@ sub _init
 
 sub _setupPostsrsDaemon
 {
+    my ( $self ) = @_;
+
     my $file = iMSCP::File->new( filename => '/etc/default/postsrsd' );
     my $fileC = $file->getAsRef();
     return 1 unless defined $fileC;
 
-    ${ $fileC } =~ s/^(SRS_DOMAIN\s*=)[^\n]+/$1 $::imscpConfig{'SERVER_HOSTNAME'};/m;
+    ${ $fileC } =~ s/^(SRS_DOMAIN\s*=)[^\n]+/$1 $::imscpConfig{'SERVER_HOSTNAME'}/m;
     $file->save();
 }
 

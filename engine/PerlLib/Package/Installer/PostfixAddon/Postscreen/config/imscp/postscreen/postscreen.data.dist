@@ -1,0 +1,30 @@
+# Postcreen configuration parameter
+# See http://www.postfix.org/postscreen.8.html
+
+# Postscreen greet action
+# Possible values: ignore, enforce, drop
+GREET_ACTION = enforce
+
+# Postscreen DNSBL sites
+# Possible value: Comma separated list of DNSBL sites
+DNSBL_SITES = zen.spamhaus.org*3,bl.mailspike.net*2,b.barracudacentral.org*2,bl.spameatingmonkey.net,bl.spamcop.net,dnsbl.sorbs.net=127.0.0.[2;3;6;7;10],ix.dnsbl.manitu.net,bl.blocklist.de,list.dnswl.org=127.0.[0..255].0*-1,list.dnswl.org=127.0.[0..255].1*-2,list.dnswl.org=127.0.[0..255].[2..3]*-3,iadb.isipp.com=127.0.[0..255].[0..255]*-2,iadb.isipp.com=127.3.100.[6..200]*-2,wl.mailspike.net=127.0.0.[17;18]*-1,wl.mailspike.net=127.0.0.[19;20]*-2
+
+# Postscreen DNSBL action
+# Possible values: options: ignore, enforce, drop
+DNSBL_ACTION = enforce
+
+# Postscreen DNSBL threshold
+# Possible value: integer
+DNSBL_THRESHOLD = 3
+
+# Postscreen  whitelist threshold
+# Possible value: integer
+DNSBL_WHITElIST_THRESHOLD = -1
+
+# Postscreen permanent white/blacklist for remote SMTP client IP addresses
+# Possible value: Comma separated list of permanent white/blacklist
+ACCESS_LIST = permit_mynetworks, cidr:/etc/postfix/postscreen_access.cidr
+
+# blacklist action
+# Possible value: ignore, enforce, drop
+BLACKLIST_ACTION = enforce
