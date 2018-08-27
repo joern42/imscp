@@ -1,6 +1,6 @@
 =head1 NAME
 
- Package::Installer::MtaAddon::PostfixSRS - Postfix SRS daemon
+ Package::Installer::PostfixAddon::SRS - Postfix SRS daemon
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package Package::Installer::MtaAddon::PostfixSRS;
+package Package::Installer::PostfixAddon::SRS;
 
 use strict;
 use warnings;
