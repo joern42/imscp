@@ -58,6 +58,8 @@ sub getPriority
 
 =item checkRequirements
 
+ See Package::Abstract::checkRequirements()
+
 =cut
 
 sub checkRequirements

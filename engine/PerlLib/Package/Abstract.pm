@@ -25,6 +25,7 @@ package Package::Abstract;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Database;
 use iMSCP::EventManager;
 use parent qw/ Common::SingletonClass iMSCP::AbstractInstallerActions iMSCP::AbstractUninstallerActions iMSCP::AbstractModuleActions /;
@@ -55,6 +56,23 @@ sub getPriority
     my ( $class ) = @_;
 
     0;
+}
+
+=item checkRequirements
+
+ Check package requirements
+
+ A package will be made available only if all requirements are met.
+
+ Return TRUE if all requirement are met, FALSE otherwise
+
+=cut
+
+sub checkRequirements
+{
+    my ( $class ) = @_;
+
+    TRUE;
 }
 
 =back
