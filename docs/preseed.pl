@@ -431,7 +431,7 @@ use warnings;
     #  - PolicydWeight: Instead, you should use the RBL Rspamd module
     #  - Postgrey     : Instead, you should use the Greylisting Rspamd module
     #  - SPF          : Instead, you should use the SPF Rspamd module
-    POSTFIXADDON_PACKAGES                   => 'none',
+    POSTFIXADDON_PACKAGES               => 'none',
 
     # Webmmail packages
     # Possible values: 'none' for no packages, or a comma separated list of
