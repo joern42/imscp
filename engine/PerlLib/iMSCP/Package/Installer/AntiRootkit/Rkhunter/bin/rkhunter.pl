@@ -20,15 +20,39 @@
 use strict;
 use warnings;
 use FindBin;
-use lib "$FindBin::Bin/../../../../PerlLib", "$FindBin::Bin/../../../../PerlVendor";
+use File::Basename;
+use lib "$FindBin::Bin/../../../../../../../PerlLib", "$FindBin::Bin/../../../../../../../PerlVendor";
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
-use iMSCP::Debug qw/ debug newDebug /;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Debug qw/ debug newDebug setVerbose /;
+use iMSCP::Execute qw/ executeNoWait /;
 use iMSCP::File;
-use iMSCP::ProgramFinder;
+use POSIX qw/ strftime locale_h /;
+
+sub output
+{
+    chomp @_;
+    debug( @_, '' )
+}
+
+setlocale( LC_MESSAGES, "C.UTF-8" );
+
+$ENV{'LANG'} = 'C.UTF-8';
 
 newDebug( 'imscp-rkhunter-package.log' );
+
+iMSCP::Getopt->parseNoDefault( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
+
+Performs the rkhunter(8) checks in non-interactive mode.
+
+OPTIONS:
+ -d,    --debug         Enable debug mode.
+ -v,    --verbose       Enable verbose mode.},
+    'debug|d'   => \&iMSCP::Getopt::debug,
+    'verbose|v' => \&iMSCP::Getopt::verbose
+);
+
+setVerbose( iMSCP::Getopt->verbose );
 
 iMSCP::Bootstrapper->getInstance()->boot( {
     nolock          => TRUE,
@@ -37,18 +61,16 @@ iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => TRUE
 } );
 
-exit 0 unless iMSCP::ProgramFinder::find( 'rkhunter' );
-
 my $logFile = $::{'RKHUNTER_LOG'} || '/var/log/rkhunter.log';
 
-# Error handling is specific with rkhunter. Therefore, we do not handle the
-# exit code, but we write the output into the imscp-rkhunter-package.log file.
-# This is calqued on the cron task as provided by the Rkhunter Debian  package
-# except that instead of sending an email on error or warning, we write in log
-# file.
-execute( "rkhunter --cronjob --logfile $logFile", \my $stdout, \my $stderr );
-debug( $stdout ) if $stdout;
-debug( $stderr ) if $stderr;
+executeNoWait(
+    [
+        'nice', '-n', '0',
+        'rkhunter', '--check', '--nocolors', '--skip-keypress', '--no-mail-on-warning', '--no-verbose-logging', '--noappendlog', '--logfile', $logFile
+    ],
+    \&output,
+    \&output
+);
 exit 0 unless -f $logFile;
 
 my $file = iMSCP::File->new( filename => $logFile );
