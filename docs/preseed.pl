@@ -5,7 +5,7 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.08.16
+# Last update: 2018.08.28
 
 use strict;
 use warnings;
@@ -408,29 +408,25 @@ use warnings;
     # Available packages are: Chkrootkit, Rkhunter
     ANTIROOTKIT_PACKAGES                => 'none',
 
-    # Antispam packages
-    # Possible values: 'none' for no packages, or a comma separated list of
-    #                   packages
-    # Available packages are: Rspamd
-    ANTISPAM_PACKAGES                   => 'none',
-
-    # Antivirus packages
-    # Possible values: 'none' for no packages, or a comma separated list of
-    #                   packages
-    # Available packages are: Rspamd
-    #
-    # Available packages are: ClamAV
-    ANTIVIRUS_PACKAGES                  => 'none',
-
     # FTP Web file manager packages
     # Possible values: 'none' for no packages, or a comma separated list of
     #                   packages
     # Available packages: MonstaFTP, Pydio (only if the PHP version for the control panel is < 7.0)
     FILEMANAGER_PACKAGES                => 'none',
 
-    # Sender Rewriting Scheme (SRS) packages
-    # Possible values: none, PostfixSRS
-    SRS_PACKAGES                        => 'none',
+    # Postfix addon packages (only relevant with the Postfix MTA server)
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
+    #
+    # Available packages are:
+    #  - ClamAV       : SMTP antivirus
+    #  - PolicydWeight: policy-weight daemon
+    #  - Postgrey     : Policy server to implement "greylisting".
+    #  - Postscreen   : Postfix postscreen server that provides additional protection against mail server overload
+    #  - Rspamd       : Spam filtering system
+    #  - SPF          : Simple Postfix policy server for RFC 4408 SPF checking
+    #  - SRS          : Sender Rewriting Scheme (SRS) support for Postfix via TCP-based lookup tables 
+    POSTFIXADDON_PACKAGES                   => 'none',
 
     # Webmmail packages
     # Possible values: 'none' for no packages, or a comma separated list of
@@ -478,7 +474,7 @@ use warnings;
     RAINLOOP_SQL_PASSWORD               => '',
 
     ## Rspamd spam filtering system configuration parameters
-    ## Only relevant with the Rspamd package
+    ## Only relevant with the Rspamd package (Postfix addon)
 
     # Rspamd modules
     # Possible values: 'none' for no packages, or a comma separated list of

@@ -49,12 +49,12 @@ INSTALLER
     Fixed: "Missing or bad entry found in your preseed file" due to unhandled space separator (Slave DNS server)
 
 PACKAGES
+    Added: ClamAV package - Provides SMTP antivirus
     Added: PolicyWeight package - policy-weight daemon for the Postfix MTA
     Added: Postgrey package - Policy server for Postfix to implement "greylisting".
-    Added: Postscreen package - Postfix postscreen server provides additional protection against mail server overload
+    Added: Postscreen package - Postfix postscreen server that provides additional protection against mail server overload
     Added: SPF package - Simple Postfix policy server for RFC 4408 SPF checking
     Added: SRS package - Provides Sender Rewriting Scheme (SRS) support for Postfix via TCP-based lookup tables 
-    Added: ClamAV package - Provides SMTP antivirus
     Added: Rspamd package - Provides spam filtering system
     Removed: Net2ftp package. See the errata file for further explanation.
 
