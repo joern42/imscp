@@ -122,6 +122,49 @@ sub getUnselectedPackages
 
 =over 4
 
+=item _askForPackages( $dialog )
+
+ See iMSCP::Package::AbstractCollection::_askForPackages()
+
+=cut
+
+sub _askForPackages
+{
+    my ( $self, $dialog ) = @_;
+
+    my $packageType = $self->getType();
+    my $ucPackageType = uc $packageType;
+
+    @{ $self->{'SELECTED_PACKAGES'} } = split ',', ::setupGetQuestion( $ucPackageType . '_PACKAGES' );
+    my %choices = map { $_ => ucfirst $_ } @{ $self->{'AVAILABLE_PACKAGES'} };
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ lc $packageType, 'all' ] ) || !@{ $self->{'SELECTED_PACKAGES'} }
+        || grep { !exists $choices{$_} && $_ ne 'none' } @{ $self->{'SELECTED_PACKAGES'} }
+    ) {
+        ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checklist(
+            <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $self->{'SELECTED_PACKAGES'} } ] );
+
+Please select the $packageType packages you want to install:
+
+You shouldn't select one of the PolicydWeight, Postgrey or SPF package if you select the Rspamd package.
+Instead you should select the counterpart Rspamd modules which are: RBL, Greylisting and SPF.
+\\Z \\Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    @{ $self->{'SELECTED_PACKAGES'} } = grep ( $_ ne 'none', @{ $self->{'SELECTED_PACKAGES'} } );
+    ::setupSetQuestion( $ucPackageType . '_PACKAGES', @{ $self->{'SELECTED_PACKAGES'} } ? join( ',', @{ $self->{'SELECTED_PACKAGES'} } ) : 'none' );
+
+    my $dialogs = [];
+    for my $package ( @{ $self->getSelectedPackages() } ) {
+        my $rs = $package->registerInstallerDialogs( $dialogs );
+        return $rs if $rs;
+    }
+
+    $dialog->executeDialogs( $dialogs )
+}
+
 =item _loadAvailablePackages()
 
  Load list of available packages for this collection

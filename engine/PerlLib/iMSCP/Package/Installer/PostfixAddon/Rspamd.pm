@@ -99,7 +99,7 @@ sub preinstall
         [
             {
                 repository         => "http://rspamd.com/apt-stable/ $distCodename main",
-                repository_key_uri => 'https://rspamd.com/apt/gpg.key',
+                repository_key_uri => 'https://rspamd.com/apt/gpg.key'
 
             }
         ],
@@ -154,12 +154,16 @@ sub postinstall
     $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
         sub {
-            push @{ $_[0] }, [ sub {
-                # Make sure that the Redis server (dependency) is running.
-                iMSCP::Service->getInstance()->start( 'redis-server' );
-                0;
-            }, 'Redis server' ];
-            push @{ $_[0] }, [ sub { $self->restart(); }, 'Rspamd spam filtering system' ];
+            push @{ $_[0] },
+                [
+                    sub {
+                        # Make sure that the Redis server (dependency) is running.
+                        iMSCP::Service->getInstance()->start( 'redis-server' );
+                        0;
+                    },
+                    'Redis server'
+                ],
+                [ sub { $self->restart(); }, 'Rspamd spam filtering system' ];
             0;
         },
         $self->getPriority()
@@ -239,19 +243,6 @@ sub restart
 
     iMSCP::Service->getInstance()->restart( 'rspamd' );
     0;
-}
-
-=item getPriority( )
-
- See iMSCP::Package::Abstract::getPriority()
-
-=cut
-
-sub getPriority
-{
-    my ( $self ) = @_;
-
-    7;
 }
 
 =back
