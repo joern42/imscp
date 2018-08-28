@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::AbstractModuleActions - i-MSCP abstract module actions
+ iMSCP::Modules::AbstractActions - i-MSCP abstract module actions
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::AbstractModuleActions;
+package iMSCP::Modules::AbstractActions;
 
 use strict;
 use warnings;
@@ -34,12 +34,6 @@ use warnings;
  provide default (dummy) implementation (null for actions that are called on
  i-MSCP server and package classes by the i-MSCP modules.The server and package
  classes MUST override these methods to provide concret implementations when applyable.
-
-=head1 CLASS METHODS
-
-=over 4
-
-=back
 
 =head1 PUBLIC METHODS
 
@@ -231,6 +225,198 @@ sub disableDmn
 =cut
 
 sub postdisableDmn
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item preaddSub( \%data )
+
+ Process the preaddSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub preaddSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item addSub( \%data )
+
+ Process the addSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub addSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item postaddSub( \%data )
+
+ Process the postaddSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub postaddSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item predeleteSub( \%data )
+
+ Process the predeleteSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub predeleteSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item deleteSub( \%data )
+
+ Process the deleteSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub deleteSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item postdeleteSub( \%data )
+
+ Process the postdeleteSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub postdeleteSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item prerestoreSub( \%data )
+
+ Process the prerestoreSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub prerestoreSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item restoreSub( \%data )
+
+ Process the restoreSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub restoreSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item postrestoreSub( \%data )
+
+ Process the postrestoreSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub postrestoreSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item predisableSub( \%data )
+
+ Process the predisableSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub predisableSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item disableSub( \%data )
+
+ Process the disableSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub disableSub
+{
+    my ( $self ) = @_;
+
+    0;
+}
+
+=item postdisableSub( \%data )
+
+ Process the postdisableSub tasks
+
+ Param hashref \%data Module data
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub postdisableSub
 {
     my ( $self ) = @_;
 

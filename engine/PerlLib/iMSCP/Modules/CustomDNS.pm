@@ -1,6 +1,6 @@
 =head1 NAME
 
- Modules::CustomDNS - i-MSCP CustomDNS module
+ iMSCP::Modules::CustomDNS - i-MSCP CustomDNS module
 
 =cut
 
@@ -21,13 +21,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-package Modules::CustomDNS;
+package iMSCP::Modules::CustomDNS;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ error getLastError /;
 use Text::Balanced qw/ extract_multiple extract_delimited /;
-use parent 'Modules::Abstract';
+use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
@@ -39,32 +40,29 @@ use parent 'Modules::Abstract';
 
 =item getType( )
 
- Get module type
-
- Return string Module type
+ See iMSCP::Modules::Abstract::getType()
 
 =cut
 
 sub getType
 {
+    my ( $self ) = @_;
+
     'CustomDNS';
 }
 
 =item process( $domainId )
 
- Process module
+ See iMSCP::Modules::Abstract::process()
 
  Note: Even if a DNS resource record is invalid, we always return 0 (success).
  It is the responsability of customers to fix their DNS resource records.
-
- Param string $domainId Domain unique identifier (domain type + domain id)
- Return int 0 on success, other on failure
 
 =cut
 
 sub process
 {
-    my ($self, $domainId) = @_;
+    my ( $self, $domainId ) = @_;
 
     ( my $domainType, $domainId ) = split '_', $domainId;
 
@@ -73,51 +71,40 @@ sub process
         return 1;
     }
 
-    my $condition = $domainType eq 'domain'
-        ? "domain_id = $domainId AND alias_id = 0" : "alias_id = $domainId";
+    my $condition = $domainType eq 'domain' ? "domain_id = $domainId AND alias_id = 0" : "alias_id = $domainId";
 
     my $rs = $self->_loadData( $domainType, $domainId );
     return $rs if $rs;
 
-    if ( $self->add() ) {
-        local $@;
-        eval {
-            local $self->{'_dbh'}->{'RaiseError'} = 1;
-            $self->{'_dbh'}->do(
-                "UPDATE domain_dns SET domain_dns_status = ? WHERE $condition AND domain_dns_status <> 'disabled'",
-                undef, ( getLastError( 'error' ) || 'Invalid DNS resource record' )
-            );
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
+    unless ( $self->add() == 0 ) {
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+
+        $self->{'dbh'}->do(
+            "UPDATE domain_dns SET domain_dns_status = ? WHERE $condition AND domain_dns_status <> 'disabled'",
+            undef, getLastError( 'error' ) || 'Invalid DNS resource record'
+        );
 
         return 0;
     }
 
-    local $@;
     eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->begin_work();
-
-        $self->{'_dbh'}->do(
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+        $self->{'dbh'}->begin_work();
+        $self->{'dbh'}->do(
             "
                 UPDATE domain_dns
                 SET domain_dns_status = IF(
-                    domain_dns_status = 'todisable', 'disabled',
-                    IF(domain_dns_status NOT IN('todelete', 'disabled'), 'ok', domain_dns_status)
+                    domain_dns_status = 'todisable', 'disabled', IF(domain_dns_status NOT IN('todelete', 'disabled'), 'ok', domain_dns_status)
                 )
                 WHERE $condition
             "
         );
-        $self->{'_dbh'}->do( "DELETE FROM domain_dns WHERE $condition AND domain_dns_status = 'todelete'" );
-        $self->{'_dbh'}->commit();
+        $self->{'dbh'}->do( "DELETE FROM domain_dns WHERE $condition AND domain_dns_status = 'todelete'" );
+        $self->{'dbh'}->commit();
     };
     if ( $@ ) {
-        $self->{'_dbh'}->rollback();
-        error( $@ );
-        return 1;
+        $self->{'dbh'}->rollback();
+        die;
     }
 
     0;
@@ -133,17 +120,17 @@ sub process
 
  Initialize instance
 
- Return Modules::CustomDNS
+ Return iMSCP::Modules::CustomDNS
 
 =cut
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'domain_name'} = undef;
-    $self->{'dns_records'} = [];
+    @{ $self }{qw/ domain_name dns_records / } = ( undef, [] );
     $self->SUPER::_init();
+    $self;
 }
 
 =item _loadData( $domainType, $domainId )
@@ -158,17 +145,17 @@ sub _init
 
 sub _loadData
 {
-    my ($self, $domainType, $domainId) = @_;
+    my ( $self, $domainType, $domainId ) = @_;
 
     eval {
-        my $condition = $domainType eq 'domain'
-            ? "t1.domain_id = $domainId AND t1.alias_id = 0" : "t1.alias_id = $domainId";
+        my $condition = $domainType eq 'domain' ? "t1.domain_id = $domainId AND t1.alias_id = 0" : "t1.alias_id = $domainId";
 
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $rows = $self->{'_dbh'}->selectall_arrayref(
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+        my $rows = $self->{'dbh'}->selectall_arrayref(
             "
                 SELECT t1.domain_dns, t1.domain_class, t1.domain_type, t1.domain_text, t1.domain_dns_status,
-                    IFNULL(t3.alias_name, t2.domain_name) AS domain_name, t4.ip_number
+                    IFNULL(t3.alias_name, t2.domain_name) AS domain_name,
+                    t4.ip_number
                 FROM domain_dns AS t1
                 LEFT JOIN domain AS t2 USING(domain_id)
                 LEFT JOIN domain_aliasses AS t3 USING(alias_id)
@@ -178,10 +165,7 @@ sub _loadData
             "
         );
 
-        @{$rows} && defined $rows->[0]->[5] or die(
-            sprintf( 'Data not found for custom DNS records (%s/%d)', $domainType, $domainId )
-        );
-
+        @{ $rows } && defined $rows->[0]->[5] or die( sprintf( 'Data not found for custom DNS records (%s/%d)', $domainType, $domainId ));
         $self->{'domain_name'} = $rows->[0]->[5];
         $self->{'domain_ip'} = $rows->[0]->[6];
 
@@ -189,17 +173,15 @@ sub _loadData
         # 2. For TXT/SPF records, split data field into several
         #    <character-string>s when <character-string> is longer than 255
         #    bytes. See: https://tools.ietf.org/html/rfc4408#section-3.1.3
-        for ( @{$rows} ) {
+        for ( @{ $rows } ) {
             # Filter DNS records that must be disabled or deleted
             next if $_->[4] =~ /^to(?:disable|delete)$/;
 
             if ( $_->[2] eq 'TXT' || $_->[2] eq 'SPF' ) {
                 # Turn line-breaks into whitespaces
                 $_->[3] =~ s/\R+/ /g;
-
                 # Remove leading and trailing whitespaces
                 $_->[3] =~ s/^\s+|\s+$//;
-
                 # Make sure to work with quoted <character-string>
                 $_->[3] = qq/"$_->[3]"/ unless $_->[3] =~ /^".*"$/;
 
@@ -208,9 +190,7 @@ sub _loadData
                 # See: https://tools.ietf.org/html/rfc4408#section-3.1.3
                 if ( length $_->[3] > 257 ) {
                     # Extract all quoted <character-string>s, excluding delimiters
-                    $_ =~ s/^"(.*)"$/$1/ for my @chunks = extract_multiple(
-                        $_->[3], [ sub { extract_delimited( $_[0], '"' ) } ], undef, 1
-                    );
+                    $_ =~ s/^"(.*)"$/$1/ for my @chunks = extract_multiple( $_->[3], [ sub { extract_delimited( $_[0], '"' ) } ], undef, 1 );
                     $_->[3] = join '', @chunks if @chunks;
                     undef @chunks;
 
@@ -218,11 +198,11 @@ sub _loadData
                         push( @chunks, substr( $_->[3], $i, 255 ));
                     }
 
-                    $_->[3] = join ' ', map( qq/"$_"/, @chunks );
+                    $_->[3] = join ' ', map ( qq/"$_"/, @chunks );
                 }
             }
 
-            push @{$self->{'dns_records'}}, [ ( @{$_} )[0 .. 3] ];
+            push @{ $self->{'dns_records'} }, [ ( @{ $_ } )[0 .. 3] ];
         }
     };
     if ( $@ ) {
@@ -235,28 +215,21 @@ sub _loadData
 
 =item _getData( $action )
 
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data
+ See iMSCP::Modules::Abstract::_getData()
 
 =cut
 
 sub _getData
 {
-    my ($self, $action) = @_;
+    my ( $self, $action ) = @_;
 
-    $self->{'_data'} = do {
-        {
-            ACTION                => $action,
-            BASE_SERVER_PUBLIC_IP => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
-            DOMAIN_NAME           => $self->{'domain_name'},
-            DOMAIN_IP             => $self->{'domain_ip'},
-            DNS_RECORDS           => [ @{$self->{'dns_records'}} ]
-        }
-    } unless %{$self->{'_data'}};
-
-    $self->{'_data'};
+    $self->{'_data'} ||= {
+        ACTION                => $action,
+        BASE_SERVER_PUBLIC_IP => $::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
+        DOMAIN_NAME           => $self->{'domain_name'},
+        DOMAIN_IP             => $self->{'domain_ip'},
+        DNS_RECORDS           => [ @{ $self->{'dns_records'} } ]
+    };
 }
 
 =back

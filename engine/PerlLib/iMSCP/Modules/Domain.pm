@@ -1,6 +1,6 @@
 =head1 NAME
 
- Modules::Domain - i-MSCP Domain module
+ iMSCP::Modules::Domain - i-MSCP Domain module
 
 =cut
 
@@ -21,13 +21,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-package Modules::Domain;
+package iMSCP::Modules::Domain;
 
 use strict;
 use warnings;
 use File::Basename;
 use File::Spec;
 use File::Temp;
+use iMSCP::Boolean;
 use iMSCP::Crypt qw/ randomStr /;
 use iMSCP::Debug qw/ debug error getLastError warning /;
 use iMSCP::Dir;
@@ -37,7 +38,7 @@ use Net::LibIDN qw/ idn_to_unicode /;
 use Servers::httpd;
 use Servers::sqld;
 
-use parent 'Modules::Abstract';
+use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
@@ -49,100 +50,80 @@ use parent 'Modules::Abstract';
 
 =item getType( )
 
- Get module type
-
- Return string Module type
+ See iMSCP::Modules::Abstract::getType()
 
 =cut
 
 sub getType
 {
+    my ( $self ) = @_;
+
     'Dmn';
 }
 
 =item process( $domainId )
 
- Process module
-
- Param int $domainId Domain unique identifier
- Return int 0 on success, other on failure
+ See iMSCP::Modules::Abstract::process()
 
 =cut
 
 sub process
 {
-    my ($self, $domainId) = @_;
+    my ( $self, $domainId ) = @_;
 
     my $rs = $self->_loadData( $domainId );
     return $rs if $rs;
 
     my @sql;
-    if ( $self->{'domain_status'} =~ /^to(?:add|change|enable)$/ ) {
+    if ( grep ( $self->{'domain_status'} eq $_, 'toadd', 'tochange', 'toenable' ) ) {
         $rs = $self->add();
-        @sql = ( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $domainId );
+        @sql = (
+            'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok', $domainId
+        );
     } elsif ( $self->{'domain_status'} eq 'todelete' ) {
         $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef,
-                getLastError( 'error' ) || 'Unknown error', $domainId )
-            : ( 'DELETE FROM domain WHERE domain_id = ?', undef, $domainId );
+        @sql = $rs ? (
+            'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, getLastError( 'error' ) || 'Unknown error', $domainId
+        ) : (
+            'DELETE FROM domain WHERE domain_id = ?', undef, $domainId
+        );
     } elsif ( $self->{'domain_status'} eq 'todisable' ) {
         $rs = $self->disable();
-        @sql = ( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $domainId );
+        @sql = (
+            'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled', $domainId
+        );
     } elsif ( $self->{'domain_status'} eq 'torestore' ) {
         $rs = $self->restore();
-        @sql = ( 'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $domainId );
+        @sql = (
+            'UPDATE domain SET domain_status = ? WHERE domain_id = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok', $domainId
+        );
     } else {
         warning( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'domain_status'}, $domainId ));
         return 0;
     }
 
-    local $@;
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
+    $self->{'dbh'}->do( @sql );
     $rs;
 }
 
 =item disable( )
 
- Disable domain
-
- Return int 0 on success, other on failure
+ See iMSCP::Modules::Abstract::disable()
 
 =cut
 
 sub disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    local $@;
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
+    {
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
         # Sets the status of any subdomain that belongs to this domain to 'todisable'.
-        $self->{'_dbh'}->do(
-            "
-                UPDATE subdomain
-                SET subdomain_status = 'todisable'
-                WHERE domain_id = ?
-                AND subdomain_status <> 'todelete'
-            ",
-            undef, $self->{'domain_id'}
+        $self->{'dbh'}->do(
+            "UPDATE subdomain SET subdomain_status = 'todisable' WHERE domain_id = ? AND subdomain_status <> 'todelete'", undef, $self->{'domain_id'}
         );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
 
     $self->SUPER::disable();
@@ -150,35 +131,32 @@ sub disable
 
 =item restore( )
 
- Restore backup
-
- Return int 0 on success, other on failure
+ See iMSCP::Modules::Abstract::restore()
 
 =cut
 
 sub restore
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $homeDir = "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'domain_name'}";
+    my $homeDir = "$::imscpConfig{'USER_WEB_DIR'}/$self->{'domain_name'}";
     my $bkpDir = "$homeDir/backups";
 
-    local $@;
     eval {
         # Restore know databases only
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
-        my $rows = $self->{'_dbh'}->selectall_arrayref(
+        my $rows = $self->{'dbh'}->selectall_arrayref(
             'SELECT sqld_name FROM sql_database WHERE domain_id = ?', { Slice => {} }, $self->{'domain_id'}
         );
 
-        for my $row( @{ $rows } ) {
+        for my $row ( @{ $rows } ) {
             # Encode slashes as SOLIDUS unicode character
             # Encode dots as Full stop unicode character
             ( my $encodedDbName = $row->{'sqld_name'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
 
-            for( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
-                my $dbDumpFilePath = File::Spec->catfile( $bkpDir, $encodedDbName . $_ );
+            for my $ext ( '.sql', '.sql.bz2', '.sql.gz', '.sql.lzma', '.sql.xz' ) {
+                my $dbDumpFilePath = File::Spec->catfile( $bkpDir, $encodedDbName . $ext );
                 debug( $dbDumpFilePath );
                 next unless -f $dbDumpFilePath;
                 $self->_restoreDatabase( $row->{'sqld_name'}, $dbDumpFilePath );
@@ -186,8 +164,8 @@ sub restore
         }
 
         # Restore first Web backup found
-        for ( iMSCP::Dir->new( dirname => $bkpDir )->getFiles() ) {
-            next if -l "$bkpDir/$_"; # Don't follow symlinks (See #IP-990)
+        for my $dir ( iMSCP::Dir->new( dirname => $bkpDir )->getFiles() ) {
+            next if -l "$bkpDir/$dir"; # Don't follow symlinks (See #IP-990)
             next unless /^web-backup-.+?\.tar(?:\.(bz2|gz|lzma|xz))?$/;
 
             my $archFormat = $1 || '';
@@ -220,21 +198,15 @@ sub restore
                 $cmd = [ 'tar', '-x', '-p', '-C', $homeDir, '-f', "$bkpDir/$_" ];
             }
 
-            my $rs = execute( $cmd, \ my $stdout, \ my $stderr );
+            my $rs = execute( $cmd, \my $stdout, \my $stderr );
             debug( $stdout ) if $stdout;
             $rs == 0 or die( $stderr || 'Unknown error' );
 
             eval {
-                $self->{'_dbh'}->begin_work();
-                $self->{'_dbh'}->do(
-                    'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore',
-                    $self->{'domain_id'}
-                );
-                $self->{'_dbh'}->do(
-                    'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore',
-                    $self->{'domain_id'}
-                );
-                $self->{'_dbh'}->do(
+                $self->{'dbh'}->begin_work();
+                $self->{'dbh'}->do( 'UPDATE subdomain SET subdomain_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
+                $self->{'dbh'}->do( 'UPDATE domain_aliasses SET alias_status = ? WHERE domain_id = ?', undef, 'torestore', $self->{'domain_id'} );
+                $self->{'dbh'}->do(
                     "
                         UPDATE subdomain_alias
                         SET subdomain_alias_status = 'torestore'
@@ -242,10 +214,10 @@ sub restore
                     ",
                     undef, $self->{'domain_id'}
                 );
-                $self->{'_dbh'}->commit();
+                $self->{'dbh'}->commit();
             };
 
-            $self->{'_dbh'}->rollback() if $@;
+            $self->{'dbh'}->rollback() if $@;
             last;
         }
     };
@@ -274,83 +246,62 @@ sub restore
 
 sub _loadData
 {
-    my ($self, $domainId) = @_;
+    my ( $self, $domainId ) = @_;
 
-    local $@;
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref(
-            "
-                SELECT t1.domain_id, t1.domain_admin_id, t1.domain_mailacc_limit, t1.domain_name, t1.domain_status,
-                    t1.domain_php, t1.domain_cgi, t1.external_mail, t1.web_folder_protection, t1.document_root,
-                    t1.url_forward, t1.type_forward, t1.host_forward,
-                    IFNULL(t2.ip_number, '0.0.0.0') AS ip_number,
-                    t3.private_key, t3.certificate, t3.ca_bundle, t3.allow_hsts, t3.hsts_max_age,
-                    t3.hsts_include_subdomains,
-                    t4.mail_on_domain
-                FROM domain AS t1
-                LEFT JOIN server_ips AS t2 ON (t2.ip_id = t1.domain_ip_id)
-                LEFT JOIN ssl_certs AS t3 ON(
-                    t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok'
-                )
-                LEFT JOIN (
-                    SELECT domain_id, COUNT(domain_id) AS mail_on_domain
-                    FROM mail_users
-                    WHERE mail_type LIKE 'normal\\_%'
-                    GROUP BY domain_id
-                ) AS t4 ON(t4.domain_id = t1.domain_id)
-                WHERE t1.domain_id = ?
-            ",
-            undef, $domainId
-        );
-        $row or die( sprintf( 'Data not found for domain (ID %d)', $domainId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
+    my $row = $self->{'dbh'}->selectrow_hashref(
+        "
+            SELECT t1.domain_id, t1.domain_admin_id, t1.domain_mailacc_limit, t1.domain_name, t1.domain_status, t1.domain_php, t1.domain_cgi,
+                t1.external_mail, t1.web_folder_protection, t1.document_root, t1.url_forward, t1.type_forward, t1.host_forward,
+                IFNULL(t2.ip_number, '0.0.0.0') AS ip_number,
+                t3.private_key, t3.certificate, t3.ca_bundle, t3.allow_hsts, t3.hsts_max_age, t3.hsts_include_subdomains,
+                t4.mail_on_domain
+            FROM domain AS t1
+            LEFT JOIN server_ips AS t2 ON (t2.ip_id = t1.domain_ip_id)
+            LEFT JOIN ssl_certs AS t3 ON(t3.domain_id = t1.domain_id AND t3.domain_type = 'dmn' AND t3.status = 'ok')
+            LEFT JOIN (
+                SELECT domain_id, COUNT(domain_id) AS mail_on_domain FROM mail_users WHERE mail_type LIKE 'normal\\_%' GROUP BY domain_id
+            ) AS t4 ON(t4.domain_id = t1.domain_id)
+            WHERE t1.domain_id = ?
+        ",
+        undef, $domainId
+    );
+    $row or die( sprintf( 'Data not found for domain (ID %d)', $domainId ));
+    %{ $self } = ( %{ $self }, %{ $row } );
     0;
 }
 
 =item _getData( $action )
 
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data, die on failure
+ See iMSCP::Modules::Abstract::_getData()
 
 =cut
 
 sub _getData
 {
-    my ($self, $action) = @_;
+    my ( $self, $action ) = @_;
 
-    $self->{'_data'} = do {
+    $self->{'_data'} ||= do {
         my $httpd = Servers::httpd->factory();
-        my $groupName = my $userName = $main::imscpConfig{'SYSTEM_USER_PREFIX'}
-            . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'domain_admin_id'} );
-        my $homeDir = File::Spec->canonpath( "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'domain_name'}" );
+        my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'domain_admin_id'} );
+        my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$self->{'domain_name'}" );
         my $documentRoot = File::Spec->canonpath( "$homeDir/$self->{'document_root'}" );
 
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $phpini = $self->{'_dbh'}->selectrow_hashref(
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+        my $phpini = $self->{'dbh'}->selectrow_hashref(
             "SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = 'dmn'", undef, $self->{'domain_id'}
         ) || {};
 
-        my $haveCert = ( defined $self->{'certificate'} && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'domain_name'}.pem" );
-        my $allowHSTS = ( $haveCert && $self->{'allow_hsts'} eq 'on' );
-        my $hstsMaxAge = ( $allowHSTS ) ? $self->{'hsts_max_age'} : 0;
-        my $hstsIncludeSubDomains = ( $allowHSTS && $self->{'hsts_include_subdomains'} eq 'on' )
-            ? '; includeSubDomains' : ( ( $allowHSTS ) ? '' : '; includeSubDomains' );
+        my $haveCert = defined $self->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'domain_name'}.pem";
+        my $allowHSTS = $haveCert && $self->{'allow_hsts'} eq 'on';
+        my $hstsMaxAge = $allowHSTS ? $self->{'hsts_max_age'} : 0;
+        my $hstsIncludeSubDomains = $allowHSTS && $self->{'hsts_include_subdomains'} eq 'on'
+            ? '; includeSubDomains' : ( $allowHSTS ? '' : '; includeSubDomains' );
 
         {
             ACTION                  => $action,
             STATUS                  => $self->{'domain_status'},
-            BASE_SERVER_VHOST       => $main::imscpConfig{'BASE_SERVER_VHOST'},
-            BASE_SERVER_IP          => $main::imscpConfig{'BASE_SERVER_IP'},
-            BASE_SERVER_PUBLIC_IP   => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
             DOMAIN_ADMIN_ID         => $self->{'domain_admin_id'},
             DOMAIN_ID               => $self->{'domain_id'},
             DOMAIN_NAME             => $self->{'domain_name'},
@@ -365,9 +316,9 @@ sub _getData
             DOCUMENT_ROOT           => $documentRoot,
             SHARED_MOUNT_POINT      => 0,
             PEAR_DIR                => $httpd->{'phpConfig'}->{'PHP_PEAR_DIR'},
-            TIMEZONE                => $main::imscpConfig{'TIMEZONE'},
-            USER                    => $userName,
-            GROUP                   => $groupName,
+            TIMEZONE                => $::imscpConfig{'TIMEZONE'},
+            USER                    => $usergroup,
+            GROUP                   => $usergroup,
             PHP_SUPPORT             => $self->{'domain_php'},
             CGI_SUPPORT             => $self->{'domain_cgi'},
             WEB_FOLDER_PROTECTION   => $self->{'web_folder_protection'},
@@ -389,11 +340,9 @@ sub _getData
             ALLOW_URL_FOPEN         => $phpini->{'allow_url_fopen'} || 'off',
             PHP_FPM_LISTEN_PORT     => ( $phpini->{'id'} // 1 )-1,
             EXTERNAL_MAIL           => $self->{'external_mail'},
-            MAIL_ENABLED            => ( $self->{'external_mail'} eq 'off' && ( $self->{'mail_on_domain'} || $self->{'domain_mailacc_limit'} >= 0 ) )
+            MAIL_ENABLED            => $self->{'external_mail'} eq 'off' && ( $self->{'mail_on_domain'} || $self->{'domain_mailacc_limit'} >= 0 )
         }
-    } unless %{$self->{'_data'}};
-
-    $self->{'_data'};
+    };
 }
 
 =item _restoreDatabase( $dbName, $dbDumpFilePath )
@@ -408,10 +357,9 @@ sub _getData
 
 sub _restoreDatabase
 {
-    my (undef, $dbName, $dbDumpFilePath) = @_;
+    my ( $self, $dbName, $dbDumpFilePath ) = @_;
 
-    my (undef, undef, $archFormat) = fileparse( $dbDumpFilePath, qr/\.(?:bz2|gz|lzma|xz)/ );
-
+    my $archFormat = ( fileparse( $dbDumpFilePath, qr/\.(?:bz2|gz|lzma|xz)/ ) )[2];
     my $cmd;
     if ( defined $archFormat ) {
         if ( $archFormat eq '.bz2' ) {
@@ -431,7 +379,7 @@ sub _restoreDatabase
     }
 
     my @cmd = ( $cmd, escapeShell( $dbDumpFilePath ), '|', 'mysql', escapeShell( $dbName ) );
-    my $rs = execute( "@cmd", \ my $stdout, \ my $stderr );
+    my $rs = execute( "@cmd", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     $rs == 0 or die( error( sprintf( "Couldn't restore SQL database: %s", $stderr || 'Unknown error' )));
     0;

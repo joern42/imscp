@@ -1,6 +1,6 @@
 =head1 NAME
 
- Modules::Alias - i-MSCP domain alias module
+ iMSCP::Modules::Alias - i-MSCP domain alias module
 
 =cut
 # i-MSCP - internet Multi Server Control Panel
@@ -20,15 +20,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-package Modules::Alias;
+package iMSCP::Modules::Alias;
 
 use strict;
 use warnings;
 use File::Spec;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ error getLastError warning /;
 use Net::LibIDN qw/ idn_to_unicode /;
 use Servers::httpd;
-use parent 'Modules::Abstract';
+use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
@@ -40,103 +41,82 @@ use parent 'Modules::Abstract';
 
 =item getType( )
 
- Get module type
-
- Return string Module type
+ See iMSCP::Modules::Abstract::getType()
 
 =cut
 
 sub getType
 {
+    my ( $self ) = @_;
+
     'Dmn';
 }
 
 =item process( $aliasId )
 
- Process module
-
- Param int $aliasId Domain alias unique identifier
- Return int 0 on success, other on failure
+ See iMSCP::Modules::Abstract::process()
 
 =cut
 
 sub process
 {
-    my ($self, $aliasId) = @_;
+    my ( $self, $aliasId ) = @_;
 
     my $rs = $self->_loadData( $aliasId );
     return $rs if $rs;
 
     my @sql;
-    if ( $self->{'alias_status'} =~ /^to(?:add|change|enable)$/ ) {
+    if ( grep ( $self->{'alias_status'} eq $_, 'toadd', 'tochange', 'toenable' ) ) {
         $rs = $self->add();
-        @sql = ( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $aliasId );
+        @sql = (
+            'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok', $aliasId
+        );
     } elsif ( $self->{'alias_status'} eq 'todelete' ) {
         $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef,
-                ( getLastError( 'error' ) || 'Unknown error' ), $aliasId )
-            : ( 'DELETE FROM domain_aliasses WHERE alias_id = ?', undef, $aliasId );
+        @sql = $rs ? (
+            'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, getLastError( 'error' ) || 'Unknown error', $aliasId
+        ) : (
+            'DELETE FROM domain_aliasses WHERE alias_id = ?', undef, $aliasId
+        );
     } elsif ( $self->{'alias_status'} eq 'todisable' ) {
         $rs = $self->disable();
         @sql = (
-            'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $aliasId );
+            'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?',
+            undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled', $aliasId
+        );
     } elsif ( $self->{'alias_status'} eq 'torestore' ) {
         $rs = $self->restore();
         @sql = (
-            'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $aliasId
+            'UPDATE domain_aliasses SET alias_status = ? WHERE alias_id = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok', $aliasId
         );
     } else {
         warning( sprintf( 'Unknown action (%s) for domain alias (ID %d)', $self->{'alias_status'}, $aliasId ));
         return 0;
     }
 
-    local $@;
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
+    $self->{'dbh'}->do( @sql );
     $rs;
 }
 
 =item disable( )
 
- Disable domain alias
-
- Return int 0 on success, other on failure
+ See iMSCP::Modules::Abstract::disable()
 
 =cut
 
 sub disable
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    local $@;
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
+    {
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
         # Sets the status of any subdomain that belongs to this domain alias to 'todisable'.
-        $self->{'_dbh'}->do(
-            "
-                UPDATE subdomain_alias
-                SET subdomain_alias_status = 'todisable'
-                WHERE alias_id = ?
-                AND subdomain_alias_status <> 'todelete'
-            ",
+        $self->{'dbh'}->do(
+            "UPDATE subdomain_alias SET subdomain_alias_status = 'todisable' WHERE alias_id = ? AND subdomain_alias_status <> 'todelete'",
             undef, $self->{'alias_id'}
         );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
 
     $self->SUPER::disable();
@@ -159,87 +139,67 @@ sub disable
 
 sub _loadData
 {
-    my ($self, $aliasId) = @_;
+    my ( $self, $aliasId ) = @_;
 
-    local $@;
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref(
-            "
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
+
+    my $row = $self->{'dbh'}->selectrow_hashref(
+        "
                 SELECT t1.*,
-                    t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php,
-                    t2.domain_cgi, t2.web_folder_protection,
+                    t2.domain_name AS user_home, t2.domain_admin_id, t2.domain_mailacc_limit, t2.domain_php, t2.domain_cgi, t2.web_folder_protection,
                     IFNULL(t3.ip_number, '0.0.0.0') AS ip_number,
-                    t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age,
-                    t4.hsts_include_subdomains,
+                    t4.private_key, t4.certificate, t4.ca_bundle, t4.allow_hsts, t4.hsts_max_age, t4.hsts_include_subdomains,
                     t5.mail_on_domain
                 FROM domain_aliasses AS t1
                 JOIN domain AS t2 ON (t2.domain_id = t1.domain_id)
                 LEFT JOIN server_ips AS t3 ON (t3.ip_id = t1.alias_ip_id)
                 LEFT JOIN ssl_certs AS t4 ON(t4.domain_id = t1.alias_id AND t4.domain_type = 'als' AND t4.status = 'ok')
                 LEFT JOIN(
-                    SELECT sub_id, COUNT(sub_id) AS mail_on_domain
-                    FROM mail_users
-                    WHERE mail_type LIKE 'alias\\_%'
-                    GROUP BY sub_id
+                    SELECT sub_id, COUNT(sub_id) AS mail_on_domain FROM mail_users WHERE mail_type LIKE 'alias\\_%' GROUP BY sub_id
                 ) AS t5 ON (t5.sub_id = t1.alias_id)
                 WHERE t1.alias_id = ?
             ",
-            undef, $aliasId
-        );
-        $row or die( sprintf( 'Data not found for domain alias (ID %d)', $aliasId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+        undef, $aliasId
+    );
+    $row or die( sprintf( 'Data not found for domain alias (ID %d)', $aliasId ));
+    %{ $self } = ( %{ $self }, %{ $row } );
     0;
 }
 
 =item _getData( $action )
 
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data, die on failure
+ See iMSCP::Modules::Abstract::_getData()
 
 =cut
 
 sub _getData
 {
-    my ($self, $action) = @_;
+    my ( $self, $action ) = @_;
 
-    $self->{'_data'} = do {
+    $self->{'_data'} ||= do {
         my $httpd = Servers::httpd->factory();
-        my $groupName = my $userName = $main::imscpConfig{'SYSTEM_USER_PREFIX'}
-            . ( $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'domain_admin_id'} );
-        my $homeDir = File::Spec->canonpath( "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'user_home'}" );
+        my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'domain_admin_id'} );
+        my $homeDir = File::Spec->canonpath( "$::imscpConfig{'USER_WEB_DIR'}/$self->{'user_home'}" );
         my $webDir = File::Spec->canonpath( "$homeDir/$self->{'alias_mount'}" );
         my $documentRoot = File::Spec->canonpath( "$webDir/$self->{'alias_document_root'}" );
         my $confLevel = $httpd->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} eq 'per_user' ? 'dmn' : 'als';
 
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $phpini = $self->{'_dbh'}->selectrow_hashref(
-            'SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?', undef,
-            ( $confLevel eq 'dmn' ? $self->{'domain_id'} : $self->{'alias_id'} ), $confLevel
+        local $self->{'dbh'}->{'RaiseError'} = TRUE;
+        my $phpini = $self->{'dbh'}->selectrow_hashref(
+            'SELECT * FROM php_ini WHERE domain_id = ? AND domain_type = ?',
+            undef, $confLevel eq 'dmn' ? $self->{'domain_id'} : $self->{'alias_id'}, $confLevel
         ) || {};
 
-        my $haveCert = ( defined $self->{'certificate'}
-            && -f "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'alias_name'}.pem"
-        );
-        my $allowHSTS = ( $haveCert && $self->{'allow_hsts'} eq 'on' );
-        my $hstsMaxAge = ( $allowHSTS ) ? $self->{'hsts_max_age'} : 0;
-        my $hstsIncludeSubDomains = ( $allowHSTS && $self->{'hsts_include_subdomains'} eq 'on' )
-            ? '; includeSubDomains' : ( ( $allowHSTS ) ? '' : '; includeSubDomains' );
+        my $haveCert = defined $self->{'certificate'} && -f "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$self->{'alias_name'}.pem";
+        my $allowHSTS = $haveCert && $self->{'allow_hsts'} eq 'on';
+        my $hstsMaxAge = $allowHSTS ? $self->{'hsts_max_age'} : 0;
+        my $hstsIncludeSubDomains = $allowHSTS && $self->{'hsts_include_subdomains'} eq 'on'
+            ? '; includeSubDomains'
+            : ( $allowHSTS ? '' : '; includeSubDomains' );
 
         {
             ACTION                  => $action,
             STATUS                  => $self->{'alias_status'},
-            BASE_SERVER_VHOST       => $main::imscpConfig{'BASE_SERVER_VHOST'},
-            BASE_SERVER_IP          => $main::imscpConfig{'BASE_SERVER_IP'},
-            BASE_SERVER_PUBLIC_IP   => $main::imscpConfig{'BASE_SERVER_PUBLIC_IP'},
             DOMAIN_ADMIN_ID         => $self->{'domain_admin_id'},
             DOMAIN_ID               => $self->{'alias_id'},
             DOMAIN_NAME             => $self->{'alias_name'},
@@ -254,9 +214,9 @@ sub _getData
             DOCUMENT_ROOT           => $documentRoot,
             SHARED_MOUNT_POINT      => $self->_sharedMountPoint(),
             PEAR_DIR                => $httpd->{'phpConfig'}->{'PHP_PEAR_DIR'},
-            TIMEZONE                => $main::imscpConfig{'TIMEZONE'},
-            USER                    => $userName,
-            GROUP                   => $groupName,
+            TIMEZONE                => $::imscpConfig{'TIMEZONE'},
+            USER                    => $usergroup,
+            GROUP                   => $usergroup,
             PHP_SUPPORT             => $self->{'domain_php'},
             CGI_SUPPORT             => $self->{'domain_cgi'},
             WEB_FOLDER_PROTECTION   => $self->{'web_folder_protection'},
@@ -278,11 +238,9 @@ sub _getData
             ALLOW_URL_FOPEN         => $phpini->{'allow_url_fopen'} || 'off',
             PHP_FPM_LISTEN_PORT     => ( $phpini->{'id'} // 1 )-1,
             EXTERNAL_MAIL           => $self->{'external_mail'},
-            MAIL_ENABLED            => ( $self->{'external_mail'} eq 'off' && ( $self->{'mail_on_domain'} || $self->{'domain_mailacc_limit'} >= 0 ) )
+            MAIL_ENABLED            => $self->{'external_mail'} eq 'off' && ( $self->{'mail_on_domain'} || $self->{'domain_mailacc_limit'} >= 0 )
         }
-    } unless %{$self->{'_data'}};
-
-    $self->{'_data'};
+    };
 }
 
 =item _sharedMountPoint( )
@@ -295,12 +253,12 @@ sub _getData
 
 sub _sharedMountPoint
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    local $self->{'_dbh'}->{'RaiseError'} = 1;
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
 
     my $regexp = "^$self->{'alias_mount'}(/.*|\$)";
-    my ($nbSharedMountPoints) = $self->{'_dbh'}->selectrow_array(
+    my ( $nbSharedMountPoints ) = $self->{'dbh'}->selectrow_array(
         "
             SELECT COUNT(mount_point) AS nb_mount_points FROM (
                 SELECT alias_mount AS mount_point FROM domain_aliasses
@@ -322,11 +280,10 @@ sub _sharedMountPoint
                 AND subdomain_alias_mount RLIKE ?
             ) AS tmp
         ",
-        undef, $self->{'alias_id'}, $self->{'domain_id'}, $regexp, $self->{'domain_id'}, $regexp, $self->{'domain_id'},
-        $regexp
+        undef, $self->{'alias_id'}, $self->{'domain_id'}, $regexp, $self->{'domain_id'}, $regexp, $self->{'domain_id'}, $regexp
     );
 
-    ( $nbSharedMountPoints || $self->{'alias_mount'} eq '/' );
+    !!( $nbSharedMountPoints || $self->{'alias_mount'} eq '/' );
 }
 
 =back

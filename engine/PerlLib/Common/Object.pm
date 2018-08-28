@@ -45,9 +45,9 @@ use warnings;
 
 sub new
 {
-    my ($class, @attrs) = @_;
+    my ( $class, @attrs ) = @_;
 
-    my $self = bless { @attrs && ref $attrs[0] eq 'HASH' ? %{$attrs[0]} : @attrs }, $class;
+    my $self = bless { @attrs && ref $attrs[0] eq 'HASH' ? %{ $attrs[0] } : @attrs }, $class;
     $self->_init();
     $self;
 }
@@ -68,7 +68,7 @@ sub new
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self;
 }

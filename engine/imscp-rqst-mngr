@@ -32,9 +32,10 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/PerlLib", "$FindBin::Bin/PerlVendor";
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::DbTasksProcessor;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug newDebug setVerbose /;
 use iMSCP::Getopt;
 
 $ENV{'LANG'} = 'C.UTF-8';
@@ -57,7 +58,7 @@ setVerbose( iMSCP::Getopt->verbose );
 
 iMSCP::Bootstrapper->getInstance()->boot( {
     mode            => 'backend',
-    config_readonly => 1
+    config_readonly => TRUE
 } );
 iMSCP::DbTasksProcessor->getInstance( mode => 'backend' )->processDbTasks();
 

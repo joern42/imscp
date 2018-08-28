@@ -45,19 +45,19 @@ use warnings;
 
 sub getInstance
 {
-    my ($class, @attrs) = @_;
+    my ( $class, @attrs ) = @_;
 
     return $class if ref $class;
 
     no strict 'refs';
-    my $instance = \${"${class}::_instance"};
+    my $instance = \${ "${class}::_instance" };
 
-    unless ( defined ${$instance} ) {
-        ${$instance} = bless { @attrs && ref $attrs[0] eq 'HASH' ? %{$attrs[0]} : @attrs }, $class;
-        ${$instance}->_init();
+    unless ( defined ${ $instance } ) {
+        ${ $instance } = bless { @attrs && ref $attrs[0] eq 'HASH' ? %{ $attrs[0] } : @attrs }, $class;
+        ${ $instance }->_init();
     }
 
-    ${$instance};
+    ${ $instance };
 }
 
 =back
@@ -76,7 +76,7 @@ sub getInstance
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self;
 }

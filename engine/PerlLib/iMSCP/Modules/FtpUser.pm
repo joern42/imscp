@@ -1,6 +1,6 @@
 =head1 NAME
 
- Modules::FtpUser - i-MSCP FtpUser module
+ iMSCP::Modules::FtpUser - i-MSCP FtpUser module
 
 =cut
 
@@ -21,12 +21,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-package Modules::FtpUser;
+package iMSCP::Modules::FtpUser;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ error getLastError warning /;
-use parent 'Modules::Abstract';
+use parent 'iMSCP::Modules::Abstract';
 
 =head1 DESCRIPTION
 
@@ -38,63 +39,55 @@ use parent 'Modules::Abstract';
 
 =item getType( )
 
- Get module type
-
- Return string Module type
+ See iMSCP::Modules::Abstract::getType()
 
 =cut
 
 sub getType
 {
+    my ( $self ) = @_;
+
     'FtpUser';
 }
 
 =item process( $ftpUserId )
 
- Process module
-
- Param int ftpUserId Ftp user unique identifier
- Return int 0 on success, other on failure
+ See iMSCP::Modules::Abstract::process()
 
 =cut
 
 sub process
 {
-    my ($self, $ftpUserId) = @_;
+    my ( $self, $ftpUserId ) = @_;
 
     my $rs = $self->_loadData( $ftpUserId );
     return $rs if $rs;
 
     my @sql;
-    if ( $self->{'status'} =~ /^to(?:add|change|enable)$/ ) {
+    if ( grep ( $self->{'status'} eq $_, 'toadd', 'tochange', 'toenable' ) ) {
         $rs = $self->add();
-        @sql = ( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok' ), $ftpUserId );
+        @sql = (
+            'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'ok', $ftpUserId
+        );
     } elsif ( $self->{'status'} eq 'todisable' ) {
         $rs = $self->disable();
-        @sql = ( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef,
-            ( $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled' ), $ftpUserId );
+        @sql = (
+            'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, $rs ? getLastError( 'error' ) || 'Unknown error' : 'disabled', $ftpUserId
+        );
     } elsif ( $self->{'status'} eq 'todelete' ) {
         $rs = $self->delete();
-        @sql = $rs
-            ? ( 'UPDATE ftp_users SET status = ? WHERE userid = ?', undef,
-                ( getLastError( 'error' ) || 'Unknown error' ), $ftpUserId )
-            : ( 'DELETE FROM ftp_users WHERE userid = ?', undef, $ftpUserId );
+        @sql = $rs ? (
+            'UPDATE ftp_users SET status = ? WHERE userid = ?', undef, getLastError( 'error' ) || 'Unknown error', $ftpUserId
+        ) : (
+            'DELETE FROM ftp_users WHERE userid = ?', undef, $ftpUserId
+        );
     } else {
         warning( sprintf( 'Unknown action (%s) for ftp user (ID %d)', $self->{'status'}, $ftpUserId ));
         return 0;
     }
 
-    local $@;
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        $self->{'_dbh'}->do( @sql );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
+    $self->{'dbh'}->do( @sql );
     $rs;
 }
 
@@ -115,40 +108,27 @@ sub process
 
 sub _loadData
 {
-    my ($self, $ftpUserId) = @_;
+    my ( $self, $ftpUserId ) = @_;
 
-    local $@;
-    eval {
-        local $self->{'_dbh'}->{'RaiseError'} = 1;
-        my $row = $self->{'_dbh'}->selectrow_hashref( 'SELECT * FROM ftp_users WHERE userid = ?', undef, $ftpUserId );
-        $row or die( sprintf( 'Data not found for ftp user (ID %d)', $ftpUserId ));
-        %{$self} = ( %{$self}, %{$row} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    local $self->{'dbh'}->{'RaiseError'} = TRUE;
+    my $row = $self->{'dbh'}->selectrow_hashref( 'SELECT * FROM ftp_users WHERE userid = ?', undef, $ftpUserId );
+    $row or die( sprintf( 'Data not found for ftp user (ID %d)', $ftpUserId ));
+    %{ $self } = ( %{ $self }, %{ $row } );
     0;
 }
 
 =item _getData( $action )
 
- Data provider method for servers and packages
-
- Param string $action Action
- Return hashref Reference to a hash containing data
+ See iMSCP::Modules::Abstract::_getData()
 
 =cut
 
 sub _getData
 {
-    my ($self, $action) = @_;
+    my ( $self, $action ) = @_;
 
-    $self->{'_data'} = do {
-        my $userName = my $groupName = $main::imscpConfig{'SYSTEM_USER_PREFIX'} . (
-            $main::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'admin_id'}
-        );
+    $self->{'_data'} ||= do {
+        my $usergroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . ( $::imscpConfig{'SYSTEM_USER_MIN_UID'}+$self->{'admin_id'} );
 
         {
             ACTION         => $action,
@@ -161,12 +141,10 @@ sub _getData
             HOMEDIR        => $self->{'homedir'},
             USER_SYS_GID   => $self->{'uid'},
             USER_SYS_GID   => $self->{'gid'},
-            USER_SYS_NAME  => $userName,
-            USER_SYS_GNAME => $groupName
+            USER_SYS_NAME  => $usergroup,
+            USER_SYS_GNAME => $usergroup
         }
-    } unless %{$self->{'_data'}};
-
-    $self->{'_data'};
+    };
 }
 
 =back
