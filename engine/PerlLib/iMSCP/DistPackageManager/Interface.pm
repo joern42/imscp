@@ -34,7 +34,7 @@ use warnings;
 
 =over 4
 
-=item addRepositories( \@repositories )
+=item addRepositories( \@repositories [, $delayed = FALSE ] )
 
  Add the given distribution repositories
 
@@ -54,7 +54,7 @@ sub addRepositories
     die( sprintf( 'The %s class must implement the addRepositories() method', ref $self ));
 }
 
-=item removeRepositories( \@repositories )
+=item removeRepositories( \@repositories [, $delayed = FALSE ] )
 
  Remove the given distribution repositories
 
@@ -74,7 +74,7 @@ sub removeRepositories
     die( sprintf( 'The %s class must implement the removeRepositories() method', ref $self ));
 }
 
-=item installPackages( \@packages )
+=item installPackages( \@packages [, $delayed = FALSE ] )
 
  Install the given distribution packages
 
@@ -94,7 +94,7 @@ sub installPackages
     die( sprintf( 'The %s class must implement the installPackages() method', ref $self ));
 }
 
-=item uninstallPackages( \@packages )
+=item uninstallPackages( \@packages [, $delayed = FALSE ] )
 
  Uninstall the given distribution packages
 
@@ -127,6 +127,21 @@ sub updateRepositoryIndexes
     my ( $self ) = @_;
 
     die( sprintf( 'The %s class must implement the updateRepositoryIndexes() method', ref $self ));
+}
+
+=item processDelayedTasks( )
+
+ Process delayed tasks if any
+
+ Return iMSCP::DistPackageManager::Interface, die on failure
+
+=cut
+
+sub processDelayedTasks
+{
+    my ( $self ) = @_;
+
+    die( sprintf( 'The %s class must implement the processDelayedTasks() method', ref $self ));
 }
 
 =back

@@ -27,17 +27,15 @@ use strict;
 use warnings;
 use File::Basename;
 use iMSCP::Boolean;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList isValidEmail isValidHostname /;
 use iMSCP::Dir;
-use iMSCP::EventManager;
-use iMSCP::Execute;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
 use iMSCP::ProgramFinder;
 use iMSCP::Service;
-use iMSCP::TemplateParser;
 use iMSCP::Umask;
 use List::MoreUtils qw/ uniq /;
 use Servers::named::bind;
@@ -53,35 +51,76 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( $eventManager )
+=item registerInstallerDialogs( $dialogs )
 
- Register setup event listeners
-
- Param iMSCP::EventManager $eventManager
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
 
 =cut
 
-sub registerSetupListeners
+sub registerInstallerDialogs
 {
-    my ( $self, $eventManager ) = @_;
+    my ( $self, $dialogs ) = @_;
 
-    $eventManager->register(
-        'beforeSetupDialog',
-        sub {
-            push @{ $_[0] },
-                sub { $self->askForDnsServerType( @_ ) },
-                sub { $self->askForDnsIPv6Support( @_ ) },
-                sub { $self->askForMasterDnsServer( @_ ) },
-                sub { $self->askForMasterDnsServerIpPolicy( @_ ) },
-                sub { $self->askForSlaveDnsServers( @_ ) },
-                sub { $self->askForLocalDnsResolver( @_ ) };
-            0;
-        }
-    );
+    push @{ $dialogs },
+        sub { $self->_askForDnsServerType( @_ ) },
+        sub { $self->_askForDnsIPv6Support( @_ ) },
+        sub { $self->_askForMasterDnsServer( @_ ) },
+        sub { $self->_askForMasterDnsServerIpPolicy( @_ ) },
+        sub { $self->_askForSlaveDnsServers( @_ ) },
+        sub { $self->_askForLocalDnsResolver( @_ ) };
+    0;
 }
 
-=item askForDnsServerType( $dialog )
+=item install( )
+
+ See iMSCP::AbstractInstallerActions::install()
+
+=cut
+
+sub install
+{
+    my ( $self ) = @_;
+
+    for my $conffile ( 'BIND_CONF_DEFAULT_FILE', 'BIND_CONF_FILE', 'BIND_LOCAL_CONF_FILE', 'BIND_OPTIONS_CONF_FILE' ) {
+        if ( $self->{'config'}->{$conffile} ne '' ) {
+            my $rs = $self->_bkpConfFile( $self->{'config'}->{$conffile} );
+            return $rs if $rs;
+        }
+    }
+
+    my $rs = $self->_makeDirs();
+    $rs ||= $self->_buildConf();
+    $rs ||= $self->_oldEngineCompatibility();
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _init( )
+
+ Initialize instance
+
+ Return Servers::named::bind::installer
+
+=cut
+
+sub _init
+{
+    my ( $self ) = @_;
+
+    $self->{'named'} = Servers::named::bind->getInstance();
+    $self->{'eventManager'} = $self->{'named'}->{'eventManager'};
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/bind";
+    $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
+    $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
+    $self->{'config'} = $self->{'named'}->{'config'};
+    $self;
+}
+
+=item _askForDnsServerType( $dialog )
 
  Ask for the DNS server type to configure
 
@@ -90,7 +129,7 @@ sub registerSetupListeners
 
 =cut
 
-sub askForDnsServerType
+sub _askForDnsServerType
 {
     my ( $self, $dialog ) = @_;
 
@@ -114,7 +153,7 @@ EOF
     0;
 }
 
-=item askForDnsIPv6Support( $dialog )
+=item _askForDnsIPv6Support( $dialog )
 
  Ask for DNS IPv6 support
 
@@ -123,7 +162,7 @@ EOF
 
 =cut
 
-sub askForDnsIPv6Support
+sub _askForDnsIPv6Support
 {
     my ( $self, $dialog ) = @_;
 
@@ -151,7 +190,7 @@ EOF
     0;
 }
 
-=item askForMasterDnsServerIpPolicy( $dialog )
+=item _askForMasterDnsServerIpPolicy( $dialog )
 
  Ask for master DNS server IP addresses policy
 
@@ -160,7 +199,7 @@ EOF
 
 =cut
 
-sub askForMasterDnsServerIpPolicy
+sub _askForMasterDnsServerIpPolicy
 {
     my ( $self, $dialog ) = @_;
 
@@ -189,7 +228,7 @@ EOF
     0;
 }
 
-=item askForMasterDnsServer( $dialog )
+=item _askForMasterDnsServer( $dialog )
 
  Ask for master name server IP addresses and names (depending of nameserver type)
  
@@ -198,7 +237,7 @@ EOF
 
 =cut
 
-sub askForMasterDnsServer
+sub _askForMasterDnsServer
 {
     my ( $self, $dialog ) = @_;
 
@@ -210,10 +249,10 @@ sub askForMasterDnsServer
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'named_master', 'named', 'alternatives', 'all' ] )
         # Not configured yet, badly configured, invalid IP address(s) or invalid name(s)
         || ( $type eq 'master' && (
-            !@ips || !@names || !length $email || ( $email ne 'none' && !isValidEmail( $email ) )
-            || @ips != @names || ( $ips[0] eq 'none' && $names[0] ne 'none' ) || ( $ips[0] ne 'none' && @names eq 'none' )  
+        !@ips || !@names || !length $email || ( $email ne 'none' && !isValidEmail( $email ) )
+            || @ips != @names || ( $ips[0] eq 'none' && $names[0] ne 'none' ) || ( $ips[0] ne 'none' && @names eq 'none' )
             || ( $ips[0] ne 'none' && !$self->_checkIpAdresses( @ips ) ) || ( $ips[0] ne 'none' && grep ( isValidHostname( $_ ), @names) < @names )
-        ) )
+    ) )
         # Not configured yet, badly configured or invalid IP address(es)
         || ( $type eq 'slave' && ( !@ips || @names || $ips[0] eq 'none' || !$self->_checkIpAdresses( @ips ) ) )
     ) {
@@ -345,7 +384,7 @@ EOF
     0;
 }
 
-=item askForSlaveDnsServers( $dialog )
+=item _askForSlaveDnsServers( $dialog )
 
  Ask for the slave DNS server IP addresses
 
@@ -354,7 +393,7 @@ EOF
  
 =cut
 
-sub askForSlaveDnsServers
+sub _askForSlaveDnsServers
 {
     my ( $self, $dialog ) = @_;
 
@@ -463,7 +502,7 @@ EOF
     0;
 }
 
-=item askForLocalDnsResolver( $dialog )
+=item _askForLocalDnsResolver( $dialog )
 
  Ask for local DNS resolver
 
@@ -472,7 +511,7 @@ EOF
 
 =cut
 
-sub askForLocalDnsResolver
+sub _askForLocalDnsResolver
 {
     my ( $self, $dialog ) = @_;
 
@@ -492,57 +531,6 @@ EOF
     $self->{'config'}->{'LOCAL_DNS_RESOLVER'} = $value;
     ::setupSetQuestion( 'LOCAL_DNS_RESOLVER', $value );
     0;
-}
-
-=item install( )
-
- Process install tasks
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub install
-{
-    my ( $self ) = @_;
-
-    for my $conffile ( 'BIND_CONF_DEFAULT_FILE', 'BIND_CONF_FILE', 'BIND_LOCAL_CONF_FILE', 'BIND_OPTIONS_CONF_FILE' ) {
-        if ( $self->{'config'}->{$conffile} ne '' ) {
-            my $rs = $self->_bkpConfFile( $self->{'config'}->{$conffile} );
-            return $rs if $rs;
-        }
-    }
-
-    my $rs = $self->_makeDirs();
-    $rs ||= $self->_buildConf();
-    $rs ||= $self->_oldEngineCompatibility();
-}
-
-=back
-
-=head1 PRIVATE METHODS
-
-=over 4
-
-=item _init( )
-
- Initialize instance
-
- Return Servers::named::bind::installer
-
-=cut
-
-sub _init
-{
-    my ( $self ) = @_;
-
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'named'} = Servers::named::bind->getInstance();
-    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/bind";
-    $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
-    $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
-    $self->{'config'} = $self->{'named'}->{'config'};
-    $self;
 }
 
 =item _bkpConfFile($cfgFile)
@@ -580,7 +568,7 @@ sub _bkpConfFile
 
  Create directories
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -596,11 +584,11 @@ sub _makeDirs
     my $rs = $self->{'eventManager'}->trigger( 'beforeNamedMakeDirs', \@directories );
     return $rs if $rs;
 
-    for my $directory ( @directories ) {
-        iMSCP::Dir->new( dirname => $directory->[0] )->make( {
-            user  => $directory->[1],
-            group => $directory->[2],
-            mode  => $directory->[3]
+    for my $dir ( @directories ) {
+        iMSCP::Dir->new( dirname => $dir->[0] )->make( {
+            user  => $dir->[1],
+            group => $dir->[2],
+            mode  => $dir->[3]
         } );
     }
 
@@ -633,10 +621,7 @@ sub _buildConf
 
         unless ( defined $tplContent ) {
             $tplContent = iMSCP::File->new( filename => $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} )->get();
-            unless ( defined $tplContent ) {
-                error( sprintf( "Couldn't read %s file", $self->{'config'}->{'BIND_CONF_DEFAULT_FILE'} ));
-                return 1;
-            }
+            return 1 unless defined $tplContent;
         }
 
         # Enable/disable local DNS resolver
@@ -681,10 +666,7 @@ sub _buildConf
 
         unless ( defined $tplContent ) {
             $tplContent = iMSCP::File->new( filename => "$self->{'cfgDir'}/$tplName" )->get();
-            unless ( defined $tplContent ) {
-                error( sprintf( "Couldn't read %s file", "$self->{'cfgDir'}/$tplName" ));
-                return 1;
-            }
+            return 1 unless defined $tplContent;
         }
 
         if ( $self->{'config'}->{'BIND_IPV6'} eq 'no' ) {
@@ -697,10 +679,6 @@ sub _buildConf
             return 1;
         }
 
-        if ( version->parse( $namedVersion ) >= version->parse( '9.9.3' ) ) {
-            $tplContent =~ s%//\s+(check-spf\s+ignore;)%$1%;
-        }
-
         $rs = $self->{'eventManager'}->trigger( 'afterNamedBuildConf', \$tplContent, $tplName );
         return $rs if $rs;
 
@@ -708,7 +686,6 @@ sub _buildConf
         $file->set( $tplContent );
 
         local $UMASK = 027;
-
         $rs = $file->save();
         $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
         $rs ||= $file->mode( 0640 );
@@ -724,10 +701,7 @@ sub _buildConf
 
         unless ( defined $tplContent ) {
             $tplContent = iMSCP::File->new( filename => "$self->{'cfgDir'}/$tplName" )->get();
-            unless ( defined $tplContent ) {
-                error( sprintf( "Couldn't read %s file", "$self->{'cfgDir'}/$tplName" ));
-                return 1;
-            }
+            return 1 unless defined $tplContent;
         }
 
         unless ( -f "$self->{'config'}->{'BIND_CONF_DIR'}/bind.keys" ) {
@@ -741,7 +715,6 @@ sub _buildConf
         $file->set( $tplContent );
 
         local $UMASK = 027;
-
         $rs = $file->save();
         $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
         $rs ||= $file->mode( 0640 );
@@ -749,36 +722,30 @@ sub _buildConf
         return $rs if $rs;
     }
 
+    return 0 unless $self->{'config'}->{'BIND_LOCAL_CONF_FILE'};
+
     # local conffile
-    if ( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} ) {
-        my $tplName = basename( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} );
-        my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind', $tplName, \my $tplContent, {} );
-        return $rs if $rs;
 
-        unless ( defined $tplContent ) {
-            $tplContent = iMSCP::File->new( filename => "$self->{'cfgDir'}/$tplName" )->get();
-            unless ( defined $tplContent ) {
-                error( sprintf( "Couldn't read %s file", "$self->{'cfgDir'}/$tplName" ));
-                return 1;
-            }
-        }
+    my $tplName = basename( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} );
+    my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'bind', $tplName, \my $tplContent, {} );
+    return $rs if $rs;
 
-        $rs = $self->{'eventManager'}->trigger( 'afterNamedBuildConf', \$tplContent, $tplName );
-        return $rs if $rs;
-
-        my $file = iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" );
-        $file->set( $tplContent );
-
-        local $UMASK = 027;
-
-        $rs = $file->save();
-        $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
-        $rs ||= $file->mode( 0640 );
-        $rs ||= $file->copyFile( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} );
-        return $rs if $rs;
+    unless ( defined $tplContent ) {
+        $tplContent = iMSCP::File->new( filename => "$self->{'cfgDir'}/$tplName" )->get();
+        return 1 unless defined $tplContent;
     }
 
-    0;
+    $rs = $self->{'eventManager'}->trigger( 'afterNamedBuildConf', \$tplContent, $tplName );
+    return $rs if $rs;
+
+    my $file = iMSCP::File->new( filename => "$self->{'wrkDir'}/$tplName" );
+    $file->set( $tplContent );
+
+    local $UMASK = 027;
+    $rs = $file->save();
+    $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'BIND_GROUP'} );
+    $rs ||= $file->mode( 0640 );
+    $rs ||= $file->copyFile( $self->{'config'}->{'BIND_LOCAL_CONF_FILE'} );
 }
 
 =item _checkIpAdresses( @ips)
@@ -817,10 +784,11 @@ sub _getReverseDNS
 {
     my ( $ipAddress ) = @_;
 
-    my $sockAddr = iMSCP::Net->getInstance()->getAddrVersion( $ipAddress ) eq 'ipv4'
-        ? sockaddr_in( 0, inet_pton( AF_INET, $ipAddress ))
-        : sockaddr_in6( 0, inet_pton( AF_INET6, $ipAddress ));
-    ( getnameinfo( $sockAddr ) )[1] || '';
+    eval {
+        my $sockAddr = iMSCP::Net->getInstance()->getAddrVersion( $ipAddress ) eq 'ipv4'
+            ? sockaddr_in( 0, inet_pton( AF_INET, $ipAddress )) : sockaddr_in6( 0, inet_pton( AF_INET6, $ipAddress ));
+        ( getnameinfo( $sockAddr ) )[1] || '';
+    } || '';
 }
 
 =item _getVersion( )
@@ -850,7 +818,7 @@ sub _getVersion
 
  Remove old files
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 

@@ -26,16 +26,16 @@ package Servers::sqld::mysql;
 use strict;
 use warnings;
 use Class::Autouse qw/ :nostat Servers::sqld::mysql::installer Servers::sqld::mysql::uninstaller /;
+use iMSCP::Boolean;
 use iMSCP::Config;
-use iMSCP::Database;
-use iMSCP::Debug;
-use iMSCP::EventManager;
-use iMSCP::Execute;
+use iMSCP::Debug qw/ debug error getMessageByType /;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
-use iMSCP::Rights;
+use iMSCP::Getopt;
+use iMSCP::Rights qw/ setRights /;
 use iMSCP::Service;
 use version;
-use parent 'Common::SingletonClass';
+use parent 'Servers::abstract';
 
 =head1 DESCRIPTION
 
@@ -45,33 +45,28 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( $eventManager )
+=item registerInstallerDialogs( $dialogs )
 
- Register setup event listeners
-
- Param iMSCP::EventManager $eventManager
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
 
 =cut
 
-sub registerSetupListeners
+sub registerInstallerDialogs
 {
-    my (undef, $eventManager) = @_;
+    my ( $self, $dialogs ) = @_;
 
-    Servers::sqld::mysql::installer->getInstance()->registerSetupListeners( $eventManager );
+    Servers::sqld::mysql::installer->getInstance()->registerInstallerDialogs( $dialogs );
 }
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::preinstall()
 
 =cut
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldPreinstall', 'mysql' );
     $rs ||= Servers::sqld::mysql::installer->getInstance()->preinstall();
@@ -80,30 +75,23 @@ sub preinstall
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::postinstall()
 
 =cut
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldPostInstall', 'mysql' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->enable( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( 'mysql' );
 
     $rs = $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->restart(); }, 'MySQL' ];
+            push @{ $_[0] }, [ sub { $self->restart(); }, 'MySQL' ];
             0;
         },
         7
@@ -113,15 +101,13 @@ sub postinstall
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldUninstall', 'mysql' );
     $rs ||= Servers::sqld::mysql::uninstaller->getInstance()->uninstall();
@@ -132,33 +118,25 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- Set engine permissions
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::setEnginePermissions()
 
 =cut
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldSetEnginePermissions' );
-    $rs ||= setRights(
-        "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf",
-        {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => '0644'
-        }
-    );
-    $rs ||= setRights(
-        "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf",
-        {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $self->{'config'}->{'SQLD_GROUP'},
-            mode  => '0640'
-        }
-    );
+    $rs ||= setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0644'
+    } );
+    $rs ||= setRights( "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $self->{'config'}->{'SQLD_GROUP'},
+        mode  => '0640'
+    } );
     $rs ||= $self->{'eventManager'}->trigger( 'afterSqldSetEnginePermissions' );
 }
 
@@ -166,23 +144,18 @@ sub setEnginePermissions
 
  Restart server
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldRestart' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->restart( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->restart( 'mysql' );
 
     $self->{'eventManager'}->trigger( 'afterSqldRestart' );
 }
@@ -200,18 +173,18 @@ sub restart
 
 sub createUser
 {
-    my ($self, $user, $host, $password) = @_;
+    my ( $self, $user, $host, $password ) = @_;
 
     defined $user or die( '$user parameter is not defined' );
     defined $host or die( '$host parameter is not defined' );
     defined $password or die( '$password parameter is not defined' );
 
     eval {
-        my $dbh = iMSCP::Database->factory()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        $dbh->do(
-            'CREATE USER ?@? IDENTIFIED BY ?'
-                . ( version->parse( $self->getVersion()) >= version->parse( '5.7.6' ) ? ' PASSWORD EXPIRE NEVER' : '' ),
+        my $rdbh = $self->{'dbh'}->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
+
+        $rdbh->do(
+            'CREATE USER ?@? IDENTIFIED BY ?' . ( version->parse( $self->getVersion()) >= version->parse( '5.7.6' ) ? ' PASSWORD EXPIRE NEVER' : '' ),
             undef, $user, $host, $password
         );
     };
@@ -231,21 +204,19 @@ sub createUser
 
 sub dropUser
 {
-    my (undef, $user, $host) = @_;
+    my ( $self, $user, $host ) = @_;
 
     defined $user or die( '$user parameter not defined' );
     defined $host or die( '$host parameter not defined' );
 
     return 0 if $user =~ /^(?:debian-sys-maint|mysql\.sys|root)$/; # Prevent deletion of system SQL users
 
-    local $@;
     eval {
-        my $dbh = iMSCP::Database->factory()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        return unless $dbh->selectrow_hashref(
-            'SELECT 1 FROM mysql.user WHERE user = ? AND host = ?', undef, $user, $host
-        );
-        $dbh->do( 'DROP USER ?@?', undef, $user, $host );
+        my $rdbh = $self->{'dbh'}->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
+
+        return unless $rdbh->selectrow_hashref( 'SELECT 1 FROM mysql.user WHERE user = ? AND host = ?', undef, $user, $host );
+        $rdbh->do( 'DROP USER ?@?', undef, $user, $host );
     };
     !$@ or die( sprintf( "Couldn't drop the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;
@@ -261,7 +232,7 @@ sub dropUser
 
 sub getType
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'SQLD_TYPE'};
 }
@@ -276,7 +247,7 @@ sub getType
 
 sub getVersion
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'config'}->{'SQLD_VERSION'};
 }
@@ -297,16 +268,18 @@ sub getVersion
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/mysql";
-    $self->_mergeConfig() if -f "$self->{'cfgDir'}/mysql.data.dist";
-    tie %{$self->{'config'}},
+    $self->SUPER::_init();
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/mysql";
+
+    $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/mysql.data.dist";
+    tie %{ $self->{'config'} },
         'iMSCP::Config',
         fileName    => "$self->{'cfgDir'}/mysql.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => ( defined $main::execmode && $main::execmode eq 'setup' );
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer';
+
     $self;
 }
 
@@ -320,15 +293,14 @@ sub _init
 
 sub _mergeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     if ( -f "$self->{'cfgDir'}/mysql.data" ) {
         tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/mysql.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/mysql.data", readonly => 1;
-
+        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/mysql.data", readonly => TRUE;
         debug( 'Merging old configuration with new configuration...' );
 
-        while ( my ($key, $value) = each( %oldConfig ) ) {
+        while ( my ( $key, $value ) = each( %oldConfig ) ) {
             next unless exists $newConfig{$key};
             $newConfig{$key} = $value;
         }
@@ -337,10 +309,8 @@ sub _mergeConfig
         untie( %oldConfig );
     }
 
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/mysql.data.dist" )->moveFile(
-        "$self->{'cfgDir'}/mysql.data"
-    ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/mysql.data.dist" )->moveFile( "$self->{'cfgDir'}/mysql.data" ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 }
 

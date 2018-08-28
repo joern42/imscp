@@ -25,9 +25,8 @@ package Servers::po::dovecot::uninstaller;
 
 use strict;
 use warnings;
-use iMSCP::Config;
-use iMSCP::Execute;
 use iMSCP::File;
+use iMSCP::Getopt;
 use Servers::mta;
 use Servers::po::dovecot;
 use Servers::sqld;
@@ -43,25 +42,20 @@ use parent 'Common::SingletonClass';
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, die on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # In setup context, processing must be delayed, else we won't be able to connect to SQL server
-    if ( $main::execmode eq 'setup' ) {
-        return iMSCP::EventManager->getInstance()->register(
-            'afterSqldPreinstall',
-            sub {
-                my $rs ||= $self->_dropSqlUser();
-                $rs ||= $self->_removeConfig();
-            }
-        );
+    if ( iMSCP::Getopt->context() eq 'installer' ) {
+        return $self->{'eventManager'}->register( 'afterSqldPreinstall', sub {
+            my $rs ||= $self->_dropSqlUser();
+            $rs ||= $self->_removeConfig();
+        } );
     }
 
     my $rs = $self->_dropSqlUser();
@@ -84,9 +78,10 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'po'} = Servers::po::dovecot->getInstance();
+    $self->{'eventManager'} = $self->{'po'}->{'eventManager'};
     $self->{'mta'} = Servers::mta->factory();
     $self->{'cfgDir'} = $self->{'po'}->{'cfgDir'};
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
@@ -98,27 +93,20 @@ sub _init
 
  Drop SQL user
 
- Return int 0 on success, 1 on failure
+ Return int 0 on success, die on failure
 
 =cut
 
 sub _dropSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # In setup context, take value from old conffile, else take value from current conffile
-    my $dbUserHost = ( $main::execmode eq 'setup' )
-        ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
+    my $dbUserHost = iMSCP::Getopt->context() eq 'installer' ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
     return 0 unless $self->{'config'}->{'DATABASE_USER'} && $dbUserHost;
 
-    local $@;
-    eval { Servers::sqld->factory()->dropUser( $self->{'config'}->{'DATABASE_USER'}, $dbUserHost ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    Servers::sqld->factory()->dropUser( $self->{'config'}->{'DATABASE_USER'}, $dbUserHost );
     0;
 }
 
@@ -132,24 +120,22 @@ sub _dropSqlUser
 
 sub _removeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return 0 unless -d $self->{'config'}->{'DOVECOT_CONF_DIR'};
 
-    for ( 'dovecot.conf', 'dovecot-sql.conf' ) {
-        next unless -f "$self->{'bkpDir'}/$_.system";
+    for my $file ( 'dovecot.conf', 'dovecot-sql.conf' ) {
+        next unless -f "$self->{'bkpDir'}/$file.system";
 
-        my $rs = iMSCP::File->new( filename => "$self->{'bkpDir'}/$_.system" )->copyFile(
-            "$self->{'config'}->{'DOVECOT_CONF_DIR'}/$_", { preserve => 'no' }
+        my $rs = iMSCP::File->new( filename => "$self->{'bkpDir'}/$file.system" )->copyFile(
+            "$self->{'config'}->{'DOVECOT_CONF_DIR'}/$file", { preserve => 'no' }
         );
         return $rs if $rs;
     }
 
     if ( -f "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-sql.conf" ) {
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-sql.conf" );
-        my $rs ||= $file->owner(
-            $main::imscpConfig{'ROOT_USER'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'}
-        );
+        my $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'} );
         $rs ||= $file->mode( 0644 );
     }
 

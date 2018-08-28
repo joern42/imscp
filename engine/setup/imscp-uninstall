@@ -38,10 +38,10 @@ use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Database;
 use iMSCP::DbTasksProcessor;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ error newDebug /;
 use iMSCP::Dialog;
 use iMSCP::Dir;
-use iMSCP::Execute;
+use iMSCP::DistPackageManager;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Packages;
@@ -49,20 +49,20 @@ use iMSCP::Servers;
 use iMSCP::Service;
 use iMSCP::Stepper;
 use iMSCP::SystemUser;
-use Servers::sqld;
+
 use Servers::sqld;
 
 $ENV{'LANG'} = 'C.UTF-8';
 $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
-# Set execution mode
-$::execmode = 'uninstaller' unless defined $::execmode;
+# Set execution context
+iMSCP::Getopt->context( 'uninstaller' );
 
 newDebug( 'imscp-uninstall.log' );
 
 sub startUp
 {
-    iMSCP::Getopt->debug( 1 ); # Enforce debug mode (logs)
+    iMSCP::Getopt->debug( TRUE ); # Force debug mode (logs)
     iMSCP::Bootstrapper->getInstance()->boot();
     0;
 }
@@ -71,30 +71,24 @@ sub process
 {
     _userDialog();
 
-    local $@;
-    my $row = eval {
-        my $dbh = iMSCP::Database->factory()->getRawDb();
-        local $dbh->{'RaiseError'} = TRUE;
-        $dbh->selectrow_hashref( "SELECT 1 FROM plugin WHERE plugin_status <> 'uninstalled'" );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    } elsif ( $row ) {
-        iMSCP::Dialog->getInstance()->infobox( <<'EOF' );
+    {
+        my $rdbh = iMSCP::Database->factory()->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
+
+        my $row = $rdbh->selectrow_hashref( "SELECT 1 FROM plugin WHERE plugin_status <> 'uninstalled'" );
+        if ( $row ) {
+            iMSCP::Dialog->getInstance()->infobox( <<'EOF' );
 \Z1Uninstallation aborted.\Zn
 
 You must first uninstall all i-MSCP plugins through the control panel interface.
 EOF
-        exit 0;
+            exit 0;
+        }
     }
-
-    undef $row;
 
     my @steps = (
         [ \&_removeCustomers, 'Removing i-MSCP customers' ],
-        [ \&_uninstallPackages, 'Uninstalling i-MSCP packages' ],
-        [ \&_uninstallServers, 'Uninstalling i-MSCP servers' ],
+        [ \&_uninstallPackagesAndServers, 'Uninstalling i-MSCP packages and servers' ],
         [ \&_uninstallServices, 'Uninstalling i-MSCP services' ],
         [ \&_removeCrontabFile, 'Removing i-MSCP crontab file' ],
         [ \&_removeLogrotateFile, 'Removing i-MSCP logrotate file' ],
@@ -104,9 +98,9 @@ EOF
         [ \&_removeFiles, 'Removing i-MSCP files' ],
     );
 
-    my ($step, $rs) = ( 1, 0 );
+    my ( $step, $rs ) = ( 1, 0 );
     for ( @steps ) {
-        $rs = step( @{$_}, scalar @steps, $step );
+        $rs = step( @{ $_ }, scalar @steps, $step );
         last if $rs;
         $step++;
     }
@@ -148,109 +142,87 @@ EOF
 
 sub _removeCustomers
 {
-    local $@;
-    eval {
-        {
-            my $tables = {
-                admin           => [ 'admin_status', "WHERE admin_type = 'user'" ],
-                domain          => 'domain_status',
-                domain_aliasses => 'alias_status',
-                subdomain       => 'subdomain_status',
-                subdomain_alias => 'subdomain_alias_status',
-                mail_users      => 'status',
-                htaccess        => 'status',
-                htaccess_groups => 'status',
-                htaccess_users  => 'status',
-                ssl_certs       => 'status'
-            };
-            my $aditionalCondition;
+    {
+        my $tables = {
+            admin           => [ 'admin_status', "WHERE admin_type = 'user'" ],
+            domain          => 'domain_status',
+            domain_aliasses => 'alias_status',
+            subdomain       => 'subdomain_status',
+            subdomain_alias => 'subdomain_alias_status',
+            mail_users      => 'status',
+            htaccess        => 'status',
+            htaccess_groups => 'status',
+            htaccess_users  => 'status',
+            ssl_certs       => 'status'
+        };
+        my $aditionalCondition;
 
-            my $db = iMSCP::Database->factory();
-            my $oldDbName = $db->useDatabase( $main::imscpConfig{'DATABASE_NAME'} );
+        my $db = iMSCP::Database->factory();
+        my $oldDbName = $db->useDatabase( $::imscpConfig{'DATABASE_NAME'} );
 
-            my $dbh = $db->getRawDb();
-            local $dbh->{'RaiseError'};
+        my $rdbh = $db->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
 
-            while ( my ($table, $field) = each %{$tables} ) {
-                if ( ref $field eq 'ARRAY' ) {
-                    $aditionalCondition = $field->[1];
-                    $field = $field->[0];
-                } else {
-                    $aditionalCondition = ''
-                }
-
-                ( $table, $field ) = ( $dbh->quote_identifier( $table ), $dbh->quote_identifier( $field ) );
-                $dbh->do( "UPDATE $table SET $field = 'todelete' $aditionalCondition" );
+        while ( my ( $table, $field ) = each %{ $tables } ) {
+            if ( ref $field eq 'ARRAY' ) {
+                $aditionalCondition = $field->[1];
+                $field = $field->[0];
+            } else {
+                $aditionalCondition = ''
             }
 
-            $db->useDatabase( $oldDbName ) if $oldDbName;
+            ( $table, $field ) = ( $rdbh->quote_identifier( $table ), $rdbh->quote_identifier( $field ) );
+            $rdbh->do( "UPDATE $table SET $field = 'todelete' $aditionalCondition" );
         }
 
-        startDetail();
-        iMSCP::DbTasksProcessor->getInstance( mode => 'uninstall' )->processDbTasks();
-        endDetail();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+        $db->useDatabase( $oldDbName ) if $oldDbName;
     }
+
+    startDetail();
+    iMSCP::DbTasksProcessor->getInstance( mode => iMSCP::Getopt->context() )->processDbTasks();
+    endDetail();
 
     0;
 }
 
-sub _uninstallPackages
+sub _uninstallPackagesAndServers
 {
-    startDetail();
-
-    my @packages = iMSCP::Packages->getInstance()->getList();
-    my $nbSteps = scalar @packages;
-    my ($step, $rs) = ( 1, 0 );
-
-    for my $package( @packages ) {
-        ( my $subref = $package->can( 'uninstall' ) ) or $step++ && next;
-        $rs = step(
-            sub { $subref->( $package->getInstance()) },
-            sprintf( 'Executing %s uninstall tasks...', $package ),
-            $nbSteps,
-            $step
-        );
-        last if $rs;
-    }
-
-    endDetail();
-    $rs;
-}
-
-sub _uninstallServers
-{
-    startDetail();
-
     my @servers = iMSCP::Servers->getInstance()->getList();
-    my $nbSteps = scalar @servers;
-    my ($step, $rs) = ( 1, 0 );
+    my @packages = iMSCP::Packages->getInstance()->getList();
+    my @actions = ( 'preuninstall', 'uninstall', 'postuninstall' );
+    my $nbSteps = (@servers+@packages) * @actions;
+    my ( $rs, $step ) = ( 0, 1 );
 
-    for my $server( @servers ) {
-        ( my $subref = $server->can( 'uninstall' ) ) or $step++ && next;
-        $rs = step(
-            sub { $subref->( $server->factory()) },
-            sprintf( 'Executing %s uninstall tasks...', $server ),
-            $nbSteps,
-            $step
-        );
-        last if $rs;
-        $step++;
+    ACTION:
+    for my $action ( @actions ) {
+        startDetails();
+        for my $package ( packages ) {
+            $rs = step( sub { $package->getInstance()->$action() }, sprintf( "Executing %s %s tasks...", $package, $action ), $nbSteps, $step );
+            last ACTION if $rs;
+            $step++;
+        }
+        for my $server ( @servers ) {
+            $rs = step( sub { $server->factory()->$action() }, sprintf( "Executing %s %s tasks...", $server, $action ), $nbSteps, $step );
+            last ACTION if $rs;
+            $step++;
+        }
+        endDetail();
     }
 
-    endDetail();
+    iMSCP::DistPackageManager->getInstance()->processDelayedTasks();
+    
+    endDetail() if $rs;
     $rs;
 }
 
 sub _uninstallServices
 {
     my $serviceMngr = iMSCP::Service->getInstance();
-    $serviceMngr->remove( $_ ) for 'imscp_daemon', 'imscp_traffic', 'imscp_mountall';
+    for my $service ( 'imscp_daemon', 'imscp_traffic', 'imscp_mountall' ) {
+        $serviceMngr->remove( $service );
+    }
 
-    for my $service( 'bind9', 'bind9-resolvconf' ) {
+    for my $service ( 'bind9', 'bind9-resolvconf' ) {
         $serviceMngr->disable( $service ) if $serviceMngr->isSystemd();
 
         if ( -f "/etc/systemd/system/$service.service" ) {
@@ -274,8 +246,8 @@ sub _removeCrontabFile
 
 sub _removeLogrotateFile
 {
-    return 0 unless -f "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp";
-    iMSCP::File->new( filename => "$main::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp" )->delFile();
+    return 0 unless -f "$::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp";
+    iMSCP::File->new( filename => "$::imscpConfig{'LOGROTATE_CONF_DIR'}/imscp" )->delFile();
 }
 
 sub _removeSysctlFile
@@ -286,52 +258,40 @@ sub _removeSysctlFile
 
 sub _removeSqlData
 {
-    local $@;
-    eval {
-        my $sqlServer = Servers::sqld->factory();
-        my $dbh = iMSCP::Database->factory()->getRawDb();
 
-        # Remove customer's sql users
-        my $rows = $dbh->selectall_hashref( 'SELECT DISTINCT sqlu_name, sqlu_host FROM sql_user', 'sqlu_name' );
-        $sqlServer->dropUser( $rows->{$_}->{'sqlu_name'}, $rows->{$_}->{'sqlu_host'} ) for keys %{$rows};
+    my $sqlServer = Servers::sqld->factory();
+    my $rdbh = iMSCP::Database->factory()->getRawDb();
 
-        # Remove customer's sql databases
-        $rows = $dbh->selectall_hashref( 'SELECT sqld_name FROM sql_database', 'sqld_name' );
-        $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $rows->{$_}->{'sqld_name'} )) for keys %{$rows};
-
-        # Remove i-MSCP sql database
-        $dbh->do( 'DROP DATABASE IF EXISTS ' . $dbh->quote_identifier( $main::imscpConfig{'DATABASE_NAME'} ));
-
-        # Drop i-MSCP master SQL user
-        $sqlServer->dropUser( $main::imscpConfig{'DATABASE_USER'}, $main::imscpConfig{'DATABASE_USER_HOST'} );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    # Remove customer's sql users
+    my $rows = $rdbh->selectall_hashref( 'SELECT DISTINCT sqlu_name, sqlu_host FROM sql_user', 'sqlu_name' );
+    $sqlServer->dropUser( $rows->{$_}->{'sqlu_name'}, $rows->{$_}->{'sqlu_host'} ) for keys %{ $rows };
+    # Remove customer's sql databases
+    $rows = $rdbh->selectall_hashref( 'SELECT sqld_name FROM sql_database', 'sqld_name' );
+    $rdbh->do( 'DROP DATABASE IF EXISTS ' . $rdbh->quote_identifier( $rows->{$_}->{'sqld_name'} )) for keys %{ $rows };
+    # Remove i-MSCP sql database
+    $rdbh->do( 'DROP DATABASE IF EXISTS ' . $rdbh->quote_identifier( $::imscpConfig{'DATABASE_NAME'} ));
+    # Drop i-MSCP master SQL user
+    $sqlServer->dropUser( $::imscpConfig{'DATABASE_USER'}, $::imscpConfig{'DATABASE_USER_HOST'} );
     0;
 }
 
 sub _removeiMSCPSystemUser
 {
-    iMSCP::SystemUser->new( force => 1 )->delSystemUser( $main::imscpConfig{'IMSCP_USER'} );
+    iMSCP::SystemUser->new( force => 1 )->delSystemUser( $::imscpConfig{'IMSCP_USER'} );
 }
 
 sub _removeFiles
 {
     chdir( '/' );
 
-    for( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
-        next unless -f;
-        my $rs = iMSCP::File->new( filename => $_ )->delFile();
+    for my $file ( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
+        next unless -f $file;
+        my $rs = iMSCP::File->new( filename => $file )->delFile();
         return $rs if $rs;
     }
 
-    for ( $main::imscpConfig{'CONF_DIR'}, $main::imscpConfig{'USER_WEB_DIR'}, $main::imscpConfig{'LOG_DIR'},
-        $main::imscpConfig{'ROOT_DIR'}
-    ) {
-        iMSCP::Dir->new( dirname => $_ )->remove();
+    for my $dir ( $::imscpConfig{'CONF_DIR'}, $::imscpConfig{'USER_WEB_DIR'}, $::imscpConfig{'LOG_DIR'}, $::imscpConfig{'ROOT_DIR'} ) {
+        iMSCP::Dir->new( dirname => $dir )->remove();
     }
 
     0;

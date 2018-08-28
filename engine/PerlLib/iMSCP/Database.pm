@@ -49,12 +49,12 @@ my %adapterInstances;
 
 sub factory
 {
-    my $adapterName = $_[1] || $main::imscpConfig{'DATABASE_TYPE'};
+    my $adapterName = $_[1] || $::imscpConfig{'DATABASE_TYPE'};
 
     return $adapterInstances{$adapterName} if $adapterInstances{$adapterName};
 
     my $adapter = "iMSCP::Database::${adapterName}";
-    eval "require $adapter" or die( sprintf( "Couldn't load `%s` database adapter: %s", $adapter, $@ ));
+    eval "require $adapter" or die( sprintf( "Couldn't load the '%s' database adapter: %s", $adapter, $@ ));
     $adapterInstances{$adapterName} = $adapter->getInstance();
 }
 

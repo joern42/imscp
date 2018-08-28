@@ -233,7 +233,7 @@ sub isKnownAddr
 
 sub isValidAddr
 {
-    my ( undef, $addr ) = @_;
+    my ( $self, $addr ) = @_;
 
     is_ipv4( $addr ) || is_ipv6( $addr );
 }
@@ -267,7 +267,7 @@ sub isRoutableAddr
 
 sub isValidNetmask
 {
-    my ( undef, $addr, $cidr ) = @_;
+    my ( $self, $addr, $cidr ) = @_;
 
     return FALSE if $cidr !~ /\d/;
 

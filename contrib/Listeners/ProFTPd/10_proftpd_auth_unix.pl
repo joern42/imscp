@@ -15,12 +15,10 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Enable unix authentication
-## See:
-##  - http://www.proftpd.org/docs/modules/mod_auth_pam.html
-##  - http://www.proftpd.org/docs/modules/mod_auth_unix.html
-#
+# Enable unix authentication
+# See:
+#  - http://www.proftpd.org/docs/modules/mod_auth_pam.html
+#  - http://www.proftpd.org/docs/modules/mod_auth_unix.html
 
 package Listener::ProFTPd::Auth::Unix;
 
@@ -28,17 +26,14 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-iMSCP::EventManager->getInstance()->register(
-    'afterFtpdBuildConf',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterFtpdBuildConf', sub {
+    my ( $tplContent, $tplName ) = @_;
 
-        return 0 unless $tplName eq 'proftpd.conf';
-        ${$tplContent} =~ s/(AuthOrder\s+.*)/$1 mod_auth_unix.c/im;
-        ${$tplContent} =~ s/(<\/Global>)/\n  PersistentPasswd         off\n$1/im;
-        0;
-    }
-);
+    return 0 unless $tplName eq 'proftpd.conf';
+    ${ $tplContent } =~ s/(AuthOrder\s+.*)/$1 mod_auth_unix.c/im;
+    ${ $tplContent } =~ s/(<\/Global>)/\n  PersistentPasswd         off\n$1/im;
+    0;
+} );
 
 1;
 __END__

@@ -25,7 +25,6 @@ package Servers::sqld::mariadb::installer;
 
 use strict;
 use warnings;
-use iMSCP::EventManager;
 use Servers::sqld::mariadb;
 use parent 'Servers::sqld::mysql::installer';
 
@@ -47,10 +46,10 @@ use parent 'Servers::sqld::mysql::installer';
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'sqld'} = Servers::sqld::mariadb->getInstance();
+    $self->{'eventManager'} = $self->{'sqld'}->{'eventManager'};
     $self->{'cfgDir'} = $self->{'sqld'}->{'cfgDir'};
     $self->{'config'} = $self->{'sqld'}->{'config'};
     $self;

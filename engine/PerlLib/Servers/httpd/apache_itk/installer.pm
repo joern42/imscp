@@ -26,20 +26,18 @@ package Servers::httpd::apache_itk::installer;
 use strict;
 use warnings;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Crypt qw/ ALNUM randomStr /;
-use iMSCP::Database;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
-use iMSCP::EventManager;
-use iMSCP::Execute;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
 use iMSCP::Service;
 use iMSCP::SystemGroup;
 use iMSCP::SystemUser;
-use iMSCP::TemplateParser;
 use Servers::httpd::apache_itk;
 use Servers::sqld;
 use version;
@@ -53,63 +51,23 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( $eventManager )
+=item registerInstallerDialogs( $dialogs )
 
- Register setup event listeners
-
- Param iMSCP::EventManager $eventManager
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
 
 =cut
 
-sub registerSetupListeners
+sub registerInstallerDialogs
 {
-    my ( $self, $eventManager ) = @_;
+    my ( $self, $dialogs ) = @_;
 
-    $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] }, sub { $self->askForPhpConfigLevel( @_ ) };
-        0;
-    } );
-}
-
-=item askForPhpConfigLevel( $dialog )
-
- Ask for PHP configuration level
-
- Param iMSCP::Dialog $dialog
- Return int 0 (NEXT), 30 (BACK), 50 (ESC)
-
-=cut
-
-sub askForPhpConfigLevel
-{
-    my ( $self, $dialog ) = @_;
-
-    my $value = ::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
-
-    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'alternatives', 'all' ] ) || $value !~ /^per_(?:site|domain|user)$/ ) {
-        my %choices = (
-            'per_site', 'Per site PHP configuration (recommended)',
-            'per_domain', 'Per domain, including subdomains PHP configuration',
-            'per_user', 'Per user PHP configuration'
-        );
-        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'per_site' );
-
-Please choose the PHP configuration level for the clients:
-\Z \Zn
-EOF
-        return $rs unless $rs < 30;
-    }
-
-    $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $value;
+    push @{ $dialogs }, sub { $self->_askForPhpConfigLevel( @_ ) };
     0;
 }
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::install()
 
 =cut
 
@@ -145,8 +103,8 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'httpd'} = Servers::httpd::apache_itk->getInstance();
+    $self->{'eventManager'} = $self->{'httpd'}->{'eventManager'};
+    $self->{'dbh'} = $self->{'httpd'}->{'dbh'};
     $self->{'apacheCfgDir'} = $self->{'httpd'}->{'apacheCfgDir'};
     $self->{'config'} = $self->{'httpd'}->{'config'};
     $self->{'phpCfgDir'} = $self->{'httpd'}->{'phpCfgDir'};
@@ -188,11 +146,44 @@ sub guessPhpVariables
     $self->{'phpConfig'}->{'PHP_FCGI_BIN_PATH'} = iMSCP::ProgramFinder::find( "php-cgi$self->{'phpConfig'}->{'PHP_VERSION'}" );
     $self->{'phpConfig'}->{'PHP_FPM_BIN_PATH'} = iMSCP::ProgramFinder::find( "php-fpm$self->{'phpConfig'}->{'PHP_VERSION'}" );
 
-    for ( qw/ PHP_CLI_BIN_PATH PHP_FCGI_BIN_PATH PHP_FPM_BIN_PATH / ) {
-        next if $self->{'phpConfig'}->{$_};
-        die( sprintf( "Couldn't guess '%s' PHP configuration parameter value.", $_ ));
+    for my $path ( qw/ PHP_CLI_BIN_PATH PHP_FCGI_BIN_PATH PHP_FPM_BIN_PATH / ) {
+        next if $self->{'phpConfig'}->{$path};
+        die( sprintf( "Couldn't guess '%s' PHP configuration parameter value.", $path ));
     }
 
+    0;
+}
+
+=item _askForPhpConfigLevel( $dialog )
+
+ Ask for PHP configuration level
+
+ Param iMSCP::Dialog $dialog
+ Return int 0 (NEXT), 30 (BACK), 50 (ESC)
+
+=cut
+
+sub _askForPhpConfigLevel
+{
+    my ( $self, $dialog ) = @_;
+
+    my $value = ::setupGetQuestion( 'PHP_CONFIG_LEVEL', $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} );
+
+    if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'php', 'alternatives', 'all' ] ) || $value !~ /^per_(?:site|domain|user)$/ ) {
+        my %choices = (
+            'per_site', 'Per site PHP configuration (recommended)',
+            'per_domain', 'Per domain, including subdomains PHP configuration',
+            'per_user', 'Per user PHP configuration'
+        );
+        ( my $rs, $value ) = $dialog->radiolist( <<'EOF', \%choices, ( grep ( $value eq $_, keys %choices ) )[0] || 'per_site' );
+
+Please choose the PHP configuration level for the clients:
+\Z \Zn
+EOF
+        return $rs unless $rs < 30;
+    }
+
+    $self->{'phpConfig'}->{'PHP_CONFIG_LEVEL'} = $value;
     0;
 }
 
@@ -237,7 +228,7 @@ sub _makeDirs
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdMakeDirs' );
     return $rs if $rs;
 
-    for (
+    for my $dir (
         [ $self->{'config'}->{'HTTPD_LOG_DIR'}, $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ADM_GROUP'}, 0750 ],
         [
             "$self->{'config'}->{'HTTPD_LOG_DIR'}/" . ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
@@ -246,10 +237,10 @@ sub _makeDirs
             0750
         ]
     ) {
-        iMSCP::Dir->new( dirname => $_->[0] )->make( {
-            user  => $_->[1],
-            group => $_->[2],
-            mode  => $_->[3]
+        iMSCP::Dir->new( dirname => $dir->[0] )->make( {
+            user  => $dir->[1],
+            group => $dir->[2],
+            mode  => $dir->[3]
         } );
     }
 
@@ -260,12 +251,14 @@ sub _makeDirs
 
  Copy pages for disabled domains
 
- Return int 0 on success, other on failure
+ Return int 0 on success, die on failure
 
 =cut
 
 sub _copyDomainDisablePages
 {
+    my ( $self ) = @_;
+
     iMSCP::Dir->new( dirname => "$::imscpConfig{'CONF_DIR'}/skel/domain_disabled_pages" )->rcopy(
         "$::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages", { preserve => 'no' }
     );
@@ -334,10 +327,7 @@ sub _buildApacheConfFiles
 
         unless ( defined $cfgTpl ) {
             $cfgTpl = iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_CONF_DIR'}/ports.conf" )->get();
-            unless ( defined $cfgTpl ) {
-                error( sprintf( "Couldn't read %s file", "$self->{'config'}->{'HTTPD_CONF_DIR'}/ports.conf" ));
-                return 1;
-            }
+            return 1 unless defined $cfgTpl;
         }
 
         $rs = $self->{'eventManager'}->trigger( 'beforeHttpdBuildConfFile', \$cfgTpl, 'ports.conf' );
@@ -437,31 +427,25 @@ sub _setupVlogger
     my $oldUserHost = $::imscpOldConfig{'DATABASE_USER_HOST'};
     my $pass = randomStr( 16, ALNUM );
 
-    my $db = iMSCP::Database->factory();
-    my $rs = ::setupImportSqlSchema( $db, "$self->{'apacheCfgDir'}/vlogger.sql" );
+    my $rs = ::setupImportSqlSchema( $self->{'dbh'}, "$self->{'apacheCfgDir'}/vlogger.sql" );
     return $rs if $rs;
 
-    local $@;
-    eval {
-        my $sqlServer = Servers::sqld->factory();
+    my $sqlServer = Servers::sqld->factory();
 
-        for ( $userHost, $oldUserHost, 'localhost' ) {
-            next unless $_;
-            $sqlServer->dropUser( $user, $_ );
-        }
+    for my $dropHost ( $userHost, $oldUserHost, 'localhost' ) {
+        next unless $dropHost;
+        $sqlServer->dropUser( $user, $dropHost );
+    }
 
-        $sqlServer->createUser( $user, $userHost, $pass );
+    $sqlServer->createUser( $user, $userHost, $pass );
 
-        my $dbh = iMSCP::Database->factory()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
+    {
+        my $rdbh = $self->{'dbh'}->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
 
         # No need to escape wildcard characters. See https://bugs.mysql.com/bug.php?id=18660
-        my $qDbName = $dbh->quote_identifier( $dbName );
-        $dbh->do( "GRANT SELECT, INSERT, UPDATE ON $qDbName.httpd_vlogger TO ?\@?", undef, $user, $userHost );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+        my $qDbName = $rdbh->quote_identifier( $dbName );
+        $rdbh->do( "GRANT SELECT, INSERT, UPDATE ON $qDbName.httpd_vlogger TO ?\@?", undef, $user, $userHost );
     }
 
     $self->{'httpd'}->setData( {
@@ -474,7 +458,7 @@ sub _setupVlogger
 
     $self->{'httpd'}->buildConfFile(
         "$self->{'apacheCfgDir'}/vlogger.conf.tpl",
-        { SKIP_TEMPLATE_CLEANER => 1 },
+        { SKIP_TEMPLATE_CLEANER => TRUE },
         { destination => "$self->{'apacheCfgDir'}/vlogger.conf" }
     );
 }
@@ -483,7 +467,7 @@ sub _setupVlogger
 
  Process cleanup tasks
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -529,8 +513,8 @@ sub _cleanup
         return $rs if $rs;
     }
 
-    for ( '/var/log/apache2/backup', '/var/log/apache2/users', '/var/www/scoreboards' ) {
-        iMSCP::Dir->new( dirname => $_ )->remove();
+    for my $dir ( '/var/log/apache2/backup', '/var/log/apache2/users', '/var/www/scoreboards' ) {
+        iMSCP::Dir->new( dirname => $dir )->remove();
     }
 
     # Remove customer's logs file if any (no longer needed since we are now use bind mount)
@@ -549,34 +533,15 @@ sub _cleanup
     }
 
     iMSCP::Dir->new( dirname => '/etc/php5' )->remove();
-
-    # Some of PHP individual packages install their INI file once for all build
-    # variants, including for those not installed yet. Therefore, removing
-    # configuration directory for unused build variants is a mistake because
-    # when switching to one of them, INI files from individual packages won't
-    # be reinstalled.
-    # See https://github.com/oerdnj/deb.sury.org/issues/660
-    #for(grep !/^$self->{'phpConfig'}->{'PHP_CONF_DIR_PATH'}$/,
-    #    glob dirname($self->{'phpConfig'}->{'PHP_CONF_DIR_PATH'}).'/*'
-    #) {
-    #    iMSCP::Dir->new( dirname => $_ )->remove( );
-    #}
-
     # CGI
     iMSCP::Dir->new( dirname => $self->{'phpConfig'}->{'PHP_FCGI_STARTER_DIR'} )->remove();
 
     # FPM
     unlink grep !/www\.conf$/, glob "$self->{'phpConfig'}->{'PHP_FPM_POOL_DIR_PATH'}/*.conf";
-    local $@;
-    eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
-        $serviceMngr->stop( sprintf( 'php%s-fpm', $self->{'phpConfig'}->{'PHP_VERSION'} ));
-        $serviceMngr->disable( sprintf( 'php%s-fpm', $self->{'phpConfig'}->{'PHP_VERSION'} ));
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+
+    my $serviceMngr = iMSCP::Service->getInstance();
+    $serviceMngr->stop( sprintf( 'php%s-fpm', $self->{'phpConfig'}->{'PHP_VERSION'} ));
+    $serviceMngr->disable( sprintf( 'php%s-fpm', $self->{'phpConfig'}->{'PHP_VERSION'} ));
 
     $self->{'eventManager'}->trigger( 'afterHttpdCleanup' );
 }

@@ -19,6 +19,7 @@ package Servers::httpd::apache_itk::uninstaller;
 
 use strict;
 use warnings;
+use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
 use iMSCP::File;
 use Servers::httpd::apache_itk;
@@ -27,7 +28,7 @@ use parent 'Common::SingletonClass';
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->_removeVloggerSqlUser();
     $rs ||= $self->_removeDirs();
@@ -36,7 +37,7 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'httpd'} = Servers::httpd::apache_itk->getInstance();
     $self->{'apacheCfgDir'} = $self->{'httpd'}->{'apacheCfgDir'};
@@ -47,30 +48,27 @@ sub _init
 
 sub _removeVloggerSqlUser
 {
-    if ( $main::imscpConfig{'DATABASE_USER_HOST'} eq 'localhost' ) {
+    if ( $::imscpConfig{'DATABASE_USER_HOST'} eq 'localhost' ) {
         return Servers::sqld->factory()->dropUser( 'vlogger_user', '127.0.0.1' );
     }
 
-    Servers::sqld->factory()->dropUser( 'vlogger_user', $main::imscpConfig{'DATABASE_USER_HOST'} );
+    Servers::sqld->factory()->dropUser( 'vlogger_user', $::imscpConfig{'DATABASE_USER_HOST'} );
 }
 
 sub _removeDirs
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     iMSCP::Dir->new( dirname => $self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'} )->remove();
-    0;
 }
 
 sub _vHostConf
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     if ( -f "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_nameserver.conf" ) {
         my $rs = $self->{'httpd'}->disableSites( '00_nameserver.conf' );
-        $rs ||= iMSCP::File->new(
-            filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_nameserver.conf"
-        )->delFile();
+        $rs ||= iMSCP::File->new( filename => "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/00_nameserver.conf" )->delFile();
         return $rs if $rs;
     }
 

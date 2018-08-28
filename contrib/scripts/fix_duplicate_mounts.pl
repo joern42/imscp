@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# Copyright (C) 2016-2017 Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2016-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -18,26 +18,24 @@
 use strict;
 use warnings;
 use lib '/var/www/imscp/engine/PerlLib';
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug;
 use iMSCP::Mount qw/ umount /;
 
-my $bootstrapper = iMSCP::Bootstrapper->getInstance( );
+my $bootstrapper = iMSCP::Bootstrapper->getInstance();
 exit unless $bootstrapper->lock( '/var/lock/imscp-mountall.lock', 'nowait' );
 
-$bootstrapper->boot(
-    {
-        mode            => 'backend',
-        nokeys          => 1,
-        nodatabase      => 1,
-        config_readonly => 1
-    }
-);
+$bootstrapper->boot( {
+    mode            => 'backend',
+    nokeys          => TRUE,
+    nodatabase      => TRUE,
+    config_readonly => TRUE
+} );
 
-setDebug(0);
-setVerbose(1);
-
-umount($main::imscpConfig{'USER_WEB_DIR'});
+setDebug( FALSE );
+setVerbose( TRUE );
+umount( $main::imscpConfig{'USER_WEB_DIR'} );
 
 1;
 __END__

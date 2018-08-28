@@ -15,9 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Provides dual stack support for Apache2.
-#
+# Provides dual stack support for Apache2.
 
 package Listener::Apache2::DualStack;
 
@@ -25,9 +23,7 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-#
-## Configuration variables
-#
+# Configuration variables
 
 # Parameter that allows to add one or many IPs to all Apache2 vhosts files
 # Please replace the entries below by your own entries
@@ -43,20 +39,15 @@ my %PER_DMN_IPS = (
     'domain2.tld' => [ 'IP1', 'IP2' ]
 );
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'onAddHttpdVhostIps',
-    sub {
-        my ($data, $domainIps) = @_;
+iMSCP::EventManager->getInstance()->register( 'onAddHttpdVhostIps', sub {
+    my ( $data, $domainIps ) = @_;
 
-        push @{$domainIps}, @GLOBAL_IPS if @GLOBAL_IPS;
-        push @{$domainIps}, @{$PER_DMN_IPS{$data->{'DOMAIN_NAME'}}} if $PER_DMN_IPS{$data->{'DOMAIN_NAME'}};
-        0;
-    }
-);
+    push @{ $domainIps }, @GLOBAL_IPS if @GLOBAL_IPS;
+    push @{ $domainIps }, @{ $PER_DMN_IPS{$data->{'DOMAIN_NAME'}} } if $PER_DMN_IPS{$data->{'DOMAIN_NAME'}};
+    0;
+} );
 
 1;
 __END__

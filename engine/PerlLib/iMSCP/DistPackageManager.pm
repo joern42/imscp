@@ -23,8 +23,6 @@ use parent qw/ Common::SingletonClass iMSCP::DistPackageManager::Interface /;
 =item addRepositories( \@repositories [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::addRepositories()
- 
- Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
 
 =cut
 
@@ -32,20 +30,15 @@ sub addRepositories
 {
     my ( $self, $repositories, $delayed ) = @_;
 
-    if ( $delayed ) {
-        push @{ $self->{'repositoriesToAdd'} }, $repositories;
-        return $self;
-    }
+    ref $repositories eq 'ARRAY' or die( 'Invalid $repositories parameter. Array expected' );
 
-    $self->_getDistroPackageManager()->addRepositories( @_ );
+    $self->_getDistPackageManager()->addRepositories( $repositories, $delayed );
     $self;
 }
 
 =item removeRepositories( \@repositories [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::removeRepositories()
- 
- Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
 
 =cut
 
@@ -53,20 +46,15 @@ sub removeRepositories
 {
     my ( $self, $repositories, $delayed ) = @_;
 
-    if ( $delayed ) {
-        push @{ $self->{'repositoriesToRemove'} }, $repositories;
-        return $self;
-    }
+    ref $repositories eq 'ARRAY' or die( 'Invalid $repositories parameter. Array expected' );
 
-    $self->_getDistroPackageManager()->removeRepositories( @_ );
+    $self->_getDistPackageManager()->removeRepositories( $repositories, $delayed );
     $self;
 }
 
 =item installPackages( \@packages [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::installPackages()
- 
- Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
 
 =cut
 
@@ -74,12 +62,9 @@ sub installPackages
 {
     my ( $self, $packages, $delayed ) = @_;
 
-    if ( $delayed ) {
-        push @{ $self->{'packagesToInstall'} }, $packages;
-        return $self;
-    }
+    ref $packages eq 'ARRAY' or die( 'Invalid $packages parameter. Array expected' );
 
-    $self->_getDistroPackageManager()->installPackages( @_ );
+    $self->_getDistPackageManager()->installPackages( $packages, $delayed );
     $self;
 }
 
@@ -87,20 +72,15 @@ sub installPackages
 
  See iMSCP::DistPackageManager::Interface:uninstallPackages()
 
- Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
-
 =cut
 
 sub uninstallPackages
 {
     my ( $self, $packages, $delayed ) = @_;
 
-    if ( $delayed ) {
-        push @{ $self->{'packagesToUninstall'} }, $packages;
-        return $self;
-    }
+    ref $packages eq 'ARRAY' or die( 'Invalid $packages parameter. Array expected' );
 
-    $self->_getDistroPackageManager()->uninstallPackages( $packages );
+    $self->_getDistPackageManager()->uninstallPackages( $packages, $delayed );
     $self;
 }
 
@@ -112,17 +92,25 @@ sub uninstallPackages
 
 sub updateRepositoryIndexes
 {
-    my ( $self ) = shift;
+    my ( $self ) = @_;
 
-    $self->_getDistroPackageManager()->updateRepositoryIndexes( @_ );
+    $self->_getDistPackageManager()->updateRepositoryIndexes();
     $self;
 }
 
 =item processDelayedTasks( )
 
- Process delayed tasks if any
-
- Return iMSCP::DistPackageManager::Interface, die on failure
+ See iMSCP::DistPackageManager::Interface:processDelayedTasks()
+ 
+ In installer context, processing of delayed tasks on the distribution
+ package manager is triggered by the installer after the call of the
+ preinstall action on the packages and servers. Thus, those last SHOULD
+ call this method in the preinstall action.
+ 
+ In uninstaller context, processing of delayed tasks on the distribution
+ package manager is triggered by the uninstaller after the call of the
+ postuninstall action on the packages and servers. Thus, those last SHOULD
+ call this method in the postuninstall action.
 
 =cut
 
@@ -130,16 +118,7 @@ sub processDelayedTasks
 {
     my ( $self ) = @_;
 
-    if ( @{ $self->{'repositoriesToRemove'} } || @{ $self->{'repositoriesToAdd'} } ) {
-        $self
-            ->removeRepositories( delete $self->{'repositoriesToRemove'} )
-            ->addRepositories( delete $self->{'repositoriesToAdd'} )
-            ->updateRepositoryIndexes()
-    }
-
-    $self
-        ->installPackages( delete $self->{'packagesToInstall'} )
-        ->uninstallPackages( delete $self->{'packagesToUninstall'} );
+    $self->_getDistPackageManager()->processDelayedTasks();
     $self;
 }
 
@@ -153,13 +132,11 @@ sub AUTOLOAD
 {
     ( my $method = $iMSCP::DistPackageManager::AUTOLOAD ) =~ s/.*:://;
 
-    # Define the subroutine to prevent further evaluation
     no strict 'refs';
-    *{ $iMSCP::DistPackageManager::AUTOLOAD } = __PACKAGE__->getInstance()->_getDistroPackageManager()->can( $method ) or die(
+    *{ $iMSCP::DistPackageManager::AUTOLOAD } = __PACKAGE__->getInstance()->_getDistPackageManager()->can( $method ) or die(
         sprintf( 'Unknown %s method', $iMSCP::DistPackageManager::AUTOLOAD )
     );
 
-    # Execute the subroutine, erasing AUTOLOAD stack frame without trace
     goto &{ $iMSCP::DistPackageManager::AUTOLOAD };
 }
 
@@ -193,11 +170,10 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    @{ $self }{qw/ repositoriesToAdd repositoriesToRemove packagesToInstall packagesToUninstall /} = ( [], [], [], [] );
     $self;
 }
 
-=item _getDistroPackageManager()
+=item _getDistPackageManager()
 
  Get distribution package manager instance
 
@@ -205,14 +181,14 @@ sub _init
 
 =cut
 
-sub _getDistroPackageManager
+sub _getDistPackageManager
 {
     my ( $self ) = @_;
 
     my $distID = iMSCP::LsbRelease->getInstance()->getId( 'short' );
     $distID = 'Debian' if grep ( lc $distID eq $_, 'devuan', 'ubuntu' );
 
-    $self->{'_distro_package_manager'} //= do {
+    $self->{'_dist_package_manager'} ||= do {
         my $class = "iMSCP::DistPackageManager::$distID";
         eval "require $class; 1" or die $@;
         $class->new( eventManager => $self->{'eventManager'} );

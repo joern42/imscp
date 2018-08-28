@@ -473,16 +473,15 @@ sub isAvailableSqlUser( $ )
 
     my $db = iMSCP::Database->factory();
 
-    local $@;
     my $oldDbName = eval { $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); };
     if ( $@ ) {
         return TRUE if $@ =~ /unknown database/i; # On fresh installation, there is no database yet
         die;
     }
 
-    my $dbh = $db->getRawDb();
-    $dbh->{'RaiseError'} = 1;
-    my $row = $dbh->selectrow_hashref( 'SELECT 1 FROM sql_user WHERE sqlu_name = ? LIMIT 1', undef, $username );
+    my $rdbh = $db->getRawDb();
+    $rdbh->{'RaiseError'} = TRUE;
+    my $row = $rdbh->selectrow_hashref( 'SELECT 1 FROM sql_user WHERE sqlu_name = ? LIMIT 1', undef, $username );
 
     $db->useDatabase( $oldDbName ) if $oldDbName;
 

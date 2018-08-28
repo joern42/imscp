@@ -27,19 +27,17 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::Crypt qw/ ALNUM encryptRijndaelCBC decryptRijndaelCBC randomStr /;
-use iMSCP::Database;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/
     isOneOfStringsInList isNotEmpty isStringInList isStringNotInList isValidUsername isValidPassword isValidHostname isValidIpAddr
     isNumber isValidDbName isNumberInRange
 /;
 use iMSCP::Dir;
-use iMSCP::EventManager;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
-use iMSCP::TemplateParser qw/ process /;
+use iMSCP::TemplateParser qw/ processByRef /;
 use iMSCP::Umask;
 use Net::LibIDN qw/ idn_to_ascii idn_to_unicode /;
 use Servers::sqld::mysql;
@@ -54,30 +52,70 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( $eventManager )
+=item registerInstallerDialogs( $dialog )
 
- Register setup event listeners
-
- Param iMSCP::EventManager $eventManager
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
 
 =cut
 
-sub registerSetupListeners
+sub registerInstallerDialogs
 {
-    my ( $self, $eventManager ) = @_;
+    my ( $self, $dialogs ) = @_;
 
-    $eventManager->register( 'beforeSetupDialog', sub {
-        push @{ $_[0] },
-            sub { $self->askForMasterSqlUser( @_ ) },
-            sub { $self->askForSqlUserHost( @_ ) },
-            sub { $self->askForSqlDatabaseName( @_ ) },
-            sub { $self->askForSqlPrefixOrSuffix( @_ ) };
-        0;
-    }, );
+    push @{ $dialogs },
+        sub { $self->_askForMasterSqlUser( @_ ) },
+        sub { $self->_askForSqlUserHost( @_ ) },
+        sub { $self->_askForSqlDatabaseName( @_ ) },
+        sub { $self->_askForSqlPrefixOrSuffix( @_ ) };
+    0;
 }
 
-=item askForMasterSqlUser( $dialog )
+=item preinstall( )
+
+ See iMSCP::AbstractInstallerActions::preinstall()
+
+=cut
+
+sub preinstall
+{
+    my ( $self ) = @_;
+
+    my $rs = $self->_setTypeAndVersion();
+    $rs ||= $self->_buildConf();
+    $rs ||= $self->_updateServerConfig();
+    $rs ||= $self->_setupMasterSqlUser();
+    $rs ||= $self->_setupSecureInstallation();
+    $rs ||= $self->_setupDatbase();
+    $rs ||= $self->_oldEngineCompatibility();
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _init( )
+
+ Initialize instance
+
+ Return Servers::sqld::mysql:installer
+
+=cut
+
+sub _init
+{
+    my ( $self ) = @_;
+
+    $self->{'sqld'} = Servers::sqld::mysql->getInstance();
+    $self->{'eventManager'} = $self->{'sqld'}->{'eventManager'};
+    $self->{'dbh'} = $self->{'sqld'}->{'dbh'};
+    $self->{'cfgDir'} = $self->{'sqld'}->{'cfgDir'};
+    $self->{'config'} = $self->{'sqld'}->{'config'};
+    $self;
+}
+
+=item _askForMasterSqlUser( $dialog )
 
  Ask for i-MSCP master SQL user
 
@@ -86,7 +124,7 @@ sub registerSetupListeners
 
 =cut
 
-sub askForMasterSqlUser
+sub _askForMasterSqlUser
 {
     my ( $self, $dialog ) = @_;
 
@@ -157,7 +195,7 @@ EOF
     0;
 }
 
-=item askForSqlUserHost( $dialog )
+=item _askForSqlUserHost( $dialog )
 
  Ask for SQL user host
 
@@ -166,9 +204,9 @@ EOF
 
 =cut
 
-sub askForSqlUserHost
+sub _askForSqlUserHost
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     if ( $::imscpConfig{'SQLD_PACKAGE'} ne 'Servers::sqld::remote' ) {
         ::setupSetQuestion( 'DATABASE_USER_HOST', 'localhost' );
@@ -200,7 +238,7 @@ EOF
     0;
 }
 
-=item askForSqlDatabaseName( $dialog )
+=item _askForSqlDatabaseName( $dialog )
 
  Ask for i-MSCP database name
 
@@ -209,7 +247,7 @@ EOF
 
 =cut
 
-sub askForSqlDatabaseName
+sub _askForSqlDatabaseName
 {
     my ( $self, $dialog ) = @_;
 
@@ -229,9 +267,7 @@ EOF
             return $rs unless $rs < 30;
 
             if ( isValidDbName( $dbName ) ) {
-                my $db = iMSCP::Database->factory();
-                local $@;
-                eval { $db->useDatabase( $dbName ); };
+                eval { $self->{'dbh'}->useDatabase( $dbName ); };
                 if ( !$@ && !$self->_setupIsImscpDb( $dbName ) ) {
                     $iMSCP::Dialog::InputValidation::lastValidationError = <<"EOF";
 
@@ -260,7 +296,7 @@ EOF
     0;
 }
 
-=item askForSqlPrefixOrSuffix( $dialog )
+=item _askForSqlPrefixOrSuffix( $dialog )
 
  Ask for SQL users and databases prefix or suffix
 
@@ -269,9 +305,9 @@ EOF
 
 =cut
 
-sub askForSqlPrefixOrSuffix
+sub _askForSqlPrefixOrSuffix
 {
-    my ( undef, $dialog ) = @_;
+    my ( $self, $dialog ) = @_;
 
     my $value = ::setupGetQuestion( 'MYSQL_PREFIX' );
     my %choices = ( 'behind', 'Behind', 'infront', 'Infront', 'none', 'None' );
@@ -293,52 +329,6 @@ EOF
 
     ::setupSetQuestion( 'MYSQL_PREFIX', $value );
     0;
-}
-
-=item preinstall( )
-
- Process preinstall tasks
-
- Return int 0 on success, other on failure
-
-=cut
-
-sub preinstall
-{
-    my ( $self ) = @_;
-
-    my $rs = $self->_setTypeAndVersion();
-    $rs ||= $self->_buildConf();
-    $rs ||= $self->_updateServerConfig();
-    $rs ||= $self->_setupMasterSqlUser();
-    $rs ||= $self->_setupSecureInstallation();
-    $rs ||= $self->_setupDatbase();
-    $rs ||= $self->_oldEngineCompatibility();
-}
-
-=back
-
-=head1 PRIVATE METHODS
-
-=over 4
-
-=item _init( )
-
- Initialize instance
-
- Return Servers::sqld::mysql:installer
-
-=cut
-
-sub _init
-{
-    my ( $self ) = @_;
-
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'sqld'} = Servers::sqld::mysql->getInstance();
-    $self->{'cfgDir'} = $self->{'sqld'}->{'cfgDir'};
-    $self->{'config'} = $self->{'sqld'}->{'config'};
-    $self;
 }
 
 =item _askSqlRootUser( )
@@ -464,7 +454,7 @@ EOF
 
  Set SQL server type and version
 
- Return 0 on success, other on failure
+ Return 0 on success, other or die on failure
 
 =cut
 
@@ -472,37 +462,28 @@ sub _setTypeAndVersion
 {
     my ( $self ) = @_;
 
-    local $@;
-    eval {
-        my $dbh = iMSCP::Database->factory()->getRawDb();
+    my $rdbh = $self->{'dbh'}->getRawDb();
 
-        local $dbh->{'RaiseError'} = 1;
-        my $row = $dbh->selectrow_hashref( 'SELECT @@version, @@version_comment' ) or die( "Could't find SQL server type and version" );
+    local $rdbh->{'RaiseError'} = TRUE;
+    my $row = $rdbh->selectrow_hashref( 'SELECT @@version, @@version_comment' ) or die( "Could't find SQL server type and version" );
 
-        my $type = 'mysql';
-        if ( index( lc $row->{'@@version'}, 'mariadb' ) != -1 ) {
-            $type = 'mariadb';
-        } elsif ( index( lc $row->{'@@version_comment'}, 'percona' ) != -1 ) {
-            $type = 'percona';
-        }
+    my $type = 'mysql';
+    if ( index( lc $row->{'@@version'}, 'mariadb' ) != -1 ) {
+        $type = 'mariadb';
+    } elsif ( index( lc $row->{'@@version_comment'}, 'percona' ) != -1 ) {
+        $type = 'percona';
+    }
 
-        my ( $version ) = $row->{'@@version'} =~ /^([0-9]+(?:\.[0-9]+){1,2})/;
-        unless ( defined $version ) {
-            error( "Couldn't find SQL server version" );
-            return 1;
-        }
-
-        debug( sprintf( 'SQL server type set to: %s', $type ));
-        $self->{'config'}->{'SQLD_TYPE'} = $type;
-
-        debug( sprintf( 'SQL server version set to: %s', $version ));
-        $self->{'config'}->{'SQLD_VERSION'} = $version;
-    };
-    if ( $@ ) {
-        error( $@ );
+    my ( $version ) = $row->{'@@version'} =~ /^([0-9]+(?:\.[0-9]+){1,2})/;
+    unless ( defined $version ) {
+        error( "Couldn't find SQL server version" );
         return 1;
     }
 
+    debug( sprintf( 'SQL server type set to: %s', $type ));
+    $self->{'config'}->{'SQLD_TYPE'} = $type;
+    debug( sprintf( 'SQL server version set to: %s', $version ));
+    $self->{'config'}->{'SQLD_VERSION'} = $version;
     0;
 }
 
@@ -510,7 +491,7 @@ sub _setTypeAndVersion
 
  Build configuration file
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -521,34 +502,30 @@ sub _buildConf
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldBuildConf' );
     return $rs if $rs;
 
-    my $rootUName = $::imscpConfig{'ROOT_USER'};
-    my $rootGName = $::imscpConfig{'ROOT_GROUP'};
-    my $mysqlGName = $self->{'config'}->{'SQLD_GROUP'};
-    my $confDir = $self->{'config'}->{'SQLD_CONF_DIR'};
 
     # Make sure that the conf.d directory exists
-    iMSCP::Dir->new( dirname => "$confDir/conf.d" )->make( {
-        user  => $rootUName,
-        group => $rootGName,
+    iMSCP::Dir->new( dirname => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d" )->make( {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
         mode  => 0755
     } );
 
     # Create the /etc/mysql/my.cnf file if missing
-    unless ( -f "$confDir/my.cnf" ) {
+    unless ( -f "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" ) {
         $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'mysql', 'my.cnf', \my $cfgTpl, {} );
         return $rs if $rs;
 
         unless ( defined $cfgTpl ) {
-            $cfgTpl = "!includedir $confDir/conf.d/\n";
-        } elsif ( $cfgTpl !~ m%^!includedir\s+$confDir/conf.d/\n%m ) {
-            $cfgTpl .= "!includedir $confDir/conf.d/\n";
+            $cfgTpl = "!includedir $self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/\n";
+        } elsif ( $cfgTpl !~ m%^!includedir\s+$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/\n%m ) {
+            $cfgTpl .= "!includedir $self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/\n";
         }
 
-        my $file = iMSCP::File->new( filename => "$confDir/my.cnf" );
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'SQLD_CONF_DIR'}/my.cnf" );
         $file->set( $cfgTpl );
 
         $rs = $file->save();
-        $rs ||= $file->owner( $rootUName, $rootGName );
+        $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} );
         $rs ||= $file->mode( 0644 );
         return $rs if $rs;
     }
@@ -558,10 +535,7 @@ sub _buildConf
 
     unless ( defined $cfgTpl ) {
         $cfgTpl = iMSCP::File->new( filename => "$self->{'cfgDir'}/imscp.cnf" )->get();
-        unless ( defined $cfgTpl ) {
-            error( sprintf( "Couldn't read %s", "$self->{'cfgDir'}/imscp.cnf" ));
-            return 1;
-        }
+        return 1 unless defined $cfgTpl;
     }
 
     $cfgTpl .= <<'EOF';
@@ -603,15 +577,13 @@ EOF
     }
 
     $cfgTpl .= "event_scheduler = DISABLED\n";
-    $cfgTpl = process( $variables, $cfgTpl );
+    processByRef( $variables, \$cfgTpl );
 
     local $UMASK = 027; # imscp.cnf file must not be created world-readable
-
-    my $file = iMSCP::File->new( filename => "$confDir/conf.d/imscp.cnf" );
+    my $file = iMSCP::File->new( filename => "$self->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf" );
     $file->set( $cfgTpl );
-
     $rs = $file->save();
-    $rs ||= $file->owner( $rootUName, $mysqlGName );
+    $rs ||= $file->owner( $::imscpConfig{'ROOT_GROUP'}, $self->{'config'}->{'SQLD_GROUP'} );
     $rs ||= $file->mode( 0640 );
     $rs ||= $self->{'eventManager'}->trigger( 'afterSqldBuildConf' );
 }
@@ -623,7 +595,7 @@ EOF
   - Upgrade MySQL system tables if necessary
   - Disable unwanted plugins
 
- Return 0 on success, other on failure
+ Return 0 on success, other or die on failure
 
 =cut
 
@@ -655,18 +627,12 @@ sub _updateServerConfig
         return 0;
     }
 
-    eval {
-        my $dbh = iMSCP::Database->factory()->getRawDb();
-        local $dbh->{'RaiseError'};
+    my $rdbh = $self->{'dbh'}->getRawDb();
+    local $rdbh->{'RaiseError'} = TRUE;
 
-        # Disable unwanted plugins (bc reasons)
-        for ( qw/ cracklib_password_check simple_password_check validate_password / ) {
-            $dbh->do( "UNINSTALL PLUGIN $_" ) if $dbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$_'" );
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    # Disable unwanted plugins (bc reasons)
+    for my $plugin ( qw/ cracklib_password_check simple_password_check validate_password / ) {
+        $rdbh->do( "UNINSTALL PLUGIN $plugin" ) if $rdbh->selectrow_hashref( "SELECT name FROM mysql.plugin WHERE name = '$plugin'" );
     }
 
     0;
@@ -676,7 +642,7 @@ sub _updateServerConfig
 
  Setup master SQL user
  
- Return 0 on success, other on failure
+ Return 0 on success, other or die on failure
 
 =cut
 
@@ -703,17 +669,9 @@ sub _setupMasterSqlUser
     $self->{'sqld'}->createUser( $user, $userHost, $pwd );
 
     # Grant all privileges to that user (including GRANT otpion)
-    local $@;
-    eval {
-        my $dbh = iMSCP::Database->factory()->getRawDb();
-        local $dbh->{'RaiseError'};
-        $dbh->do( 'GRANT ALL PRIVILEGES ON *.* TO ?@? WITH GRANT OPTION', undef, $user, $userHost );
-    };
-    if ( $@ ) {
-        error( sprintf( "Couldn't grant privileges to master i-MSCP SQL user: %s", $@ ));
-        return 1;
-    }
-
+    my $rdbh = $self->{'dbh'}->getRawDb();
+    local $rdbh->{'RaiseError'} = TRUE;
+    $rdbh->do( 'GRANT ALL PRIVILEGES ON *.* TO ?@? WITH GRANT OPTION', undef, $user, $userHost );
     0;
 }
 
@@ -727,7 +685,7 @@ sub _setupMasterSqlUser
   - Remove test database if any
   - Reload privileges tables
   
-  Return 0 on success, other on failure
+  Return 0 on success, other or die on failure
 
 =cut
 
@@ -738,35 +696,25 @@ sub _setupSecureInstallation
     my $rs = $self->{'eventManager'}->getInstance()->trigger( 'beforeSetupSecureSqlInstallation' );
     return $rs if $rs;
 
-    eval {
-        my $db = iMSCP::Database->factory();
-        my $oldDbName = $db->useDatabase( 'mysql' );
+    my $oldDbName = $self->{'dbh'}->useDatabase( 'mysql' );
 
-        my $dbh = $db->getRawDb();
-        local $dbh->{'RaiseError'};
+    my $rdbh = $self->{'dbh'}->getRawDb();
+    local $rdbh->{'RaiseError'} = TRUE;
 
-        # Remove anonymous users
-        $dbh->do( "DELETE FROM user WHERE User = ''" );
+    # Remove anonymous users
+    $rdbh->do( "DELETE FROM user WHERE User = ''" );
+    # Remove test database if any
+    $rdbh->do( 'DROP DATABASE IF EXISTS `test`' );
+    # Remove privileges on test database
+    $rdbh->do( "DELETE FROM db WHERE Db = 'test' OR Db = 'test\\_%'" );
 
-        # Remove test database if any
-        $dbh->do( 'DROP DATABASE IF EXISTS `test`' );
-
-        # Remove privileges on test database
-        $dbh->do( "DELETE FROM db WHERE Db = 'test' OR Db = 'test\\_%'" );
-
-        # Disallow remote root login
-        if ( $::imscpConfig{'SQLD_PACKAGE'} ne 'Servers::sqld::remote' ) {
-            $dbh->do( "DELETE FROM user WHERE User = 'root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" );
-        }
-
-        $dbh->do( 'FLUSH PRIVILEGES' );
-        $db->useDatabase( $oldDbName ) if $oldDbName;
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    # Disallow remote root login
+    if ( $::imscpConfig{'SQLD_PACKAGE'} ne 'Servers::sqld::remote' ) {
+        $rdbh->do( "DELETE FROM user WHERE User = 'root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')" );
     }
 
+    $rdbh->do( 'FLUSH PRIVILEGES' );
+    $self->{'dbh'}->useDatabase( $oldDbName ) if $oldDbName;
     $self->{'eventManager'}->getInstance()->trigger( 'afterSetupSecureSqlInstallation' );
 }
 
@@ -774,7 +722,7 @@ sub _setupSecureInstallation
 
  Setup database
  
- Return 0 on success, other on failure
+ Return 0 on success, other or die on failure
 
 =cut
 
@@ -788,27 +736,19 @@ sub _setupDatbase
         my $rs = $self->{'eventManager'}->getInstance()->trigger( 'beforeSetupDatabase', \$dbName );
         return $rs if $rs;
 
-        my $db = iMSCP::Database->factory();
+        my $rdbh = $self->{'dbh'}->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
+        my $qdbName = $rdbh->quote_identifier( $dbName );
+        $rdbh->do( "CREATE DATABASE $qdbName CHARACTER SET utf8 COLLATE utf8_unicode_ci;" );
 
-        eval {
-            my $dbh = $db->getRawDb();
-            local $dbh->{'RaiseError'} = 1;
-            my $qdbName = $dbh->quote_identifier( $dbName );
-            $dbh->do( "CREATE DATABASE $qdbName CHARACTER SET utf8 COLLATE utf8_unicode_ci;" );
-        };
-        if ( $@ ) {
-            error( $@ );
-            return 1;
-        }
+        $self->{'dbh'}->set( 'DATABASE_NAME', $dbName );
 
-        $db->set( 'DATABASE_NAME', $dbName );
-
-        if ( $db->connect() ) {
+        if ( $self->{'dbh'}->connect() ) {
             error( "Couldn't connect to SQL server" );
             return 1;
         }
 
-        $rs = ::setupImportSqlSchema( $db, "$::imscpConfig{'CONF_DIR'}/database/database.sql" );
+        $rs = ::setupImportSqlSchema( $self->{'dbh'}, "$::imscpConfig{'CONF_DIR'}/database/database.sql" );
         $rs ||= $self->{'eventManager'}->getInstance()->trigger( 'afterSetupDatabase', \$dbName );
         return $rs if $rs;
     }
@@ -826,7 +766,7 @@ sub _setupDatbase
 
  Does the Mysql server is run inside an unprivileged VE (OpenVZ container)
 
- Return int 1 if the Mysql server is run inside an OpenVZ container, 0 otherwise
+ Return boolean TRUE if the Mysql server is run inside an OpenVZ container, FALSE
 
 =cut
 
@@ -840,38 +780,37 @@ sub _isMysqldInsideCt
     return $rs if $rs;
 
     if ( $stdout =~ /envID:\s+(\d+)/ ) {
-        return ( $1 > 0 ) ? 1 : 0;
+        return !!( $1 > 0 );
     }
 
-    0;
+    FALSE;
 }
 
 =item _setupIsImscpDb
 
  Is the given database an i-MSCP database?
 
- Return int 1 if database exists and look like an i-MSCP database, 0 otherwise, die on failure
+ Return boolean TRUE if the given database exists and look like an i-MSCP database, FALSE otherwise, die on failure
 
 =cut
 
 sub _setupIsImscpDb
 {
-    my ( undef, $dbName ) = @_;
+    my ( $self, $dbName ) = @_;
 
-    my $db = iMSCP::Database->factory();
-    my $dbh = $db->getRawDb();
+    my $rdbh = $self->{'dbh'}->getRawDb();
 
-    local $dbh->{'RaiseError'};
-    return 0 unless $dbh->selectrow_hashref( 'SHOW DATABASES LIKE ?', undef, $dbName );
+    local $rdbh->{'RaiseError'} = TRUE;
+    return FALSE unless $rdbh->selectrow_hashref( 'SHOW DATABASES LIKE ?', undef, $dbName );
 
-    my $tables = $db->getDbTables( $dbName );
-    return 0 unless @{ $tables };
+    my $tables = $self->{'dbh'}->getDbTables( $dbName );
+    return FALSE unless @{ $tables };
 
     for my $table ( qw/ server_ips user_gui_props reseller_props / ) {
-        return 0 unless grep ( $_ eq $table, @{ $tables } );
+        return FALSE unless grep ( $table eq $_, @{ $tables } );
     }
 
-    1;
+    TRUE;
 }
 
 =item _tryDbConnect
@@ -882,19 +821,18 @@ sub _setupIsImscpDb
 
 sub _tryDbConnect
 {
-    my ( undef, $host, $port, $user, $pwd ) = @_;
+    my ( $self, $host, $port, $user, $pwd ) = @_;
 
     defined $host or die( '$host parameter is not defined' );
     defined $port or die( '$port parameter is not defined' );
     defined $user or die( '$user parameter is not defined' );
     defined $pwd or die( '$pwd parameter is not defined' );
 
-    my $db = iMSCP::Database->factory();
-    $db->set( 'DATABASE_HOST', idn_to_ascii( $host, 'utf-8' ));
-    $db->set( 'DATABASE_PORT', $port );
-    $db->set( 'DATABASE_USER', $user );
-    $db->set( 'DATABASE_PASSWORD', $pwd );
-    $db->connect();
+    $self->{'dbh'}->set( 'DATABASE_HOST', idn_to_ascii( $host, 'utf-8' ));
+    $self->{'dbh'}->set( 'DATABASE_PORT', $port );
+    $self->{'dbh'}->set( 'DATABASE_USER', $user );
+    $self->{'dbh'}->set( 'DATABASE_PASSWORD', $pwd );
+    $self->{'dbh'}->connect();
 }
 
 =item _oldEngineCompatibility( )

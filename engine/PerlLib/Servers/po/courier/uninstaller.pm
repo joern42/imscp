@@ -25,13 +25,12 @@ package Servers::po::courier::uninstaller;
 
 use strict;
 use warnings;
-use iMSCP::Config;
-use iMSCP::Debug;
-use iMSCP::EventManager;
+use iMSCP::Debug qw/ error /;
 use iMSCP::File;
+use iMSCP::Getopt;
 use iMSCP::Mount qw/ removeMountEntry umount /;
 use iMSCP::SystemUser;
-use iMSCP::TemplateParser;
+use iMSCP::TemplateParser qw/ replaceBlocByRef /;
 use Servers::mta;
 use Servers::po::courier;
 use Servers::sqld;
@@ -47,25 +46,20 @@ use parent 'Common::SingletonClass';
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, die on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # In setup context, processing must be delayed, else we won't be able to connect to SQL server
-    if ( $main::execmode eq 'setup' ) {
-        return iMSCP::EventManager->getInstance()->register(
-            'afterSqldPreinstall',
-            sub {
-                my $rs ||= $self->_dropSqlUser();
-                $rs ||= $self->_removeConfig();
-            }
-        );
+    if ( iMSCP::Getopt->context() eq 'installer' ) {
+        return $self->{'eventManager'}->register( 'afterSqldPreinstall', sub {
+            my $rs ||= $self->_dropSqlUser();
+            $rs ||= $self->_removeConfig();
+        } );
     }
 
     my $rs = $self->_dropSqlUser();
@@ -88,9 +82,10 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'po'} = Servers::po::courier->getInstance();
+    $self->{'eventManager'} = $self->{'po'}->{'eventManager'};
     $self->{'mta'} = Servers::mta->factory();
     $self->{'cfgDir'} = $self->{'po'}->{'cfgDir'};
     $self->{'config'} = $self->{'po'}->{'config'};
@@ -101,27 +96,20 @@ sub _init
 
  Drop SQL user
 
- Return int 0 on success, other on failure
+ Return int 0 on success, die on failure
 
 =cut
 
 sub _dropSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # In setup context, take value from old conffile, else take value from current conffile
-    my $dbUserHost = ( $main::execmode eq 'setup' )
-        ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
+    my $dbUserHost = iMSCP::Getopt->context() eq 'installer' ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
     return 0 unless $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'} && $dbUserHost;
 
-    local $@;
-    eval { Servers::sqld->factory()->dropUser( $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'}, $dbUserHost ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    Servers::sqld->factory()->dropUser( $self->{'config'}->{'AUTHDAEMON_DATABASE_USER'}, $dbUserHost );
     0;
 }
 
@@ -135,12 +123,10 @@ sub _dropSqlUser
 
 sub _removeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Umount the courier-authdaemond rundir from the Postfix chroot
-    my $fsFile = File::Spec->canonpath(
-        "$self->{'mta'}->{'config'}->{'POSTFIX_QUEUE_DIR'}/$self->{'config'}->{'AUTHLIB_SOCKET_DIR'}"
-    );
+    my $fsFile = File::Spec->canonpath( "$self->{'mta'}->{'config'}->{'POSTFIX_QUEUE_DIR'}/$self->{'config'}->{'AUTHLIB_SOCKET_DIR'}" );
     my $rs = removeMountEntry( qr%.*?[ \t]+\Q$fsFile\E(?:/|[ \t]+)[^\n]+% );
     $rs ||= umount( $fsFile );
     return $rs if $rs;
@@ -156,23 +142,15 @@ sub _removeConfig
     # Remove i-MSCP configuration stanza from the courier-imap daemon configuration file
     if ( -f "$self->{'config'}->{'COURIER_CONF_DIR'}/imapd" ) {
         my $file = iMSCP::File->new( filename => "$self->{'config'}->{'COURIER_CONF_DIR'}/imapd" );
-        my $fileContent = $file->get();
-        unless ( defined $fileContent ) {
-            error( sprintf( "Couldn't read %s file", $file->{'filename'} ));
-            return 1;
-        }
+        my $fileC = $file->get();
+        return 1 unless defined $fileC;
 
-        $fileContent = replaceBloc(
-            qr/(:?^\n)?# Servers::po::courier::installer - BEGIN\n/m,
-            qr/# Servers::po::courier::installer - ENDING\n/,
-            '',
-            $fileContent
-        );
+        replaceBlocByRef( qr/(:?^\n)?# Servers::po::courier::installer - BEGIN\n/m, qr/# Servers::po::courier::installer - ENDING\n/, '', \$fileC );
 
-        $file->set( $fileContent );
+        $file->set( $fileC );
 
         $rs = $file->save();
-        $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $main::imscpConfig{'ROOT_GROUP'} );
+        $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'} );
         $rs ||= $file->mode( 0644 );
         return $rs if $rs;
     }

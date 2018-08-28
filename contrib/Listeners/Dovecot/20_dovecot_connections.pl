@@ -15,9 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Allows to increase the mail_max_userip_connections parameter value.
-#
+# Allows to increase the mail_max_userip_connections parameter value.
 
 package Listener::Dovecot::Connections;
 
@@ -25,33 +23,26 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-#
-## Configuration parameters
-#
+# Configuration parameters
 
 # Max connection per IP
 my $maxConnections = 50;
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'beforePoBuildConf',
-    sub {
-        my ($cfgTpl, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforePoBuildConf', sub {
+    my ( $cfgTpl, $tplName ) = @_;
 
-        return 0 unless $tplName eq 'dovecot.conf';
+    return 0 unless $tplName eq 'dovecot.conf';
 
-        $$cfgTpl .= <<EOF;
+    ${ $cfgTpl } .= <<"EOF";
 
 # BEGIN Listener::Dovecot::Connections
 mail_max_userip_connections = $maxConnections
 # END Listener::Dovecot::Connections
 EOF
-        0;
-    }
-);
+    0;
+} );
 
 1;
 __END__

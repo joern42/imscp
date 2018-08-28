@@ -39,15 +39,13 @@ use parent 'Servers::sqld::mysql';
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::preinstall()
 
 =cut
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldPreinstall', 'percona' );
     $rs ||= Servers::sqld::percona::installer->getInstance()->preinstall();
@@ -56,29 +54,22 @@ sub preinstall
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0
+ See iMSCP::AbstractInstallerActions::postinstall()
 
 =cut
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldPostInstall', 'percona' );
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->enable( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( 'mysql' );
 
     $rs = $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->restart(); }, 'Percona' ];
+            push @{ $_[0] }, [ sub { $self->restart(); }, 'Percona' ];
             0;
         },
         7
@@ -89,15 +80,13 @@ sub postinstall
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldUninstall', 'percona' );
     $rs ||= Servers::sqld::percona::uninstaller->getInstance()->uninstall();

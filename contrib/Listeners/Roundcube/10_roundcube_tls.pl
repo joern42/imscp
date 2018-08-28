@@ -15,9 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Changes the Roundcube Webmail configuration to connect through TLS.
-#
+# Changes the Roundcube Webmail configuration to connect through TLS.
 
 package Listener::Roundcube::TLS;
 
@@ -25,36 +23,21 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-#
-## Please, don't edit anything below this line unless you known what you're doing
-#
+# Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'afterSetupTasks',
-    sub {
-        my $file = iMSCP::File->new(
-            filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php"
-        );
-        my $fileContent = $file->get();
-        unless (defined $fileContent) {
-            error( sprintf( "Couldn't read %s file", $file->{'filename'} ) );
-            return 1;
-        }
+iMSCP::EventManager->getInstance()->register( 'afterSetupTasks', sub {
+    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
+    my $fileC = $file->getAsRef();
+    return 1 unless defined $fileC;
 
-        $fileContent =~ s/(\$config\['(?:default_host|smtp_server)?'\]\s+=\s+').*(';)/$1tls:\/\/$main::imscpConfig{'BASE_SERVER_VHOST'}$2/g;
-        $file->set( $fileContent );
-        $file->save();
-    }
-);
+    ${ $fileC } =~ s/(\$config\['(?:default_host|smtp_server)?'\]\s+=\s+').*(';)/$1tls:\/\/$::imscpConfig{'BASE_SERVER_VHOST'}$2/g;
+    $file->save();
+} );
 
-iMSCP::EventManager->getInstance()->register(
-    'beforeUpdateRoundCubeMailHostEntries',
-    sub {
-        my $hostname = shift;
-        ${$hostname} = $main::imscpConfig{'BASE_SERVER_VHOST'};
-        0;
-    }
-);
+iMSCP::EventManager->getInstance()->register( 'beforeUpdateRoundCubeMailHostEntries', sub {
+    ${ $_[0] } = $::imscpConfig{'BASE_SERVER_VHOST'};
+    0;
+} );
 
 1;
 __END__

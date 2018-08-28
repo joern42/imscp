@@ -25,6 +25,7 @@ package Servers::mta;
 
 use strict;
 use warnings;
+use iMSCP::Getopt;
 
 # mta server instance
 my $instance;
@@ -49,7 +50,7 @@ sub factory
 {
     return $instance if $instance;
 
-    my $package ||= $main::imscpConfig{'MTA_PACKAGE'} || 'Servers::noserver';
+    my $package ||= $::imscpConfig{'MTA_PACKAGE'} || 'Servers::noserver';
     eval "require $package" or die;
     $instance = $package->getInstance();
 }
@@ -85,7 +86,7 @@ sub getPriority
 
 END
     {
-        return if $? || !$instance || ( $main::execmode && $main::execmode eq 'setup' );
+        return if $? || !$instance || iMSCP::Getopt->context() eq 'installer';
 
         if ( $instance->{'restart'} ) {
             $? = $instance->restart();

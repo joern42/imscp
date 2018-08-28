@@ -148,23 +148,23 @@
         </external_server>
     </named>
     <panel_httpd description="Web server for the control panel" varname="PANEL_HTTPD_SERVER" hidden="1" dialog_priority="9">
-        <nginx default="1" description="Nginx server" class="Package::Setup::FrontEnd">
+        <nginx default="1" description="Nginx server" class="Package::Installer::FrontEnd">
             <package>nginx-full</package>
             <package_conflict>nginx</package_conflict>
         </nginx>
     </panel_httpd>
     <panel_php description="PHP version for the control panel" varname="PANEL_PHP_VERSION" dialog_priority="8">
-        <php5.6 description="PHP 5.6" class="Package::Setup::FrontEnd">
+        <php5.6 description="PHP 5.6" class="Package::Installer::FrontEnd">
             <post_install_task>update-alternatives --set php /usr/bin/php5.6</post_install_task>
             <post_install_task>update-alternatives --set phar /usr/bin/phar5.6</post_install_task>
             <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar5.6</post_install_task>
         </php5.6>
-        <php7.0 description="PHP 7.0" class="Package::Setup::FrontEnd">
+        <php7.0 description="PHP 7.0" class="Package::Installer::FrontEnd">
             <post_install_task>update-alternatives --set php /usr/bin/php7.0</post_install_task>
             <post_install_task>update-alternatives --set phar /usr/bin/phar7.0</post_install_task>
             <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar7.0</post_install_task>
         </php7.0>
-        <php7.1 default="1" description="PHP 7.1" class="Package::Setup::FrontEnd">
+        <php7.1 default="1" description="PHP 7.1" class="Package::Installer::FrontEnd">
             <post_install_task>update-alternatives --set php /usr/bin/php7.1</post_install_task>
             <post_install_task>update-alternatives --set phar /usr/bin/phar7.1</post_install_task>
             <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar7.1</post_install_task>
@@ -308,7 +308,7 @@
         <package_conflict>sendmail-doc</package_conflict>
     </mta>
     <postfix_srs description="Postfix Sender Rewritting Scheme (SRS)" varname="POSTFIX_SRS" dialog_priority="4">
-        <postsrsd description=" Postsrsd" class="Package::Setup::PostfixSRS">
+        <postsrsd description=" Postsrsd" class="Package::Installer::PostfixSRS">
             <package>postsrsd</package>
         </postsrsd>
         <none default="1" description="No SRS"/>
@@ -333,44 +333,6 @@
             <package>dovecot-mysql</package>
         </dovecot>
     </po>
-    <antispam description="antispam" varname="ANTISPAM" dialog_priority="2">
-        <full_description>
-            If you currently make use of the SpamAssassin plugin and want switch to Rspamd, you should really considere to uninstall it.
-            \nHaving both SpamAssassin and Rspamd running on the same system can lead to serious performance penalties.
-            \n\nWe highly recommend to switch to the Rspamd core integration as the SpamAssassin plugin will be abandoned in a near future.
-        </full_description>
-        <rspamd
-                description="Rspamd"
-                repository="http://rspamd.com/apt-stable/ stretch main"
-                repository_key_uri="https://rspamd.com/apt/gpg.key"
-                pinning_package="*"
-                pinning_pin="release o=Rspamd,n=stretch"
-                pinning_pin_priority="1001"
-                class="Package::Setup::Rspamd"
-        >
-            <package>rspamd</package>
-            <package skip_uninstall="1">redis-server</package>
-        </rspamd>
-        <none default="1" description="No antispam"/>
-    </antispam>
-    <antivirus description="antivirus" varname="ANTIVIRUS" dialog_priority="1">
-        <full_description>
-            ClamAV is executed differently depending on whether or not you have chosen Rspamd for the antispam solution.
-            \nIf you have chosen Rspamd, ClamAV will be run through the Rspamd antivirus module, otherwise it will be run through ClamAV milter.
-            \n\nIf you currently make use of the ClamAV plugin and want switch to the ClamAV core integration, you should first uninstall the ClamAV
-            plugin.
-            \nThe behavior will be undefined if you have both the ClamAV core integration and the ClamAV plugin enabled at the same time.
-            \n\nWe highly recommend to switch to the ClamAV core integration as the ClamAV plugin will be abandoned in a near future.
-        </full_description>
-        <clamav description="ClamAV" class="Package::Setup::ClamAV">
-            <package>clamav</package>
-            <package>clamav-freshclam</package>
-            <package>clamdscan</package>
-            <package>clamav-daemon</package>
-            <package condition="'${ANTISPAM}' ne 'rspamd'">clamav-milter</package>
-        </clamav>
-        <none default="1" description="No antivirus"/>
-    </antivirus>
     <perl>
         <package>perl</package>
         <package>libcrypt-blowfish-perl</package>

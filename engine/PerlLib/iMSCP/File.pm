@@ -51,7 +51,7 @@ use parent 'Common::Object';
 
 sub get
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return $self->{'fileContent'} if defined $self->{'fileContent'};
 
@@ -62,14 +62,14 @@ sub get
 
     my $fh;
     unless ( open( $fh, '<', $self->{'filename'} ) ) {
-        error( sprintf( "Couldn't open '%s' file for reading: %s", $self->{'filename'}, $! ));
+        error( sprintf( "Couldn't open the '%s' file for reading: %s", $self->{'filename'}, $! ));
         return undef;
     }
 
     local $/;
     $self->{'fileContent'} = <$fh>;
     close( $fh );
-    $self->{'fileContent'}
+    $self->{'fileContent'};
 }
 
 =item
@@ -82,14 +82,11 @@ sub get
 
 sub getAsRef
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return \$self->{'fileContent'} if defined $self->{'fileContent'};
-
     $self->{'fileContent'} = $self->get();
-
     return undef unless defined $self->{'fileContent'};
-
     \$self->{'fileContent'};
 }
 
@@ -104,7 +101,7 @@ sub getAsRef
 
 sub set
 {
-    my ($self, $content) = @_;
+    my ( $self, $content ) = @_;
 
     $self->{'fileContent'} = $content // '';
     0;
@@ -120,7 +117,7 @@ sub set
 
 sub save
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     unless ( defined $self->{'filename'} ) {
         error( "Attribut 'filename' is not set." );
@@ -149,7 +146,7 @@ sub save
 
 sub delFile
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     unless ( defined $self->{'filename'} ) {
         error( "Attribut 'filename' is not set." );
@@ -177,7 +174,7 @@ sub delFile
 
 sub mode
 {
-    my ($self, $mode) = @_;
+    my ( $self, $mode ) = @_;
 
     unless ( defined $self->{'filename'} ) {
         error( "Attribut 'filename' is not set." );
@@ -213,7 +210,7 @@ sub mode
 
 sub owner
 {
-    my ($self, $owner, $group) = @_;
+    my ( $self, $owner, $group ) = @_;
 
     unless ( defined $self->{'filename'} ) {
         error( "Attribut 'filename' is not set." );
@@ -257,7 +254,7 @@ sub owner
 
 sub copyFile
 {
-    my ($self, $destination, $options) = @_;
+    my ( $self, $destination, $options ) = @_;
 
     $options = {} unless $options && ref $options eq 'HASH';
 
@@ -280,7 +277,7 @@ sub copyFile
 
     $destination = File::Spec->catfile( $destination, basename( $self->{'filename'} )) if -d $destination;
 
-    my ($mode, $uid, $gid) = ( lstat( $self->{'filename'} ) )[2, 4, 5];
+    my ( $mode, $uid, $gid ) = ( lstat( $self->{'filename'} ) )[2, 4, 5];
 
     unless ( lchown( $uid, $gid, $destination ) ) {
         error( sprintf( "Couldn't change '%s' file ownership: %s", $destination, $! ));
@@ -308,7 +305,7 @@ sub copyFile
 
 sub moveFile
 {
-    my ($self, $destination) = @_;
+    my ( $self, $destination ) = @_;
 
     unless ( defined $self->{'filename'} ) {
         error( "Attribut 'filename' is not set." );
@@ -344,7 +341,7 @@ sub moveFile
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'filename'} //= undef;
     $self;

@@ -23,7 +23,7 @@ use strict;
 use warnings;
 use autoinstaller::Functions qw/ evalConditionFromXmlFile /;
 use autouse 'iMSCP::Stepper' => qw/ startDetail endDetail step /;
-use autouse 'Clone' => qw/ clone /;
+use autouse Clone => qw/ clone /;
 use File::Temp;
 use iMSCP::Boolean;
 use iMSCP::Cwd;
@@ -52,7 +52,7 @@ use parent 'autoinstaller::Adapter::AbstractAdapter';
 
  Install pre-required packages
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -62,20 +62,13 @@ sub installPreRequiredPackages
 
     print STDOUT output( 'Satisfying prerequisites... Please wait.', 'info' );
 
-    eval {
-        $self->_updateAptSourceList() == 0 or die(
-            sprintf( "Couldn't update APT source list: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' )
-        );
+    $self->_updateAptSourceList() == 0 or die(
+        sprintf( "Couldn't update APT source list: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' )
+    );
 
-        iMSCP::DistPackageManager->getInstance()
-            ->updateRepositoryIndexes()
-            ->installPackages( @{ $self->{'preRequiredPackages'} } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::DistPackageManager->getInstance()
+        ->updateRepositoryIndexes()
+        ->installPackages( $self->{'preRequiredPackages'} );
     0;
 }
 
@@ -84,7 +77,7 @@ sub installPreRequiredPackages
  Process preBuild tasks
 
  Param array \@steps List of build steps
- Return int 0 on success, other on failure
+ Return int 0
 
 =cut
 
@@ -100,11 +93,7 @@ sub preBuild
         [ sub { $self->_addAptPreferences() }, 'Adding APT preferences' ],
         [
             sub {
-                eval { $self->_seedDebconfValues(); };
-                if ( $@ ) {
-                    error( $@ );
-                    return 1;
-                }
+                $self->_seedDebconfValues();
                 0;
             },
             'Seeding debconf values'
@@ -118,7 +107,7 @@ sub preBuild
 
  Install Debian packages
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -126,25 +115,25 @@ sub installPackages
 {
     my ( $self ) = @_;
 
-    eval {
-        # See https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
-        my $policyrcd = File::Temp->new( UNLINK => TRUE );
 
-        # Prevents invoke-rc.d (which is invoked by package maintainer scripts) to start some services
-        #
-        # - Prevent "bind() to 0.0.0.0:80 failed (98: Address already in use" failure (Apache2, Nginx)
-        # - Prevent start failure when IPv6 stack is not enabled (Dovecot, Nginx)
-        # - Prevent failure when resolvconf is not configured yet (bind9)
-        # - ProFTPD daemon making too much time to start with default configuration
-        my @services = qw/ apache2 bind9 dovecot nginx proftpd /;
+    # See https://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
+    my $policyrcd = File::Temp->new( UNLINK => TRUE );
 
-        # - MariaDB upgrade failure
-        # TODO: To be documented
-        if ( grep ( /mariadb-server/, @{ $self->{'packagesToInstall'} } ) && ( $self->_getSqldInfo )[0] ne 'none' ) {
-            push @services, 'mysql', 'mariadb'
-        }
+    # Prevents invoke-rc.d (which is invoked by package maintainer scripts) to start some services
+    #
+    # - Prevent "bind() to 0.0.0.0:80 failed (98: Address already in use" failure (Apache2, Nginx)
+    # - Prevent start failure when IPv6 stack is not enabled (Dovecot, Nginx)
+    # - Prevent failure when resolvconf is not configured yet (bind9)
+    # - ProFTPD daemon making too much time to start with default configuration
+    my @services = qw/ apache2 bind9 dovecot nginx proftpd /;
 
-        print $policyrcd <<"EOF";
+    # - MariaDB upgrade failure
+    # TODO: To be documented
+    if ( grep ( /mariadb-server/, @{ $self->{'packagesToInstall'} } ) && ( $self->_getSqldInfo )[0] ne 'none' ) {
+        push @services, 'mysql', 'mariadb'
+    }
+
+    print $policyrcd <<"EOF";
 #!/bin/sh
 
 initscript=\$1
@@ -158,89 +147,84 @@ if [ "\$action" = "start" ] || [ "\$action" = "restart" ]; then
     done
 fi
 EOF
-        $policyrcd->close();
-        chmod( 0750, $policyrcd->filename ) or die( sprintf( "Couldn't change permissions on %s: %s", $policyrcd->filename, $! ));
+    $policyrcd->close();
+    chmod( 0750, $policyrcd->filename ) or die( sprintf( "Couldn't change permissions on %s: %s", $policyrcd->filename, $! ));
 
-        # See ZG-POLICY-RC.D(8)
-        local $ENV{'POLICYRCD'} = $policyrcd->filename();
+    # See ZG-POLICY-RC.D(8)
+    local $ENV{'POLICYRCD'} = $policyrcd->filename();
 
-        iMSCP::DistPackageManager->getInstance()->uninstallPackages( @{ $self->{'packagesToPreUninstall'} } );
+    iMSCP::DistPackageManager->getInstance()->uninstallPackages( $self->{'packagesToPreUninstall'} );
 
-        {
-            startDetail();
-            local $CWD = "$FindBin::Bin/autoinstaller/preinstall";
+    {
+        startDetail();
+        local $CWD = "$FindBin::Bin/autoinstaller/preinstall";
 
-            for my $subject ( keys %{ $self->{'packagesPreInstallTasks'} } ) {
-                my $subjectH = $subject =~ s/_/ /gr;
-                my ( $cTask, $nTasks ) = ( 1, scalar @{ $self->{'packagesPreInstallTasks'}->{$subject} } );
+        for my $subject ( keys %{ $self->{'packagesPreInstallTasks'} } ) {
+            my $subjectH = $subject =~ s/_/ /gr;
+            my ( $cTask, $nTasks ) = ( 1, scalar @{ $self->{'packagesPreInstallTasks'}->{$subject} } );
 
-                for my $task ( @{ $self->{'packagesPreInstallTasks'}->{$subject} } ) {
-                    step(
-                        sub {
-                            my ( $stdout, $stderr );
-                            execute( $task, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \$stdout ), \$stderr ) == 0 or die(
-                                sprintf( 'Error while executing pre-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )
-                            );
-                            0;
-                        },
-                        sprintf( 'Executing pre-install tasks for %s... Please be patient.', $subjectH ), $nTasks, $cTask++
-                    ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
-                }
+            for my $task ( @{ $self->{'packagesPreInstallTasks'}->{$subject} } ) {
+                step(
+                    sub {
+                        my ( $stdout, $stderr );
+                        execute( $task, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \$stdout ), \$stderr ) == 0 or die(
+                            sprintf( 'Error while executing pre-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )
+                        );
+                        0;
+                    },
+                    sprintf( 'Executing pre-install tasks for %s... Please be patient.', $subjectH ), $nTasks, $cTask++
+                ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
             }
-
-            endDetail();
         }
 
-        for my $packages ( $self->{'packagesToInstall'}, $self->{'packagesToInstallDelayed'} ) {
-            next unless @{ $packages };
-            iMSCP::DistPackageManager->getInstance()->installPackages( @{ $packages } );
-        }
+        endDetail();
+    }
 
-        {
-            startDetail();
-            local $CWD = "$FindBin::Bin/autoinstaller/postinstall";
+    for my $packages ( $self->{'packagesToInstall'}, $self->{'packagesToInstallDelayed'} ) {
+        next unless @{ $packages };
+        iMSCP::DistPackageManager->getInstance()->installPackages( $packages );
+    }
 
-            for my $subject ( keys %{ $self->{'packagesPostInstallTasks'} } ) {
-                my $subjectH = $subject =~ s/_/ /gr;
-                my ( $cTask, $nTasks ) = ( 1, scalar @{ $self->{'packagesPostInstallTasks'}->{$subject} } );
+    {
+        startDetail();
+        local $CWD = "$FindBin::Bin/autoinstaller/postinstall";
 
-                for my $task ( @{ $self->{'packagesPostInstallTasks'}->{$subject} } ) {
-                    step(
-                        sub {
-                            my ( $stdout, $stderr );
-                            execute( $task, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \$stdout ), \$stderr ) == 0 or die(
-                                sprintf( 'Error while executing post-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )
-                            );
-                            0;
-                        },
-                        sprintf( 'Executing post-install tasks for %s... Please be patient.', $subjectH ), $nTasks, $cTask++
-                    ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
-                }
+        for my $subject ( keys %{ $self->{'packagesPostInstallTasks'} } ) {
+            my $subjectH = $subject =~ s/_/ /gr;
+            my ( $cTask, $nTasks ) = ( 1, scalar @{ $self->{'packagesPostInstallTasks'}->{$subject} } );
+
+            for my $task ( @{ $self->{'packagesPostInstallTasks'}->{$subject} } ) {
+                step(
+                    sub {
+                        my ( $stdout, $stderr );
+                        execute( $task, ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \$stdout ), \$stderr ) == 0 or die(
+                            sprintf( 'Error while executing post-install tasks for %s: %s', $subjectH, $stderr || 'Unknown error' )
+                        );
+                        0;
+                    },
+                    sprintf( 'Executing post-install tasks for %s... Please be patient.', $subjectH ), $nTasks, $cTask++
+                ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
             }
-
-            endDetail();
         }
 
-        while ( my ( $package, $metadata ) = each( %{ $self->{'packagesToRebuild'} } ) ) {
-            $self->_rebuildAndInstallPackage(
-                $package, $metadata->{'pkg_src_name'}, $metadata->{'patches_directory'}, $metadata->{'discard_patches'}, $metadata->{'patch_sys_type'}
-            ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
-        }
+        endDetail();
+    }
+
+    while ( my ( $package, $metadata ) = each( %{ $self->{'packagesToRebuild'} } ) ) {
+        $self->_rebuildAndInstallPackage(
+            $package, $metadata->{'pkg_src_name'}, $metadata->{'patches_directory'}, $metadata->{'discard_patches'}, $metadata->{'patch_sys_type'}
+        ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+    }
+
+    if ( @{ $self->{'packagesToUninstall'} } ) {
+        # Filter packages that must be kept or that were already uninstalled
+        my %map = map { $_ => undef } @{ $self->{'packagesToInstall'} }, @{ $self->{'packagesToInstallDelayed'} },
+            keys %{ $self->{'packagesToRebuild'} }, @{ $self->{'packagesToPreUninstall'} };
+        @{ $self->{'packagesToUninstall'} } = grep (!exists $map{$_}, @{ $self->{'packagesToUninstall'} } );
 
         if ( @{ $self->{'packagesToUninstall'} } ) {
-            # Filter packages that must be kept or that were already uninstalled
-            my %map = map { $_ => undef } @{ $self->{'packagesToInstall'} }, @{ $self->{'packagesToInstallDelayed'} },
-                keys %{ $self->{'packagesToRebuild'} }, @{ $self->{'packagesToPreUninstall'} };
-            @{ $self->{'packagesToUninstall'} } = grep (!exists $map{$_}, @{ $self->{'packagesToUninstall'} } );
-
-            if ( @{ $self->{'packagesToUninstall'} } ) {
-                iMSCP::DistPackageManager->getInstance()->uninstallPackages( @{ $self->{'packagesToUninstall'} } );
-            }
+            iMSCP::DistPackageManager->getInstance()->uninstallPackages( $self->{'packagesToUninstall'} );
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
 
     0;
@@ -301,22 +285,18 @@ sub _init
 sub _setupGetAddrinfoPrecedence
 {
     my $file = iMSCP::File->new( filename => '/etc/gai.conf' );
-    my $fileContent = '';
+    my $fileC = '';
 
     if ( -f '/etc/gai.conf' ) {
-        $fileContent = $file->get();
-        unless ( defined $fileContent ) {
-            error( sprintf( "Couldn't read the '%s' file ", $file->{'filename'} ));
-            return 1;
-        }
-
-        return 0 if $fileContent =~ m%^precedence\s+::ffff:0:0/96\s+100\n%m;
+        $fileC = $file->get();
+        return 1 unless defined $fileC;
+        return 0 if $fileC =~ m%^precedence\s+::ffff:0:0/96\s+100\n%m;
     }
 
     # Prefer IPv4
-    $fileContent .= "precedence ::ffff:0:0/96  100\n";
+    $fileC .= "precedence ::ffff:0:0/96  100\n";
 
-    $file->set( $fileContent );
+    $file->set( $fileC );
     $file->save();
 }
 
@@ -484,19 +464,19 @@ sub _processPackagesFile
         # Per section APT repository to add
         if ( defined $data->{'repository'} ) {
             push @{ $container{$section}->{'aptRepositoriesToAdd'} }, {
-                repository         => delete $data->{'repository'},
-                repository_key_uri => delete $data->{'repository_key_uri'},
-                repository_key_id  => delete $data->{'repository_key_id'},
-                repository_key_srv => delete $data->{'repository_key_srv'}
+                repository => delete $data->{'repository'},
+                    repository_key_uri => delete $data->{'repository_key_uri'},
+                        repository_key_id => delete $data->{'repository_key_id'},
+                            repository_key_srv => delete $data->{'repository_key_srv'}
             };
         }
 
         # Per section APT preferences (pinning) to add
         if ( defined $data->{'pinning_package'} ) {
             push @{ $container{$section}->{'aptPreferences'} }, {
-                pinning_package      => delete $data->{'pinning_package'},
-                pinning_pin          => delete $data->{'pinning_pin'},
-                pinning_pin_priority => delete $data->{'pinning_pin_priority'},
+                pinning_package => delete $data->{'pinning_package'},
+                    pinning_pin => delete $data->{'pinning_pin'},
+                        pinning_pin_priority => delete $data->{'pinning_pin_priority'},
             };
         }
 
@@ -583,7 +563,7 @@ EOF
             if ( $ret == 30 ) {
                 do {
                     $state--;
-                    iMSCP::Getopt->reconfigure($sections[$state], FALSE, TRUE);
+                    iMSCP::Getopt->reconfigure( $sections[$state], FALSE, TRUE );
                     $data = clone $pkgData->{$sections[$state]};
                     delete @{ $data }{qw/
                         description varname dialog_priority package package_delayed package_conflict repository repository_key_uri
@@ -627,19 +607,19 @@ EOF
                 # Per alternative APT repository to add
                 if ( defined $altData->{'repository'} ) {
                     push @{ $container{$section}->{'aptRepositoriesToAdd'} }, {
-                        repository         => delete $altData->{'repository'},
-                        repository_key_uri => delete $altData->{'repository_key_uri'},
-                        repository_key_id  => delete $altData->{'repository_key_id'},
-                        repository_key_srv => delete $altData->{'repository_key_srv'}
+                        repository => delete $altData->{'repository'},
+                            repository_key_uri => delete $altData->{'repository_key_uri'},
+                                repository_key_id => delete $altData->{'repository_key_id'},
+                                    repository_key_srv => delete $altData->{'repository_key_srv'}
                     };
                 }
 
                 # Per alternative APT preferences (pinning) to add
                 if ( defined $altData->{'pinning_package'} ) {
                     push @{ $container{$section}->{'aptPreferences'} }, {
-                        pinning_package      => delete $altData->{'pinning_package'},
-                        pinning_pin          => delete $altData->{'pinning_pin'},
-                        pinning_pin_priority => delete $altData->{'pinning_pin_priority'},
+                        pinning_package => delete $altData->{'pinning_package'},
+                            pinning_pin => delete $altData->{'pinning_pin'},
+                                pinning_pin_priority => delete $altData->{'pinning_pin_priority'},
                     }
                 }
 
@@ -700,7 +680,7 @@ EOF
         while ( my ( $target, $data ) = each( %{ $container{$section} } ) ) {
             if ( ref $data eq 'ARRAY' ) {
                 push @{ $self->{ $target } }, @{ $data };
-                @{ $self->{ $target } } = sort( uniq( @{ $self->{ $target } } ) );
+                @{ $self->{ $target } } = sort ( uniq( @{ $self->{ $target } } ) );
                 next;
             }
 
@@ -731,19 +711,19 @@ sub _updateAptSourceList
     local $ENV{'LANG'} = 'C';
 
     my $file = iMSCP::File->new( filename => '/etc/apt/sources.list' );
-    my $fileContent = $file->get();
+    my $fileC = $file->get();
 
     for my $section ( @{ $self->{'repositorySections'} } ) {
         my @seenRepositories = ();
         my $foundSection = FALSE;
 
-        while ( $fileContent =~ /^deb\s+(?<uri>(?:https?|ftp)[^\s]+)\s+(?<dist>[^\s]+)\s+(?<components>.+)$/gm ) {
+        while ( $fileC =~ /^deb\s+(?<uri>(?:https?|ftp)[^\s]+)\s+(?<dist>[^\s]+)\s+(?<components>.+)$/gm ) {
             my $rf = $&;
             my %rc = %+;
             next if grep ($_ eq "$rc{'uri'} $rc{'dist'}", @seenRepositories);
             push @seenRepositories, "$rc{'uri'} $rc{'dist'}";
 
-            if ( $fileContent !~ /^deb\s+$rc{'uri'}\s+$rc{'dist'}\s+.*\b$section\b/m ) {
+            if ( $fileC !~ /^deb\s+$rc{'uri'}\s+$rc{'dist'}\s+.*\b$section\b/m ) {
                 my $rs = execute(
                     [ 'wget', '--prefer-family=IPv4', '--timeout=30', '--spider', "$rc{'uri'}/dists/$rc{'dist'}/$section/" =~ s{([^:])//}{$1/}gr ],
                     \my $stdout,
@@ -753,13 +733,13 @@ sub _updateAptSourceList
                 debug( $stderr || 'Unknown error' ) if $rs && $rs != 8;
                 next if $rs; # Don't check for source archive when binary archive has not been found
                 $foundSection = TRUE;
-                $fileContent =~ s/^($rf)$/$1 $section/m;
+                $fileC =~ s/^($rf)$/$1 $section/m;
                 $rf .= " $section";
             } else {
                 $foundSection = TRUE;
             }
 
-            if ( $foundSection && $fileContent !~ /^deb-src\s+$rc{'uri'}\s+$rc{'dist'}\s+.*\b$section\b/m ) {
+            if ( $foundSection && $fileC !~ /^deb-src\s+$rc{'uri'}\s+$rc{'dist'}\s+.*\b$section\b/m ) {
                 my $rs = execute(
                     [ 'wget', '--prefer-family=IPv4', '--timeout=30', '--spider', "$rc{'uri'}/dists/$rc{'dist'}/$section/source/" =~ s{([^:])//}{$1/}gr ],
                     \my $stdout,
@@ -769,10 +749,10 @@ sub _updateAptSourceList
                 debug( $stderr || 'Unknown error' ) if $rs && $rs != 8;
 
                 unless ( $rs ) {
-                    if ( $fileContent !~ /^deb-src\s+$rc{'uri'}\s+$rc{'dist'}\s.*/m ) {
-                        $fileContent =~ s/^($rf)/$1\ndeb-src $rc{'uri'} $rc{'dist'} $section/m;
+                    if ( $fileC !~ /^deb-src\s+$rc{'uri'}\s+$rc{'dist'}\s.*/m ) {
+                        $fileC =~ s/^($rf)/$1\ndeb-src $rc{'uri'} $rc{'dist'} $section/m;
                     } else {
-                        $fileContent =~ s/^($&)$/$1 $section/m;
+                        $fileC =~ s/^($&)$/$1 $section/m;
                     }
                 }
             }
@@ -784,7 +764,7 @@ sub _updateAptSourceList
         }
     }
 
-    $file->set( $fileContent );
+    $file->set( $fileC );
     $file->save();
 }
 
@@ -792,7 +772,7 @@ sub _updateAptSourceList
 
  Add APT repositories
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -802,17 +782,10 @@ sub _addAptRepositories
 
     return 0 unless @{ $self->{'aptRepositoriesToRemove'} } || @{ $self->{'aptRepositoriesToAdd'} };
 
-    eval {
-        iMSCP::DistPackageManager->getInstance()
-            ->removeRepositories( @{ $self->{'aptRepositoriesToRemove'} } )
-            ->addRepositories( @{ $self->{'aptRepositoriesToAdd'} } )
-            ->updateRepositoryIndexes();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::DistPackageManager->getInstance()
+        ->removeRepositories( $self->{'aptRepositoriesToRemove'} )
+        ->addRepositories( $self->{'aptRepositoriesToAdd'} )
+        ->updateRepositoryIndexes();
     0;
 }
 
@@ -820,7 +793,7 @@ sub _addAptRepositories
 
  Add APT preferences
 
- Return 0 on success, other on failure
+ Return 0 on success, other or die on failure
 
 =cut
 
@@ -833,12 +806,7 @@ sub _addAptPreferences
         return $rs if $rs;
     }
 
-    eval { iMSCP::DistPackageManager->getInstance()->addAptPreferences( @{ $self->{'aptPreferences'} } ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    iMSCP::DistPackageManager->getInstance()->addAptPreferences( $self->{'aptPreferences'} );
     0;
 }
 
@@ -856,7 +824,7 @@ sub _seedDebconfValues
 {
     my ( $self ) = @_;
 
-    my $fileContent = '';
+    my $fileC = '';
 
     # Postfix MTA
     if ( $::imscpConfig{'MTA_PACKAGE'} eq 'Servers::mta::postfix' ) {
@@ -868,7 +836,7 @@ sub _seedDebconfValues
         my $destinations = ( $mailname eq $hostname )
             ? join ', ', ( $mailname, 'localhost.' . $domain, ', localhost' )
             : join ', ', ( $mailname, $hostname, 'localhost.' . $domain . ', localhost' );
-        $fileContent .= <<"EOF";
+        $fileC .= <<"EOF";
 postfix postfix/main_mailer_type select Internet Site
 postfix postfix/mailname string $mailname
 postfix postfix/destinations string $destinations
@@ -877,7 +845,7 @@ EOF
 
     # ProFTPD
     if ( $::imscpConfig{'FTPD_PACKAGE'} eq 'Servers::ftpd::proftpd' ) {
-        $fileContent .= <<'EOF';
+        $fileC .= <<'EOF';
 proftpd-basic shared/proftpd/inetd_or_standalone select standalone
 EOF
     }
@@ -885,7 +853,7 @@ EOF
     # Courier IMAP/POP
     if ( $::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::courier' ) {
         # Pre-fill debconf database for Courier
-        $fileContent .= <<'EOF';
+        $fileC .= <<'EOF';
 courier-base courier-base/webadmin-configmode boolean false
 courier-base courier-base/maildirpath note
 courier-base courier-base/certnotice note
@@ -896,7 +864,7 @@ EOF
 
     # Dovecot IMAP/POP
     elsif ( $::imscpConfig{'PO_PACKAGE'} eq 'Servers::po::dovecot' ) {
-        $fileContent .= <<'EOF';
+        $fileC .= <<'EOF';
 dovecot-core dovecot-core/ssl-cert-name string localhost
 dovecot-core dovecot-core/create-ssl-cert boolean true
 EOF
@@ -904,7 +872,7 @@ EOF
 
     # sasl2-bin package
     if ( `echo GET cyrus-sasl2/purge-sasldb2 | debconf-communicate sasl2-bin 2>/dev/null` =~ /^0/ ) {
-        $fileContent .= "sasl2-bin cyrus-sasl2/purge-sasldb2 boolean true\n";
+        $fileC .= "sasl2-bin cyrus-sasl2/purge-sasldb2 boolean true\n";
     }
 
     # SQL server (MariaDB, MySQL, Percona
@@ -973,13 +941,13 @@ EOF
             if ( my ( $qOwner, $qNamePrefix, $qName ) = $line =~ m%(.*?)\s+(.*?)/([^\s]+)% ) {
                 if ( grep ($qName eq $_, 'remove-data-dir', 'postrm_remove_databases') ) {
                     # We do not want ask user for databases removal (we want avoid mistakes as much as possible)
-                    $fileContent .= "$qOwner $qNamePrefix/$qName boolean false\n";
+                    $fileC .= "$qOwner $qNamePrefix/$qName boolean false\n";
                 } elsif ( grep ($qName eq $_, 'root_password', 'root-pass', 'root_password_again', 're-root-pass')
                     && iMSCP::Getopt->preseed && length $::questions{'SQL_ROOT_PASSWORD'}
                 ) {
                     # Preset the root user SQL password using value from preseed file if available
                     # Password can be empty when 
-                    $fileContent .= "$qOwner $qNamePrefix/$qName password $::questions{'SQL_ROOT_PASSWORD'}\n";
+                    $fileC .= "$qOwner $qNamePrefix/$qName password $::questions{'SQL_ROOT_PASSWORD'}\n";
                 }
             }
         }
@@ -987,10 +955,10 @@ EOF
         close( $fh );
     }
 
-    return unless length $fileContent;
+    return unless length $fileC;
 
     my $debconfSelectionsFile = File::Temp->new();
-    print $debconfSelectionsFile $fileContent;
+    print $debconfSelectionsFile $fileC;
     $debconfSelectionsFile->close();
 
     my $rs = execute( [ 'debconf-set-selections', $debconfSelectionsFile->filename() ], \my $stdout, \my $stderr );

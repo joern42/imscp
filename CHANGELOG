@@ -13,7 +13,7 @@ BACKEND
     Fixed: Use of uninitialized value in bitwise or ( |) (PHP memory_limit, Subdomain module)
     Fixed: Make sure that units are not masked when enabling them (Systemd service provider)
     Fixed: Resolve units before acting on them due to https://github.com/systemd/systemd/issues/7875 (Systemd service provider)
-    Fixed: The modules must be in iMSCP:: namespace
+    Fixed: The modules and packages must be in iMSCP:: namespace
 
 CONFIG
     Added: Missing LOGROTATE(8) for SYSLOG-NG(8) which can be installed on some system in place of RSYSLOGD(8) (Fix backported from 1.6.x branch)

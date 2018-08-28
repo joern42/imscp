@@ -15,9 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#
-## Setup Postfix whilelist tables for policy servers.
-#
+# Setup Postfix whilelist tables for policy servers.
 
 package Listener::Postfix::Policy::Whitelist;
 
@@ -26,38 +24,28 @@ use warnings;
 use iMSCP::EventManager;
 use Servers::mta;
 
-#
 ## Configuration variables
-#
 
 my $policyClientWhitelistTable = '/etc/postfix/policy_client_whitelist';
 my $policyRecipientWhitelistTable = '/etc/postfix/policy_recipient_whitelist';
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'afterMtaBuildConf',
-    sub {
-        my $mta = Servers::mta->factory();
-        my $rs = $mta->addMapEntry( $policyClientWhitelistTable );
-        $rs ||= $mta->addMapEntry( $policyRecipientWhitelistTable );
-        $rs ||= $mta->postconf(
-            (
-                smtpd_recipient_restrictions => {
-                    action => 'add',
-                    before => qr/permit/,
-                    values => [
-                        "check_client_access hash:$policyClientWhitelistTable",
-                        "check_recipient_access hash:$policyRecipientWhitelistTable"
-                    ]
-                }
-            )
-        );
-    },
-    -99
-);
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
+    my $mta = Servers::mta->factory();
+    my $rs = $mta->addMapEntry( $policyClientWhitelistTable );
+    $rs ||= $mta->addMapEntry( $policyRecipientWhitelistTable );
+    $rs ||= $mta->postconf( (
+        smtpd_recipient_restrictions => {
+            action => 'add',
+            before => qr/permit/,
+            values => [
+                "check_client_access hash:$policyClientWhitelistTable",
+                "check_recipient_access hash:$policyRecipientWhitelistTable"
+            ]
+        }
+    ));
+}, -99 );
 
 1;
 __END__

@@ -49,7 +49,7 @@ sub factory
 {
     return $instance if $instance;
 
-    my $package = $main::imscpConfig{'HTTPD_PACKAGE'} || 'Servers::noserver';
+    my $package = $::imscpConfig{'HTTPD_PACKAGE'} || 'Servers::noserver';
     eval "require $package" or die;
     $instance = $package->getInstance();
 }
@@ -85,7 +85,7 @@ sub getPriority
 
 END
     {
-        return if $? || !$instance || ( $main::execmode && $main::execmode eq 'setup' );
+        return if $? || !$instance || iMSCP::Getopt->context() eq 'installer';
 
         if ( $instance->{'start'} ) {
             $? = $instance->start();

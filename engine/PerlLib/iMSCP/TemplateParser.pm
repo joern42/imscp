@@ -56,7 +56,7 @@ sub processByRef( $$;$ )
     ref $tpl eq 'SCALAR' or die( 'Invalid $tpl parameter. Scalar reference expected.' );
     ref $data eq 'HASH' or die( 'Invalid $data parameter. Hash reference expected.' );
 
-    ${ $tpl } =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // ( $emptyUnknownVars ? '' : "{$1}" )#ge for 0..1;
+    ${ $tpl } =~ s#(?<!%)\{([a-zA-Z0-9_]+)\}#$data->{$1} // ( $emptyUnknownVars ? '' : "{$1}" )#ge for 0 .. 1;
     return;
 }
 

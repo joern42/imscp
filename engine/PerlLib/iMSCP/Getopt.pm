@@ -30,7 +30,7 @@ use Cwd qw/ realpath /;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debugRegisterCallBack /;
 use Text::Wrap;
-use fields qw/ cleanPackageCache debug fixPermissions listener noprompt preseed reconfigure skipPackageUpdate verbose /;
+use fields qw/ cleanPackageCache debug fixPermissions listener noprompt preseed context reconfigure skipPackageUpdate verbose /;
 
 $Text::Wrap::columns = 80;
 $Text::Wrap::break = qr/[\s\n\|]/;
@@ -101,18 +101,18 @@ EOF
     require Getopt::Long;
     Getopt::Long::Configure( 'bundling' );
     Getopt::Long::GetOptions(
-        'clean-package-cache|c', sub { $options->{'cleanPackageCache'} = 1 },
-        'debug|d', sub { $options->{'debug'} = 1 },
+        'clean-package-cache|c', sub { $options->{'cleanPackageCache'} = TRUE },
+        'debug|d', sub { $options->{'debug'} = TRUE },
         'help|?|h', sub { $class->showUsage() },
-        'fix-permissions|x', sub { $options->{'fixPermissions'} = 1 },
+        'fix-permissions|x', sub { $options->{'fixPermissions'} = TRUE },
         'listener|l=s', sub { $class->listener( $_[1] ) },
-        'noprompt|n', sub { $options->{'noprompt'} = 1 },
+        'noprompt|n', sub { $options->{'noprompt'} = TRUE },
         'preseed|p=s', sub { $class->preseed( $_[1] ) },
         'reconfigure|r:s', sub { $class->reconfigure( $_[1], TRUE ) },
-        'skip-package-update|a', sub { $options->{'skipPackageUpdate'} = 1 },
-        'verbose|v', sub { $options->{'verbose'} = 1 },
+        'skip-package-update|a', sub { $options->{'skipPackageUpdate'} = TRUE },
+        'verbose|v', sub { $options->{'verbose'} = TRUE },
         @options,
-    ) or $class->showUsage( 1 );
+    ) or $class->showUsage( TRUE );
 
     undef;
 }
@@ -187,7 +187,6 @@ my %reconfigurationItems = (
     backup                  => 'Backup feature',
 
     client_backup           => 'Client data backup',
-    client_domains_alt_urls => 'Client domains alternative URLs feature',
 
     filemanager             => 'File manager',
     ftpd                    => 'FTP server',
@@ -228,6 +227,7 @@ my %reconfigurationItems = (
     sqlmanager              => 'SQL manager packages',
     ssl                     => 'SSL for the servers and control panel',
     webmails                => 'Webmails packages',
+    website_alt_urls        => 'Website alternative URLs',
     webstats                => 'Webstats packages'
 );
 
@@ -307,6 +307,36 @@ sub preseed
     $options->{'preseed'} = realpath( $file );
 }
 
+=item context( [ $context = 'backend' ])
+
+ Accessor/Mutator for the execution context
+
+ Param string $context Execution context (installer, uninstaller, backend)
+ Return string Execution context
+
+=cut
+
+# Backward compatibility with 3rd-party
+$::execmode = 'backend' unless defined $::execmode;
+
+sub context
+{
+    my ( undef, $context ) = @_;
+
+    return $options->{'context'} // 'backend' unless defined $context;
+
+    grep ( $context eq $_, 'installer', 'uninstaller', 'backend' ) or die( 'Unknown execution context' );
+
+    if ( grep ( $context eq $_, 'installer', 'uninstaller' ) ) {
+        # Needed to make sub processes aware of i-MSCP setup context
+        $ENV{'IMSCP_INSTALLER'} = TRUE;
+    }
+
+    # Backward compatibility with 3rd-party
+    $::execmode = $context;
+    $options->{'context'} = $context;
+}
+
 =item listener( [ $file = undef ] )
 
  Accessor/Mutator for the listener command line option
@@ -337,15 +367,15 @@ sub listener
 
 sub AUTOLOAD
 {
-    ( my $field = our $AUTOLOAD ) =~ s/.*://;
+    ( my $field = $iMSCP::Getopt::AUTOLOAD ) =~ s/.*://;
 
     no strict 'refs';
-    *{ $AUTOLOAD } = sub {
+    *{ $iMSCP::Getopt::AUTOLOAD } = sub {
         shift;
         return $options->{$field} unless @_;
         $options->{$field} = shift;
     };
-    goto &{ $AUTOLOAD };
+    goto &{ $iMSCP::Getopt::AUTOLOAD };
 }
 
 =head1 AUTHOR

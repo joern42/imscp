@@ -30,7 +30,7 @@ use iMSCP::Debug qw/ getMessageByType /;
 use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Net;
-use iMSCP::TemplateParser qw/ process replaceBloc /;
+use iMSCP::TemplateParser qw/ process replaceBlocByRef /;
 use parent qw/ Common::Object iMSCP::Provider::NetworkInterface::Interface /;
 
 # Commands used in that package
@@ -62,26 +62,17 @@ sub addIpAddr
 {
     my ( $self, $data ) = @_;
 
-    defined $data && ref $data eq 'HASH' or die(
-        '$data parameter is not defined or not a hashref'
-    );
+    defined $data && ref $data eq 'HASH' or die( '$data parameter is not defined or not a hashref' );
 
     for ( qw/ ip_id ip_card ip_address ip_config_mode / ) {
-        defined $data->{$_} or die( sprintf(
-            "The '%s' parameter is not defined", $_
-        ));
+        defined $data->{$_} or die( sprintf( "The '%s' parameter is not defined", $_ ));
     }
 
     $data->{'ip_id'} =~ /^\d+$/ or die( 'ip_id parameter must be an integer' );
     local $data->{'ip_id'} = $data->{'ip_id'}+1000;
 
-    $self->{'net'}->isKnownDevice( $data->{'ip_card'} ) or die(
-        sprintf( "The '%s' network interface is unknown", $data->{'ip_card'} )
-    );
-
-    $self->{'net'}->isValidAddr( $data->{'ip_address'} ) or die(
-        sprintf( "The '%s' IP address is not valid", $data->{'ip_address'} )
-    );
+    $self->{'net'}->isKnownDevice( $data->{'ip_card'} ) or die( sprintf( "The '%s' network interface is unknown", $data->{'ip_card'} ));
+    $self->{'net'}->isValidAddr( $data->{'ip_address'} ) or die( sprintf( "The '%s' IP address is not valid", $data->{'ip_address'} ));
 
     my $addrVersion = $self->{'net'}->getAddrVersion( $data->{'ip_address'} );
 
@@ -128,14 +119,10 @@ sub removeIpAddr
 {
     my ( $self, $data ) = @_;
 
-    defined $data && ref $data eq 'HASH' or die(
-        '$data parameter is not defined or not a hashref'
-    );
+    defined $data && ref $data eq 'HASH' or die( '$data parameter is not defined or not a hashref' );
 
     for ( qw/ ip_id ip_card ip_address ip_config_mode / ) {
-        defined $data->{$_} or die( sprintf(
-            "The '%s' parameter is not defined", $_
-        ));
+        defined $data->{$_} or die( sprintf( "The '%s' parameter is not defined", $_ ));
     }
 
     $data->{'ip_id'} =~ /^\d+$/ or die( 'ip_id parameter must be an integer' );
@@ -204,32 +191,29 @@ sub _updateInterfacesFile
     my ( $self, $action, $data ) = @_;
 
     my $file = iMSCP::File->new( filename => $INTERFACES_FILE_PATH );
-    $file->copyFile( $INTERFACES_FILE_PATH . '.bak' ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
-    );
+    $file->copyFile( $INTERFACES_FILE_PATH . '.bak' ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
 
     my $addrVersion = $self->{'net'}->getAddrVersion( $data->{'ip_address'} );
     my $cAddr = $self->{'net'}->normalizeAddr( $data->{'ip_address'} );
     my $eAddr = $self->{'net'}->expandAddr( $data->{'ip_address'} );
 
-    defined( my $fileContent = $file->get()) or die( sprintf(
-        "Couldn't update interfaces file: %s",
-        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    defined( my $fileC = $file->getAsRef()) or die( sprintf(
+        "Couldn't update interfaces file: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     ));
-    $fileContent = replaceBloc(
+    replaceBlocByRef(
         qr/(:?^\n)?# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$cAddr\E)\] entry BEGIN\n/m,
         qr/# i-MSCP \[(?:.*\Q:$data->{'ip_id'}\E|\Q$cAddr\E)\] entry ENDING\n/,
         '',
-        $fileContent
+        $fileC
     );
 
     if ( $action eq 'add'
         && $data->{'ip_config_mode'} eq 'auto'
-        && $fileContent !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$cAddr|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
+        && ${ $fileC } !~ /^[^#]*(?:address|ip\s+addr.*?)\s+(?:$cAddr|$eAddr|$data->{'ip_address'})(?:\s+|\n)/gm
     ) {
         my $iface = $data->{'ip_card'} . ( $addrVersion eq 'ipv4' ? ':' . $data->{'ip_id'} : '' );
 
-        $fileContent .= process(
+        ${ $fileC } .= process(
             {
                 ip_id       => $data->{'ip_id'},
                 # For IPv6 addr, we do not create aliased interface because that is not suppported everywhere.
@@ -249,13 +233,11 @@ STANZA
         );
 
         # We do add the 'auto' stanza only for aliased interfaces, hence, for IPv4 only
-        $fileContent =~ s/^(# i-MSCP \[$cAddr\] entry BEGIN\n)/${1}auto $iface\n/m if $addrVersion eq 'ipv4';
+        ${ $fileC } =~ s/^(# i-MSCP \[$cAddr\] entry BEGIN\n)/${1}auto $iface\n/m if $addrVersion eq 'ipv4';
     }
 
-    $file->set( $fileContent );
     $file->save() == 0 or die( sprintf(
-        "Couldn't update interfaces file: %s",
-        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+        "Couldn't update interfaces file: %s", getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     ));
     $self->{'net'}->resetInstance();
 }
@@ -271,7 +253,7 @@ STANZA
 
 sub _isDefinedInterface
 {
-    my ( undef, $interface ) = @_;
+    my ( $self, $interface ) = @_;
 
     execute( "$COMMANDS{'ifquery'} --list | grep -q '^$interface\$'" ) == 0;
 }

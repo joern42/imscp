@@ -27,7 +27,11 @@ use strict;
 use warnings;
 use File::Basename qw/ dirname /;
 use iMSCP::Cwd;
+use iMSCP::Getopt;
 use parent 'Common::SingletonClass';
+
+# Only for BC reasons with 3rd-party such as plugins
+#use Package::Alias 'Package::FrontEnd', 'Package::Installer::FrontEnd';
 
 =head1 DESCRIPTION
 
@@ -70,16 +74,16 @@ sub _init
 
     local $CWD = dirname( __FILE__ ) . '/../Package';
 
-    s%(.*)\.pm$%Package::$1% for @{ $self->{'_packages'} } = grep !/^Abstract(?:Collection)?\.pm$/, <*.pm>;
+    s%(.*)\.pm$%iMSCP::Package::$1% for @{ $self->{'_packages'} } = grep !/^Abstract(?:Collection)?\.pm$/, <*.pm>;
 
     # In installer/uninstaller contexts, also load setup packages
-    if ( defined $::execmode && grep ( $_ eq $::execmode, 'setup', 'uninstaller' ) ) {
-        local $CWD = $CWD . '/Setup';
-        push @{ $self->{'_packages'} }, map { s%(.*)\.pm$%Package::Setup::$1%r } <*.pm>;
+    if ( grep ( $_ eq iMSCP::Getopt->context(), 'installer', 'uninstaller' ) ) {
+        local $CWD = $CWD . '/Installer';
+        push @{ $self->{'_packages'} }, map { s%(.*)\.pm$%iMSCP::Package::Installer::$1%r } <*.pm>;
     }
 
     eval "require $_; 1" or die( sprintf( "Couldn't load the '%s' package: %s", $_, $@ )) for @{ $self->{'_packages'} };
-    @{ $self->{'_packages'} } = sort { $b->getPriority() <=> $a->getPriority() } @{ $self->{'_packages'} };
+    @{ $self->{'_packages'} } = sort { $b->getPriority() <=> $a->getPriority() } grep $_->checkRequirements(), @{ $self->{'_packages'} };
     $self;
 }
 

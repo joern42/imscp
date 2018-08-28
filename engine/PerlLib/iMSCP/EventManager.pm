@@ -26,9 +26,10 @@ package iMSCP::EventManager;
 use strict;
 use warnings;
 use autouse Clone => qw/ clone /;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::EventManager::ListenerPriorityQueue;
-use Scalar::Util qw / blessed /;
+use Scalar::Util qw/ blessed /;
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
@@ -54,7 +55,7 @@ use parent 'Common::SingletonClass';
 
 sub hasListener
 {
-    my ($self, $eventNames, $listener) = @_;
+    my ( $self, $eventNames, $listener ) = @_;
 
     defined $eventNames or die 'Missing $eventNames parameter';
 
@@ -75,16 +76,15 @@ sub hasListener
 
 sub register
 {
-    my ($self, $eventNames, $listener, $priority, $once) = @_;
+    my ( $self, $eventNames, $listener, $priority, $once ) = @_;
 
-    local $@;
     eval {
         defined $eventNames or die 'Missing $eventNames parameter';
 
         if ( ref $eventNames eq 'ARRAY' ) {
-            for ( @{$eventNames} ) {
+            for ( @{ $eventNames } ) {
                 $self->register( $_, $listener, $priority, $once ) == 0 or die(
-                    getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+                    getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
                 );
             }
 
@@ -97,7 +97,7 @@ sub register
 
         $listener = sub { $listener->$eventNames( @_ ) } if blessed $listener;
         $self->{'events'}->{$eventNames}->addListener( $listener, $priority );
-        $self->{'nonces'}->{$eventNames}->{$listener} = 1 if $once;
+        $self->{'nonces'}->{$eventNames}->{$listener} = TRUE if $once;
     };
     if ( $@ ) {
         error( $@ );
@@ -122,9 +122,9 @@ sub register
 
 sub registerOne
 {
-    my ($self, $eventNames, $listener, $priority) = @_;
+    my ( $self, $eventNames, $listener, $priority ) = @_;
 
-    $self->register( $eventNames, $listener, $priority, 1 );
+    $self->register( $eventNames, $listener, $priority, TRUE );
 }
 
 =item unregister( $listener [, $eventName = $self->{'events'} ] )
@@ -139,9 +139,8 @@ sub registerOne
 
 sub unregister
 {
-    my ($self, $listener, $eventName) = @_;
+    my ( $self, $listener, $eventName ) = @_;
 
-    local $@;
     eval {
         defined $listener or die 'Missing $listener parameter';
 
@@ -153,13 +152,13 @@ sub unregister
 
             if ( $self->{'nonces'}->{$eventName}->{$listener} ) {
                 delete $self->{'nonces'}->{$eventName}->{$listener};
-                delete $self->{'nonces'}->{$eventName} unless %{$self->{'nonces'}->{$eventName}};
+                delete $self->{'nonces'}->{$eventName} unless %{ $self->{'nonces'}->{$eventName} };
             }
 
             return;
         }
 
-        $self->unregister( $listener, $_ ) for keys %{$self->{'events'}};
+        $self->unregister( $listener, $_ ) for keys %{ $self->{'events'} };
     };
     if ( $@ ) {
         error( $@ );
@@ -180,7 +179,7 @@ sub unregister
 
 sub clearListeners
 {
-    my ($self, $eventName) = @_;
+    my ( $self, $eventName ) = @_;
 
     unless ( defined $eventName ) {
         error( 'Missing $eventName parameter' );
@@ -204,7 +203,7 @@ sub clearListeners
 
 sub trigger
 {
-    my ($self, $eventName, @params) = @_;
+    my ( $self, $eventName, @params ) = @_;
 
     unless ( defined $eventName ) {
         error( 'Missing $eventName parameter' );
@@ -236,7 +235,7 @@ sub trigger
         delete $self->{'events'}->{$eventName};
     }
 
-    delete $self->{'nonces'}->{$eventName} if $self->{'nonces'}->{$eventName} && !%{$self->{'nonces'}->{$eventName}};
+    delete $self->{'nonces'}->{$eventName} if $self->{'nonces'}->{$eventName} && !%{ $self->{'nonces'}->{$eventName} };
     $rs;
 }
 
@@ -256,12 +255,12 @@ sub trigger
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'events'} = {};
     $self->{'nonces'} = {};
 
-    while ( <$main::imscpConfig{'CONF_DIR'}/listeners.d/*.pl> ) {
+    while ( <$::imscpConfig{'CONF_DIR'}/listeners.d/*.pl> ) {
         debug( sprintf( 'Loading %s listener file', $_ ));
         require $_;
     }

@@ -44,15 +44,13 @@ use parent 'Common::SingletonClass';
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->_restoreConffiles();
     $rs ||= $self->_buildAliasesFile();
@@ -76,7 +74,7 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'mta'} = Servers::mta::postfix->getInstance();
     $self->{'config'} = $self->{'mta'}->{'config'};
@@ -95,9 +93,9 @@ sub _restoreConffiles
 {
     return 0 unless -d "/etc/postfix";
 
-    for ( '/usr/share/postfix/main.cf.debian', '/usr/share/postfix/master.cf.dist' ) {
+    for my $file ( '/usr/share/postfix/main.cf.debian', '/usr/share/postfix/master.cf.dist' ) {
         next unless -f;
-        my $rs = iMSCP::File->new( filename => $_ )->copyFile( '/etc/postfix/' . basename( $_ ), { preserve => 'no' } );
+        my $rs = iMSCP::File->new( filename => $file )->copyFile( '/etc/postfix/' . basename( $file ), { preserve => 'no' } );
         return $rs if $rs;
     }
 
@@ -114,7 +112,7 @@ sub _restoreConffiles
 
 sub _buildAliasesFile
 {
-    my $rs = execute( 'newaliases', \ my $stdout, \ my $stderr );
+    my $rs = execute( 'newaliases', \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     $rs;
@@ -143,10 +141,10 @@ sub _removeUser
 
 sub _removeFiles
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    for ( $self->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}, $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} ) {
-        iMSCP::Dir->new( dirname => $_ )->remove();
+    for my $dir ( $self->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}, $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} ) {
+        iMSCP::Dir->new( dirname => $dir )->remove();
     }
 
     return 0 unless -f $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'};

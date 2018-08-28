@@ -25,6 +25,10 @@ package Servers::po;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug getMessageByType /;
+use iMSCP::DistPackageManager;
+use iMSCP::Getopt;
 
 # po server instance
 my $instance;
@@ -51,16 +55,23 @@ sub factory
 {
     return $instance if $instance;
 
-    my $package = $main::imscpConfig{'PO_PACKAGE'} || 'Servers::noserver';
+    my $package = $::imscpConfig{'PO_PACKAGE'} || 'Servers::noserver';
 
-    if ( %main::imscpOldConfig
-        && exists $main::imscpOldConfig{'PO_PACKAGE'}
-        && $main::imscpOldConfig{'PO_PACKAGE'} ne ''
-        && $main::imscpOldConfig{'PO_PACKAGE'} ne $package
+    if ( %::imscpOldConfig && exists $::imscpOldConfig{'PO_PACKAGE'} && $::imscpOldConfig{'PO_PACKAGE'} ne ''
+        && $::imscpOldConfig{'PO_PACKAGE'} ne $package
     ) {
-        eval "require $main::imscpOldConfig{'PO_PACKAGE'}" or die;
-        my $rs = $main::imscpOldConfig{'PO_PACKAGE'}->getInstance()->uninstall();
-        $rs == 0 or die( sprintf( "Couldn't uninstall the '%s' server", $main::imscpOldConfig{'PO_PACKAGE'} ));
+        eval "require $::imscpOldConfig{'PO_PACKAGE'}" or die;
+        my $server = $::imscpOldConfig{'PO_PACKAGE'}->getInstance();
+        for my $action ( 'preuninstall', 'uninstall', 'postuninstall' ) {
+            debug( sprintf( 'Executing %s %s tasks...', ref $server, $action ));
+            $server->$action() == 0 or die( sprintf(
+                "Couldn't uninstall the '%s' server",
+                $::imscpOldConfig{'PO_PACKAGE'},
+                getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+            ));
+            next unless $action eq 'postuninstall';
+            iMSCP::DistPackageManager->getInstance()->processDelayedTasks();
+        }
     }
 
     eval "require $package" or die;
@@ -98,7 +109,7 @@ sub getPriority
 
 END
     {
-        return if $? || !$instance || ( $main::execmode && $main::execmode eq 'setup' );
+        return if $? || !$instance || iMSCP::Getopt->context() eq 'installer';
 
         $? = $instance->restart() if $instance->{'restart'};
     }

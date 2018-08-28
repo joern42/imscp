@@ -15,9 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#
-## Setup Postfix sender generic maps.
-#
+# Setup Postfix sender generic maps.
 
 package Listener::Postfix::Sender::Generic::Map;
 
@@ -26,32 +24,22 @@ use warnings;
 use iMSCP::EventManager;
 use Servers::mta;
 
-#
-## Configuration variables
-#
+# Configuration variables
 
 my $postfixSmtpGenericMap = '/etc/postfix/imscp/smtp_outgoing_rewrite';
 
-#
-## Please, don't edit anything below this line
-#
+# Please, don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'afterMtaBuildConf',
-    sub {
-        my $mta = Servers::mta->factory();
-        my $rs = $mta->addMapEntry( $postfixSmtpGenericMap );
-        $rs ||= $mta->postconf(
-            (
-                smtp_generic_maps => {
-                    action => 'add',
-                    values => [ "hash:$postfixSmtpGenericMap" ]
-                }
-            )
-        );
-    },
-    -99
-);
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
+    my $mta = Servers::mta->factory();
+    my $rs = $mta->addMapEntry( $postfixSmtpGenericMap );
+    $rs ||= $mta->postconf( (
+        smtp_generic_maps => {
+            action => 'add',
+            values => [ "hash:$postfixSmtpGenericMap" ]
+        }
+    ));
+}, -99 );
 
 1;
 __END__

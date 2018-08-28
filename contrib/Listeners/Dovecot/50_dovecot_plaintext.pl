@@ -15,9 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Dissallow plaintext authentication if TLS is not used by client.
-#
+# Dissallow plaintext authentication if TLS is not used by client.
 
 package Listener::Dovecot::Plaintext;
 
@@ -25,17 +23,14 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-iMSCP::EventManager->getInstance()->register(
-    'afterPoBuildConf',
-    sub {
-        my ($cfgTpl, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterPoBuildConf', sub {
+    my ( $cfgTpl, $tplName ) = @_;
 
-        return 0 unless $tplName eq 'dovecot.conf';
+    return 0 unless $tplName eq 'dovecot.conf';
 
-        $$cfgTpl =~ s/^(disable_plaintext_auth\s+=\s+).*/$1yes/ if $cfgTpl =~ /^ssl\s+=\s+yes/;
-        0;
-    }
-);
+    ${ $cfgTpl } =~ s/^(disable_plaintext_auth\s+=\s+).*/$1yes/ if $cfgTpl =~ /^ssl\s+=\s+yes/;
+    0;
+} );
 
 1;
 __END__

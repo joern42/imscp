@@ -1,40 +1,39 @@
 options {
-        directory "/var/cache/bind";
+    directory "/var/cache/bind";
 
-        // If there is a firewall between you and nameservers you want
-        // to talk to, you may need to fix the firewall to allow multiple
-        // ports to talk.  See http://www.kb.cert.org/vuls/id/800113
+    // conform to RFC1035
+    auth-nxdomain no;
 
-        // If your ISP provided one or more IP addresses for stable
-        // nameservers, you probably want to use them as forwarders.
-        // Uncomment the following block, and insert the addresses replacing
-        // the all-0's placeholder.
+    dnssec-enable no;
+    dnssec-validation no;
 
-        // forwarders {
-        //      0.0.0.0;
-        // };
+    // Listen to all IPv4 and IPv6 interfaces
+    listen-on { any; };
+    listen-on-v6 { any; };
 
-        auth-nxdomain no;    # conform to RFC1035
+    // Improve server performances by reducing outgoing data volumes
+    minimal-responses yes;
 
-        dnssec-enable no;
-        dnssec-validation no;
+    // Protection against common attacks
+    allow-recursion { localhost; };
+    allow-query-cache { localhost; };
+    allow-transfer { none; };
+    version "i-MSCP DNS Server";
 
-        // Listen to all IPv4 and IPv6 interfaces
-        listen-on { any; };
-        listen-on-v6 { any; };
+    // Checks (https://ftp.isc.org/isc/bind9/cur/9.11/doc/arm/Bv9ARM.ch06.html#options)
+    check-names master fail;
+    check-names slave warn;
+    check-names response ignore;
+    check-dup-records warn;
+    check-mx warn;
+    check-wildcard yes;
+    check-integrity yes;
+    check-mx-cname warn;
+    check-srv-cname warn;
+    check-sibling yes;
+    // As per RFC 7208, SPF DNS record are deprecated
+    check-spf ignore;
 
-        // Improving server performances by reducing outgoing data volumes
-        minimal-responses yes;
-
-        // Protecting server against common attacks
-        allow-recursion { localhost; };
-        allow-query-cache { localhost; };
-        allow-transfer { none; };
-        version "i-MSCP DNS Server";
-
-        // As per RFC 7208, SPF DNS record are deprecated
-        // check-spf ignore;
-
-        // imscp [{ENTRY_ID}] entry BEGIN
-        // imscp [{ENTRY_ID}] entry ENDING
+    // imscp [{ENTRY_ID}] entry BEGIN
+    // imscp [{ENTRY_ID}] entry ENDING
 };

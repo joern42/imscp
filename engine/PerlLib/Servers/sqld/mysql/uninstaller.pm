@@ -39,15 +39,13 @@ use parent 'Common::SingletonClass';
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->_removeConfig();
 }
@@ -68,7 +66,7 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'sqld'} = Servers::sqld::mysql->getInstance();
     $self;
@@ -84,7 +82,7 @@ sub _init
 
 sub _removeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return 0 unless -f "$self->{'sqld'}->{'config'}->{'SQLD_CONF_DIR'}/conf.d/imscp.cnf";
 

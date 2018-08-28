@@ -57,7 +57,7 @@ my $EXEC_OUTPUT;
 
 sub _exec
 {
-    my ( undef, $command, $stdout, $stderr ) = @_;
+    my ( $self, $command, $stdout, $stderr ) = @_;
 
     my $ret = execute( $command, ref $stdout eq 'SCALAR' ? $stdout : \$stdout, ref $stderr eq 'SCALAR' ? $stderr : \$stderr );
     ref $stdout ? !length ${ $stdout } || debug( ${ $stdout } ) : !length $stdout || debug( $stdout );

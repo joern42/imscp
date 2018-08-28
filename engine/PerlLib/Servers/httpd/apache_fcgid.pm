@@ -30,25 +30,24 @@ use Class::Autouse qw/ :nostat Servers::httpd::apache_fcgid::installer Servers::
 use File::Basename;
 use File::Spec;
 use File::Temp;
+use iMSCP::Boolean;
 use iMSCP::Config;
-use iMSCP::Database;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
-use iMSCP::EventManager;
-use iMSCP::Execute;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::Ext2Attributes qw/ setImmutable clearImmutable isImmutable /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ mount umount isMountpoint addMountEntry removeMountEntry /;
 use iMSCP::Net;
 use iMSCP::ProgramFinder;
-use iMSCP::Rights;
+use iMSCP::Rights qw/ setRights /;
 use iMSCP::TemplateParser qw/ replaceBlocByRef processByRef /;
 use iMSCP::Service;
 use iMSCP::Umask;
 use List::MoreUtils qw/ uniq /;
 use version;
-use parent 'Common::SingletonClass';
+use parent 'Servers::abstract';
 
 =head1 DESCRIPTION
 
@@ -58,27 +57,22 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( $eventManager )
+=item registerInstallerDialogs( $dialogs )
 
- Register setup event listeners
-
- Param iMSCP::EventManager $eventManager
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
 
 =cut
 
-sub registerSetupListeners
+sub registerInstallerDialogs
 {
-    my ( undef, $eventManager ) = @_;
+    my ( $self, $dialogs ) = @_;
 
-    Servers::httpd::apache_fcgid::installer->getInstance()->registerSetupListeners( $eventManager );
+    Servers::httpd::apache_fcgid::installer->getInstance()->registerInstallerDialogs( $dialogs );
 }
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::preinstall()
 
 =cut
 
@@ -93,9 +87,7 @@ sub preinstall
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::install()
 
 =cut
 
@@ -110,9 +102,7 @@ sub install
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::postinstall()
 
 =cut
 
@@ -123,12 +113,7 @@ sub postinstall
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdPostInstall', 'apache_fcgid' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->enable( $self->{'config'}->{'HTTPD_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( $self->{'config'}->{'HTTPD_SNAME'} );
 
     $rs = $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
@@ -143,9 +128,7 @@ sub postinstall
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
@@ -158,10 +141,9 @@ sub uninstall
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdUninstall', 'apache_fcgid' );
 
     unless ( $rs || !iMSCP::Service->getInstance()->hasService( $self->{'config'}->{'HTTPD_SNAME'} ) ) {
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     } else {
-        $self->{'start'} = 0;
-        $self->{'restart'} = 0;
+        @{ $self }{qw/ start restart /} = ( FALSE, FALSE );
     }
 
     $rs;
@@ -169,9 +151,7 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- Set engine permissions
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::setEnginePermissions()
 
 =cut
 
@@ -181,44 +161,41 @@ sub setEnginePermissions
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdSetEnginePermissions' );
     $rs ||= setRights( $self->{'phpConfig'}->{'PHP_FCGI_STARTER_DIR'}, {
-        user  => $main::imscpConfig{'ROOT_USER'},
-        group => $main::imscpConfig{'ROOT_GROUP'},
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
         mode  => '0555'
     } );
     $rs ||= setRights( '/usr/local/sbin/vlogger', {
-        user  => $main::imscpConfig{'ROOT_USER'},
-        group => $main::imscpConfig{'ROOT_GROUP'},
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
         mode  => '0750'
     } );
     # Fix permissions on root log dir (e.g: /var/log/apache2) in any cases
     # Fix permissions on root log dir (e.g: /var/log/apache2) content only with --fix-permissions option
     $rs ||= setRights( $self->{'config'}->{'HTTPD_LOG_DIR'}, {
-        user      => $main::imscpConfig{'ROOT_USER'},
-        group     => $main::imscpConfig{'ROOT_GROUP'},
+        user      => $::imscpConfig{'ROOT_USER'},
+        group     => $::imscpConfig{'ROOT_GROUP'},
         dirmode   => '0755',
         filemode  => '0644',
-        recursive => 1
+        recursive => TRUE
     } );
     $rs ||= setRights( $self->{'config'}->{'HTTPD_LOG_DIR'}, {
-        group => $main::imscpConfig{'ADM_GROUP'},
+        group => $::imscpConfig{'ADM_GROUP'},
         mode  => '0750'
     } );
-    $rs ||= setRights( "$main::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages", {
-        user      => $main::imscpConfig{'ROOT_USER'},
+    $rs ||= setRights( "$::imscpConfig{'USER_WEB_DIR'}/domain_disabled_pages", {
+        user      => $::imscpConfig{'ROOT_USER'},
         group     => $self->{'config'}->{'HTTPD_GROUP'},
         dirmode   => '0550',
         filemode  => '0440',
-        recursive => 1
+        recursive => TRUE
     } );
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdSetEnginePermissions' );
 }
 
 =item addUser( \%data )
 
- Process addUser tasks
-
- Param hash \%data User data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addUser()
 
 =cut
 
@@ -233,16 +210,13 @@ sub addUser
     $rs ||= iMSCP::SystemUser->new( username => $self->{'config'}->{'HTTPD_USER'} )->addToGroup( $data->{'GROUP'} );
     $rs ||= $self->flushData();
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdAddUser', $data );
-    $self->{'restart'} = 1 unless $rs;
+    $self->{'restart'} = TRUE unless $rs;
     $rs;
 }
 
 =item deleteUser( \%data )
 
- Process deleteUser tasks
-
- Param hash \%data User data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::deleteUser()
 
 =cut
 
@@ -253,16 +227,13 @@ sub deleteUser
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDelUser', $data );
     $rs ||= iMSCP::SystemUser->new( username => $self->{'config'}->{'HTTPD_USER'} )->removeFromGroup( $data->{'GROUP'} );
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdDelUser', $data );
-    $self->{'restart'} = 1 unless $rs;
+    $self->{'restart'} = TRUE unless $rs;
     $rs;
 }
 
 =item addDmn(\%data)
 
- Process addDmn tasks
-
- Param hash \%data Domain data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addDmn()
 
 =cut
 
@@ -276,16 +247,13 @@ sub addDmn
     $rs ||= $self->_addFiles( $data );
     $rs ||= $self->flushData();
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdAddDmn', $data );
-    $self->{'restart'} = 1 unless $rs;
+    $self->{'restart'} = TRUE unless $rs;
     $rs;
 }
 
 =item restoreDmn( )
 
- Process restoreDmn tasks
-
- Param hash \%data Domain data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::restoreDmn()
 
 =cut
 
@@ -302,10 +270,7 @@ sub restoreDmn
 
 =item disableDmn( \%data )
 
- Process disableDmn tasks
-
- Param hash \%data Domain data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::disableDmn()
 
 =cut
 
@@ -316,19 +281,20 @@ sub disableDmn
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDisableDmn', $data );
     return $rs if $rs;
 
+
     # Ensure that all needed directories are present
-    for ( $self->_dmnFolders( $data ) ) {
-        iMSCP::Dir->new( dirname => $_->[0] )->make( {
-            user  => $_->[1],
-            group => $_->[2],
-            mode  => $_->[3]
+    for my $dir ( $self->_dmnFolders( $data ) ) {
+        iMSCP::Dir->new( dirname => $dir->[0] )->make( {
+            user  => $dir->[1],
+            group => $dir->[2],
+            mode  => $dir->[3]
         } );
     }
 
     $self->setData( $data );
 
     my $net = iMSCP::Net->getInstance();
-    my @domainIPs = ( $data->{'DOMAIN_IP'}, ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $data->{'BASE_SERVER_IP'} : () ) );
+    my @domainIPs = ( $data->{'DOMAIN_IP'} );
 
     $rs = $self->{'eventManager'}->trigger( 'onAddHttpdVhostIps', $data, \@domainIPs );
     return $rs if $rs;
@@ -337,10 +303,10 @@ sub disableDmn
     @domainIPs = uniq( map { $net->normalizeAddr( $_ ) =~ s/^\Q0.0.0.0\E$/*/r } @domainIPs );
 
     $self->setData( {
-        DOMAIN_IPS      => join( ' ', map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':80' } @domainIPs ),
+        DOMAIN_IPS      => join( ' ', map { ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ? $_ : "[$_]" ) . ':80' } @domainIPs ),
         HTTP_URI_SCHEME => 'http://',
         HTTPD_LOG_DIR   => $self->{'config'}->{'HTTPD_LOG_DIR'},
-        USER_WEB_DIR    => $main::imscpConfig{'USER_WEB_DIR'},
+        USER_WEB_DIR    => $::imscpConfig{'USER_WEB_DIR'},
         SERVER_ALIASES  => grep ( $data->{'DOMAIN_TYPE'} eq $_, 'dmn', 'als' ) ? "www.$data->{'DOMAIN_NAME'}" : ''
     } );
 
@@ -366,11 +332,8 @@ sub disableDmn
 
     if ( $data->{'SSL_SUPPORT'} ) {
         $self->setData( {
-            CERTIFICATE     => "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$data->{'DOMAIN_NAME'}.pem",
-            DOMAIN_IPS      => join(
-                ' ',
-                map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':443' } @domainIPs
-            ),
+            CERTIFICATE     => "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$data->{'DOMAIN_NAME'}.pem",
+            DOMAIN_IPS      => join( ' ', map { ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ? $_ : "[$_]" ) . ':443' } @domainIPs ),
             HTTP_URI_SCHEME => 'https://'
         } );
         $data->{'VHOST_TYPE'} = 'domain_disabled_ssl';
@@ -387,7 +350,7 @@ sub disableDmn
 
     # Ensure that custom httpd conffile exists (cover case where file has been removed for any reasons)
     unless ( -f "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$data->{'DOMAIN_NAME'}.conf" ) {
-        $data->{'SKIP_TEMPLATE_CLEANER'} = 1;
+        $data->{'SKIP_TEMPLATE_CLEANER'} = TRUE;
         $rs = $self->buildConfFile( "$self->{'apacheTplDir'}/custom.conf.tpl", $data, {
             destination => "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$data->{'DOMAIN_NAME'}.conf"
         } );
@@ -407,10 +370,7 @@ sub disableDmn
 
 =item deleteDmn( \%data )
 
- Process deleteDmn tasks
-
- Param hash \%data Domain data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::deleteDmn()
 
 =cut
 
@@ -422,20 +382,21 @@ sub deleteDmn
     $rs ||= $self->disableSites( "$data->{'DOMAIN_NAME'}.conf", "$data->{'DOMAIN_NAME'}_ssl.conf" );
     return $rs if $rs;
 
-    for ( "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$data->{'DOMAIN_NAME'}.conf",
+    for my $file ( "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$data->{'DOMAIN_NAME'}.conf",
         "$self->{'config'}->{'HTTPD_SITES_AVAILABLE_DIR'}/$data->{'DOMAIN_NAME'}_ssl.conf",
         "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$data->{'DOMAIN_NAME'}.conf"
     ) {
-        next unless -f $_;
-        $rs = iMSCP::File->new( filename => $_ )->delFile();
+        next unless -f $file;
+        $rs = iMSCP::File->new( filename => $file )->delFile();
         return $rs if $rs;
     }
 
     $rs = $self->umountLogsFolder( $data );
     return $rs if $rs;
 
+
     unless ( $data->{'SHARED_MOUNT_POINT'} || !-d $data->{'WEB_DIR'} ) {
-        ( my $userWebDir = $main::imscpConfig{'USER_WEB_DIR'} ) =~ s%/+$%%;
+        ( my $userWebDir = $::imscpConfig{'USER_WEB_DIR'} ) =~ s%/+$%%;
         my $parentDir = dirname( $data->{'WEB_DIR'} );
 
         clearImmutable( $parentDir );
@@ -462,16 +423,13 @@ sub deleteDmn
     iMSCP::Dir->new( dirname => "$self->{'phpConfig'}->{'PHP_FCGI_STARTER_DIR'}/$data->{'DOMAIN_NAME'}" )->remove();
 
     $rs = $self->{'eventManager'}->trigger( 'afterHttpdDelDmn', $data );
-    $self->{'restart'} = 1 unless $rs;
+    $self->{'restart'} = TRUE unless $rs;
     $rs;
 }
 
 =item addSub( \%data )
 
- Process addSub tasks
-
- Param hash \%data Subdomain data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addSub()
 
 =cut
 
@@ -485,16 +443,13 @@ sub addSub
     $rs ||= $self->_addFiles( $data );
     $rs ||= $self->flushData();
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdAddSub', $data );
-    $self->{'restart'} = 1 unless $rs;
+    $self->{'restart'} = TRUE unless $rs;
     $rs;
 }
 
 =item restoreSub( \%data )
 
- Process restoreSub tasks
-
- Param hash \%data Subdomain data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::restoreSub()
 
 =cut
 
@@ -511,10 +466,7 @@ sub restoreSub
 
 =item disableSub( \%data )
 
- Process disableSub tasks
-
- Param hash \%data Subdomain data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::disableSub()
 
 =cut
 
@@ -527,12 +479,9 @@ sub disableSub
     $rs ||= $self->{'eventManager'}->trigger( 'afterHttpdDisableSub', $data );
 }
 
-=item deleteSub(\%data)
+=item deleteSub( \%data )
 
- Process deleteSub tasks
-
- Param hash \%data Subdomain data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::deleteSub()
 
 =cut
 
@@ -547,10 +496,7 @@ sub deleteSub
 
 =item addHtpasswd( \%data )
 
- Process AddHtpasswd tasks
-
- Param hash \%data Htpasswd entry data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addHtpasswd()
 
 =cut
 
@@ -564,23 +510,22 @@ sub addHtpasswd
     clearImmutable( $data->{'WEB_DIR'} );
 
     my $file = iMSCP::File->new( filename => $filePath );
-    my $fileContent = -f $filePath ? $file->get() : '';
+    my $fileC = -f $filePath ? $file->get() : '';
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdAddHtpasswd', \$fileContent, $data );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdAddHtpasswd', \$fileC, $data );
     return $rs if $rs;
 
-    $fileContent =~ s/^$data->{'HTUSER_NAME'}:[^\n]*\n//gim;
-    $fileContent .= "$data->{'HTUSER_NAME'}:$data->{'HTUSER_PASS'}\n";
+    $fileC =~ s/^$data->{'HTUSER_NAME'}:[^\n]*\n//gim;
+    $fileC .= "$data->{'HTUSER_NAME'}:$data->{'HTUSER_PASS'}\n";
 
-    $rs = $self->{'eventManager'}->trigger( 'afterHttpdAddHtpasswd', \$fileContent, $data );
+    $rs = $self->{'eventManager'}->trigger( 'afterHttpdAddHtpasswd', \$fileC, $data );
     return $rs if $rs;
 
-    $file->set( $fileContent );
+    $file->set( $fileC );
 
     local $UMASK = 027;
-
     $rs = $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
+    $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
     $rs ||= $file->mode( 0640 );
     return $rs if $rs;
 
@@ -590,10 +535,7 @@ sub addHtpasswd
 
 =item deleteHtpasswd( \%data )
 
- Process deleteHtpasswd tasks
-
- Param hash \%data Htpasswd entry data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::deleteHtpasswd()
 
 =cut
 
@@ -609,20 +551,20 @@ sub deleteHtpasswd
     clearImmutable( $data->{'WEB_DIR'} );
 
     my $file = iMSCP::File->new( filename => $filePath );
-    my $fileContent = $file->get() // '';
+    my $fileC = $file->get() // '';
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDelHtpasswd', \$fileContent, $data );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDelHtpasswd', \$fileC, $data );
     return $rs if $rs;
 
-    $fileContent =~ s/^$data->{'HTUSER_NAME'}:[^\n]*\n//gim;
+    $fileC =~ s/^$data->{'HTUSER_NAME'}:[^\n]*\n//gim;
 
-    $rs = $self->{'eventManager'}->trigger( 'afterHttpdDelHtpasswd', \$fileContent, $data );
+    $rs = $self->{'eventManager'}->trigger( 'afterHttpdDelHtpasswd', \$fileC, $data );
     return $rs if $rs;
 
-    $file->set( $fileContent );
+    $file->set( $fileC );
 
     $rs = $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
+    $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
     $rs ||= $file->mode( 0640 );
     return $rs if $rs;
 
@@ -632,10 +574,7 @@ sub deleteHtpasswd
 
 =item addHtgroup( \%data )
 
- Process addHtgroup tasks
-
- Param hash \%data Htgroup data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addHtgroup()
 
 =cut
 
@@ -649,23 +588,22 @@ sub addHtgroup
     clearImmutable( $data->{'WEB_DIR'} );
 
     my $file = iMSCP::File->new( filename => $filePath );
-    my $fileContent = -f $filePath ? $file->get() : '';
+    my $fileC = -f $filePath ? $file->get() : '';
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdAddHtgroup', \$fileContent, $data );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdAddHtgroup', \$fileC, $data );
     return $rs if $rs;
 
-    $fileContent =~ s/^$data->{'HTGROUP_NAME'}:[^\n]*\n//gim;
-    $fileContent .= "$data->{'HTGROUP_NAME'}:$data->{'HTGROUP_USERS'}\n";
+    $fileC =~ s/^$data->{'HTGROUP_NAME'}:[^\n]*\n//gim;
+    $fileC .= "$data->{'HTGROUP_NAME'}:$data->{'HTGROUP_USERS'}\n";
 
-    $rs = $self->{'eventManager'}->trigger( 'afterHttpdAddHtgroup', \$fileContent, $data );
+    $rs = $self->{'eventManager'}->trigger( 'afterHttpdAddHtgroup', \$fileC, $data );
     return $rs if $rs;
 
-    $file->set( $fileContent );
+    $file->set( $fileC );
 
     local $UMASK = 027;
-
     $rs = $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
+    $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
     $rs ||= $file->mode( 0640 );
     return $rs if $rs;
 
@@ -675,10 +613,7 @@ sub addHtgroup
 
 =item deleteHtgroup( \%data )
 
- Process deleteHtgroup tasks
-
- Param hash \%data Htgroup data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::deleteHtgroup()
 
 =cut
 
@@ -694,20 +629,20 @@ sub deleteHtgroup
     clearImmutable( $data->{'WEB_DIR'} );
 
     my $file = iMSCP::File->new( filename => $filePath );
-    my $fileContent = $file->get() // '';
+    my $fileC = $file->get() // '';
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDelHtgroup', \$fileContent, $data );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDelHtgroup', \$fileC, $data );
     return $rs if $rs;
 
-    $fileContent =~ s/^$data->{'HTGROUP_NAME'}:[^\n]*\n//gim;
+    $fileC =~ s/^$data->{'HTGROUP_NAME'}:[^\n]*\n//gim;
 
-    $rs = $self->{'eventManager'}->trigger( 'afterHttpdDelHtgroup', \$fileContent, $data );
+    $rs = $self->{'eventManager'}->trigger( 'afterHttpdDelHtgroup', \$fileC, $data );
     return $rs if $rs;
 
-    $file->set( $fileContent );
+    $file->set( $fileC );
 
     $rs ||= $file->save();
-    $rs ||= $file->owner( $main::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
+    $rs ||= $file->owner( $::imscpConfig{'ROOT_USER'}, $self->{'config'}->{'HTTPD_GROUP'} );
     $rs ||= $file->mode( 0640 );
     return $rs if $rs;
 
@@ -717,10 +652,7 @@ sub deleteHtgroup
 
 =item addHtaccess( \%data )
 
- Process addHtaccess tasks
-
- Param hash \%data Htaccess data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addHtaccess()
 
 =cut
 
@@ -740,9 +672,9 @@ sub addHtaccess
     clearImmutable( $data->{'AUTH_PATH'} ) if $isImmutable;
 
     my $file = iMSCP::File->new( filename => $filePath );
-    my $fileContent = -f $filePath ? $file->get() : '';
+    my $fileC = -f $filePath ? $file->get() : '';
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdAddHtaccess', \$fileContent, $data );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdAddHtaccess', \$fileC, $data );
     return $rs if $rs;
 
     my $bTag = "### START i-MSCP PROTECTION ###\n";
@@ -755,16 +687,15 @@ sub addHtaccess
         $tagContent .= "Require user $data->{'HTUSERS'}\n";
     }
 
-    replaceBlocByRef( $bTag, $eTag, '', \$fileContent );
-    $fileContent = $bTag . $tagContent . $eTag . $fileContent;
+    replaceBlocByRef( $bTag, $eTag, '', \$fileC );
+    $fileC = $bTag . $tagContent . $eTag . $fileC;
 
-    $rs = $self->{'eventManager'}->trigger( 'afterHttpdAddHtaccess', \$fileContent, $data );
+    $rs = $self->{'eventManager'}->trigger( 'afterHttpdAddHtaccess', \$fileC, $data );
     return $rs if $rs;
 
-    $file->set( $fileContent );
+    $file->set( $fileC );
 
     local $UMASK = 027;
-
     $rs = $file->save();
     $rs ||= $file->owner( $data->{'USER'}, $data->{'GROUP'} );
     $rs ||= $file->mode( 0640 );
@@ -776,10 +707,7 @@ sub addHtaccess
 
 =item deleteHtaccess( \%data )
 
- Process deleteHtaccess tasks
-
- Param hash \%data Htaccess data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::deleteHtaccess()
 
 =cut
 
@@ -799,18 +727,18 @@ sub deleteHtaccess
     clearImmutable( $data->{'AUTH_PATH'} ) if $isImmutable;
 
     my $file = iMSCP::File->new( filename => $filePath );
-    my $fileContent = $file->get() // '';
+    my $fileC = $file->get() // '';
 
-    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDelHtaccess', \$fileContent, $data );
+    my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdDelHtaccess', \$fileC, $data );
     return $rs if $rs;
 
-    replaceBlocByRef( "### START i-MSCP PROTECTION ###\n", "### END i-MSCP PROTECTION ###\n", '', \$fileContent );
+    replaceBlocByRef( "### START i-MSCP PROTECTION ###\n", "### END i-MSCP PROTECTION ###\n", '', \$fileC );
 
-    $rs = $self->{'eventManager'}->trigger( 'afterHttpdDelHtaccess', \$fileContent, $data );
+    $rs = $self->{'eventManager'}->trigger( 'afterHttpdDelHtaccess', \$fileC, $data );
     return $rs if $rs;
 
-    if ( $fileContent ne '' ) {
-        $file->set( $fileContent );
+    if ( $fileC ne '' ) {
+        $file->set( $fileC );
         $rs = $file->save();
         $rs ||= $file->owner( $data->{'USER'}, $data->{'GROUP'} );
         $rs ||= $file->mode( 0640 );
@@ -892,10 +820,7 @@ sub buildConfFile
     unless ( defined $cfgTpl ) {
         $file = File::Spec->canonpath( "$self->{'apacheCfgDir'}/$filename" ) if $path eq './';
         $cfgTpl = iMSCP::File->new( filename => $file )->get();
-        unless ( defined $cfgTpl ) {
-            error( sprintf( "Couldn't read %s file", $file ));
-            return 1;
-        }
+        return 1 unless defined $cfgTpl;
     }
 
     $rs = $self->{'eventManager'}->trigger( 'beforeHttpdBuildConfFile', \$cfgTpl, $filename, $data, $options );
@@ -911,7 +836,7 @@ sub buildConfFile
     my $fileHandler = iMSCP::File->new( filename => $options->{'destination'} );
     $rs = $fileHandler->set( $cfgTpl );
     $rs ||= $fileHandler->save();
-    $rs ||= $fileHandler->owner( $options->{'user'} // $main::imscpConfig{'ROOT_USER'}, $options->{'group'} // $main::imscpConfig{'ROOT_GROUP'} );
+    $rs ||= $fileHandler->owner( $options->{'user'} // $::imscpConfig{'ROOT_USER'}, $options->{'group'} // $::imscpConfig{'ROOT_GROUP'} );
     $rs ||= $fileHandler->mode( $options->{'mode'} // 0644 );
 }
 
@@ -968,27 +893,25 @@ sub flushData
  Get httpd traffic data
 
  Param hashref \%trafficDb Traffic database
- Die on failure
+ Return int 0 on success, die on failure
 
 =cut
 
 sub getTraffic
 {
-    my $trafficDb = $_[1];
+    my ( $self, $trafficDb ) = @_;
 
-    my $timestamp = time();
-    my $ldate = time2str( '%Y%m%d', $timestamp );
-    my $dbh = iMSCP::Database->factory()->getRawDb();
+    my $ldate = time2str( '%Y%m%d', time() );
 
     debug( sprintf( 'Collecting HTTP traffic data' ));
 
-    local $@;
+    my $rdbh = $self->{'dbh'}->getRawDb();
+
     eval {
-        local $dbh->{'RaiseError'} = 1;
+        local $rdbh->{'RaiseError'} = TRUE;
+        $rdbh->begin_work();
 
-        $dbh->begin_work();
-
-        my $sth = $dbh->prepare( 'SELECT vhost, bytes FROM httpd_vlogger WHERE ldate <= ? FOR UPDATE' );
+        my $sth = $rdbh->prepare( 'SELECT vhost, bytes FROM httpd_vlogger WHERE ldate <= ? FOR UPDATE' );
         $sth->execute( $ldate );
 
         while ( my $row = $sth->fetchrow_hashref() ) {
@@ -996,11 +919,11 @@ sub getTraffic
             $trafficDb->{$row->{'vhost'}} += $row->{'bytes'};
         }
 
-        $dbh->do( 'DELETE FROM httpd_vlogger WHERE ldate <= ?', undef, $ldate );
-        $dbh->commit();
+        $rdbh->do( 'DELETE FROM httpd_vlogger WHERE ldate <= ?', undef, $ldate );
+        $rdbh->commit();
     };
     if ( $@ ) {
-        $dbh->rollback();
+        $rdbh->rollback();
         %{ $trafficDb } = ();
         die( sprintf( "Couldn't collect traffic data: %s", $@ ));
     }
@@ -1064,7 +987,7 @@ sub enableSites
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     }
 
     $self->{'eventManager'}->trigger( 'afterHttpdEnableSites', @sites );
@@ -1092,7 +1015,7 @@ sub disableSites
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     }
 
     $self->{'eventManager'}->trigger( 'afterHttpdDisableSites', @sites );
@@ -1120,7 +1043,7 @@ sub enableModules
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     }
 
     $self->{'eventManager'}->trigger( 'afterHttpdEnableModules', @modules );
@@ -1148,7 +1071,7 @@ sub disableModules
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     }
 
     $self->{'eventManager'}->trigger( 'afterHttpdDisableModules', @modules );
@@ -1180,7 +1103,7 @@ sub enableConfs
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     }
 
     $self->{'eventManager'}->trigger( 'afterHttpdEnableConfs', @conffiles );
@@ -1208,7 +1131,7 @@ sub disableConfs
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs;
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     }
 
     $self->{'eventManager'}->trigger( 'afterHttpdDisableConfs', @conffiles );
@@ -1218,7 +1141,7 @@ sub disableConfs
 
  Start httpd service
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1229,12 +1152,7 @@ sub start
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdStart' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->start( $self->{'config'}->{'HTTPD_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->start( $self->{'config'}->{'HTTPD_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterHttpdStart' );
 }
@@ -1243,7 +1161,7 @@ sub start
 
  Stop httpd service
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1254,12 +1172,7 @@ sub stop
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdStop' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->stop( $self->{'config'}->{'HTTPD_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->stop( $self->{'config'}->{'HTTPD_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterHttpdStop' );
 }
@@ -1276,7 +1189,7 @@ sub forceRestart
 {
     my ( $self ) = @_;
 
-    $self->{'forceRestart'} = 1;
+    $self->{'forceRestart'} = TRUE;
     0;
 }
 
@@ -1284,7 +1197,7 @@ sub forceRestart
 
  Restart or reload httpd service
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -1295,17 +1208,10 @@ sub restart
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdRestart' );
     return $rs if $rs;
 
-    local $@;
-    eval {
-        if ( $self->{'forceRestart'} ) {
-            iMSCP::Service->getInstance()->restart( $self->{'config'}->{'HTTPD_SNAME'} );
-        } else {
-            iMSCP::Service->getInstance()->reload( $self->{'config'}->{'HTTPD_SNAME'} );
-        }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    if ( $self->{'forceRestart'} ) {
+        iMSCP::Service->getInstance()->restart( $self->{'config'}->{'HTTPD_SNAME'} );
+    } else {
+        iMSCP::Service->getInstance()->reload( $self->{'config'}->{'HTTPD_SNAME'} );
     }
 
     $self->{'eventManager'}->trigger( 'afterHttpdRestart' );
@@ -1350,12 +1256,12 @@ sub umountLogsFolder
 {
     my ( $self, $data ) = @_;
 
-    my $recursive = 1;
+    my $recursive = TRUE;
     my $fsFile = "$data->{'HOME_DIR'}/logs";
 
     # We operate recursively only if domain type is 'dmn' (full account)
     if ( $data->{'DOMAIN_TYPE'} ne 'dmn' ) {
-        $recursive = 0;
+        $recursive = FALSE;
         $fsFile .= "/$data->{'DOMAIN_NAME'}";
     }
 
@@ -1385,28 +1291,27 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'start'} = 0;
-    $self->{'restart'} = 0;
+    $self->SUPER::_init();
+    @{ $self }{qw/ start restart /} = ( FALSE, FALSE );
     $self->{'_data'} = {};
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'apacheCfgDir'} = "$main::imscpConfig{'CONF_DIR'}/apache";
+    $self->{'apacheCfgDir'} = "$::imscpConfig{'CONF_DIR'}/apache";
     $self->{'apacheTplDir'} = "$self->{'apacheCfgDir'}/parts";
 
-    $self->_mergeConfig( $self->{'apacheCfgDir'}, 'apache.data' ) if -f "$self->{'apacheCfgDir'}/apache.data.dist";
+    $self->_mergeConfig( $self->{'apacheCfgDir'}, 'apache.data' ) if iMSCP::Getopt->context() eq 'installer'
+        && -f "$self->{'apacheCfgDir'}/apache.data.dist";
     tie %{ $self->{'config'} },
         'iMSCP::Config',
         fileName    => "$self->{'apacheCfgDir'}/apache.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => ( defined $main::execmode && $main::execmode eq 'setup' );
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer';
+    $self->{'phpCfgDir'} = "$::imscpConfig{'CONF_DIR'}/php";
 
-    $self->{'phpCfgDir'} = "$main::imscpConfig{'CONF_DIR'}/php";
-
-    $self->_mergeConfig( $self->{'phpCfgDir'}, 'php.data' ) if -f "$self->{'phpCfgDir'}/php.data.dist";
+    $self->_mergeConfig( $self->{'phpCfgDir'}, 'php.data' ) if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'phpCfgDir'}/php.data.dist";
     tie %{ $self->{'phpConfig'} },
         'iMSCP::Config',
         fileName    => "$self->{'phpCfgDir'}/php.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => ( defined $main::execmode && $main::execmode eq 'setup' );
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer';
 
     $self->{'eventManager'}->register( 'afterHttpdBuildConfFile', sub { $self->_cleanTemplate( @_ ) } );
     $self;
@@ -1424,12 +1329,11 @@ sub _init
 
 sub _mergeConfig
 {
-    my ( undef, $confDir, $confName ) = @_;
+    my ( $self, $confDir, $confName ) = @_;
 
     if ( -f "$confDir/$confName" ) {
         tie my %newConfig, 'iMSCP::Config', fileName => "$confDir/$confName.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$confDir/$confName", readonly => 1;
-
+        tie my %oldConfig, 'iMSCP::Config', fileName => "$confDir/$confName", readonly => TRUE;
         debug( 'Merging old configuration with new configuration...' );
 
         while ( my ( $key, $value ) = each( %oldConfig ) ) {
@@ -1442,7 +1346,7 @@ sub _mergeConfig
     }
 
     iMSCP::File->new( filename => "$confDir/$confName.dist" )->moveFile( "$confDir/$confName" ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 }
 
@@ -1474,7 +1378,7 @@ sub _addCfg
     }
 
     my $net = iMSCP::Net->getInstance();
-    my @domainIPs = ( $data->{'DOMAIN_IP'}, ( $main::imscpConfig{'CLIENT_DOMAIN_ALT_URLS'} eq 'yes' ? $data->{'BASE_SERVER_IP'} : () ) );
+    my @domainIPs = ( $data->{'DOMAIN_IP'} );
 
     $rs = $self->{'eventManager'}->trigger( 'onAddHttpdVhostIps', $data, \@domainIPs );
     return $rs if $rs;
@@ -1483,7 +1387,7 @@ sub _addCfg
     @domainIPs = uniq( map { $net->normalizeAddr( $_ ) =~ s/^\Q0.0.0.0\E$/*/r } @domainIPs );
 
     $self->setData( {
-        DOMAIN_IPS             => join( ' ', map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':80' } @domainIPs ),
+        DOMAIN_IPS             => join( ' ', map { ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ? $_ : "[$_]" ) . ':80' } @domainIPs ),
         FCGID_NAME             => $confLevel,
         HTTPD_CUSTOM_SITES_DIR => $self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'},
         HTTPD_LOG_DIR          => $self->{'config'}->{'HTTPD_LOG_DIR'},
@@ -1522,8 +1426,8 @@ sub _addCfg
 
     if ( $data->{'SSL_SUPPORT'} ) {
         $self->setData( {
-            CERTIFICATE => "$main::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$data->{'DOMAIN_NAME'}.pem",
-            DOMAIN_IPS  => join( ' ', map { ( ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ) ? $_ : "[$_]" ) . ':443' } @domainIPs )
+            CERTIFICATE => "$::imscpConfig{'GUI_ROOT_DIR'}/data/certs/$data->{'DOMAIN_NAME'}.pem",
+            DOMAIN_IPS  => join( ' ', map { ( $_ eq '*' || $net->getAddrVersion( $_ ) eq 'ipv4' ? $_ : "[$_]" ) . ':443' } @domainIPs )
         } );
 
         if ( $data->{'FORWARD'} ne 'no' ) {
@@ -1556,7 +1460,7 @@ sub _addCfg
     }
 
     unless ( -f "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$data->{'DOMAIN_NAME'}.conf" ) {
-        $data->{'SKIP_TEMPLATE_CLEANER'} = 1;
+        $data->{'SKIP_TEMPLATE_CLEANER'} = TRUE;
         $rs = $self->buildConfFile( "$self->{'apacheTplDir'}/custom.conf.tpl", $data, {
             destination => "$self->{'config'}->{'HTTPD_CUSTOM_SITES_DIR'}/$data->{'DOMAIN_NAME'}.conf"
         } );
@@ -1584,12 +1488,7 @@ sub _dmnFolders
     $self->{'eventManager'}->trigger( 'beforeHttpdDmnFolders', \@folders );
     push(
         @folders,
-        [
-            "$self->{'config'}->{'HTTPD_LOG_DIR'}/$data->{'DOMAIN_NAME'}",
-            $main::imscpConfig{'ROOT_USER'},
-            $main::imscpConfig{'ADM_GROUP'},
-            0755
-        ]
+        [ "$self->{'config'}->{'HTTPD_LOG_DIR'}/$data->{'DOMAIN_NAME'}", $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ADM_GROUP'}, 0755 ]
     );
     $self->{'eventManager'}->trigger( 'afterHttpdDmnFolders', \@folders );
     @folders;
@@ -1600,7 +1499,7 @@ sub _dmnFolders
  Add default directories and files for the given domain
 
  Param hash \%data Data as provided by Alias|Domain|Subdomain|SubAlias modules
- Return int 0 on sucess, other on failure
+ Return int 0 on sucess, other or die on failure
 
 =cut
 
@@ -1611,25 +1510,25 @@ sub _addFiles
     my $rs = $self->{'eventManager'}->trigger( 'beforeHttpdAddFiles', $data );
     return $rs if $rs;
 
-    for ( $self->_dmnFolders( $data ) ) {
-        iMSCP::Dir->new( dirname => $_->[0] )->make( {
-            user  => $_->[1],
-            group => $_->[2],
-            mode  => $_->[3]
+    for my $dir ( $self->_dmnFolders( $data ) ) {
+        iMSCP::Dir->new( dirname => $dir->[0] )->make( {
+            user  => $dir->[1],
+            group => $dir->[2],
+            mode  => $dir->[3]
         } );
     }
 
     # Whether or not permissions must be fixed recursively
-    my $fixPermissions = iMSCP::Getopt->fixPermissions || $data->{'ACTION'} =~ /^restore(?:Dmn|Sub)$/;
+    my $fixPermissions = iMSCP::Getopt->fixPermissions || $data->{'ACTION'} eq 'restore';
 
     # Prepare Web folder
     my $skelDir;
     if ( $data->{'DOMAIN_TYPE'} eq 'dmn' ) {
-        $skelDir = "$main::imscpConfig{'CONF_DIR'}/skel/domain";
+        $skelDir = "$::imscpConfig{'CONF_DIR'}/skel/domain";
     } elsif ( $data->{'DOMAIN_TYPE'} eq 'als' ) {
-        $skelDir = "$main::imscpConfig{'CONF_DIR'}/skel/alias";
+        $skelDir = "$::imscpConfig{'CONF_DIR'}/skel/alias";
     } else {
-        $skelDir = "$main::imscpConfig{'CONF_DIR'}/skel/subdomain";
+        $skelDir = "$::imscpConfig{'CONF_DIR'}/skel/subdomain";
     }
 
     # Copy skeleton in tmp dir
@@ -1641,7 +1540,7 @@ sub _addFiles
         if ( -d "$tmpDir/htdocs" ) {
             # Test needed in case admin removed the index.html file from the skeleton
             if ( -f "$tmpDir/htdocs/index.html" ) {
-                $data->{'SKIP_TEMPLATE_CLEANER'} = 1;
+                $data->{'SKIP_TEMPLATE_CLEANER'} = TRUE;
                 my $fileSource = "$tmpDir/htdocs/index.html";
                 $rs = $self->buildConfFile( $fileSource, $data, { destination => $fileSource } );
                 return $rs if $rs;
@@ -1652,7 +1551,7 @@ sub _addFiles
         }
 
         # Force recursive permissions for newly created Web folders
-        $fixPermissions = 1;
+        $fixPermissions = TRUE;
     } else {
         iMSCP::Dir->new( dirname => "$tmpDir/htdocs" )->remove();
     }
@@ -1664,7 +1563,7 @@ sub _addFiles
             error( "The 'domain' Web folder skeleton must provides the 'errors' directory." );
             return 1;
         } else {
-            $fixPermissions = 1;
+            $fixPermissions = TRUE;
         }
     }
 
@@ -1708,6 +1607,7 @@ sub _addFiles
         iMSCP::Dir->new( dirname => "$tmpDir/phptmp" )->remove();
     }
 
+
     # Set ownership and permissions
 
     # Set ownership and permissions for Web folder root
@@ -1732,7 +1632,6 @@ sub _addFiles
     # phptmp     vuxxx:vuxxx (recursive with --fix-permissions) -- main domain Web folder only
     for my $file ( grep ( $_ ne 'logs', @files ) ) {
         next unless -e "$data->{'WEB_DIR'}/$file";
-
         $rs = setRights( "$data->{'WEB_DIR'}/$file", {
             user      => $data->{'USER'},
             group     => $data->{'GROUP'},
@@ -1748,7 +1647,7 @@ sub _addFiles
         for my $file ( qw/ .htgroup .htpasswd / ) {
             next unless -f "$data->{'WEB_DIR'}/$file";
             $rs = setRights( "$data->{'WEB_DIR'}/$file", {
-                user  => $main::imscpConfig{'ROOT_USER'},
+                user  => $::imscpConfig{'ROOT_USER'},
                 group => $self->{'config'}->{'HTTPD_GROUP'},
                 mode  => '0640'
             } );
@@ -1759,7 +1658,7 @@ sub _addFiles
         # logs root:vuxxx (no recursive)
         if ( -d "$data->{'WEB_DIR'}/logs" ) {
             $rs = setRights( "$data->{'WEB_DIR'}/logs", {
-                user  => $main::imscpConfig{'ROOT_USER'},
+                user  => $::imscpConfig{'ROOT_USER'},
                 group => $data->{'GROUP'}
             } );
             return $rs if $rs;
@@ -1776,7 +1675,6 @@ sub _addFiles
     # phptmp     0750 (recursive with --fix-permissions) -- main domain Web folder only
     for my $file ( @files ) {
         next unless -e "$data->{'WEB_DIR'}/$file";
-
         $rs = setRights( "$data->{'WEB_DIR'}/$file", {
             dirmode   => '0750',
             filemode  => '0640',
@@ -1787,7 +1685,7 @@ sub _addFiles
 
     if ( $data->{'WEB_FOLDER_PROTECTION'} eq 'yes' ) {
         my $dir = $data->{'WEB_DIR'};
-        my $userWebDir = File::Spec->canonpath( $main::imscpConfig{'USER_WEB_DIR'} );
+        my $userWebDir = File::Spec->canonpath( $::imscpConfig{'USER_WEB_DIR'} );
         do {
             setImmutable( $dir );
         } while ( $dir = dirname( $dir ) ) ne $userWebDir;
@@ -1802,7 +1700,7 @@ sub _addFiles
  Build PHP related configuration files
 
  Param hash \%data Data as provided by Alias|Domain|Subdomain|SubAlias modules
- Return int 0 on sucess, other on failure
+ Return int 0 on sucess, other or die on failure
 
 =cut
 
@@ -1835,14 +1733,14 @@ sub _buildPHPConfig
 
     if ( $data->{'FORWARD'} eq 'no' && $data->{'PHP_SUPPORT'} eq 'yes' ) {
         iMSCP::Dir->new( dirname => $phpStarterDir )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => 0555
         } );
         iMSCP::Dir->new( dirname => "$phpStarterDir/$fcgidName" )->remove();
 
-        for ( "$phpStarterDir/$fcgidName", "$phpStarterDir/$fcgidName/php$phpVersion" ) {
-            iMSCP::Dir->new( dirname => $_ )->make( {
+        for my $dir ( "$phpStarterDir/$fcgidName", "$phpStarterDir/$fcgidName/php$phpVersion" ) {
+            iMSCP::Dir->new( dirname => $dir )->make( {
                 user  => $data->{'USER'},
                 group => $data->{'GROUP'},
                 mode  => 0550
@@ -1859,7 +1757,7 @@ sub _buildPHPConfig
             TMPDIR                => $data->{'HOME_DIR'} . '/phptmp'
         } );
 
-        $data->{'SKIP_TEMPLATE_CLEANER'} = 1;
+        $data->{'SKIP_TEMPLATE_CLEANER'} = TRUE;
 
         $rs = $self->buildConfFile( "$self->{'phpCfgDir'}/fcgi/php-fcgi-starter", $data, {
             destination => "$phpStarterDir/$fcgidName/php-fcgi-starter",
@@ -1898,7 +1796,7 @@ sub _buildPHPConfig
 
 sub _cleanTemplate
 {
-    my ( undef, $tpl, $name, $data ) = @_;
+    my ( $self, $tpl, $name, $data ) = @_;
 
     if ( $data->{'SKIP_TEMPLATE_CLEANER'} ) {
         delete $data->{'SKIP_TEMPLATE_CLEANER'};

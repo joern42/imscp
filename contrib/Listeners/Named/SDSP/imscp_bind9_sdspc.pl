@@ -133,9 +133,9 @@ sub readFile
 
     open my $fh, '<', $file or die( sprintf( "Couldn't open the '%s' file for reading: %s", $file, $! ));
     local $/;
-    my $fileContent = <$fh>;
+    my $fileC = <$fh>;
     $fh->close();
-    \$fileContent;
+    \$fileC;
 }
 
 sub writeFile

@@ -25,13 +25,12 @@ package iMSCP::Ext2Attributes::Ext2Fs32;
 
 use strict;
 use warnings;
-use parent qw( Exporter );
-use vars qw( @EXPORT );
+use parent qw/ Exporter /;
 
-@EXPORT = qw(
+our @EXPORT = qw(
     EXT2_IOC_GETFLAGS EXT2_IOC_SETFLAGS EXT2_SECRM_FL EXT2_UNRM_FL EXT2_COMPR_FL EXT2_SYNC_FL EXT2_IMMUTABLE_FL
     EXT2_APPEND_FL EXT2_NODUMP_FL EXT2_NOATIME_FL
-    );
+);
 
 =head1 DESCRIPTION
 
@@ -46,14 +45,14 @@ use constant EXT2_IOC_GETFLAGS => 0x80046601;
 use constant EXT2_IOC_SETFLAGS => 0x40046602;
 
 # <include/linux/ext2_fs.h> - Inode flags (GETFLAGS/SETFLAGS)
-use constant EXT2_SECRM_FL => 0x00000001; # Secure deletion (s)
-use constant EXT2_UNRM_FL => 0x00000002; # Undelete (u)
-use constant EXT2_COMPR_FL => 0x00000004; # Compress file (c)
-use constant EXT2_SYNC_FL => 0x00000008; # Synchronous updates (S)
+use constant EXT2_SECRM_FL => 0x00000001;     # Secure deletion (s)
+use constant EXT2_UNRM_FL => 0x00000002;      # Undelete (u)
+use constant EXT2_COMPR_FL => 0x00000004;     # Compress file (c)
+use constant EXT2_SYNC_FL => 0x00000008;      # Synchronous updates (S)
 use constant EXT2_IMMUTABLE_FL => 0x00000010; # Immutable file (i)
-use constant EXT2_APPEND_FL => 0x00000020; # writes to file may only append (a)
-use constant EXT2_NODUMP_FL => 0x00000040; # do not dump file (d)
-use constant EXT2_NOATIME_FL => 0x00000080; # do not update atime (A)
+use constant EXT2_APPEND_FL => 0x00000020;    # writes to file may only append (a)
+use constant EXT2_NODUMP_FL => 0x00000040;    # do not dump file (d)
+use constant EXT2_NOATIME_FL => 0x00000080;   # do not update atime (A)
 # Reserved for compression usage... */
 #use constant EXT2_DIRTY_FL				=> 0x00000100; (Z)
 #use constant EXT2_COMPRBLK_FL			=> 0x00000200; # One or more compressed clusters

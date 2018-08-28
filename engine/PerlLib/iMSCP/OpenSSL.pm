@@ -201,14 +201,11 @@ sub importCertificate
     my ( $self ) = @_;
 
     my $file = iMSCP::File->new( filename => $self->{'certificate_container_path'} );
-    my $certificateRef = $file->getAsRef();
-    unless ( defined $certificateRef ) {
-        error( sprintf( "Couldn't read %s file", $self->{'certificate_container_path'} ));
-        return 1;
-    }
+    my $fileC = $file->getAsRef();
+    return 1 unless defined $fileC;
 
-    ${ $certificateRef } =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
-    ${ $certificateRef } .= "\n";
+    ${ $fileC } =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
+    ${ $fileC } .= "\n";
 
     my $rs = $file->save();
     return $rs if $rs;
@@ -239,14 +236,11 @@ sub importCaBundle
     return 0 unless $self->{'ca_bundle_container_path'};
 
     my $file = iMSCP::File->new( filename => $self->{'ca_bundle_container_path'} );
-    my $caBundleRef = $file->getAsRef();
-    unless ( defined $caBundleRef ) {
-        error( sprintf( "Couldn't read the '%s' container", $self->{'ca_bundle_container_path'} ));
-        return 1;
-    }
+    my $fileC = $file->getAsRef();
+    return 1 unless defined $fileC;
 
-    ${ $caBundleRef } =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
-    ${ $caBundleRef } .= "\n";
+    ${ $fileC } =~ s/^(?:\015?\012)+|(?:\015?\012)+$//g;
+    ${ $fileC } .= "\n";
 
     my $rs = $file->save();
     return $rs if $rs;
@@ -280,7 +274,7 @@ sub createSelfSignedCertificate
     $data->{'common_name'} or die( 'Missing common_name parameter' );
     $data->{'email'} or die( 'Missing email parameter' );
 
-    my $openSSLConffileTpl = "$main::imscpConfig{'CONF_DIR'}/openssl/openssl.cnf.tpl";
+    my $openSSLConffileTpl = "$::imscpConfig{'CONF_DIR'}/openssl/openssl.cnf.tpl";
     my $commonName = $data->{'wildcard'} ? '*.' . $data->{'common_name'} : $data->{'common_name'};
 
     # Load openssl configuration template file for self-signed SSL certificates

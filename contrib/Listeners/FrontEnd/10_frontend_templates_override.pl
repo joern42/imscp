@@ -15,31 +15,27 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Allows to override default i-MSCP frontEnd template files by copying your own template files.
-##
-#
+# Allows to override default i-MSCP frontEnd template files by copying your
+# own template files.
 
 package Listener::FrontEnd::Templates::Override;
 
 use strict;
 use warnings;
+use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
+
+# Configuration parameters
 
 # Path to your own template files
 my $CUSTOM_THEMES_PATH = '/usr/local/src/imscp-custom/themes/default';
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'afterSetupInstallFiles',
-    sub {
-        iMSCP::Dir->new( dirname => $CUSTOM_THEMES_PATH )->rcopy(
-            "$main::imscpConfig{'GUI_ROOT_DIR'}/themes/default", { preserve => 'no' }
-        );
-    }
-);
+iMSCP::EventManager->getInstance()->register( 'afterInstallDistributionFiles', sub {
+    iMSCP::Dir->new( dirname => $CUSTOM_THEMES_PATH )->rcopy( "$::imscpConfig{'GUI_ROOT_DIR'}/themes/default", { preserve => 'no' } );
+} );
 
 1;
 __END__

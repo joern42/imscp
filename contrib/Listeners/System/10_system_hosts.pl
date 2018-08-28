@@ -15,9 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Allows to add host entries in the system hosts file (eg. /etc/hosts).
-#
+# Allows to add host entries in the system hosts file (eg. /etc/hosts).
 
 package Listener::System::Hosts;
 
@@ -27,9 +25,7 @@ use iMSCP::Debug;
 use iMSCP::EventManager;
 use iMSCP::File;
 
-#
-## Configuration variables
-#
+# Configuration variables
 
 # Path to system hosts file
 my $hostsFilePath = '/etc/hosts';
@@ -41,27 +37,18 @@ my @hostsFileEntries = (
     '192.168.1.13	bar.mydomain.org	bar'
 );
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
-# Listener responsible to add host entries in the system hosts file, once it was built by i-MSCP
-iMSCP::EventManager->getInstance()->register(
-    'afterSetupServerHostname',
-    sub {
-        return 0 unless -f $hostsFilePath;
+iMSCP::EventManager->getInstance()->register( 'afterSetupServerHostname', sub {
+    return 0 unless -f $hostsFilePath;
 
-        my $file = iMSCP::File->new( filename => $hostsFilePath );
-        my $fileContent = $file->get();
-        unless (defined $fileContent) {
-            error( sprintf( "Couldn't read %s file", $hostsFilePath ) );
-            return 1;
-        }
+    my $file = iMSCP::File->new( filename => $hostsFilePath );
+    my $fileC = $file->getAsRef();
+    return 1 unless defined $fileC;
 
-        $file->set( $fileContent.( join "\n", @hostsFileEntries )."\n" );
-        $file->save();
-    }
-);
+    ${ $fileC} .= join( "\n", @hostsFileEntries ) . "\n";
+    $file->save();
+} );
 
 1;
 __END__

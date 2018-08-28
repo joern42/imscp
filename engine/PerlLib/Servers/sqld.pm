@@ -49,7 +49,7 @@ sub factory
 {
     return $instance if $instance;
 
-    my $package = $main::imscpConfig{'SQLD_PACKAGE'} || 'Servers::noserver';
+    my $package = $::imscpConfig{'SQLD_PACKAGE'} || 'Servers::noserver';
     eval "require $package" or die;
     $instance = $package->getInstance();
 }

@@ -16,18 +16,16 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Allows to modify default service-login configuration options.
-## This listener file requires dovecot version 2.1.0 or newer.
-#
+# Allows to modify default service-login configuration options.
+# This listener file requires dovecot version 2.1.0 or newer.
 
 package Listener::Dovecot::Service::Login;
 
+use strict;
+use warnings;
 use iMSCP::EventManager;
 
-#
-## Configuration parameters
-#
+# Configuration parameters
 
 # Service ports
 # Note: Setting a port to 0 will close it
@@ -53,18 +51,14 @@ my $pop3sListenAddr = '* ::';
 my $imapServiceCount = 0;
 my $popServiceCount = 0;
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'beforePoBuildConf',
-    sub {
-        my ($cfgTpl, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforePoBuildConf', sub {
+    my ( $cfgTpl, $tplName ) = @_;
 
-        return 0 unless $tplName eq 'dovecot.conf';
+    return 0 unless $tplName eq 'dovecot.conf';
 
-        ${$cfgTpl} .= <<"EOF";
+    ${ $cfgTpl } .= <<"EOF";
 
 # Begin Listener::Dovecot::Service::Login
 service imap-login {
@@ -98,9 +92,8 @@ service pop3-login {
 }
 # Ending Listener::Dovecot::Service::Login
 EOF
-        0;
-    }
-);
+    0;
+} );
 
 1;
 __END__

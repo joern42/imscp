@@ -15,10 +15,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Creates the INBOX. as a compatibility name, so old clients can continue using it while new clients will use the
-## empty prefix namespace.
-#
+# Creates the INBOX. as a compatibility name, so old clients can continue using it while new clients will use the
+# empty prefix namespace.
 
 package Listener::Dovecot::Namespace;
 
@@ -26,14 +24,12 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-iMSCP::EventManager->getInstance()->register(
-    'beforePoBuildConf',
-    sub {
-        my ($cfgTpl, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforePoBuildConf', sub {
+    my ( $cfgTpl, $tplName ) = @_;
 
-        return 0 unless $tplName eq 'dovecot.conf';
+    return 0 unless $tplName eq 'dovecot.conf';
 
-        my $cfgSnippet = <<EOF;
+    my $cfgSnippet = <<"EOF";
 
 # BEGIN Listener::Dovecot::Namespace
 namespace compat {
@@ -47,12 +43,11 @@ namespace compat {
 # END Listener::Dovecot::Namespace
 EOF
 
-        $$cfgTpl =~ s/(separator\s+=\s+)\./$1\//;
-        $$cfgTpl =~ s/(prefix\s+=\s+)INBOX\./$1/;
-        $$cfgTpl =~ s/^(namespace\s+inbox\s+\{.*?^\}\n)/$1$cfgSnippet/sm;
-        0;
-    }
-);
+    ${ $cfgTpl } =~ s/(separator\s+=\s+)\./$1\//;
+    ${ $cfgTpl } =~ s/(prefix\s+=\s+)INBOX\./$1/;
+    ${ $cfgTpl } =~ s/^(namespace\s+inbox\s+\{.*?^\}\n)/$1$cfgSnippet/sm;
+    0;
+} );
 
 1;
 __END__

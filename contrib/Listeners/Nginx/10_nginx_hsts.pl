@@ -15,45 +15,34 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Activates HTTP Strict Transport Security (HSTS).
-#
+# Enable HTTP Strict Transport Security (HSTS).
 
 package Listener::Nginx::HSTS;
 
 use strict;
 use warnings;
 use iMSCP::EventManager;
-use iMSCP::TemplateParser qw/ getBloc replaceBloc /;
+use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
 
-iMSCP::EventManager->getInstance()->register(
-    'afterFrontEndBuildConfFile',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub {
+    my ( $tplContent, $tplName ) = @_;
 
-        return 0 unless $tplName eq '00_master_ssl.nginx'
-            && $main::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes';
+    return 0 unless $tplName eq '00_master_ssl.nginx' && $main::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes';
 
-        ${$tplContent} = replaceBloc(
-            "# SECTION custom BEGIN.\n",
-            "# SECTION custom END.\n",
-            "    # SECTION custom BEGIN.\n".
-                getBloc(
-                    "# SECTION custom BEGIN.\n",
-                    "# SECTION custom END.\n",
-                    ${$tplContent}
-                ).
-                <<'EOF'
+    replaceBlocByRef(
+        "# SECTION custom BEGIN.\n",
+        "# SECTION custom END.\n",
+        "    # SECTION custom BEGIN.\n"
+            . getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent )
+            . <<'EOF'
     add_header Strict-Transport-Security "max-age=31536000";
 EOF
-                .
-                "    # SECTION custom END.\n",
-            ${$tplContent}
-        );
+            . "    # SECTION custom END.\n",
+        $tplContent
+    );
 
-        0;
-    }
-);
+    0;
+} );
 
 1;
 __END__

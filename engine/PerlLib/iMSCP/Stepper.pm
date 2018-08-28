@@ -111,11 +111,10 @@ sub step
 
 sub _callback
 {
-    my ($callback) = @_;
+    my ( $callback ) = @_;
 
     return 0 unless defined $callback;
 
-    local $@;
     my $rs = eval { $callback->() };
     if ( $@ ) {
         error( $@ );
@@ -133,7 +132,7 @@ sub _callback
 
 sub _step
 {
-    my ($callback, $text, $nSteps, $nStep) = @_;
+    my ( $callback, $text, $nSteps, $nStep ) = @_;
 
     $last = sprintf( "\n\\ZbStep %s of %s\\Zn\n\n%s", $nStep, $nSteps, $text );
     my $msg = @all ? join( "\n", @all ) . "\n" . $last : $last;

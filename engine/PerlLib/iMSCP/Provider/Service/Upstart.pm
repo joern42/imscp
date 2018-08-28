@@ -411,7 +411,7 @@ sub _versionIsPost090
 
 sub _isEnabledPre067
 {
-    my ( undef, $jobFileContent ) = @_;
+    my ( $self, $jobFileContent ) = @_;
 
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
 
@@ -430,7 +430,7 @@ sub _isEnabledPre067
 
 sub _isEnabledPre090
 {
-    my ( undef, $jobFileContent ) = @_;
+    my ( $self, $jobFileContent ) = @_;
 
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
 
@@ -462,7 +462,7 @@ sub _isEnabledPre090
 
 sub _isEnabledPost090
 {
-    my ( undef, $jobFileContent, $jobOverrideFileContent ) = @_;
+    my ( $self, $jobFileContent, $jobOverrideFileContent ) = @_;
 
     defined $jobFileContent or croak( 'Missing or undefined $jobFileContent parameter' );
     defined $jobOverrideFileContent or croak( 'Missing or undefined $jobOverrideFileContent parameter' );
@@ -622,7 +622,7 @@ sub _disablePost090
 
 sub _uncomment
 {
-    my ( undef, $line ) = @_;
+    my ( $self, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -640,7 +640,7 @@ sub _uncomment
 
 sub _removeTrailingCommentsFromCommentedLine
 {
-    my ( undef, $line ) = @_;
+    my ( $self, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -658,7 +658,7 @@ sub _removeTrailingCommentsFromCommentedLine
 
 sub _removeTrailingComments
 {
-    my ( undef, $line ) = @_;
+    my ( $self, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -676,7 +676,7 @@ sub _removeTrailingComments
 
 sub _countUnbalancedRoundBrackets
 {
-    my ( undef, $line ) = @_;
+    my ( $self, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -694,7 +694,7 @@ sub _countUnbalancedRoundBrackets
 
 sub _removeManualStanzaFrom
 {
-    my ( undef, $line ) = @_;
+    my ( $self, $line ) = @_;
 
     defined $line or croak( 'Missing or undefined $line parameter' );
 
@@ -800,7 +800,7 @@ sub _extractStartOnStanzaFrom
 
 sub _addDefaultStartOnStanzaTo
 {
-    my ( undef, $string ) = @_;
+    my ( $self, $string ) = @_;
 
     defined $string or croak( 'Missing or undefined $string parameter' );
 
@@ -868,29 +868,29 @@ sub _readJobOverrideFile
     $fcontent;
 }
 
-=item _writeFile( $filename, $fileContent )
+=item _writeFile( $file, $fileC )
 
  Write the given job file (job configuration file or job override file)
 
- Param string $filename file name
- Param string $fileContent file content
+ Param string $filename File name
+ Param string fileC File content
  Return boolean TRUE on success, croak on failure
 
 =cut
 
 sub _writeFile
 {
-    my ( $self, $filename, $fileContent ) = @_;
+    my ( $self, $file, $fileC ) = @_;
 
-    defined $filename or croak( 'Missing or undefined $filename parameter' );
-    defined $fileContent or croak( 'Missing or undefined $fileContent parameter' );
+    defined $file or croak( 'Missing or undefined $file parameter' );
+    defined $fileC or croak( 'Missing or undefined $fileC parameter' );
 
-    my $jobDir = dirname( $self->resolveJob( basename( $filename, '.conf', '.override' )));
-    my $filepath = File::Spec->join( $jobDir, $filename );
+    my $jobDir = dirname( $self->resolveJob( basename( $file, '.conf', '.override' )));
+    my $filepath = File::Spec->join( $jobDir, $file );
 
-    if ( length $fileContent ) {
-        my $file = iMSCP::File->new( filename => $filepath );
-        $file->set( $fileContent );
+    if ( length $fileC ) {
+        $file = iMSCP::File->new( filename => $filepath );
+        $file->set( $fileC );
         my $rs ||= $file->save();
         $rs ||= $file->mode( 0644 );
         $rs == 0 or croak( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );

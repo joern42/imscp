@@ -25,7 +25,7 @@ package iMSCP::Syscall;
 
 use strict;
 use warnings;
-no warnings qw / portable /;
+no warnings qw/ portable /;
 use iMSCP::Debug;
 
 {
@@ -35,13 +35,14 @@ use iMSCP::Debug;
 
     # We need to force loading in case the header files have been already loaded from elsewhere
     $unload->();
+
     local $@;
     eval {
         require 'syscall.ph';
-        1
+        1;
     } || eval {
         require 'sys/syscall.ph';
-        1
+        1;
     };
     fatal( sprintf( "Couldn't load required Perl header files to perform syscalls: %s", $@ )) if $@;
     # We need to force unload to not disturb other modules

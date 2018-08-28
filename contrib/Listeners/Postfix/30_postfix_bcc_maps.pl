@@ -15,9 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#
-## Setup Postfix recipient and sender bbc maps.
-#
+# Setup Postfix recipient and sender bbc maps.
 
 package Listener::Postfix::BCC::Map;
 
@@ -26,38 +24,28 @@ use warnings;
 use iMSCP::EventManager;
 use Servers::mta;
 
-#
-## Configuration variables
-#
+# Configuration variables
 
 my $postfixRecipientBccMap = '/etc/postfix/recipient_bcc_map';
 my $postfixSenderBccMap = '/etc/postfix/sender_bcc_map';
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'afterMtaBuildConf',
-    sub {
-        my $mta = Servers::mta->factory();
-        my $rs = $mta->addMapEntry( $postfixRecipientBccMap );
-        $rs ||= $mta->addMapEntry( $postfixSenderBccMap );
-        $rs ||= $mta->postconf(
-            (
-                recipient_bcc_maps => {
-                    action => 'add',
-                    values => [ "hash:$postfixRecipientBccMap" ]
-                },
-                sender_bcc_maps    => {
-                    action => 'add',
-                    values => [ "hash:$postfixSenderBccMap" ]
-                }
-            )
-        );
-    },
-    -99
-);
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
+    my $mta = Servers::mta->factory();
+    my $rs = $mta->addMapEntry( $postfixRecipientBccMap );
+    $rs ||= $mta->addMapEntry( $postfixSenderBccMap );
+    $rs ||= $mta->postconf( (
+        recipient_bcc_maps => {
+            action => 'add',
+            values => [ "hash:$postfixRecipientBccMap" ]
+        },
+        sender_bcc_maps    => {
+            action => 'add',
+            values => [ "hash:$postfixSenderBccMap" ]
+        }
+    ));
+}, -99 );
 
 1;
 __END__

@@ -28,14 +28,15 @@ use warnings;
 use Class::Autouse qw/ :nostat Servers::ftpd::proftpd::installer Servers::ftpd::proftpd::uninstaller /;
 use File::Basename;
 use File::Temp;
-use iMSCP::Debug;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Config;
-use iMSCP::EventManager;
-use iMSCP::Execute;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
-use iMSCP::Rights;
+use iMSCP::Getopt;
+use iMSCP::Rights qw/ setRights /;
 use iMSCP::Service;
-use parent 'Common::SingletonClass';
+use parent 'Servers::abstract';
 
 =head1 DESCRIPTION
 
@@ -45,33 +46,28 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( $eventManager )
+=item registerInstallerDialogs( $dialogs )
 
- Register setup event listeners
-
- Param iMSCP::EventManager $eventManager
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
 
 =cut
 
-sub registerSetupListeners
+sub registerInstallerDialogs
 {
-    my (undef, $eventManager) = @_;
+    my ( $self, $dialogs ) = @_;
 
-    Servers::ftpd::proftpd::installer->getInstance()->registerSetupListeners( $eventManager );
+    Servers::ftpd::proftpd::installer->getInstance()->registerInstallerDialogs( $dialogs );
 }
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::preinstall()
 
 =cut
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdPreinstall' );
     $rs ||= $self->stop();
@@ -80,15 +76,13 @@ sub preinstall
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::install()
 
 =cut
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdInstall', 'proftpd' );
     $rs ||= Servers::ftpd::proftpd::installer->getInstance()->install();
@@ -97,60 +91,48 @@ sub install
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::postinstall()
 
 =cut
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdPostInstall', 'proftpd' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->enable( $self->{'config'}->{'FTPD_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( $self->{'config'}->{'FTPD_SNAME'} );
 
-    $self->{'eventManager'}->register(
+    $rs = $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->start(); }, 'ProFTPD' ];
+            push @{ $_[0] }, [ sub { $self->start(); }, 'ProFTPD' ];
             0;
         },
         4
     );
-
-    $self->{'eventManager'}->trigger( 'afterFtpdPostInstall', 'proftpd' );
+    $rs ||= $self->{'eventManager'}->trigger( 'afterFtpdPostInstall', 'proftpd' );
 }
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdUninstall', 'proftpd' );
     $rs ||= Servers::ftpd::proftpd::uninstaller->getInstance()->uninstall();
     $rs ||= $self->{'eventManager'}->trigger( 'afterFtpdUninstall', 'proftpd' );
 
     unless ( $rs || !iMSCP::Service->getInstance()->hasService( $self->{'config'}->{'FTPD_SNAME'} ) ) {
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     } else {
-        $self->{'start'} = 0;
-        $self->{'restart'} = 0;
-        $self->{'reload'} = 0;
+        @{ $self }{qw/ start restart reload /} = ( FALSE, FALSE, FALSE );
     }
 
     $rs;
@@ -158,66 +140,52 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- Set engine permissions
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::setEnginePermissions()
 
 =cut
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdSetEnginePermissions' );
-    $rs ||= setRights(
-        $self->{'config'}->{'FTPD_CONF_FILE'},
-        {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => '0640'
-        }
-    );
+    $rs ||= setRights( $self->{'config'}->{'FTPD_CONF_FILE'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0640'
+    } );
     $rs ||= $self->{'eventManager'}->trigger( 'afterFtpdSetEnginePermissions' );
 }
 
 =item addUser( \%data )
 
- Process addUser tasks
-
- Param hash \%data user data as provided by Modules::User module
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addUser()
 
 =cut
 
 sub addUser
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     return 0 if $data->{'STATUS'} eq 'tochangepwd';
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdAddUser', $data );
     return $rs if $rs;
 
-    my $dbh = iMSCP::Database->factory()->getRawDb();
+    my $rdbh = $self->{'dbh'}->getRawDb();
 
-    local $@;
     eval {
-        local $dbh->{'RaiseError'} = 1;
-
-        $dbh->begin_work();
-        $dbh->do(
-            'UPDATE ftp_users SET uid = ?, gid = ? WHERE admin_id = ?',
-            undef, $data->{'USER_SYS_UID'}, $data->{'USER_SYS_GID'}, $data->{'USER_ID'}
+        local $rdbh->{'RaiseError'} = TRUE;
+        $rdbh->begin_work();
+        $rdbh->do(
+            'UPDATE ftp_users SET uid = ?, gid = ? WHERE admin_id = ?', undef, $data->{'USER_SYS_UID'}, $data->{'USER_SYS_GID'}, $data->{'USER_ID'}
         );
-        $dbh->do(
-            'UPDATE ftp_group SET gid = ? WHERE groupname = ?', undef, $data->{'USER_SYS_GID'}, $data->{'USERNAME'}
-        );
-        $dbh->commit();
+        $rdbh->do( 'UPDATE ftp_group SET gid = ? WHERE groupname = ?', undef, $data->{'USER_SYS_GID'}, $data->{'USERNAME'} );
+        $rdbh->commit();
     };
     if ( $@ ) {
-        $dbh->rollback();
-        error( $@ );
-        return 1;
+        $rdbh->rollback();
+        die;
     }
 
     $self->{'eventManager'}->trigger( 'AfterFtpdAddUser', $data );
@@ -225,16 +193,13 @@ sub addUser
 
 =item addFtpUser( \%data )
 
- Add FTP user
-
- Param hash \%data Ftp user as provided by Modules::FtpUser module
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addFtpUser()
 
 =cut
 
 sub addFtpUser
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdAddFtpUser', $data );
     $rs ||= $self->{'eventManager'}->trigger( 'afterFtpdAddFtpUser', $data );
@@ -242,16 +207,13 @@ sub addFtpUser
 
 =item disableFtpUser( \%data )
 
- Disable FTP user
-
- Param hash \%data Ftp user data as provided by Modules::FtpUser module
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::disableFtpUser()
 
 =cut
 
 sub disableFtpUser
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdDisableFtpUser', $data );
     $rs ||= $self->{'eventManager'}->trigger( 'afterFtpdDisableFtpUser', $data );
@@ -259,16 +221,13 @@ sub disableFtpUser
 
 =item deleteFtpUser( \%data )
 
- Delete FTP user
-
- Param hash \%data Ftp user data as provided by Modules::FtpUser module
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::deleteFtpUser()
 
 =cut
 
 sub deleteFtpUser
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdDeleteFtpUser', $data );
     $rs ||= $self->{'eventManager'}->trigger( 'afterFtpdDeleteFtpUser', $data );
@@ -278,23 +237,18 @@ sub deleteFtpUser
 
  Start ProFTPD
 
- Return int 0, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdStart' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->start( $self->{'config'}->{'FTPD_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->start( $self->{'config'}->{'FTPD_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterFtpdStart' );
 }
@@ -303,23 +257,18 @@ sub start
 
  Stop ProFTPD
 
- Return int 0, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdStop' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->stop( $self->{'config'}->{'FTPD_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->stop( $self->{'config'}->{'FTPD_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterFtpdStop' );
 }
@@ -328,23 +277,18 @@ sub stop
 
  Restart ProFTPD
 
- Return int 0, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdRestart' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->restart( $self->{'config'}->{'FTPD_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->restart( $self->{'config'}->{'FTPD_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterFtpdRestart' );
 }
@@ -353,23 +297,18 @@ sub restart
 
  Reload ProFTPD
 
- Return int 0, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
 sub reload
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeFtpdReload' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->reload( $self->{'config'}->{'FTPD_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->reload( $self->{'config'}->{'FTPD_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterFtpdReload' );
 }
@@ -385,7 +324,7 @@ sub reload
 
 sub getTraffic
 {
-    my ($self, $trafficDb) = @_;
+    my ( $self, $trafficDb ) = @_;
 
     my $logFile = $self->{'config'}->{'FTPD_TRAFF_LOG_PATH'};
 
@@ -398,9 +337,9 @@ sub getTraffic
     debug( sprintf( 'Processing FTP logs from the %s file', $logFile ));
 
     # Create snapshot of traffic data source file
-    my $snapshotFH = File::Temp->new( UNLINK => 1 );
+    my $snapshotFH = File::Temp->new( UNLINK => TRUE );
     iMSCP::File->new( filename => $logFile )->copyFile( $snapshotFH->filename, { preserve => 'no' } ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 
     # Reset log file
@@ -409,8 +348,7 @@ sub getTraffic
 
     # Extract FTP traffic data
     while ( <$snapshotFH> ) {
-        next unless /^(?:[^\s]+\s){7}(?<bytes>\d+)\s(?:[^\s]+\s){5}[^\s]+\@(?<domain>[^\s]+)/o
-            && exists $trafficDb->{$+{'domain'}};
+        next unless /^(?:[^\s]+\s){7}(?<bytes>\d+)\s(?:[^\s]+\s){5}[^\s]+\@(?<domain>[^\s]+)/o && exists $trafficDb->{$+{'domain'}};
         $trafficDb->{$+{'domain'}} += $+{'bytes'};
     }
 
@@ -433,21 +371,21 @@ sub getTraffic
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'start'} = 0;
-    $self->{'restart'} = 0;
-    $self->{'reload'} = 0;
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/proftpd";
+    $self->SUPER::_init();
+    @{ $self }{qw/ start restart reload /} = ( FALSE, FALSE, FALSE );
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/proftpd";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
-    $self->_mergeConfig() if -f "$self->{'cfgDir'}/proftpd.data.dist";
-    tie %{$self->{'config'}},
+
+    $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/proftpd.data.dist";
+    tie %{ $self->{'config'} },
         'iMSCP::Config',
         fileName    => "$self->{'cfgDir'}/proftpd.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => ( defined $main::execmode && $main::execmode eq 'setup' );
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer';
+
     $self;
 }
 
@@ -461,15 +399,14 @@ sub _init
 
 sub _mergeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     if ( -f "$self->{'cfgDir'}/proftpd.data" ) {
         tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/proftpd.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/proftpd.data", readonly => 1;
-
+        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/proftpd.data", readonly => TRUE;
         debug( 'Merging old configuration with new configuration...' );
 
-        while ( my ($key, $value) = each( %oldConfig ) ) {
+        while ( my ( $key, $value ) = each( %oldConfig ) ) {
             next unless exists $newConfig{$key};
             $newConfig{$key} = $value;
         }
@@ -480,10 +417,8 @@ sub _mergeConfig
         iMSCP::File->new( filename => "$self->{'cfgDir'}/proftpd.data" )->delFile();
     }
 
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/proftpd.data.dist" )->moveFile(
-        "$self->{'cfgDir'}/proftpd.data"
-    ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/proftpd.data.dist" )->moveFile( "$self->{'cfgDir'}/proftpd.data" ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 }
 

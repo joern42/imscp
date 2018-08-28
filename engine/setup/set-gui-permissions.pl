@@ -32,8 +32,9 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib", "$FindBin::Bin/../PerlVendor";
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::Servers;
@@ -44,16 +45,15 @@ $ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 newDebug( 'imscp-set-gui-permissions.log' );
 
-$main::execmode = 'backend';
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq {
+iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Set i-MSCP gui permissions.
 
 OPTIONS
- -s,    --setup         Setup mode.
+ -i     --installer     Set installer context.
  -d,    --debug         Enable debug mode.
  -v,    --verbose       Enable verbose mode},
-    'setup|s'   => sub { $main::execmode = 'setup'; },
+    'setup|s'   => sub { iMSCP::Getopt->context( 'installer' ); },
     'debug|d'   => \&iMSCP::Getopt::debug,
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
@@ -63,36 +63,32 @@ setVerbose( iMSCP::Getopt->verbose );
 my $bootstrapper = iMSCP::Bootstrapper->getInstance();
 exit unless $bootstrapper->lock( '/var/lock/imscp-set-engine-permissions.lock', 'nowait' );
 
-$bootstrapper->boot(
-    {
-        mode            => $main::execmode,
-        nolock          => 1,
-        nodatabase      => 1,
-        nokeys          => 1,
-        config_readonly => 1
-    }
-);
+$bootstrapper->boot( {
+    mode            => iMSCP::Getopt->context(),
+    nolock          => TRUE,
+    nodatabase      => TRUE,
+    nokeys          => TRUE,
+    config_readonly => TRUE
+} );
 
 my $rs = 0;
 my @items = ();
 
-for my $server( iMSCP::Servers->getInstance()->getList() ) {
-    ( my $subref = $server->can( 'setGuiPermissions' ) ) or next;
-    push @items, [ $server, sub { $subref->( $server->factory()); } ];
+for my $server ( iMSCP::Servers->getInstance()->getList() ) {
+    push @items, [ $server, sub { $server->factory()->setGuiPermissions(); } ];
 }
 
-for my $package( iMSCP::Packages->getInstance()->getList() ) {
-    ( my $subref = $package->can( 'setGuiPermissions' ) ) or next;
-    push @items, [ $package, sub { $subref->( $package->getInstance()); } ];
+for my $package ( iMSCP::Packages->getInstance()->getList() ) {
+    push @items, [ $package, sub { $package->getInstance()->setGuiPermissions(); } ];
 }
 
 iMSCP::EventManager->getInstance()->trigger( 'beforeSetGuiPermissions' );
 
 my $totalItems = scalar @items;
 my $count = 1;
-for( @items ) {
+for ( @items ) {
     debug( sprintf( 'Setting %s frontEnd permissions', $_->[0] ));
-    printf( "Setting %s frontEnd permissions\t%s\t%s\n", $_->[0], $totalItems, $count ) if $main::execmode eq 'setup';
+    printf( "Setting %s frontEnd permissions\t%s\t%s\n", $_->[0], $totalItems, $count ) if iMSCP::Getopt->context() eq 'installer';
     $rs |= $_->[1]->();
     $count++;
 }

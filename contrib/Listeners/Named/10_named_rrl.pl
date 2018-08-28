@@ -15,11 +15,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Implement RRL (Response Rate Limiting Feature for Bind9)
-## See https://kb.isc.org/article/AA-00994/0/Using-the-Response-Rate-Limiting-Feature-in-BIND-9.10.html
-## Note: Before use of this listener, you must ensure that your Bind9 version support RRL.
-##
+# Implement RRL (Response Rate Limiting Feature for Bind9)
+# See https://kb.isc.org/article/AA-00994/0/Using-the-Response-Rate-Limiting-Feature-in-BIND-9.10.html
+# Note: Before use of this listener, you must ensure that your Bind9 version support RRL.
 #
 
 package Listener::Named::Rrl;
@@ -27,39 +25,30 @@ package Listener::Named::Rrl;
 use strict;
 use warnings;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::EventManager;
 use iMSCP::TemplateParser;
 use Servers::named;
 
-#
-## Configuration variables
-#
+# Configuration variables
 
 # Max responses per second
 my $responsesPerSecond = 10;
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'afterNamedBuildConf',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterNamedBuildConf', sub {
+    my ( $tplContent, $tplName ) = @_;
 
-        return 0 unless $tplName eq basename( Servers::named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
+    return 0 unless $tplName eq basename( Servers::named->factory()->{'config'}->{'BIND_OPTIONS_CONF_FILE'} );
 
-        $$tplContent = replaceBloc(
-            "// imscp [{ENTRY_ID}] entry BEGIN\n",
-            "// imscp [{ENTRY_ID}] entry ENDING\n", <<"EOF", $$tplContent, 'preserveTags' );
+    ${ $tplContent } = replaceBloc( "// imscp [{ENTRY_ID}] begin.\n", "// imscp [{ENTRY_ID}] ending.\n", <<"EOF", ${ $tplContent }, TRUE );
         rate-limit {
             responses-per-second $responsesPerSecond;
         };
-
 EOF
-        0;
-    }
-);
+    0;
+} );
 
 1;
 __END__

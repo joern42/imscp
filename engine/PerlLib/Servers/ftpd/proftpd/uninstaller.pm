@@ -27,8 +27,8 @@ use strict;
 use warnings;
 use File::Basename;
 use iMSCP::Config;
-use iMSCP::EventManager;
 use iMSCP::File;
+use iMSCP::Getopt;
 use Servers::ftpd::proftpd;
 use Servers::sqld;
 use parent 'Common::SingletonClass';
@@ -43,25 +43,20 @@ use parent 'Common::SingletonClass';
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # In setup context, processing must be delayed, else we won't be able to connect to SQL server
-    if ( $main::execmode eq 'setup' ) {
-        return iMSCP::EventManager->getInstance()->register(
-            'afterSqldPreinstall',
-            sub {
-                my $rs ||= $self->_dropSqlUser();
-                $rs ||= $self->_removeConfig();
-            }
-        );
+    if ( iMSCP::Getopt->context() eq 'installer' ) {
+        return $self->{eventManager}->register( 'afterSqldPreinstall', sub {
+            my $rs ||= $self->_dropSqlUser();
+            $rs ||= $self->_removeConfig();
+        } );
     }
 
     my $rs = $self->_dropSqlUser();
@@ -84,9 +79,10 @@ sub uninstall
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'ftpd'} = Servers::ftpd::proftpd->getInstance();
+    $self->{'eventManager'} = $self->{'ftpd'}->{'eventManager'};
     $self->{'cfgDir'} = $self->{'ftpd'}->{'cfgDir'};
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
@@ -98,27 +94,20 @@ sub _init
 
  Drop SQL user
 
- Return int 0 on success, 1 on failure
+ Return int 0 on success, die on failure
 
 =cut
 
 sub _dropSqlUser
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # In setup context, take value from old conffile, else take value from current conffile
-    my $dbUserHost = ( $main::execmode eq 'setup' )
-        ? $main::imscpOldConfig{'DATABASE_USER_HOST'} : $main::imscpConfig{'DATABASE_USER_HOST'};
+    my $dbUserHost = iMSCP::Getopt->context() eq 'installer' ? $::imscpOldConfig{'DATABASE_USER_HOST'} : $::imscpConfig{'DATABASE_USER_HOST'};
 
     return 0 unless $self->{'config'}->{'DATABASE_USER'} && $dbUserHost;
 
-    local $@;
-    eval { Servers::sqld->factory()->dropUser( $self->{'config'}->{'DATABASE_USER'}, $dbUserHost ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
+    Servers::sqld->factory()->dropUser( $self->{'config'}->{'DATABASE_USER'}, $dbUserHost );
     0;
 }
 
@@ -132,10 +121,10 @@ sub _dropSqlUser
 
 sub _removeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     # Setup context means switching to another FTP server. In such case, we simply delete the files
-    if ( $main::execmode eq 'setup' ) {
+    if ( iMSCP::Getopt->context() eq 'installer' ) {
         if ( -f $self->{'config'}->{'FTPD_CONF_FILE'} ) {
             my $rs = iMSCP::File->new( filename => $self->{'config'}->{'FTPD_CONF_FILE'} )->delFile();
             return $rs if $rs;
@@ -154,9 +143,7 @@ sub _removeConfig
 
     return 0 unless -d $dirname && -f "$self->{'bkpDir'}/$filename.system";
 
-    iMSCP::File->new( filename => "$self->{'bkpDir'}/$filename.system" )->copyFile(
-        $self->{'config'}->{'FTPD_CONF_FILE'}, { preserve => 'no' }
-    );
+    iMSCP::File->new( filename => "$self->{'bkpDir'}/$filename.system" )->copyFile( $self->{'config'}->{'FTPD_CONF_FILE'}, { preserve => 'no' } );
 }
 
 =back

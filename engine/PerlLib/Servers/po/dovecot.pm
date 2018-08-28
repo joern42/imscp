@@ -27,20 +27,20 @@ use strict;
 use warnings;
 use Class::Autouse qw/ :nostat Servers::po::dovecot::installer Servers::po::dovecot::uninstaller /;
 use File::Temp;
+use iMSCP::Boolean;
 use iMSCP::Config;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
-use iMSCP::EventManager;
-use iMSCP::Execute;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Rights;
+use iMSCP::Rights qw/ setRights /;
 use iMSCP::Service;
-use List::MoreUtils qw / uniq /;
+use List::MoreUtils qw/ uniq /;
 use Servers::mta;
 use Sort::Naturally;
 use Tie::File;
-use parent 'Common::SingletonClass';
+use parent 'Servers::abstract';
 
 =head1 DESCRIPTION
 
@@ -50,73 +50,58 @@ use parent 'Common::SingletonClass';
 
 =over 4
 
-=item registerSetupListeners( $eventManager )
+=item registerInstallerDialogs( $dialogs )
 
- Register setup event listeners
-
- Param iMSCP::EventManager $eventManager
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
 
 =cut
 
-sub registerSetupListeners
+sub registerInstallerDialogs
 {
-    my (undef, $eventManager) = @_;
+    my ( $self, $dialogs ) = @_;
 
-    Servers::po::dovecot::installer->getInstance()->registerSetupListeners( $eventManager );
+    Servers::po::dovecot::installer->getInstance()->registerInstallerDialogs( $dialogs );
 }
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::preinstall()
 
 =cut
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforePoPreinstall', 'dovecot' );
     $rs ||= $self->stop();
     return $rs if $rs;
 
-    local $@;
-    $rs = eval {
-        my $serviceMngr = iMSCP::Service->getInstance();
+    my $serviceMngr = iMSCP::Service->getInstance();
 
-        # Disable dovecot.socket unit if any
-        # Dovecot as configured by i-MSCP doesn't rely on systemd activation socket
-        # This also solve problem on boxes where IPv6 is not available; default dovecot.socket unit file make
-        # assumption that IPv6 is available without further checks...
-        # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=814999
-        if ( $serviceMngr->isSystemd() && $serviceMngr->hasService( 'dovecot.socket' ) ) {
-            $serviceMngr->stop( 'dovecot.socket' );
-            $serviceMngr->disable( 'dovecot.socket' );
-        }
-
-        $self->stop();
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    # Disable dovecot.socket unit if any
+    # Dovecot as configured by i-MSCP doesn't rely on systemd activation socket
+    # This also solve problem on boxes where IPv6 is not available; default dovecot.socket unit file make
+    # assumption that IPv6 is available without further checks...
+    # See also: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=814999
+    if ( $serviceMngr->isSystemd() && $serviceMngr->hasService( 'dovecot.socket' ) ) {
+        $serviceMngr->stop( 'dovecot.socket' );
+        $serviceMngr->disable( 'dovecot.socket' );
     }
 
+    $rs = $self->stop();
     $rs ||= $self->{'eventManager'}->trigger( 'afterPoPreinstall', 'dovecot' );
 }
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::install()
 
 =cut
 
 sub install
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforePoInstall', 'dovecot' );
     $rs ||= Servers::po::dovecot::installer->getInstance()->install();
@@ -125,30 +110,23 @@ sub install
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::postinstall()
 
 =cut
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforePoPostinstall', 'dovecot' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->enable( $self->{'config'}->{'DOVECOT_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( $self->{'config'}->{'DOVECOT_SNAME'} );
 
     $rs = $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->start(); }, 'Dovecot' ];
+            push @{ $_[0] }, [ sub { $self->start(); }, 'Dovecot' ];
             0;
         },
         5
@@ -158,24 +136,22 @@ sub postinstall
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforePoUninstall', 'dovecot' );
     $rs ||= Servers::po::dovecot::uninstaller->getInstance()->uninstall();
     $rs ||= $self->{'eventManager'}->trigger( 'afterPoUninstall', 'dovecot' );
 
     unless ( $rs || !iMSCP::Service->getInstance()->hasService( $self->{'config'}->{'DOVECOT_SNAME'} ) ) {
-        $self->{'restart'} = 1;
+        $self->{'restart'} = TRUE;
     } else {
-        $self->{'restart'} = 0;
+        $self->{'restart'} = FALSE;
     }
 
     $rs;
@@ -183,16 +159,13 @@ sub uninstall
 
 =item addMail( \%data )
 
- Process addMail tasks
-
- Param hash \%data Mail data
- Return int 0 on success, other on failure
+ See iMSCP::Modules::AbstractActions::addMail()
 
 =cut
 
 sub addMail
 {
-    my ($self, $data) = @_;
+    my ( $self, $data ) = @_;
 
     return 0 unless index( $data->{'MAIL_TYPE'}, '_mail' ) != -1;
 
@@ -200,26 +173,22 @@ sub addMail
     my $mailUidName = $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'};
     my $mailGidName = $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'};
 
-    for my $mailbox( '.Drafts', '.Junk', '.Sent', '.Trash' ) {
-        iMSCP::Dir->new( dirname => "$mailDir/$mailbox" )->make(
-            {
+    for my $mailbox ( '.Drafts', '.Junk', '.Sent', '.Trash' ) {
+        iMSCP::Dir->new( dirname => "$mailDir/$mailbox" )->make( {
+            user           => $mailUidName,
+            group          => $mailGidName,
+            mode           => 0750,
+            fixpermissions => iMSCP::Getopt->fixPermissions
+        } );
+
+        for my $dir ( 'cur', 'new', 'tmp' ) {
+            iMSCP::Dir->new( dirname => "$mailDir/$mailbox/$dir" )->make( {
                 user           => $mailUidName,
                 group          => $mailGidName,
                 mode           => 0750,
                 fixpermissions => iMSCP::Getopt->fixPermissions
             }
-        );
-
-        for ( 'cur', 'new', 'tmp' ) {
-            iMSCP::Dir->new( dirname => "$mailDir/$mailbox/$_" )->make(
-                {
-                    user           => $mailUidName,
-                    group          => $mailGidName,
-                    mode           => 0750,
-                    fixpermissions => iMSCP::Getopt->fixPermissions
-                }
-            );
-        }
+            ); }
     }
 
     my @subscribedFolders = ( 'Drafts', 'Junk', 'Sent', 'Trash' );
@@ -227,13 +196,10 @@ sub addMail
 
     if ( -f "$mailDir/subscriptions" ) {
         my $subscriptionsFileContent = $subscriptionsFile->get();
-        unless ( defined $subscriptionsFileContent ) {
-            error( "Couldn't read Dovecot subscriptions file" );
-            return 1;
-        }
+        return 1 unless defined $subscriptionsFileContent;
 
         if ( $subscriptionsFileContent ne '' ) {
-            @subscribedFolders = nsort uniq ( @subscribedFolders, split( /\n/, $subscriptionsFileContent ));
+            @subscribedFolders = nsort uniq( @subscribedFolders, split( /\n/, $subscriptionsFileContent ));
         }
     }
 
@@ -244,8 +210,7 @@ sub addMail
     return $rs if $rs;
 
     if ( $data->{'MAIL_QUOTA'} ) {
-        if ( $self->{'forceMailboxesQuotaRecalc'}
-            || ( $self->{'execMode'} eq 'backend' && $data->{'STATUS'} eq 'tochange' )
+        if ( $self->{'forceMailboxesQuotaRecalc'} || ( iMSCP::Getopt->context() eq 'backend' && $data->{'STATUS'} eq 'tochange' )
             || !-f "$mailDir/maildirsize"
         ) {
             # TODO create maildirsize file manually (set quota definition and recalculate byte and file counts)
@@ -276,41 +241,29 @@ sub addMail
 
 sub setEnginePermissions
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforePoSetEnginePermissions' );
-    $rs ||= setRights(
-        $self->{'config'}->{'DOVECOT_CONF_DIR'},
-        {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => '0755'
-        }
-    );
-    $rs ||= setRights(
-        "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot.conf",
-        {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            mode  => '0640'
-        }
-    );
-    $rs ||= setRights(
-        "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-sql.conf",
-        {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            mode  => '0640'
-        }
-    );
-    $rs ||= setRights(
-        "$main::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh",
-        {
-            user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-            group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
-            mode  => '0750'
-        }
-    );
+    $rs ||= setRights( $self->{'config'}->{'DOVECOT_CONF_DIR'}, {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $::imscpConfig{'ROOT_GROUP'},
+        mode  => '0755'
+    } );
+    $rs ||= setRights( "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot.conf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
+        mode  => '0640'
+    } );
+    $rs ||= setRights( "$self->{'config'}->{'DOVECOT_CONF_DIR'}/dovecot-sql.conf", {
+        user  => $::imscpConfig{'ROOT_USER'},
+        group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
+        mode  => '0640'
+    } );
+    $rs ||= setRights( "$::imscpConfig{'ENGINE_ROOT_DIR'}/quota/imscp-dovecot-quota.sh", {
+        user  => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_UID_NAME'},
+        group => $self->{'mta'}->{'config'}->{'MTA_MAILBOX_GID_NAME'},
+        mode  => '0750'
+    } );
     $rs ||= $self->{'eventManager'}->trigger( 'afterPoSetEnginePermissions' );
 }
 
@@ -318,23 +271,18 @@ sub setEnginePermissions
 
  Start Dovecot
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
 sub start
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforePoStart' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->start( $self->{'config'}->{'DOVECOT_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->start( $self->{'config'}->{'DOVECOT_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterPoStart' );
 }
@@ -343,23 +291,18 @@ sub start
 
  Stop Dovecot
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
 sub stop
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforePoStop' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->stop( $self->{'config'}->{'DOVECOT_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->stop( $self->{'config'}->{'DOVECOT_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterPoStop' );
 }
@@ -368,23 +311,18 @@ sub stop
 
  Restart Dovecot
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
 sub restart
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforePoRestart' );
     return $rs if $rs;
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->restart( $self->{'config'}->{'DOVECOT_SNAME'} ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->restart( $self->{'config'}->{'DOVECOT_SNAME'} );
 
     $self->{'eventManager'}->trigger( 'afterPoRestart' );
 }
@@ -402,27 +340,24 @@ sub restart
 
 sub getTraffic
 {
-    my ($self, $trafficDb, $logFile, $trafficIndexDb) = @_;
+    my ( $self, $trafficDb, $logFile, $trafficIndexDb ) = @_;
 
-    $logFile ||= "$main::imscpConfig{'TRAFF_LOG_DIR'}/$main::imscpConfig{'MAIL_TRAFF_LOG'}";
+    $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
 
     if ( -f -s $logFile ) {
         # We use an index database file to keep trace of the last processed log
-        $trafficIndexDb or tie %{$trafficIndexDb},
-            'iMSCP::Config', fileName => "$main::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nodie => 1;
+        $trafficIndexDb or tie %{ $trafficIndexDb }, 'iMSCP::Config', fileName => "$::imscpConfig{'IMSCP_HOMEDIR'}/traffic_index.db", nodie => TRUE;
 
-        my ($idx, $idxContent) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
+        my ( $idx, $idxContent ) = ( $trafficIndexDb->{'po_lineNo'} || 0, $trafficIndexDb->{'po_lineContent'} );
 
         # Create a snapshot of current log file state
         my $snapshotFH = File::Temp->new( UNLINK => 1 );
         iMSCP::File->new( filename => $logFile )->copyFile( $snapshotFH->filename, { preserve => 'no' } ) == 0 or die(
-            getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+            getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
         );
 
         # Tie the snapshot for easy handling
-        tie my @snapshot, 'Tie::File', $snapshotFH, memory => 10_485_760 or die(
-            sprintf( "Couldn't tie %s file", $snapshotFH->filename )
-        );
+        tie my @snapshot, 'Tie::File', $snapshotFH, memory => 10_485_760 or die( sprintf( "Couldn't tie %s file", $snapshotFH->filename ));
 
         # We keep trace of the index for the live log file only
         unless ( $logFile =~ /\.1$/ ) {
@@ -458,9 +393,7 @@ sub getTraffic
             # Log line examples
             # Apr 18 23:41:48 jessie dovecot: imap(user@domain.tld): Disconnected: Logged out in=244 out=858
             # Apr 18 23:41:48 jessie dovecot: pop3(user@domain.tld): Disconnected: Logged out top=0/0, retr=0/0, del=0/0, size=0, in=12, out=43
-            next unless /(?:imap|pop3)\([^\@]+\@(?<domain>[^\)]+)\):.*in=(?<in>\d+).*out=(?<out>\d+)$/o
-                && exists $trafficDb->{$+{'domain'}};
-
+            next unless /(?:imap|pop3)\([^\@]+\@(?<domain>[^\)]+)\):.*in=(?<in>\d+).*out=(?<out>\d+)$/o && exists $trafficDb->{$+{'domain'}};
             $trafficDb->{$+{'domain'}} += ( $+{'in'}+$+{'out'} );
         }
 
@@ -492,22 +425,23 @@ sub getTraffic
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'restart'} = 0;
-    $self->{'forceMailboxesQuotaRecalc'} = 0;
-    $self->{'execMode'} = ( defined $main::execmode && $main::execmode eq 'setup' ) ? 'setup' : 'backend';
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
+    $self->SUPER::_init();
+    $self->{'restart'} = FALSE;
+    $self->{'forceMailboxesQuotaRecalc'} = FALSE;
     $self->{'mta'} = Servers::mta->factory();
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/dovecot";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/dovecot";
     $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
     $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
-    $self->_mergeConfig() if -f "$self->{'cfgDir'}/dovecot.data.dist";
-    tie %{$self->{'config'}},
+
+    $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/dovecot.data.dist";
+    tie %{ $self->{'config'} },
         'iMSCP::Config',
         fileName    => "$self->{'cfgDir'}/dovecot.data",
-        readonly    => !( defined $main::execmode && $main::execmode eq 'setup' ),
-        nodeferring => ( defined $main::execmode && $main::execmode eq 'setup' );
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer';
+
     $self;
 }
 
@@ -521,15 +455,14 @@ sub _init
 
 sub _mergeConfig
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     if ( -f "$self->{'cfgDir'}/dovecot.data" ) {
         tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/dovecot.data.dist";
-        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/dovecot.data", readonly => 1;
-
+        tie my %oldConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/dovecot.data", readonly => TRUE;
         debug( 'Merging old configuration with new configuration...' );
 
-        while ( my ($key, $value) = each( %oldConfig ) ) {
+        while ( my ( $key, $value ) = each( %oldConfig ) ) {
             next unless exists $newConfig{$key};
             $newConfig{$key} = $value;
         }
@@ -538,10 +471,8 @@ sub _mergeConfig
         untie( %oldConfig );
     }
 
-    iMSCP::File->new( filename => "$self->{'cfgDir'}/dovecot.data.dist" )->moveFile(
-        "$self->{'cfgDir'}/dovecot.data"
-    ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/dovecot.data.dist" )->moveFile( "$self->{'cfgDir'}/dovecot.data" ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
 }
 

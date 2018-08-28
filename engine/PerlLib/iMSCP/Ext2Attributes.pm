@@ -30,14 +30,13 @@ use strict;
 use warnings;
 use Bit::Vector;
 use File::Find 'finddepth';
-use iMSCP::Debug;
-use iMSCP::Execute;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug error /;
 no warnings 'File::Find';
 use Fcntl qw/ O_RDONLY O_NONBLOCK O_LARGEFILE /;
 use parent qw( Exporter );
-use vars qw( @EXPORT_OK );
 
-@EXPORT_OK = qw(
+our @EXPORT_OK = qw(
     setSecureDeletion clearSecureDeletion isSecureDelection
     setUndelete clearUndelete isUndelete
     setCompress clearCompress isCompress
@@ -46,7 +45,7 @@ use vars qw( @EXPORT_OK );
     setAppendOnly clearAppendOnly isAppendOnly
     setNoDump clearNoDump isNoDump
     setNoAtime clearNoAtime isNoAtime
-    );
+);
 
 my $isSupported = undef;
 
@@ -55,25 +54,23 @@ BEGIN
         my $bitness = Bit::Vector->Long_Bits();
         my $module = "iMSCP::Ext2Attributes::Ext2Fs$bitness";
 
-        local $@;
-
         if ( eval "require $module" ) {
             $module->import();
         } else {
-            $isSupported = 0;
+            $isSupported = FALSE;
             no strict 'refs';
             my $dummy = sub { 'dummy' };
 
-            *{__PACKAGE__ . '::EXT2_SECRM_FL'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_UNRM_FL'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_COMPR_FL'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_SYNC_FL'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_IMMUTABLE_FL'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_APPEND_FL'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_NODUMP_FL'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_NOATIME_FL'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_IOC_GETFLAGS'} = $dummy;
-            *{__PACKAGE__ . '::EXT2_IOC_SETFLAGS'} = $dummy;
+            *{ __PACKAGE__ . '::EXT2_SECRM_FL' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_UNRM_FL' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_COMPR_FL' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_SYNC_FL' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_IMMUTABLE_FL' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_APPEND_FL' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_NODUMP_FL' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_NOATIME_FL' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_IOC_GETFLAGS' } = $dummy;
+            *{ __PACKAGE__ . '::EXT2_IOC_SETFLAGS' } = $dummy;
         }
     }
 
@@ -199,8 +196,9 @@ This function takes a filename and returns true if the immutable flag is set and
 =cut
 
 for my $fname ( keys %constants ) {
-    my $set = sub {
-        my ($name, $recursive) = @_;
+    my $set = sub
+    {
+        my ( $name, $recursive ) = @_;
 
         return 0 unless _isSupported();
 
@@ -231,8 +229,9 @@ for my $fname ( keys %constants ) {
         0;
     };
 
-    my $clear = sub {
-        my ($name, $recursive) = @_;
+    my $clear = sub
+    {
+        my ( $name, $recursive ) = @_;
 
         return 0 unless _isSupported();
 
@@ -262,7 +261,8 @@ for my $fname ( keys %constants ) {
         0;
     };
 
-    my $is = sub {
+    my $is = sub
+    {
         my $name = $_[0];
 
         return 0 unless _isSupported();
@@ -276,9 +276,9 @@ for my $fname ( keys %constants ) {
     };
 
     no strict 'refs';
-    *{__PACKAGE__ . '::set' . $fname } = $set;
-    *{__PACKAGE__ . '::clear' . $fname } = $clear;
-    *{__PACKAGE__ . '::is' . $fname } = $is;
+    *{ __PACKAGE__ . '::set' . $fname } = $set;
+    *{ __PACKAGE__ . '::clear' . $fname } = $clear;
+    *{ __PACKAGE__ . '::is' . $fname } = $is;
 }
 
 =item _getAttributes( $name, \$flags )
@@ -293,15 +293,15 @@ for my $fname ( keys %constants ) {
 
 sub _getAttributes
 {
-    my ($name, $flags) = @_;
+    my ( $name, $flags ) = @_;
 
-    my ($fd, $r, $f, $errno) = ( undef, 0, pack( 'i', 0 ), 0 );
+    my ( $fd, $r, $f, $errno ) = ( undef, 0, pack( 'i', 0 ), 0 );
 
     return -1 unless sysopen( $fd, $name, O_RDONLY | O_NONBLOCK | O_LARGEFILE );
 
     $r = sprintf '%d', ioctl( $fd, EXT2_IOC_GETFLAGS, $f ) || -1;
     $errno = $! if $r == -1;
-    ${$flags} = unpack 'i', $f;
+    ${ $flags } = unpack 'i', $f;
     close $fd;
     $! = $errno if $errno;
     $r;
@@ -319,9 +319,9 @@ sub _getAttributes
 
 sub _setAttributes
 {
-    my ($name, $flags) = @_;
+    my ( $name, $flags ) = @_;
 
-    my ($fd, $r, $f, $errno) = ( undef, 0, pack( 'i', $flags ), 0 );
+    my ( $fd, $r, $f, $errno ) = ( undef, 0, pack( 'i', $flags ), 0 );
 
     return -1 unless sysopen( $fd, $name, O_RDONLY | O_NONBLOCK | O_LARGEFILE );
 
@@ -338,15 +338,7 @@ sub _setAttributes
 
 sub _isSupported
 {
-    unless ( defined $isSupported ) {
-        unless ( _getAttributes( $main::imscpConfig{'USER_WEB_DIR'} ) == -1 ) {
-            $isSupported = 1;
-        } else {
-            $isSupported = 0;
-        }
-    }
-
-    $isSupported;
+    $isSupported //= !( _getAttributes( $::imscpConfig{'USER_WEB_DIR'} ) == -1 );
 }
 
 =back

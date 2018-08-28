@@ -15,17 +15,15 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
+# Adds self-generated EDH parameter files for Perfect Forward Secrecy (PFS).
 #
-## Adds self-generated EDH parameter files for Perfect Forward Secrecy (PFS).
-##
-## First, you must create the files before activating this listener:
-##
-##   cd /etc/postfix
-##   umask 022
-##   openssl dhparam -out dh512.tmp 512 && mv dh512.tmp dh512.pem
-##   openssl dhparam -out dh2048.tmp 2048 && mv dh2048.tmp dh2048.pem
-##   chmod 644 dh512.pem dh2048.pem
+# First, you must create the files before activating this listener:
 #
+#   cd /etc/postfix
+#   umask 022
+#   openssl dhparam -out dh512.tmp 512 && mv dh512.tmp dh512.pem
+#   openssl dhparam -out dh2048.tmp 2048 && mv dh2048.tmp dh2048.pem
+#   chmod 644 dh512.pem dh2048.pem
 
 package Listener::Postfix::PFS;
 
@@ -33,26 +31,20 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-iMSCP::EventManager->getInstance()->register(
-    'afterMtaBuildConf',
-    sub {
-        return 0 unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
+    return 0 unless -f '/etc/postfix/dh2048.pem' && -f '/etc/postfix/dh512.pem';
 
-        Servers::mta->factory()->postconf(
-            (
-                smtpd_tls_dh1024_param_file => {
-                    action => 'replace',
-                    values => [ '/etc/postfix/dh2048.pem' ]
-                },
-                smtpd_tls_dh512_param_file  => {
-                    action => 'replace',
-                    values => [ '/etc/postfix/dh512.pem' ]
-                }
-            )
-        );
-    },
-    -99
-);
+    Servers::mta->factory()->postconf( (
+        smtpd_tls_dh1024_param_file => {
+            action => 'replace',
+            values => [ '/etc/postfix/dh2048.pem' ]
+        },
+        smtpd_tls_dh512_param_file  => {
+            action => 'replace',
+            values => [ '/etc/postfix/dh512.pem' ]
+        }
+    ));
+}, -99 );
 
 1;
 __END__

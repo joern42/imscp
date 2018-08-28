@@ -50,7 +50,7 @@ use parent 'Common::Object';
 
 sub addSystemUser
 {
-    my ($self, $username, $newGroupname ) = @_;
+    my ( $self, $username, $newGroupname ) = @_;
 
     $username //= $self->{'username'};
     my $oldUsername = $self->{'username'} // $username;
@@ -60,14 +60,14 @@ sub addSystemUser
         return 1;
     }
 
-    if ( $username eq $main::imscpConfig{'ROOT_USER'} ) {
-        error( sprintf( '%s user is prohibited', $main::imscpConfig{'ROOT_USER'} ));
+    if ( $username eq $::imscpConfig{'ROOT_USER'} ) {
+        error( sprintf( '%s user is prohibited', $::imscpConfig{'ROOT_USER'} ));
         return 1;
     }
 
     $self->{'username'} = $username;
 
-    my $home = $self->{'home'} // "$main::imscpConfig{'USER_WEB_DIR'}/$username";
+    my $home = $self->{'home'} // "$::imscpConfig{'USER_WEB_DIR'}/$username";
     my $isImmutableHome = -d $home && isImmutable( $home );
 
     clearImmutable( $home ) if $isImmutableHome;
@@ -97,7 +97,7 @@ sub addSystemUser
             ];
     } else {
         if ( $userProps[2] == 0 ) {
-            error( sprintf( '%s user modification is prohibited', $main::imscpConfig{'ROOT_USER'} ));
+            error( sprintf( '%s user modification is prohibited', $::imscpConfig{'ROOT_USER'} ));
             return 1;
         }
 
@@ -115,31 +115,29 @@ sub addSystemUser
             ( defined $self->{'comment'} && $self->{'comment'} ne $userProps[6]
                 ? ( '-c', $self->{'comment'} // 'iMSCP user' ) : () ),
             ( defined $self->{'group'} && ( ( $self->{'group'} =~ /^(\d+)$/ && $1 != $userProps[3] )
-                    || getgrnam( $self->{'group'} ) ne $userProps[3] )
+                || getgrnam( $self->{'group'} ) ne $userProps[3] )
                 ? ( '-g', $self->{'group'} ) : () ),
             ( defined $self->{'home'} && $self->{'home'} ne $userProps[7]
-                ? ( '-d', $self->{'home'} // "$main::imscpConfig{'USER_WEB_DIR'}/$self->{'username'}", '-m' ) : () ),
+                ? ( '-d', $self->{'home'} // "$::imscpConfig{'USER_WEB_DIR'}/$self->{'username'}", '-m' ) : () ),
             ( defined $self->{'shell'} && $self->{'shell'} ne $userProps[8] ? ( '-s', $self->{'shell'} ) : () ),
             ( $username ne $oldUsername ? ( '-l', $username ) : () ),
             $oldUsername,
         ];
 
-        push @commands, [ $usermodCmd, [ 0 ] ] if @{$usermodCmd} > 2;
+        push @commands, [ $usermodCmd, [ 0 ] ] if @{ $usermodCmd } > 2;
     }
 
-    for( @commands ) {
-        my $rs = execute( $_->[0], \ my $stdout, \ my $stderr );
+    for ( @commands ) {
+        my $rs = execute( $_->[0], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
-        unless ( grep($_ == $rs, @{$_->[1]}) ) {
+        unless ( grep ($_ == $rs, @{ $_->[1] }) ) {
             error( $stderr || 'Unknown error' );
             return $rs;
         }
     }
 
     if ( @userProps && $oldUsername ne $username && defined $newGroupname ) {
-        my $rs = execute(
-            [ '/usr/sbin/groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \ my $stdout, \ my $stderr
-        );
+        my $rs = execute( [ '/usr/sbin/groupmod', '-n', $newGroupname, scalar getgrgid( $userProps[3] ) ], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         error( $stderr || 'Unknown error' ) if $rs;
         return $rs if $rs && $rs;
@@ -160,7 +158,7 @@ sub addSystemUser
 
 sub delSystemUser
 {
-    my ($self, $username) = @_;
+    my ( $self, $username ) = @_;
     $username //= $self->{'username'};
 
     unless ( defined $username ) {
@@ -168,8 +166,8 @@ sub delSystemUser
         return 1;
     }
 
-    if ( $username eq $main::imscpConfig{'ROOT_USER'} ) {
-        error( sprintf( '%s user deletion is prohibited', $main::imscpConfig{'ROOT_USER'} ));
+    if ( $username eq $::imscpConfig{'ROOT_USER'} ) {
+        error( sprintf( '%s user deletion is prohibited', $::imscpConfig{'ROOT_USER'} ));
         return 1;
     }
 
@@ -200,10 +198,10 @@ sub delSystemUser
         ]
     );
 
-    for( @commands ) {
-        my $rs = execute( $_->[0], \ my $stdout, \ my $stderr );
+    for ( @commands ) {
+        my $rs = execute( $_->[0], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
-        unless ( grep($_ == $rs, @{$_->[1]}) ) {
+        unless ( grep ($_ == $rs, @{ $_->[1] }) ) {
             error( $stderr || 'Unknown error' );
             return $rs;
         }
@@ -224,7 +222,7 @@ sub delSystemUser
 
 sub addToGroup
 {
-    my ($self, $groupname, $username) = @_;
+    my ( $self, $groupname, $username ) = @_;
 
     $groupname //= $self->{'groupname'};
     $username //= $self->{'username'};
@@ -246,7 +244,7 @@ sub addToGroup
         return 1;
     }
 
-    my $rs = execute( [ '/usr/bin/gpasswd', '-a', $username, $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ '/usr/bin/gpasswd', '-a', $username, $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs && $rs != 3;
     return $rs if $rs && $rs != 3;
@@ -265,7 +263,7 @@ sub addToGroup
 
 sub removeFromGroup
 {
-    my ($self, $groupname, $username) = @_;
+    my ( $self, $groupname, $username ) = @_;
     $groupname //= $self->{'groupname'};
     $username //= $self->{'username'};
 
@@ -283,7 +281,7 @@ sub removeFromGroup
 
     return 0 unless getpwnam( $username ) && getgrnam( $groupname );
 
-    my $rs = execute( [ '/usr/bin/gpasswd', '-d', $username, $groupname ], \ my $stdout, \ my $stderr );
+    my $rs = execute( [ '/usr/bin/gpasswd', '-d', $username, $groupname ], \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs && $rs != 3;
     return $rs if $rs && $rs != 3;

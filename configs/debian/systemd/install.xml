@@ -5,9 +5,7 @@
     <copy_config if="'${NAMED_PACKAGE}' eq 'Servers::named::bind'" mode="0644">${ROOT_CONF}/systemd/system/bind9.service</copy_config>
     <copy_config if="'${NAMED_PACKAGE}' eq 'Servers::named::bind'" mode="0644">${ROOT_CONF}/systemd/system/bind9-resolvconf.service</copy_config>
     <copy_config if="'${PO_PACKAGE}' eq 'Servers::po::courier'" mode="0644">${ROOT_CONF}/tmpfiles.d/courier-authdaemon.conf</copy_config>
-    <copy_config mode="0644">${ROOT_CONF}/tmpfiles.d/imscp_panel.conf</copy_config>
     <copy_config mode="0644">${ROOT_CONF}/systemd/system/imscp_daemon.service</copy_config>
     <copy_config mode="0644">${ROOT_CONF}/systemd/system/imscp_mountall.service</copy_config>
-    <copy_config mode="0644">${ROOT_CONF}/systemd/system/imscp_panel.service</copy_config>
     <copy_config mode="0644">${ROOT_CONF}/systemd/system/imscp_traffic.service</copy_config>
 </install>

@@ -15,9 +15,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Replaces package file with custom one.
-#
+# Replaces package file with custom one.
 
 package Listener::Packages::Override;
 
@@ -30,14 +28,11 @@ my $DISTRO_PACKAGES_FILE = '/path/to/your/own/package/file';
 
 # Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'onBuildPackageList',
-    sub {
-        my $pkgFile = shift;
-        $$pkgFile = $DISTRO_PACKAGES_FILE;
-        0;
-    }
-);
+iMSCP::EventManager->getInstance()->register( 'onBuildPackageList', sub {
+    my $pkgFile = shift;
+    ${ $pkgFile } = $DISTRO_PACKAGES_FILE;
+    0;
+} );
 
 1;
 __END__

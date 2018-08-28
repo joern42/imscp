@@ -25,6 +25,7 @@ package iMSCP::Rights;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
 use iMSCP::Debug;
 use File::Find;
 use autouse Lchown => qw/ lchown /;
@@ -59,15 +60,14 @@ our @EXPORT = qw/ setRights /;
 
 sub setRights
 {
-    my ($target, $options) = @_;
+    my ( $target, $options ) = @_;
 
-    local $@;
     eval {
         defined $target or die( '$target parameter is not defined' );
-        ref $options eq 'HASH' && %{$options} or die( '$options parameter is not defined' );
+        ref $options eq 'HASH' && %{ $options } or die( '$options parameter is not defined' );
 
         if ( defined $options->{'mode'} && ( defined $options->{'dirmode'} || defined $options->{'filemode'} ) ) {
-            die( "'mode' option is not allowed when using dirmode/filemode options" );
+            die( "The 'mode' and the dirmode and/or filemode options are mutualyl exclusive" );
         }
 
         my $uid = $options->{'user'} ? getpwnam( $options->{'user'} ) : -1;
@@ -98,7 +98,7 @@ sub setRights
                             chmod $filemode, $_ or die( sprintf( "Couldn't set mode on %s: %s", $_, $! ));
                         }
                     },
-                    no_chdir => 1
+                    no_chdir => TRUE
                 },
                 $target
             );

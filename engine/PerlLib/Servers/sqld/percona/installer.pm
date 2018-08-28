@@ -25,7 +25,6 @@ package Servers::sqld::percona::installer;
 
 use strict;
 use warnings;
-use iMSCP::EventManager;
 use Servers::sqld::percona;
 use parent 'Servers::sqld::mysql::installer';
 
@@ -47,10 +46,10 @@ use parent 'Servers::sqld::mysql::installer';
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'sqld'} = Servers::sqld::percona->getInstance();
+    $self->{'eventManager'} = $self->{'sqld'}->{'eventManager'};
     $self->{'cfgDir'} = $self->{'sqld'}->{'cfgDir'};
     $self->{'config'} = $self->{'sqld'}->{'config'};
     $self;

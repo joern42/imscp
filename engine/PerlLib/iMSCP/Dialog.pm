@@ -26,7 +26,7 @@ package iMSCP::Dialog;
 use strict;
 use warnings;
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug error debugRegisterCallBack/;
+use iMSCP::Debug qw/ debug error debugRegisterCallBack /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::Getopt;
@@ -427,20 +427,20 @@ sub executeDialogs
 {
     my ( $self, $dialogs ) = @_;
 
-    ref $dialogs eq 'ARRAY' or die( 'Invalid $dialog parameter. Expect an array of dialog subroutines ');
-    
+    ref $dialogs eq 'ARRAY' or die( 'Invalid $dialog parameter. Expect an array of dialog subroutines ' );
+
     my $dialOuter = $ExecuteDialogsFirstCall;
     $ExecuteDialogsFirstCall = FALSE if $dialOuter;
-    
+
     my ( $ret, $state, $countDialogs ) = ( 0, 0, scalar @{ $dialogs } );
     while ( $state < $countDialogs ) {
-        local $self->{'_opts'}->{'no-cancel'} = $state  ||! $dialOuter ? undef : '';
+        local $self->{'_opts'}->{'no-cancel'} = $state || !$dialOuter ? undef : '';
 
         $ret = $dialogs->[$state]->( $self );
         last if $ret == 50 || ( $ret == 30 && $state == 0 );
 
         #$ret = $ExecuteDialogsBackupContext && !isOneOfStringsInList( [ 'all', @_ ], iMSCP::Getopt->reconfigure ) ? 20 : 0 unless $ret == 30;
-        
+
         if ( $state && ( $ret == 30 || $ret == 20 && $ExecuteDialogsBackupContext ) ) {
             $ExecuteDialogsBackupContext = TRUE if $ret == 30;
             $state--;
@@ -499,7 +499,7 @@ sub _init
     $self->{'autoreset'} = 0;
     $self->{'lines'} = undef;
     $self->{'columns'} = undef;
-    $self->{'_opts'}->{'backtitle'} ||= "i-MSCP - internet Multi Server Control Panel ($main::imscpConfig{'Version'})";
+    $self->{'_opts'}->{'backtitle'} ||= "i-MSCP - internet Multi Server Control Panel ($::imscpConfig{'Version'})";
     $self->{'_opts'}->{'title'} ||= 'i-MSCP Installer Dialog';
     $self->{'_opts'}->{'colors'} = '';
     $self->{'_opts'}->{'ok-label'} ||= 'Ok';
@@ -602,7 +602,7 @@ sub _findBin
 
 sub _stripFormats
 {
-    my ( undef, $string ) = @_;
+    my ( $self, $string ) = @_;
 
     $string =~ s/\\Z[0-9bBuUrRn]//gmi;
     $string;
@@ -719,7 +719,7 @@ sub _textbox
     # For the radiolist, input and password boxes, we do not want lose
     # previous value when backing up
     # TODO checklist and yesno dialog boxes
-    $output = $init if $ret == 30 && grep( $type eq $_, 'checklist', 'radiolist','inputbox', 'passwordbox' );
+    $output = $init if $ret == 30 && grep ( $type eq $_, 'checklist', 'radiolist', 'inputbox', 'passwordbox' );
 
     wantarray ? ( $ret, $output ) : $output;
 }

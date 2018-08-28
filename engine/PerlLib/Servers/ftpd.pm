@@ -25,6 +25,10 @@ package Servers::ftpd;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug getMessageByType /;
+use iMSCP::DistPackageManager;
+use iMSCP::Getopt;
 
 # ftpd server instance
 my $instance;
@@ -51,17 +55,23 @@ sub factory
 {
     return $instance if defined $instance;
 
-    my $package = $main::imscpConfig{'FTPD_PACKAGE'} || 'Servers::noserver';
+    my $package = $::imscpConfig{'FTPD_PACKAGE'} || 'Servers::noserver';
 
-    if ( %main::imscpOldConfig
-        && exists $main::imscpOldConfig{'FTPD_PACKAGE'}
-        && $main::imscpOldConfig{'FTPD_PACKAGE'} ne ''
-        && $main::imscpOldConfig{'FTPD_PACKAGE'} ne $package
+    if ( %::imscpOldConfig && exists $::imscpOldConfig{'FTPD_PACKAGE'} && $::imscpOldConfig{'FTPD_PACKAGE'} ne ''
+        && $::imscpOldConfig{'FTPD_PACKAGE'} ne $package
     ) {
-        eval "require $main::imscpOldConfig{'FTPD_PACKAGE'}" or die;
-
-        my $rs = $main::imscpOldConfig{'FTPD_PACKAGE'}->getInstance()->uninstall();
-        fatal( sprintf( "Couldn't uninstall the '%s' server", $main::imscpOldConfig{'FTPD_PACKAGE'} )) if $rs;
+        eval "require $::imscpOldConfig{'FTPD_PACKAGE'}" or die;
+        my $server = $::imscpOldConfig{'FTPD_PACKAGE'}->getInstance();
+        for my $action ( 'preuninstall', 'uninstall', 'postuninstall' ) {
+            debug( sprintf( 'Executing %s %s tasks...', ref $server, $action ));
+            $server->$action() == 0 or die( sprintf(
+                "Couldn't uninstall the '%s' server",
+                $::imscpOldConfig{'FTPD_PACKAGE'},
+                getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+            ));
+            next unless $action eq 'postuninstall';
+            iMSCP::DistPackageManager->getInstance()->processDelayedTasks();
+        }
     }
 
     eval "require $package" or die;
@@ -99,7 +109,7 @@ sub getPriority
 
 END
     {
-        return if $? || !$instance || ( $main::execmode && $main::execmode eq 'setup' );
+        return if $? || !$instance || iMSCP::Getopt->context() eq 'installer';
 
         if ( $instance->{'start'} ) {
             $? = $instance->start();

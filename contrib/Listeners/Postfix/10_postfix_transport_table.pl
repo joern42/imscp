@@ -18,18 +18,14 @@
 
 package Listener::Postfix::Transport::Table;
 
-#
-## Allows to add entries in the postfix transport(5) table
-#
+# Allows to add entries in the postfix transport(5) table
 
 use strict;
 use warnings;
 use iMSCP::EventManager;
 use Servers::mta;
 
-#
-## Configuration variables
-#
+# Configuration variables
 
 # Parameter that allows to specify transport entries that must be added in the
 # Postfix transport(5) table.
@@ -40,22 +36,17 @@ my %transportTableEntries = (
     'user2@domain.tld'    => 'smtp:some-other-host'
 );
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
 # Listener responsible to add entries in the Postfix transport(5) table
-iMSCP::EventManager->getInstance()->register(
-    'afterCreatePostfixMaps',
-    sub {
-        my $mta = Servers::mta->factory();
-        while(my ($recipient, $transport) = each(%transportTableEntries)) {
-            my $rs = $mta->addMapEntry( $mta->{'config'}->{'MTA_TRANSPORT_HASH'}, "$recipient\t$transport" );
-            return $rs if $rs;
-        }
-        0;
+iMSCP::EventManager->getInstance()->register( 'afterCreatePostfixMaps', sub {
+    my $mta = Servers::mta->factory();
+    while ( my ( $recipient, $transport ) = each( %transportTableEntries ) ) {
+        my $rs = $mta->addMapEntry( $mta->{'config'}->{'MTA_TRANSPORT_HASH'}, "$recipient\t$transport" );
+        return $rs if $rs;
     }
-);
+    0;
+} );
 
 1;
 __END__

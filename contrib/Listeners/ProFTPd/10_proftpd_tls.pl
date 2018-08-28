@@ -16,10 +16,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Enforce TLS
-## See http://www.proftpd.org/docs/directives/linked/config_ref_TLSRequired.html
-#
+# Enforce TLS
+# See http://www.proftpd.org/docs/directives/linked/config_ref_TLSRequired.html
 
 package Listener::ProFTPd::TLS;
 
@@ -27,16 +25,13 @@ use strict;
 use warnings;
 use iMSCP::EventManager;
 
-iMSCP::EventManager->getInstance()->register(
-    'afterFtpdBuildConf',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterFtpdBuildConf', sub {
+    my ( $tplContent, $tplName ) = @_;
 
-        return 0 unless $tplName eq 'proftpd.conf';
-        ${$tplContent} =~ s/(TLSRequired\s+)off/${1}on/im;
-        0;
-    }
-);
+    return 0 unless $tplName eq 'proftpd.conf';
+    ${ $tplContent } =~ s/(TLSRequired\s+)off/${1}on/im;
+    0;
+} );
 
 1;
 __END__

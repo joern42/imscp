@@ -26,12 +26,13 @@ package iMSCP::Bootstrapper;
 use strict;
 use warnings;
 use File::Spec;
-use iMSCP::Debug;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug getMessageByType setDebug /;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::LockFile;
 use iMSCP::Umask;
-use POSIX qw / tzset /;
+use POSIX qw/ tzset /;
 use parent 'Common::SingletonClass';
 
 $SIG{'INT'} = 'IGNORE';
@@ -59,35 +60,35 @@ $ENV{'HOME'} = ( getpwuid $> )[7] or die( "Couldn't find running user homedir" )
 
 sub boot
 {
-    my ($self, $options) = @_;
+    my ( $self, $options ) = @_;
 
-    setDebug( 1 ); # Set debug mode for booting time
+    setDebug( TRUE ); # Set debug mode for booting time
 
-    my $mode = $options->{'mode'} || 'backend';
-    debug( sprintf( 'Booting %s....', $mode ));
+    $options->{'mode'} //= 'backend';
+    debug( sprintf( 'Booting %s....', $options->{'mode'} ));
 
     $self->lock() unless $options->{'nolock'};
     $self->loadMainConfig( $options );
 
     # Set timezone unless we are in setup or uninstall modes (needed to show current local timezone in setup dialog)
-    unless ( grep($mode eq $_, ( 'setup', 'uninstall' ) ) ) {
-        $ENV{'TZ'} = $main::imscpConfig{'TIMEZONE'} || 'UTC';
+    unless ( grep ( $options->{'mode'} eq $_, 'setup', 'uninstall' ) ) {
+        $ENV{'TZ'} = $::imscpConfig{'TIMEZONE'} || 'UTC';
         tzset;
     }
 
-    setDebug( iMSCP::Getopt->debug || $main::imscpConfig{'DEBUG'} || 0 ); # Set debug mode
+    setDebug( iMSCP::Getopt->debug || $::imscpConfig{'DEBUG'} || FALSE ); # Set debug mode
 
     unless ( $options->{'norequirements'} ) {
         require iMSCP::Requirements;
-        my $test = ( $mode eq 'setup' ) ? 'all' : 'user';
+        my $test = $options->{'mode'} eq 'installer' ? 'all' : 'user';
         iMSCP::Requirements->new()->$test();
     }
 
     $self->_genKeys() unless $options->{'nokeys'};
     $self->_setDbSettings() unless $options->{'nodatabase'};
 
-    iMSCP::EventManager->getInstance()->trigger( 'onBoot', $mode ) == 0 or die(
-        getMessageByType( 'error', { amount => 1, remove => 1 } ) || 'Unknown error'
+    iMSCP::EventManager->getInstance()->trigger( 'onBoot', $options->{'mode'} ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
     $self;
 }
@@ -103,19 +104,17 @@ sub boot
 
 sub loadMainConfig
 {
-    my (undef, $options) = @_;
+    my ( $self, $options ) = @_;
 
     require iMSCP::Config;
-    untie %main::imscpConfig;
-    tie
-        %main::imscpConfig,
-        'iMSCP::Config',
+    untie %::imscpConfig;
+    tie %::imscpConfig, 'iMSCP::Config',
         fileName    => ( $^O =~ /bsd$/ ? '/usr/local/etc/' : '/etc/' ) . 'imscp/imscp.conf',
-        nocreate    => $options->{'nocreate'} // 1,
-        nodeferring => $options->{'nodeferring'} // 0,
-        nodie       => $options->{'nodie'} // 0,
-        readonly    => $options->{'config_readonly'} // 0,
-        temporary   => $options->{'config_temporary'} // 0;
+        nocreate    => $options->{'nocreate'} // TRUE,
+        nodeferring => $options->{'nodeferring'} // FALSE,
+        nodie       => $options->{'nodie'} // FALSE,
+        readonly    => $options->{'config_readonly'} // FALSE,
+        temporary   => $options->{'config_temporary'} // FALSE;
 }
 
 =item lock( [ $lockFile = '/var/lock/imscp.lock [, $nowait = FALSE ] ] )
@@ -130,7 +129,7 @@ sub loadMainConfig
 
 sub lock
 {
-    my ($self, $lockFile, $nowait) = @_;
+    my ( $self, $lockFile, $nowait ) = @_;
     $lockFile = File::Spec->canonpath( $lockFile ||= '/var/lock/imscp.lock' );
 
     return 1 if exists $self->{'locks'}->{$lockFile};
@@ -152,7 +151,7 @@ sub lock
 
 sub unlock
 {
-    my ($self, $lockFile) = @_;
+    my ( $self, $lockFile ) = @_;
     $lockFile = File::Spec->canonpath( $lockFile ||= '/var/lock/imscp.lock' );
 
     return $self unless exists $self->{'locks'}->{$lockFile};
@@ -178,7 +177,7 @@ sub unlock
 
 sub _genKeys
 {
-    my $keyFile = "$main::imscpConfig{'CONF_DIR'}/imscp-db-keys";
+    my $keyFile = "$::imscpConfig{'CONF_DIR'}/imscp-db-keys";
     our $db_pass_key = '{KEY}';
     our $db_pass_iv = '{IV}';
 
@@ -190,14 +189,12 @@ sub _genKeys
 
         debug( 'Generating database keys...' );
 
-        -d $main::imscpConfig{'CONF_DIR'} or die(
-            sprintf( "%s doesn't exist or is not a directory", $main::imscpConfig{'CONF_DIR'} )
-        );
+        -d $::imscpConfig{'CONF_DIR'} or die( sprintf( "%s doesn't exist or is not a directory", $::imscpConfig{'CONF_DIR'} ));
 
         local $UMASK = 027; # imscp-db-keys file must not be created world-readable
 
-        open my $fh, '>', "$main::imscpConfig{'CONF_DIR'}/imscp-db-keys" or die(
-            sprintf( "Couldn't open %s file for writing: %s", "$main::imscpConfig{'CONF_DIR'}/imscp-db-keys", $! )
+        open my $fh, '>', "$::imscpConfig{'CONF_DIR'}/imscp-db-keys" or die(
+            sprintf( "Couldn't open %s file for writing: %s", "$::imscpConfig{'CONF_DIR'}/imscp-db-keys", $! )
         );
 
         print { $fh } Data::Dumper->Dump(
@@ -209,9 +206,9 @@ sub _genKeys
         require "$keyFile";
     }
 
-    $main::imscpDBKey = $db_pass_key;
+    $::imscpDBKey = $db_pass_key;
     undef $db_pass_key;
-    $main::imscpDBiv = $db_pass_iv;
+    $::imscpDBiv = $db_pass_iv;
     undef $db_pass_iv;
     undef;
 }
@@ -230,14 +227,11 @@ sub _setDbSettings
     require iMSCP::Crypt;
 
     my $db = iMSCP::Database->factory();
-    $db->set( 'DATABASE_HOST', $main::imscpConfig{'DATABASE_HOST'} );
-    $db->set( 'DATABASE_PORT', $main::imscpConfig{'DATABASE_PORT'} );
-    $db->set( 'DATABASE_NAME', $main::imscpConfig{'DATABASE_NAME'} );
-    $db->set( 'DATABASE_USER', $main::imscpConfig{'DATABASE_USER'} );
-    $db->set(
-        'DATABASE_PASSWORD',
-        iMSCP::Crypt::decryptRijndaelCBC( $main::imscpDBKey, $main::imscpDBiv, $main::imscpConfig{'DATABASE_PASSWORD'} )
-    );
+    $db->set( 'DATABASE_HOST', $::imscpConfig{'DATABASE_HOST'} );
+    $db->set( 'DATABASE_PORT', $::imscpConfig{'DATABASE_PORT'} );
+    $db->set( 'DATABASE_NAME', $::imscpConfig{'DATABASE_NAME'} );
+    $db->set( 'DATABASE_USER', $::imscpConfig{'DATABASE_USER'} );
+    $db->set( 'DATABASE_PASSWORD', iMSCP::Crypt::decryptRijndaelCBC( $::imscpDBKey, $::imscpDBiv, $::imscpConfig{'DATABASE_PASSWORD'} ));
     0;
 }
 
@@ -249,7 +243,7 @@ sub _setDbSettings
 
 END {
     my $self = __PACKAGE__->getInstance();
-    $self->{'locks'}->{$_}->release() for keys %{$self->{'locks'}};
+    $self->{'locks'}->{$_}->release() for keys %{ $self->{'locks'} };
 }
 
 =back

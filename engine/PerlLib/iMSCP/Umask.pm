@@ -19,6 +19,8 @@
 
 package iMSCP::Umask;
 
+use strict;
+use warnings;
 use Exporter qw/ import /;
 
 our @EXPORT = qw/ $UMASK /;

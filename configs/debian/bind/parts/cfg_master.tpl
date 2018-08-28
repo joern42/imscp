@@ -1,4 +1,4 @@
-// imscp [{ZONE_NAME}] begin.
+// imscp [{ZONE_NAME}] zone begin.
 zone "{ZONE_NAME}" {
   type master;
   masterfile-format {BIND_DB_FORMAT};
@@ -6,5 +6,5 @@ zone "{ZONE_NAME}" {
   allow-transfer { {IP_ADDRESSES} };
   notify yes;
 };
-// imscp [{ZONE_NAME}] ending.
+// imscp [{ZONE_NAME}] zone ending.
 

@@ -19,6 +19,8 @@
 
 package iMSCP::Cwd;
 
+use strict;
+use warnings;
 use Exporter qw/ import /;
 
 our @EXPORT = qw/ $CWD /;

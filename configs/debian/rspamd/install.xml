@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<install>
-    <folders if="'${ANTISPAM}' eq 'rspamd'">${ROOT_CONF}/rspamd</folders>
-    <folders>${SYSTEM_CONF}/rspamd</folders>
-    <copy_config if="'${ANTISPAM}' eq 'rspamd'">${ROOT_CONF}/rspamd/local.d</copy_config>
-    <copy_config>${SYSTEM_CONF}/rspamd/rspamd.data.dist</copy_config>
-</install>

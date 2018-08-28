@@ -16,7 +16,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
 # Listener providing Slave DNS server Provisioning Service (SDSPS)
-#
 # The service provided by this listener must be consumed by the SDSPC client.
 
 # HOWTO SETUP
@@ -36,15 +35,13 @@ use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::File;
-use iMSCP::TemplateParser;
+use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
 
-#
-## Configuration parameters
-#
+# Configuration parameters
 
-## HTTP Basic authentication parameters
-## These parameters are used to protect access to the provisioning script
-## which is made available through HTTP(s)
+# HTTP Basic authentication parameters
+# These parameters are used to protect access to the provisioning script
+# which is made available through HTTP(s)
 #
 # Authentication username
 # Leave empty to disable authentication
@@ -59,9 +56,7 @@ my $IS_HTPASSWD_HASHED = 0;
 # Realm, default to 'SDSPS' (Slave DNS Server Provisioning Service)
 my $REALM = 'SDSPS';
 
-#
-## Please don't edit anything below this line
-#
+# Please don't edit anything below this line
 
 sub createHtpasswdFile
 {
@@ -71,19 +66,18 @@ sub createHtpasswdFile
     }
 
     require iMSCP::Crypt;
-    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/.htpasswd" );
+    my $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/.htpasswd" );
     $file->set( "$HTUSER:" . ( $IS_HTPASSWD_HASHED ? $HTPASSWD : iMSCP::Crypt::htpasswd( $HTPASSWD ) ));
 
     my $rs = $file->save();
     $rs ||= $file->owner(
-        "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-        "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}"
+        "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+        "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}"
     );
     $rs ||= $file->mode( 0640 );
 }
 
-iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub
-{
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub {
     my ( $tplContent, $tplName ) = @_;
 
     return 0 unless grep ($_ eq $tplName, '00_master.nginx', '00_master_ssl.nginx');
@@ -96,48 +90,44 @@ iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub
             satisfy any;
             deny all;
             auth_basic "$REALM";
-            auth_basic_user_file $main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/.htpasswd;
+            auth_basic_user_file $::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/.htpasswd;
         }
     }
 EOF
-    ${ $tplContent } = replaceBloc( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", "    # SECTION custom BEGIN.\n"
-        . getBloc( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", ${ $tplContent } )
+    replaceBlocByRef(
+        "# SECTION custom BEGIN.\n",
+        "# SECTION custom END.\n",
+        "    # SECTION custom BEGIN.\n"
+        . getBlocByRef( "# SECTION custom BEGIN.\n", "# SECTION custom END.\n", $tplContent )
         . "$locationSnippet\n"
         . "    # SECTION custom END.\n",
-        ${ $tplContent }
+        $tplContent
     );
     0;
 } ) if $HTUSER ne '' && $HTPASSWD ne '';
 
-iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub
-{
-    my $rs = eval {
-        # Make sure to start with a clean directory
-        my $dir = iMSCP::Dir->new( dirname => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp" );
-        $dir->remove();
-        $dir->make( {
-            user  => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-            group => "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-            mode  => 0550
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        $rs = 1;
-    }
+iMSCP::EventManager->getInstance()->register( 'afterFrontEndInstall', sub {
+    # Make sure to start with a clean directory
+    my $dir = iMSCP::Dir->new( dirname => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp" );
+    $dir->remove();
+    $dir->make( {
+        user  => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+        group => "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+        mode  => 0550
+    } );
 
-    $rs ||= createHtpasswdFile() if $HTUSER ne '' && $HTPASSWD ne '';
+    my $rs ||= createHtpasswdFile() if $HTUSER ne '' && $HTPASSWD ne '';
     return $rs if $rs;
 
-    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/sdsps.php" );
+    my $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/sdsp/sdsps.php" );
     $file->set( do {
         local $/;
         <DATA>;
     } );
     $rs = $file->save();
     $rs ||= $file->owner(
-        "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-        "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$main::imscpConfig{'SYSTEM_USER_MIN_UID'}"
+        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}"
     );
     $rs ||= $file->mode( 0640 );
 } );

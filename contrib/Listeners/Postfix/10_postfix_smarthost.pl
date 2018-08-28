@@ -15,9 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#
-## Configure Postfix to route all mails to a smarthost using SASL authentication.
-#
+# Configure Postfix to route all mails to a smarthost using SASL authentication.
 
 package Listener::Postfix::Smarthost;
 
@@ -27,9 +25,7 @@ use iMSCP::EventManager;
 use iMSCP::File;
 use Servers::mta;
 
-#
-## Configuration variables
-#
+# Configuration variables
 
 my $relayhost = '[smtp.host.tld]';
 my $relayport = '587';
@@ -37,9 +33,7 @@ my $saslAuthUser = '';
 my $saslAuthPasswd = '';
 my $saslPasswdMapsPath = '/etc/postfix/relay_passwd';
 
-#
-## Please, don't edit anything below this line unless you known what you're doing
-#
+## Please don't edit anything below this line unless you known what you're doing
 
 # Add the libsasl2-modules to list of package to install
 iMSCP::EventManager->getInstance()->registerOne( 'beforeInstallDistributionPackages', sub {
@@ -53,40 +47,34 @@ iMSCP::EventManager->getInstance()->register( 'beforeUninstallDistributionPackag
     0;
 } );
 
-iMSCP::EventManager->getInstance()->register(
-    'afterMtaBuildConf',
-    sub {
-        my $mta = Servers::mta->factory();
-        my $rs = $mta->addMapEntry( $saslPasswdMapsPath, "$relayhost:$relayport\t$saslAuthUser:$saslAuthPasswd" );
-        $rs ||= $mta->postconf(
-            (
-                # Relay parameter
-                relayhost                  => {
-                    action => 'replace',
-                    values => [ "$relayhost:$relayport" ]
-                },
-                # smtp SASL parameters
-                smtp_sasl_type             => {
-                    action => 'replace',
-                    values => [ 'cyrus' ]
-                },
-                smtp_sasl_auth_enable      => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
-                smtp_sasl_password_maps    => {
-                    action => 'add',
-                    values => [ "hash:$saslPasswdMapsPath" ]
-                },
-                smtp_sasl_security_options => {
-                    action => 'replace',
-                    values => [ 'noanonymous' ]
-                }
-            )
-        );
-    },
-    -99
-);
+iMSCP::EventManager->getInstance()->register( 'afterMtaBuildConf', sub {
+    my $mta = Servers::mta->factory();
+    my $rs = $mta->addMapEntry( $saslPasswdMapsPath, "$relayhost:$relayport\t$saslAuthUser:$saslAuthPasswd" );
+    $rs ||= $mta->postconf( (
+        # Relay parameter
+        relayhost                  => {
+            action => 'replace',
+            values => [ "$relayhost:$relayport" ]
+        },
+        # smtp SASL parameters
+        smtp_sasl_type             => {
+            action => 'replace',
+            values => [ 'cyrus' ]
+        },
+        smtp_sasl_auth_enable      => {
+            action => 'replace',
+            values => [ 'yes' ]
+        },
+        smtp_sasl_password_maps    => {
+            action => 'add',
+            values => [ "hash:$saslPasswdMapsPath" ]
+        },
+        smtp_sasl_security_options => {
+            action => 'replace',
+            values => [ 'noanonymous' ]
+        }
+    ));
+}, -99 );
 
 1;
 __END__

@@ -25,8 +25,6 @@ package iMSCP::AbstractInstallerActions;
 
 use strict;
 use warnings;
-use iMSCP::Boolean;
-use iMSCP::DistPackageManager;
 
 =head1 DESCRIPTION
 
@@ -171,36 +169,6 @@ sub dpkgPostInvokeTasks
 {
     my ( $self ) = @_;
 
-    0;
-}
-
-=back
-
-=head1 PUBLIC METHODS
-
-=over 4
-
-=item _installPackages( \@packages )
-
- Schedule the given distribution packages for installation
-
- In installer context, processing of delayed tasks on the distribution
- package manager is triggered by the installer after the call of the
- preinstall action on the packages and servers. Thus, those last SHOULD
- call this method in the preinstall action.
-
- Param arrayref \@packages Array containing a list of distribution packages to install
- Return int 0 on success, other or die on failure
-
-=cut
-
-sub _installPackages
-{
-    my ( $self, $packages ) = @_;
-
-    return 0 unless @{ $packages };
-
-    iMSCP::DistPackageManager->getInstance()->installPackages( $packages, TRUE );
     0;
 }
 

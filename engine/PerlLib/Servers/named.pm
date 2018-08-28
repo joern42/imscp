@@ -25,6 +25,10 @@ package Servers::named;
 
 use strict;
 use warnings;
+use iMSCP::Boolean;
+use iMSCP::Debug qw/ debug getMessageByType /;
+use iMSCP::DistPackageManager;
+use iMSCP::Getopt;
 
 # named server instance
 my $instance;
@@ -51,17 +55,23 @@ sub factory
 {
     return $instance if $instance;
 
-    my $package = $main::imscpConfig{'NAMED_PACKAGE'} || 'Servers::noserver';
+    my $package = $::imscpConfig{'NAMED_PACKAGE'} || 'Servers::noserver';
 
-    if ( %main::imscpOldConfig
-        && exists $main::imscpOldConfig{'NAMED_PACKAGE'}
-        && $main::imscpOldConfig{'NAMED_PACKAGE'} ne ''
-        && $main::imscpOldConfig{'NAMED_PACKAGE'} ne $package
+    if ( %::imscpOldConfig && exists $::imscpOldConfig{'NAMED_PACKAGE'} && $::imscpOldConfig{'NAMED_PACKAGE'} ne ''
+        && $::imscpOldConfig{'NAMED_PACKAGE'} ne $package
     ) {
-        eval "require $main::imscpOldConfig{'NAMED_PACKAGE'}" or die;
-        $main::imscpOldConfig{'NAMED_PACKAGE'}->getInstance()->uninstall() == 0 or die(
-            sprintf( "Couldn't uninstall the '%s' server", $main::imscpOldConfig{'NAMED_PACKAGE'} )
-        );
+        eval "require $::imscpOldConfig{'NAMED_PACKAGE'}" or die;
+        my $server = $::imscpOldConfig{'NAMED_PACKAGE'}->getInstance();
+        for my $action ( 'preuninstall', 'uninstall', 'postuninstall' ) {
+            debug( sprintf( 'Executing %s %s tasks...', ref $server, $action ));
+            $server->$action() == 0 or die( sprintf(
+                "Couldn't uninstall the '%s' server",
+                $::imscpOldConfig{'NAMED_PACKAGE'},
+                getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+            ));
+            next unless $action eq 'postuninstall';
+            iMSCP::DistPackageManager->getInstance()->processDelayedTasks();
+        }
     }
 
     eval "require $package" or die;
@@ -99,7 +109,7 @@ sub getPriority
 
 END
     {
-        return if $? || !$instance || ( $main::execmode && $main::execmode eq 'setup' );
+        return if $? || !$instance || iMSCP::Getopt->context() eq 'installer';
 
         if ( $instance->{'restart'} ) {
             $? = $instance->restart();

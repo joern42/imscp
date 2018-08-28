@@ -26,8 +26,9 @@ package iMSCP::Database::mysql;
 use strict;
 use warnings;
 use DBI;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug /;
-use iMSCP::Execute qw / execute /;
+use iMSCP::Execute qw/ execute /;
 use POSIX ':signal_h';
 use parent 'Common::SingletonClass';
 
@@ -53,7 +54,7 @@ use parent 'Common::SingletonClass';
 
 sub set
 {
-    my ($self, $prop, $value) = @_;
+    my ( $self, $prop, $value ) = @_;
 
     return unless exists $self->{'db'}->{$prop};
 
@@ -70,7 +71,7 @@ sub set
 
 sub connect
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $dsn = "dbi:mysql:database=$self->{'db'}->{'DATABASE_NAME'}" .
         ( $self->{'db'}->{'DATABASE_HOST'} ? ';host=' . $self->{'db'}->{'DATABASE_HOST'} : '' )
@@ -112,7 +113,7 @@ sub connect
     $self->{'_dsn'} = $dsn;
     $self->{'_currentUser'} = $self->{'db'}->{'DATABASE_USER'};
     $self->{'_currentPassword'} = $self->{'db'}->{'DATABASE_PASSWORD'};
-    $self->{'connection'}->{'RaiseError'} = 0;
+    $self->{'connection'}->{'RaiseError'} = FALSE;
 }
 
 =item useDatabase( $dbName )
@@ -126,22 +127,22 @@ sub connect
 
 sub useDatabase
 {
-    my ($self, $dbName) = @_;
+    my ( $self, $dbName ) = @_;
 
     defined $dbName && $dbName ne '' or die( '$dbName parameter is not defined or invalid' );
 
     my $oldDbName = $self->{'db'}->{'DATABASE_NAME'};
     return $oldDbName if $dbName eq $oldDbName;
 
-    my $dbh = $self->getRawDb();
-    unless ( $dbh->ping() ) {
+    my $rdbh = $self->getRawDb();
+    unless ( $rdbh->ping() ) {
         $self->connect();
-        $dbh = $self->getRawDb();
+        $rdbh = $self->getRawDb();
     }
 
     {
-        local $dbh->{'RaiseError'} = 1;
-        $dbh->do( 'USE ' . $self->quoteIdentifier( $dbName ));
+        local $rdbh->{'RaiseError'} = TRUE;
+        $rdbh->do( 'USE ' . $self->quoteIdentifier( $dbName ));
     }
 
     $self->{'db'}->{'DATABASE_NAME'} = $dbName;
@@ -159,12 +160,12 @@ sub useDatabase
 
 sub startTransaction
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $dbh = $self->getRawDb();
-    $dbh->begin_work();
-    $dbh->{'RaiseError'} = 1;
-    $dbh;
+    my $rdbh = $self->getRawDb();
+    $rdbh->begin_work();
+    $rdbh->{'RaiseError'} = TRUE;
+    $rdbh;
 }
 
 =item endTransaction( )
@@ -178,13 +179,13 @@ sub startTransaction
 
 sub endTransaction
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
-    my $dbh = $self->getRawDb();
+    my $rdbh = $self->getRawDb();
 
-    $dbh->{'AutoCommit'} = 1;
-    $dbh->{'RaiseError'} = 0;
-    $dbh->{'mysql_auto_reconnect'} = 1;
+    $rdbh->{'AutoCommit'} = TRUE;
+    $rdbh->{'RaiseError'} = FALSE;
+    $rdbh->{'mysql_auto_reconnect'} = TRUE;
     $self->{'connection'};
 }
 
@@ -197,7 +198,7 @@ sub endTransaction
 
 sub getRawDb
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     return $self->{'connection'} if $self->{'connection'};
 
@@ -222,20 +223,18 @@ sub getRawDb
 
 sub doQuery
 {
-    my ($self, $key, $query, @bindValues) = @_;
+    my ( $self, $key, $query, @bindValues ) = @_;
 
-    local $@;
     my $qrs = eval {
         defined $query or die 'No query provided';
-        my $dbh = $self->getRawDb();
-        local $dbh->{'RaiseError'} = 0;
-        my $sth = $dbh->prepare( $query ) or die $DBI::errstr;
+        my $rdbh = $self->getRawDb();
+        local $rdbh->{'RaiseError'} = FALSE;
+        my $sth = $rdbh->prepare( $query ) or die $DBI::errstr;
         $sth->execute( @bindValues ) or die $DBI::errstr;
         $sth->fetchall_hashref( $key ) || {};
     };
 
-    return "$@" if $@;
-    $qrs;
+    $@ || $qrs;
 }
 
 =item getDbTables( [ $dbName ] )
@@ -249,20 +248,16 @@ sub doQuery
 
 sub getDbTables
 {
-    my ($self, $dbName) = @_;
+    my ( $self, $dbName ) = @_;
     $dbName //= $self->{'db'}->{'DATABASE_NAME'};
 
-    local $@;
     my @tables = eval {
-        my $dbh = $self->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        keys %{$dbh->selectall_hashref(
-                'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ?', 'TABLE_NAME', undef, $dbName
-            )};
+        my $rdbh = $self->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
+        keys %{ $rdbh->selectall_hashref( 'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ?', 'TABLE_NAME', undef, $dbName ) };
     };
 
-    return "$@" if $@;
-    \@tables;
+    $@ || \@tables;
 }
 
 =item getTableColumns( [$tableName [, dbName ] ] )
@@ -277,21 +272,18 @@ sub getDbTables
 
 sub getTableColumns
 {
-    my ($self, $tableName, $dbName) = @_;
+    my ( $self, $tableName, $dbName ) = @_;
     $dbName //= $self->{'db'}->{'DATABASE_NAME'};
 
-    local $@;
     my @columns = eval {
-        my $dbh = $self->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        keys %{$dbh->selectall_hashref(
-                'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?',
-                'COLUMN_NAME', undef, $dbName, $tableName
-            )};
+        my $rdbh = $self->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
+        keys %{ $rdbh->selectall_hashref(
+            'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?', 'COLUMN_NAME', undef, $dbName, $tableName
+        ) };
     };
 
-    return "$@" if $@;
-    \@columns;
+    $@ || \@columns;
 }
 
 =item dumpdb( $dbName, $dbDumpTargetDir )
@@ -306,7 +298,7 @@ sub getTableColumns
 
 sub dumpdb
 {
-    my (undef, $dbName, $dbDumpTargetDir) = @_;
+    my ( $self, $dbName, $dbDumpTargetDir ) = @_;
 
     # Encode slashes as SOLIDUS unicode character
     # Encode dots as Full stop unicode character
@@ -321,10 +313,8 @@ sub dumpdb
             '--quote-names', '-r', "$dbDumpTargetDir/$encodedDbName.sql", '-B', $dbName
         ],
         undef,
-        \ $stderr
-    ) == 0 or die(
-        sprintf( "Couldn't dump the '%s' database: %s", $dbName, $stderr || 'Unknown error' )
-    );
+        \$stderr
+    ) == 0 or die( sprintf( "Couldn't dump the '%s' database: %s", $dbName, $stderr || 'Unknown error' ));
 }
 
 =item quoteIdentifier( $identifier )
@@ -339,7 +329,7 @@ sub dumpdb
 
 sub quoteIdentifier
 {
-    my ($self, $identifier) = @_;
+    my ( $self, $identifier ) = @_;
 
     $self->getRawDb()->quote_identifier( $identifier );
 }
@@ -355,7 +345,7 @@ sub quoteIdentifier
 
 sub quote
 {
-    my ($self, $string) = @_;
+    my ( $self, $string ) = @_;
 
     $self->getRawDb()->quote( $string );
 }
@@ -376,7 +366,7 @@ sub quote
 
 sub _init
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     $self->{'db'} = {
         DATABASE_NAME     => '',
@@ -385,8 +375,8 @@ sub _init
         DATABASE_USER     => '',
         DATABASE_PASSWORD => '',
         DATABASE_SETTINGS => {
-            AutoCommit           => 1,
-            AutoInactiveDestroy  => 1,
+            AutoCommit           => TRUE,
+            AutoInactiveDestroy  => TRUE,
             # In DSN since 1.5.4
             #Callbacks            => {
             #    connected => sub {
@@ -394,11 +384,11 @@ sub _init
             #        return;
             #    }
             #},
-            mysql_auto_reconnect => 1,
+            mysql_auto_reconnect => TRUE,
             # In DSN since 1.5.4
             #mysql_enable_utf8    => 1,
-            PrintError           => 0,
-            RaiseError           => 1,
+            PrintError           => FALSE,
+            RaiseError           => FALSE,
         }
     };
 
@@ -424,13 +414,13 @@ sub _init
 {
     no warnings qw/ once redefine /;
 
-    *DBD::_::db::begin_work = sub {
-        my $dbh = shift;
-        return $dbh->set_err($DBI::stderr, 'Already in a transaction')
-            unless $dbh->FETCH('AutoCommit');
-        $dbh->ping(); # Make sure that connection is alive (mysql_auto_reconnect)
-        $dbh->STORE('AutoCommit', 0); # will croak if driver doesn't support it
-        $dbh->STORE('BegunWork',  1); # trigger post commit/rollback action
+    *DBD::_::db::begin_work = sub
+    {
+        my $rdbh = shift;
+        return $rdbh->set_err( $DBI::stderr, 'Already in a transaction' ) unless $rdbh->FETCH( 'AutoCommit' );
+        $rdbh->ping();                       # Make sure that connection is alive (mysql_auto_reconnect)
+        $rdbh->STORE( 'AutoCommit', FALSE ); # will croak if driver doesn't support it
+        $rdbh->STORE( 'BegunWork', TRUE );   # trigger post commit/rollback action
         return 1;
     };
 }

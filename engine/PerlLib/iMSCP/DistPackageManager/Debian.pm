@@ -46,7 +46,7 @@ my $APT_PREFERENCES_FILE_PATH = '/etc/apt/preferences.d/imscp';
 
 =over 4
 
-=item addRepositories( \@repositories )
+=item addRepositories( \@repositories [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::addRepositories()
  
@@ -55,12 +55,20 @@ my $APT_PREFERENCES_FILE_PATH = '/etc/apt/preferences.d/imscp';
   repository_key_srv : APT repository key server such as keyserver.ubuntu.com  (not needed if repository_key_uri is provided)
   repository_key_id  : APT repository key identifier such as 5072E1F5 (not needed if repository_key_uri is provided)
   repository_key_uri : APT repository key URI such as https://packages.sury.org/php/apt.gpg (not needed if repository_key_id is provided)
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
 
 =cut
 
 sub addRepositories
 {
-    my ( $self, $repositories ) = @_;
+    my ( $self, $repositories, $delayed ) = @_;
+
+    ref $repositories eq 'ARRAY' or die( 'Invalid $repositories parameter. Array expected' );
+    
+    if ( $delayed ) {
+        push @{ $self->{'repositoriesToAdd'} }, @{ $repositories };
+        return $self;
+    }
 
     $self->{'eventManager'}->trigger( 'beforeAddDistributionRepositories', $repositories ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
@@ -120,17 +128,25 @@ EOF
     );
 }
 
-=item removeRepositories( \@repositories )
+=item removeRepositories( \@repositories [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::removeRepositories()
  
- Param arrayref \@repositories Array containing list of repositories in following format: 'uri suite [component1] [component2] [...]' 
+ Param arrayref \@repositories Array containing list of repositories in following format: 'uri suite [component1] [component2] [...]'
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method 
 
 =cut
 
 sub removeRepositories
 {
-    my ( $self, $repositories ) = @_;
+    my ( $self, $repositories, $delayed ) = @_;
+
+    ref $repositories eq 'ARRAY' or die( 'Invalid $repositories parameter. Array expected' );
+
+    if ( $delayed ) {
+        push @{ $self->{'repositoriesToRemove'} }, @{ $repositories };
+        return $self;
+    }
 
     $self->{'eventManager'}->trigger( 'beforeRemoveDistributionRepositories', $repositories ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
@@ -151,7 +167,7 @@ sub removeRepositories
     );
 }
 
-=item installPackages( \@packages )
+=item installPackages( \@packages [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::installPackages()
 
@@ -159,7 +175,14 @@ sub removeRepositories
 
 sub installPackages
 {
-    my ( $self, $packages ) = @_;
+    my ( $self, $packages, $delayed ) = @_;
+
+    ref $packages eq 'ARRAY' or die( 'Invalid $packages parameter. Array expected' );
+
+    if ( $delayed ) {
+        push @{ $self->{'packagesToInstall'} }, @{ $packages };
+        return $self;
+    }
 
     $self->{'eventManager'}->trigger( 'beforeInstallDistributionPackages', $packages ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
@@ -195,7 +218,7 @@ sub installPackages
     $self;
 }
 
-=item uninstallPackages( \@packages )
+=item uninstallPackages( \@packages [, $delayed = FALSE ] )
 
  See iMSCP::DistPackageManager::Interface::uninstallPackages()
 
@@ -203,7 +226,14 @@ sub installPackages
 
 sub uninstallPackages
 {
-    my ( $self, $packages ) = @_;
+    my ( $self, $packages, $delayed ) = @_;
+
+    ref $packages eq 'ARRAY' or die( 'Invalid $packages parameter. Array expected' );
+
+    if ( $delayed ) {
+        push @{ $self->{'packagesToUninstall'} }, @{ $packages };
+        return $self;
+    }
 
     $self->{'eventManager'}->trigger( 'beforeUninstallDistributionPackages', $packages ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
@@ -270,7 +300,7 @@ sub updateRepositoryIndexes
     $self;
 }
 
-=item addAPTPreferences( \@preferences )
+=item addAPTPreferences( \@preferences [, $delayed = FALSE ] )
 
  Add the given APT preferences
  
@@ -280,14 +310,22 @@ sub updateRepositoryIndexes
   pinning_package       : List of pinned packages 
   pinning_pin           : origin, version, release
   pinning_pin_priority  : Pin priority
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
 
 sub addAptPreferences
 {
-    my ( $self, $preferences ) = @_;
+    my ( $self, $preferences, $delayed ) = @_;
 
+    ref $preferences eq 'ARRAY' or die( 'Invalid $preferences parameter. Array expected' );
+    
+    if ( $delayed ) {
+        push @{ $self->{'aptPreferencesToAdd'} }, @{ $preferences };
+        return $self;
+    }
+    
     $self->{'eventManager'}->trigger( 'beforeAddDistributionAptPreferences', $preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
@@ -321,7 +359,7 @@ EOF
     $self;
 }
 
-=item removeAptPreferences( \@preferences )
+=item removeAptPreferences( \@preferences [, $delayed = FALSE ] )
 
  Remove the given APT preferences
  
@@ -331,13 +369,21 @@ EOF
   pinning_package       : List of pinned packages 
   pinning_pin           : origin, version, release
   pinning_pin_priority  : Pin priority
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
  Return iMSCP::DistPackageManager::Interface, die on failure
 
 =cut
 
 sub removeAptPreferences
 {
-    my ( $self, $preferences ) = @_;
+    my ( $self, $preferences, $delayed ) = @_;
+
+    ref $preferences eq 'ARRAY' or die( 'Invalid $preferences parameter. Array expected' );
+    
+    if ( $delayed ) {
+        push @{ $self->{'aptPreferencesToRemove'} }, @{ $preferences };
+        return $self;
+    }
 
     return unless -f $APT_PREFERENCES_FILE_PATH;
 
@@ -364,6 +410,55 @@ EOF
     $self->{'eventManager'}->trigger( 'afterRemoveDistributionAptPreferences', $preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
+    $self;
+}
+
+=item processDelayedTasks( )
+
+ Process delayed tasks if any
+
+ Return iMSCP::DistPackageManager::Interface, die on failure
+
+=cut
+
+sub processDelayedTasks
+{
+    my ( $self ) = @_;
+    
+    if ( @{ $self->{'repositoriesToRemove'} } || @{ $self->{'repositoriesToAdd'} } ) {
+        $self
+            ->removeRepositories( delete $self->{'repositoriesToRemove'} )
+            ->addRepositories( delete $self->{'repositoriesToAdd'} )
+            ->updateRepositoryIndexes()
+    }
+
+    $self
+        ->removeAptPreferences( delete $self->{'aptPreferencesToAdd'} )
+        ->addAptPreferences( delete $self->{'aptPreferencesToAdd'} )
+        ->installPackages( delete $self->{'packagesToInstall'} )
+        ->uninstallPackages( delete $self->{'packagesToUninstall'} );
+    $self;
+}
+
+=back
+
+=head1 PRIVATE METHODS
+
+=over 4
+
+=item _init( )
+
+ Initialize instance
+
+ Return iMSCP::DistPackageManager::Interface, die on failure
+
+=cut
+
+sub _init
+{
+    my ( $self ) = @_;
+
+    @{ $self }{qw/ repositoriesToAdd repositoriesToRemove packagesToInstall packagesToUninstall /} = ( [], [], [], [] );
     $self;
 }
 

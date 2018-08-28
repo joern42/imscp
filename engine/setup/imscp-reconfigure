@@ -47,8 +47,8 @@ $ENV{'IMSCP_SETUP'} = TRUE;
 
 newDebug( 'imscp-setup.log' );
 
-# Set execution mode
-$::execmode = 'setup' unless defined $::execmode;
+# Set execution context
+iMSCP::Getopt->context( 'installer' );
 
 # Init variable that holds questions
 %::questions = () unless %::questions;

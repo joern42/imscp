@@ -48,18 +48,14 @@ sub sw_mngr_start_up
 {
     push_el( \@main::el, 'sw_mngr_start_up()', 'Starting software manager...' );
 
-    my $rs = 0;
-
     # Let's clear Execution Logs, if any.
     if ( -f $main::imscp_sw_mngr_el ) {
-        $rs = del_file( $main::imscp_sw_mngr_el );
+        my $rs = del_file( $main::imscp_sw_mngr_el );
         return $rs if $rs;
     }
 
     # sql check
-    ( $rs ) = doSQL( 'SELECT `domain_id` FROM `domain` LIMIT 1' );
-
-    $rs;
+    ( doSQL( 'SELECT domain_id FROM domain LIMIT 1' ) )[0];
 }
 
 sub sw_mngr_engine
@@ -69,36 +65,24 @@ sub sw_mngr_engine
     my ($rs, $rows, $rdata, $rowsdomainname);
 
     my $sql = "
-		SELECT
-			`reseller_id`, `software_db`, `software_archive`, `software_installfile`, `software_depot`,
-			`software_master_id`
-		FROM
-			`web_software`
-		WHERE
-			`software_id` = $sw_software_id
-	";
+        SELECT reseller_id`, software_db, software_archive, software_installfile, software_depot, software_master_id
+        FROM web_software
+        WHERE software_id = $sw_software_id
+    ";
     ( $rs, $rows ) = doSQL( $sql );
     return $rs if $rs;
 
     $rows = @{$rows}[0];
-    my (
-        $sw_reseller_id, $sw_software_db, $sw_software_archive, $sw_software_installfile, $sw_software_depot,
-        $sw_software_master_id
-    ) = ( @{$rows}[0], @{$rows}[1], @{$rows}[2], @{$rows}[3], @{$rows}[4], @{$rows}[5] );
+    my ( $sw_reseller_id, $sw_software_db, $sw_software_archive, $sw_software_installfile, $sw_software_depot, $sw_software_master_id ) = (
+        @{$rows}[0], @{$rows}[1], @{$rows}[2], @{$rows}[3], @{$rows}[4], @{$rows}[5]
+    );
 
     my $query = "
-		SELECT
-			`admin_sys_uid`, `admin_sys_gid`, `domain_name`
-		FROM
-			`admin`
-		JOIN
-			`domain` ON(`domain_admin_id` = `admin_id`)
-		WHERE
-			`domain_id` = $sw_domain_id
-	";
-    ( $rs, $rows ) = doSQL( $query );
-    return $rs if $rs;
-
+        SELECT admin_sys_uid, admin_sys_gid, domain_name
+        FROM admin
+        JOIN domain ON(domain_admin_id = admin_id)
+        WHERE domain_id = $sw_domain_id
+    ";
     ( $rs, $rows ) = doSQL( $query );
     return $rs if $rs;
 
@@ -110,40 +94,21 @@ sub sw_mngr_engine
 
     if ( ( $sw_aliasdomain_id+$sw_subdomain_id+$sw_aliassubdomain_id ) > 0 ) {
         if ( $sw_aliasdomain_id ) {
-            $querydomainname = "
-				SELECT
-					`alias_name`
-				FROM
-					`domain_aliasses`
-				WHERE
-					`alias_id` = $sw_aliasdomain_id
-			";
+            $querydomainname = "SELECT alias_name FROM domain_aliasses WHERE alias_id = $sw_aliasdomain_id";
         } elsif ( $sw_subdomain_id ) {
             $querydomainname = "
-				SELECT
-					`subdomain`.`subdomain_name`, `domain`.`domain_name`
-				FROM
-					`subdomain`
-				JOIN
-					`domain`
-				ON
-					`subdomain`.`domain_id` = `domain`.`domain_id`
-				WHERE
-					`subdomain`.`subdomain_id` = $sw_subdomain_id
-			";
+                SELECT t1.subdomain_name, t2.domain_name
+                FROM subdomain AS t1
+                JOIN domain AS t2 USING (domain_id)
+                WHERE t1..subdomain_id = $sw_subdomain_id
+            ";
         } elsif ( $sw_aliassubdomain_id ) {
             $querydomainname = "
-				SELECT
-					`subdomain_alias`.`subdomain_alias_name`, `domain_aliasses`.`alias_name`
-				FROM
-					`subdomain_alias`
-				JOIN
-					`domain_aliasses`
-				ON
-					`subdomain_alias`.`alias_id` = `domain_aliasses`.`alias_id`
-				WHERE
-					`subdomain_alias`.`subdomain_alias_id` = $sw_aliassubdomain_id
-			";
+                SELECT t1.subdomain_alias_name, t2.alias_name
+                FROM subdomain_alias AS t1
+                JOIN domain_aliasses AS t2 USING(alias_id)
+                WHERE t1.subdomain_alias_id = $sw_aliassubdomain_id
+            ";
         }
         ( $rs, $rowsdomainname ) = doSQL( $querydomainname );
         return $rs if $rs;
@@ -180,15 +145,11 @@ sub sw_mngr_engine
 
         if ( !$rs ) {
             $sql = "
-				UPDATE
-					`web_software_inst`
-				SET
-					`software_status` = 'ok'
-				WHERE
-					`software_id` = $sw_software_id
-				AND
-					`domain_id` = $sw_domain_id
-			";
+                UPDATE web_software_inst
+                SET software_status = 'ok'
+                WHERE software_id = $sw_software_id
+                AND domain_id = $sw_domain_id
+            ";
             ( $rs, $rdata ) = doSQL( $sql );
             return $rs if $rs;
         }
@@ -202,13 +163,10 @@ sub sw_mngr_engine
 
         if ( !$rs ) {
             $sql = "
-				DELETE FROM
-					`web_software_inst`
-				WHERE
-					`software_id` = $sw_software_id
-				AND
-					`domain_id` = $sw_domain_id
-			";
+                DELETE FROM web_software_inst
+                WHERE software_id = $sw_software_id
+                AND domain_id = $sw_domain_id
+            ";
             ( $rs, $rdata ) = doSQL( $sql );
             return $rs if $rs != 0;
         }
@@ -250,21 +208,13 @@ sub _sw_add_data
 
     if ( -f "$sw_dest_path/index.html" || -d "$sw_dest_path/images" ) {
         if ( -f "$sw_dest_path/index.html" ) {
-            @cmd = (
-                'mv',
-                sys_command_escape_arg( "$sw_dest_path/index.html" ),
-                sys_command_escape_arg( "$sw_dest_path/index.installer_bak" )
-            );
+            @cmd = ( 'mv', sys_command_escape_arg( "$sw_dest_path/index.html" ), sys_command_escape_arg( "$sw_dest_path/index.installer_bak" ) );
             $rs = sys_command_rs( "@cmd" );
             return $rs if $rs;
         }
 
         if ( -d "$sw_dest_path/images" ) {
-            @cmd = (
-                'mv',
-                sys_command_escape_arg( "$sw_dest_path/images" ),
-                sys_command_escape_arg( "$sw_dest_path/images.installer_bak" )
-            );
+            @cmd = ( 'mv', sys_command_escape_arg( "$sw_dest_path/images" ), sys_command_escape_arg( "$sw_dest_path/images.installer_bak" ) );
             $rs = sys_command_rs( "@cmd" );
             return $rs if $rs;
         }
@@ -338,8 +288,8 @@ sub _sw_add_data
     # We cannot do this right now without updating all software packages. Thus, comma character usage in user input
     # has been disallowed in GUI (temporary fix)
     my $imscp_software_install_pushstring = encode_base64(
-        "install,$sw_software_db,$sw_software_prefix,$sw_database,$sw_database_user,$sw_database_tmp_pwd," .
-            "$sw_install_username,$sw_install_password,$sw_install_email,$domain_name,$sw_dest_path,$sw_path", ''
+        "install,$sw_software_db,$sw_software_prefix,$sw_database,$sw_database_user,$sw_database_tmp_pwd,"
+            . "$sw_install_username,$sw_install_password,$sw_install_email,$domain_name,$sw_dest_path,$sw_path", ''
     );
 
     @cmd = (

@@ -88,8 +88,9 @@ function client_editMailAccount()
         showBadRequestErrorPage();
     }
 
-    if (iMSCP_Registry::get('config')->{'SERVER_HOSTNAME'} == explode('@', $mailData['mail_addr'])[1] && $mailTypeNormal) {
-        # SERVER_HOSTNAME is a canonical domain (local domain) which cannot be
+    $fqhnSysHostname = iMSCP_Registry::get('config')->{'SERVER_HOSTNAME'} . iMSCP_Registry::get('config')->{'DOMAIN_NAME'};
+    if ($mailTypeNormal && $fqhnSysHostname == explode('@', $mailData['mail_addr'])[1]) {
+        # For postfix, the system hostname is a canonical domain (local domain) which cannot be
         # listed in both `mydestination' and `virtual_mailbox_domains' Postfix
         # parameters. See http://www.postfix.org/VIRTUAL_README.html#canonical
         # This necessarily means that Postfix canonical domains cannot have

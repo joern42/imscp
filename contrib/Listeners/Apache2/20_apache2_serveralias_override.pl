@@ -16,40 +16,31 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-#
-## Allows to add additional server aliases in the given Apache2 vhosts.
-#
+# Allows to add additional server aliases in the given Apache2 vhosts.
 
 package Listener::Apache2::ServerAlias::Override;
 
+use strict;
+use warnings;
 use iMSCP::EventManager;
 
-#
-## Configuration variables
-#
+# Configuration variables
 
 # Map Apache2 vhosts (domains) to additional server aliases 
 my %serverAliases = (
     'example1.com' => 'example1.in example1.br', # Add example1.in and example1.br server aliases to exemple1.com vhost
-    'example2.com' => 'example2.in example2.br' # Add example2.in and example2.br server aliases to exemple2.com vhost
+    'example2.com' => 'example2.in example2.br'  # Add example2.in and example2.br server aliases to exemple2.com vhost
 );
 
-#
-## Please, don't edit anything below this line
-#
+# Please, don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'afterHttpdBuildConf',
-    sub {
-        my ($tplContent, $tplName, $data) = @_;
+iMSCP::EventManager->getInstance()->register( 'afterHttpdBuildConf', sub {
+    my ( $tplContent, $tplName, $data ) = @_;
 
-        return 0 unless $tplName eq 'domain.tpl'
-            && $serverAliases{$data->{'DOMAIN_NAME'}};
-
-        ${$tplContent} =~ s/^(\s+ServerAlias.*)/$1 $serverAliases{$data->{'DOMAIN_NAME'}}/m;
-        0;
-    }
-);
+    return 0 unless $tplName eq 'domain.tpl' && $serverAliases{$data->{'DOMAIN_NAME'}};
+    ${ $tplContent } =~ s/^(\s+ServerAlias.*)/$1 $serverAliases{$data->{'DOMAIN_NAME'}}/m;
+    0;
+} );
 
 1;
 __END__

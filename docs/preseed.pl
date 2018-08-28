@@ -159,9 +159,9 @@ use warnings;
     # SSL certificate path (only relevant for trusted SSL certificate)
     PANEL_SSL_CERTIFICATE_PATH          => '',
 
-    # Alternative URLs feature for client domains
+    # Alternative URLs feature for client websites
     # Possible values: yes, no
-    CLIENT_DOMAIN_ALT_URLS              => 'yes',
+    WEBSITE_ALT_URLS                    => 'no',
 
     # Control panel default access mode (only relevant if SSL is enabled)
     # Possible values: http://, https://
@@ -400,15 +400,58 @@ use warnings;
     # Possible values: Path to SSL certificate
     SERVICES_SSL_CERTIFICATE_PATH       => '',
 
-    ## Packages configuration parameters
+    ## i-MSCP packages (addons)
 
-    # Webstats packages
-    # Possible values: 'no' or a list of packages, each comma separated
-    WEBSTATS_PACKAGES                   => 'Awstats',
+    # Anti-rootkits packages
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
+    # Available packages are: Chkrootkit, Rkhunter
+    ANTIROOTKIT_PACKAGES                => 'none',
+
+    # Antispam packages
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
+    # Available packages are: Rspamd
+    ANTISPAM_PACKAGES                   => 'none',
+
+    # Antivirus packages
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
+    # Available packages are: Rspamd
+    #
+    # Available packages are: ClamAV
+    ANTIVIRUS_PACKAGES                  => 'none',
 
     # FTP Web file manager packages
-    # Possible values: MonstaFTP, Pydio (only if the PHP version for the control panel is < 7.0)
-    FILEMANAGER_PACKAGE                 => 'MonstaFTP',
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
+    # Available packages: MonstaFTP, Pydio (only if the PHP version for the control panel is < 7.0)
+    FILEMANAGER_PACKAGES                => 'none',
+
+    # Sender Rewriting Scheme (SRS) packages
+    # Possible values: none, PostfixSRS
+    SRS_PACKAGES                        => 'none',
+
+    # Webmmail packages
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
+    # Available packages: PhpMyAdmin
+    SQLMANAGER_PACKAGES                 => 'none',
+
+    # Webmmail packages
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
+    # Available packages: RainLoop, Roundcube
+    WEBMAIL_PACKAGES                    => 'none',
+
+    # Webstats packages
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
+    # Available packages: AWStats
+    WEBSTATS_PACKAGES                   => 'none',
+
+    ## PhpMyAdmin SQL manager
+    ## Only relevant with the PhpMyAdmin package
 
     # SQL user for PhpMyAdmin
     PHPMYADMIN_SQL_USER                 => 'imscp_srv_user',
@@ -416,11 +459,8 @@ use warnings;
     # Leave this parameter empty for automatic password generation.
     PHPMYADMIN_SQL_PASSWORD             => '',
 
-    # Webmmail packages
-    # Possible values: 'none' for no packages, or a list of packages, each comma
-    #                  separated
-    # Available packages: RainLoop, Roundcube
-    WEBMAIL_PACKAGES                    => 'RainLoop,Roundcube',
+    ## Roundcube webmail
+    ## Only relevant with the Roundcube package
 
     # SQL user for Roundcube package (only if you use Roundcube)
     ROUNDCUBE_SQL_USER                  => 'imscp_srv_user',
@@ -428,65 +468,35 @@ use warnings;
     # Leave this parameter empty for automatic password generation.
     ROUNDCUBE_SQL_PASSWORD              => '',
 
-    # SQL user for Rainloop package (only relevant if you use Rainloop)
+    ## Rainloop webmail
+    ## Only relevant with the Rainloop package
+
+    # SQL user for Rainloop
     RAINLOOP_SQL_USER                   => 'imscp_srv_user',
     # Only ASCII alphabet characters and numbers are allowed in password.
     # Leave this parameter empty for automatic password generation.
     RAINLOOP_SQL_PASSWORD               => '',
 
-    # Anti-rootkits packages
-    # Possible values: 'none' for no packages, or a list of packages, each
-    #                   separated by a comma.
-    # Available packages are: Chkrootkit, Rkhunter
-    ANTI_ROOTKITS_PACKAGES              => 'Chkrootkit,Rkhunter',
+    ## Rspamd spam filtering system configuration parameters
+    ## Only relevant with the Rspamd package
 
-    # Antispam package
-    # Possible values: none, 'rspamd'
-    ANTISPAM                            => 'none',
-
-    # Rspamd module to enable (only relevant if you choose Rspamd as antispam)
-    # Possible values: 'none' for no modules, or a list of module, each
-    #                  separated by a comma or semicolon.
+    # Rspamd modules
+    # Possible values: 'none' for no packages, or a comma separated list of
+    #                   packages
     #
-    # Available modules are:
+    # Available modules are: ASN, DKIM, DKIM Signing, DMARC, Emails,
+    #                        Greylisting, Milter Headers, Mime Types,
+    #                        MX Check, RBL, Redis History, SPF, Surbl
     #
-    # - ASN
-    # - DKIM
-    # - DKIM Signing,
-    # - DMARC,
-    # - Emails,
-    # - Greylisting
-    # - Milter Headers
-    # - Mime Types
-    # - MX Check
-    # - RBL
-    # - Redis History
-    # - SPF
-    # - Surbl
-    #
-    # The Rspamd antivirus module is managed internally and enabled only if you
-    # choose ClamAV as antivirus solution.
+    # There is also the ANTIVIRUS module which is managed internally and
+    # enabled only if you choose ClamAV as antivirus solution.
     RSPAMD_MODULES                      => 'ASN,DKIM,DKIM Signing DMARC,Emails,Greylisting,Milter Headers,Mime Types,MX check,RBL,Redis History,SPF,Surbl',
-
-    # Rspamd Web interface (only relevant if you choose Rspamd as antispam)
+    # Rspamd Web interface
     # Whether or not to enable the Rspamd Web interface
     # Possible values: yes, no
-    RSPAMD_WEBUI                        => 'yes',
+    RSPAMD_WEBUI                        => 'no',
     # Only ASCII alphabet characters and numbers are allowed in password.
-    RSPAMD_WEBUI_PASSWORD               => '',
-
-    # Antivirus package
-    # Possible values: none, clamav
-    #
-    # The ClamAV antivirus is executed in different ways depending on whether
-    # you choose Rspamd or not as antispam. If you choose Rspamd as antispam,
-    # ClamAV will be executed by the `Rspamd` antivirus module, else it will
-    # be executed through ClamAV milter.
-    ANTIVIRUS                           => 'none',
-
-    # Postfix SRS package
-    # Possible values: none, postsrsd
-    POSTFIX_SRS                         => 'none'
+    RSPAMD_WEBUI_PASSWORD               => ''
 );
 
 1;

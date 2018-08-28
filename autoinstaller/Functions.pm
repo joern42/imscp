@@ -32,17 +32,18 @@ use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Config;
 use iMSCP::Cwd;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug error endDebug newDebug /;
 use iMSCP::Dialog;
 use iMSCP::Dialog::InputValidation qw/ isStringInList /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
-use iMSCP::Execute;
+use iMSCP::Execute qw/ execute /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::LsbRelease;
 use iMSCP::Umask;
 use iMSCP::Rights;
+use iMSCP::Service;
 use version;
 use parent 'Exporter';
 
@@ -79,9 +80,9 @@ sub loadConfig
 
     # Load old configuration
     if ( -f "$::imscpConfig{'CONF_DIR'}/imscpOld.conf" ) { # Recovering following an installation or upgrade failure
-        tie %::imscpOldConfig, 'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf", readonly => 1, temporary => 1;
+        tie %::imscpOldConfig, 'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscpOld.conf", readonly => TRUE, temporary => TRUE;
     } elsif ( -f "$::imscpConfig{'CONF_DIR'}/imscp.conf" ) { # Upgrade case
-        tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => 1, temporary => 1;
+        tie %main::imscpOldConfig, 'iMSCP::Config', fileName => "$::imscpConfig{'CONF_DIR'}/imscp.conf", readonly => TRUE, temporary => TRUE;
     } else { # Frech installation case
         %main::imscpOldConfig = %main::imscpConfig;
     }
@@ -248,9 +249,7 @@ sub install
     if ( @runningJobs ) {
         iMSCP::Dialog->getInstance()->msgbox( <<"EOF" );
 
-There are jobs currently running on your system that can not be locked by the installer.
-
-You must wait until the end of these jobs.
+There are jobs currently running on your system. You must wait until the end of these jobs.
 
 Running jobs are: @runningJobs
 EOF
@@ -260,12 +259,10 @@ EOF
     undef @runningJobs;
 
     my @steps = (
-        [ \&::setupInstallFiles, 'Installing distribution files' ],
+        [ \&_installDistributionFiles, 'Installing distribution files' ],
         [ \&::setupBoot, 'Bootstrapping installer' ],
-        [ \&::setupRegisterListeners, 'Registering servers/packages event listeners' ],
-        [ \&::setupDialog, 'Processing setup dialog' ],
-        [ \&::setupTasks, 'Processing setup tasks' ],
-        [ \&::setupDeleteBuildDir, 'Deleting build directory' ]
+        [ \&::setupTasks, 'Processing setup tasks' ]
+        [ sub { iMSCP::Dir->new( dirname => $::{'INST_PREF'} )->remove(); }, 'Deleting build directory']
     );
 
     my $rs = $eventManager->trigger( 'preInstall', \@steps );
@@ -329,7 +326,7 @@ sub expandVars
         } elsif ( defined $::imscpConfig{$var} ) {
             $string =~ s/\$\{$var\}/$::imscpConfig{$var}/g;
         } else {
-            fatal( "Couldn't expand variable \${$var}. Variable not found." );
+            die( "Couldn't expand variable \${$var}. Variable not found." );
         }
     }
 
@@ -845,6 +842,30 @@ sub _removeObsoleteFiles
     0;
 }
 
+=item _installDistributionFiles( $filepath )
+
+ Install distribution files from build directory
+
+ Return int 0 on success, other or die on failure
+
+=cut
+
+sub _installDistributionFiles
+{
+    # i-MSCP daemon must be stopped before changing any file on the files system
+    if ( iMSCP::Service->getInstance()->hasService( 'imscp_daemon' ) ) {
+        iMSCP::Service->getInstance()->stop( 'imscp_daemon' );
+    }
+
+    # Process cleanup to avoid any security risks and conflicts
+    for my $dir ( qw/ daemon engine gui / ) {
+        iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/$dir" )->remove();
+    }
+
+    iMSCP::Dir->new( dirname => $::{'INST_PREF'} )->rcopy( '/' );
+    iMSCP::EventManager->getInstance()->trigger( 'afterInstallDistributionFiles', $::{'INST_PREF'} );
+}
+
 =item _processXmlFile( $filepath )
 
  Process an install.xml file or distribution layout.xml file
@@ -864,7 +885,7 @@ sub _processXmlFile
     }
 
     eval "use XML::Simple; 1";
-    fatal( "Couldn't load the XML::Simple perl module" ) if $@;
+    die( "Couldn't load the XML::Simple perl module" ) if $@;
     my $xml = XML::Simple->new( ForceArray => TRUE, ForceContent => TRUE );
     my $data = eval { $xml->XMLin( $file, VarAttr => 'export', NormaliseSpace => 2 ) };
     if ( $@ ) {
@@ -1133,7 +1154,7 @@ sub _getDistroAdapter
         $autoinstallerAdapterInstance = $adapterClass->new()
     };
 
-    fatal( sprintf( "Couldn't instantiate %s autoinstaller adapter: %s", $distribution, $@ )) if $@;
+    die( sprintf( "Couldn't instantiate %s autoinstaller adapter: %s", $distribution, $@ )) if $@;
     $autoinstallerAdapterInstance;
 }
 

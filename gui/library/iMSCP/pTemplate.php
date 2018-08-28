@@ -371,20 +371,20 @@ class iMSCP_pTemplate
 
         ob_start();
         $this->run(utils_normalizePath($this->rootDir . '/' . $fname));
-        $fileContent = ob_get_clean();
+        $fileC = ob_get_clean();
         $this->eventManager->dispatch(Events::onAfterLoadTemplateFile, [
             'context'         => $this,
-            'templateContent' => $fileContent
+            'templateContent' => $fileC
         ]);
 
-        $fileContent = preg_replace_callback($this->tplInclude, [$this, 'get_file'], $fileContent);
+        $fileC = preg_replace_callback($this->tplInclude, [$this, 'get_file'], $fileC);
         $parentTplDir = $prevParentTplDir;
         $this->eventManager->dispatch(Events::onAfterAssembleTemplateFiles, [
             'context'         => $this,
-            'templateContent' => $fileContent
+            'templateContent' => $fileC
         ]);
 
-        return $fileContent;
+        return $fileC;
     }
 
     /**

@@ -26,16 +26,16 @@ package Servers::mta::postfix::installer;
 use strict;
 use warnings;
 use File::Basename;
+use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
 use iMSCP::Execute qw/ execute /;
-use iMSCP::EventManager;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
 use iMSCP::SystemGroup;
 use iMSCP::SystemUser;
-use iMSCP::TemplateParser qw/ process /;
+use iMSCP::TemplateParser qw/ processByRef /;
 use Servers::mta::postfix;
 use version;
 use parent 'Common::SingletonClass';
@@ -50,9 +50,7 @@ use parent 'Common::SingletonClass';
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::preinstall()
 
 =cut
 
@@ -66,9 +64,7 @@ sub preinstall
 
 =item install( )
 
- Process install tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::install()
 
 =cut
 
@@ -101,9 +97,9 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'eventManager'} = iMSCP::EventManager->getInstance();
     $self->{'mta'} = Servers::mta::postfix->getInstance();
-    $self->{'cfgDir'} = "$main::imscpConfig{'CONF_DIR'}/postfix";
+    $self->{'eventManager'} = $self->{'mta'}->{'eventManager'};
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/postfix";
     $self->{'config'} = $self->{'mta'}->{'config'};
     $self;
 }
@@ -128,17 +124,17 @@ sub _createUserAndGroup
         group    => $self->{'config'}->{'MTA_MAILBOX_GID_NAME'},
         comment  => 'vmail user',
         home     => $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
-        system   => 1
+        system   => TRUE
     );
     $rs = $systemUser->addSystemUser();
-    $rs ||= $systemUser->addToGroup( $main::imscpConfig{'IMSCP_GROUP'} );
+    $rs ||= $systemUser->addToGroup( $::imscpConfig{'IMSCP_GROUP'} );
 }
 
 =item _makeDirs( )
 
  Create directories
 
- Return int 0 on success, other on failure
+ Return int 0 on success, other or die on failure
 
 =cut
 
@@ -147,12 +143,7 @@ sub _makeDirs
     my ( $self ) = @_;
 
     my @directories = (
-        [
-            $self->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}, # eg. /etc/postfix/imscp
-            $main::imscpConfig{'ROOT_USER'},
-            $main::imscpConfig{'ROOT_GROUP'},
-            0750
-        ],
+        [ $self->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}, $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'ROOT_GROUP'}, 0750 ], # eg. /etc/postfix/imscp
         [
             $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}, # eg. /var/mail/virtual
             $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
@@ -168,14 +159,12 @@ sub _makeDirs
     iMSCP::Dir->new( dirname => $self->{'config'}->{'MTA_VIRTUAL_CONF_DIR'} )->remove();
 
     for my $dir ( @directories ) {
-        iMSCP::Dir->new( dirname => $dir->[0] )->make(
-            {
-                user           => $dir->[1],
-                group          => $dir->[2],
-                mode           => $dir->[3],
-                fixpermissions => iMSCP::Getopt->fixPermissions
-            }
-        );
+        iMSCP::Dir->new( dirname => $dir->[0] )->make( {
+            user           => $dir->[1],
+            group          => $dir->[2],
+            mode           => $dir->[3],
+            fixpermissions => iMSCP::Getopt->fixPermissions
+        } );
     }
 
     $self->{'eventManager'}->trigger( 'afterMtaMakeDirs' );
@@ -246,8 +235,8 @@ sub _createPostfixMaps
     my $rs = $self->{'eventManager'}->trigger( 'beforeCreatePostfixMaps', \@lookupTables );
     return $rs if $rs;
 
-    for ( @lookupTables ) {
-        $rs = $self->{'mta'}->addMapEntry( $_ );
+    for my $table ( @lookupTables ) {
+        $rs = $self->{'mta'}->addMapEntry( $table );
         return $rs if $rs;
     }
 
@@ -312,8 +301,8 @@ sub _buildMasterCfFile
 
     my $data = {
         MTA_MAILBOX_UID_NAME => $self->{'config'}->{'MTA_MAILBOX_UID_NAME'},
-        IMSCP_GROUP          => $main::imscpConfig{'IMSCP_GROUP'},
-        ARPL_PATH            => $main::imscpConfig{'ROOT_DIR'} . "/engine/messenger/imscp-arpl-msgr"
+        IMSCP_GROUP          => $::imscpConfig{'IMSCP_GROUP'},
+        ARPL_PATH            => $::imscpConfig{'ROOT_DIR'} . "/engine/messenger/imscp-arpl-msgr"
     };
 
     my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'postfix', 'master.cf', \my $cfgTpl, $data );
@@ -321,16 +310,13 @@ sub _buildMasterCfFile
 
     unless ( defined $cfgTpl ) {
         $cfgTpl = iMSCP::File->new( filename => "$self->{'cfgDir'}/master.cf" )->get();
-        unless ( defined $cfgTpl ) {
-            error( sprintf( "Couldn't read %s file", "$self->{'cfgDir'}/master.cf" ));
-            return 1;
-        }
+        return 1 unless defined $cfgTpl;
     }
 
     $rs = $self->{'eventManager'}->trigger( 'beforeMtaBuildMasterCfFile', \$cfgTpl, 'master.cf' );
     return $rs if $rs;
 
-    $cfgTpl = process( $data, $cfgTpl );
+    processByRef( $data, \$cfgTpl );
 
     $rs = $self->{'eventManager'}->trigger( 'afterMtaBuildMasterCfFile', \$cfgTpl, 'master.cf' );
     return $rs if $rs;
@@ -358,14 +344,15 @@ sub _buildMainCfFile
     my $gid = getgrnam( $self->{'config'}->{'MTA_MAILBOX_GID_NAME'} );
     my $uid = getpwnam( $self->{'config'}->{'MTA_MAILBOX_UID_NAME'} );
     my $hostname = ::setupGetQuestion( 'SERVER_HOSTNAME' );
+    my $domain = ( split '\.', ::setupGetQuestion( 'SERVER_HOSTNAME' ), 2 )[1];
     my $data = {
         MTA_INET_PROTOCOLS       => $baseServerIpType,
         MTA_SMTP_BIND_ADDRESS    => $baseServerIpType eq 'ipv4' && $baseServerIp ne '0.0.0.0' ? $baseServerIp : '',
         MTA_SMTP_BIND_ADDRESS6   => $baseServerIpType eq 'ipv6' ? $baseServerIp : '',
         MTA_PROXY_INTERFACES     => $baseServerIp ne $baseServerPublicIp ? $baseServerPublicIp : '',
         MTA_HOSTNAME             => $hostname,
-        MTA__DOMAIN              => ( split /\./, $hostname )[0],
-        MTA_VERSION              => $main::imscpConfig{'Version'},
+        MTA__DOMAIN              => $domain,
+        MTA_VERSION              => $::imscpConfig{'Version'},
         MTA_TRANSPORT_HASH       => $self->{'config'}->{'MTA_TRANSPORT_HASH'},
         MTA_LOCAL_MAIL_DIR       => $self->{'config'}->{'MTA_LOCAL_MAIL_DIR'},
         MTA_LOCAL_ALIAS_HASH     => $self->{'config'}->{'MTA_LOCAL_ALIAS_HASH'},
@@ -384,16 +371,13 @@ sub _buildMainCfFile
 
     unless ( defined $cfgTpl ) {
         $cfgTpl = iMSCP::File->new( filename => "$self->{'cfgDir'}/main.cf" )->get();
-        unless ( defined $cfgTpl ) {
-            error( sprintf( "Couldn't read %s file", "$self->{'cfgDir'}/main.cf" ));
-            return 1;
-        }
+        return 1 unless defined $cfgTpl;
     }
 
     $rs = $self->{'eventManager'}->trigger( 'beforeMtaBuildMainCfFile', \$cfgTpl, 'main.cf' );
     return $rs if $rs;
 
-    $cfgTpl = process( $data, $cfgTpl );
+    processByRef( $data, \$cfgTpl );
 
     $rs = $self->{'eventManager'}->trigger( 'afterMtaBuildMainCfFile', \$cfgTpl, 'main.cf' );
     return $rs if $rs;
@@ -407,104 +391,101 @@ sub _buildMainCfFile
     # Add TLS parameters if required
     return 0 unless ::setupGetQuestion( 'SERVICES_SSL_ENABLED' ) eq 'yes';
 
-    $self->{'eventManager'}->register(
-        'afterMtaBuildConf',
-        sub {
-            my %params = (
-                # smtpd TLS parameters (opportunistic)
-                smtpd_tls_security_level         => {
-                    action => 'replace',
-                    values => [ 'may' ]
-                },
-                smtpd_tls_ciphers                => {
-                    action => 'replace',
-                    values => [ 'high' ]
-                },
-                smtpd_tls_exclude_ciphers        => {
-                    action => 'replace',
-                    values => [ 'aNULL', 'MD5' ]
-                },
-                smtpd_tls_protocols              => {
-                    action => 'replace',
-                    values => [ '!SSLv2', '!SSLv3' ]
-                },
-                smtpd_tls_loglevel               => {
-                    action => 'replace',
-                    values => [ '0' ]
-                },
-                smtpd_tls_cert_file              => {
-                    action => 'replace',
-                    values => [ "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem" ]
-                },
-                smtpd_tls_key_file               => {
-                    action => 'replace',
-                    values => [ "$main::imscpConfig{'CONF_DIR'}/imscp_services.pem" ]
-                },
-                smtpd_tls_auth_only              => {
-                    action => 'replace',
-                    values => [ 'no' ]
-                },
-                smtpd_tls_received_header        => {
-                    action => 'replace',
-                    values => [ 'yes' ]
-                },
-                smtpd_tls_session_cache_database => {
-                    action => 'replace',
-                    values => [ 'btree:/var/lib/postfix/smtpd_scache' ]
-                },
-                smtpd_tls_session_cache_timeout  => {
-                    action => 'replace',
-                    values => [ '3600s' ]
-                },
-                # smtp TLS parameters (opportunistic)
-                smtp_tls_security_level          => {
-                    action => 'replace',
-                    values => [ 'may' ]
-                },
-                smtp_tls_ciphers                 => {
-                    action => 'replace',
-                    values => [ 'high' ]
-                },
-                smtp_tls_exclude_ciphers         => {
-                    action => 'replace',
-                    values => [ 'aNULL', 'MD5' ]
-                },
-                smtp_tls_protocols               => {
-                    action => 'replace',
-                    values => [ '!SSLv2', '!SSLv3' ]
-                },
-                smtp_tls_loglevel                => {
-                    action => 'replace',
-                    values => [ '0' ]
-                },
-                smtp_tls_CAfile                  => {
-                    action => 'replace',
-                    values => [ '/etc/ssl/certs/ca-certificates.crt' ]
-                },
-                smtp_tls_session_cache_database  => {
-                    action => 'replace',
-                    values => [ 'btree:/var/lib/postfix/smtp_scache' ]
-                }
-            );
-
-            if ( version->parse( $self->{'config'}->{'POSTFIX_VERSION'} ) >= version->parse( '2.10.0' ) ) {
-                $params{'smtpd_relay_restrictions'} = {
-                    action => 'replace',
-                    values => [ '' ],
-                    empty  => 1
-                };
+    $self->{'eventManager'}->register( 'afterMtaBuildConf', sub {
+        my %params = (
+            # smtpd TLS parameters (opportunistic)
+            smtpd_tls_security_level         => {
+                action => 'replace',
+                values => [ 'may' ]
+            },
+            smtpd_tls_ciphers                => {
+                action => 'replace',
+                values => [ 'high' ]
+            },
+            smtpd_tls_exclude_ciphers        => {
+                action => 'replace',
+                values => [ 'aNULL', 'MD5' ]
+            },
+            smtpd_tls_protocols              => {
+                action => 'replace',
+                values => [ '!SSLv2', '!SSLv3' ]
+            },
+            smtpd_tls_loglevel               => {
+                action => 'replace',
+                values => [ '0' ]
+            },
+            smtpd_tls_cert_file              => {
+                action => 'replace',
+                values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ]
+            },
+            smtpd_tls_key_file               => {
+                action => 'replace',
+                values => [ "$::imscpConfig{'CONF_DIR'}/imscp_services.pem" ]
+            },
+            smtpd_tls_auth_only              => {
+                action => 'replace',
+                values => [ 'no' ]
+            },
+            smtpd_tls_received_header        => {
+                action => 'replace',
+                values => [ 'yes' ]
+            },
+            smtpd_tls_session_cache_database => {
+                action => 'replace',
+                values => [ 'btree:/var/lib/postfix/smtpd_scache' ]
+            },
+            smtpd_tls_session_cache_timeout  => {
+                action => 'replace',
+                values => [ '3600s' ]
+            },
+            # smtp TLS parameters (opportunistic)
+            smtp_tls_security_level          => {
+                action => 'replace',
+                values => [ 'may' ]
+            },
+            smtp_tls_ciphers                 => {
+                action => 'replace',
+                values => [ 'high' ]
+            },
+            smtp_tls_exclude_ciphers         => {
+                action => 'replace',
+                values => [ 'aNULL', 'MD5' ]
+            },
+            smtp_tls_protocols               => {
+                action => 'replace',
+                values => [ '!SSLv2', '!SSLv3' ]
+            },
+            smtp_tls_loglevel                => {
+                action => 'replace',
+                values => [ '0' ]
+            },
+            smtp_tls_CAfile                  => {
+                action => 'replace',
+                values => [ '/etc/ssl/certs/ca-certificates.crt' ]
+            },
+            smtp_tls_session_cache_database  => {
+                action => 'replace',
+                values => [ 'btree:/var/lib/postfix/smtp_scache' ]
             }
+        );
 
-            if ( version->parse( $self->{'config'}->{'POSTFIX_VERSION'} ) >= version->parse( '3.0.0' ) ) {
-                $params{'compatibility_level'} = {
-                    action => 'replace',
-                    values => [ '2' ]
-                };
-            }
-
-            $self->{'mta'}->postconf( %params );
+        if ( version->parse( $self->{'config'}->{'POSTFIX_VERSION'} ) >= version->parse( '2.10.0' ) ) {
+            $params{'smtpd_relay_restrictions'} = {
+                action => 'replace',
+                values => [ '' ],
+                empty  => TRUE
+            };
         }
-    );
+
+        if ( version->parse( $self->{'config'}->{'POSTFIX_VERSION'} ) >= version->parse( '3.0.0' ) ) {
+            $params{'compatibility_level'} = {
+                action => 'replace',
+                values => [ '2' ]
+            };
+        }
+
+        $self->{'mta'}->postconf( %params );
+    } );
 }
 
 =item _oldEngineCompatibility( )

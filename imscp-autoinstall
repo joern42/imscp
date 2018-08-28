@@ -56,8 +56,8 @@ iMSCP::Requirements->new()->user();
 
 newDebug( 'imscp-autoinstall.log' );
 
-# Set execution mode
-$::execmode = 'setup' unless defined $::execmode;
+# Set execution context
+iMSCP::Getopt->context( 'installer' );
 
 # Inititialize variable that holds questions
 %::questions = () unless %::questions;
@@ -157,3 +157,6 @@ exit $ret;
  Laurent Declercq <l.declercq@nuxwin.com>
 
 =cut
+
+1;
+__END__

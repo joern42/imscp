@@ -26,8 +26,8 @@ package Servers::sqld::mariadb;
 use strict;
 use warnings;
 use Class::Autouse qw/ :nostat Servers::sqld::mariadb::installer Servers::sqld::mariadb::uninstaller /;
+use iMSCP::Boolean;
 use iMSCP::Service;
-use iMSCP::Database;
 use parent 'Servers::sqld::mysql';
 
 =head1 DESCRIPTION
@@ -40,15 +40,13 @@ use parent 'Servers::sqld::mysql';
 
 =item preinstall( )
 
- Process preinstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractInstallerActions::preinstall()
 
 =cut
 
 sub preinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldPreinstall', 'mariadb' );
     $rs ||= Servers::sqld::mariadb::installer->getInstance()->preinstall();
@@ -57,29 +55,22 @@ sub preinstall
 
 =item postinstall( )
 
- Process postinstall tasks
-
- Return int 0
+ See iMSCP::AbstractInstallerActions::postinstall()
 
 =cut
 
 sub postinstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldPostInstall', 'mariadb' );
 
-    local $@;
-    eval { iMSCP::Service->getInstance()->enable( 'mysql' ); };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
+    iMSCP::Service->getInstance()->enable( 'mysql' );
 
     $rs = $self->{'eventManager'}->register(
         'beforeSetupRestartServices',
         sub {
-            push @{$_[0]}, [ sub { $self->restart(); }, 'MariaDB' ];
+            push @{ $_[0] }, [ sub { $self->restart(); }, 'MariaDB' ];
             0;
         },
         7
@@ -90,15 +81,13 @@ sub postinstall
 
 =item uninstall( )
 
- Process uninstall tasks
-
- Return int 0 on success, other on failure
+ See iMSCP::AbstractUninstallerActions::uninstall()
 
 =cut
 
 sub uninstall
 {
-    my ($self) = @_;
+    my ( $self ) = @_;
 
     my $rs = $self->{'eventManager'}->trigger( 'beforeSqldUninstall', 'mariadb' );
     $rs ||= Servers::sqld::mariadb::uninstaller->getInstance()->uninstall();
@@ -118,16 +107,17 @@ sub uninstall
 
 sub createUser
 {
-    my (undef, $user, $host, $password) = @_;
+    my ( $self, $user, $host, $password ) = @_;
 
     defined $user or die( '$user parameter is not defined' );
     defined $host or die( '$host parameter is not defined' );
     defined $user or die( '$password parameter is not defined' );
 
     eval {
-        my $dbh = iMSCP::Database->factory()->getRawDb();
-        local $dbh->{'RaiseError'} = 1;
-        $dbh->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
+        my $rdbh = $self->{'dbh'}->getRawDb();
+        local $rdbh->{'RaiseError'} = TRUE;
+
+        $rdbh->do( 'CREATE USER ?@? IDENTIFIED BY ?', undef, $user, $host, $password );
     };
     !$@ or die( sprintf( "Couldn't create the %s\@%s SQL user: %s", $user, $host, $@ ));
     0;

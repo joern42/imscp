@@ -16,10 +16,8 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
 
-#
-## Show custom server identification message
-## See See http://www.proftpd.org/docs/directives/linked/config_ref_ServerIdent.html
-#
+# Show custom server identification message
+# See See http://www.proftpd.org/docs/directives/linked/config_ref_ServerIdent.html
 
 package Listener::ProFTPd::ServerIdent;
 
@@ -28,33 +26,24 @@ use warnings;
 use iMSCP::EventManager;
 use iMSCP::TemplateParser;
 
-#
-## Configuration parameters
-#
+# Configuration parameters
 
 # Server identification message to display when a client connect
 my $SERVER_IDENT_MESSAGE = 'i-MSCP FTP server.';
 
-#
-## Please, don't edit anything below this line
-#
+# Please don't edit anything below this line
 
-iMSCP::EventManager->getInstance()->register(
-    'beforeFtpdBuildConf',
-    sub {
-        my ($tplContent, $tplName) = @_;
+iMSCP::EventManager->getInstance()->register( 'beforeFtpdBuildConf', sub {
+    my ( $tplContent, $tplName ) = @_;
 
-        return 0 unless $tplName eq 'proftpd.conf';
-        $SERVER_IDENT_MESSAGE =~ s%("|\\)%\\$1%g;
-        ${$tplContent} = process(
-            {
-                SERVER_IDENT_MESSAGE => qq/"$SERVER_IDENT_MESSAGE"/
-            },
-            ${$tplContent}
-        );
-        0;
-    }
-);
+    return 0 unless $tplName eq 'proftpd.conf';
+    $SERVER_IDENT_MESSAGE =~ s%("|\\)%\\$1%g;
+    ${ $tplContent } = process(
+        { SERVER_IDENT_MESSAGE => qq/"$SERVER_IDENT_MESSAGE"/ },
+        ${ $tplContent }
+    );
+    0;
+} );
 
 1;
 __END__
