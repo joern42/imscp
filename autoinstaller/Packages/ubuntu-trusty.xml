@@ -381,9 +381,6 @@
         <package_conflict>sendmail-cf</package_conflict>
         <package_conflict>sendmail-doc</package_conflict>
     </mta>
-    <postfix_srs description="Postfix Sender Rewritting Scheme (SRS)" varname="POSTFIX_SRS" dialog_priority="4">
-        <none default="1" description="No SRS"/>
-    </postfix_srs>
     <po description="IMAP/POP server" dialog_priority="3">
         <courier description="Courier IMAP/POP3 servers" class="Servers::po::courier"
         >
