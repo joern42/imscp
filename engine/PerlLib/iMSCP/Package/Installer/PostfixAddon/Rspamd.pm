@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Package::Installer::PostfixAddon::Rspamd - Rspamd spam filtering system
+ iMSCP::Package::Installer::PostfixAddon::Rspamd - Rspamd - Advanced spam filtering system
 
 =cut
 
@@ -45,9 +45,20 @@ use parent 'iMSCP::Package::Abstract';
 
 =head1 DESCRIPTION
 
- Provides spam filtering system (integration with the Postfix MTA).
+ Provides the Rspamd advanced spam filtering system (Postfix MTA integration).
+ 
+ Rspamd is an advanced spam filtering system that allows evaluation of messages
+ by a number of rules including regular expressions, statistical analysis and
+ custom services such as URL black lists. Each message is analysed by Rspamd
+ and given a spam score.
 
- Project homepage: https://rspamd.com/
+ According to this spam score and the user's settings, Rspamd recommends an
+ action for the MTA to apply to the message, for example, to pass, reject or
+ add a header. Rspamd is designed to process hundreds of messages per second
+ simultaneously, and provides a number of useful features.
+
+ Site: https://rspamd.com/
+ GitHub: https://github.com/rspamd/rspamd
 
 =head1 PUBLIC METHODS
 
@@ -118,17 +129,9 @@ sub install
 {
     my ( $self ) = @_;
 
-    iMSCP::Dir->new( dirname => $self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'} )->make( {
-        user  => 'root',
-        group => 'imscp',
-        mode  => 0750,
-    } );
-
-    iMSCP::Dir->new( dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Package/Installer/PostfixAddon/Rspamd/local.d" )->rcopy(
-        $self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}, { preserve => 'no' }
-    );
-
-    my $rs ||= $self->_setupModules();
+    my $rs = $self->installFiles();
+    $rs ||= $self->_mergeConfig();
+    $rs ||= $self->_setupModules();
     $rs ||= $self->_setupWebUI();
     $rs ||= _setupCronTaskForSpamLearning() if $self->{'config'}->{'RSPAMD_SPAM_LEARNING_FROM_JUNK'} eq 'yes';
     $rs;
@@ -181,7 +184,7 @@ sub postuninstall
         [
             {
                 repository         => "http://rspamd.com/apt-stable/ $distCodename main",
-                repository_key_uri => 'https://rspamd.com/apt/gpg.key',
+                repository_key_uri => 'https://rspamd.com/apt/gpg.key'
 
             }
         ],
@@ -212,8 +215,6 @@ sub postuninstall
 sub setEnginePermissions
 {
     my ( $self ) = @_;
-
-    return 0 unless $::imscpConfig{'ANTISPAM'} eq 'rspamd';
 
     setRights( $self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}, {
         user      => $::imscpConfig{'ROOT_USER'},
@@ -368,15 +369,12 @@ sub _init
     $self->SUPER::_init();
     $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/rspamd";
 
-    if ( -f "$self->{'cfgDir'}/rspamd.data" ) {
-        tie %{ $self->{'config'} },
-            'iMSCP::Config',
-            fileName    => "$self->{'cfgDir'}/rspamd.data",
-            readonly    => !( defined $::execmode && $::execmode eq 'setup' ),
-            nodeferring => ( defined $::execmode && $::execmode eq 'setup' );
-    } else {
-        $self->{'config'} = {};
-    }
+    tie %{ $self->{'config'} },
+        'iMSCP::Config',
+        fileName    => "$self->{'cfgDir'}/rspamd.data",
+        readonly    => iMSCP::Getopt->context() ne 'installer',
+        nodeferring => iMSCP::Getopt->context() eq 'installer',
+        nodie       => iMSCP::Getopt->context() eq 'installer';
 
     $self;
 }
@@ -393,18 +391,16 @@ sub _installFiles
 {
     my ( $self ) = @_;
 
-    my $srcDir = "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Package/Installer/PostfixAddon/Rspamd/";
-
-    # Install new files
-    iMSCP::Dir->new( dirname => "$srcDir/local.d" )->rcopy( $self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}, { preserve => 'no' } );
-    iMSCP::Dir->new( dirname => "$srcDir/iMSCP/config" )->rcopy( $self->{'cfgDir'}, { preserve => 'no' } );
+    iMSCP::Dir->new( dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Package/Installer/PostfixAddon/Rspamd/config" )->rcopy(
+        '/', { preserve => 'no' }
+    );
 }
 
 =item _mergeConfig( )
 
- Merge old config if any
+ Merge old config with new configuration file
 
- Return int 0
+ Return int 0 on success, die on failure
 
 =cut
 
@@ -412,18 +408,20 @@ sub _mergeConfig
 {
     my ( $self ) = @_;
 
-    if ( %{ $self->{'config'} } ) {
-        my %oldConfig = %{ $self->{'config'} };
-        tie %{ $self->{'config'} }, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/rspamd.data", nodeferring => TRUE;
-        debug( 'Merging old configuration with new configuration...' );
+    tie my %newConfig, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/rspamd.data.dist";
 
-        while ( my ( $key, $value ) = each( %oldConfig ) ) {
-            next unless exists $self->{'config'}->{$key};
-            $self->{'config'}->{$key} = $value;
-        }
-
-        return 0;
+    debug( 'Merging old configuration with new configuration...' );
+    while ( my ( $key, $value ) = each( %{ $self->{'config'} } ) ) {
+        next unless exists $newConfig{$key};
+        $newConfig{$key} = $value;
     }
+
+    untie %{ $self->{'config'} };
+    untie %newConfig;
+
+    iMSCP::File->new( filename => "$self->{'cfgDir'}/bind.data.dist" )->moveFile( "$self->{'cfgDir'}/bind.data" ) == 0 or die(
+        getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
+    );
 
     tie %{ $self->{'config'} }, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/rspamd.data", nodeferring => TRUE;
     0;
@@ -461,7 +459,9 @@ sub _askForModules
 {
     my ( $self, $dialog ) = @_;
 
-    my $selectedModules = [ grep ( $_ ne 'Antivirus', split /[,;]/, ::setupGetQuestion( 'RSPAMD_MODULES', $self->{'config'}->{'RSPAMD_MODULES'} ) ) ];
+    my $selectedModules = [
+        grep ( $_ ne 'Antivirus', split /[,;]/, ::setupGetQuestion( 'RSPAMD_MODULES', $self->{'config'}->{'RSPAMD_MODULES'} ) )
+    ];
     my %choices = map { $_ => $_ } grep ( $_ ne 'Antivirus', $self->_getManagedModules() );
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'all' ] )
@@ -522,7 +522,6 @@ EOF
     }
 
     $self->{'config'}->{'RSPAMD_WEBUI'} = $value;
-
     0;
 }
 
@@ -546,7 +545,7 @@ sub _askForWebUIPassword
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'antispam', 'alternatives', 'all' ] )
         || $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} eq ''
-        || ( !$self->_isExpectedWebUIPassword( $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} ) && !isValidPassword( $password ) )
+        || ( !$self->_isExpectedWebUIPasswordHash( $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} ) && !isValidPassword( $password ) )
     ) {
         do {
             ( my $rs, $password ) = $dialog->inputbox( <<"EOF", randomStr( 16, ALNUM ));
@@ -649,11 +648,11 @@ sub _setupModules
 {
     my ( $self ) = @_;
 
-    my %conffilesMap = $self->_getModuleConffilesMap();
+    my %fileMap = $self->_getModuleConffilesMap();
     my @selectedModules = grep ( $_ ne 'none', split /[,;]/, $self->{'config'}->{'RSPAMD_MODULES'} );
 
     for my $module ( $self->_getManagedModules() ) {
-        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}/$conffilesMap{$module}" );
+        my $file = iMSCP::File->new( filename => "$self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}/$fileMap{$module}" );
         my $fileC = $file->getAsRef();
         return 1 unless defined $fileC;
 
@@ -688,7 +687,6 @@ sub _setupWebUI
         return $rs if $rs;
 
         chomp( $stdout );
-
         ${ $fileC } =~ s/^(enabled\s*=)[^\n]+/$1 true;/m;
         ${ $fileC } =~ s/^(password\s*=)[^\n]+/$1 "$stdout";/m;
         $self->{'config'}->{'RSPAMD_WEBUI_PASSWORD'} = $stdout;
@@ -726,23 +724,25 @@ sub _setupCronTaskForSpamLearning
     } );
 }
 
-=item _isExpectedWebUIPassword( $password )
+=item _isExpectedWebUIPasswordHash( $passwordHash )
 
- Checks that the provided password matches with the the password from the worker controller configuration file
+ Checks that the given password hash matches with the the password hash from the worker controller configuration file
 
+ Param string $passwordHash Password hash to check against worker controller password hash
  Return boolean TRUE if passwords match, FALSE otherwise, die on failure
 
 =cut
 
-sub _isExpectedWebUIPassword
+sub _isExpectedWebUIPasswordHash
 {
-    my ( $self, $password ) = @_;
+    my ( $self, $passwordHash ) = @_;
+
+    return FALSE if $passwordHash eq '';
 
     my $file = iMSCP::File->new( filename => "$self->{'config'}->{'RSPAMD_LOCAL_CONFDIR'}/worker-controller.inc" );
     my $fileC = $file->getAsRef();
     defined $fileC or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
-
-    !!$fileC =~ /^password\s+=\s+"\Q$password\E"\n/m;
+    !!$fileC =~ /^password\s+=\s+"\Q$passwordHash\E"\n/m;
 }
 
 =back

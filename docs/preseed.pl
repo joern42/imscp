@@ -423,8 +423,8 @@ use warnings;
     #  - PolicydWeight: policy-weight daemon
     #  - Postgrey     : Policy server to implement "greylisting".
     #  - Postscreen   : Postfix postscreen server that provides additional protection against mail server overload
-    #  - Rspamd       : Spam filtering system
-    #  - SPF          : Simple Postfix policy server for RFC 4408 SPF checking
+    #  - Rspamd       : Advanced spam filtering system
+    #  - SPF          : Postfix policy server for RFC 4408 SPF checking
     #  - SRS          : Sender Rewriting Scheme (SRS) support for Postfix via TCP-based lookup tables
     #
     # If you select the Rspamd package, you shouldn't make use of any of the following packages:
