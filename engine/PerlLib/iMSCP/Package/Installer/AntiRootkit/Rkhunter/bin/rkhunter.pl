@@ -54,7 +54,10 @@ OPTIONS:
 
 setVerbose( iMSCP::Getopt->verbose );
 
-iMSCP::Bootstrapper->getInstance()->boot( {
+my $bootstrapper = iMSCP::Bootstrapper->getInstance();
+exit unless $bootstrapper->lock( '/var/lock/imscp-rkhunter-package.lock', 'nowait' );
+
+$bootstrapper->boot( {
     nolock          => TRUE,
     nokeys          => TRUE,
     nodatabase      => TRUE,
@@ -71,9 +74,12 @@ executeNoWait(
     \&output,
     \&output
 );
-exit 0 unless -f $logFile;
 
-my $file = iMSCP::File->new( filename => $logFile );
-my $rs = $file->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'IMSCP_GROUP'} );
-$rs ||= $file->mode( 0640 );
-exit $rs;
+if ( -f $logFile ) {
+    my $file = iMSCP::File->new( filename => $logFile );
+    my $rs = $file->owner( $::imscpConfig{'ROOT_USER'}, $::imscpConfig{'IMSCP_GROUP'} );
+    exit( $rs || $file->mode( 0640 ));
+}
+
+1;
+__END__
