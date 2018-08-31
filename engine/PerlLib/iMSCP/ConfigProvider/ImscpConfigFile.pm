@@ -1,10 +1,10 @@
 =head1 NAME
 
- iMSCP::ConfigProvider::ImscpConfig - Configuration provider for i-MSCP configuration files
+ iMSCP::ConfigProvider::ImscpConfigFile - Configuration provider for i-MSCP configuration files
 
 =cut
 
-package iMSCP::ConfigProvider::ImscpConfig;
+package iMSCP::ConfigProvider::ImscpConfigFile;
 
 use strict;
 use warnings;
@@ -28,7 +28,7 @@ use parent 'Common::Functor';
 
  Constructor
  
- Return iMSCP::ConfigProvider::ImscpConfig
+ Return iMSCP::ConfigProvider::ImscpConfigFile
 
 =cut
 
