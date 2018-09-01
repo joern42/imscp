@@ -20,7 +20,7 @@ use parent 'Common::Functor';
 
 =over 4
 
-=item new( $hash)
+=item new( $hash )
 
  Constructor
  
@@ -44,11 +44,11 @@ sub new
 
 =over 4
 
-=item __invoke()
+=item __invoke( )
 
  Functor implementation
 
- Return hashref on sucess, die on failure
+ Return hashref on success, die on failure
 
 =cut
 
