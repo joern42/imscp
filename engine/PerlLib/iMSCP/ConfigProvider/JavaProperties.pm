@@ -10,7 +10,6 @@ use strict;
 use warnings;
 use File::Glob ':bsd_glob';
 use iMSCP::Boolean;
-use iMSCP::Debug 'getMessageByType';
 use iMSCP::File;
 use parent 'Common::Functor';
 
@@ -108,7 +107,8 @@ sub _parseFile
         length $self->{'delimiter'}, '', FALSE, {}, undef, undef,
     );
 
-    open my $fh, '<', $file or die( "Couldn't open file: $!" );
+    open my $fh, '<', $file or die( sprintf( "Couldn't open file: %s", $! || 'Unknown error' ));
+
     while ( my $line = <$fh> ) {
         chomp( $line );
         next if !length $line || ( !$isWaitingOtherLine && ( index( $line, '#' ) == 0 || index( $line, '!' ) == 0 ) );
@@ -132,6 +132,7 @@ sub _parseFile
         $value =~ s/^\s+|\s+$//g if $self->{'trimWhitespace'} && !$isWaitingOtherLine;
         ( $result->{$key} = $value ) =~ s/\\([^\\])/$1/g;
     }
+
     close( $fh );
 
     $result;
