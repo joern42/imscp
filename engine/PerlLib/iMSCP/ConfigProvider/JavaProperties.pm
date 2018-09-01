@@ -70,26 +70,10 @@ sub __invoke
 
     return $config unless @files;
 
-    for my $file ( @files ) {
-        unless ( %{ $config } ) {
-            $config = $self->_parseFile( $file );
-            next;
-        }
-
-        $self->_hash_replace_recursive( $config, $self->_parseFile( $file ));
-    }
-
+    $config = $self->_parseFile( shift @files );
+    $self->_hash_replace_recursive( $config, $self->_parseFile( $_ )) for @files;
     $config;
 }
-
-=item _process( $data )
-
- Process the given hash for @include
-
- Param $hashref
- Return void
-
-=cut
 
 =item _parseFile
 
@@ -103,17 +87,15 @@ sub _parseFile
 {
     my ( $self, $file ) = @_;
 
-    my ( $delimLength, $key, $isWaitingOtherLine, $result, $value, $valueLength ) = (
-        length $self->{'delimiter'}, '', FALSE, {}, undef, undef,
-    );
+    my ( $delimLength, $isMultiLines, $result, $key, $value, $valueLength ) = ( length $self->{'delimiter'}, FALSE, {} );
 
     open my $fh, '<', $file or die( sprintf( "Couldn't open file: %s", $! || 'Unknown error' ));
 
     while ( my $line = <$fh> ) {
         chomp( $line );
-        next if !length $line || ( !$isWaitingOtherLine && ( index( $line, '#' ) == 0 || index( $line, '!' ) == 0 ) );
+        next if !length $line || ( !$isMultiLines && ( index( $line, '#' ) == 0 || index( $line, '!' ) == 0 ) );
 
-        unless ( $isWaitingOtherLine ) {
+        unless ( $isMultiLines ) {
             $key = substr( $line, 0, index( $line, $self->{'delimiter'} ));
             $value = substr( $line, index( $line, $self->{'delimiter'} )+$delimLength, length( $line ));
         } else {
@@ -123,13 +105,13 @@ sub _parseFile
         $valueLength = length( $value )-1;
         if ( index( $value, '\\' ) == $valueLength ) {
             $value = substr( $value, 0, $valueLength );
-            $isWaitingOtherLine = TRUE;
+            $isMultiLines = TRUE;
         } else {
-            $isWaitingOtherLine = FALSE;
+            $isMultiLines = FALSE;
         }
 
         $key =~ s/^\s+|\s+$//g if $self->{'trimWhitespace'};
-        $value =~ s/^\s+|\s+$//g if $self->{'trimWhitespace'} && !$isWaitingOtherLine;
+        $value =~ s/^\s+|\s+$//g if $self->{'trimWhitespace'} && !$isMultiLines;
         ( $result->{$key} = $value ) =~ s/\\([^\\])/$1/g;
     }
 
@@ -140,7 +122,7 @@ sub _parseFile
 
 =item _hash_replace_recursive( $hashA, $hashB )
 
- Replaces elements from passed hashes into the first hash recursively
+ Replaces elements from second hash into the first hash recursively
 
  Return void
 
