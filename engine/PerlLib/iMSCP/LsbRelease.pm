@@ -54,7 +54,8 @@ my %RELEASE_CODENAME_LOOKUP = !$IS_DEVUAN ? (
     '12'  => 'bookworm'
 ) : (
     '1' => 'jessie',
-    '2' => 'ascii'
+    '2' => 'ascii',
+    '3' => 'beowulf'
 );
 my $TESTING_CODENAME = 'unknown.new.testing';
 my @RELEASES_ORDER = (
