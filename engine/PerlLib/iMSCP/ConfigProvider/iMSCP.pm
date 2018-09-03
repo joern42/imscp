@@ -56,7 +56,7 @@ use parent 'Common::Functor';
  Configuration namespace
  
  It is possible to specify a namespace for the returned configuration. This is 
- useful when a provider is part of an aggregate which merge configuration of
+ useful when the provider is part of an aggregate that merge configuration of
  aggregated providers all together to product a single (cached) configuration
  file for production use.
 
@@ -64,16 +64,16 @@ use parent 'Common::Functor';
 
 =over 4
 
-=item( UPSTREAM_FILE => <upstream_file>, PRODUCTION_FILE => <production_file> [, NAMESPACE => none ,[ MERGE_EXLUCDE_REGEXP => none ] ] )
+=item( PRODUCTION_FILE => <production_file> [, UPSTREAM_FILE => <upstream_file>, [ NAMESPACE => none ,[ MERGE_EXLUCDE_REGEXP => none ] ] ] )
 
  Constructor
  
  Named parameters
-  UPSTREAM_FILE   : Upstream configration file path
-  PRODUCTION_FILE : Production configuration file path
-  NAMESPACE       : Namespace for the merged configuration, none by default
-  EXCLUDE_REGEXP  : Regexp for parameters exclusion from the merge process, none by default
- Return iMSCP::ConfigProvider::iMSCP
+  PRODUCTION_FILE : Production configuration file path (required)
+  UPSTREAM_FILE   : Upstream configration file path (required in installer context)
+  NAMESPACE       : Namespace for the merged configuration, none by default (optional)
+  EXCLUDE_REGEXP  : Regexp for parameters exclusion from the merge process, none by default (optional)
+ Return iMSCP::ConfigProvider::iMSCP, croak on failure
 
 =cut
 
@@ -103,7 +103,7 @@ sub new
 
  Functor implementation
 
- Return hashref on sucess, die on failure
+ Return hashref on sucess, croak on failure
 
 =cut
 
@@ -131,9 +131,9 @@ sub __invoke
 
 =item _mergeConfig
 
- Merge production configuration with upstream configuration
+ Merge production file configuration with upstream configuration file
 
- Return void, die on failure
+ Return void, croak on failure
 
 =cut
 
@@ -176,6 +176,7 @@ sub _mergeConfig
     # Save merged config
     $file->{'filename'} = $file;
     $file->save() == 0 or croak( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error ' );
+    return;
 }
 
 =back
@@ -188,3 +189,21 @@ sub _mergeConfig
 
 1;
 __END__
+
+# Usage example:
+
+use iMSCP::ConfigProvider::iMSCP;
+use iMSCP::Getopt;
+use Data::Dumper;
+
+iMSCP::Getopt->context( 'installer' );
+
+my $provider = iMSCP::ConfigProvider::iMSCP->new(
+    PRODUCTION_FILE => 'test/imscp.conf',
+    UPSTREAM_FILE   => 'test/imscp.conf.dist',
+    NAMESPACE       => 'master',
+    EXCLUDE_REGEXP  => qr/^(?:BuildDate|Version|CodeName|PluginApi)$/
+);
+
+my $config = $provider->( $provider );
+print Dumper( $config );

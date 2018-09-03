@@ -18,8 +18,17 @@ use parent 'Common::Functor';
 =head1 DESCRIPTION
 
  Configuration provider for Java-style properties files.
+ 
+ This configuration provider accept a BSD glob(3) pattern for loading and
+ merging of several Java-style properties files all together, returning the
+ merged configuration as a simple hash. 
 
-=head1 CLASS METHODS
+ It is possible to specify a namespace for the returned configuration. This is
+ useful when the provider is part of an aggregate that merge configuration of
+ aggregated providers all together to product a single (cached) configuration
+ file for production use.
+
+=head1 PUBLIC METHODS
 
 =over 4
 
@@ -28,10 +37,10 @@ use parent 'Common::Functor';
  Constructor
  
  Named parameters
-  GLOB_PATTERN : Glob pattern for Java-style properties file(s).
+  GLOB_PATTERN : Glob pattern for Java-style properties files (required).
   DELIMITER    : Delimiter for key/value pairs, default to equals character (=).
   NAMESPACE    : Configuration namespace, none by default
- Return iMSCP::ConfigProvider::JavaProperties
+ Return iMSCP::ConfigProvider::JavaProperties, croak on failure
 
 =cut
 
@@ -59,7 +68,7 @@ sub new
 
  Functor implementation
 
- Return hashref on sucess, die on failure
+ Return hashref on sucess, croak on failure
 
 =cut
 
@@ -77,9 +86,11 @@ sub __invoke
 
 =item _parseFile
 
- Parse Java-style properties file
+ Parse a Java-style properties file
 
- Return hashref on success, die on failure
+ Note that this implementation doesn't allow usage of delimiter in key names.
+
+ Return hashref on success, croak on failure
 
 =cut
 
@@ -128,3 +139,16 @@ sub _parseFile
 
 1;
 __END__
+
+# Usage example:
+
+use iMSCP::ConfigProvider::JavaProperties;
+use Data::Dumper;
+
+my $provider = iMSCP::ConfigProvider::iMSCP->new(
+    GLOB_PATTERN => 'test/{c,b,a}.{conf.dist,conf}',
+    NAMESPACE    => 'testing'
+);
+
+my $config = $provider->( $provider );
+print Dumper( $config );
