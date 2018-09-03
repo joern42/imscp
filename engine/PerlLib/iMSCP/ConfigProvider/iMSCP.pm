@@ -16,7 +16,6 @@ use iMSCP::Debug 'getMessageByType';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::TemplateParser 'processByRef';
-
 use Params::Check qw/ check last_error /;
 use parent 'Common::Functor';
 
@@ -30,19 +29,19 @@ use parent 'Common::Functor';
  
  In installer context, this provider try to merge a production configuration
  file with a upstream configuration file, ignoring parameters that don't exist
- in upstream configuration file. Then, the merged configuration is saved and
- returned as a hash tied to an iMSCP::Config object, making consumers able to
- update the configuration parameter values at runtime.
+ in that last. Then, the merged configuration is saved and returned as a hash
+ tied to an iMSCP::Config object, making consumers able to update the parameter
+ values at runtime.
  
- It is possible to exclude some configuration parameters from the merge process
- by passing a Regexp that acts as a filter. If so, any matching parameter is
- discarded from the merge process. This is mostly useful for parameters that
- need to be updated when a new i-MSCP version is released.
+ It is possible to exclude some parameters from the merge process by passing a
+ Regexp that acts as a filter. If so, any matching parameter is discarded from
+ the merge process. This is useful for parameters that need to be updated when
+ a new i-MSCP version is released.
  
  The upstream configuration file can make use of template variables to seed
  parameter default values. Template variables are resolved using parameters
  from the production configuration file. If the production file doesn't exist
- or if a parameter is not found, those are set with an empty value.
+ or if some parameters are not found, those are set with an empty value.
  
  If the production file doesn't exist, it is created and seed with parameters
  from the upstream configuration file. If that last doesn't exist, an error is
@@ -51,8 +50,8 @@ use parent 'Common::Functor';
  Other contexts
 
  Outside of installer context, this provider loads and return the production
- configuration file as a simple hash. If the file doesn't exist, an error is
- raised.
+ configuration as a simple hash. If the production configuration file doesn't
+ exist, an error is raised.
 
  Configuration namespace
  
@@ -70,10 +69,10 @@ use parent 'Common::Functor';
  Constructor
  
  Named parameters
-  UPSTREAM_FILE        : Upstream configration file path
-  PRODUCTION_FILE      : Production configuration file path
-  NAMESPACE            : Namespace for the merged configuration, none by default
-  MERGE_EXLUCDE_REGEXP : Regexp for parameters exclusion from the merge process, none by default
+  UPSTREAM_FILE   : Upstream configration file path
+  PRODUCTION_FILE : Production configuration file path
+  NAMESPACE       : Namespace for the merged configuration, none by default
+  EXCLUDE_REGEXP  : Regexp for parameters exclusion from the merge process, none by default
  Return iMSCP::ConfigProvider::iMSCP
 
 =cut
@@ -89,7 +88,7 @@ sub new
         UPSTREAM_FILE        => { default => '', required => iMSCP::Getopt->context() eq 'installer', strict_type => TRUE, },
         PRODUCTION_FILE      => { default => '', required => TRUE, strict_type => TRUE, },
         NAMESPACE            => { default => undef, strict_type => TRUE },
-        MERGE_EXLUCDE_REGEXP => { default => undef, strict_type => TRUE },
+        EXCLUDE_REGEXP       => { default => undef, allow => sub { ref $_[0] eq 'Regexp' } },
         IS_INSTALLER_CONTEXT => { default => iMSCP::Getopt->context() eq 'installer', no_override => TRUE }
     }, \%params, TRUE ) or croak( Params::Check::last_error()));
 }
@@ -119,13 +118,13 @@ sub __invoke
             fileName    => $self->{'PRODUCTION_FILE'},
             readonly    => !$self->{'IS_INSTALLER_CONTEXT'},
             nodeferring => $self->{'IS_INSTALLER_CONTEXT'};
-        
+
         return $self->{'NAMESPACE'} ? { $self->{'NAMESPACE'} => \%config } : \%config;
     }
 
     my $provider = iMSCP::ConfigProvider::JavaProperties->new(
         GLOB_PATTERN => $self->{'PRODUCTION_FILE'},
-        NAMESPACE => $self->{'NAMESPACE'}
+        NAMESPACE    => $self->{'NAMESPACE'}
     );
     $provider->( $provider );
 }
@@ -154,7 +153,7 @@ sub _mergeConfig
         return;
     }
 
-    my $file = iMSCP::File->new( filename => $self->{'UPSTREAM_FILE'} . '.dist' );
+    my $file = iMSCP::File->new( filename => $self->{'UPSTREAM_FILE'} );
     defined( my $fileC = $file->getAsRef()) or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error ' );
 
     my $provider = iMSCP::ConfigProvider::JavaProperties->new( GLOB_PATTERN => $self->{'PRODUCTION_FILE'} );
@@ -166,9 +165,9 @@ sub _mergeConfig
 
     # Merge production configuration with upstream config
     open my $fh, '+<', $fileC or croak( "Couldn't open file: $!" );
-    tie my %newConfig, 'iMSCP::Config', filename => $fh;
+    tie my %newConfig, 'iMSCP::Config', fileName => $fh;
     while ( my ( $key, $value ) = each( %{ $oldConfig } ) ) {
-        next unless exists $newConfig{$key} && $key !~ /$self->{'MERGE_EXLUCDE_REGEXP'}/;
+        next unless exists $newConfig{$key} && ( !$self->{'EXCLUDE_REGEXP'} || $key !~ /$self->{'EXCLUDE_REGEXP'}/ );
         $newConfig{$key} = $value;
     }
     untie %newConfig;
