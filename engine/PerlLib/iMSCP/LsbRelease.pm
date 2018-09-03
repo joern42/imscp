@@ -50,7 +50,8 @@ my %RELEASE_CODENAME_LOOKUP = !$IS_DEVUAN ? (
     '8'   => 'jessie',
     '9'   => 'stretch',
     '10'  => 'buster',
-    '11'  => 'bullseye'
+    '11'  => 'bullseye',
+    '12'  => 'Bookworm'
 ) : (
     '1' => 'jessie',
     '2' => 'ascii'
