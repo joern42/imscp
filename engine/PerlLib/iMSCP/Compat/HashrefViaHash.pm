@@ -66,7 +66,6 @@ sub TIEHASH
     ) or die( Params::Check::last_error());
 
     bless $hashref->{'HASHREF'}, $class;
-
 }
 
 =item( key, value )
@@ -176,12 +175,7 @@ use Data::Dumper;
 use iMSCP::Compat::HashrefViaHash;
 
 my $hashref = { foo => 1 };
-
 tie my %simpleHash, 'iMSCP::Compat::HashrefViaHash', HASHREF => $hashref;
-
 print Dumper( \%simpleHash );
-
 $hashref-> { 'bar' } = 1;
-
 print Dumper( \%simpleHash );
-
