@@ -1,22 +1,21 @@
 #!/bin/sh
 ### BEGIN INIT INFO
-# Provides:          imscp_traffic
-# Required-Start:    $local_fs
-# Required-Stop:     $local_fs
+# Provides:          imscp_mountall
+# Required-Start:    $remote_fs
+# Required-Stop:
 # Should-Start:
 # Should-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: i-MSCP traffic logger
+# Short-Description: Mounts i-MSCP filesystems
 ### END INIT INFO
 
 # Note: do not modify any of these vars here, use /etc/default/$NAME instead
 
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-DESC="i-MSCP traffic logger"
-NAME=imscp_traffic
+NAME=imscp_mountall
 LFILE=/var/run/$NAME
-TOOLSDIR="/var/www/imscp/engine/tools"
+BINDIR=/var/www/imscp/engine/tools
 
 . /lib/lsb/init-functions
 
@@ -36,13 +35,13 @@ check_for_upstart()
 
 do_start()
 {
-    perl ${TOOLSDIR}/imscp-net-traffic-logger start 2>/dev/null
+    perl ${BINDIR}/imscp-mountall start 2>/dev/null
     touch $LFILE
 }
 
 do_stop()
 {
-    perl ${TOOLSDIR}/imscp-net-traffic-logger stop 2>/dev/null
+    perl ${BINDIR}/imscp-mountall stop 2>/dev/null
     rm -f $LFILE
 }
 
