@@ -16,53 +16,26 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  
- i-MSCP Installer distribution packages file for Debian Jessie (8.x)
+ i-MSCP Installer distribution packages file for Ubuntu Xenial Xerus (16.04)
 -->
 <packages>
     <sqld description="SQL server" dialog_priority="11">
-        <mysql_5.5
-                default="1"
-                description="MySQL 5.5 server"
-                class="Servers::sqld::mysql"
-                pinning_package="libmysqlclient18 mysql-client-5.5 mysql-common mysql-server-5.5"
-                pinning_pin="release o=Debian,n=jessie"
-                pinning_pin_priority="1001"
-        >
-            <package>mysql-client-5.5</package>
-            <package>mysql-server-5.5</package>
-        </mysql_5.5>
-        <mysql_5.6
-                description="MySQL 5.6 server"
-                class="Servers::sqld::mysql"
-                repository="http://repo.mysql.com/apt/debian/ jessie mysql-5.6"
-                repository_key_id="5072E1F5"
-                repository_key_srv="keyserver.ubuntu.com"
-                pinning_package="*"
-                pinning_pin="origin repo.mysql.com"
-                pinning_pin_priority="1001"
-        >
-            <package>mysql-community-client</package>
-            <package>mysql-community-server</package>
-        </mysql_5.6>
         <mysql_5.7
+                default="1"
                 description="MySQL 5.7 server"
                 class="Servers::sqld::mysql"
-                repository="http://repo.mysql.com/apt/debian/ jessie mysql-5.7"
-                repository_key_id="5072E1F5"
-                repository_key_srv="keyserver.ubuntu.com"
-                pinning_package="*"
-                pinning_pin="origin repo.mysql.com"
+                pinning_package="libmysqlclient20 mysql-client-5.7 mysql-common mysql-server-5.7"
+                pinning_pin="release o=Ubuntu,n=xenial"
                 pinning_pin_priority="1001"
         >
-            <package>libmysqlclient20</package>
-            <package>mysql-community-client</package>
-            <package>mysql-community-server</package>
+            <package>mysql-client-5.7</package>
+            <package>mysql-server-5.7</package>
         </mysql_5.7>
         <mariadb_10.0
                 description="MariaDB 10.0 server"
                 class="Servers::sqld::mariadb"
-                pinning_package="libmysqlclient18 mariadb-client-10.0 mariadb-common mariadb-server-10.0 mysql-common"
-                pinning_pin="release o=Debian,n=jessie"
+                pinning_package="libmysqlclient20 mariadb-client-10.0 mariadb-common mariadb-server-10.0 mysql-common"
+                pinning_pin="release o=Ubuntu,n=xenial"
                 pinning_pin_priority="1001"
         >
             <package>mariadb-client-10.0</package>
@@ -77,17 +50,19 @@
         <mariadb_10.1
                 description="MariaDB 10.1 server"
                 class="Servers::sqld::mariadb"
-                repository="http://mirror.netcologne.de/mariadb/repo/10.1/debian jessie main"
-                repository_key_id="1BB943DB"
+                repository="http://mirror.netcologne.de/mariadb/repo/10.1/ubuntu xenial main"
+                repository_key_id="C74CD1D8"
                 repository_key_srv="keyserver.ubuntu.com"
                 pinning_package="*"
-                pinning_pin="release o=MariaDB,n=jessie" pinning_pin_priority="1001"
+                pinning_pin="release o=MariaDB,n=xenial"
+                pinning_pin_priority="1001"
         >
             <package>libmariadbclient18</package>
+            <package>libmysqlclient18</package>
             <package>mariadb-client-10.1</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.1</package>
-            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
@@ -96,18 +71,19 @@
         <mariadb_10.2
                 description="MariaDB 10.2 server"
                 class="Servers::sqld::mariadb"
-                repository="http://mirror.netcologne.de/mariadb/repo/10.2/debian jessie main"
-                repository_key_id="1BB943DB"
+                repository="http://mirror.netcologne.de/mariadb/repo/10.2/ubuntu xenial main"
+                repository_key_id="C74CD1D8"
                 repository_key_srv="keyserver.ubuntu.com"
                 pinning_package="*"
-                pinning_pin="release o=MariaDB,n=jessie"
+                pinning_pin="release o=MariaDB,n=xenial"
                 pinning_pin_priority="1001"
         >
             <package>libmariadbclient18</package>
+            <package>libmysqlclient18</package>
             <package>mariadb-client-10.2</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.2</package>
-            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
@@ -116,18 +92,19 @@
         <mariadb_10.3
                 description="MariaDB 10.3 server"
                 class="Servers::sqld::mariadb"
-                repository="http://mirror.netcologne.de/mariadb/repo/10.3/debian jessie main"
-                repository_key_id="1BB943DB"
+                repository="http://mirror.netcologne.de/mariadb/repo/10.3/ubuntu xenial main"
+                repository_key_id="C74CD1D8"
                 repository_key_srv="keyserver.ubuntu.com"
                 pinning_package="*"
-                pinning_pin="release o=MariaDB,n=jessie"
+                pinning_pin="release o=MariaDB,n=xenial"
                 pinning_pin_priority="1001"
         >
             <package>libmariadbclient18</package>
+            <package>libmysqlclient18</package>
             <package>mariadb-client-10.3</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.3</package>
-            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
@@ -136,7 +113,7 @@
         <percona_5.5
                 description="Percona 5.5 server"
                 class="Servers::sqld::percona"
-                repository="http://repo.percona.com/apt jessie main"
+                repository="http://repo.percona.com/apt xenial main"
                 repository_key_id="8507EFA5"
                 repository_key_srv="keyserver.ubuntu.com"
                 pinning_package="*"
@@ -151,7 +128,7 @@
         <percona_5.6
                 description="Percona 5.6 server"
                 class="Servers::sqld::percona"
-                repository="http://repo.percona.com/apt jessie main"
+                repository="http://repo.percona.com/apt xenial main"
                 repository_key_id="8507EFA5"
                 repository_key_srv="keyserver.ubuntu.com"
                 pinning_package="*"
@@ -166,7 +143,7 @@
         <percona_5.7
                 description="Percona 5.7 server"
                 class="Servers::sqld::percona"
-                repository="http://repo.percona.com/apt jessie main"
+                repository="http://repo.percona.com/apt xenial main"
                 repository_key_id="8507EFA5"
                 repository_key_srv="keyserver.ubuntu.com"
                 pinning_package="*"
@@ -179,15 +156,15 @@
             <package>percona-server-server-5.7</package>
         </percona_5.7>
         <remote_server
-                description="Remote SQL server"
+                description="Remote MySQL server"
                 class="Servers::sqld::remote"
-                pinning_package="libmysqlclient18 mysql-client-5.5 mysql-common"
-                pinning_pin="release o=Debian,n=jessie"
+                pinning_package="libmysqlclient20 mysql-client-5.7 mysql-common"
+                pinning_pin="release o=Ubuntu,n=xenial"
                 pinning_pin_priority="1001"
         >
-            <package>mysql-client-5.5</package>
+            <package>mysql-client-5.7</package>
         </remote_server>
-        <package>libmysqlclient18</package>
+        <package>libmysqlclient20</package>
         <package>mysql-common</package>
     </sqld>
     <named description="DNS server" dialog_priority="10">
@@ -224,8 +201,13 @@
     </panel_php>
     <httpd
             description="Web server for the clients"
+            repository="http://ppa.launchpad.net/ondrej/apache2/ubuntu xenial main"
+            repository_key_id="E5267A6C"
+            repository_key_srv="keyserver.ubuntu.com"
+            pinning_package="*"
+            pinning_pin="release o=LP-PPA-ondrej-apache2"
+            pinning_pin_priority="1001"
             dialog_priority="7"
-            full_description="For performances and stability reasons, the FPM implementation is recommended."
     >
         <apache_fcgid description="Apache2 (MPM Event) server and PHP with CGI/FastCGI SAPI" class="Servers::httpd::apache_fcgid">
             <package>apache2-suexec-pristine</package>
@@ -246,10 +228,11 @@
     </httpd>
     <php
             description="PHP version for the clients"
-            repository="https://packages.sury.org/php/ jessie main"
-            repository_key_uri="https://packages.sury.org/php/apt.gpg"
+            repository="http://ppa.launchpad.net/ondrej/php/ubuntu xenial main"
+            repository_key_id="E5267A6C"
+            repository_key_srv="keyserver.ubuntu.com"
             pinning_package="*"
-            pinning_pin="origin packages.sury.org"
+            pinning_pin="release o=LP-PPA-ondrej-php"
             pinning_pin_priority="1001"
             dialog_priority="6"
     >
@@ -257,10 +240,12 @@
         <php7.0 description="PHP 7.0" class="Servers::php"/>
         <php7.1 description="PHP 7.1" class="Servers::php"/>
         <php7.2 description="PHP 7.2" class="Servers::php"/>
+        <php7.3 description="PHP 7.3" class="Servers::php"/>
         <package>libapache2-mod-php5.6</package>
         <package>libapache2-mod-php7.0</package>
         <package>libapache2-mod-php7.1</package>
         <package>libapache2-mod-php7.2</package>
+        <package>libapache2-mod-php7.3</package>
         <package>php5.6</package>
         <package>php5.6-cgi</package>
         <package>php5.6-cli</package>
@@ -332,6 +317,23 @@
         <package>php7.2-pspell</package>
         <package>php7.2-xml</package>
         <package>php7.2-zip</package>
+        <package>php7.3</package>
+        <package>php7.3-cli</package>
+        <package>php7.3-cgi</package>
+        <package>php7.3-fpm</package>
+        <package>php7.3-common</package>
+        <package>php7.3-curl</package>
+        <package>php7.3-gd</package>
+        <package>php7.3-gmp</package>
+        <package>php7.3-imap</package>
+        <package>php7.3-intl</package>
+        <package>php7.3-json</package>
+        <package>php7.3-mbstring</package>
+        <package>php7.3-mysql</package>
+        <package>php7.3-opcache</package>
+        <package>php7.3-pspell</package>
+        <package>php7.3-xml</package>
+        <package>php7.3-zip</package>
         <package>php-apcu</package>
         <package>php-apcu-bc</package>
         <package>php-pear</package>
@@ -347,8 +349,8 @@
             <package_conflict>vsftpd</package_conflict>
         </proftpd>
         <vsftpd description="VsFTPD server" class="Servers::ftpd::vsftpd">
-            <package rebuild_with_patches="libpam-mysql/patches" patch_sys_type="dpatch" pkg_src_name="pam-mysql">libpam-mysql</package>
-            <package>vsftpd</package>
+            <package rebuild="1" package_src="pam-mysql" patches_dir="libpam-mysql/patches/dpatch" patches_manager="dpatch">libpam-mysql</package>
+            <package rebuild="1" patches_dir="vsftpd/patches/quilt" discard_patches="imscp_allow_writeable_root.patch">vsftpd</package>
             <package_conflict>proftpd-basic</package_conflict>
         </vsftpd>
     </ftpd>
@@ -394,7 +396,6 @@
         <package>libdatetime-perl</package>
         <package>libdbd-mysql-perl</package>
         <package>libdbi-perl</package>
-        <package>libdigest-md5-perl</package>
         <package>libemail-valid-perl</package>
         <package>libfile-copy-recursive-perl</package>
         <package>libfile-homedir-perl</package>

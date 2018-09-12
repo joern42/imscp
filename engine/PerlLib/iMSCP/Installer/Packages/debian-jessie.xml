@@ -16,7 +16,7 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  
- i-MSCP Installer distribution packages file for Devuan Jessie (1.x)
+ i-MSCP Installer distribution packages file for Debian Jessie (8.x)
 -->
 <packages>
     <sqld description="SQL server" dialog_priority="11">
@@ -25,7 +25,7 @@
                 description="MySQL 5.5 server"
                 class="Servers::sqld::mysql"
                 pinning_package="libmysqlclient18 mysql-client-5.5 mysql-common mysql-server-5.5"
-                pinning_pin="release o=Devuan,n=jessie"
+                pinning_pin="release o=Debian,n=jessie"
                 pinning_pin_priority="1001"
         >
             <package>mysql-client-5.5</package>
@@ -62,7 +62,7 @@
                 description="MariaDB 10.0 server"
                 class="Servers::sqld::mariadb"
                 pinning_package="libmysqlclient18 mariadb-client-10.0 mariadb-common mariadb-server-10.0 mysql-common"
-                pinning_pin="release o=Devuan,n=jessie"
+                pinning_pin="release o=Debian,n=jessie"
                 pinning_pin_priority="1001"
         >
             <package>mariadb-client-10.0</package>
@@ -87,7 +87,7 @@
             <package>mariadb-client-10.1</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.1</package>
-            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
@@ -107,7 +107,7 @@
             <package>mariadb-client-10.2</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.2</package>
-            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
@@ -127,7 +127,7 @@
             <package>mariadb-client-10.3</package>
             <package>mariadb-common</package>
             <package>mariadb-server-10.3</package>
-            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d</pre_install_task>
+            <pre_install_task>/bin/mkdir -p /etc/mysql/mariadb.conf.d/</pre_install_task>
             <pre_install_task>
                 /usr/bin/printf "[mysqld]\nplugin-load-add = auth_socket.so\n" > /etc/mysql/mariadb.conf.d/50-unix-auth.cnf
             </pre_install_task>
@@ -182,7 +182,7 @@
                 description="Remote SQL server"
                 class="Servers::sqld::remote"
                 pinning_package="libmysqlclient18 mysql-client-5.5 mysql-common"
-                pinning_pin="release o=Devuan,n=jessie"
+                pinning_pin="release o=Debian,n=jessie"
                 pinning_pin_priority="1001"
         >
             <package>mysql-client-5.5</package>
@@ -222,7 +222,11 @@
             <post_install_task>update-alternatives --set phar.phar /usr/bin/phar.phar7.1</post_install_task>
         </php7.1>
     </panel_php>
-    <httpd description="Web server for the clients" dialog_priority="7">
+    <httpd
+            description="Web server for the clients"
+            dialog_priority="7"
+            full_description="For performances and stability reasons, the FPM implementation is recommended."
+    >
         <apache_fcgid description="Apache2 (MPM Event) server and PHP with CGI/FastCGI SAPI" class="Servers::httpd::apache_fcgid">
             <package>apache2-suexec-pristine</package>
             <package>libapache2-mod-fcgid</package>
@@ -253,10 +257,12 @@
         <php7.0 description="PHP 7.0" class="Servers::php"/>
         <php7.1 description="PHP 7.1" class="Servers::php"/>
         <php7.2 description="PHP 7.2" class="Servers::php"/>
+        <php7.3 description="PHP 7.3" class="Servers::php"/>
         <package>libapache2-mod-php5.6</package>
         <package>libapache2-mod-php7.0</package>
         <package>libapache2-mod-php7.1</package>
         <package>libapache2-mod-php7.2</package>
+        <package>libapache2-mod-php7.3</package>
         <package>php5.6</package>
         <package>php5.6-cgi</package>
         <package>php5.6-cli</package>
@@ -328,6 +334,23 @@
         <package>php7.2-pspell</package>
         <package>php7.2-xml</package>
         <package>php7.2-zip</package>
+        <package>php7.3</package>
+        <package>php7.3-cli</package>
+        <package>php7.3-cgi</package>
+        <package>php7.3-fpm</package>
+        <package>php7.3-common</package>
+        <package>php7.3-curl</package>
+        <package>php7.3-gd</package>
+        <package>php7.3-gmp</package>
+        <package>php7.3-imap</package>
+        <package>php7.3-intl</package>
+        <package>php7.3-json</package>
+        <package>php7.3-mbstring</package>
+        <package>php7.3-mysql</package>
+        <package>php7.3-opcache</package>
+        <package>php7.3-pspell</package>
+        <package>php7.3-xml</package>
+        <package>php7.3-zip</package>
         <package>php-apcu</package>
         <package>php-apcu-bc</package>
         <package>php-pear</package>
@@ -343,7 +366,7 @@
             <package_conflict>vsftpd</package_conflict>
         </proftpd>
         <vsftpd description="VsFTPD server" class="Servers::ftpd::vsftpd">
-            <package rebuild_with_patches="libpam-mysql/patches" patch_sys_type="dpatch" pkg_src_name="pam-mysql">libpam-mysql</package>
+            <package rebuild="1" package_src="pam-mysql" patches_dir="libpam-mysql/patches" patch_manager="dpatch">libpam-mysql</package>
             <package>vsftpd</package>
             <package_conflict>proftpd-basic</package_conflict>
         </vsftpd>
