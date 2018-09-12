@@ -27,16 +27,20 @@ use strict;
 use warnings;
 use File::Temp;
 use iMSCP::Boolean;
+use iMSCP::Cwd '$CWD';
 use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::Dialog;
-use iMSCP::Execute 'execute';
+use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
 use iMSCP::Getopt;
+use iMSCP::LsbRelease;
+use iMSCP::Stepper qw/ startDetail step endDetail /;
 use version;
 use parent qw/ Common::Object iMSCP::DistPackageManager::Interface /;
 
 my $APT_SOURCES_LIST_FILE_PATH = '/etc/apt/sources.list';
 my $APT_PREFERENCES_FILE_PATH = '/etc/apt/preferences.d/imscp';
+my $PBUILDER_DIR = '/var/cache/pbuilder';
 
 =head1 DESCRIPTION
 
@@ -64,7 +68,7 @@ sub addRepositories
     my ( $self, $repositories, $delayed ) = @_;
 
     ref $repositories eq 'ARRAY' or die( 'Invalid $repositories parameter. Array expected' );
-    
+
     if ( $delayed ) {
         push @{ $self->{'repositoriesToAdd'} }, @{ $repositories };
         return $self;
@@ -200,10 +204,7 @@ sub installPackages
     local $ENV{'LANG'} = 'C';
 
     my @cmd = (
-        ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ),
-        'apt-get', '--assume-yes', '--option', 'DPkg::Options::=--force-confnew', '--option',
-        'DPkg::Options::=--force-confmiss', '--option', 'Dpkg::Options::=--force-overwrite',
-        '--auto-remove', '--purge', '--no-install-recommends',
+        ( !iMSCP::Getopt->noprompt ? ( 'debconf-apt-progress', '--logstderr', '--' ) : () ), 'apt-get', '--assume-yes', '--auto-remove', '--purge',
         ( version->parse( `apt-get --version 2>/dev/null` =~ /^apt\s+(\d\.\d)/ ) < version->parse( '1.1' ) ? '--force-yes' : '--allow-downgrades' ),
         'install'
     );
@@ -320,12 +321,12 @@ sub addAptPreferences
     my ( $self, $preferences, $delayed ) = @_;
 
     ref $preferences eq 'ARRAY' or die( 'Invalid $preferences parameter. Array expected' );
-    
+
     if ( $delayed ) {
         push @{ $self->{'aptPreferencesToAdd'} }, @{ $preferences };
         return $self;
     }
-    
+
     $self->{'eventManager'}->trigger( 'beforeAddDistributionAptPreferences', $preferences ) == 0 or die(
         getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
     );
@@ -379,7 +380,7 @@ sub removeAptPreferences
     my ( $self, $preferences, $delayed ) = @_;
 
     ref $preferences eq 'ARRAY' or die( 'Invalid $preferences parameter. Array expected' );
-    
+
     if ( $delayed ) {
         push @{ $self->{'aptPreferencesToRemove'} }, @{ $preferences };
         return $self;
@@ -424,7 +425,7 @@ EOF
 sub processDelayedTasks
 {
     my ( $self ) = @_;
-    
+
     if ( @{ $self->{'repositoriesToRemove'} } || @{ $self->{'repositoriesToAdd'} } ) {
         $self
             ->removeRepositories( delete $self->{'repositoriesToRemove'} )
@@ -436,7 +437,279 @@ sub processDelayedTasks
         ->removeAptPreferences( delete $self->{'aptPreferencesToAdd'} )
         ->addAptPreferences( delete $self->{'aptPreferencesToAdd'} )
         ->installPackages( delete $self->{'packagesToInstall'} )
+        ->rebuildAndInstallPackages( delete $self->{'packagesToRebuildAndInstall'} )
         ->uninstallPackages( delete $self->{'packagesToUninstall'} );
+    $self;
+}
+
+=item addRepositorySections( sections )
+
+ Add the given sections to all repositories that support them
+
+ Param arrayref $sections Repository sections
+ Return iMSCP::DistPackageManager::Interface, die on failure
+
+=cut
+
+sub addRepositorySections
+{
+    my ( $self, $sections ) = @_;
+
+    local $ENV{'LANG'} = 'C';
+
+    my $file = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH );
+    defined( my $fileC = $file->get()) or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error ' );
+
+    for my $section ( @{ $sections } ) {
+        my @seenRepositories = ();
+        my $foundSection = FALSE;
+
+        while ( $fileC =~ /^deb\s+(?<uri>(?:https?|ftp)[^\s]+)\s+(?<dist>[^\s]+)\s+(?<components>.+)$/gm ) {
+            my $rf = $&;
+            my %rc = %+;
+            next if grep ($_ eq "$rc{'uri'} $rc{'dist'}", @seenRepositories);
+            push @seenRepositories, "$rc{'uri'} $rc{'dist'}";
+
+            if ( $fileC !~ /^deb\s+$rc{'uri'}\s+$rc{'dist'}\s+.*\b$section\b/m ) {
+                my $rs = execute(
+                    [ 'wget', '--prefer-family=IPv4', '--timeout=30', '--spider', "$rc{'uri'}/dists/$rc{'dist'}/$section/" =~ s{([^:])//}{$1/}gr ],
+                    \my $stdout,
+                    \my $stderr
+                );
+                debug( $stdout ) if $stdout;
+                debug( $stderr || 'Unknown error' ) if $rs && $rs != 8;
+                next if $rs; # Don't check for source archive when binary archive has not been found
+                $foundSection = TRUE;
+                $fileC =~ s/^($rf)$/$1 $section/m;
+                $rf .= " $section";
+            } else {
+                $foundSection = TRUE;
+            }
+
+            if ( $foundSection && $fileC !~ /^deb-src\s+$rc{'uri'}\s+$rc{'dist'}\s+.*\b$section\b/m ) {
+                my $rs = execute(
+                    [ 'wget', '--prefer-family=IPv4', '--timeout=30', '--spider', "$rc{'uri'}/dists/$rc{'dist'}/$section/source/" =~ s{([^:])//}{$1/}gr ],
+                    \my $stdout,
+                    \my $stderr
+                );
+                debug( $stdout ) if $stdout;
+                debug( $stderr || 'Unknown error' ) if $rs && $rs != 8;
+
+                unless ( $rs ) {
+                    if ( $fileC !~ /^deb-src\s+$rc{'uri'}\s+$rc{'dist'}\s.*/m ) {
+                        $fileC =~ s/^($rf)/$1\ndeb-src $rc{'uri'} $rc{'dist'} $section/m;
+                    } else {
+                        $fileC =~ s/^($&)$/$1 $section/m;
+                    }
+                }
+            }
+        }
+
+        $foundSection or die( sprintf( "Couldn't find any repository supporting the '%s' section", $section ));
+    }
+
+    $file->set( $fileC );
+    $file->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error ' );
+    $self;
+}
+
+=item rebuildAndInstallPackages( \@packages, $pbuilderConffile = "$CWD/config/$distID/pbuilder/pbuilderrc [, $delayed = FALSE ] ] )
+
+ Rebuild and install the given package
+ 
+ Param hashref \@packages List of package to rebuild and install, each represented as a hash with the following key/value pairs:
+  package         : Package name
+  package_src     : Package source name
+  patches_manager : Patches manager (either dpatch or quilt, default to quilt)
+  patches_dir     : OPTIONAL Path to directory containing patches (relative to $CWD)
+  discard_patches : OPTIONAL list of patches to discard
+ Param string $pbuilderConffile Pbuilder configuration file path
+ Param boolean $delayed Flag allowing to delay processing till the next call of the processDelayedTasks() method
+ Return iMSCP::DistPackageManager::Interface, die on failure
+
+=cut
+
+sub rebuildAndInstallPackages
+{
+    my ( $self, $packages, $pbuilderConffile, $delayed ) = @_;
+
+    ref $packages eq 'ARRAY' or die( 'Invalid $packages parameter. ARRAY expected' );
+
+    if ( $delayed ) {
+        push @{ $self->{'packagesToRebuildAndInstall'} }, @{ $packages };
+        return $self;
+    }
+
+    local $ENV{'LANG'} = 'C';
+    CORE::state $needPbuilderUpdate = TRUE;
+
+    my $lsbRelease = iMSCP::LsbRelease->getInstance();
+    my $distCodename = lc $lsbRelease->getCodename( TRUE );
+    my $distID = lc $lsbRelease->getId( 1 );
+    undef $lsbRelease;
+
+    defined $pbuilderConffile && ref \$pbuilderConffile eq 'SCALAR' or die( 'Missing or invalid $pbuilderConffile parameter. SCALAR expected.' );
+
+    my $pbuilderBuildResultDir = File::Temp->newdir( CLEANUP => FALSE );
+
+    for my $package ( @{ $packages } ) {
+        defined $package->{'package'} && ref \$package->{'package'} eq 'SCALAR' or die( "Missing or invalid 'package' key." );
+        $package->{'package_src'} //= $package->{'package'};
+        ref \$package->{'package_src'} eq 'SCALAR' or die( "Invalid 'package_src' key." );
+
+        if ( defined $package->{'patches_dir'} ) {
+            ref \$package->{'patches_dir'} eq 'SCALAR' && -d $package->{'patches_dir'} or die( "Invalid 'patches_dir' key." );
+            $package->{'patches_dir'} = "$CWD/$package->{'patches_dir'}";
+
+            $package->{'patches_manager'} //= 'quilt';
+            ref \$package->{'patches_manager'} eq 'SCALAR' && grep ( $package->{'patches_manager'} eq $_, 'quilt', 'dpatch') or die(
+                "Invalid 'patches_manager' key."
+            );
+            $package->{'discard_patches'} //= [];
+            ref $package->{'discard_patches'} eq 'ARRAY' or die( "Invalid 'discard_patches' key." );
+        }
+
+        my $srcDownloadDir = File::Temp->newdir( CLEANUP => TRUE );
+
+        # Fix 'W: Download is performed unsandboxed as root as file...' warning with newest APT versions
+        if ( ( undef, undef, my $uid ) = getpwnam( '_apt' ) ) {
+            chown $uid, -1, $srcDownloadDir or die( sprintf( "Couldn't change ownership for the %s directory: %s", $srcDownloadDir, $! ));
+        }
+
+        # chdir() into download directory
+        local $CWD = $srcDownloadDir;
+
+        # Avoid pbuilder warning due to missing /root/.pbuilderrc file
+        iMSCP::File->new( filename => '/root/.pbuilderrc' )->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+
+        startDetail();
+
+        my $rs = step(
+            sub {
+                return 0 unless $needPbuilderUpdate;
+                $needPbuilderUpdate = FALSE;
+                my $msgHeader = "Creating/Updating pbuilder environment\n\n - ";
+                my $msgFooter = "\n\nPlease be patient. This may take few minutes...";
+                my $stderr = '';
+                my $cmd = [
+                    'pbuilder', ( -f "$PBUILDER_DIR/base.tgz" ? ( '--update', '--autocleanaptcache' ) : '--create' ),
+                    '--distribution', $distCodename, '--configfile', $pbuilderConffile, '--override-config'
+                ];
+                executeNoWait(
+                    $cmd,
+                    ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : sub {
+                        return unless ( shift ) =~ /^i:\s*(.*)/i;
+                        step( undef, $msgHeader . ucfirst( $1 ) . $msgFooter, 5, 1 );
+                    } ),
+                    sub { $stderr .= shift; }
+                ) == 0 or die( "Couldn't create/update pbuilder environment: @{ [ $stderr || 'Unknown error' ] }" );
+                0;
+            },
+            'Creating/Updating pbuilder environment', 5, 1
+        );
+        $rs ||= step(
+            sub {
+                my $msgHeader = "Downloading $package->{'package_src'}, $distID source package\n\n - ";
+                my $msgFooter = "\nDepending on your system this may take few seconds...";
+                my $stderr = '';
+                executeNoWait(
+                    [ 'apt-get', '-y', 'source', $package->{'package_src'} ],
+                    ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : sub {
+                        step( undef, $msgHeader . ( ( shift ) =~ s/^\s*//r ) . $msgFooter, 5, 2 ); }
+                    ),
+                    sub { $stderr .= shift }
+                ) == 0 or die( "Couldn't download packageSrc Debian source package: @{ [ $stderr || 'Unknown error' ] }" );
+                0;
+            },
+            "Downloading $package->{'package_src'} $distID source package", 5, 2
+        );
+        $rs ||= step(
+            sub {
+                # chdir() into package source directory
+                local $CWD = glob( "$package->{'package_src'}-*" );
+
+                if ( defined $package->{'patches_dir'} ) {
+                    my $serieFile = iMSCP::File->new(
+                        filename => "debian/patches/@{ [ $package->{'patches_manager'} eq 'quilt' ? 'series' : '00list' ] } "
+                    );
+                    my $serieFileContent = $serieFile->get();
+                    defined $serieFileContent or die( sprintf( "Couldn't read %s", $serieFile->{'filename'} ));
+                    for my $patch ( sort { $a cmp $b } iMSCP::Dir->new( dirname => $package->{'patches_dir'} )->getFiles() ) {
+                        next if grep ($_ eq $patch, @{ $package->{'discard_patches' } });
+                        $serieFileContent .= "$patch\n";
+                        iMSCP::File->new(
+                            filename => "$package->{'patches_dir'}/$patch" )->copyFile( "debian/patches/$patch", { preserve => 'no' }
+                        ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+                    }
+                    $serieFile->set( $serieFileContent );
+                    $serieFile->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+                }
+
+                my $stderr;
+                execute(
+                    [ 'dch', '--local', '~i-mscp-', 'Rebuilt by i-MSCP internet Multi Server Control panel.' ],
+                    ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : \my $stdout ),
+                    \$stderr
+                ) == 0 or die( sprintf( "Couldn't add 'imscp' local suffix: %s", $stderr || 'Unknown error' ));
+                debug( $stdout ) if $stdout;
+                0;
+            },
+            "Patching $package->{'package_src'} $distID source package...", 5, 3
+        );
+        $rs ||= step(
+            sub {
+                # chdir() into package source directory
+                local $CWD = glob( "$package->{'package_src'}-*" );
+
+                my $msgHeader = "Building new $package->{'package'} $distID package\n\n - ";
+                my $msgFooter = "\n\nPlease be patient. This may take few seconds...";
+                my $stderr;
+                executeNoWait(
+                    [ 'pdebuild', '--use-pdebuild-internal', '--buildresult', $pbuilderBuildResultDir, '--configfile', $pbuilderConffile ],
+                    ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : sub {
+                        return unless ( shift ) =~ /^i:\s*(.*)/i;
+                        step( undef, $msgHeader . ucfirst( $1 ) . $msgFooter, 5, 4 );
+                    } ),
+                    sub { $stderr .= shift }
+                ) == 0 or die( "Couldn't build local $package->{'package'} $distID package: @{ [ $stderr || 'Unknown error' ] }" );
+                0;
+            },
+            "Building local $package->{'package'} $distID package", 5, 4
+        );
+
+        unless($rs == 0) {
+            endDetail();
+            die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
+        }
+    }
+
+    my @packages = map { $_->{'package'} } @{ $packages };
+    my $rs = step(
+        sub {
+            local $CWD = $pbuilderBuildResultDir;
+            # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
+            execute( [ 'apt-mark', 'unhold', @packages ], \my $stdout, \my $stderr );
+            debug( $stderr ) if $stderr;
+            my $msgHeader = "Installing local @packages $distID package(s)\n\n";
+            $stderr = '';
+            executeNoWait(
+                "gdebi --non-interactive @{ [ map { $_ . '_*.deb' } @packages ] }",
+                ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : sub { step( undef, $msgHeader . ( shift ), 5, 5 ) } ),
+                sub { $stderr .= shift }
+            ) == 0 or die( "Couldn't install local @packages $distID package(s): @{ [ $stderr || 'Unknown error' ] }" );
+            # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
+            execute( [ 'apt-mark', 'hold', @packages ], \$stdout, \$stderr );
+            0;
+        },
+        "Installing local @packages $distID package(s)", 5, 5
+    );
+    unless($rs == 0) {
+        endDetail();
+        die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
+    }
+    
+    endDetail();
+    
     $self;
 }
 
@@ -458,7 +731,16 @@ sub _init
 {
     my ( $self ) = @_;
 
-    @{ $self }{qw/ repositoriesToAdd repositoriesToRemove packagesToInstall packagesToUninstall /} = ( [], [], [], [] );
+    delete $ENV{'DEBCONF_FORCE_DIALOG'};
+
+    $ENV{'DEBIAN_FRONTEND'} = iMSCP::Getopt->noprompt ? 'noninteractive' : 'dialog';
+    #$ENV{'DEBIAN_SCRIPT_DEBUG'} = TRUE if iMSCP::Getopt->debug;
+    $ENV{'DEBFULLNAME'} = 'i-MSCP Installer';
+    $ENV{'DEBEMAIL'} = 'dev@i-mscp.net';
+
+    @{ $self }{qw/ repositoriesToAdd repositoriesToRemove packagesToInstall packagesToUninstall packagesToRebuildAndInstall /} = (
+        [], [], [], [], []
+    );
     $self;
 }
 
