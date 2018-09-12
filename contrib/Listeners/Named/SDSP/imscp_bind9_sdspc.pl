@@ -36,7 +36,7 @@
 # 2. Edit the /etc/imscp/listener.d/10_bind9_sdsps.pl listener file and fill the configuration
 #    variables
 # 3. Trigger an i-MSCP reconfiguration to activate the service:
-#    # perl /var/www/imscp/engine/bin/imscp-reconfigure -dsnv 
+#    # perl /var/www/imscp/engine/bin/imscp-installer -dsnv 
 #
 # Slave DNS server side (Slave DNS server provisioning client (SDSPC))
 #

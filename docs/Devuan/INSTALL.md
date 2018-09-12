@@ -37,7 +37,7 @@ cd imscp-<version>
 ### 5. Install i-MSCP by running its installer
 
 ```
-perl imscp-autoinstall -d
+perl engine/bin/imscp-installer -d
 ```
 
 ## Upgrade
@@ -85,5 +85,5 @@ cd imscp-<version>
 ### 6. Update i-MSCP by running its installer
 
 ```
-perl imscp-autoinstall -d
+perl engine/bin/imscp-installer -d
 ```
