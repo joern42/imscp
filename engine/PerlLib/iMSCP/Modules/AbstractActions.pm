@@ -31,9 +31,10 @@ use warnings;
  i-MSCP module actions.
  
  This class is meant to be subclassed by i-MSCP server and package classes. It
- provide default (dummy) implementation (null for actions that are called on
- i-MSCP server and package classes by the i-MSCP modules.The server and package
- classes MUST override these methods to provide concret implementations when applyable.
+ provide default (dummy) implementation for actions that are called on i-MSCP
+ server and package classes by the i-MSCP modules. The server and package
+ classes MUST override these methods to provide concret implementations when
+ applyable.
 
 =head1 PUBLIC METHODS
 
