@@ -25,6 +25,7 @@ package iMSCP::Package::Installer::PostfixAddon;
 
 use strict;
 use warnings;
+use iMSCP::Cwd '$CWD';
 use parent 'iMSCP::Package::AbstractCollection';
 
 =head1 DESCRIPTION
@@ -144,7 +145,7 @@ sub _askForPackages
         ( my $rs, $self->{'SELECTED_PACKAGES'} ) = $dialog->checklist(
             <<"EOF", \%choices, [ grep { exists $choices{$_} && $_ ne 'none' } @{ $self->{'SELECTED_PACKAGES'} } ] );
 
-Please select the $packageType packages you want to install:
+Please select the Postfix addon packages you want to install:
 
 You shouldn't select one of the PolicydWeight, Postgrey or SPF package if you select the Rspamd package.
 Instead you should select the counterpart Rspamd modules which are: RBL, Greylisting and SPF.
@@ -162,7 +163,7 @@ EOF
         return $rs if $rs;
     }
 
-    $dialog->executeDialogs( $dialogs )
+    $dialog->executeDialogs( $dialogs );
 }
 
 =item _loadAvailablePackages()
@@ -177,9 +178,8 @@ sub _loadAvailablePackages
 {
     my ( $self ) = @_;
 
-    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new(
-        dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Package/Installer/" . $self->getType()
-    )->getFiles();
+    local $CWD = $::imscpConfig{'PACKAGES_DIR'} . '/Installer/' . $self->getType();
+    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = <*.pm>;
 }
 
 =back

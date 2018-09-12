@@ -1,0 +1,25 @@
+BACKUP_ROOT_DIR = /var/www/imscp/engine/backup
+
+# Tells whether the i-MSCP database and all /etc/imscp/* files should be daily saved
+# Possible value: yes|no
+BACKUP_IMSCP =
+
+# Tells whether or not backup feature is available for customer's accounts.
+# If yes, client's data are daily according their hosting plan setup.
+# Possible value: yes|no
+BACKUP_CLIENTS =
+
+# Algorithm for backups compression. Choose 'no' if you do not
+# want any compression.
+#
+# Possible values: 'none' for no compression, gzip, pigz, bzip2, pbzip2, lzma, or xz
+# Note: When using a vserver, it is not recommended to use pbzip2 or pigz
+BACKUP_COMPRESS_ALGORITHM = bzip2
+
+# Backup compression level
+# Accepted values: 1 to 9
+# Note: Only relevant if BACKUP_COMPRESS_ALGORITHM is not set to 'no'
+BACKUP_COMPRESS_LEVEL = 1
+
+BACKUP_CLIENTS_HOUR = 23
+BACKUP_CLIENTS_MINUTE = 40

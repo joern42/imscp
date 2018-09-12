@@ -1,4 +1,4 @@
-package iMSCP::Package::Quota;
+package iMSCP::Package::Installer::Quota;
 
 use strict;
 use warnings;

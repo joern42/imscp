@@ -29,12 +29,12 @@ use DateTime::TimeZone;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList isValidIpAddr isValidHostname isValidIpAddr isValidTimezone /;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
 use Net::LibIDN qw/ idn_to_ascii idn_to_unicode /;
-use LWP::Simple qw/ get /;
+use LWP::Simple 'get';
 use parent 'iMSCP::Package::Abstract';
 
 =head1 DESCRIPTION
@@ -73,7 +73,7 @@ sub getPriority
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -98,7 +98,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -218,7 +218,7 @@ sub _askForServerPrimaryIP
         : grep ( isValidIpAddr( $_, qr/(?:PRIVATE|PUBLIC)/ ), iMSCP::Net->getInstance()->getAddresses() ),
         'None'
     );
-    @ipList = sort @ipList or die( "Couldn't get list of server IP addresses. At least one IP address must be configured." );
+    #@ipList = sort @ipList or die( "Couldn't get list of server IP addresses. At least one IP address must be configured." );
 
     my $lanIP = ::setupGetQuestion( 'BASE_SERVER_IP', iMSCP::Getopt->preseed ? 'None' : '' );
     $lanIP = 'None' if $lanIP eq '0.0.0.0';

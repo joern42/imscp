@@ -33,13 +33,13 @@ use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isValidUsername isStringNotInList isValidPassword isAvailableSqlUser /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Package::Installer::FrontEnd;
+use iMSCP::Rights 'setRights';
 use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
 use JSON;
-use Installer::FrontEnd;
 use Servers::sqld;
 use version;
 use parent 'iMSCP::Package::Abstract';
@@ -50,7 +50,7 @@ use parent 'iMSCP::Package::Abstract';
 
  Roundcube package for i-MSCP.
 
- RoundCube Webmail is a browser-based multilingual IMAP client with an
+ Roundcube Webmail is a browser-based multilingual IMAP client with an
  application-like user interface. It provides full functionality expected from
  an email client, including MIME support, address book, folder manipulation and
  message filters.
@@ -65,7 +65,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -79,7 +79,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -93,16 +93,15 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
 sub install
 {
     my ( $self ) = @_;
-
-    my $rs = $self->_backupConfigFile( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
-    $rs ||= $self->_installFiles();
+    
+    my $rs ||= $self->_installFiles();
     $rs ||= $self->_mergeConfig();
     $rs ||= $self->_setupDatabase();
     $rs ||= $self->_buildRoundcubeConfig();
@@ -114,7 +113,7 @@ sub install
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -132,7 +131,7 @@ sub uninstall
 
 =item setGuiPermissions( )
 
- See iMSCP::AbstractInstallerActions::setGuiPermissions()
+ See iMSCP::Installer::AbstractActions::setGuiPermissions()
 
 =cut
 
@@ -162,7 +161,7 @@ sub setGuiPermissions
 
 =item deleteMail( \%data )
 
- See iMSCP::AbstractInstallerActions::deleteMail()
+ See iMSCP::Installer::AbstractActions::deleteMail()
 
 =cut
 
@@ -233,9 +232,7 @@ sub _init
 
     $self->SUPER::_init();
     $self->{'frontend'} = iMSCP::Package::Installer::FrontEnd->getInstance();
-    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/roundcube";
-    $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
-    $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/packages/Roundcube";
 
     if ( -f "$self->{'cfgDir'}/roundcube.data" ) {
         tie %{ $self->{'config'} }, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/roundcube.data", readonly => TRUE;
@@ -276,7 +273,7 @@ sub _askForSqlUser
         do {
             ( my $rs, $dbUser ) = $dialog->inputbox( <<"EOF", $dbUser );
 $iMSCP::Dialog::InputValidation::lastValidationError
-Please enter a username for the RoundCube SQL user:
+Please enter a username for the Roundcube SQL user:
 \\Z \\Zn
 EOF
             return $rs unless $rs < 30;
@@ -287,7 +284,7 @@ EOF
             do {
                 ( my $rs, $dbPass ) = $dialog->inputbox( <<"EOF", $dbPass || randomStr( 16, ALNUM ));
 $iMSCP::Dialog::InputValidation::lastValidationError
-Please enter a password for the RoundCube SQL user:
+Please enter a password for the Roundcube SQL user:
 EOF
                 goto Q1 if $rs == 30;
                 return $rs if $rs == 50;
@@ -306,24 +303,6 @@ EOF
     ::setupSetQuestion( 'ROUNDCUBE_SQL_USER', $dbUser );
     ::setupSetQuestion( 'ROUNDCUBE_SQL_PASSWORD', $dbPass );
     0;
-}
-
-=item _backupConfigFile( $cfgFile )
-
- Backup the given configuration file
-
- Param string $cfgFile Path of file to backup
- Return int 0, other on failure
-
-=cut
-
-sub _backupConfigFile
-{
-    my ( $self, $cfgFile ) = @_;
-
-    return 0 unless -f $cfgFile && -d $self->{'bkpDir'};
-
-    iMSCP::File->new( filename => $cfgFile )->copyFile( $self->{'bkpDir'} . '/' . fileparse( $cfgFile ) . '.' . time, { preserve => 'no' } );
 }
 
 =item _installFiles( )
@@ -350,7 +329,6 @@ sub _installFiles
     iMSCP::Dir->new( dirname => $destDir )->remove();
     iMSCP::Dir->new( dirname => "$packageDir/iMSCP/config" )->rcopy( $self->{'cfgDir'}, { preserve => 'no' } );
     iMSCP::Dir->new( dirname => "$packageDir/src" )->rcopy( $destDir, { preserve => 'no' } );
-
 }
 
 =item _mergeConfig( )
@@ -465,21 +443,13 @@ sub _buildRoundcubeConfig
 {
     my ( $self ) = @_;
 
-    my $panelUName =
-        my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
-    my $dbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_roundcube';
-    my $dbHost = ::setupGetQuestion( 'DATABASE_HOST' );
-    my $dbPort = ::setupGetQuestion( 'DATABASE_PORT' );
-    ( my $dbUser = ::setupGetQuestion( 'ROUNDCUBE_SQL_USER' ) ) =~ s%(')%\\$1%g;
-    ( my $dbPass = ::setupGetQuestion( 'ROUNDCUBE_SQL_PASSWORD' ) ) =~ s%(')%\\$1%g;
-
     my $data = {
         BASE_SERVER_VHOST => ::setupGetQuestion( 'BASE_SERVER_VHOST' ),
-        DB_NAME           => $dbName,
-        DB_HOST           => $dbHost,
-        DB_PORT           => $dbPort,
-        DB_USER           => $dbUser,
-        DB_PASS           => $dbPass,
+        DB_NAME           => ::setupGetQuestion( 'DATABASE_NAME' ) . '_roundcube',
+        DB_HOST           => ::setupGetQuestion( 'DATABASE_HOST' ),
+        DB_PORT           => ::setupGetQuestion( 'DATABASE_PORT' ),
+        DB_USER           => ::setupGetQuestion( 'ROUNDCUBE_SQL_USER' ) =~ s%(')%\\$1%gr,
+        DB_PASS           => ::setupGetQuestion( 'ROUNDCUBE_SQL_PASSWORD' ) =~ s%(')%\\$1%gr,
         TMP_PATH          => "$::imscpConfig{'GUI_ROOT_DIR'}/data/tmp",
         DES_KEY           => randomStr( 24, ALNUM )
     };
@@ -494,12 +464,12 @@ sub _buildRoundcubeConfig
 
     processByRef( $data, \$cfgTpl );
 
-    my $file = iMSCP::File->new( filename => "$self->{'wrkDir'}/config.inc.php" );
+    my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
     $file->set( $cfgTpl );
     $rs = $file->save();
-    $rs ||= $file->owner( $panelUName, $panelGName );
+    $rs ||= $file->owner( $panelUserGroup, $panelUserGroup );
     $rs ||= $file->mode( 0640 );
-    $rs ||= $file->copyFile( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
 }
 
 =item _updateDatabase( )
@@ -529,7 +499,7 @@ sub _updateDatabase
     eval {
         # Ensure tha users.mail_host entries are set with expected hostname (default to 'localhost')
         my $hostname = 'localhost';
-        $self->{'eventManager'}->trigger( 'beforeUpdateRoundCubeMailHostEntries', \$hostname ) == 0 or die(
+        $self->{'eventManager'}->trigger( 'beforeUpdateRoundcubeMailHostEntries', \$hostname ) == 0 or die(
             getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
         );
 
@@ -579,27 +549,19 @@ sub _setVersion
 
  Build Httpd configuration
 
+ Return int 0 on success, other on failure
+
 =cut
 
 sub _buildHttpdConfig
 {
     my ( $self ) = @_;
 
-    if ( -f "$self->{'wrkDir'}/imscp_roundcube.conf" ) {
-        my $rs = iMSCP::File->new( filename => "$self->{'wrkDir'}/imscp_roundcube.conf" )->copyFile(
-            "$self->{'bkpDir'}/imscp_roundcube.conf." . time,, { preserve => 'no' }
-        );
-        return $rs if $rs;
-    }
-
     my $frontEnd = iMSCP::Package::Installer::FrontEnd->getInstance();
-    my $rs = $frontEnd->buildConfFile(
+    $frontEnd->buildConfFile(
         "$self->{'cfgDir'}/nginx/imscp_roundcube.conf",
         { WEB_DIR => $::imscpConfig{'GUI_ROOT_DIR'} },
-        { destination => "$self->{'wrkDir'}/imscp_roundcube.conf" }
-    );
-    $rs ||= iMSCP::File->new( filename => "$self->{'wrkDir'}/imscp_roundcube.conf" )->copyFile(
-        "$frontEnd->{'config'}->{'HTTPD_CONF_DIR'}/imscp_roundcube.conf", { preserve => 'no' }
+        { destination => "$frontEnd->{'config'}->{'HTTPD_CONF_DIR'}/imscp_roundcube.conf" }
     );
 }
 

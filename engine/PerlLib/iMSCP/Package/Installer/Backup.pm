@@ -40,7 +40,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -56,7 +56,7 @@ sub registerInstallerDialogs
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -64,21 +64,22 @@ sub install
 {
     my ( $self ) = @_;
 
+    my $binDir = "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Package/Installer/Backup/bin";
     my $cronServer = Servers::cron->factory();
 
     if ( ::setupGetQuestion( 'BACKUP_IMSCP' ) eq 'yes' ) {
         # Cron task for backup of i-MSCP configuration files and database
         my $rs = $cronServer->addTask( {
-            TASKID  => __PACKAGE__ . '::iMSCP::Backup',
+            TASKID  => __PACKAGE__ . ' - imscp-config-db-backup',
             MINUTE  => '@daily',
-            COMMAND => "$::imscpConfig{'BACKUP_ROOT_DIR'}/imscp.pl > $::imscpConfig{'LOG_DIR'}/imscp-backup-imscp.log 2>&1"
+            COMMAND => "$binDir/imscp.pl > $::imscpConfig{'LOG_DIR'}/imscp-backup.log 2>&1"
         } );
 
         # Cron task for deletion of i-MSCP backup files
         $rs ||= $cronServer->addTask( {
-            TASKID  => __PACKAGE__ . '::iMSCP::Cleanup',
+            TASKID  => __PACKAGE__ . ' - imscp-config-db-cleanup',
             MINUTE  => '@weekly',
-            COMMAND => "find $::imscpConfig{'BACKUP_FILE_DIR'} -type f -mtime +7 -exec rm -- {} \+"
+            COMMAND => "find $::imscpConfig{'ROOT_DIR'}/backups -type f -mtime +7 -exec rm -- {} \+"
         } );
         return $rs if $rs;
     }
@@ -86,18 +87,17 @@ sub install
     if ( ::setupGetQuestion( 'BACKUP_DOMAINS' ) eq 'yes' ) {
         # Cron task for backup of client data
         my $rs = $cronServer->addTask( {
-            TASKID  => __PACKAGE__ . '::Clients::Backup',
-            MINUTE  => length $::imscpConfig{'BACKUP_MINUTE'} ? $::imscpConfig{'BACKUP_MINUTE'} : 40,
-            HOUR    => length $::imscpConfig{'BACKUP_HOUR'} ? $::imscpConfig{'BACKUP_HOUR'} : 23,
-            COMMAND => "nice -n 10 ionice -c2 -n5 perl $::imscpConfig{'BACKUP_ROOT_DIR'}/clients.pl > "
-                . "$::imscpConfig{'LOG_DIR'}/imscp-backup-all.log 2>&1"
+            TASKID  => __PACKAGE__ . ' - clients-backup',
+            MINUTE  => $self->{'config'}->{'CLIENTS_BACKUP_HOUR'} || 40,
+            HOUR    => $self->{'config'}->{'CLIENTS_BACKUP_HOUR'} || 23,
+            COMMAND => "nice -n 10 ionice -c2 -n5 perl $binDir/clients.pl > $::imscpConfig{'LOG_DIR'}/imscp-client-backup.log 2>&1"
         } );
         return $rs if $rs;
     }
-    
+
     # Cron task for deletion of server backup files
     $cronServer->addTask( {
-        TASKID  => __PACKAGE__ . '::Servers::Cleanup',
+        TASKID  => __PACKAGE__ . ' - servers-backup',
         MINUTE  => '@weekly',
         COMMAND => "find $::imscpConfig{'CONF_DIR'}/*/backup -type f -mtime +7 -regextype sed -regex '.*/.*[0-9]\{10\}\$' -exec rm -- {} \+"
     } );
@@ -107,7 +107,7 @@ sub install
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -126,6 +126,29 @@ sub uninstall
 =head1 PRIVATE METHODS
 
 =over 4
+
+=item _init
+
+ See iMSCP::Package::Abstract::_init()
+
+=cut
+
+sub _init
+{
+    my ( $self ) = @_;
+    
+    $self->SUPER::_init();
+    
+    if( iMSCP::Getopt->context() eq 'installer' ) {
+        $self->{'config'} = $self->{'configAggreator'}->addProvider(
+            iMSCP::ConfigProvider::ImscpConfigFile->new(  )
+        );
+    }
+
+    $self->{'config'} = $self->{'configAggreator'}->getMergedConfig()->{ __PACKAGE__ };
+    
+    $self;
+}
 
 =item _askForCpBackup( $dialog )
 

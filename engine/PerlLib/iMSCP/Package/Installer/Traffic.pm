@@ -1,4 +1,4 @@
-package iMSCP::Package::Traffic;
+package iMSCP::Package::Installer::Traffic;
 
 use strict;
 use warnings;

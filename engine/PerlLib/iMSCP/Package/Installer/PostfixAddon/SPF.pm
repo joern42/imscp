@@ -47,7 +47,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
  
 =cut
 
@@ -61,7 +61,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -98,7 +98,7 @@ EOF
 
 =item postuninstall
 
- See iMSCP::AbstractUninstallerActions::postuninstall()
+ See iMSCP::Uninstaller::AbstractActions::postuninstall()
 
 =cut
 

@@ -35,13 +35,13 @@ use iMSCP::Dialog::InputValidation qw/
     isStringNotInList isOneOfStringsInList isValidUsername isValidPassword isValidEmail isValidDomain isNumber isNumberInRange isStringInList
 /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
 use iMSCP::OpenSSL;
 use iMSCP::ProgramFinder;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Rights 'setRights';
 use iMSCP::Service;
 use iMSCP::SystemGroup;
 use iMSCP::SystemUser;
@@ -84,7 +84,7 @@ sub getPriority
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -103,7 +103,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -118,7 +118,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -142,7 +142,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -170,7 +170,7 @@ sub postinstall
 
 =item dpkgPostInvokeTasks( )
 
- See iMSCP::AbstractInstallerActions::dpkgPostInvokeTasks()
+ See iMSCP::Installer::AbstractActions::dpkgPostInvokeTasks()
 
 =cut
 
@@ -214,7 +214,7 @@ sub dpkgPostInvokeTasks
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -231,7 +231,7 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- See iMSCP::AbstractInstallerActions::setEnginePermissions()
+ See iMSCP::Installer::AbstractActions::setEnginePermissions()
 
 =cut
 
@@ -313,7 +313,7 @@ sub setEnginePermissions
 
 =item setGuiPermissions( )
 
- See iMSCP::AbstractInstallerActions::setGuiPermissions()
+ See iMSCP::Installer::AbstractActions::setGuiPermissions()
 
 =cut
 
@@ -324,47 +324,46 @@ sub setGuiPermissions
     my $rs = $self->{'eventManager'}->trigger( 'beforeFrontendSetGuiPermissions' );
     return $rs if $rs;
 
-    my $panelUName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
-    my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
     $rs = setRights( $::imscpConfig{'GUI_ROOT_DIR'}, {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0550',
         filemode  => '0440',
         recursive => TRUE
     } );
     $rs ||= setRights( "$::imscpConfig{'GUI_ROOT_DIR'}/themes", {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0550',
         filemode  => '0440',
         recursive => TRUE
     } );
     $rs ||= setRights( "$::imscpConfig{'GUI_ROOT_DIR'}/data", {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0750',
         filemode  => '0640',
         recursive => TRUE
     } );
     $rs ||= setRights( "$::imscpConfig{'GUI_ROOT_DIR'}/data/persistent", {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0750',
         filemode  => '0640',
         recursive => TRUE
     } );
     $rs ||= setRights( "$::imscpConfig{'GUI_ROOT_DIR'}/i18n", {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0750',
         filemode  => '0640',
         recursive => TRUE
     } );
     $rs ||= setRights( $::imscpConfig{'PLUGINS_DIR'}, {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0750',
         filemode  => '0640',
         recursive => TRUE
@@ -756,7 +755,7 @@ sub _init
     $self->SUPER::_init();
 
     @{ $self }{qw/ start reload restart /} = ( FALSE, FALSE, FALSE );
-    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/frontend";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/packages/FrontEnd";
 
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/frontend.data.dist";
     tie %{ $self->{'config'} },
@@ -976,7 +975,7 @@ sub _askForControlPanelDomain
     $iMSCP::Dialog::InputValidation::lastValidationError = '';
 
     if ( isOneOfStringsInList( iMSCP::Getopt->reconfigure, [ 'cp', 'cp_hostname', 'hostname', 'all' ] ) || !isValidDomain( $domain ) ) {
-        $domain = ( split /\./, ::setupGetQuestion( 'SERVER_HOSTNAME' ), 2 )[1] unless length $domain;
+        $domain = 'panel.'.( split /\./, ::setupGetQuestion( 'SERVER_HOSTNAME' ), 2 )[1] unless length $domain;
         $domain = idn_to_unicode( $domain, 'utf-8' );
 
         do {
@@ -1404,8 +1403,6 @@ sub _addMasterWebUser
         my $rs = $self->{'eventManager'}->trigger( 'beforeFrontEndAddUser' );
         return $rs if $rs;
 
-        my $user = my $group = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
-
         my $rdbh = $self->{'dbh'}->getRawDb();
         local $rdbh->{'RaiseError'} = TRUE;
 
@@ -1419,24 +1416,26 @@ sub _addMasterWebUser
         my ( $oldUser, $uid, $gid ) = ( $row->{'admin_sys_uid'} && $row->{'admin_sys_uid'} ne '0' )
             ? ( getpwuid( $row->{'admin_sys_uid'} ) )[0, 2, 3] : ();
 
+        my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+
         $rs = iMSCP::SystemUser->new(
             username       => $oldUser,
             comment        => 'i-MSCP Control Panel Web User',
             home           => $::imscpConfig{'GUI_ROOT_DIR'},
             skipCreateHome => TRUE
-        )->addSystemUser( $user, $group );
+        )->addSystemUser( $panelUserGroup, $panelUserGroup );
         return $rs if $rs;
 
-        ( $uid, $gid ) = ( getpwnam( $user ) )[2, 3];
+        ( $uid, $gid ) = ( getpwnam( $panelUserGroup ) )[2, 3];
 
         $rdbh->do(
             "UPDATE admin SET admin_sys_name = ?, admin_sys_uid = ?, admin_sys_gname = ?, admin_sys_gid = ? WHERE admin_type = 'admin'",
-            undef, $user, $uid, $group, $gid
+            undef, $panelUserGroup, $uid, $panelUserGroup, $gid
         );
 
-        $rs = iMSCP::SystemUser->new( username => $user )->addToGroup( $::imscpConfig{'IMSCP_GROUP'} );
-        $rs = iMSCP::SystemUser->new( username => $user )->addToGroup( Servers::mta->factory()->{'config'}->{'MTA_MAILBOX_GID_NAME'} );
-        $rs ||= iMSCP::SystemUser->new( username => $self->{'config'}->{'HTTPD_USER'} )->addToGroup( $group );
+        $rs = iMSCP::SystemUser->new( username => $panelUserGroup )->addToGroup( $::imscpConfig{'IMSCP_GROUP'} );
+        $rs = iMSCP::SystemUser->new( username => $panelUserGroup )->addToGroup( Servers::mta->factory()->{'config'}->{'MTA_MAILBOX_GID_NAME'} );
+        $rs ||= iMSCP::SystemUser->new( username => $self->{'config'}->{'HTTPD_USER'} )->addToGroup( $panelUserGroup );
         $rs ||= $self->{'eventManager'}->trigger( 'afterFrontEndAddUser' );
     };
     if ( $@ ) {
@@ -1535,8 +1534,7 @@ sub _buildPhpConfig
     my $rs = $self->{'eventManager'}->trigger( 'beforeFrontEndBuildPhpConfig' );
     return $rs if $rs;
 
-    my $user = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
-    my $group = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
     $rs = $self->buildConfFile(
         "$self->{'cfgDir'}/php-fpm.conf",
@@ -1548,8 +1546,8 @@ sub _buildPhpConfig
             DISTRO_CA_BUNDLE          => $::imscpConfig{'DISTRO_CA_BUNDLE'},
             FRONTEND_FCGI_CHILDREN    => $self->{'config'}->{'FRONTEND_FCGI_CHILDREN'},
             FRONTEND_FCGI_MAX_REQUEST => $self->{'config'}->{'FRONTEND_FCGI_MAX_REQUEST'},
-            FRONTEND_GROUP            => $group,
-            FRONTEND_USER             => $user,
+            FRONTEND_GROUP            => $panelUserGroup,
+            FRONTEND_USER             => $panelUserGroup,
             HOME_DIR                  => $::imscpConfig{'GUI_ROOT_DIR'},
             MTA_VIRTUAL_MAIL_DIR      => Servers::mta->factory()->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'},
             PEAR_DIR                  => $self->{'config'}->{'PHP_PEAR_DIR'},

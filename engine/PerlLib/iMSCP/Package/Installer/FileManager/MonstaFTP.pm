@@ -27,13 +27,13 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::Composer;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::Dir;
 use iMSCP::File;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Package::Installer::FrontEnd;
+use iMSCP::Rights 'setRights';
 use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
 use JSON;
-use Installer::FrontEnd;
 use parent 'iMSCP::Package::Abstract';
 
 our $VERSION = '2.1.x';
@@ -52,7 +52,7 @@ our $VERSION = '2.1.x';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -66,7 +66,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -81,7 +81,7 @@ sub install
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -95,7 +95,7 @@ sub uninstall
 
 =item setGuiPermissions( )
 
- See iMSCP::AbstractInstallerActions::setGuiPermissions()
+ See iMSCP::Installer::AbstractActions::setGuiPermissions()
 
 =cut
 
@@ -103,11 +103,11 @@ sub setGuiPermissions
 {
     my ( $self ) = @_;
 
-    my $panelUName = my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
     setRights( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp", {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0550',
         filemode  => '0440',
         recursive => TRUE
@@ -206,8 +206,6 @@ sub _buildConfig
 {
     my ( $self ) = @_;
 
-    my $panelUName = my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
-
     # config.php file
 
     my $conffile = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp/settings/config.php";
@@ -226,10 +224,11 @@ sub _buildConfig
 
     $cfgTpl = process( $data, $cfgTpl );
 
+    my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
     my $file = iMSCP::File->new( filename => $conffile );
     $file->set( $cfgTpl );
     $rs = $file->save();
-    $rs ||= $file->owner( $panelUName, $panelGName );
+    $rs ||= $file->owner( $panelUserGroup, $panelUserGroup );
     $rs ||= $file->mode( 0440 );
     return $rs if $rs;
 
@@ -262,7 +261,7 @@ sub _buildConfig
     $file = iMSCP::File->new( filename => $conffile );
     $file->set( $cfgTpl || JSON->new()->utf8( 1 )->pretty( 1 )->encode( $data ));
     $rs = $file->save();
-    $rs ||= $file->owner( $panelUName, $panelGName );
+    $rs ||= $file->owner( $panelUserGroup, $panelUserGroup );
     $rs ||= $file->mode( 0440 );
 }
 

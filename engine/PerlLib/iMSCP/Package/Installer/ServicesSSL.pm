@@ -31,7 +31,7 @@ use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::OpenSSL;
-use Net::LibIDN qw/ idn_to_unicode /;
+use Net::LibIDN 'idn_to_unicode';
 use parent 'iMSCP::Package::Abstract';
 
 =head1 DESCRIPTION
@@ -44,7 +44,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -58,7 +58,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 

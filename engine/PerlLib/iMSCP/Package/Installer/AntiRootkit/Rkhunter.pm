@@ -27,9 +27,9 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::DistPackageManager;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
-use iMSCP::SetRights qw/ setRights /;
+use iMSCP::SetRights 'setRights';
 use Servers::cron;
 use parent 'iMSCP::Package::Abstract';
 
@@ -59,7 +59,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -73,7 +73,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -88,7 +88,7 @@ sub postinstall
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -101,7 +101,7 @@ sub uninstall
 
 =item postuninstall( )
 
- See iMSCP::AbstractUninstallerActions::postuninstall()
+ See iMSCP::Uninstaller::AbstractActions::postuninstall()
 
 =cut
 
@@ -115,7 +115,7 @@ sub postuninstall
 
 =item setEnginePermissions( )
 
- See iMSCP::AbstractInstallerActions::setEnginePermissions()
+ See iMSCP::Installer::AbstractActions::setEnginePermissions()
 
 =cut
 

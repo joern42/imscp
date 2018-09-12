@@ -21,7 +21,7 @@ use strict;
 use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../PerlLib", "$FindBin::Bin/../PerlVendor";
-use Encode qw/ encode /;
+use Encode 'encode';
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use Mail::Address;

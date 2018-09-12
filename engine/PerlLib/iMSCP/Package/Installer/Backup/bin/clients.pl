@@ -32,19 +32,21 @@ use warnings;
 use File::Basename;
 use File::Spec;
 use FindBin;
-use lib "$FindBin::Bin/../PerlLib", "$FindBin::Bin/../PerlVendor";
+use lib "$FindBin::Bin/../../../../../../PerlLib", "$FindBin::Bin/../../../../../../PerlVendor";
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
-use iMSCP::Debug qw/ debug error getMessageByType newDebug setVerbose warning /;
+use iMSCP::Debug qw/ debug error getMessageByType newDebug warning /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::Ext2Attributes qw/ isImmutable setImmutable clearImmutable /;
 use iMSCP::Getopt;
 use iMSCP::Mail;
+use iMSCP::Package::Installer::Backup;
 use Servers::mta;
-use POSIX qw/ strftime /;
+use iMSCP::Package::Installer::Backup;
+use POSIX qw/ strftime locale_h /;
 
-my $command = {
+my $CMDS = {
     bzip2  => {
         extension => 'bz2',
         command   => 'bzip2'
@@ -99,11 +101,14 @@ sub backupHomedir
 {
     my ( $mainDmnName, $homeDir, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group ) = @_;
 
-    my $bkpDate = strftime "%Y.%m.%d-%H-%M", localtime;
-    my $bkpArchName = "web-backup-$mainDmnName-$bkpDate.tar$bkpExt";
+    my $date = strftime "%Y.%m.%d-%H-%M", localtime;
+    my $archName = "web-backup-$mainDmnName-$date.tar$bkpExt";
     my @cmd = (
-        "tar -c -C $homeDir --exclude=logs --exclude=phptmp --exclude=backups .",
-        ( $cmpAlgo eq 'no' ? "-f $bkpDir/$bkpArchName" : "| $command->{$cmpAlgo}->{'command'} -$cmpLevel > $bkpDir/$bkpArchName" )
+        "tar -c -C $homeDir --exclude=./logs --exclude=./phptmp --exclude=./backups .",
+        ( $cmpAlgo->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'} eq 'none'
+            ? "-f $bkpDir/$archName"
+            : "| $CMDS->{$cmpAlgo->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'}}->{'command'} -$cmpLevel > $bkpDir/$archName"
+        )
     );
 
     my $rs = execute( "@cmd", \my $stdout, \my $stderr );
@@ -116,7 +121,7 @@ sub backupHomedir
         return;
     }
 
-    my $file = iMSCP::File->new( filename => "$bkpDir/$bkpArchName" );
+    my $file = iMSCP::File->new( filename => "$bkpDir/$archName" );
     $rs ||= $file->owner( $user, $group );
     $rs ||= $file->mode( 0640 );
 }
@@ -166,7 +171,7 @@ sub backupDatabases
 
         next if $rs || $cmpAlgo eq 'no';
 
-        $rs = execute( [ $command->{$cmpAlgo}->{'command'}, "-$cmpLevel", '--force', $dbDumpFilePath ], \my $stdout, \my $stderr );
+        $rs = execute( [ ${ $CMDS }->{$cmpAlgo}->{'command'}, "-$cmpLevel", '--force', $dbDumpFilePath ], \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
         error( sprintf( "Couldn't compress %s database dump: %s", $dbName, $stderr || 'Unknown error' )) if $rs;
     }
@@ -201,24 +206,18 @@ sub backupMaildirs
                 FROM domain
                 WHERE domain_id = ?
                 AND domain_status <> 'todelete'
-    
                 UNION ALL
-    
                 SELECT CONCAT(subdomain_name, '.', domain_name)
                 FROM subdomain
                 JOIN domain USING(domain_id)
                 WHERE domain_id = ?
                 AND subdomain_status <> 'todelete'
-    
                 UNION ALL
-    
                 SELECT alias_name
                 FROM domain_aliasses
                 WHERE domain_id = ?
                 AND alias_status <> 'todelete'
-    
                 UNION ALL
-    
                 SELECT CONCAT(subdomain_alias_name, '.', alias_name)
                 FROM subdomain_alias
                 JOIN domain_aliasses USING(alias_id)
@@ -243,7 +242,7 @@ sub backupMaildirs
         my $bkpArchName = "mail-backup-$_-$bkpDate.tar$bkpExt";
         my @cmd = (
             "tar -c -C $mailDirPath .",
-            ( $cmpAlgo eq 'no' ? "-f $bkpDir/$bkpArchName" : "| $command->{$cmpAlgo}->{'command'} -$cmpLevel > $bkpDir/$bkpArchName" )
+            ( $cmpAlgo eq 'no' ? "-f $bkpDir/$bkpArchName" : "| $CMDS->{$cmpAlgo}->{'command'} -$cmpLevel > $bkpDir/$bkpArchName" )
         );
 
         my $rs = execute( "@cmd", \my $stdout, \my $stderr );
@@ -266,39 +265,27 @@ sub backupMaildirs
 
 sub backupAll
 {
-    return unless $main::imscpConfig{'BACKUP_DOMAINS'} eq 'yes';
+    my $bkp = iMSCP::Package::Installer::Backup->getInstance();
+    my $algo = $bkp->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'} || 'none';
+    my $level = $bkp->{'config'}->{'BACKUP_COMPRESS_LEVEL'};
+    my $ext = $bkp->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'} ne 'none' ? '.' . $CMDS->{$algo}->{'extension'} : '';
 
-    my $cmpAlgo = lc( $main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
-    $cmpAlgo = 'no' unless $cmpAlgo eq 'no' || exists $command->{$cmpAlgo};
-
-    my ( $cmpLevel ) = $main::imscpConfig{'BACKUP_COMPRESS_LEVEL'} =~ /^([1-9])$/;
-    $cmpLevel ||= 1;
-
-    my $bkpExt = ( $cmpAlgo ne 'no' ) ? '.' . $command->{$cmpAlgo}->{'extension'} : '';
-
-    my $rows = eval {
-        my $rdbh = iMSCP::Database->factory()->getRawDb();
-        local $rdbh->{'RaiseError'} = TRUE;
-        $rdbh->selectall_hashref(
-            "
-                SELECT domain_id, domain_name, domain_admin_id, allowbackup, admin_sys_name, admin_sys_gname
-                FROM domain
-                JOIN admin ON (admin_id = domain_admin_id)
-                WHERE domain_status NOT IN ('disabled', 'todelete')
-                AND allowbackup <> ''
-            ",
-            'domain_id'
-        );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return;
-    }
+    my $rdbh = iMSCP::Database->factory()->getRawDb();
+    local $rdbh->{'RaiseError'} = TRUE;
+    my $rows = $rdbh->selectall_hashref(
+        "
+            SELECT domain_id, domain_name, domain_admin_id, allowbackup, admin_sys_name, admin_sys_gname
+            FROM domain
+            JOIN admin ON (admin_id = domain_admin_id)
+            WHERE domain_status NOT IN ('disabled', 'todelete')
+            AND allowbackup <> ''
+        ",
+        'domain_id'
+    );
 
     while ( my ( $dmnId, $dmnData ) = each( %{ $rows } ) ) {
         next unless $dmnData->{'allowbackup'} && $dmnData->{'allowbackup'} =~ /\b(?:dmn|sql|mail)\b/;
-        my $homeDir = "$main::imscpConfig{'USER_WEB_DIR'}/$dmnData->{'domain_name'}";
-
+        my $homeDir = "$::imscpConfig{'USER_WEB_DIR'}/$dmnData->{'domain_name'}";
         next unless -d $homeDir;
 
         my $bkpDir = "$homeDir/backups";
@@ -331,22 +318,22 @@ sub backupAll
         }
 
         if ( $dmnData->{'allowbackup'} =~ /\bdmn\b/ ) {
-            backupHomedir( $dmnData->{'domain_name'}, $homeDir, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group )
+            backupHomedir( $dmnData->{'domain_name'}, $homeDir, $bkpDir, $algo, $level, $ext, $user, $group )
         }
 
         if ( $dmnData->{'allowbackup'} =~ /\bsql\b/ ) {
-            backupDatabases( $dmnId, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group );
+            backupDatabases( $dmnId, $bkpDir, $algo, $level, $ext, $user, $group );
         }
 
         if ( $dmnData->{'allowbackup'} =~ /\bmail\b/ ) {
-            backupMaildirs( $dmnId, $bkpDir, $cmpAlgo, $cmpLevel, $bkpExt, $user, $group );
+            backupMaildirs( $dmnId, $bkpDir, $algo, $level, $ext, $user, $group );
         }
     }
 }
 
 newDebug( 'imscp-backup-all.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
+iMSCP::Getopt->parse( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
 
 Script that backup i-MSCP customer's data.
 
@@ -355,8 +342,6 @@ OPTIONS:
     'debug|d'   => \&iMSCP::Getopt::debug,
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
-
-setVerbose( iMSCP::Getopt->verbose );
 
 my $bootstrapper = iMSCP::Bootstrapper->getInstance();
 exit unless $bootstrapper->lock( '/var/lock/imscp-backup-all.lock', 'nowait' );
@@ -368,8 +353,9 @@ $bootstrapper->boot( {
 
 backupAll();
 
-my @errors = getMessageByType( 'error' );
-iMSCP::Mail->new()->errmsg( "@errors" ) if @errors;
+if ( my @errors = getMessageByType( 'error' ) ) {
+    iMSCP::Mail->new()->errmsg( "@errors" );
+}
 
 =back
 

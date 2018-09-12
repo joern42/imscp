@@ -25,7 +25,7 @@ package iMSCP::Package::Installer::AntiRootkit;
 
 use strict;
 use warnings;
-use iMSCP::Dir;
+use iMSCP::Cwd '$CWD';
 use parent 'iMSCP::Package::AbstractCollection';
 
 =head1 DESCRIPTION
@@ -119,9 +119,8 @@ sub _loadAvailablePackages
 {
     my ( $self ) = @_;
 
-    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new(
-        dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Package/Installer/" . $self->getType()
-    )->getFiles();
+    local $CWD = $::imscpConfig{'PACKAGES_DIR'} . '/Installer/' . $self->getType();
+    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = <*.pm>;
 }
 
 =back

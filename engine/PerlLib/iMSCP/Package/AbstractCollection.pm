@@ -25,11 +25,11 @@ package iMSCP::Package::AbstractCollection;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Dialog::InputValidation' => qw/ isOneOfStringsInList /;
-use Carp qw/ confess /;
+use autouse 'iMSCP::Dialog::InputValidation' => 'isOneOfStringsInList';
+use Carp 'confess';
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug /;
-use iMSCP::Dir;
+use iMSCP::Cwd '$CWD';
+use iMSCP::Debug 'debug';
 use iMSCP::DistPackageManager;
 use iMSCP::Getopt;
 use parent 'iMSCP::Package::Abstract';
@@ -48,7 +48,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -62,7 +62,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
  
  This will first uninstall unselected packages.
 
@@ -73,7 +73,7 @@ sub preinstall
     my ( $self ) = @_;
 
     my $rs = 0;
-    
+
     ACTION:
     for my $action ( 'preuninstall', 'uninstall', 'postuninstall' ) {
         for my $package ( @{ $self->getUnselectedPackages() } ) {
@@ -90,7 +90,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -103,7 +103,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -116,7 +116,7 @@ sub postinstall
 
 =item preuninstall( )
 
- See iMSCP::AbstractUninstallerActions::preuninstall()
+ See iMSCP::Uninstaller::AbstractActions::preuninstall()
 
 =cut
 
@@ -129,7 +129,7 @@ sub preuninstall
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -142,7 +142,7 @@ sub uninstall
 
 =item postuninstall( )
 
- See iMSCP::AbstractUninstallerActions::postuninstall()
+ See iMSCP::Uninstaller::AbstractActions::postuninstall()
 
 =cut
 
@@ -155,7 +155,7 @@ sub postuninstall
 
 =item setEnginePermissions( )
 
- See iMSCP::AbstractInstallerActions::setEnginePermissions()
+ See iMSCP::Installer::AbstractActions::setEnginePermissions()
 
 =cut
 
@@ -168,7 +168,7 @@ sub setEnginePermissions
 
 =item setGuiPermissions( )
 
- See iMSCP::AbstractInstallerActions::setGuiPermissions()
+ See iMSCP::Installer::AbstractActions::setGuiPermissions()
 
 =cut
 
@@ -181,7 +181,7 @@ sub setGuiPermissions
 
 =item dpkgPostInvokeTasks( )
 
- See iMSCP::AbstractInstallerActions::dpkgPostInvokeTasks()
+ See iMSCP::Installer::AbstractActions::dpkgPostInvokeTasks()
 
 =cut
 
@@ -1492,7 +1492,7 @@ EOF
         return $rs if $rs;
     }
 
-    $dialog->executeDialogs( $dialogs )
+    $dialog->executeDialogs( $dialogs );
 }
 
 =item _loadAvailablePackages()
@@ -1507,9 +1507,8 @@ sub _loadAvailablePackages
 {
     my ( $self ) = @_;
 
-    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = iMSCP::Dir->new(
-        dirname => "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Package/" . $self->getType()
-    )->getFiles();
+    local $CWD = $::imscpConfig{'PACKAGES_DIR'} . '/' . $self->getType();
+    s/\.pm$// for @{ $self->{'AVAILABLE_PACKAGES'} } = <*.pm>;
 }
 
 =item _loadAvailablePackages()

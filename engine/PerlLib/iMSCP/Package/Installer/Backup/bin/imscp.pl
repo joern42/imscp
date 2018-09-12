@@ -32,18 +32,19 @@ use warnings;
 use File::Basename;
 use File::Spec;
 use FindBin;
-use lib "$FindBin::Bin/../PerlLib", "$FindBin::Bin/../PerlVendor";
+use lib "$FindBin::Bin/../../../../../../PerlLib", "$FindBin::Bin/../../../../../../PerlVendor";
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
-use iMSCP::Debug;
-use iMSCP::Execute;
+use iMSCP::Debug qw/ debug error getMessageByType newDebug /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Dir;
 use iMSCP::Getopt;
 use iMSCP::Mail;
-use POSIX qw/ strftime /;
+use iMSCP::Package::Installer::Backup;
+use POSIX qw/ strftime locale_h /;
 
-our $command = {
+our $CMDS = {
     pbzip2 => {
         extension => 'bz2',
         command   => 'pbzip2'
@@ -70,58 +71,11 @@ our $command = {
     }
 };
 
-sub run
-{
-    return 0 unless $main::imscpConfig{'BACKUP_IMSCP'} eq 'yes';
-
-    my $algo = lc( $main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
-
-    unless ( exists $command->{$algo} || $algo eq 'no' ) {
-        error( sprintf( 'Backup algorithm not supported: %s', $algo ));
-        return 1;
-    }
-
-    # Make sure that backup directory exists
-    eval {
-        iMSCP::Dir->new( dirname => $main::imscpConfig{'BACKUP_FILE_DIR'} )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
-            mode  => 0750
-        } );
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
-    }
-
-    # Backup i-MSCP database
-    my $rs = _backupDatabase();
-    return $rs if $rs;
-
-    # Backup configuration files
-    $rs |= _backupConfig();
-    return $rs if $rs;
-
-    # Remove any backup older than 7 days
-    $rs = execute( "find $main::imscpConfig{'BACKUP_FILE_DIR'}/* -maxdepth 0 -type f -mtime +7 -print | xargs -r rm", \my $stdout, \my $stderr );
-    debug( $stdout ) if $stdout;
-    error( $stderr || 'Unknown error' ) if $rs;
-
-    if ( $rs ) {
-        my @warningMessages = getMessageByType( 'warn' );
-        iMSCP::Mail->new()->warnMsg( "@warningMessages" ) if @warningMessages;
-        my @errorMessages = getMessageByType( 'error' );
-        iMSCP::Mail->new()->errmsg( "@errorMessages" ) if @errorMessages;
-    }
-
-    $rs;
-}
-
-sub _backupDatabase
+sub backupDatabase
 {
     my $db = iMSCP::Database->factory();
 
-    eval { $db->dumpdb( $main::imscpConfig{'DATABASE_NAME'}, $main::imscpConfig{'BACKUP_FILE_DIR'} ) };
+    eval { $db->dumpdb( $::imscpConfig{'DATABASE_NAME'}, "$::imscpConfig{'ROOT_DIR'}/backups" ) };
     if ( $@ ) {
         error( $@ );
         return 1;
@@ -129,25 +83,27 @@ sub _backupDatabase
 
     # Encode slashes as SOLIDUS unicode character
     # Encode dots as Full stop unicode character
-    ( my $encodedDbName = $main::imscpConfig{'DATABASE_NAME'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
-
+    ( my $encodedDbName = $::imscpConfig{'DATABASE_NAME'} ) =~ s%([./])%{ '/', '@002f', '.', '@002e' }->{$1}%ge;
     my $date = strftime "%Y.%m.%d-%H-%M", localtime;
 
-    my $rs = iMSCP::File->new( filename => $main::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '.sql' )->moveFile(
-        $main::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '-' . $date . '.sql'
+    my $rs = iMSCP::File->new( filename => "$::imscpConfig{'ROOT_DIR'}/backups/$encodedDbName.sql" )->moveFile(
+        "$::imscpConfig{'ROOT_DIR'}/backups/$encodedDbName-$date.sql"
     );
     return $rs if $rs;
 
-    my $algo = lc( $main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
-    my $level = $main::imscpConfig{'BACKUP_COMPRESS_LEVEL'};
-    $level = 1 unless $level =~ /^[1-9]$/;
-
-    if ( $algo ne 'no' ) {
-        my @cmd = (
-            $command->{$algo}->{'command'}, "-$level", '--force',
-            escapeShell( $main::imscpConfig{'BACKUP_FILE_DIR'} . '/' . $encodedDbName . '-' . $date . '.sql' )
+    my $bkp = iMSCP::Package::Installer::Backup->getInstance();
+    if ( $bkp->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'} ne 'no' ) {
+        $rs = execute(
+            [
+                $CMDS->{$bkp->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'}}->{'command'},
+                "-$bkp->{'config'}->{'BACKUP_COMPRESS_LEVEL'}",
+                '--force',
+                "$::imscpConfig{'ROOT_DIR'}/backups/$encodedDbName-$date.sql"
+            ]
+            ,
+            \my $stdout,
+            \my $stderr
         );
-        $rs = execute( "@cmd", \my $stdout, \my $stderr );
         debug( $stdout ) if $stdout;
 
         if ( $rs > 1 ) {
@@ -160,27 +116,28 @@ sub _backupDatabase
     0;
 }
 
-sub _backupConfig
+sub backupConfig
 {
     my $date = strftime "%Y.%m.%d-%H-%M", localtime;
-    my $archivePath = "$main::imscpConfig{'BACKUP_FILE_DIR'}/config-backup-$date.tar";
-    my $algo = lc( $main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'} );
-    my $level = $main::imscpConfig{'BACKUP_COMPRESS_LEVEL'};
-    $level = 1 unless $level =~ /^[1-9]$/;
+    my $archPath = "$::imscpConfig{'ROOT_DIR'}/backups/config-backup-$date.tar";
+    my $bkp = iMSCP::Package::Installer::Backup->getInstance();
 
-    if ( $algo ne 'no' ) {
-        $archivePath .= '.' . $command->{$main::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'}}->{'extension'};
+    if ( $bkp->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'} ne 'none' ) {
+        $archPath .= '.' . $bkp->{$::imscpConfig{'BACKUP_COMPRESS_ALGORITHM'}}->{'extension'};
     }
 
-    my @backupCommand = (
-        "tar -c -C $main::imscpConfig{'CONF_DIR'}",
-        '--exclude=?*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]',
+    my @cmd = (
+        "tar -c -C $::imscpConfig{'CONF_DIR'}",
+        '--exclude=./*/backup/*.[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]',
         '--preserve-permissions',
         '.',
-        ( $algo eq 'no' ? "-f $archivePath" : "| $command->{$algo}->{'command'} -$level > $archivePath" )
+        ( $bkp->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'} eq 'none'
+            ? "-f $archPath"
+            : " | $CMDS->{$bkp->{'config'}->{'BACKUP_COMPRESS_ALGORITHM'}}->{'command'} -$bkp->{'config'}->{'BACKUP_COMPRESS_LEVEL'} > $archPath"
+        )
     );
 
-    my $rs = execute( "@backupCommand", \my $stdout, \my $stderr );
+    my $rs = execute( "@cmd", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     return $rs if $rs;
@@ -188,10 +145,13 @@ sub _backupConfig
     0;
 }
 
+setlocale( LC_MESSAGES, "C.UTF-8" );
+
+$ENV{'LANG'} = 'C.UTF-8';
+
 newDebug( 'imscp-backup-imscp.log' );
 
-# Parse command line options
-iMSCP::Getopt->parseNoDefault( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
+iMSCP::Getopt->parse( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
 
 Script which backup i-MSCP configuration files and database.
 
@@ -201,8 +161,6 @@ OPTIONS:
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
 
-setVerbose( iMSCP::Getopt->verbose );
-
 my $bootstrapper = iMSCP::Bootstrapper->getInstance();
 exit unless $bootstrapper->lock( '/var/lock/imscp-backup-imscp.lock', 'nowait' );
 
@@ -211,7 +169,21 @@ $bootstrapper->boot( {
     nolock          => TRUE
 } );
 
-exit run();
+# Make sure that backup directory exists
+iMSCP::Dir->new( dirname => "$::imscpConfig{'ROOT_DIR'}/backups" )->make( {
+    user  => $::imscpConfig{'ROOT_USER'},
+    group => $::imscpConfig{'ROOT_GROUP'},
+    mode  => 0750
+} );
+
+my $rs = backupConfig();
+$rs ||= backupDatabase();
+
+if ( $rs && ( my @errorMessages = getMessageByType( 'error' ) ) ) {
+    iMSCP::Mail->new()->errmsg( "@errorMessages" );
+}
+
+exit $rs;
 
 =head1 AUTHOR
 

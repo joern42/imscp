@@ -31,7 +31,7 @@ use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Service;
-use iMSCP::TemplateParser qw/ processByRef /;
+use iMSCP::TemplateParser 'processByRef';
 use Servers::mta;
 use parent 'iMSCP::Package::Abstract';
 
@@ -47,7 +47,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -61,7 +61,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -90,7 +90,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -146,7 +146,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->SUPER::_init();
-    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/clamav";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/packages/ClamAV";
 
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/clamav.data.dist";
     tie %{ $self->{'config'} },

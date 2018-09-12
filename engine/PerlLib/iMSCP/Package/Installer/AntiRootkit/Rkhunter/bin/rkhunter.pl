@@ -24,35 +24,30 @@ use File::Basename;
 use lib "$FindBin::Bin/../../../../../../../PerlLib", "$FindBin::Bin/../../../../../../../PerlVendor";
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
-use iMSCP::Debug qw/ debug newDebug setVerbose /;
-use iMSCP::Execute qw/ executeNoWait /;
+use iMSCP::Debug qw/ debug newDebug /;
+use iMSCP::Execute 'executeNoWait';
 use iMSCP::File;
-use POSIX qw/ strftime locale_h /;
+use POSIX qw/ locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+$ENV{'LANG'} = 'C.UTF-8';
 
 sub output
 {
     chomp @_;
-    debug( @_, '' )
+    debug( @_, '' );
 }
-
-setlocale( LC_MESSAGES, "C.UTF-8" );
-
-$ENV{'LANG'} = 'C.UTF-8';
 
 newDebug( 'imscp-rkhunter-package.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
+iMSCP::Getopt->parse( sprintf( "Usage: perl %s [OPTION]...", basename( $0 )) . qq{
 
 Performs the rkhunter(8) checks in non-interactive mode.
 
 OPTIONS:
- -d,    --debug         Enable debug mode.
  -v,    --verbose       Enable verbose mode.},
-    'debug|d'   => \&iMSCP::Getopt::debug,
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
-
-setVerbose( iMSCP::Getopt->verbose );
 
 my $bootstrapper = iMSCP::Bootstrapper->getInstance();
 exit unless $bootstrapper->lock( '/var/lock/imscp-rkhunter-package.lock', 'nowait' );

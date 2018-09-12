@@ -66,7 +66,7 @@ sub checkRequirements
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
  
 =cut
 
@@ -96,7 +96,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -127,7 +127,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -149,7 +149,7 @@ sub postinstall
 
 =item postuninstall
 
- See iMSCP::AbstractUninstallerActions::postuninstall()
+ See iMSCP::Uninstaller::AbstractActions::postuninstall()
 
 =cut
 

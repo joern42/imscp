@@ -35,10 +35,10 @@ use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isValidUsername isSt
 use iMSCP::Dir;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Package::Installer::FrontEnd;
+use iMSCP::Rights 'setRights';
 use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
 use JSON;
-use Installer::FrontEnd;
 use Servers::sqld;
 use parent 'iMSCP::Package::Abstract';
 
@@ -62,7 +62,7 @@ my $dbInitialized = FALSE;
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -76,7 +76,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -90,7 +90,7 @@ sub preinstall
 
 =item install( )
 
- iMSCP::AbstractInstallerActions:install()
+ iMSCP::Installer::AbstractActions:install()
 
 =cut
 
@@ -110,7 +110,7 @@ sub install
 
 =item uninstall( )
 
- iMSCP::AbstractUninstallerActions::uninstall()
+ iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -128,7 +128,7 @@ sub uninstall
 
 =item setGuiPermissions( )
 
- iMSCP::AbstractInstallerActions::setGuiPermissions()
+ iMSCP::Installer::AbstractActions::setGuiPermissions()
 
 =cut
 
@@ -158,7 +158,7 @@ sub setGuiPermissions
 
 =item deleteMail( \%data )
 
- See iMSCP::AbstractInstallerActions::deleteMail()
+ See iMSCP::Installer::AbstractActions::deleteMail()
 
 =cut
 
@@ -262,7 +262,7 @@ sub _init
     $self->SUPER::_init();
 
     $self->{'frontend'} = iMSCP::Package::Installer::FrontEnd->getInstance();
-    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/rainloop";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/packages/RainLoop";
 
     if ( -f "$self->{'cfgDir'}/rainloop.data" ) {
         tie %{ $self->{'config'} }, 'iMSCP::Config', fileName => "$self->{'cfgDir'}/rainloop.data", readonly => TRUE;
@@ -473,7 +473,6 @@ sub _buildConfig
     my ( $self ) = @_;
 
     my $confDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/data/_data_/_default_/configs";
-    my $panelUName = my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
     for my $confFile ( 'application.ini', 'plugin-imscp-change-password.ini' ) {
         my $data = {
@@ -497,10 +496,11 @@ sub _buildConfig
 
         processByRef( $data, \$cfgTpl );
 
+        my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
         my $file = iMSCP::File->new( filename => "$confDir/$confFile" );
         $file->set( $cfgTpl );
         $rs = $file->save();
-        $rs ||= $file->owner( $panelUName, $panelGName );
+        $rs ||= $file->owner( $panelUserGroup, $panelUserGroup );
         $rs ||= $file->mode( 0640 );
         return $rs if $rs;
     }
@@ -542,10 +542,9 @@ sub _removeOldVersionFiles
 {
     my ( $self ) = @_;
 
-    my $versionsDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/rainloop/v";
-    for my $versionDir ( iMSCP::Dir->new( dirname => $versionsDir )->getDirs() ) {
-        next if $versionDir eq $self->{'config'}->{'RAINLOOP_VERSION'};
-        iMSCP::Dir->new( dirname => "$versionsDir/$versionDir" )->remove();
+    while ( my $dentry = <$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/rainloop/rainloop/v/*> ) {
+        next unless -d $dentry || basename( $dentry ) eq $self->{'config'}->{'RAINLOOP_VERSION'};
+        iMSCP::Dir->new( dirname => $dentry )->remove();
     }
 
     0;
@@ -629,7 +628,6 @@ sub _removeSqlDatabase
     my $rdbh = $self->{'dbh'}->getRawDb();
     $rdbh->{'RaiseError'} = TRUE;
     $rdbh->do( 'DROP DATABASE IF EXISTS ' . $rdbh->quote_identifier( $::imscpConfig{'DATABASE_NAME'} . '_rainloop' ));
-
     0;
 }
 

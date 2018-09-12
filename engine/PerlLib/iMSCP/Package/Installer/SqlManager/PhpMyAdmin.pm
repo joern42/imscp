@@ -33,13 +33,13 @@ use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isValidUsername isStringNotInList isValidPassword isAvailableSqlUser /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Package::Installer::FrontEnd;
+use iMSCP::Rights 'setRights';
 use iMSCP::TemplateParser qw/ getBlocByRef processByRef replaceBlocByRef /;
 use JSON;
-use Installer::FrontEnd;
 use Servers::sqld;
 use version;
 use parent 'iMSCP::Package::Abstract';
@@ -82,7 +82,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -96,7 +96,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -110,16 +110,15 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
 sub install
 {
     my ( $self ) = @_;
-
-    my $rs = $self->_backupConfigFile( "$::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}/config.inc.php" );
-    $rs ||= $self->_installFiles();
+    
+    my $rs ||= $self->_installFiles();
     $rs ||= $self->_setupDatabase();
     $rs ||= $self->_setupSqlUser();
     $rs ||= $self->_generateBlowfishSecret();
@@ -131,7 +130,7 @@ sub install
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -149,7 +148,7 @@ sub uninstall
 
 =item setGuiPermissions( )
 
- See iMSCP::AbstractInstallerActions::setGuiPermissions()
+ See iMSCP::Installer::AbstractActions::setGuiPermissions()
 
 =cut
 
@@ -161,11 +160,11 @@ sub setGuiPermissions
     return $rs if $rs || !-d "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma";
 
     debug( "Setting permissions (event listener)" );
-    my $panelUName = my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
 
     $rs ||= setRights( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/pma", {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0550',
         filemode  => '0440',
         recursive => TRUE
@@ -224,9 +223,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->SUPER::_init();
-    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/pma";
-    $self->{'bkpDir'} = "$self->{'cfgDir'}/backup";
-    $self->{'wrkDir'} = "$self->{'cfgDir'}/working";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/package/PhpMyAdmin";
 
     $self->_mergeConfig() if iMSCP::Getopt->context() eq 'installer' && -f "$self->{'cfgDir'}/phpmyadmin.data.dist";
     eval {
@@ -338,22 +335,6 @@ EOF
     ::setupSetQuestion( 'PHPMYADMIN_SQL_USER', $dbUser );
     ::setupSetQuestion( 'PHPMYADMIN_SQL_PASSWORD', $dbPass );
     0;
-}
-
-=item _backupConfigFile( )
-
- Backup the given configuration file
-
- Return int 0
-
-=cut
-
-sub _backupConfigFile
-{
-    my ( $self, $cfgFile ) = @_;
-
-    return 0 unless -f $cfgFile && -d $self->{'bkpDir'};
-    iMSCP::File->new( filename => $cfgFile )->copyFile( $self->{'bkpDir'} . '/' . fileparse( $cfgFile ) . '.' . time, { preserve => 'no' } );
 }
 
 =item _installFiles( )
@@ -556,24 +537,16 @@ sub _buildConfig
 {
     my ( $self ) = @_;
 
-    my $panelUName = my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
     my $confDir = "$::imscpConfig{'GUI_PUBLIC_DIR'}/$self->{'config'}->{'PHPMYADMIN_CONF_DIR'}";
-    my $dbName = ::setupGetQuestion( 'DATABASE_NAME' ) . '_pma';
-    ( my $dbUser = ::setupGetQuestion( 'PHPMYADMIN_SQL_USER' ) ) =~ s%('|\\)%\\$1%g;
-    my $dbHost = ::setupGetQuestion( 'DATABASE_HOST' );
-    my $dbPort = ::setupGetQuestion( 'DATABASE_PORT' );
-    ( my $dbPass = ::setupGetQuestion( 'PHPMYADMIN_SQL_PASSWORD' ) ) =~ s%('|\\)%\\$1%g;
-    ( my $blowfishSecret = $self->{'config'}->{'BLOWFISH_SECRET'} ) =~ s%('|\\)%\\$1%g;
-
     my $data = {
-        PMA_DATABASE => $dbName,
-        PMA_USER     => $dbUser,
-        PMA_PASS     => $dbPass,
-        HOSTNAME     => $dbHost,
-        PORT         => $dbPort,
+        PMA_DATABASE => ::setupGetQuestion( 'DATABASE_NAME' ) . '_pma',
+        PMA_USER     => ::setupGetQuestion( 'PHPMYADMIN_SQL_USER' ) =~ s%('|\\)%\\$1%gr,
+        PMA_PASS     => ::setupGetQuestion( 'PHPMYADMIN_SQL_PASSWORD' )  =~ s%('|\\)%\\$1%gr,
+        HOSTNAME     => ::setupGetQuestion( 'DATABASE_HOST' ),
+        PORT         => ::setupGetQuestion( 'DATABASE_PORT' ),
         UPLOADS_DIR  => "$::imscpConfig{'GUI_ROOT_DIR'}/data/uploads",
         TMP_DIR      => "$::imscpConfig{'GUI_ROOT_DIR'}/data/tmp",
-        BLOWFISH     => $blowfishSecret
+        BLOWFISH     => $self->{'config'}->{'BLOWFISH_SECRET'} =~ s%('|\\)%\\$1%gr
     };
 
     my $rs = $self->{'eventManager'}->trigger( 'onLoadTemplate', 'phpmyadmin', 'imscp.config.inc.php', \my $cfgTpl, $data );
@@ -586,12 +559,12 @@ sub _buildConfig
 
     processByRef( $data, \$cfgTpl );
 
-    my $file = iMSCP::File->new( filename => "$self->{'wrkDir'}/config.inc.php" );
+    my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $file = iMSCP::File->new( filename => "$confDir/config.inc.php" );
     $file->set( $cfgTpl );
     $rs = $file->save();
-    $rs ||= $file->owner( $panelUName, $panelGName );
+    $rs ||= $file->owner( $panelUserGroup, $panelUserGroup );
     $rs ||= $file->mode( 0640 );
-    $rs ||= $file->copyFile( "$confDir/config.inc.php" );
 }
 
 =item _cleanup( )

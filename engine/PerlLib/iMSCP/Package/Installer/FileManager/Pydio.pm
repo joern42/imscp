@@ -27,13 +27,13 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::Composer;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Package::Installer::FrontEnd;
+use iMSCP::Rights 'setRights';
 use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
-use Installer::FrontEnd;
 use parent 'iMSCP::Package::Abstract';
 
 our $VERSION = '0.2.0.*@dev';
@@ -54,7 +54,7 @@ our $VERSION = '0.2.0.*@dev';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -68,7 +68,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -82,7 +82,7 @@ sub install
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -96,7 +96,7 @@ sub uninstall
 
 =item setGuiPermissions( )
 
- See iMSCP::AbstractInstallerActions::setGuiPermissions()
+ See iMSCP::Installer::AbstractActions::setGuiPermissions()
 
 =cut
 
@@ -104,17 +104,18 @@ sub setGuiPermissions
 {
     my ( $self ) = @_;
 
-    my $panelUName = my $panelGName = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+    my $panelUserGroup = $::imscpConfig{'SYSTEM_USER_PREFIX'} . $::imscpConfig{'SYSTEM_USER_MIN_UID'};
+
     my $rs = setRights( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp", {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0550',
         filemode  => '0440',
         recursive => TRUE
     } );
     $rs ||= setRights( "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/ftp/data", {
-        user      => $panelUName,
-        group     => $panelGName,
+        user      => $panelUserGroup,
+        group     => $panelUserGroup,
         dirmode   => '0750',
         filemode  => '0640',
         recursive => TRUE

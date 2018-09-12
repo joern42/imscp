@@ -31,14 +31,14 @@ use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringInList isValidPassword /;
 use iMSCP::DistPackageManager;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::LsbRelease;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Rights 'setRights';
 use iMSCP::Service;
 use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
-use Net::LibIDN qw/ idn_to_unicode /;
+use Net::LibIDN 'idn_to_unicode';
 use Servers::cron;
 use Servers::mta;
 use parent 'iMSCP::Package::Abstract';
@@ -66,7 +66,7 @@ use parent 'iMSCP::Package::Abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -84,7 +84,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -121,7 +121,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -139,7 +139,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -172,7 +172,7 @@ sub postinstall
 
 =item postuninstall( )
 
- See iMSCP::AbstractUninstallerActions::postuninstall() 
+ See iMSCP::Uninstaller::AbstractActions::postuninstall() 
 
 =cut
 
@@ -212,7 +212,7 @@ sub postuninstall
 
 =item setEnginePermissons( )
 
- See iMSCP::AbstractInstallerActions::setEnginePermissions()
+ See iMSCP::Installer::AbstractActions::setEnginePermissions()
 
 =cut
 
@@ -358,7 +358,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->SUPER::_init();
-    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/rspamd";
+    $self->{'cfgDir'} = "$::imscpConfig{'CONF_DIR'}/packages/Rspamd";
 
     tie %{ $self->{'config'} },
         'iMSCP::Config',
