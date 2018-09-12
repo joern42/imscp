@@ -44,4 +44,4 @@ else
 fi
 
 # Run i-MSCP installer using preconfiguration file
-perl /usr/local/src/imscp/engine/imscp-installer -dvp /tmp/preseed.pl
+perl /usr/local/src/imscp/engine/bin/imscp-installer -dvp /tmp/preseed.pl
