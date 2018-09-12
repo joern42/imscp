@@ -65,7 +65,7 @@ sub TIEHASH
         { HASHREF => { default => {}, required => TRUE, strict_type => TRUE } }, \%params, TRUE
     ) or die( Params::Check::last_error());
 
-    bless $hashref->{'HASHREF'}, $class;
+    bless [ $hashref->{'HASHREF'} ], $class;
 }
 
 =item( key, value )
@@ -76,7 +76,7 @@ sub TIEHASH
 
 sub STORE
 {
-    $_[0]->{$_[1]} = $_[2];
+    $_[0]->[0]->{$_[1]} = $_[2];
 }
 
 =item FETCH( key )
@@ -87,7 +87,7 @@ sub STORE
 
 sub FETCH
 {
-    $_[0]->{ $_[1] };
+    $_[0]->[0]->{ $_[1] };
 }
 
 =item FIRSTKEY()
@@ -99,8 +99,8 @@ sub FETCH
 
 sub FIRSTKEY
 {
-    scalar keys %{ $_[0] };
-    each %{ $_[0] };
+    scalar keys %{ $_[0]->[0] };
+    each %{ $_[0]->[0] };
 }
 
 =item NEXTKEY()
@@ -111,7 +111,7 @@ sub FIRSTKEY
 
 sub NEXTKEY
 {
-    each %{ $_[0] };
+    each %{ $_[0]->[0] };
 }
 
 =item EXISTS( key )
@@ -122,7 +122,7 @@ sub NEXTKEY
 
 sub EXISTS
 {
-    exists $_[0]->{ $_[1] };
+    exists $_[0]->[0]->{ $_[1] };
 }
 
 =item DELETE( key )
@@ -133,7 +133,7 @@ sub EXISTS
 
 sub DELETE
 {
-    delete $_[0]->{ $_[1] };
+    delete $_[0]->[0]->{ $_[1] };
 }
 
 =item CLEAR()
@@ -144,7 +144,7 @@ sub DELETE
 
 sub CLEAR
 {
-    %{ $_[0] } = ();
+    %{ $_[0]->[0] } = ();
 }
 
 =item
@@ -155,7 +155,7 @@ sub CLEAR
 
 sub SCALAR
 {
-    scalar %{ $_[0] };
+    scalar %{ $_[0]->[0] };
 }
 
 =back
