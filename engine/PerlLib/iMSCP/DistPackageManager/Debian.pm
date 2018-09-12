@@ -437,8 +437,13 @@ sub processDelayedTasks
         ->removeAptPreferences( delete $self->{'aptPreferencesToAdd'} )
         ->addAptPreferences( delete $self->{'aptPreferencesToAdd'} )
         ->installPackages( delete $self->{'packagesToInstall'} )
-        ->rebuildAndInstallPackages( delete $self->{'packagesToRebuildAndInstall'} )
-        ->uninstallPackages( delete $self->{'packagesToUninstall'} );
+        ->uninstallPackages( delete $self->{'packagesToUninstall'} )
+        ->rebuildAndInstallPackages( delete $self->{'packagesToRebuildAndInstall'} );
+
+    @{ $self }{qw/ repositoriesToAdd repositoriesToRemove packagesToInstall packagesToUninstall packagesToRebuildAndInstall /} = (
+        [], [], [], [], []
+    );
+
     $self;
 }
 
@@ -513,9 +518,9 @@ sub addRepositorySections
     $self;
 }
 
-=item rebuildAndInstallPackages( \@packages, $pbuilderConffile = "$CWD/config/$distID/pbuilder/pbuilderrc [, $delayed = FALSE ] ] )
+=item rebuildAndInstallPackages( \@packages, $pbuilderConffile [, $delayed = FALSE ] ] )
 
- Rebuild and install the given package
+ Rebuild and install the given packages
  
  Param hashref \@packages List of package to rebuild and install, each represented as a hash with the following key/value pairs:
   package         : Package name
@@ -550,7 +555,10 @@ sub rebuildAndInstallPackages
 
     defined $pbuilderConffile && ref \$pbuilderConffile eq 'SCALAR' or die( 'Missing or invalid $pbuilderConffile parameter. SCALAR expected.' );
 
-    my $pbuilderBuildResultDir = File::Temp->newdir( CLEANUP => FALSE );
+    # Avoid pbuilder warning due to missing /root/.pbuilderrc file
+    iMSCP::File->new( filename => '/root/.pbuilderrc' )->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+
+    my $pbuilderBuildResultDir = File::Temp->newdir( CLEANUP => TRUE );
 
     for my $package ( @{ $packages } ) {
         defined $package->{'package'} && ref \$package->{'package'} eq 'SCALAR' or die( "Missing or invalid 'package' key." );
@@ -571,16 +579,12 @@ sub rebuildAndInstallPackages
 
         my $srcDownloadDir = File::Temp->newdir( CLEANUP => TRUE );
 
-        # Fix 'W: Download is performed unsandboxed as root as file...' warning with newest APT versions
         if ( ( undef, undef, my $uid ) = getpwnam( '_apt' ) ) {
+            # Fix 'W: Download is performed unsandboxed as root as file...' warning with newest APT versions
             chown $uid, -1, $srcDownloadDir or die( sprintf( "Couldn't change ownership for the %s directory: %s", $srcDownloadDir, $! ));
         }
 
-        # chdir() into download directory
         local $CWD = $srcDownloadDir;
-
-        # Avoid pbuilder warning due to missing /root/.pbuilderrc file
-        iMSCP::File->new( filename => '/root/.pbuilderrc' )->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
 
         startDetail();
 
@@ -623,26 +627,26 @@ sub rebuildAndInstallPackages
             },
             "Downloading $package->{'package_src'} $distID source package", 5, 2
         );
+
+        local $CWD = ( glob( "$package->{'package_src'}-*" ) )[0];
+
         $rs ||= step(
             sub {
-                # chdir() into package source directory
-                local $CWD = glob( "$package->{'package_src'}-*" );
 
                 if ( defined $package->{'patches_dir'} ) {
-                    my $serieFile = iMSCP::File->new(
-                        filename => "debian/patches/@{ [ $package->{'patches_manager'} eq 'quilt' ? 'series' : '00list' ] } "
-                    );
-                    my $serieFileContent = $serieFile->get();
-                    defined $serieFileContent or die( sprintf( "Couldn't read %s", $serieFile->{'filename'} ));
+                    my $file = iMSCP::File->new( filename => "debian/patches/@{ [ $package->{'patches_manager'} eq 'quilt' ? 'series' : '00list' ] }" );
+                    my $fileC = $file->getAsRef();
+                    defined $fileC or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+
                     for my $patch ( sort { $a cmp $b } iMSCP::Dir->new( dirname => $package->{'patches_dir'} )->getFiles() ) {
-                        next if grep ($_ eq $patch, @{ $package->{'discard_patches' } });
-                        $serieFileContent .= "$patch\n";
+                        next if grep ( $patch eq $_, @{ $package->{'discard_patches' } } );
+                        ${ $fileC } .= "$patch\n";
                         iMSCP::File->new(
                             filename => "$package->{'patches_dir'}/$patch" )->copyFile( "debian/patches/$patch", { preserve => 'no' }
                         ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
                     }
-                    $serieFile->set( $serieFileContent );
-                    $serieFile->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
+
+                    $file->save() == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
                 }
 
                 my $stderr;
@@ -658,9 +662,6 @@ sub rebuildAndInstallPackages
         );
         $rs ||= step(
             sub {
-                # chdir() into package source directory
-                local $CWD = glob( "$package->{'package_src'}-*" );
-
                 my $msgHeader = "Building new $package->{'package'} $distID package\n\n - ";
                 my $msgFooter = "\n\nPlease be patient. This may take few seconds...";
                 my $stderr;
@@ -677,39 +678,45 @@ sub rebuildAndInstallPackages
             "Building local $package->{'package'} $distID package", 5, 4
         );
 
-        unless($rs == 0) {
+        unless ( $rs == 0 ) {
             endDetail();
             die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
         }
     }
 
     my @packages = map { $_->{'package'} } @{ $packages };
+
     my $rs = step(
         sub {
             local $CWD = $pbuilderBuildResultDir;
+
+
             # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
             execute( [ 'apt-mark', 'unhold', @packages ], \my $stdout, \my $stderr );
-            debug( $stderr ) if $stderr;
-            my $msgHeader = "Installing local @packages $distID package(s)\n\n";
-            $stderr = '';
-            executeNoWait(
-                "gdebi --non-interactive @{ [ map { $_ . '_*.deb' } @packages ] }",
-                ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : sub { step( undef, $msgHeader . ( shift ), 5, 5 ) } ),
-                sub { $stderr .= shift }
-            ) == 0 or die( "Couldn't install local @packages $distID package(s): @{ [ $stderr || 'Unknown error' ] }" );
+
+            for my $package ( @packages ) {
+                my $msgHeader = "Installing local $package $distID package\n\n";
+                $stderr = '';
+                executeNoWait(
+                    "gdebi --non-interactive ${package}_*.deb",
+                    ( iMSCP::Getopt->noprompt && iMSCP::Getopt->verbose ? undef : sub { step( undef, $msgHeader . ( shift ), 5, 5 ) } ),
+                    sub { $stderr .= shift }
+                ) == 0 or die( "Couldn't install local $package $distID package: @{ [ $stderr || 'Unknown error' ] }" );
+            }
+
             # Ignore exit code due to https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1258958 bug
             execute( [ 'apt-mark', 'hold', @packages ], \$stdout, \$stderr );
             0;
         },
         "Installing local @packages $distID package(s)", 5, 5
     );
-    unless($rs == 0) {
+    unless ( $rs == 0 ) {
         endDetail();
         die( getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error' );
     }
-    
+
     endDetail();
-    
+
     $self;
 }
 
