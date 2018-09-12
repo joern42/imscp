@@ -29,7 +29,7 @@ use File::Temp;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::Dialog;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use version;
@@ -77,7 +77,7 @@ sub addRepositories
     return $self unless @{ $repositories };
 
     # Make sure that repositories are not added twice
-    $self->removeRepositories( map { $_->{'repository'} } @{ $repositories } );
+    $self->removeRepositories( [ map { $_->{'repository'} } @{ $repositories } ] );
 
     my $file = iMSCP::File->new( filename => $APT_SOURCES_LIST_FILE_PATH );
     my $fileC = $file->getAsRef();
@@ -245,7 +245,7 @@ sub uninstallPackages
 
     # Filter packages that are no longer available or not installed
     # Ignore exit code as dpkg-query exit with status 1 when a queried package is not found
-    execute( [ 'dpkg-query', '-W', '-f=${Package}\n', $packages ], \my $stdout, \my $stderr );
+    execute( [ 'dpkg-query', '-W', '-f=${Package}\n', @{ $packages } ], \my $stdout, \my $stderr );
     @{ $packages } = split /\n/, $stdout;
 
     return $self unless @{ $packages };
