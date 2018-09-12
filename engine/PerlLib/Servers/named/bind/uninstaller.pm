@@ -26,7 +26,7 @@ package Servers::named::bind::uninstaller;
 use strict;
 use warnings;
 use File::Basename;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::Dir;
 use iMSCP::File;
 use Servers::named::bind;
@@ -42,7 +42,7 @@ use parent 'Common::SingletonClass';
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 

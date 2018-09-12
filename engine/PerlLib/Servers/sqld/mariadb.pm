@@ -40,7 +40,7 @@ use parent 'Servers::sqld::mysql';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -55,7 +55,7 @@ sub preinstall
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -81,7 +81,7 @@ sub postinstall
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 

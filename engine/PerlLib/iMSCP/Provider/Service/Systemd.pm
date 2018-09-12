@@ -25,7 +25,7 @@ package iMSCP::Provider::Service::Systemd;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
+use Carp 'croak';
 use File::Basename;
 use File::Spec;
 use iMSCP::Boolean;

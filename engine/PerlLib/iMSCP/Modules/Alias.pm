@@ -27,7 +27,7 @@ use warnings;
 use File::Spec;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ error getLastError warning /;
-use Net::LibIDN qw/ idn_to_unicode /;
+use Net::LibIDN 'idn_to_unicode';
 use Servers::httpd;
 use parent 'iMSCP::Modules::Abstract';
 

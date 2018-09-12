@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Getopt - Provides command line options parser for i-MSCP scripts
+ iMSCP::Getopt - Provide command line options parser for i-MSCP scripts
 
 =cut
 
@@ -25,19 +25,16 @@ package iMSCP::Getopt;
 
 use strict;
 use warnings;
-use File::Basename qw/ basename /;
-use Cwd qw/ realpath /;
+use File::Basename 'basename';
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debugRegisterCallBack /;
-use Text::Wrap;
-use fields qw/ cleanPackageCache debug fixPermissions listener noprompt preseed context reconfigure skipPackageUpdate verbose /;
+use Text::Wrap 'wrap';
 
 $Text::Wrap::columns = 80;
 $Text::Wrap::break = qr/[\s\n\|]/;
 
-my $options = fields::new( 'iMSCP::Getopt' );
-my $optionHelp = '';
-my $showUsage;
+my $OPTIONS = {};
+my $OPTION_HELP = '';
+my $SHOW_USAGE;
 
 =head1 DESCRIPTION
 
@@ -51,15 +48,16 @@ my $showUsage;
 
  Parses command line options in @ARGV with GetOptions from Getopt::Long
 
- The first parameter should be basic usage text for the program. Usage text for the globally supported options will be
- prepended to this if usage help must be printed.
+ The first parameter should be basic usage text for the program. Usage text for
+ the globally supported options will be prepended to this if usage help must be
+ printed.
 
- If any additonal parameters are passed to this function, they are also passed to GetOptions. This can be used to handle
- additional options.
+ If any additonal parameters are passed to this function, they are also passed
+ to GetOptions. This can be used to handle additional options.
 
  Param string $usage Usage text
  Param list @options OPTIONAL Additional options
- Return undef
+ Return void
 
 =cut
 
@@ -67,25 +65,21 @@ sub parse
 {
     my ( $class, $usage, @options ) = @_;
 
-    $showUsage = sub {
+    chomp($usage);
+    $SHOW_USAGE = sub {
         my $exitCode = shift || 0;
-        print STDERR wrap( '', '', <<"EOF" );
+        if ( length $OPTION_HELP ) {
+            print STDERR wrap( '', '', <<"EOF" );
+$OPTION_HELP
+EOF
+        } else {
+            print STDERR wrap( '', '', <<"EOF" );
 
 $usage
- -a,    --skip-package-update    Skip i-MSCP packages update.
- -c,    --clean-package-cache    Cleanup i-MSCP package cache.
- -d,    --debug                  Force debug mode.
+ -d,    --debug                  Enable debug mode.
  -h,-?  --help                   Show this help.
- -l,    --listener <file>        Path to listener file.
- -n,    --noprompt               Switch to non-interactive mode.
- -p,    --preseed <file>         Path to preseed file.
- -r,    --reconfigure [item,...] Type `help` for list of available items.
- -v,    --verbose                Enable verbose mode.
- -x,    --fix-permissions        Fix permissions recursively.
-
-$optionHelp
 EOF
-        debugRegisterCallBack( sub { exit $exitCode; } );
+        }
         exit $exitCode;
     };
 
@@ -101,63 +95,12 @@ EOF
     require Getopt::Long;
     Getopt::Long::Configure( 'bundling' );
     Getopt::Long::GetOptions(
-        'clean-package-cache|c', sub { $options->{'cleanPackageCache'} = TRUE },
-        'debug|d', sub { $options->{'debug'} = TRUE },
-        'help|?|h', sub { $class->showUsage() },
-        'fix-permissions|x', sub { $options->{'fixPermissions'} = TRUE },
-        'listener|l=s', sub { $class->listener( $_[1] ) },
-        'noprompt|n', sub { $options->{'noprompt'} = TRUE },
-        'preseed|p=s', sub { $class->preseed( $_[1] ) },
-        'reconfigure|r:s', sub { $class->reconfigure( $_[1], TRUE ) },
-        'skip-package-update|a', sub { $options->{'skipPackageUpdate'} = TRUE },
-        'verbose|v', sub { $options->{'verbose'} = TRUE },
+        'debug|d'  => sub { $OPTIONS->{'debug'} = TRUE },
+        'help|?|h' => sub { $class->showUsage() },
         @options,
     ) or $class->showUsage( TRUE );
 
-    undef;
-}
-
-=item parseNoDefault( $usage, @options )
-
- Parses command line options in @ARGV with GetOptions from Getopt::Long. Default options are excluded
-
- The first parameter should be basic usage text for the program. Any following parameters are passed to to GetOptions.
-
- Param string $usage Usage text
- Param list @options Options
- Return undef
-
-=cut
-
-sub parseNoDefault
-{
-    my ( $class, $usage, @options ) = @_;
-
-    $showUsage = sub {
-        my $exitCode = shift || 0;
-        print STDERR wrap( '', '', <<"EOF" );
-
-$usage
- -?,-h  --help          Show this help.
-
-EOF
-        debugRegisterCallBack( sub { exit $exitCode; } );
-        exit $exitCode;
-    };
-
-    # Do not load Getopt::Long if not needed
-    return unless grep { $_ =~ /^-/ } @ARGV;
-
-    local $SIG{'__WARN__'} = sub {
-        my $error = shift;
-        $error =~ s/(.*?) at.*/$1/;
-        print STDERR wrap( '', '', $error ) if $error ne "Died\n";
-    };
-
-    require Getopt::Long;
-    Getopt::Long::Configure( 'bundling' );
-    Getopt::Long::GetOptions( 'help|?|h', sub { $class->showUsage() }, @options ) or $class->showUsage( 1 );
-    undef;
+    return;
 }
 
 =item showUsage( $exitCode )
@@ -174,8 +117,8 @@ sub showUsage
     my ( undef, $exitCode ) = @_;
 
     $exitCode //= 1;
-    ref $showUsage eq 'CODE' or die( 'ShowUsage( ) is not defined.' );
-    $showUsage->( $exitCode );
+    ref $SHOW_USAGE eq 'CODE' or die( 'ShowUsage( ) is not defined.' );
+    $SHOW_USAGE->( $exitCode );
 }
 
 my %reconfigurationItems = (
@@ -203,9 +146,9 @@ my %reconfigurationItems = (
     named_type              => 'DNS server type',
 
     cp                      => 'Control panel',
-    cp_backup               => 'Backup for the control panel database and configuration files',
+    cp_backup               => 'Control panel database and configuration backup',
     cp_admin                => 'Master administrator',
-    cp_admin_credentials    => 'Credential for the master administrator',
+    cp_admin_credentials    => 'Master administrator credential',
     cp_admin_email          => 'Master administrator email',
     cp_hostname             => 'Hostname for the control panel',
     cp_php                  => 'PHP version for the control panel',
@@ -236,7 +179,9 @@ my %reconfigurationItems = (
  Reconfiguration item
 
  Param string $items OPTIONAL List of comma separated items to reconfigure
- Param boolean $viaCmdLineOpt Flag indicating whether or not $items were been passed through command line option rather than programmatically
+ Param boolean $viaCmdLineOpt Flag indicating whether or not $items were been
+                              passed through command line option rather than
+                              programmatically
  Param boolean $append Flag indicating whether $items must be appended
  Return array_ref List of item to reconfigure
 
@@ -246,26 +191,23 @@ sub reconfigure
 {
     my ( undef, $items, $viaCmdLineOpt, $append ) = @_;
 
-    return $options->{'reconfigure'} ||= [ 'none' ] unless defined $items;
+    return $OPTIONS->{'reconfigure'} ||= [ 'none' ] unless defined $items;
 
     my @items = split /,/, $items;
 
     if ( grep ( 'help' eq $_, @items ) ) {
-        $optionHelp = <<"EOF";
+        $OPTION_HELP = <<"EOF";
+
 Reconfiguration option usage:
 
-Without any argument, this option make it possible to reconfigure all items. You can reconfigure many items at once by providing a list of comma separated items as follows:
+Without any argument, this option make it possible to reconfigure all items. You can reconfigure specific items by providing a list of comma separated items as follows:
 
  perl @{[ basename( $0 ) ]} --reconfigure httpd,php,po
-
-Bear in mind that even when only one item is reconfigured, all i-MSCP configuration files are regenerated, even those that don't belong to the item being reconfigured.
-
-Each item belong to one i-MSCP package/server.
 
 The following items are available:
 
 EOF
-        $optionHelp .= " - $_" . ( ' ' x ( 17-length( $_ ) ) ) . " : $reconfigurationItems{$_}\n" for sort keys %reconfigurationItems;
+        $OPTION_HELP .= " - $_" . ( ' ' x ( 20-length( $_ ) ) ) . " : $reconfigurationItems{$_}\n" for sort keys %reconfigurationItems;
         die();
     } elsif ( !@items ) {
         push @items, 'all';
@@ -281,30 +223,11 @@ EOF
         die() if $viaCmdLineOpt && grep (/^(?:force|none)$/, @items);
     }
 
-    push @items, @{ $options->{'reconfigure'} } if $options->{'reconfigure'} && $append;
-    $options->{'reconfigure'} = [ do {
+    push @items, @{ $OPTIONS->{'reconfigure'} } if $OPTIONS->{'reconfigure'} && $append;
+    $OPTIONS->{'reconfigure'} = [ do {
         my %seen;
         grep { !$seen{$_}++ } @items
     } ];
-}
-
-=item preseed( [ $file = undef ] )
-
- Accessor/Mutator for the preseed command line option
-
- Param string $file OPTIONAL Preseed file path
- Return string Path to preseed file or empty string
-
-=cut
-
-sub preseed
-{
-    my ( undef, $file ) = @_;
-
-    return $options->{'preseed'} unless defined $file;
-
-    -f $file or die( sprintf( 'Preseed file not found: %s', $file ));
-    $options->{'preseed'} = realpath( $file );
 }
 
 =item context( [ $context = 'backend' ])
@@ -323,7 +246,7 @@ sub context
 {
     my ( undef, $context ) = @_;
 
-    return $options->{'context'} // 'backend' unless defined $context;
+    return $OPTIONS->{'context'} // 'backend' unless defined $context;
 
     grep ( $context eq $_, 'installer', 'uninstaller', 'backend' ) or die( 'Unknown execution context' );
 
@@ -334,26 +257,7 @@ sub context
 
     # Backward compatibility with 3rd-party
     $::execmode = $context;
-    $options->{'context'} = $context;
-}
-
-=item listener( [ $file = undef ] )
-
- Accessor/Mutator for the listener command line option
-
- Param string $file OPTIONAL Listener file path
- Return string Path to listener file or undef
-
-=cut
-
-sub listener
-{
-    my ( undef, $file ) = @_;
-
-    return $options->{'listener'} unless defined $file;
-
-    -f $file or die( sprintf( 'Listener file not found: %s', $file ));
-    $options->{'listener'} = $file;
+    $OPTIONS->{'context'} = $context;
 }
 
 =back
@@ -372,8 +276,8 @@ sub AUTOLOAD
     no strict 'refs';
     *{ $iMSCP::Getopt::AUTOLOAD } = sub {
         shift;
-        return $options->{$field} unless @_;
-        $options->{$field} = shift;
+        return $OPTIONS->{$field} unless @_;
+        $OPTIONS->{$field} = shift;
     };
     goto &{ $iMSCP::Getopt::AUTOLOAD };
 }

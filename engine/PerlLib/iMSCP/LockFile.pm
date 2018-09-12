@@ -26,9 +26,9 @@ package iMSCP::LockFile;
 use strict;
 use warnings;
 use Errno qw/ ENOENT EWOULDBLOCK /;
-use Fcntl qw/ :flock /;
+use Fcntl ':flock';
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug /;
+use iMSCP::Debug 'debug';
 use parent 'Common::Object';
 
 =head1 DESCRIPTION

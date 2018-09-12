@@ -25,10 +25,10 @@ package iMSCP::Stepper;
 
 use strict;
 use warnings;
-use iMSCP::Debug;
+use iMSCP::Debug qw/ debug error getLastError /;
 use iMSCP::Dialog;
 use iMSCP::Getopt;
-use Scalar::Defer;
+use Scalar::Defer 'lazy';
 use parent 'Exporter';
 
 our @EXPORT = qw/ startDetail endDetail step /;
@@ -36,7 +36,7 @@ our @EXPORT = qw/ startDetail endDetail step /;
 my @all = ();
 my $last = '';
 my $dialog = lazy { iMSCP::Dialog->getInstance(); };
-my $step = lazy { iMSCP::Getopt->noprompt ? \&_callback : \&_step; };
+my $stepperRoutine = lazy { iMSCP::Getopt->noprompt ? \&_callback : \&_step; };
 
 =head1 DESCRIPTION
 
@@ -91,7 +91,7 @@ sub endDetail
 
 sub step
 {
-    $step->( @_ );
+    $stepperRoutine->( @_ );
 }
 
 =back
@@ -100,18 +100,21 @@ sub step
 
 =over 4
 
-=item _callback( )
+=item _callback( $callback [, $debugMsg ] )
 
  Execute the given callback
 
  Param callback $callback Callback to execute
+ Param string debugMsg Optional DEBUG message
  Return int 0 on success, other on failure
 
 =cut
 
 sub _callback
 {
-    my ( $callback ) = @_;
+    my ( $callback, $debugMsg ) = @_;
+
+    debug( $debugMsg ) if length $debugMsg;
 
     return 0 unless defined $callback;
 
@@ -134,24 +137,20 @@ sub _step
 {
     my ( $callback, $text, $nSteps, $nStep ) = @_;
 
-    $last = sprintf( "\n\\ZbStep %s of %s\\Zn\n\n%s", $nStep, $nSteps, $text );
-    my $msg = @all ? join( "\n", @all ) . "\n" . $last : $last;
+    unless ( iMSCP::Getopt->noprompt ) {
+        use integer;
+        $last = sprintf( "\n\\ZbStep %s of %s\\Zn\n\n%s", $nStep, $nSteps, $text );
+        my $msg = @all ? join( "\n", @all ) . "\n" . $last : $last;
+        my $percent = $nStep * 100 / $nSteps;
+        $dialog->setGauge( $percent, $msg );
+    }
 
-    use integer;
-    my $percent = $nStep * 100 / $nSteps;
-
-    $dialog->hasGauge ? $dialog->setGauge( $percent, $msg ) : $dialog->startGauge( $msg, $percent );
-    my $rs = _callback( $callback );
-
-    return $rs unless defined $callback;
+    my $rs = _callback( $callback, iMSCP::Getopt->noprompt ? $text : undef );
     return $rs unless $rs && $rs != 50;
 
     # Make error message free of any ANSI color and end of line codes
-    ( my $errorMessage = getLastError() ) =~ s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g;
-    $errorMessage = 'An unexpected error occurred...' unless $errorMessage;
-    $errorMessage =~ s/\n+$//;
-
-    $dialog->endGauge();
+    ( my $error = getLastError() || 'Unknown error' ) =~ s/\x1b\[[0-9;]*[mGKH]//g;
+    $error =~ s/^[\s\n]+|[\s\n+]+$//g;
     $dialog->msgbox( <<"EOF" );
 \\Z1[ERROR]\\Zn
 
@@ -161,12 +160,12 @@ $text
 
 Error was:
 
-\\Z1$errorMessage\\Zn
+\\Z1$error\\Zn
 
-Please have a look at http://i-mscp.net/forum if you need help.
+For any problem please have a look at https://i-mscp.net
 EOF
 
-    $rs;
+    exit 1;
 }
 
 =back

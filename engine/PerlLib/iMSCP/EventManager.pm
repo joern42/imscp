@@ -5,39 +5,40 @@
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 package iMSCP::EventManager;
 
 use strict;
 use warnings;
-use autouse Clone => qw/ clone /;
-use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug error getMessageByType /;
-use iMSCP::EventManager::ListenerPriorityQueue;
-use Scalar::Util qw/ blessed /;
+use Carp 'croak';
+use iMSCP::Debug 'debug';
+use iMSCP::PriorityQueue;
+use iMSCP::Getopt;
+use Scalar::Util 'blessed';
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION
 
  The i-MSCP event manager is the central point of the event system.
 
- Event listeners are registered on the event manager and events are triggered through the event manager. Event
- listeners are references to subroutines that listen to particular event(s).
+ Event listeners are registered on the event manager and events are triggered
+ through the event manager. Event listeners are references to subroutines or
+ objects that listen to particular event(s).
 
 =head1 PUBLIC METHODS
 
@@ -45,24 +46,24 @@ use parent 'Common::SingletonClass';
 
 =item hasListener( $eventName, $listener )
 
- Does the given listener is registered for the given event?
+ Is the given listener registered for the given event?
 
  Param string $eventName Event name on which $listener listen on
  Param coderef $listener A CODE reference
- Return bool TRUE if the given event has the given listener, FALSE otherwise, die on failure
+ Return bool TRUE if the given event has the given listener, FALSE otherwise, croak on failure
 
 =cut
 
 sub hasListener
 {
-    my ( $self, $eventNames, $listener ) = @_;
+    my ( $self, $eventName, $listener ) = @_;
 
-    defined $eventNames or die 'Missing $eventNames parameter';
-
-    $self->{'events'}->{$eventNames} && $self->{'events'}->{$eventNames}->hasListener( $listener );
+    defined $eventName or croak 'Missing $eventName parameter';
+    ref $listener eq 'CODE' or croak 'Missing or invalid $listener parameter';
+    exists $self->{'events'}->{$eventName} && $self->{'events'}->{$eventName}->hasItem( $listener );
 }
 
-=item register( $eventNames, $listener [, priority = 1 [, $once = FALSE ] ] )
+=item register( $eventNames, $listener [, priority = 0 [, $once = FALSE ] ] )
 
  Registers an event listener for the given events
 
@@ -70,7 +71,7 @@ sub hasListener
  Param coderef|object $listener A CODE reference or an object implementing $eventNames method
  Param int $priority OPTIONAL Listener priority (Highest values have highest priority)
  Param bool $once OPTIONAL If TRUE, $listener will be executed at most once for the given events
- Return int 0 on success, 1 on failure
+ Return int 0 on success, croak on failure
 
 =cut
 
@@ -78,45 +79,29 @@ sub register
 {
     my ( $self, $eventNames, $listener, $priority, $once ) = @_;
 
-    eval {
-        defined $eventNames or die 'Missing $eventNames parameter';
+    defined $eventNames or croak 'Missing $eventNames parameter';
 
-        if ( ref $eventNames eq 'ARRAY' ) {
-            for ( @{ $eventNames } ) {
-                $self->register( $_, $listener, $priority, $once ) == 0 or die(
-                    getMessageByType( 'error', { amount => 1, remove => TRUE } ) || 'Unknown error'
-                );
-            }
-
-            return;
-        }
-
-        unless ( $self->{'events'}->{$eventNames} ) {
-            $self->{'events'}->{$eventNames} = iMSCP::EventManager::ListenerPriorityQueue->new();
-        }
-
-        $listener = sub { $listener->$eventNames( @_ ) } if blessed $listener;
-        $self->{'events'}->{$eventNames}->addListener( $listener, $priority );
-        $self->{'nonces'}->{$eventNames}->{$listener} = TRUE if $once;
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+    if ( ref $eventNames eq 'ARRAY' ) {
+        $self->register( $_, $listener, $priority, $once ) for @{ $eventNames };
+        return 0;
     }
 
+    ( ref $listener eq 'CODE' || blessed $listener ) or croak( 'Invalid $listener parameter. Expects an object or code reference.' );
+    ( $self->{'events'}->{$eventNames} //= iMSCP::PriorityQueue->new() )->addItem( $listener, $priority );
+    $self->{'nonces'}->{$eventNames}->{$listener}++ if $once;
     0;
 }
 
-=item registerOne( $eventNames, $listener [, priority = 1 ] )
+=item registerOne( $eventNames, $listener [, priority = 0 ] )
 
  Registers an event listener that will be executed at most once for the given events
  
- This is shortcut method for ::register( $eventNames, $listener, $priority, $once )
+ This is shortcut method for register( $eventNames, $listener, $priority, $once )
 
  Param string|arrayref $eventNames Event(s) that the listener listen to
  Param coderef|object $listener A CODE reference or object implementing $eventNames method
  Param int $priority OPTIONAL Listener priority (Highest values have highest priority)
- Return int 0 on success, 1 on failure
+ Return int 0 on success, croak on failure
 
 =cut
 
@@ -124,7 +109,7 @@ sub registerOne
 {
     my ( $self, $eventNames, $listener, $priority ) = @_;
 
-    $self->register( $eventNames, $listener, $priority, TRUE );
+    $self->register( $eventNames, $listener, $priority, 1 );
 }
 
 =item unregister( $listener [, $eventName = $self->{'events'} ] )
@@ -133,7 +118,7 @@ sub registerOne
 
  Param coderef $listener Listener
  Param string OPTIONAL $eventName Event name
- Return int 0 on success, 1 on failure
+ Return int 0 on success, croak on failure
 
 =cut
 
@@ -141,30 +126,27 @@ sub unregister
 {
     my ( $self, $listener, $eventName ) = @_;
 
-    eval {
-        defined $listener or die 'Missing $listener parameter';
+    ref $listener eq 'CODE' or croak 'Missing or invalid $listener parameter';
 
-        if ( defined $eventName ) {
-            return unless $self->{'events'}->{$eventName};
+    if ( defined $eventName ) {
+        return 0 unless exists $self->{'events'}->{$eventName};
 
-            $self->{'events'}->{$eventName}->removeListener( $listener ) if $self->{'events'}->{$eventName};
-            delete $self->{'events'}->{$eventName} if $self->{'events'}->{$eventName}->isEmpty();
+        $self->{'events'}->{$eventName}->removeItem( $listener );
 
-            if ( $self->{'nonces'}->{$eventName}->{$listener} ) {
-                delete $self->{'nonces'}->{$eventName}->{$listener};
-                delete $self->{'nonces'}->{$eventName} unless %{ $self->{'nonces'}->{$eventName} };
-            }
-
-            return;
+        if ( $self->{'events'}->{$eventName}->isEmpty() ) {
+            delete $self->{'events'}->{$eventName};
+            delete $self->{'nonces'}->{$eventName};
+            return 0;
         }
 
-        $self->unregister( $listener, $_ ) for keys %{ $self->{'events'} };
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
+        if ( delete $self->{'nonces'}->{$eventName}->{$listener} ) {
+            delete $self->{'nonces'}->{$eventName} unless %{ $self->{'nonces'}->{$eventName} };
+        }
+
+        return 0;
     }
 
+    $self->unregister( $listener, $_ ) for keys %{ $self->{'events'} };
     0;
 }
 
@@ -173,7 +155,7 @@ sub unregister
  Clear all listeners for the given event
 
  Param string $event Event name
- Return int 0 on success, 1 on failure
+ Return int 0 on success, croak on failure
 
 =cut
 
@@ -181,13 +163,9 @@ sub clearListeners
 {
     my ( $self, $eventName ) = @_;
 
-    unless ( defined $eventName ) {
-        error( 'Missing $eventName parameter' );
-        return 1;
-    }
-
-    delete $self->{'events'}->{$eventName};
-    delete $self->{'nonces'}->{$eventName};
+    defined $eventName or croak( 'Missing $eventName parameter' );
+    delete $self->{'events'}->{$eventName} if exists $self->{'events'}->{$eventName};
+    delete $self->{'nonces'}->{$eventName} if exists $self->{'nonces'}->{$eventName};
     0;
 }
 
@@ -197,7 +175,7 @@ sub clearListeners
 
  Param string $eventName Event name
  Param mixed @params OPTIONAL parameters passed-in to the listeners
- Return int 0 on success, other on failure
+ Return int 0 on success, croak on failure
 
 =cut
 
@@ -205,38 +183,36 @@ sub trigger
 {
     my ( $self, $eventName, @params ) = @_;
 
-    unless ( defined $eventName ) {
-        error( 'Missing $eventName parameter' );
-        return 1;
-    }
+    defined $eventName or croak( 'Missing $eventName parameter' );
 
-    return 0 unless $self->{'events'}->{$eventName};
-    debug( sprintf( 'Triggering %s event', $eventName ));
+    return 0 unless exists $self->{'events'}->{$eventName};
 
-    # The priority queue acts as a heap, which implies that as items are popped
-    # they are also removed. Thus we clone it for purposes of iteration.
-    my $listenerPriorityQueue = clone( $self->{'events'}->{$eventName} );
-    my $rs = 0;
-    while ( my $listener = $listenerPriorityQueue->pop() ) {
+    debug( sprintf( '%s event', $eventName ));
+
+    # The priority queue acts as a heap which implies that as items are popped
+    # they are also removed. Thus we clone it (shallow copy) for purposes of iteration.
+    my $priorityQueue = $self->{'events'}->{$eventName}->clone();
+    while ( my $listener = $priorityQueue->pop ) {
+        # Execute the event listener.
+        blessed $listener ? $listener->$eventName( @params ) : $listener->( @params );
+
         if ( $self->{'nonces'}->{$eventName}->{$listener} ) {
-            $self->{'events'}->{$eventName}->removeListener( $listener );
-            delete $self->{'nonces'}->{$eventName}->{$listener};
+            # Event listener has been registered to be run only once.
+            # We need to remove it from the original priority queue
+            $self->{'events'}->{$eventName}->removeItem( $listener );
+            delete $self->{'nonces'}->{$eventName}->{$listener} if --$self->{'nonces'}->{$eventName}->{$listener} < 1;
         }
-
-        $rs = $listener->( @params );
-        last if $rs;
     }
 
-    # We must test $self->{'events'}->{$eventName} here too because a listener
-    # can self-unregister
-    if ( $self->{'events'}->{$eventName}
-        && $self->{'events'}->{$eventName}->isEmpty()
-    ) {
+    # We must test for priority queue existence here too because a listener can self-unregister
+    if ( exists $self->{'events'}->{$eventName} && $self->{'events'}->{$eventName}->isEmpty() ) {
         delete $self->{'events'}->{$eventName};
+        delete $self->{'nonces'}->{$eventName};
+        return 0;
     }
 
     delete $self->{'nonces'}->{$eventName} if $self->{'nonces'}->{$eventName} && !%{ $self->{'nonces'}->{$eventName} };
-    $rs;
+    0;
 }
 
 =back
@@ -247,9 +223,7 @@ sub trigger
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::EventManager
+ See Common::SingletonClass _init()
 
 =cut
 
@@ -257,12 +231,16 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'events'} = {};
-    $self->{'nonces'} = {};
+    @{ $self }{qw/ events nonces /} = ( {}, {} );
 
-    while ( <$::imscpConfig{'CONF_DIR'}/listeners.d/*.pl> ) {
-        debug( sprintf( 'Loading %s listener file', $_ ));
-        require $_;
+    return $self unless exists $::imscpConfig{'CONF_DIR'};
+    
+    for my $listenerFile (
+        iMSCP::Getopt->context() eq 'installer' ? <$::imscpConfig{'CONF_DIR'}/listeners.d/installer/*.pl> : (),
+        <$::imscpConfig{'CONF_DIR'}/listeners.d/*.pl>
+    ) {
+        debug( sprintf( 'Loading %s listener file', $listenerFile ));
+        do $listenerFile;
     }
 
     $self;

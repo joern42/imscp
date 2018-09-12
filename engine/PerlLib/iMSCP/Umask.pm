@@ -21,9 +21,9 @@ package iMSCP::Umask;
 
 use strict;
 use warnings;
-use Exporter qw/ import /;
+use Exporter 'import';
 
-our @EXPORT = qw/ $UMASK /;
+our @EXPORT = '$UMASK';
 our $UMASK;
 
 tie $UMASK, 'iMSCP::Umask::SCALAR' or die "Can't tie \$UMASK";

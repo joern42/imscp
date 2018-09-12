@@ -33,7 +33,7 @@ use iMSCP::Dialog::InputValidation qw/
     isNumber isValidDbName isNumberInRange
 /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
@@ -54,7 +54,7 @@ use parent 'Common::SingletonClass';
 
 =item registerInstallerDialogs( $dialog )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -72,7 +72,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -756,7 +756,7 @@ sub _setupDatbase
     # In all cases, we process database update. This is important because sometime some developer forget to update the
     # database revision in the main database.sql file.
     my $rs = $self->{'eventManager'}->getInstance()->trigger( 'beforeSetupUpdateDatabase' );
-    $rs ||= execute( "php -d date.timezone=UTC $::imscpConfig{'ROOT_DIR'}/engine/setup/updDB.php", \my $stdout, \my $stderr );
+    $rs ||= execute( "php -d date.timezone=UTC $::imscpConfig{'ROOT_DIR'}/engine/bin/imscp-update.php", \my $stdout, \my $stderr );
     debug( $stdout ) if $stdout;
     error( $stderr || 'Unknown error' ) if $rs;
     $rs ||= $self->{'eventManager'}->getInstance()->trigger( 'afterSetupUpdateDatabase' );

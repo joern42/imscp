@@ -20,7 +20,7 @@ package Servers::httpd::apache_fcgid::uninstaller;
 use strict;
 use warnings;
 use iMSCP::Dir;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::File;
 use Servers::httpd::apache_fcgid;
 use Servers::sqld;

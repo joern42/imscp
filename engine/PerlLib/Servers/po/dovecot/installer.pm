@@ -30,7 +30,7 @@ use iMSCP::Boolean;
 use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/ isStringInList isOneOfStringsInList isValidUsername isStringNotInList isValidPassword isAvailableSqlUser /;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::TemplateParser qw/ process processByRef /;
@@ -53,7 +53,7 @@ use parent 'Common::SingletonClass';
 
 =item registerInstallerEventListeners( $eventManager )
 
- See iMSCP::AbstractInstallerActions::registerInstallerEventListeners()
+ See iMSCP::Installer::AbstractActions::registerInstallerEventListeners()
 
 =cut
 
@@ -67,7 +67,7 @@ sub registerInstallerEventListeners
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -81,7 +81,7 @@ sub registerInstallerDialogs
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -547,8 +547,8 @@ sub _migrateFromCourier
 
     $rs = execute(
         [
-            'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/courier-dovecot-migrate.pl", '--to-dovecot', '--quiet', '--convert', '--overwrite',
-            '--recursive', $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
+            'perl', "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/bin/courier-dovecot-migrate.pl", '--to-dovecot', '--quiet', '--convert',
+            '--overwrite', '--recursive', $self->{'mta'}->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'}
         ],
         \my $stdout,
         \my $stderr

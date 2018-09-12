@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use iMSCP::Database;
 use iMSCP::EventManager;
-use parent qw/ Common::SingletonClass iMSCP::AbstractInstallerActions iMSCP::AbstractUninstallerActions iMSCP::Modules::AbstractActions /;
+use parent qw/ Common::SingletonClass iMSCP::Installer::AbstractActions iMSCP::Uninstaller::AbstractActions iMSCP::Modules::AbstractActions /;
 
 =head1 DESCRIPTION
 

@@ -25,7 +25,7 @@ package iMSCP::Provider::Service::SysVinit;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
+use Carp 'croak';
 use File::Spec;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug getMessageByType /;

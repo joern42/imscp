@@ -31,12 +31,12 @@ use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Rights 'setRights';
 use iMSCP::Service;
-use List::MoreUtils qw/ uniq /;
+use List::MoreUtils 'uniq';
 use Servers::mta;
 use Sort::Naturally;
 use Tie::File;
@@ -52,7 +52,7 @@ use parent 'Servers::abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -65,7 +65,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -95,7 +95,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -110,7 +110,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -136,7 +136,7 @@ sub postinstall
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 

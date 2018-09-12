@@ -29,10 +29,10 @@ use Class::Autouse qw/ :nostat Servers::sqld::mysql::installer Servers::sqld::my
 use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Rights 'setRights';
 use iMSCP::Service;
 use version;
 use parent 'Servers::abstract';
@@ -47,7 +47,7 @@ use parent 'Servers::abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -60,7 +60,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -75,7 +75,7 @@ sub preinstall
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -101,7 +101,7 @@ sub postinstall
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -118,7 +118,7 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- See iMSCP::AbstractInstallerActions::setEnginePermissions()
+ See iMSCP::Installer::AbstractActions::setEnginePermissions()
 
 =cut
 

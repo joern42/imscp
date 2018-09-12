@@ -31,7 +31,7 @@ use iMSCP::Crypt qw/ ALNUM randomStr /;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
@@ -53,7 +53,7 @@ use parent 'Common::SingletonClass';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -67,7 +67,7 @@ sub registerInstallerDialogs
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 

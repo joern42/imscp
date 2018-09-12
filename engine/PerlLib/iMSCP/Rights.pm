@@ -28,10 +28,10 @@ use warnings;
 use iMSCP::Boolean;
 use iMSCP::Debug;
 use File::Find;
-use autouse Lchown => qw/ lchown /;
+use autouse Lchown => 'lchown';
 use parent 'Exporter';
 
-our @EXPORT = qw/ setRights /;
+our @EXPORT = 'setRights';
 
 =head1 DESCRIPTION
 

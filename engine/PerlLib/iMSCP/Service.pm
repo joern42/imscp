@@ -25,7 +25,7 @@ package iMSCP::Service;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
+use Carp 'croak';
 use File::Basename;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug getMessageByType /;
@@ -33,7 +33,7 @@ use iMSCP::Dir;
 use iMSCP::Execute;
 use iMSCP::LsbRelease;
 use iMSCP::ProgramFinder;
-use Module::Load::Conditional qw/ can_load /;
+use Module::Load::Conditional 'can_load';
 use parent qw/ Common::SingletonClass iMSCP::Provider::Service::Interface /;
 
 $Module::Load::Conditional::FIND_VERSION = FALSE;

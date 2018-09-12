@@ -25,7 +25,7 @@ package iMSCP::Provider::Service::Debian::Upstart;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
+use Carp 'croak';
 use parent qw/ iMSCP::Provider::Service::Upstart iMSCP::Provider::Service::Debian::SysVinit /;
 
 =head1 DESCRIPTION

@@ -25,7 +25,7 @@ package iMSCP::Servers;
 
 use strict;
 use warnings;
-use File::Basename qw/ dirname /;
+use File::Basename 'dirname';
 use iMSCP::Cwd;
 use parent 'Common::SingletonClass';
 

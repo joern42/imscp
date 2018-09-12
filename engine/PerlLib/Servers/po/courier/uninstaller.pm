@@ -25,7 +25,7 @@ package Servers::po::courier::uninstaller;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ removeMountEntry umount /;
@@ -46,7 +46,7 @@ use parent 'Common::SingletonClass';
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 

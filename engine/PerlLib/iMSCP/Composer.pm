@@ -33,7 +33,7 @@ use iMSCP::EventManager;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Stepper;
-use iMSCP::TemplateParser qw/ processByRef /;
+use iMSCP::TemplateParser 'processByRef';
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION

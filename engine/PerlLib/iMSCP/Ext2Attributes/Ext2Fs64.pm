@@ -25,7 +25,7 @@ package iMSCP::Ext2Attributes::Ext2Fs64;
 
 use strict;
 use warnings;
-use parent qw/ Exporter /;
+use parent 'Exporter';
 
 our @EXPORT = qw(
     EXT2_IOC_GETFLAGS EXT2_IOC_SETFLAGS EXT2_SECRM_FL EXT2_UNRM_FL EXT2_COMPR_FL EXT2_SYNC_FL EXT2_IMMUTABLE_FL

@@ -25,9 +25,9 @@ package iMSCP::Provider::Service::Abstract;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
-use iMSCP::Debug qw/ debug /;
-use iMSCP::Execute qw/ execute /;
+use Carp 'croak';
+use iMSCP::Debug 'debug';
+use iMSCP::Execute 'execute';
 use parent qw/ Common::SingletonClass iMSCP::Provider::Service::Interface /;
 
 my $EXEC_OUTPUT;

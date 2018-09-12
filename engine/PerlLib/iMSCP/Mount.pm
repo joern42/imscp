@@ -25,7 +25,7 @@ package iMSCP::Mount;
 
 use strict;
 use warnings;
-use Errno qw/ EINVAL /;
+use Errno 'EINVAL';
 use File::Spec;
 use File::stat ();
 use iMSCP::Boolean;

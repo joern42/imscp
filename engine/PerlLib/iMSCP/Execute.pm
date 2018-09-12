@@ -26,7 +26,7 @@ package iMSCP::Execute;
 use strict;
 use warnings;
 use autouse 'Capture::Tiny' => qw/ capture capture_stdout capture_stderr /;
-use Errno qw/ EINTR /;
+use Errno 'EINTR';
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error /;
 use IO::Select;
@@ -108,10 +108,10 @@ sub executeNoWait( $;$$ )
 {
     my ( $command, $subSTDOUT, $subSTDERR ) = @_;
 
-    $subSTDOUT ||= $subSTDOUT = sub { print STDOUT @_ };
+    $subSTDOUT //= sub { print STDOUT @_ };
     ref $subSTDOUT eq 'CODE' or die( 'Expects CODE as second parameter for STDOUT processing' );
 
-    $subSTDERR ||= $subSTDERR = sub { print STDERR @_ };
+    $subSTDERR //= sub { print STDERR @_ };
     ref $subSTDERR eq 'CODE' or die( 'Expects CODE as third parameter for STDERR processing' );
 
     my $list = ref $command eq 'ARRAY';

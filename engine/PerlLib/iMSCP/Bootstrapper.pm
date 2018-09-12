@@ -27,12 +27,12 @@ use strict;
 use warnings;
 use File::Spec;
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug getMessageByType setDebug /;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::LockFile;
 use iMSCP::Umask;
-use POSIX qw/ tzset /;
+use POSIX 'tzset';
 use parent 'Common::SingletonClass';
 
 $SIG{'INT'} = 'IGNORE';
@@ -62,8 +62,6 @@ sub boot
 {
     my ( $self, $options ) = @_;
 
-    setDebug( TRUE ); # Set debug mode for booting time
-
     $options->{'mode'} //= 'backend';
     debug( sprintf( 'Booting %s....', $options->{'mode'} ));
 
@@ -75,8 +73,6 @@ sub boot
         $ENV{'TZ'} = $::imscpConfig{'TIMEZONE'} || 'UTC';
         tzset;
     }
-
-    setDebug( iMSCP::Getopt->debug || $::imscpConfig{'DEBUG'} || FALSE ); # Set debug mode
 
     unless ( $options->{'norequirements'} ) {
         require iMSCP::Requirements;

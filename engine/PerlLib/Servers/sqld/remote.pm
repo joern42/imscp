@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use Class::Autouse qw/ :nostat Servers::sqld::remote::installer Servers::sqld::remote::uninstaller /;
 use iMSCP::Boolean;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Rights 'setRights';
 use version;
 use parent 'Servers::sqld::mysql';
 
@@ -41,7 +41,7 @@ use parent 'Servers::sqld::mysql';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -56,7 +56,7 @@ sub preinstall
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -70,7 +70,7 @@ sub postinstall
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -85,7 +85,7 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- See iMSCP::AbstractInstallerActions::setEnginePermissions()
+ See iMSCP::Installer::AbstractActions::setEnginePermissions()
 
 =cut
 

@@ -25,7 +25,7 @@ package iMSCP::Provider::Service::Interface;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
+use Carp 'croak';
 
 =head1 DESCRIPTION
 

@@ -25,7 +25,7 @@ package iMSCP::Provider::Service::Upstart;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
+use Carp 'croak';
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug getMessageByType /;
 use File::Basename;

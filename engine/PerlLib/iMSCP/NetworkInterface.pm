@@ -27,7 +27,7 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::LsbRelease;
-use Module::Load::Conditional qw/ can_load /;
+use Module::Load::Conditional 'can_load';
 use Scalar::Util 'blessed';
 use parent qw/ Common::SingletonClass iMSCP::Provider::NetworkInterface::Interface /;
 

@@ -27,8 +27,8 @@ use strict;
 use warnings;
 use DBI;
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug /;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Debug 'debug';
+use iMSCP::Execute 'execute';
 use POSIX ':signal_h';
 use parent 'Common::SingletonClass';
 

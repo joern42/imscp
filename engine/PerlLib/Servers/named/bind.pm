@@ -25,13 +25,13 @@ package Servers::named::bind;
 
 use strict;
 use warnings;
-use autouse 'iMSCP::Rights' => qw/ setRights /;
+use autouse 'iMSCP::Rights' => 'setRights';
 use Class::Autouse qw/ :nostat Servers::named::bind::installer Servers::named::bind::uninstaller /;
 use File::Basename;
 use iMSCP::Boolean;
 use iMSCP::Config;
 use iMSCP::Debug qw/ debug error /;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
@@ -39,7 +39,7 @@ use iMSCP::ProgramFinder;
 use iMSCP::Service;
 use iMSCP::TemplateParser qw/ getBlocByRef process processByRef replaceBlocByRef /;
 use iMSCP::Umask;
-use POSIX qw/ strftime /;
+use POSIX 'strftime';
 use parent 'Servers::abstract';
 
 =head1 DESCRIPTION
@@ -52,7 +52,7 @@ use parent 'Servers::abstract';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -65,7 +65,7 @@ sub registerInstallerDialogs
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -79,7 +79,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -94,7 +94,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -120,7 +120,7 @@ sub postinstall
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -142,7 +142,7 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- See iMSCP::AbstractInstallerActions::setEnginePermissions()
+ See iMSCP::Installer::AbstractActions::setEnginePermissions()
 
 =cut
 

@@ -29,7 +29,7 @@ use File::Basename;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute;
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
@@ -50,7 +50,7 @@ use parent 'Common::SingletonClass';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -64,7 +64,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 

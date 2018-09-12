@@ -26,8 +26,8 @@ package iMSCP::Dialog;
 use strict;
 use warnings;
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug error debugRegisterCallBack /;
-use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList /;
+use iMSCP::Debug qw/ debug error /;
+use iMSCP::Dialog::InputValidation 'isOneOfStringsInList';
 use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
@@ -330,12 +330,13 @@ sub startGauge
         $percent // 0 or die( "Couldn't start gauge" );
 
     $self->{'gauge'}->autoflush( 1 );
-    debugRegisterCallBack( sub { $self->endGauge(); } );
 }
 
 =item setGauge( $percent, $text )
 
  Set new percentage and optionaly new text to show
+
+ If no gauge is currently running, a new one will be created
 
  Param int $percent New percentage to show in gauge dialog box
  Param string $text New text to show in gauge dialog box
@@ -347,7 +348,10 @@ sub setGauge
 {
     my ( $self, $percent, $text ) = @_;
 
-    return unless defined $self->{'gauge'};
+    unless( defined $self->{'gauge'} ) {
+        $self->startGauge( $text, $percent );
+        return;
+    }
 
     print { $self->{'gauge'} } sprintf( "XXX\n%d\n%s\nXXX\n", $percent, $text );
 }
@@ -499,7 +503,7 @@ sub _init
     $self->{'autoreset'} = 0;
     $self->{'lines'} = undef;
     $self->{'columns'} = undef;
-    $self->{'_opts'}->{'backtitle'} ||= "i-MSCP - internet Multi Server Control Panel ($::imscpConfig{'Version'})";
+    $self->{'_opts'}->{'backtitle'} ||= 'i-MSCP - internet Multi Server Control Panel';
     $self->{'_opts'}->{'title'} ||= 'i-MSCP Installer Dialog';
     $self->{'_opts'}->{'colors'} = '';
     $self->{'_opts'}->{'ok-label'} ||= 'Ok';

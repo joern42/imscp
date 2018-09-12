@@ -26,7 +26,7 @@ package iMSCP::SystemGroup;
 use strict;
 use warnings;
 use iMSCP::Debug qw/ debug error /;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use parent 'Common::SingletonClass';
 
 =head1 DESCRIPTION

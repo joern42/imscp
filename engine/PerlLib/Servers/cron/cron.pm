@@ -30,7 +30,7 @@ use iMSCP::Config;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Rights 'setRights';
 use iMSCP::TemplateParser qw/ processByRef replaceBlocByRef /;
 use iMSCP::Service;
 use parent 'Servers::abstract';
@@ -45,7 +45,7 @@ use parent 'Servers::abstract';
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -63,7 +63,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -84,8 +84,7 @@ sub install
         {
             QUOTA_ROOT_DIR  => $::imscpConfig{'QUOTA_ROOT_DIR'},
             LOG_DIR         => $::imscpConfig{'LOG_DIR'},
-            TRAFF_ROOT_DIR  => $::imscpConfig{'TRAFF_ROOT_DIR'},
-            TOOLS_ROOT_DIR  => $::imscpConfig{'TOOLS_ROOT_DIR'},
+            TRAFF_ROOT_DIR  => $::imscpConfig{'TRAFF_ROOT_DIR'}
         },
         \$cfgTpl
     );
@@ -100,7 +99,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 

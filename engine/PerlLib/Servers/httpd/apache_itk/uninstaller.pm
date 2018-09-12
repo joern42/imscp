@@ -19,7 +19,7 @@ package Servers::httpd::apache_itk::uninstaller;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::Dir;
 use iMSCP::File;
 use Servers::httpd::apache_itk;

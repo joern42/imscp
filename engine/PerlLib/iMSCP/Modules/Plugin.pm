@@ -25,7 +25,7 @@ package iMSCP::Modules::Plugin;
 
 use strict;
 use warnings;
-use autouse 'Hash::Merge' => qw/ merge /;
+use autouse 'Hash::Merge' => 'merge';
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error getMessageByType /;
 use iMSCP::Database;

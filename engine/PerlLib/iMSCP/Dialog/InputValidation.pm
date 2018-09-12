@@ -26,13 +26,13 @@ package iMSCP::Dialog::InputValidation;
 use strict;
 use warnings;
 use iMSCP::Boolean;
-use autouse 'List::Compare::Functional' => qw/ get_intersection /;
+use autouse 'List::Compare::Functional' => 'get_intersection';
 use Data::Validate::Domain qw/ is_domain is_hostname /;
 use DateTime::TimeZone;
 use Email::Valid;
 use iMSCP::Database;
 use iMSCP::Net;
-use Net::LibIDN qw/ idn_to_ascii /;
+use Net::LibIDN 'idn_to_ascii';
 use parent 'Exporter';
 
 our @EXPORT = qw/ isValidUsername isValidPassword isValidEmail isValidHostname isValidDomain isValidIpAddr

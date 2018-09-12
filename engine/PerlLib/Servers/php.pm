@@ -26,10 +26,10 @@ package Servers::php;
 use strict;
 use warnings;
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ error /;
-use iMSCP::Dir;
+use iMSCP::Debug 'error';
+use iMSCP::Cwd '$CWD';
 use iMSCP::Service;
-use parent 'Common::SingletonClass';
+use parent qw/ Common::SingletonClass iMSCP::Installer::AbstractActions /;
 
 # php server instance
 my $instance;
@@ -74,6 +74,8 @@ sub getPriority
 
 =item install( )
 
+ See iMSCP::Installer::AbstractActions::install()
+
 =cut
 
 sub install
@@ -81,6 +83,24 @@ sub install
     my ( $self ) = @_;
 
     $self->_disableUnusedPhpVersions();
+}
+
+=item getAvailablePhpVersions( )
+
+ Get list of available PHP versions
+
+ Return list of available PHP versions
+
+=cut
+
+sub getAvailablePhpVersions
+{
+    CORE::state @versions;
+
+    # A Debian like distribution is assumed here
+    local $CWD = '/etc/php';
+    @versions = sort { $a <=> $b } <[0-9].[0-9]> unless @versions;
+    @versions;
 }
 
 =back
@@ -93,7 +113,7 @@ sub install
 
  Disable unused PHP versions (PHP-FPM)
 
- Return 0 on success, other on failure
+ Return int 0 on success, die on failure
 
 =cut
 
@@ -101,45 +121,22 @@ sub _disableUnusedPhpVersions
 {
     my ( $self ) = @_;
 
-    eval {
-        my $httpd = Servers::httpd->factory();
-        my $srvProvider = iMSCP::Service->getInstance();
+    my $httpd = Servers::httpd->factory();
+    my $service = iMSCP::Service->getInstance();
 
-        for my $version ( $self->_getAvailablePhpVersions() ) {
-            next unless $srvProvider->hasService( "php$version-fpm" );
+    for my $version ( $self->getAvailablePhpVersions() ) {
+        next unless $service->hasService( "php$version-fpm" );
 
-            # Disables the PHP-FPM service if one of the following conditions is met:
-            # The HTTP server implementation for customers is not FPM
-            # The PHP version is not used by customers
-            if ( ref $httpd ne 'Servers::httpd::apache_php_fpm' || $httpd->{'phpConfig'}->{'PHP_VERSION'} ne $version ) {
-                $srvProvider->stop( "php$version-fpm" );
-                $srvProvider->disable( "php$version-fpm" );
-            }
+        # Disables the PHP-FPM service if one of the following conditions is met:
+        # The HTTP server implementation for customers is not FPM
+        # The PHP version is not used by customers
+        if ( ref $httpd ne 'Servers::httpd::apache_php_fpm' || $httpd->{'phpConfig'}->{'PHP_VERSION'} ne $version ) {
+            $service->stop( "php$version-fpm" );
+            $service->disable( "php$version-fpm" );
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
 
     0;
-}
-
-=item _getAvailablePhpVersions( )
-
- Get list of available PHP versions
-
- Return list of available PHP versions
-
-=cut
-
-sub _getAvailablePhpVersions
-{
-    CORE::state @versions;
-
-    # A Debian like distribution is assumed here
-    @versions = sort { $a <=> $b } grep ( /^\d+.\d+$/, iMSCP::Dir->new( dirname => '/etc/php' )->getDirs() ) unless @versions;
-    @versions;
 }
 
 =back

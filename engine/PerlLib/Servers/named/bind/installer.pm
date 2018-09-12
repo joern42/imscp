@@ -30,14 +30,14 @@ use iMSCP::Boolean;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList isValidEmail isValidHostname /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
 use iMSCP::Net;
 use iMSCP::ProgramFinder;
 use iMSCP::Service;
 use iMSCP::Umask;
-use List::MoreUtils qw/ uniq /;
+use List::MoreUtils 'uniq';
 use Servers::named::bind;
 use Socket qw/ :DEFAULT inet_ntop inet_pton getnameinfo /;
 use version;
@@ -53,7 +53,7 @@ use parent 'Common::SingletonClass';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -73,7 +73,7 @@ sub registerInstallerDialogs
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 

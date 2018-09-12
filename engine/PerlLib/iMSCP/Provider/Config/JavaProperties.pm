@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::ConfigProvider::JavaProperties - Configuration provider for Java-style properties files.
+ iMSCP::Provider::Config::JavaProperties - Configuration provider for Java-style properties files.
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::ConfigProvider::JavaProperties;
+package iMSCP::Provider::Config::JavaProperties;
 
 use strict;
 use warnings;
@@ -38,7 +38,7 @@ use parent 'Common::Functor';
  
  This configuration provider accept a BSD glob(3) pattern for loading and
  merging of several Java-style properties files all together, returning the
- merged configuration as a simple hash. 
+ merged configuration as a simple hash.
 
  It is possible to specify a namespace for the returned configuration. This is
  useful when the provider is part of an aggregate that merge configuration of
@@ -49,7 +49,7 @@ use parent 'Common::Functor';
 
 =over 4
 
-=item new( GLOB_PATTERN => <glob_pattern> [, DELIMITER => '=', [ NAMESPACE => none ] ] )
+=item new( GLOB_PATTERN => <glob_pattern> [, DELIMITER => '=' [, NAMESPACE => none ] ] )
 
  Constructor
  
@@ -57,7 +57,7 @@ use parent 'Common::Functor';
   GLOB_PATTERN : Glob pattern for Java-style properties files (required).
   DELIMITER    : Delimiter for key/value pairs, default to equals character (=).
   NAMESPACE    : Configuration namespace, none by default
- Return iMSCP::ConfigProvider::JavaProperties, croak on failure
+ Return iMSCP::Provider::Config::JavaProperties, croak on failure
 
 =cut
 
@@ -69,7 +69,7 @@ sub new
     local $Params::Check::SANITY_CHECK_TEMPLATE = FALSE;
 
     $self->SUPER::new( check( {
-        DELIMITER    => { default => '=', allow => [ '=', ':' ], strict_type => TRUE, },
+        DELIMITER    => { default => '=', allow => [ '=', ':' ], strict_type => TRUE },
         GLOB_PATTERN => { required => TRUE, defined => TRUE },
         NAMESPACE    => { default => undef, strict_type => TRUE }
     }, \%params, TRUE ) or croak( Params::Check::last_error()));
@@ -159,10 +159,10 @@ __END__
 
 # Usage example:
 
-use iMSCP::ConfigProvider::JavaProperties;
+use iMSCP::Provider::Config::JavaProperties;
 use Data::Dumper;
 
-my $provider = iMSCP::ConfigProvider::iMSCP->new(
+my $provider = iMSCP::Provider::Config::iMSCP->new(
     GLOB_PATTERN => 'test/{c,b,a}.{conf.dist,conf}',
     NAMESPACE    => 'testing'
 );

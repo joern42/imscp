@@ -25,7 +25,7 @@ package iMSCP::Provider::Service::Debian::SysVinit;
 
 use strict;
 use warnings;
-use Carp qw/ croak /;
+use Carp 'croak';
 use iMSCP::Boolean;
 use parent 'iMSCP::Provider::Service::SysVinit';
 

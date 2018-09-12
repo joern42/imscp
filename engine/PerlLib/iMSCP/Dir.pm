@@ -25,9 +25,9 @@ package iMSCP::Dir;
 
 use strict;
 use warnings;
-use File::Copy qw/ mv /;
+use File::Copy 'mv';
 use File::Path qw/ mkpath remove_tree /;
-use iMSCP::Debug qw/ getLastError /;
+use iMSCP::Debug 'getLastError';
 use iMSCP::File;
 use parent 'Common::Object';
 

@@ -25,12 +25,13 @@ package iMSCP::File;
 
 use strict;
 use warnings;
-use autouse Lchown => qw/ lchown /;
-use File::Basename qw/ basename /;
+use autouse Lchown => 'lchown';
+use File::Basename 'basename';
 use File::Copy qw/ copy mv /;
 use File::Spec;
-use iMSCP::Debug qw/ error /;
-use overload '""' => \&__toString, fallback => 1;
+use iMSCP::Debug 'error';
+use iMSCP::Boolean;
+use overload '""' => \&__toString, fallback => TRUE;
 use parent 'Common::Object';
 
 =head1 DESCRIPTION
@@ -322,6 +323,9 @@ sub moveFile
         return 1;
     }
 
+    # update filename to reflete new file location
+    $self->{'filename'} = $destination;
+    
     0;
 }
 

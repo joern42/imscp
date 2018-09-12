@@ -28,9 +28,9 @@ use warnings;
 use autouse 'Data::Clone' => 'clone';
 use autouse 'Data::Compare' => 'Compare';
 use Carp 'croak';
+use iMSCP::Boolean;
 use List::Util 'max';
 use Scalar::Util 'looks_like_number';
-use iMSCP::Boolean;
 
 =head1 DESCRIPTION
 
@@ -71,10 +71,12 @@ sub hasItem
 {
     my ( $self, $item ) = @_;
 
-    for my $items ( values %{ $self->{'queue'} } ) {
-        for my $v ( @{ $items } ) {
-            return TRUE if Compare $item, $v;
-        }
+    while( my (undef, $items) = each( %{ $self->{'queue'} } ) ) {
+        next unless grep Compare( $_, $item ), @{ $items };
+
+        # Reset internal hash iterator; see http://www.perlmonks.org/?node_id=294285
+        $self->count();
+        return TRUE
     }
 
     FALSE;
@@ -137,8 +139,6 @@ sub removeItem
         }
     }
 
-    # Reset internal hash iterator; see http://www.perlmonks.org/?node_id=294285
-    $self->count();
     FALSE;
 }
 
@@ -165,7 +165,7 @@ sub count
 
 sub isEmpty
 {
-    !$_[0]->count();
+    $_[0]->count() == 0;
 }
 
 =item pop( )

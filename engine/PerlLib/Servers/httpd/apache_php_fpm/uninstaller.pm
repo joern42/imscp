@@ -25,7 +25,7 @@ package Servers::httpd::apache_php_fpm::uninstaller;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::Dir;
 use iMSCP::File;
 use Servers::httpd::apache_php_fpm;
@@ -42,7 +42,7 @@ use parent 'Common::SingletonClass';
 
 =item uninstall
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 

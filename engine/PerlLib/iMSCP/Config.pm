@@ -26,8 +26,8 @@ package iMSCP::Config;
 use strict;
 use warnings;
 use 5.014;
-use iMSCP::Debug qw//;
 use Fcntl 'O_RDWR', 'O_CREAT', 'O_RDONLY';
+use iMSCP::Boolean;
 use Tie::File;
 use parent 'Common::Object';
 
@@ -237,10 +237,32 @@ sub _loadConfig
     );
     $self->{'tieFileObject'}->defer unless $self->{'nodeferring'} || $self->{'readonly'};
 
-    while ( my ( $lineNo, $value ) = each( @{ $self->{'tiefile'} } ) ) {
-        next unless $value =~ /^([^#\s=]+)\s*=\s*(.*)$/;
-        $self->{'configValues'}->{$1} = $2;
-        $self->{'lineMap'}->{$1} = $lineNo;
+    my ( $key, $value, $valueLength, $delimiterPos, $isLineContinuation );
+
+    while ( my ( $lineNo, $line ) = each( @{ $self->{'tiefile'} } ) ) {
+        $line =~ s/^\s+|\s+$//g;
+        next if !length $line || ( !$isLineContinuation && ( index( $line, '#' ) == 0 || index( $line, '!' ) == 0 ) );
+
+        if ( $isLineContinuation ) {
+            $value .= $line;
+        } else {
+            if ( ( $delimiterPos = index( $line, '=' ) ) != -1 ) {
+                ( $key, $value ) = ( substr( $line, 0, $delimiterPos ), substr( $line, $delimiterPos+1, length $line ) );
+            } else {
+                ( $key, $value ) = ( $line, '' );
+            }
+        }
+
+        $valueLength = length( $value )-1;
+        if ( $valueLength != -1 && index( $value, '\\' ) == $valueLength ) {
+            ( $value, $isLineContinuation ) = ( substr( $value, 0, $valueLength ), TRUE );
+        } else {
+            $isLineContinuation = FALSE;
+        }
+
+        $key =~ s/\s+$//g;
+        ( $self->{'configValues'}->{$key} = $value ) =~ s/^\s+//g;
+        $self->{'lineMap'}->{$key} = $lineNo;
     }
 
     undef;

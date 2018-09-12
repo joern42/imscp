@@ -25,7 +25,7 @@ package iMSCP::Modules::Htaccess;
 
 use strict;
 use warnings;
-use Encode qw/ encode_utf8 /;
+use Encode 'encode_utf8';
 use File::Spec;
 use iMSCP::Boolean;
 use iMSCP::Debug qw/ error getLastError warning /;

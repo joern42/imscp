@@ -28,7 +28,7 @@ use warnings;
 use File::Basename;
 use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dir;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::SystemUser;
 use Servers::mta::postfix;
@@ -44,7 +44,7 @@ use parent 'Common::SingletonClass';
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 

@@ -33,7 +33,7 @@ use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/ isOneOfStringsInList isStringNotInList /;
 use iMSCP::Dir;
 use iMSCP::File;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
 use iMSCP::SystemGroup;
@@ -53,7 +53,7 @@ use parent 'Common::SingletonClass';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -69,7 +69,7 @@ sub registerInstallerDialogs
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 

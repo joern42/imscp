@@ -35,7 +35,7 @@ use iMSCP::Dir;
 use iMSCP::Execute qw/ execute executeNoWait /;
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Rights 'setRights';
 use iMSCP::Service;
 use Tie::File;
 use parent 'Servers::abstract';
@@ -53,7 +53,7 @@ my $instance;
 
 =item preinstall( )
 
- See iMSCP::AbstractInstallerActions::preinstall()
+ See iMSCP::Installer::AbstractActions::preinstall()
 
 =cut
 
@@ -69,7 +69,7 @@ sub preinstall
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 
@@ -84,7 +84,7 @@ sub install
 
 =item postinstall( )
 
- See iMSCP::AbstractInstallerActions::postinstall()
+ See iMSCP::Installer::AbstractActions::postinstall()
 
 =cut
 
@@ -126,7 +126,7 @@ sub postinstall
 
 =item uninstall( )
 
- See iMSCP::AbstractUninstallerActions::uninstall()
+ See iMSCP::Uninstaller::AbstractActions::uninstall()
 
 =cut
 
@@ -149,7 +149,7 @@ sub uninstall
 
 =item setEnginePermissions( )
 
- See iMSCP::AbstractInstallerActions::setEnginePermissions()
+ See iMSCP::Installer::AbstractActions::setEnginePermissions()
 
 =cut
 

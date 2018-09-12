@@ -34,10 +34,10 @@ use iMSCP::Debug qw/ debug error /;
 use iMSCP::Dialog::InputValidation qw/
     isOneOfStringsInList isValidUsername isStringNotInList isValidPassword isAvailableSqlUser isValidNumberRange isNumberInRange
 /;
-use iMSCP::Execute qw/ execute /;
+use iMSCP::Execute 'execute';
 use iMSCP::File;
 use iMSCP::Getopt;
-use iMSCP::TemplateParser qw/ processByRef /;
+use iMSCP::TemplateParser 'processByRef';
 use iMSCP::Stepper;
 use iMSCP::Umask;
 use Servers::ftpd::vsftpd;
@@ -57,7 +57,7 @@ use parent 'Common::SingletonClass';
 
 =item registerInstallerDialogs( $dialogs )
 
- See iMSCP::AbstractInstallerActions::registerInstallerDialogs()
+ See iMSCP::Installer::AbstractActions::registerInstallerDialogs()
 
 =cut
 
@@ -73,7 +73,7 @@ sub registerInstallerDialogs
 
 =item install( )
 
- See iMSCP::AbstractInstallerActions::install()
+ See iMSCP::Installer::AbstractActions::install()
 
 =cut
 

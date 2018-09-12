@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Modules::Abstract - Base class for i-MSCP modules
+ iMSCP::Modules::Abstract - Abstract class for i-MSCP modules
 
 =cut
 
@@ -25,18 +25,18 @@ package iMSCP::Modules::Abstract;
 
 use strict;
 use warnings;
-use Carp qw/ confess /;
+use Carp 'confess';
 use iMSCP::Boolean;
 use iMSCP::Database;
-use iMSCP::Debug qw/ debug /;
+use iMSCP::Debug qw/ debug getMessageByType /;
 use iMSCP::EventManager;
 use iMSCP::Packages;
 use iMSCP::Servers;
-use parent qw/ 'Common::Object /;
+use parent 'Common::Object';
 
 =head1 DESCRIPTION
 
- i-MSCP modules abstract class.
+ Abstract class for i-MSCP modules.
 
 =head1 PUBLIC METHODS
 
@@ -61,7 +61,7 @@ sub getType
 
  Process add|delete|restore|disable action according item status.
 
- Return int 0 on success, other or die on failure
+ Return void, die on failure
 
 =cut
 
@@ -78,7 +78,7 @@ sub process
 
  Should be executed for entities with status 'toadd|tochange|toenable'.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -86,8 +86,8 @@ sub add
 {
     my ( $self ) = @_;
 
-    my $rs = $self->_executeActionOnServers( 'add' );
-    $rs || $self->_executeActionOnPackages( 'add' );
+    $self->_executeActionOnServers( 'add' );
+    $self->_executeActionOnPackages( 'add' );
 }
 
 =item delete( )
@@ -96,7 +96,7 @@ sub add
 
  Should be executed for entities with status 'todelete'.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -104,8 +104,8 @@ sub delete
 {
     my ( $self ) = @_;
 
-    my $rs || $self->_executeActionOnPackages( 'delete' );
-    $rs = $self->_executeActionOnServers( 'delete' );
+    $self->_executeActionOnPackages( 'delete' );
+    $self->_executeActionOnServers( 'delete' );
 }
 
 =item restore( )
@@ -114,7 +114,7 @@ sub delete
 
  Should be executed for entities with status 'torestore'.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -122,8 +122,8 @@ sub restore
 {
     my ( $self ) = @_;
 
-    my $rs = $self->_executeActionOnServers( 'restore' );
-    $rs || $self->_executeActionOnPackages( 'restore' );
+    $self->_executeActionOnServers( 'restore' );
+    $self->_executeActionOnPackages( 'restore' );
 }
 
 =item disable( )
@@ -132,7 +132,7 @@ sub restore
 
  Should be executed for entities with status 'todisable'.
 
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -140,8 +140,8 @@ sub disable
 {
     my ( $self ) = @_;
 
-    my $rs || $self->_executeActionOnPackages( 'disable' );
-    $rs = $self->_executeActionOnServers( 'disable' );
+    $self->_executeActionOnPackages( 'disable' );
+    $self->_executeActionOnServers( 'disable' );
 }
 
 =back
@@ -152,9 +152,7 @@ sub disable
 
 =item _init( )
 
- Initialize instance
-
- Return iMSCP::Modules::Abstract
+ See Common::SingletonClass::_init()
 
 =cut
 
@@ -174,7 +172,7 @@ sub _init
  Execute the given module action on i-MSCP server
 
  Param string $moduleAction Module action to execute on servers and packages
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -182,24 +180,14 @@ sub _executeActionOnServers
 {
     my ( $self, $moduleAction ) = @_;
 
-    my ( $rs, $moduleType, $moduleData ) = ( 0, $self->getType(), $self->_getData( $moduleAction ) );
+    my ( $moduleType, $moduleData ) = ( $self->getType(), $self->_getData( $moduleAction ) );
 
-    eval {
-        ACTION:
-        for my $action ( "pre$moduleAction$moduleType", "$moduleAction$moduleType", "post$moduleAction$moduleType" ) {
-            debug( sprintf( 'Executing the %s module action on i-MSCP servers...', $action ));
-            for my $server ( iMSCP::Servers->getInstance()->getList() ) {
-                $rs = $server->factory()->$action( $moduleData );
-                last ACTION if $rs;
-            }
+    for my $action ( "pre$moduleAction$moduleType", "$moduleAction$moduleType", "post$moduleAction$moduleType" ) {
+        debug( sprintf( 'Executing the %s module action on i-MSCP servers...', $action ));
+        for my $server ( iMSCP::Servers->getInstance()->getList() ) {
+            $server->factory()->$action( $moduleData ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
-
-    $rs;
 }
 
 =item _executeActionOnPackages( $moduleAction )
@@ -207,7 +195,7 @@ sub _executeActionOnServers
  Execute the given module action on i-MSCP packages
 
  Param string $moduleAction Module action to execute on i-MSCP packages
- Return int 0 on success, other on failure
+ Return void, die on failure
 
 =cut
 
@@ -215,24 +203,14 @@ sub _executeActionOnPackages
 {
     my ( $self, $moduleAction ) = @_;
 
-    my ( $rs, $moduleType, $moduleData ) = ( 0, $self->getType(), $self->_getData( $moduleAction ) );
+    my ( $moduleType, $moduleData ) = ( $self->getType(), $self->_getData( $moduleAction ) );
 
-    eval {
-        ACTION:
-        for my $action ( "pre$moduleAction$moduleType", "$moduleAction$moduleType", "post$moduleAction$moduleType" ) {
-            debug( sprintf( 'Executing the %s module action on i-MSCP packages...', $action ));
-            for my $packages ( iMSCP::Packages->getInstance()->getList() ) {
-                $rs = $packages->getInstance()->$action( $moduleData );
-                last ACTION if $rs;
-            }
+    for my $action ( "pre$moduleAction$moduleType", "$moduleAction$moduleType", "post$moduleAction$moduleType" ) {
+        debug( sprintf( 'Executing the %s module action on i-MSCP packages...', $action ));
+        for my $packages ( iMSCP::Packages->getInstance()->getList() ) {
+            $packages->getInstance()->$action( $moduleData ) == 0 or die( getMessageByType( 'error', { amount => 1, remove => TRUE } ));
         }
-    };
-    if ( $@ ) {
-        error( $@ );
-        return 1;
     }
-
-    $rs;
 }
 
 =item _getData( $action )

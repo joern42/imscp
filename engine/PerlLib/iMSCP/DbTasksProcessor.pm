@@ -25,14 +25,14 @@ package iMSCP::DbTasksProcessor;
 
 use strict;
 use warnings;
-use Encode qw/ encode_utf8 /;
+use Encode 'encode_utf8';
 use iMSCP::Boolean;
 use iMSCP::Database;
 use iMSCP::Debug qw/ debug error getMessageByType newDebug endDebug /;
 use iMSCP::Execute qw/ execute escapeShell /;
 use iMSCP::Stepper;
 use JSON;
-use MIME::Base64 qw/ encode_base64 /;
+use MIME::Base64 'encode_base64';
 use parent 'Common::SingletonClass';
 
 # Ensure backward compatibility with plugins
@@ -348,7 +348,7 @@ sub processDbTasks
             );
 
             my ( $stdout, $stderr );
-            execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or die(
+            execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/bin/imscp-sw-mngr " . escapeShell( $pushString ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
             debug( $stdout ) if $stdout;
@@ -380,7 +380,7 @@ sub processDbTasks
             );
 
             my ( $stdout, $stderr );
-            execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or die(
+            execute( "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/bin/imscp-pkt-mngr " . escapeShell( $pushstring ), \$stdout, \$stderr ) == 0 or die(
                 $stderr || 'Unknown error'
             );
             debug( $stdout ) if $stdout;

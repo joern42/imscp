@@ -25,8 +25,8 @@ package iMSCP::Packages;
 
 use strict;
 use warnings;
-use File::Basename qw/ dirname /;
-use iMSCP::Cwd;
+use File::Basename 'dirname';
+use iMSCP::Cwd '$CWD';
 use iMSCP::Getopt;
 use parent 'Common::SingletonClass';
 
@@ -72,7 +72,7 @@ sub _init
 {
     my ( $self ) = @_;
 
-    local $CWD = dirname( __FILE__ ) . '/../Package';
+    local $CWD = dirname( __FILE__ ) . '/Package';
 
     s%(.*)\.pm$%iMSCP::Package::$1% for @{ $self->{'_packages'} } = grep !/^Abstract(?:Collection)?\.pm$/, <*.pm>;
 
@@ -83,7 +83,7 @@ sub _init
     }
 
     eval "require $_; 1" or die( sprintf( "Couldn't load the '%s' package: %s", $_, $@ )) for @{ $self->{'_packages'} };
-    @{ $self->{'_packages'} } = sort { $b->getPriority() <=> $a->getPriority() } grep $_->checkRequirements(), @{ $self->{'_packages'} };
+    @{ $self->{'_packages'} } = sort { $b->getPriority() <=> $a->getPriority() } grep( $_->checkRequirements(), @{ $self->{'_packages'} } );
     $self;
 }
 
