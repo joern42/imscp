@@ -21,7 +21,7 @@ use lib '/var/www/imscp/engine/PerlLib';
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug;
-use iMSCP::Mount qw/ umount /;
+use iMSCP::Mount 'umount';
 
 my $bootstrapper = iMSCP::Bootstrapper->getInstance();
 exit unless $bootstrapper->lock( '/var/lock/imscp-mountall.lock', 'nowait' );
@@ -33,9 +33,7 @@ $bootstrapper->boot( {
     config_readonly => TRUE
 } );
 
-setDebug( FALSE );
-setVerbose( TRUE );
-umount( $main::imscpConfig{'USER_WEB_DIR'} );
+umount( $::imscpConfig{'USER_WEB_DIR'} );
 
 1;
 __END__

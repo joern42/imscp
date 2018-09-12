@@ -23,11 +23,10 @@ package Listener::Backup::Storage::Outsourcing;
 # 1. Upload that listener file into the /etc/imscp/listeners.d directory
 # 2. Edit the /etc/imscp/listeners.d/10_backup_storage_outsourcing.pl file
 #    and set the $STORAGE_ROOT_PATH variable below according your needs
-# 3. Trigger an i-MSCP reconfiguration: perl /var/www/imscp/engine/setup/imscp-reconfigure -danv
+# 3. Trigger an i-MSCP reconfiguration: perl /var/www/imscp/engine/bin/imscp-reconfigure -danv
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
 use iMSCP::EventManager;
 use iMSCP::Ext2Attributes qw/ setImmutable clearImmutable /;
 use iMSCP::Dir;
@@ -53,8 +52,8 @@ unless ( $STORAGE_ROOT_PATH eq '' ) {
         # Make sure that the root path for outsourced backup directories
         # exists and that it is set with expected ownership and permissions
         iMSCP::Dir->new( dirname => $STORAGE_ROOT_PATH )->make( {
-            user  => $main::imscpConfig{'ROOT_USER'},
-            group => $main::imscpConfig{'ROOT_GROUP'},
+            user  => $::imscpConfig{'ROOT_USER'},
+            group => $::imscpConfig{'ROOT_GROUP'},
             mode  => 0750
         } );
     } );

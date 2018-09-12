@@ -5,12 +5,9 @@
 # See documentation at http://wiki.i-mscp.net/doku.php?id=start:preseeding
 #
 # Author: Laurent Declercq <l.declercq@nuxwin.com>
-# Last update: 2018.08.28
+# Last update: 2018.09.12
 
-use strict;
-use warnings;
-
-%::questions = (
+{
     #
     ## System configuration
     #
@@ -21,8 +18,9 @@ use warnings;
 
     # Server primary IP
     # Possible values: An already configured IPv4, IPv6 or 'None'
-    # The 'None' option is more suitable for Cloud computing services such as Scaleway and Amazon EC2.
-    # Selecting the 'None' option means that i-MSCP will configures the services to listen on all interfaces.
+    # The 'None' option is more suitable for Cloud computing services such as
+    # Scaleway and Amazon EC2. Selecting the 'None' option means that i-MSCP
+    # will configures the services to listen on all interfaces.
     BASE_SERVER_IP                      => '',
 
     # WAN IP (only relevant if your primary IP is in private range)
@@ -173,7 +171,8 @@ use warnings;
     ADMIN_PASSWORD                      => '',
 
     # Master administrator email address
-    # Possible value: A valid email address. Be aware that mails sent to local root user will be forwarded to that email.
+    # Possible value: A valid email address. Mails sent to local root user will
+    # be forwarded to that address.
     DEFAULT_ADMIN_ADDRESS               => '',
 
     ## DNS server configuration
@@ -498,6 +497,6 @@ use warnings;
     RSPAMD_WEBUI                        => 'no',
     # Only ASCII alphabet characters and numbers are allowed in password.
     RSPAMD_WEBUI_PASSWORD               => ''
-);
+};
 
 1;

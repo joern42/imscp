@@ -25,13 +25,13 @@
 # 2. Edit the /etc/imscp/listener.d/10_bind9_sdsps.pl listener file and fill the configuration
 #    variables
 # 3. Trigger an i-MSCP reconfiguration to activate the service:
-#    # perl /var/www/imscp/engine/setup/imscp-reconfigure -dsnv 
+#    # perl /var/www/imscp/engine/bin/imscp-reconfigure -dsnv 
 
 package Listener::Named::SDSPS;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::File;
@@ -71,8 +71,8 @@ sub createHtpasswdFile
 
     my $rs = $file->save();
     $rs ||= $file->owner(
-        "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
-        "$main::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}"
+        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}",
+        "$::imscpConfig{'SYSTEM_USER_PREFIX'}$::imscpConfig{'SYSTEM_USER_MIN_UID'}"
     );
     $rs ||= $file->mode( 0640 );
 }

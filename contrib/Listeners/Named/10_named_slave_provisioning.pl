@@ -28,7 +28,7 @@ package Listener::Named::Slave::Provisioning;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
+use iMSCP::Debug 'error';
 use iMSCP::Dir;
 use iMSCP::EventManager;
 use iMSCP::File;

@@ -25,7 +25,7 @@ use iMSCP::Boolean;
 use iMSCP::EventManager;
 use iMSCP::Net;
 use iMSCP::TemplateParser qw / getBlocByRef replaceBlocByRef /;
-use List::MoreUtils qw/ uniq /;
+use List::MoreUtils 'uniq';
 
 # Configuration variables
 

@@ -22,7 +22,6 @@ package Listener::FrontEnd::Templates::Override;
 
 use strict;
 use warnings;
-use iMSCP::Debug qw/ error /;
 use iMSCP::Dir;
 use iMSCP::EventManager;
 

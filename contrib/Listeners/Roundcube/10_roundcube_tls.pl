@@ -26,7 +26,7 @@ use iMSCP::EventManager;
 # Please don't edit anything below this line
 
 iMSCP::EventManager->getInstance()->register( 'afterSetupTasks', sub {
-    my $file = iMSCP::File->new( filename => "$main::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
+    my $file = iMSCP::File->new( filename => "$::imscpConfig{'GUI_PUBLIC_DIR'}/tools/webmail/config/config.inc.php" );
     my $fileC = $file->getAsRef();
     return 1 unless defined $fileC;
 
@@ -34,7 +34,7 @@ iMSCP::EventManager->getInstance()->register( 'afterSetupTasks', sub {
     $file->save();
 } );
 
-iMSCP::EventManager->getInstance()->register( 'beforeUpdateRoundCubeMailHostEntries', sub {
+iMSCP::EventManager->getInstance()->register( 'beforeUpdateRoundcubeMailHostEntries', sub {
     ${ $_[0] } = $::imscpConfig{'BASE_SERVER_VHOST'};
     0;
 } );

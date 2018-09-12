@@ -27,7 +27,7 @@ use iMSCP::TemplateParser qw/ getBlocByRef replaceBlocByRef /;
 iMSCP::EventManager->getInstance()->register( 'afterFrontEndBuildConfFile', sub {
     my ( $tplContent, $tplName ) = @_;
 
-    return 0 unless $tplName eq '00_master_ssl.nginx' && $main::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes';
+    return 0 unless $tplName eq '00_master_ssl.nginx' && $::imscpConfig{'PANEL_SSL_ENABLED'} eq 'yes';
 
     replaceBlocByRef(
         "# SECTION custom BEGIN.\n",

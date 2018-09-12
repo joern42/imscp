@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::AbstractUninstallerActions - i-MSCP abstract uninstaller actions
+ iMSCP::Uninstaller::AbstractActions - i-MSCP abstract uninstaller actions
 
 =cut
 
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-package iMSCP::AbstractUninstallerActions;
+package iMSCP::Uninstaller::AbstractActions;
 
 use strict;
 use warnings;
@@ -31,8 +31,10 @@ use warnings;
  i-MSCP uninstaller actions.
 
  This class is meant to be subclassed by i-MSCP server and package classes. It
- provide default implementation for actions that are called by the i-MSCP
- uninstaller.
+ provide default (dummy) implementation for actions that are called on i-MSCP
+ server and package instances by the i-MSCP uninstaller. The server and package
+ classes MUST override these methods to provide concret implementations when
+ applyable.
 
 =head1 PUBLIC METHODS
 
