@@ -27,13 +27,15 @@ use lib $FindBin::Bin;
 require 'imscp_common_code.pl';
 
 use strict;
-use XML::Parser;
 use warnings;
 use JSON;
 use MIME::Base64 qw/ encode_base64 decode_base64 /;
+use XML::Parser;
+use POSIX qw/ locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 defined $ARGV[0] or die( 'Expects a base64 encoded string containing JSON data as first argument' );
 

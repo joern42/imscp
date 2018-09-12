@@ -24,13 +24,15 @@ use lib $FindBin::Bin;
 require 'imscp_common_code.pl';
 
 use strict;
-use XML::Parser;
 use warnings;
 use JSON;
-use MIME::Base64 qw/ decode_base64 /;
+use MIME::Base64 'decode_base64';
+use XML::Parser;
+use POSIX qw/ locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 defined $ARGV[0] or die( 'Expects a base64 encoded string containg JSON data as first argument' );
 
@@ -67,11 +69,9 @@ sub pkt_mngr_engine
     my $gui_softwaredepot_dir = $main::cfg{'GUI_APS_DEPOT_DIR'};
     my $software_tmp_dir = $main::cfg{'SOFTWARE_TMP_DIR'};
 
-    if ( $sw_software_depot eq 'yes' ) {
-        $sw_src_path = "$gui_softwaredepot_dir/$sw_software_archive";
-    } else {
-        $sw_src_path = "$gui_software_dir/$sw_reseller_id/$sw_software_archive";
-    }
+    
+        $sw_src_path = $sw_software_depot eq 'yes'
+            ? "$gui_softwaredepot_dir/$sw_software_archive" : "$gui_software_dir/$sw_reseller_id/$sw_software_archive";
 
     my $sw_tmp_path = "$software_tmp_dir/sw-$sw_software_archive-$sw_software_id";
     my $sw_install_xml_file = "$software_tmp_dir/sw-$sw_software_archive-$sw_software_id/xml/install.xml";

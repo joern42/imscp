@@ -6,7 +6,7 @@
 
 =head1 SYNOPSIS
 
- imscp-dpkg-post-invoke [options]...
+ imscp-dpkg-post-invoke.pl [options]...
 
 =cut
 
@@ -28,67 +28,66 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 use strict;
-use warnings;
-use FindBin;
-use lib "/var/www/imscp/engine/PerlLib", "/var/www/imscp/engine/PerlVendor"; # FIXME: shouldn't be hardcoded
-use File::Basename;
+use warnings FATAL => 'all';
+use Carp 'croak';
+use File::Basename qw/ basename dirname /;
+use Cwd;
+
+{
+    my $cwd;
+    BEGIN {
+        $cwd = getcwd();
+        $> == 0 or croak( "This script must be run with the root user privileges.\n" );
+        $0 = 'imscp-dpkg-post-invoke.pl';
+        chdir dirname( __FILE__ ) or croak( $! );
+    }
+
+    use FindBin;
+    use lib "$FindBin::Bin/../PerlLib", "$FindBin::Bin/../PerlVendor";
+    chdir $cwd or croak( $! );
+}
+
 use iMSCP::Boolean;
-use iMSCP::Debug qw/ debug newDebug setVerbose /;
+use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::Bootstrapper;
 use iMSCP::Getopt;
 use iMSCP::Servers;
 use iMSCP::Packages;
+use POSIX qw/ locale_h /;
 
-$ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+@{ENV}{qw/ LANG IMSCP_INSTALLER / } = ( 'C.UTF-8', TRUE );
 
 newDebug( 'imscp-dpkg-post-invoke.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
+iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Process dpkg post invoke tasks
 
 OPTIONS:
- -d,    --debug         Enable debug mode.
- -v,    --verbose       Enable verbose mode.},
-    'debug|d'   => \&iMSCP::Getopt::debug,
+ -v,  --verbose       Enable verbose mode.},
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
 
 # Set execution context
-# We need the installer context as some dpkgPostInvokeTasks() could want
-# update configuration parameters. In backend mode, configuration files are
-# opened readonly.
 iMSCP::Getopt->context( 'installer' );
 
-setVerbose( iMSCP::Getopt->verbose );
-
 my $bootstrapper = iMSCP::Bootstrapper->getInstance();
-exit unless $bootstrapper->lock( '/var/lock/imscp-dpkg-post-invoke.lock', 'nowait' );
-
-$bootstrapper->getInstance()->boot( {
+$bootstrapper->lock( '/var/lock/imscp-dpkg-post-invoke.lock' );
+$bootstrapper->boot( {
     config_readonly => TRUE,
     mode            => 'backend',
     nolock          => TRUE
 } );
 
-my $rs = 0;
-my @items = ();
-
 for my $server ( iMSCP::Servers->getInstance()->getList() ) {
-    push @items, $server->factory();
+    $server->factory()->dpkgPostInvokeTasks();
 }
 
 for my $package ( iMSCP::Packages->getInstance()->getList() ) {
-    push @items, $package->getInstance();
+    $package->getInstance()->dpkgPostInvokeTasks();
 }
-
-for my $item ( @items ) {
-    debug( sprintf( 'Executing %s dpkg post-invoke tasks', ref $item ));
-    $rs ||= $item->dpkgPostInvokeTasks();
-}
-
-exit $rs;
 
 =head1 AUTHOR
 

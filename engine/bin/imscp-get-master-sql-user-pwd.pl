@@ -35,9 +35,14 @@ use FindBin;
 use lib "$FindBin::Bin/../PerlLib";
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
-use iMSCP::Crypt qw/ decryptRijndaelCBC /;
-use iMSCP::Debug qw/ output /;
+use iMSCP::Crypt 'decryptRijndaelCBC';
+use iMSCP::Debug 'output';
 use iMSCP::Getopt;
+use POSIX qw/ locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+$ENV{'LANG'} = 'C.UTF-8';
 
 iMSCP::Bootstrapper->getInstance()->boot( {
     config_readonly => TRUE,

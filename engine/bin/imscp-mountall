@@ -34,12 +34,14 @@ use FindBin;
 use lib "$FindBin::Bin/../PerlLib", "$FindBin::Bin/../PerlVendor";
 use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
-use iMSCP::Debug qw/ debug newDebug setVerbose /;
+use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::Getopt;
 use iMSCP::Mount qw/ mount umount isMountpoint getMounts /;
+use POSIX qw/ locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 sub run
 {
@@ -72,7 +74,7 @@ sub run
 
 newDebug( 'imscp_mountall.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]... start|stop', basename( $0 )) . qq{
+iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]... start|stop', basename( $0 )) . qq{
 
 Mount or umount filesystems by reading entries from i-MSCP fstab-like file.
 
@@ -82,16 +84,12 @@ If you run this script twice with the same action, there will be duplicate mount
 Anyway, this script shouldn't be run manually. It is best run through the imscp_mountall service.
 
 OPTIONS:
- -d,    --debug         Enable debug mode.
- -v,    --verbose       Enable verbose mode.},
-    'debug|d'   => \&iMSCP::Getopt::debug,
+ -v,  --verbose       Enable verbose mode.},
     'verbose|v' => \&iMSCP::Getopt::verbose
 );
 
 my $action = shift;
 defined $action && $action =~ /^(?:start|stop)$/ or iMSCP::Getopt->showUsage();
-
-setVerbose( iMSCP::Getopt->verbose );
 
 my $bootstrapper = iMSCP::Bootstrapper->getInstance();
 exit unless $bootstrapper->lock( '/var/lock/imscp-mountall.lock', 'nowait' );

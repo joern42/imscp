@@ -49,11 +49,12 @@ use iMSCP::Servers;
 use iMSCP::Service;
 use iMSCP::Stepper;
 use iMSCP::SystemUser;
-
 use Servers::sqld;
+use POSIX qw/ locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 # Set execution context
 iMSCP::Getopt->context( 'uninstaller' );
@@ -283,12 +284,9 @@ sub _removeiMSCPSystemUser
 sub _removeFiles
 {
     chdir( '/' );
-
-    for my $file ( '/usr/local/sbin/imscp-dpkg-post-invoke.pl', '/etc/apt/apt.conf.d/90imscp' ) {
-        next unless -f $file;
-        my $rs = iMSCP::File->new( filename => $file )->delFile();
-        return $rs if $rs;
-    }
+    
+    my $rs = iMSCP::File->new( filename => '/etc/apt/apt.conf.d/90imscp' )->delFile();
+    return $rs if $rs;
 
     for my $dir ( $::imscpConfig{'CONF_DIR'}, $::imscpConfig{'USER_WEB_DIR'}, $::imscpConfig{'LOG_DIR'}, $::imscpConfig{'ROOT_DIR'} ) {
         iMSCP::Dir->new( dirname => $dir )->remove();

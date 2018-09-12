@@ -20,7 +20,7 @@
 
 use iMSCP_Update_Database as DbUpdater;
 
-define('IMSCP_SETUP', true);
+define('IMSCP_INSTALLER', true);
 
 function upddb_process()
 {

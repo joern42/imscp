@@ -1,0 +1,95 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+ imscp-installer Install (or reconfigure) i-MSCP
+
+=head1 SYNOPSIS
+
+ imscp-installer [options]...
+
+=cut
+
+# i-MSCP - internet Multi Server Control Panel
+# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+use strict;
+use warnings FATAL => 'all';
+use Carp 'croak';
+use File::Basename qw/ basename dirname /;
+use Cwd;
+
+{
+    my $cwd;
+    BEGIN {
+        $cwd = getcwd();
+        $> == 0 or croak( "This script must be run with the root user privileges.\n" );
+        $0 = 'imscp-installer';
+        chdir dirname( __FILE__ ) or croak( $! );
+    }
+
+    use FindBin;
+    use lib "$FindBin::Bin/../PerlLib", "$FindBin::Bin/../PerlVendor";
+    chdir $cwd or croak( $! );
+}
+
+use iMSCP::Boolean;
+use iMSCP::Getopt;
+use iMSCP::Installer;
+use POSIX 'locale_h';
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+@{ENV}{qw/ LANG IMSCP_INSTALLER / } = ( 'C.UTF-8', TRUE );
+
+%::questions = ();
+
+iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
+ -c,    --clean-composer-cache   Cleanup composer cache.
+ -n,    --noprompt               Switch to non-interactive mode.
+ -p,    --preseed <file>         Path to preseed file.
+ -r,    --reconfigure [item,...] Type 'help' for list of available items.
+ -s,    --skip-dist-packages     Do not install distribution packages.
+ -v,    --verbose                Enable verbose mode.
+ -x,    --fix-permissions        Fix permissions recursively.},
+    'clean-composer-cache|c' => \&iMSCP::Getopt::clearComposerCache,
+    'fix-permissions|x'      => \&iMSCP::Getopt::fixPermissions,
+    'noprompt|n'             => \&iMSCP::Getopt::noprompt,
+    'preseed|p=s'            => sub {
+        %::questions = %{ ( do "$_[1]" or croak "Invalid argument for the preseed option: $!" ) };
+        iMSCP::Getopt->preseed( TRUE );
+    },
+    'reconfigure|r:s'        => \&iMSCP::Getopt::reconfigure,
+    'skip-composer-update|a' => \&iMSCP::Getopt::skipComposerUpdate,
+    'skip-dist-packages|s'   => \&iMSCP::Getopt::skipPackages,
+    'verbose|v'              => \&iMSCP::Getopt::verbose
+);
+
+chdir "$FindBin::Bin/../" or die $!;
+
+system( 'clear' );
+
+iMSCP::Installer->getInstance()->install();
+
+=head1 AUTHOR
+
+ Laurent Declercq <l.declercq@nuxwin.com>
+
+=cut
+
+1;
+__END__

@@ -36,31 +36,29 @@ use iMSCP::Boolean;
 use iMSCP::Bootstrapper;
 use iMSCP::Debug qw/ debug newDebug /;
 use iMSCP::Getopt;
-use iMSCP::Rights qw/ setRights /;
+use iMSCP::Rights 'setRights';
 use iMSCP::Servers;
 use iMSCP::Packages;
+use POSIX qw/ locale_h /;
+
+setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 $ENV{'LANG'} = 'C.UTF-8';
-$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
 newDebug( 'imscp-set-engine-permissions.log' );
 
-iMSCP::Getopt->parseNoDefault( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
+iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', basename( $0 )) . qq{
 
 Set i-MSCP engine permissions.
 
 OPTIONS:
- -i,    --installer       Set installer context.
- -d,    --debug           Enable debug mode.
- -v,    --verbose         Enable verbose mode.
- -x,    --fix-permissions Fix permissions recursively.},
-    'setup|s'           => sub { iMSCP::Getopt->context( 'installer' ); },
-    'debug|d'           => \&iMSCP::Getopt::debug,
+ -i,  --installer       Set installer context.
+ -v,  --verbose         Enable verbose mode.
+ -x,  --fix-permissions Fix permissions recursively.},
+    'installer|s'           => sub { iMSCP::Getopt->context( 'installer' ); },
     'verbose|v'         => \&iMSCP::Getopt::verbose,
     'fix-permissions|x' => \&iMSCP::Getopt::fixPermissions
 );
-
-setVerbose( iMSCP::Getopt->verbose );
 
 my $bootstrapper = iMSCP::Bootstrapper->getInstance();
 exit unless $bootstrapper->lock( '/var/lock/imscp-set-engine-permissions.lock', 'nowait' );
