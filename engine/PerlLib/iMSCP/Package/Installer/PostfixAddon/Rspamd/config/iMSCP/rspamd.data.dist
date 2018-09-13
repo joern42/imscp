@@ -12,14 +12,14 @@
 #
 # Please don't edit this parameter manually. Trigger a reconfiguration as
 # follows instead:
-#  perl /var/www/imscp/engine/bin/imscp-reconfigure -dar antispam
+#  perl /var/www/imscp/engine/bin/imscp-installer -dar antispam
 RSPAMD_MODULES =
 
 # Rspamd Web Interface
 # Possible values: yes, no
 # Please don't edit this parameter manually. Trigger a reconfiguration as
 # follow instead:
-#  perl /var/www/imscp/engine/bin/imscp-reconfigure -dar antispam
+#  perl /var/www/imscp/engine/bin/imscp-installer -dar antispam
 RSPAMD_WEBUI =
 
 # Rspamd password hash
@@ -33,7 +33,7 @@ RSPAMD_LOCAL_CONFDIR = /etc/rspamd/local.d
 # Possible values: yes, no
 # Please don't edit this parameter manually. Trigger a reconfiguration as
 # follow instead:
-#  perl /var/www/imscp/engine/bin/imscp-reconfigure -dar antispam
+#  perl /var/www/imscp/engine/bin/imscp-installer -dar antispam
 RSPAMD_SPAM_LEARNING_FROM_JUNK =
 
 Interval time (in hours) for the SPAM learning cron job

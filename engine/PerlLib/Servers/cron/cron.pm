@@ -83,8 +83,7 @@ sub install
     processByRef(
         {
             QUOTA_ROOT_DIR  => $::imscpConfig{'QUOTA_ROOT_DIR'},
-            LOG_DIR         => $::imscpConfig{'LOG_DIR'},
-            TRAFF_ROOT_DIR  => $::imscpConfig{'TRAFF_ROOT_DIR'}
+            LOG_DIR         => $::imscpConfig{'LOG_DIR'}
         },
         \$cfgTpl
     );

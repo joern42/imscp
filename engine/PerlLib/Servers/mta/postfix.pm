@@ -200,12 +200,6 @@ sub setEnginePermissions
         filemode  => '0640',
         recursive => iMSCP::Getopt->fixPermissions
     } );
-    # eg. /usr/sbin/maillogconvert.pl
-    $rs ||= setRights( $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'}, {
-        user  => $::imscpConfig{'ROOT_USER'},
-        group => $::imscpConfig{'ROOT_GROUP'},
-        mode  => '0750'
-    } );
     $rs ||= $self->{'eventManager'}->trigger( 'afterMtaSetEnginePermissions' );
 }
 
@@ -574,7 +568,7 @@ sub getTraffic
 {
     my ( $self, $trafficDb, $logFile, $trafficIndexDb ) = @_;
 
-    $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
+    $logFile ||= $::imscpConfig{'MAIL_TRAFF_LOG'};
 
     # The log file exists and is not empty
     if ( -f -s $logFile ) {
@@ -623,7 +617,7 @@ sub getTraffic
         }
 
         # Extract and standardize SMTP logs using maillogconvert.pl script
-        open my $fh, '-|', "maillogconvert.pl standard < $snapshotFH 2>/dev/null" or die(
+        open my $fh, '-|', "$::imscpConfig{'ENGINE_BIN_DIR'}/maillogconvert.pl standard < $snapshotFH 2>/dev/null" or die(
             sprintf( "Couldn't pipe to maillogconvert.pl command for reading: %s", $! )
         );
 

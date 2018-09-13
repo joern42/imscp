@@ -707,9 +707,6 @@ sub _setupCronTaskForSpamLearning
         TASKID  => __PACKAGE__,
         MINUTE  => '0',
         HOUR    => $self->{'RSPAMD_SPAM_LEARNING_FROM_JUNK_INTERVAL'} || '*/12',
-        DAY     => '*',
-        MONTH   => '*',
-        DWEEK   => '*',
         USER    => $::imscpConfig{'ROOT_USER'},
         COMMAND => "nice -n 10 ionice -c2 -n5 find $mtaConfig->{'MTA_VIRTUAL_MAIL_DIR'}/*/*/.Junk/cur -type f -exec /usr/bin/rspamc -h 127.0.0.1:11334 learn_spam -- {} \\+"
     } );

@@ -177,12 +177,8 @@ sub _addCronTask
     my ( $self ) = @_;
 
     Servers::cron->factory()->addTask( {
-        TASKID  => 'iMSCP::Package::Installer::AntiRootkits::Chkrootkit',
+        TASKID  => __PACKAGE__,
         MINUTE  => '@weekly',
-        HOUR    => '',
-        DAY     => '',
-        MONTH   => '',
-        DWEEK   => '',
         USER    => $::imscpConfig{'ROOT_USER'},
         COMMAND => "nice -n 10 ionice -c2 -n5 bash chkrootkit -e > $::imscpConfig{'CHKROOTKIT_LOG'} 2>&1"
     } );

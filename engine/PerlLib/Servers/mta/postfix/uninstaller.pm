@@ -146,10 +146,8 @@ sub _removeFiles
     for my $dir ( $self->{'config'}->{'MTA_VIRTUAL_CONF_DIR'}, $self->{'config'}->{'MTA_VIRTUAL_MAIL_DIR'} ) {
         iMSCP::Dir->new( dirname => $dir )->remove();
     }
-
-    return 0 unless -f $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'};
-
-    iMSCP::File->new( filename => $self->{'config'}->{'MAIL_LOG_CONVERT_PATH'} )->delFile();
+    
+    0;
 }
 
 =back

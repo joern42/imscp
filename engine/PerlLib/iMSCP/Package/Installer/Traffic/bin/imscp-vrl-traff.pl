@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- imscp-srv-traff - Collects i-MSCP customers' traffic data (http, ftp, imap/pop3, smtp).
+ imscp-srv-traff.pl - Collects customers traffic data (http, ftp, imap/pop3, smtp).
 
 =head1 SYNOPSIS
 

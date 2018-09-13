@@ -40,7 +40,7 @@ DATABASE_DIR = /var/lib/mysql
 
 # System variables
 
-# Do not forget to run the imscp-reconfigure script
+# Do not forget to run the i-MSCP installer
 # after changing these parameters
 SYSTEM_USER_PREFIX = vu
 SYSTEM_USER_MIN_UID = 2000
@@ -71,6 +71,7 @@ ROOT_GROUP = root
 GUI_ROOT_DIR = /var/www/imscp/gui
 GUI_PUBLIC_DIR = /var/www/imscp/gui/public
 ENGINE_ROOT_DIR = /var/www/imscp/engine
+ENGINE_BIN_DIR = /var/www/imscp/engine/bin
 PACKAGES_DIR = /var/www/imscp/engine/PerlLib/iMSCP/Package
 PLUGINS_DIR = /var/www/imscp/gui/plugins
 USER_WEB_DIR = /var/www/virtual
@@ -99,11 +100,12 @@ CHKROOTKIT_LOG = /var/log/chkrootkit.log
 # Here you can set an additional anti-rootkit tool log file
 OTHER_ROOTKIT_LOG =
 
-## Virtual traffic manager
+## Traffic
 
-TRAFF_LOG_DIR = /var/log
-MAIL_TRAFF_LOG = mail.log
-TRAFF_ROOT_DIR = /var/www/imscp/engine/traffic
+MAIL_TRAFF_LOG = /var/log/mail.log
+
+## Quota
+
 QUOTA_ROOT_DIR = /var/www/imscp/engine/quota
 
 ## GUI config

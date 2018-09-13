@@ -208,7 +208,7 @@ sub _addCronTask
     my ( $self ) = @_;
 
     Servers::cron->factory()->addTask( {
-        TASKID  => 'iMSCP::Package::Installer::AntiRootkits::Rkhunter',
+        TASKID  => __PACKAGE__,
         MINUTE  => '@weekly',
         USER    => $::imscpConfig{'ROOT_USER'},
         COMMAND => "perl $::imscpConfig{'ENGINE_ROOT_DIR'}/PerlLib/iMSCP/Package/Installer/AntiRootkits/Rkhunter/bin/rkhunter.pl > /dev/null 2>&1"

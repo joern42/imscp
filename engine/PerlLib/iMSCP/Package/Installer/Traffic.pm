@@ -31,7 +31,7 @@ sub install
 {
     my ( $self ) = @_;
 
-    $self->_addCronTask();
+    $self->_addCronTasks();
 }
 
 =back
@@ -40,15 +40,15 @@ sub install
 
 =over 4
 
-=item _addCronTask( )
+=item _addCronTasks( )
 
- Add cron task
+ Add cron tasks
 
  Return int 0 on success, other on failure
 
 =cut
 
-sub _addCronTask
+sub _addCronTasks
 {
     my ( $self ) = @_;
 

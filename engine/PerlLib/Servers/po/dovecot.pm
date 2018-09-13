@@ -342,7 +342,7 @@ sub getTraffic
 {
     my ( $self, $trafficDb, $logFile, $trafficIndexDb ) = @_;
 
-    $logFile ||= "$::imscpConfig{'TRAFF_LOG_DIR'}/$::imscpConfig{'MAIL_TRAFF_LOG'}";
+    $logFile ||= $::imscpConfig{'MAIL_TRAFF_LOG'};
 
     if ( -f -s $logFile ) {
         # We use an index database file to keep trace of the last processed log
