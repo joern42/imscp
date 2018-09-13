@@ -77,6 +77,27 @@ sub checkRequirements
 
 =back
 
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item getConfig()
+
+ Get package configuration
+ 
+ Return hashref
+
+=cut
+
+sub getConfig( )
+{
+    my ( $self ) = @_;
+
+    $self->{'config'} || {};
+}
+
+=back
+
 =head1 PRIVATE METHODS
 
 =over 4
