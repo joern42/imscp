@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- imscp-srv-traff.pl - Collects server traffic data.
+ imscp-srv-traff - Collects server traffic data.
 
 =head1 SYNOPSIS
 

@@ -617,8 +617,8 @@ sub getTraffic
         }
 
         # Extract and standardize SMTP logs using maillogconvert.pl script
-        open my $fh, '-|', "$::imscpConfig{'ENGINE_BIN_DIR'}/maillogconvert.pl standard < $snapshotFH 2>/dev/null" or die(
-            sprintf( "Couldn't pipe to maillogconvert.pl command for reading: %s", $! )
+        open my $fh, '-|', "$::imscpConfig{'ENGINE_ROOT_DIR'}/PerlVendor/bin/maillogconvert.pl standard < $snapshotFH 2>/dev/null" or die(
+            sprintf( "Couldn't pipe to maillogconvert.pl script for reading: %s", $! )
         );
 
         while ( my $line = <$fh> ) {

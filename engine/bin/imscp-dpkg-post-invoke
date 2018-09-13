@@ -2,11 +2,11 @@
 
 =head1 NAME
 
- imscp-dpkg-post-invoke.pl - Process dpkg post invoke tasks
+ imscp-dpkg-post-invoke - Process dpkg post invoke tasks
 
 =head1 SYNOPSIS
 
- imscp-dpkg-post-invoke.pl [options]...
+ imscp-dpkg-post-invoke [options]...
 
 =cut
 
@@ -38,7 +38,7 @@ use Cwd;
     BEGIN {
         $cwd = getcwd();
         $> == 0 or croak( "This script must be run with the root user privileges.\n" );
-        $0 = 'imscp-dpkg-post-invoke.pl';
+        $0 = 'imscp-dpkg-post-invoke';
         chdir dirname( __FILE__ ) or croak( $! );
     }
 

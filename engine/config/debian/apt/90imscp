@@ -17,6 +17,6 @@ Dpkg {
         "--force-overwrite";
     };
     Post-Invoke {
-        "if [ ${IMSCP_INSTALLER:=0} -eq 0 -a -f /var/www/imscp/engine/bin/imscp-dpkg-post-invoke.pl ]; then /usr/bin/perl /var/www/imscp/engine/bin/imscp-dpkg-post-invoke.pl -d; fi";
+        "if [ ${IMSCP_INSTALLER:=0} -eq 0 -a -f /var/www/imscp/engine/bin/imscp-dpkg-post-invoke ]; then /usr/bin/perl /var/www/imscp/engine/bin/imscp-dpkg-post-invoke.pl -d; fi";
     };
 };

@@ -57,14 +57,14 @@ sub _addCronTasks
         TASKID  => __PACKAGE__ . ' - server traffic',
         MINUTE  => '0,30',
         USER    => $::imscpConfig{'ROOT_USER'},
-        COMMAND => "nice -n 10 ionice -c2 -n5 $::imscpConfig{'PACKAGES_DIR'}/Installer/Traffic/bin/imscp-srv-traff.pl "
+        COMMAND => "nice -n 10 ionice -c2 -n5 $::imscpConfig{'PACKAGES_DIR'}/Installer/Traffic/bin/imscp-srv-traff "
             . "> $::imscpConfig{'LOG_DIR'}/imscp-srv-traff.log 2>&1"
     } );
     $rs ||= $cron->addTask( {
         TASKID  => __PACKAGE__ . ' - customer traffic',
         MINUTE  => '0,30',
         USER    => $::imscpConfig{'ROOT_USER'},
-        COMMAND => "nice -n 10 ionice -c2 -n5 $::imscpConfig{'PACKAGES_DIR'}/Installer/Traffic/bin/imscp-vrl-traff.pl "
+        COMMAND => "nice -n 10 ionice -c2 -n5 $::imscpConfig{'PACKAGES_DIR'}/Installer/Traffic/bin/imscp-vrl-traff "
             . "> $::imscpConfig{'LOG_DIR'}/imscp-srv-traff.log 2>&1"
     } );
 }
