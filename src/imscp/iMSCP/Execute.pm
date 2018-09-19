@@ -161,7 +161,7 @@ sub execute( $;$$ )
 
 =item executeNoWait( $command [, &stdoutSub = { print STDOUT @_ } [, &stderrSub = { print STDERR @_ } ] ] )
 
- Execute the given command without wait, processing command STDOUT|STDERR line by line
+ Execute the given command without wait, processing command STDOUT|STDERR line by line 
 
  Param string|arrayref $command Command to execute
  Param CODE &stdoutSub Subroutine for processing of STDOUT line by line
@@ -187,22 +187,20 @@ sub executeNoWait( $;&& )
 
     while ( my @ready = $sel->can_read ) {
         for my $fh ( @ready ) {
-            # Read 1 byte at a time to avoid ending with multiple lines
-            my $ret = sysread( $fh, my $nextbyte, 1 );
-            next if $!{'EINTR'};       # Ignore signal interrupt
-            defined $ret or die( $! ); # Something is going wrong; Best is to abort early
+            my $readBytes = sysread $fh, $buffers{$fh}, 4096, length $buffers{$fh};
+            next if $!{'EINTR'};          # Ignore signal interrupt
+            defined $readBytes or die $!; # Something is going wrong; Best is to abort early
+            next unless $readBytes == 0;  # EOF
+            delete $buffers{$fh};
+            $sel->remove( $fh );
+            close $fh;
+        }
 
-            if ( $ret == 0 ) {
-                # EOL
-                $sel->remove( $fh );
-                close $fh;
-                next;
+        # If we have any lines in buffers, we process them
+        for my $buffer ( keys %buffers ) {
+            while ( $buffers{$buffer} =~ s/(.*\n)// ) {
+                $buffer eq $stdout ? $stdoutSub->( $1 ) : $stderrSub->( $1 );
             }
-
-            $buffers{$fh} .= $nextbyte;
-            next unless $buffers{$fh} =~ /\n\z/;
-            $fh == $stdout ? $stdoutSub->( $buffers{$fh} ) : $stderrSub->( $buffers{$fh} );
-            $buffers{$fh} = ''; # Reset buffer for next line
         }
     }
 
