@@ -25,6 +25,7 @@ package iMSCP::Execute;
 
 use strict;
 use warnings;
+use Carp 'croak';
 use Errno 'EINTR';
 use File::Temp;
 use iMSCP::Boolean;
@@ -53,7 +54,7 @@ BEGIN {
 }
 
 our @EXPORT = qw/ capture captureStdout captureStderr execute executeNoWait escapeShell getExitCode /;
-our %EXPORT_TAGS = ( caputre => [ qw/ capture captureStdout captureStderr /, exec => [ qw/ execute executeNoWait escapeShell getExitCode / ] ] );
+our %EXPORT_TAGS = ( capture => [ qw/ capture captureStdout captureStderr / ], exec => [ qw/ execute executeNoWait escapeShell getExitCode / ] );
 
 # module vars and their defaults
 our $Debug = TRUE;
@@ -66,7 +67,7 @@ our $Debug = TRUE;
  Perl, XS or external programs.
  
  Because this library is used at an early stage in i-MSCP installation process,
- only Perl builtin and module which are made available in Perl base must be
+ only Perl builtin and modules which are made available in Perl base must be
  used.
 
 =head1 PUBLIC FUNCTIONS
@@ -120,8 +121,8 @@ sub captureStderr( & )
  Execute the given command
 
  Param string|arrayref $command Command to execute
- Param string \$stdout OPTIONAL Variable for capture of STDOUT
- Param string \$stderr OPTIONAL Variable for capture of STDERR
+ Param string \$stdout OPTIONAL Variable for capture of $command STDOUT
+ Param string \$stderr OPTIONAL Variable for capture of $command STDERR
  Return int Command exit code or die on failure
 
 =cut
@@ -130,33 +131,29 @@ sub execute( $;$$ )
 {
     my ( $command, $stdout, $stderr ) = @_;
 
-    defined $command or die( 'Missing $command parameter' );
+    defined $command or croak 'Missing $command parameter';
 
     if ( $stdout ) {
-        ref $stdout eq 'SCALAR' or die( 'Invalid $stdout parameter. SCALAR reference expected.' );
+        ref $stdout eq 'SCALAR' or croak 'Invalid $stdout parameter. SCALAR reference expected.';
         ${ $stdout } = '';
     }
 
     if ( $stderr ) {
-        ref $stderr eq 'SCALAR' or die( 'Invalid $stderr parameter. SCALAR reference expected.' );
+        ref $stderr eq 'SCALAR' or croak 'Invalid $stderr parameter. SCALAR reference expected.';
         ${ $stderr } = '';
     }
 
     $command = [ $command ] unless ref $command eq 'ARRAY';
-
-    iMSCP::Debug::debug( "@{ $command }" ) if $Debug;
+    iMSCP::Debug::debug "@{ $command }" if $Debug;
 
     if ( defined $stdout && defined $stderr ) {
-        ( ${ $stdout }, ${ $stderr } ) = capture { system( @{ $command } ) };
-        chomp( ${ $stdout }, ${ $stderr } );
+        chomp( ( ${ $stdout }, ${ $stderr } ) = capture { system( @{ $command } ) } );
     } elsif ( defined $stdout ) {
-        ${ $stdout } = captureStdout { system( @{ $command } ); };
-        chomp( ${ $stdout } );
+        chomp( ${ $stdout } = captureStdout { system( @{ $command } ); } );
     } elsif ( defined $stderr ) {
-        ${ $stderr } = captureStderr { system( @{ $command } ); };
-        chomp( $stderr );
+        chomp( ${ $stderr } = captureStderr { system( @{ $command } ); } );
     } else {
-        system( @{ $command } ) != -1 or die( sprintf( "Couldn't execute command: %s", $! ));
+        system( @{ $command } ) != -1 or croak( sprintf( "Couldn't execute command: %s", $! ));
     }
 
     getExitCode();
@@ -180,9 +177,9 @@ sub executeNoWait( $;&& )
     $stderrSub //= sub { print STDERR @_ };
 
     $command = [ $command ] unless ref $command eq 'ARRAY';
-    iMSCP::Debug::debug( "@{ $command }" ) if $Debug;
+    iMSCP::Debug::debug "@{ $command }" if $Debug;
 
-    my $pid = open3( my $stdin, my $stdout, my $stderr = gensym, @{ $command } );
+    my $pid = open3 my $stdin, my $stdout, my $stderr = gensym, @{ $command };
     close $stdin;
 
     my %buffers = ( $stdout => '', $stderr => '' );
@@ -198,7 +195,7 @@ sub executeNoWait( $;&& )
             if ( $ret == 0 ) {
                 # EOL
                 $sel->remove( $fh );
-                close( $fh );
+                close $fh;
                 next;
             }
 
@@ -246,12 +243,12 @@ sub getExitCode( ;$ )
     $ret //= $?;
 
     if ( $ret == -1 ) {
-        debug( "Couldn't execute command" );
+        iMSCP::Debug::debug "Couldn't execute command";
         return 1;
     }
 
     if ( $ret & 127 ) {
-        debug( sprintf( 'Command died with signal %d, %s coredump', ( $ret & 127 ), ( $? & 128 ) ? 'with' : 'without' ));
+        iMSCP::Debug::debug sprintf( 'Command died with signal %d, %s coredump', ( $ret & 127 ), ( $? & 128 ) ? 'with' : 'without' );
         return $ret;
     }
 
@@ -303,7 +300,7 @@ sub _capture
 
     # Restore original filehandles
     _openStdFilehandles( $stash->{'old'} );
-    close( $_ ) or die( $! ) for values %{ $stash->{'old'} };
+    close $_ or die $! for values %{ $stash->{'old'} };
 
     # Get captured output
     my %output;
@@ -325,8 +322,8 @@ sub _capture
 sub _saveStdFilehandles
 {
     my %fh;
-    open $fh{'stdout'} = IO::Handle->new(), '>&STDOUT' or die $!;
-    open $fh{'stderr'} = IO::Handle->new(), '>&STDERR' or die $!;
+    open $fh{'stdout'} = IO::Handle->new, '>&STDOUT' or die $!;
+    open $fh{'stderr'} = IO::Handle->new, '>&STDERR' or die $!;
     \%fh;
 }
 
@@ -359,7 +356,7 @@ sub _slurpFilehandle
 {
     my ( $fh ) = @_;
 
-    seek( $fh, 0, 0 ) or die $!;
+    seek $fh, 0, 0 or die $!;
     local $/;
     readline $fh // '';
 }
