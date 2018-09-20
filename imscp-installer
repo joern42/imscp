@@ -37,9 +37,12 @@ use Cwd ();
 use lib "@{ [ Cwd::realpath( File::Basename::dirname( __FILE__ )) ] }/src/imscp";
 use iMSCP::Boolean;
 use iMSCP::Getopt;
+use iMSCP::Installer::Bootstrapper;
+use POSIX 'locale_h';
 
-# Make the real installer aware that we operate from the distribution installer
-$ENV{'IMSCP_DIST_INSTALLER'} = TRUE;
+setlocale( LC_MESSAGES, 'C.UTF-8' );
+
+@{ENV}{qw/ LANG IMSCP_INSTALLER IMSCP_DIST_INSTALLER / } = ( 'C.UTF-8', TRUE, TRUE );
 
 {
     local @ARGV = @ARGV;
@@ -50,13 +53,13 @@ Install (or reconfigure) i-MSCP.
 OPTIONS
  -c,    --clean-composer-cache   Cleanup composer cache.
  -f,    --fix-permissions        Fix permissions recursively.
- -l,    --layout  <file>         Layout file
+ -l,    --layout  <file>         Distribution layout file
  -n,    --noprompt               Switch to non-interactive mode.
  -p,    --preseed <file>         Path to preseed file.
  -r,    --reconfigure [ITEM]...  Type 'help' for list of available items.
  -s,    --skip-dist-packages     Do not install distribution packages.
  -v,    --verbose                Enable verbose mode.
- -z     --no-ansi                 Disable ANSI output},
+ -z     --no-ansi                Disable ANSI output},
         'clean-composer-cache|c' => \&iMSCP::Getopt::clearComposerCache,
         'fix-permissions|f'      => \&iMSCP::Getopt::fixPermissions,
         'layout|l=s'             => \&iMSCP::Getopt::layout,
@@ -72,7 +75,6 @@ OPTIONS
 
 chdir $INC[0];
 
-require iMSCP::Installer::Bootstrapper;
 iMSCP::Installer::Bootstrapper->new()->bootstrap();
 
 exec 'perl', '../bin/imscp-installer', @ARGV or die $!;
