@@ -38,19 +38,9 @@ use parent 'Exporter';
 
 BEGIN {
     local $@;
-    # Get iMSCP::Debug::debug or fake it
-    eval {
-        require iMSCP::Debug;
-        1;
-    } or *iMSCP::Debug::debug = sub( $;$ )
-    {
-        my $caller;
-        my $stackIDX = 1;
-        do {
-            $caller = ( ( caller $stackIDX++ )[3] || 'main' );
-        } while $caller eq '(eval)' || index( $caller, '__ANON__' ) != -1;
-        print STDOUT "[\x1b[0;34mDEBUG\x1b[0m] $caller: $_[0]\n" if iMSCP::Getopt->verbose;
-    };
+    no warnings 'redefine';
+    # Get iMSCP::Debug or fake it
+    eval { require iMSCP::Debug } or require iMSCP::Faker;
 }
 
 our @EXPORT = qw/ capture captureStdout captureStderr execute executeNoWait escapeShell getExitCode /;
@@ -144,7 +134,7 @@ sub execute( $;$$ )
     }
 
     $command = [ $command ] unless ref $command eq 'ARRAY';
-    iMSCP::Debug::debug "@{ $command }" if $Debug;
+    iMSCP::Debug::debug( "@{ $command }" ) if $Debug;
 
     if ( defined $stdout && defined $stderr ) {
         chomp( ( ${ $stdout }, ${ $stderr } ) = capture { system( @{ $command } ) } );
@@ -161,7 +151,7 @@ sub execute( $;$$ )
 
 =item executeNoWait( $command [, &stdoutSub = { print STDOUT @_ } [, &stderrSub = { print STDERR @_ } ] ] )
 
- Execute the given command without wait, processing command STDOUT|STDERR line by line 
+ Execute the given command without wait, processing command STDOUT|STDERR line by line
 
  Param string|arrayref $command Command to execute
  Param CODE &stdoutSub Subroutine for processing of STDOUT line by line
@@ -170,37 +160,32 @@ sub execute( $;$$ )
 
 =cut
 
-sub executeNoWait( $;&& )
+sub executeNoWait( $;$$ )
 {
     my ( $command, $stdoutSub, $stderrSub ) = @_;
     $stdoutSub //= sub { print STDOUT @_ };
     $stderrSub //= sub { print STDERR @_ };
 
+    ref $stdoutSub eq 'CODE' or croak( 'Invalid $stdoutSub parameter. CODE expected.' );
+    ref $stderrSub eq 'CODE' or croak( 'Invalid $stderrSub parameter. CODE expected.' );
+
     $command = [ $command ] unless ref $command eq 'ARRAY';
-    iMSCP::Debug::debug "@{ $command }" if $Debug;
+    iMSCP::Debug::debug( "@{ $command }" ) if $Debug;
 
     my $pid = open3 my $stdin, my $stdout, my $stderr = gensym, @{ $command };
     close $stdin;
-
     my %buffers = ( $stdout => '', $stderr => '' );
     my $sel = IO::Select->new( $stdout, $stderr );
-
     while ( my @ready = $sel->can_read ) {
         for my $fh ( @ready ) {
-            my $readBytes = sysread $fh, $buffers{$fh}, 4096, length $buffers{$fh};
-            next if $!{'EINTR'};          # Ignore signal interrupt
-            defined $readBytes or die $!; # Something is going wrong; Best is to abort early
-            next unless $readBytes == 0;  # EOF
+            my $readBytes = sysread $fh, $buffers{$fh}, 1, length $buffers{$fh};
+            next if $!{'EINTR'};                                                                        # Ignore signal interrupt
+            defined $readBytes or die $!;                                                               # Something is going wrong; Best is to abort early
+            $fh eq $stdout ? $stdoutSub->( $1 ) : $stderrSub->( $1 ) while $buffers{$fh} =~ s/(.*\n)//; # Process any lines from buffer
+            next unless $readBytes == 0;                                                                # EOF
             delete $buffers{$fh};
             $sel->remove( $fh );
             close $fh;
-        }
-
-        # If we have any lines in buffers, we process them
-        for my $buffer ( keys %buffers ) {
-            while ( $buffers{$buffer} =~ s/(.*\n)// ) {
-                $buffer eq $stdout ? $stdoutSub->( $1 ) : $stderrSub->( $1 );
-            }
         }
     }
 
@@ -241,12 +226,12 @@ sub getExitCode( ;$ )
     $ret //= $?;
 
     if ( $ret == -1 ) {
-        iMSCP::Debug::debug "Couldn't execute command";
+        iMSCP::Debug::debug( "Couldn't execute command" );
         return 1;
     }
 
     if ( $ret & 127 ) {
-        iMSCP::Debug::debug sprintf( 'Command died with signal %d, %s coredump', ( $ret & 127 ), ( $? & 128 ) ? 'with' : 'without' );
+        iMSCP::Debug::debug( sprintf( 'Command died with signal %d, %s coredump', ( $ret & 127 ), ( $? & 128 ) ? 'with' : 'without' ));
         return $ret;
     }
 
