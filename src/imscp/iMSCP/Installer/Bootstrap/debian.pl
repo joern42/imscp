@@ -36,7 +36,6 @@ use iMSCP::LsbRelease;
 
 BEGIN {
     local $@;
-    no warnings 'redefine';
     # Get iMSCP::Debug or fake it
     eval { require iMSCP::Debug } or require iMSCP::Faker;
 }
@@ -46,21 +45,19 @@ return TRUE if iMSCP::Getopt->skipDistPackages;
 iMSCP::Debug::debug( "Satisfying i-MSCP installer prerequisites for @{ [ iMSCP::LsbRelease->getInstance()->getId( TRUE ) ] } OS..." );
 iMSCP::DistPackageManager
     ->getInstance()
-    # Make sure that APT indexes are up-to-date
-    ->updateRepositoryIndexes()
-    # Install pre-required distribution packages
-    ->installPackages( [
-        'apt-transport-https', 'ca-certificates', 'cpanminus', 'dialog', 'dirmngr', 'dpkg-dev', 'gdebi-core', 'lsb-release', 'pbuilder', 'perl',
-        'perl-modules', 'policyrcd-script-zg2', 'wget',
-        # FIXME: Does the following packages really needed at this stage?
-        'binutils', 'debconf-utils',
-        'libbit-vector-perl', 'libclass-insideout-perl', 'libdata-clone-perl', 'libdata-compare-perl', 'liblist-compare-perl',
-        'liblist-moreutils-perl', 'libscalar-defer-perl', 'libsort-versions-perl', 'libxml-simple-perl'
-    ] )
-    # Install pre-required Perl modules
-    ->installPerlModules( [
-    'Class::Autouse@2.01', 'Data::Validate::Domain@0.14', 'Net::Domain::TLD@1.75', 'Net::IP@1.26'
-] );
+    # Schedule installation of pre-required distribution packages
+    ->installPackages(
+        [
+            'apt-transport-https', 'ca-certificates', 'cpanminus', 'debconf-utils', 'dialog', 'dirmngr', 'dpkg-dev', 'gdebi-core',
+            'libbit-vector-perl', 'libdata-clone-perl', 'libdata-compare-perl', 'liblist-moreutils-perl', 'libscalar-defer-perl',
+            'libxml-simple-perl', 'lsb-release', 'pbuilder', 'perl', 'perl-modules', 'policyrcd-script-zg2', 'wget', 'whiptail',
+        ],
+        TRUE
+    )
+    # Schedule installation of pre-required Perl modules from CPAN
+    ->installPerlModules( [ 'Class::Autouse@2.01', 'Data::Validate::Domain@0.14', 'Net::Domain::TLD@1.75', 'Net::IP@1.26' ], TRUE )
+    # Process scheduled tasks
+    ->processDelayedTasks();
 
-TRUE;
+1;
 __END__
