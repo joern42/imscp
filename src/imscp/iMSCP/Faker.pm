@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Faker - Fake Perl modules to fulfill the dependencies
+ iMSCP::Faker - Fake Perl modules to fulfill Perl dependencies
 
 =cut
 
@@ -28,8 +28,8 @@ use warnings;
 
 =head1 DESCRIPTION
 
- Fake Perl modules to fulfill the installer dependencies at an early stage of
- i-MSCP installation.
+ Fake Perl modules to fulfill the installer Perl dependencies at an early stage
+ of i-MSCP installation.
  
  This module is required in libraries requiring modules that can be unavailable
  on a fresh i-MSCP installation, that is, when the installer prerequisites
@@ -156,7 +156,6 @@ eval { require iMSCP::Debug } or do {
         "$text\n";
     }
 
-    # See iMSCP::Debug::_getCaller
     sub _getCaller
     {
         my $caller;
