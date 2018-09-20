@@ -178,7 +178,7 @@ sub executeNoWait( $;$$ )
     my $sel = IO::Select->new( $stdout, $stderr );
     while ( my @ready = $sel->can_read ) {
         for my $fh ( @ready ) {
-            my $readBytes = sysread $fh, $buffers{$fh}, 1, length $buffers{$fh};
+            my $readBytes = sysread $fh, $buffers{$fh}, 4096, length $buffers{$fh};
             next if $!{'EINTR'};                                                                        # Ignore signal interrupt
             defined $readBytes or die $!;                                                               # Something is going wrong; Best is to abort early
             $fh eq $stdout ? $stdoutSub->( $1 ) : $stderrSub->( $1 ) while $buffers{$fh} =~ s/(.*\n)//; # Process any lines from buffer
