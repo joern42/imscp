@@ -34,6 +34,12 @@ use iMSCP::DistPackageManager;
 use iMSCP::Getopt;
 use iMSCP::LsbRelease;
 
+BEGIN {
+    local $@;
+    # Get iMSCP::Debug or fake it
+    eval { require iMSCP::Debug } or require iMSCP::Faker;
+}
+
 return TRUE if iMSCP::Getopt->skipDistPackages;
 
 iMSCP::Debug::debug( "Satisfying i-MSCP installer prerequisites for @{ [ iMSCP::LsbRelease->getInstance()->getId( TRUE ) ] } OS..." );
