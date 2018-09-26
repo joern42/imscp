@@ -47,6 +47,7 @@ sub _init
 
     $self->{'dialog'} = do {
         eval {
+            local $@;
             require iMSCP::Dialog::Whiptail;
             iMSCP::Dialog::Whiptail->getInstance();
         } or do {
@@ -54,6 +55,9 @@ sub _init
             iMSCP::Dialog::Dialog->getInstance();
         }
     };
+    
+    # Allow localization of wrapper options through this object
+    $self->{'_opts'} = $self->{'dialog'}->{'_opts'};
 }
 
 =item AUTOLOAD
