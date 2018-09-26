@@ -48,6 +48,7 @@ sub _init
     $self->{'dialog'} = do {
         eval {
             local $@;
+            die if $ENV{'FORCE_DIALOG'};
             require iMSCP::Dialog::Whiptail;
             iMSCP::Dialog::Whiptail->getInstance();
         } or do {

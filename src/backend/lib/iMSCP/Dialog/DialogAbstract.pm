@@ -26,16 +26,7 @@ package iMSCP::Dialog::DialogAbstract;
 use strict;
 use warnings;
 use iMSCP::Boolean;
-use iMSCP::Execute 'execute';
-use iMSCP::Getopt;
-use iMSCP::ProgramFinder;
 use parent 'iMSCP::Common::SingletonClass';
-
-BEGIN {
-    local $@;
-    # Get iMSCP::Debug or fake it
-    eval { require iMSCP::Debug } or require iMSCP::Faker;
-}
 
 =head1 DESCRIPTION
 
@@ -47,73 +38,45 @@ BEGIN {
 
 =item radiolist( $text, \%choices [, $defaultTag = none [, $showTags = FALSE ] ] )
 
- Show radiolist DIALOG(1) box
+ Show radiolist dialog box
 
  Param string $text Text to show
  Param hashref \%choices List of choices where keys are tags and values are items.
  Param string $default Default selected tag
  Param bool $showTags Flag indicating whether or not tags must be showed in dialog box
- Return Array containing checked tags or a list containing both the DIALOG(1) exit code and an array containing checked tags
+ Return Array containing checked tags or a list containing both exit code and an array containing checked tags
 
 =cut
 
 sub radiolist
 {
-    my ( $self, $text, $choices, $defaultTag, $showTags ) = @_;
-    $defaultTag //= '';
+    my ( $self ) = @_;
 
-    my @init;
-
-    if ( $showTags ) {
-        push @init, $_, $choices->{$_}, $defaultTag eq $_ ? 'on' : 'off' for sort keys %{ $choices };
-    } else {
-        my %choices = reverse( %{ $choices } );
-        push @init, $choices{$_}, $_, $defaultTag eq $choices{$_} ? 'on' : 'off' for sort keys %choices;
-    }
-
-    local $self->{'_opts'}->{'no-tags'} = '' unless $showTags;
-    $self->_execute( 'radiolist', $text, $self->{'lines'}, $self->{'columns'}, scalar keys %{ $choices }, @init );
+    die( sprintf( "The '%s' class must implement the 'endGauge' method", ref $self ));
 }
 
 =item checklist( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] ] )
 
- Show checklist DIALOG(1) box
+ Show checklist dialog box
 
  Param string $text Text to show
  Param hashref \%choices List of choices where keys are tags and values are items.
  Param arrayref \@default Default tag(s)
  Param bool $showTags Flag indicating whether or not tags must be showed in dialog box
- Return Array containing checked tags or a list containing both DIALOG(1) exit code and an array containing checked tags
+ Return Array containing checked tags or a list containing both exit code and an array containing checked tags
 
 =cut
 
 sub checklist
 {
-    my ( $self, $text, $choices, $defaultTags, $showTags ) = @_;
-    $defaultTags //= [];
+    my ( $self ) = @_;
 
-    my @init;
-
-    if ( $showTags ) {
-        for my $tag ( sort keys %{ $choices } ) {
-            push @init, $tag, $choices->{$tag}, grep ( $tag eq $_, @{ $defaultTags }) ? 'on' : 'off';
-        }
-    } else {
-        my %choices = reverse( %{ $choices } );
-        for my $item ( sort keys %choices ) {
-            push @init, $choices{$item}, $item, grep ( $choices{$item} eq $_, @{ $defaultTags } ) ? 'on' : 'off';
-        }
-    }
-
-    local $self->{'_opts'}->{'separate-output'} = '';
-    local $self->{'_opts'}->{'no-tags'} = '' unless $showTags;
-    my ( $ret, $tags ) = $self->_execute( 'checklist', $text, $self->{'lines'}, $self->{'columns'}, scalar keys %{ $choices }, @init );
-    wantarray ? ( $ret, [ split /\n/, $tags ] ) : [ split /\n/, $tags ];
+    die( sprintf( "The '%s' class must implement the 'endGauge' method", ref $self ));
 }
 
 =item yesno( $text [, $defaultno =  FALSE [, $backbutton = FALSE ] ] )
 
- Show yesno DIALOG(1) box
+ Show yesno dialog box
 
  For the 'yesno' dialog box, the code used for 'Yes' and 'No' buttons match
  those used for the 'Ok' and 'Cancel'. See dialog man page. We do not want this behavior. To
@@ -136,25 +99,14 @@ sub checklist
 
 sub yesno
 {
-    my ( $self, $text, $defaultno, $backbutton ) = @_;
+    my ( $self ) = @_;
 
-    unless ( $backbutton ) {
-        local $self->{'_opts'}->{'defaultno'} = $defaultno ? '' : undef;
-        local $ENV{'DIALOG_CANCEL'} = TRUE;
-        return ( $self->_execute( 'yesno', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
-    }
-
-    local $ENV{'DIALOG_EXTRA'} = TRUE;
-    local $self->{'_opts'}->{'default-button'} = $defaultno ? 'extra' : undef;
-    local $self->{'_opts'}->{'ok-label'} = 'Yes';
-    local $self->{'_opts'}->{'extra-label'} = 'No';
-    local $self->{'_opts'}->{'extra-button'} = '';
-    ( $self->_execute( 'yesno', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
+    die( sprintf( "The '%s' class must implement the 'endGauge' method", ref $self ));
 }
 
 =item msgbox( $text )
 
- Show message DIALOG(1) box
+ Show message dialog box
 
  Param string $text Text to show in message dialog box
  Return int 0 (Ok), 50 (ESC), other on failure
@@ -163,14 +115,14 @@ sub yesno
 
 sub msgbox
 {
-    my ( $self, $text ) = @_;
+    my ( $self ) = @_;
 
-    ( $self->_execute( 'msgbox', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
+    die( sprintf( "The '%s' class must implement the 'endGauge' method", ref $self ));
 }
 
 =item infobox( $text )
 
- Show info DIALOG(1) box (same as msgbox but exit immediately)
+ Show info dialog box
 
  Param string $text Text to show
  Return int 0, other on failure
@@ -179,15 +131,14 @@ sub msgbox
 
 sub infobox
 {
-    my ( $self, $text ) = @_;
+    my ( $self ) = @_;
 
-    local $self->{'_opts'}->{'clear'} = undef;
-    ( $self->_execute( 'infobox', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
+    die( sprintf( "The '%s' class must implement the 'endGauge' method", ref $self ));
 }
 
 =item inputbox( $text [, $default = '' ] )
 
- Show input DIALOG(1) dialog box
+ Show input dialog box
 
  Param string $text Text to show
  Param string $default Default value
@@ -197,14 +148,14 @@ sub infobox
 
 sub inputbox
 {
-    my ( $self, $text, $default ) = @_;
+    my ( $self ) = @_;
 
-    $self->_execute( 'inputbox', $text, $self->{'lines'}, $self->{'columns'}, $default // ());
+    die( sprintf( "The '%s' class must implement the 'endGauge' method", ref $self ));
 }
 
 =item passwordbox( $text [, $default = '' ] )
 
- Show password DIALOG(1) dialog box
+ Show password dialog box
 
  Param string $text Text to show
  Param string $default Default value
@@ -214,10 +165,9 @@ sub inputbox
 
 sub passwordbox
 {
-    my ( $self, $text, $default ) = @_;
+    my ( $self ) = @_;
 
-    local $self->{'_opts'}->{'insecure'} = '';
-    $self->_execute( 'passwordbox', $text, $self->{'lines'}, $self->{'columns'}, $default // ());
+    die( sprintf( "The '%s' class must implement the 'endGauge' method", ref $self ));
 }
 
 =item startGauge( $text [, $percent = 0 ] )
@@ -232,18 +182,9 @@ sub passwordbox
 
 sub startGauge
 {
-    my ( $self, $text, $percent ) = @_;
+    my ( $self ) = @_;
 
-    defined $_[0] or die( '$text parameter is undefined' );
-
-    return 0 if iMSCP::Getopt->noprompt || $self->hasGauge();
-
-    open $self->{'_gauge'}, '|-', $self->{'_bin'}, $self->_getCommonOptions(), '--gauge',
-        ref $self eq 'iMSCP::Dialog::Whiptail' ? $self->_stripFormats( $text ) : $text,
-        $self->{'lines'}, $self->{'columns'},
-        $percent // 0 or die( "Couldn't start gauge" );
-
-    $self->{'_gauge'}->autoflush( TRUE );
+    die( sprintf( "The '%s' class must implement the 'startGauge' method", ref $self ));
 }
 
 =item setGauge( $percent, $text )
@@ -260,18 +201,9 @@ sub startGauge
 
 sub setGauge
 {
-    my ( $self, $percent, $text ) = @_;
+    my ( $self ) = @_;
 
-    unless ( defined $self->{'_gauge'} ) {
-        $self->startGauge( $text, $percent );
-        return;
-    }
-
-    print { $self->{'_gauge'} } sprintf(
-        "XXX\n%d\n%s\nXXX\n",
-        $percent,
-        ref $self eq 'iMSCP::Dialog::Whiptail' ? $self->_stripFormats( $text ) : $text
-    );
+    die( sprintf( "The '%s' class must implement the 'setGauge' method", ref $self ));
 }
 
 =item endGauge( )
@@ -286,10 +218,7 @@ sub endGauge
 {
     my ( $self ) = @_;
 
-    return unless $self->{'_gauge'};
-
-    $self->{'_gauge'}->close();
-    undef $self->{'_gauge'};
+    die( sprintf( "The '%s' class must implement the 'endGauge' method", ref $self ));
 }
 
 =item hasGauge( )
@@ -359,35 +288,11 @@ sub set
 
 =cut
 
-my $ExecuteDialogsFirstCall = TRUE;
-my $ExecuteDialogsBackupContext = FALSE;
-
 sub executeDialogs
 {
-    my ( $self, $dialogs ) = @_;
+    my ( $self ) = @_;
 
-    ref $dialogs eq 'ARRAY' or die( 'Invalid $dialog parameter. Expect an array of dialog subroutines ' );
-
-    my $dialOuter = $ExecuteDialogsFirstCall;
-    $ExecuteDialogsFirstCall = FALSE if $dialOuter;
-
-    my ( $ret, $state, $countDialogs ) = ( 0, 0, scalar @{ $dialogs } );
-    while ( $state < $countDialogs ) {
-        local $self->{'_opts'}->{'nocancel'} = $state || !$dialOuter ? undef : '';
-        $ret = $dialogs->[$state]->( $self );
-        last if $ret == 50 || ( $ret == 30 && $state == 0 );
-
-        if ( $state && ( $ret == 30 || $ret == 20 && $ExecuteDialogsBackupContext ) ) {
-            $ExecuteDialogsBackupContext = TRUE if $ret == 30;
-            $state--;
-            next;
-        }
-
-        $ExecuteDialogsBackupContext = FALSE if $ExecuteDialogsBackupContext;
-        $state++;
-    }
-
-    $ret;
+    die( sprintf( "The '%s' class must implement the 'executeDialogs' method", ref $self ));
 }
 
 =back
@@ -405,8 +310,6 @@ sub executeDialogs
 sub _init
 {
     my ( $self ) = @_;
-
-    $self->{'_bin'} = $self->_findBin();
 
     # These environment variable screws up at least whiptail with the
     # way we call it. Posix does not allow safe arg passing like
@@ -469,94 +372,6 @@ sub _resize
     $self->{'lines'} = $lines-10;
     $self->{'columns'} = $cols-4;
     $self->endGauge();
-}
-
-=item _findBin( )
-
- Return string DIALOG(1) program binary path, die if DIALOG(1) binary is not found
-
-=cut
-
-sub _findBin
-{
-    my $self = @_;
-
-    die( sprintf( "The '%s' class must implement the '_findBin' method", ref $self ));
-}
-
-=item _getCommonOptions( )
-
- Get DIALOG(1) common options
-
- Return List DIALOG(1) common options
-
-=cut
-
-sub _getCommonOptions
-{
-    my ( $self ) = @_;
-
-    die( sprintf( "The '%s' class must implement the '_getCommonOptions' method", ref $self ));
-}
-
-=item _execute( $boxType, @boxOptions )
-
- Execute DIALOG(1) command
-
- Param string $boxType DIALOG(1) Box type
- Param list @boxOptions DIALOG(1) Box options 
- Return string|array DIALOG(1) output or array containing both DIALOG(1) exit code and output
-
-=cut
-
-sub _execute
-{
-    my ( $self, $boxType, @boxOptions ) = @_;
-
-    $self->endGauge();
-
-    if ( iMSCP::Getopt->noprompt ) {
-        unless ( grep ( $boxType eq $_, 'infobox', 'msgbox' ) ) {
-            iMSCP::Debug::error( sprintf( 'Failed dialog: %s', $self->_stripFormats( $boxOptions[0] )));
-            exit 5
-        }
-
-        return wantarray ? ( 0, '' ) : '';
-    }
-
-    $boxOptions[0] = $self->_stripFormats( $boxOptions[0] ) if ref $self eq 'iMSCP::Dialog::Whiptail';
-
-    my $ret = execute( [ $self->{'_bin'}, $self->_getCommonOptions(), "--$boxType", @boxOptions ], undef, \my $output );
-    # For the input and password boxes, we do not want lose previous value when
-    # backing up
-    # TODO radiolist, checklist and yesno dialog boxes
-    $output = pop @boxOptions if $ret == 30 && grep ( $boxType eq $_, 'inputbox', 'passwordbox' );
-    wantarray ? ( $ret, $output ) : $output;
-}
-
-=item _stripFormats( $string )
-
- Strip out any DIALOG(1) embedded "\Z" sequences
-
- Param string $string String from which DIALOG(1) embedded "\Z" sequences must be stripped
- Return string String stripped out of any DIALOG(1) embedded "\Z" sequences
-
-=cut
-
-sub _stripFormats
-{
-    $_[1] =~ s/\\Z[0-7brun]//gimr;
-}
-
-=item DESTROY()
-
- Destroy dialog object
-
-=cut
-
-sub DESTROY
-{
-    $_[0]->endGauge();
 }
 
 =back

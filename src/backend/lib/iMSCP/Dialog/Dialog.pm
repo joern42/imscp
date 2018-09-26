@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Dialog::Dialog - Display dialog boxes using DIALOG(1)
+ iMSCP::Dialog::Dialog - Wrapper to DIALOG(1)
 
 =cut
 
@@ -27,9 +27,8 @@ use strict;
 use warnings;
 use iMSCP::Boolean;
 use iMSCP::Execute 'execute';
-use iMSCP::Getopt;
 use iMSCP::ProgramFinder;
-use parent 'iMSCP::Dialog::DialogAbstract';
+use parent 'iMSCP::Dialog::Whiptail';
 
 BEGIN {
     local $@;
@@ -39,81 +38,15 @@ BEGIN {
 
 =head1 DESCRIPTION
 
- Display dialog boxes using DIALOG(1)
+ Wrapper to DIALOG(1)
 
 =head1 PUBLIC METHODS
 
 =over 4
 
-=item radiolist( $text, \%choices [, $defaultTag = none [, $showTags = FALSE ] ] )
-
- Show radiolist DIALOG(1) box
-
- Param string $text Text to show
- Param hashref \%choices List of choices where keys are tags and values are items.
- Param string $default Default selected tag
- Param bool $showTags Flag indicating whether or not tags must be showed in dialog box
- Return Array containing checked tags or a list containing both the DIALOG(1) exit code and an array containing checked tags
-
-=cut
-
-sub radiolist
-{
-    my ( $self, $text, $choices, $defaultTag, $showTags ) = @_;
-    $defaultTag //= '';
-
-    my @init;
-
-    if ( $showTags ) {
-        push @init, $_, $choices->{$_}, $defaultTag eq $_ ? 'on' : 'off' for sort keys %{ $choices };
-    } else {
-        my %choices = reverse( %{ $choices } );
-        push @init, $choices{$_}, $_, $defaultTag eq $choices{$_} ? 'on' : 'off' for sort keys %choices;
-    }
-
-    local $self->{'_opts'}->{'notags'} = '' unless $showTags;
-    $self->_execute( 'radiolist', $text, $self->{'lines'}, $self->{'columns'}, scalar keys %{ $choices }, @init );
-}
-
-=item checklist( $text, \%choices [, \@defaults = [] [, $showTags =  FALSE ] ] )
-
- Show checklist DIALOG(1) box
-
- Param string $text Text to show
- Param hashref \%choices List of choices where keys are tags and values are items.
- Param arrayref \@default Default tag(s)
- Param bool $showTags Flag indicating whether or not tags must be showed in dialog box
- Return Array containing checked tags or a list containing both DIALOG(1) exit code and an array containing checked tags
-
-=cut
-
-sub checklist
-{
-    my ( $self, $text, $choices, $defaultTags, $showTags ) = @_;
-    $defaultTags //= [];
-
-    my @init;
-
-    if ( $showTags ) {
-        for my $tag ( sort keys %{ $choices } ) {
-            push @init, $tag, $choices->{$tag}, grep ( $tag eq $_, @{ $defaultTags }) ? 'on' : 'off';
-        }
-    } else {
-        my %choices = reverse( %{ $choices } );
-        for my $item ( sort keys %choices ) {
-            push @init, $choices{$item}, $item, grep ( $choices{$item} eq $_, @{ $defaultTags } ) ? 'on' : 'off';
-        }
-    }
-
-    local $self->{'_opts'}->{'separate-output'} = '';
-    local $self->{'_opts'}->{'notags'} = '' unless $showTags;
-    my ( $ret, $tags ) = $self->_execute( 'checklist', $text, $self->{'lines'}, $self->{'columns'}, scalar keys %{ $choices }, @init );
-    wantarray ? ( $ret, [ split /\n/, $tags ] ) : [ split /\n/, $tags ];
-}
-
 =item yesno( $text [, $defaultno =  FALSE [, $backbutton = FALSE ] ] )
 
- Show yesno DIALOG(1) box
+ See iMSCP::Dialog::DialogAbstract::yesno()
 
  For the 'yesno' dialog box, the code used for 'Yes' and 'No' buttons match
  those used for the 'Ok' and 'Cancel'. See dialog man page. We do not want this behavior. To
@@ -127,10 +60,6 @@ sub checklist
     We make use of the extra button (code 1) which replace the default 'No' button.
     We change default labels
     So: 'Yes' = 0, 'No' = 1, 'Back' = 30, ESC = 50
-
- Param string $text Text to show
- Param string bool defaultno Set the default value of the box to 'No'
- Return int 0 (Yes), 1 (No), 30 (Back), 50 (ESC), other on failure
 
 =cut
 
@@ -152,63 +81,9 @@ sub yesno
     ( $self->_execute( 'yesno', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
 }
 
-=item msgbox( $text )
-
- Show message DIALOG(1) box
-
- Param string $text Text to show in message dialog box
- Return int 0 (Ok), 50 (ESC), other on failure
-
-=cut
-
-sub msgbox
-{
-    my ( $self, $text ) = @_;
-
-    ( $self->_execute( 'msgbox', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
-}
-
-=item infobox( $text )
-
- Show info DIALOG(1) box (same as msgbox but exit immediately)
-
- Param string $text Text to show
- Return int 0, other on failure
-
-=cut
-
-sub infobox
-{
-    my ( $self, $text ) = @_;
-
-    local $self->{'_opts'}->{'clear'} = undef;
-    ( $self->_execute( 'infobox', $text, $self->{'lines'}, $self->{'columns'} ) )[0];
-}
-
-=item inputbox( $text [, $default = '' ] )
-
- Show input DIALOG(1) dialog box
-
- Param string $text Text to show
- Param string $default Default value
- Return string|list Input string or a list containing both DIALOG(1) exit code and input string
-
-=cut
-
-sub inputbox
-{
-    my ( $self, $text, $default ) = @_;
-
-    $self->_execute( 'inputbox', $text, $self->{'lines'}, $self->{'columns'}, $default // ());
-}
-
 =item passwordbox( $text [, $default = '' ] )
 
- Show password DIALOG(1) dialog box
-
- Param string $text Text to show
- Param string $default Default value
- Return string|list Password string or a list containing both DIALOG(1) exit code and password string
+ See iMSCP::Dialog::DialogAbstract::passwordbox()
 
 =cut
 
@@ -220,17 +95,55 @@ sub passwordbox
     $self->_execute( 'passwordbox', $text, $self->{'lines'}, $self->{'columns'}, $default // ());
 }
 
+=item startGauge( $text [, $percent = 0 ] )
+
+ See iMSCP::Dialog::DialogAbstract::startGauge()
+
+=cut
+
+sub startGauge
+{
+    my ( $self, $text, $percent ) = @_;
+
+    defined $_[0] or die( '$text parameter is undefined' );
+
+    return 0 if iMSCP::Getopt->noprompt || $self->hasGauge();
+
+    open $self->{'_gauge'}, '|-', $self->{'_bin'}, $self->_getCommonOptions(), '--gauge', $text, $self->{'lines'}, $self->{'columns'},
+        $percent // 0 or die( "Couldn't start gauge" );
+    $self->{'_gauge'}->autoflush( TRUE );
+}
+
+=item setGauge( $percent, $text )
+
+ See iMSCP::Dialog::DialogAbstract::setGauge()
+
+=cut
+
+sub setGauge
+{
+    my ( $self, $percent, $text ) = @_;
+
+    unless ( defined $self->{'_gauge'} ) {
+        $self->startGauge( $text, $percent );
+        return;
+    }
+
+    print { $self->{'_gauge'} } sprintf( "XXX\n%d\n%s\nXXX\n", $percent, $text );
+}
+
 =item resetLabels( )
 
- Reset DIALOG(1) labels to their default values
-
- Return void
+ See iMSCP::Dialog::DialogAbstract::resetLabels()
 
 =cut
 
 sub resetLabels
 {
-    @{ $_[0]->{'_opts'} }{qw/ ok-button yes-button no-button cancel-button extra-label /} = ( 'Ok', 'Yes', 'No', 'Cancel', undef );
+    my ( $self ) = @_;
+
+    $self->SUPER::resetLables();
+    $self->{'_opts'}->{'extra-label'} = undef;
 }
 
 =back
@@ -249,23 +162,15 @@ sub _init
 {
     my ( $self ) = @_;
 
+    $self->SUPER::_init();
+
     # Return specific exit status when ESC is pressed
     $ENV{'DIALOG_ESC'} = 50;
     # We want get 30 as exit code when CANCEL button is pressed
     $ENV{'DIALOG_CANCEL'} = 30;
 
-    # First line: DIALOG(1) boolean options
-    # Second line: DIALOG(1) value options
     # Only relevant options are listed.
-    @{ $self->{'_opts'} }{qw/
-        clear defaultno nocancel extra-button notags
-        ok-button yes-button no-button cancel-button extra-label title backtitle
-    /} = (
-        undef, undef, undef, undef, undef,
-        'Ok', 'Yes', 'No', 'Cancel', undef, undef, 'i-MSCP™ - internet Multi Server Control Panel'
-    );
-
-    $self->SUPER::_init();
+    @{ $self->{'_opts'} }{qw/ extra-button extra-label /} = ( undef, undef, );
     $self;
 }
 
@@ -296,6 +201,39 @@ sub _getCommonOptions
         defined $self->{'_opts'}->{$_} ? ( '--' . $_, ( $self->{'_opts'}->{$_} eq '' ? () : $self->{'_opts'}->{$_} ) ) : () }
         keys %{ $self->{'_opts'} }
     ), '--colors', '--cr-wrap', '--no-collapse';
+}
+
+=item _execute( $boxType, @boxOptions )
+
+ Execute dialog command
+
+ Param string $boxType Box type
+ Param list @boxOptions Box options 
+ Return string|array Dialog output or array containing both dialog exit code and dilaog output
+
+=cut
+
+sub _execute
+{
+    my ( $self, $boxType, @boxOptions ) = @_;
+
+    $self->endGauge();
+
+    if ( iMSCP::Getopt->noprompt ) {
+        unless ( grep ( $boxType eq $_, 'infobox', 'msgbox' ) ) {
+            iMSCP::Debug::error( sprintf( 'Failed dialog: %s', $self->_stripFormats( $boxOptions[0] )));
+            exit 5
+        }
+
+        return wantarray ? ( 0, '' ) : '';
+    }
+
+    my $ret = execute( [ $self->{'_bin'}, $self->_getCommonOptions(), "--$boxType", @boxOptions ], undef, \my $output );
+    # For the input and password boxes, we do not want lose previous value when
+    # backing up
+    # TODO radiolist, checklist and yesno dialog boxes
+    $output = pop @boxOptions if $ret == 30 && grep ( $boxType eq $_, 'inputbox', 'passwordbox' );
+    wantarray ? ( $ret, $output ) : $output;
 }
 
 =back
