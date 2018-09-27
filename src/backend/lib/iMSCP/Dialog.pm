@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Dialog - Proxy to iMSCP::Dialog::DialogAbstract classes
+ iMSCP::Dialog - Proxy to iMSCP::Dialog::FrontEndInterface implementations
 
 =cut
 
@@ -25,11 +25,65 @@ package iMSCP::Dialog;
 
 use strict;
 use warnings;
-use parent 'iMSCP::Common::SingletonClass';
+use iMSCP::Boolean;
+use iMSCP::Getopt;
+use parent 'iMSCP::Dialog::FrontEndInterface';
 
 =head1 DESCRIPTION
 
- Proxy to iMSCP::Dialog::DialogAbstract classes
+ Proxy to iMSCP::Dialog::FrontEndInterface implementations
+
+=head1 PUBLIC METHODS
+
+=over 4
+
+=item executeDialogs( \@dialogs )
+
+ Execute the given stack of dialogs
+
+ Implements a simple state machine (backup capability)
+  - Dialog subroutines SHOULD not fail. However, they can die() on unrecoverable errors
+  - On success, dialog subroutines MUST return 0
+  - When skipped, dialog subroutines MUST return 20
+  - When back up, dialog subroutines MUST return 30
+
+ @param $dialogs \@dialogs Dialogs stack
+ @return int 0 (SUCCESS), 20 (SKIP), 30 (BACK)
+
+=cut
+
+my $ExecuteDialogsFirstCall = TRUE;
+my $ExecuteDialogsBackupContext = FALSE;
+
+sub executeDialogs
+{
+    my ( $self, $dialogs ) = @_;
+
+    ref $dialogs eq 'ARRAY' or die( 'Invalid $dialog parameter. Expect an array of dialog subroutines.' );
+
+    my $dialOuter = $ExecuteDialogsFirstCall;
+    $ExecuteDialogsFirstCall = FALSE if $dialOuter;
+
+    my ( $ret, $state, $countDialogs ) = ( 0, 0, scalar @{ $dialogs } );
+    while ( $state < $countDialogs ) {
+        local $self->{'_opts'}->{'nocancel'} = $state || !$dialOuter ? undef : '' if exists $self->{'_opts'}->{'nocancel'};
+        $ret = $dialogs->[$state]->( $self );
+        last if $ret == 30 && $state == 0;
+
+        if ( $state && ( $ret == 30 || $ret == 20 && $ExecuteDialogsBackupContext ) ) {
+            $ExecuteDialogsBackupContext = TRUE if $ret == 30;
+            $state--;
+            next;
+        }
+
+        $ExecuteDialogsBackupContext = FALSE if $ExecuteDialogsBackupContext;
+        $state++;
+    }
+
+    $ret;
+}
+
+=back
 
 =head1 PRIVATE METHODS
 
@@ -45,20 +99,26 @@ sub _init
 {
     my ( $self ) = @_;
 
-    $self->{'dialog'} = do {
-        eval {
-            local $@;
-            die if $ENV{'FORCE_DIALOG'};
-            require iMSCP::Dialog::Whiptail;
-            iMSCP::Dialog::Whiptail->getInstance();
-        } or do {
-            require iMSCP::Dialog::Dialog;
-            iMSCP::Dialog::Dialog->getInstance();
+    $self->{'frontEnd'} = do {
+        if ( iMSCP::Getopt->noprompt ) {
+            require iMSCP::Dialog::NonInteractive;
+            iMSCP::Dialog::NonInteractive->getInstance();
+        } else {
+            eval {
+                local $@;
+                die if $ENV{'FORCE_DIALOG'};
+                require iMSCP::Dialog::Whiptail;
+                iMSCP::Dialog::Whiptail->getInstance();
+            } or do {
+                print "NUXWIN $@";
+                require iMSCP::Dialog::Dialog;
+                iMSCP::Dialog::Dialog->getInstance();
+            };
         }
     };
-    
-    # Allow localization of wrapper options through this object
-    $self->{'_opts'} = $self->{'dialog'}->{'_opts'};
+
+    # Allow localization of dialog frontEnd options through this object
+    $self->{'_opts'} = $self->{'frontEnd'}->{'_opts'} if exists $self->{'frontEnd'}->{'_opts'};
 }
 
 =item AUTOLOAD
@@ -69,17 +129,11 @@ sub _init
 
 sub AUTOLOAD
 {
+    shift; # Shift this object as we do not want pass it to proxied object
     ( my $method = $iMSCP::Dialog::AUTOLOAD ) =~ s/.*:://;
 
-    my $instance = __PACKAGE__->getInstance()->{'dialog'};
-    $method = $instance->can( $method ) or die( sprintf( 'Unknown %s method', $iMSCP::Dialog::AUTOLOAD ));
-
     no strict 'refs';
-    *{ $iMSCP::Dialog::AUTOLOAD } = sub {
-        shift;
-        $method->( $instance, @_ );
-    };
-
+    *{ $iMSCP::Dialog::AUTOLOAD } = sub { __PACKAGE__->getInstance()->{'frontEnd'}->$method( @_ ); };
     goto &{ $iMSCP::Dialog::AUTOLOAD };
 }
 
