@@ -45,7 +45,7 @@ use parent 'iMSCP::Dialog::FrontEndInterface';
 
 =cut
 
-sub selects
+sub select
 {
     my ( $self, $text, $choices, $defaultTag, $showTags ) = @_;
     $showTags //= FALSE;
