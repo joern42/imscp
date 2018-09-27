@@ -191,7 +191,7 @@ sub _init
 
     # Force usage of graphic lines (UNICODE values) when using putty (See #540)
     $ENV{'NCURSES_NO_UTF8_ACS'} = TRUE;
-    # Map exit code to expected iMSCP::Dialog::DialogAbstract::* retval
+    # Map exit code to expected iMSCP::Dialog::FrontEndInterface::* retval
     # We need return 30 when user hit escape or cancel (back up capability)
     @ENV{qw/ DIALOG_ESC DIALOG_CANCEL /} = 30;
 

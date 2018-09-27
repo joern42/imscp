@@ -110,7 +110,6 @@ sub _init
                 require iMSCP::Dialog::Whiptail;
                 iMSCP::Dialog::Whiptail->getInstance();
             } or do {
-                print "NUXWIN $@";
                 require iMSCP::Dialog::Dialog;
                 iMSCP::Dialog::Dialog->getInstance();
             };

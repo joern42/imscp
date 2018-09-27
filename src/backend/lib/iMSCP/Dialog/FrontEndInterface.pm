@@ -147,13 +147,14 @@ use parent 'iMSCP::Common::SingletonClass';
 
 sub AUTOLOAD
 {
-    ( my $method = $iMSCP::Dialog::AUTOLOAD ) =~ s/.*:://;
+    my $self = shift;
+    ( my $method = $iMSCP::Dialog::FrontEndInterface::AUTOLOAD ) =~ s/.*:://;
 
     grep ( $method eq $_, qw/ select multiselect boolean msgbox infobox string password startGauge setGauge endGauge hasGauge executeDialogs / ) or die(
-        sprintf( 'Unknown %s method', $iMSCP::Dialog::AUTOLOAD )
+        sprintf( 'Unknown %s method', $iMSCP::Dialog::FrontEndInterface::AUTOLOAD )
     );
 
-    die( sprintf( "The '%s' class must implement the 'executeDialogs' method", ref $method ));
+    die( sprintf( "The '%s' class must implement the '%s' method", ref $self, $method ));
 }
 
 =item DESTROY
