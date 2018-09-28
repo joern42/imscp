@@ -33,7 +33,7 @@ use iMSCP::Getopt;
 use POSIX ();
 use parent 'Exporter';
 
-# Whether \*STDERR fd refers to a termlinal
+# Whether \*STDERR fd refers to a terminal
 use constant ISATTY => POSIX::isatty \*STDERR;
 
 our @EXPORT = qw/ debug warning error newDebug endDebug getMessage getLastError getMessageByType output /;
