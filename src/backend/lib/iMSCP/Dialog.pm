@@ -100,7 +100,7 @@ sub _init
     my ( $self ) = @_;
 
     $self->{'frontEnd'} = do {
-        if ( iMSCP::Getopt->noprompt ) {
+        if ( iMSCP::Getopt->noninteractive ) {
             require iMSCP::Dialog::NonInteractive;
             iMSCP::Dialog::NonInteractive->getInstance();
         } else {
@@ -128,11 +128,13 @@ sub _init
 
 sub AUTOLOAD
 {
-    shift; # Shift this object as we do not want pass it to proxied object
     ( my $method = $iMSCP::Dialog::AUTOLOAD ) =~ s/.*:://;
 
     no strict 'refs';
-    *{ $iMSCP::Dialog::AUTOLOAD } = sub { __PACKAGE__->getInstance()->{'frontEnd'}->$method( @_ ); };
+    *{ $iMSCP::Dialog::AUTOLOAD } = sub {
+        shift; # Shift this object as we do not want pass it to proxied object
+        __PACKAGE__->getInstance()->{'frontEnd'}->$method( @_ );
+    };
     goto &{ $iMSCP::Dialog::AUTOLOAD };
 }
 
