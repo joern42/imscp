@@ -63,7 +63,7 @@ sub acquire
         };
         my $e = $@;
         # Close the file if it is not the required one
-        close( $fd ) unless $self->{'_fd'};
+        close $fd unless $self->{'_fd'};
         die $e if $e;
         return FALSE unless $ret;
     }
