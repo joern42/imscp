@@ -1,6 +1,6 @@
 =head1 NAME
 
- iMSCP::Common::SingletonClass - Base class implementing Singleton Design Pattern
+ iMSCP::Common::Singleton - Base class implementing Singleton Design Pattern
 
 =cut
 
@@ -21,7 +21,7 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Common::SingletonClass;
+package iMSCP::Common::Singleton;
 
 use strict;
 use warnings;
@@ -56,7 +56,7 @@ sub hasInstance
  Implement singleton design pattern. Return instance of this class
 
  Param hash|hashref OPTIONAL hash representing class attributes
- Return iMSCP::Common::SingletonClass
+ Return iMSCP::Common::Singleton
 
 =cut
 
@@ -86,7 +86,7 @@ sub getInstance
 
  Called by getInstance( ). Initialize instance
 
- Return iMSCP::Common::SingletonClass
+ Return iMSCP::Common::Singleton
 
 =cut
 
