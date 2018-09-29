@@ -1,31 +1,32 @@
 =head1 NAME
 
-iMSCP::Dialog::InputValidation
+iMSCP::InputValidation
 
 =cut
 
 # i-MSCP - internet Multi Server Control Panel
-# Copyright (C) 2010-2018 by Laurent Declercq <l.declercq@nuxwin.com>
+# Copyright (C) 2010-2018 Laurent Declercq <l.declercq@nuxwin.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
-package iMSCP::Dialog::InputValidation;
+package iMSCP::InputValidation;
 
 use strict;
 use warnings;
 use autouse 'List::Compare::Functional' => 'get_intersection';
+use Carp 'croak';
 use iMSCP::Boolean;
 use Data::Validate::Domain qw/ is_domain is_hostname /;
 use DateTime::TimeZone;
@@ -62,9 +63,10 @@ sub isValidUsername( $ )
 {
     my ( $username ) = @_;
 
-    defined $username or die( 'Missing $username parameter' );
+    defined $username or croak( 'Missing $username parameter' );
     my $length = length $username;
 
+    $lastValidationError = '';
     return TRUE if $length >= 3 && $length <= 16 && $username =~ /^[\x30-\x39\x41-\x5a\x61-\x7a\x5f]+$/;
 
     $lastValidationError = <<"EOF";
@@ -90,7 +92,7 @@ sub isValidPassword( $ )
 {
     my ( $password ) = @_;
 
-    defined $password or die( 'Missing $password parameter' );
+    defined $password or croak( 'Missing $password parameter' );
     my $length = length $password;
 
     return TRUE if $length >= 6 && $length <= 32 && $password =~ /^[\x30-\x39\x41-\x5a\x61-\x7a]+$/;
@@ -118,8 +120,9 @@ sub isValidEmail( $ )
 {
     my ( $email ) = @_;
 
-    defined $email or die( 'Missing $email parameter' );
+    defined $email or croak( 'Missing $email parameter' );
 
+    $lastValidationError = '';
     return TRUE if Email::Valid->address( $email );
 
     $lastValidationError = <<"EOF";
@@ -142,8 +145,9 @@ sub isValidHostname( $ )
 {
     my ( $hostname ) = @_;
 
-    defined $hostname or die( 'Missing $hostname parameter' );
+    defined $hostname or croak( 'Missing $hostname parameter' );
 
+    $lastValidationError = '';
     return TRUE if $hostname !~ /\.$/ && ( $hostname =~ tr/.// ) >= 2 && is_hostname( idn_to_ascii( $hostname, 'utf-8' ));
 
     $lastValidationError = <<"EOF";
@@ -169,11 +173,10 @@ sub isValidDomain( $ )
 {
     my ( $domainName ) = @_;
 
-    defined $domainName or die( 'Missing $domainName parameter' );
+    defined $domainName or croak( 'Missing $domainName parameter' );
 
-    return TRUE if $domainName !~ /\.$/ && is_domain(
-        idn_to_ascii( $domainName, 'utf-8' ), { domain_disable_tld_validation => 1 }
-    );
+    $lastValidationError = '';
+    return TRUE if $domainName !~ /\.$/ && is_domain( idn_to_ascii( $domainName, 'utf-8' ), { domain_disable_tld_validation => TRUE } );
 
     $lastValidationError = <<"EOF";
 
@@ -198,8 +201,9 @@ sub isValidIpAddr( $;$ )
 {
     my ( $ipAddr, $typeReg ) = @_;
 
-    defined $ipAddr or die( 'Missing $ipAddr parameter' );
+    defined $ipAddr or croak( 'Missing $ipAddr parameter' );
 
+    $lastValidationError = '';
     my $net = iMSCP::Net->getInstance();
     return TRUE if $net->isValidAddr( $ipAddr ) && ( !defined $typeReg || $net->getAddrType( $ipAddr ) =~ /^$typeReg$/ );
 
@@ -223,9 +227,10 @@ sub isValidDbName( $ )
 {
     my ( $dbName ) = @_;
 
-    defined $dbName or die( 'Missing $dbName parameter' );
+    defined $dbName or croak( 'Missing $dbName parameter' );
     my $length = length $dbName;
 
+    $lastValidationError = '';
     return TRUE if $length >= 3 && $length <= 16 && $dbName =~ /^[\x30-\x39\x41-\x5a\x61-\x7a\x5f]+$/;
 
     $lastValidationError = <<"EOF";
@@ -251,8 +256,9 @@ sub isValidTimezone
 {
     my ( $timezone ) = @_;
 
-    defined $timezone or die( 'Missing $timezone parameter' );
+    defined $timezone or croak( 'Missing $timezone parameter' );
 
+    $lastValidationError = '';
     return TRUE if DateTime::TimeZone->is_valid_name( $timezone );
 
     $lastValidationError = <<"EOF";
@@ -277,8 +283,9 @@ sub isNumber( $ )
 {
     my ( $number ) = @_;
 
-    defined $number or die( 'Missing $timezone parameter' );
+    defined $number or croak( 'Missing $timezone parameter' );
 
+    $lastValidationError = '';
     return TRUE if $number =~ /^[\x30-\x39]+$/;
 
     $lastValidationError = <<"EOF";
@@ -303,10 +310,11 @@ sub isValidNumberRange( $$$ )
 {
     my ( $numberRange, $n1, $n2 ) = @_;
 
-    defined $numberRange or die( 'Missing $numberRange parameter' );
-    defined $n1 or die( 'Missing $n1 parameter' );
-    defined $n2 or die( 'Missing $n2 parameter' );
+    defined $numberRange or croak( 'Missing $numberRange parameter' );
+    defined $n1 or croak( 'Missing $n1 parameter' );
+    defined $n2 or croak( 'Missing $n2 parameter' );
 
+    $lastValidationError = '';
     return TRUE if ( ${ $n1 }, ${ $n2 } ) = $numberRange =~ /^([\x30-\x39]+)\s+([\x30-\x39]+)$/;
 
     $lastValidationError = <<"EOF";
@@ -333,12 +341,12 @@ sub isNumberInRange( $$$ )
 {
     my ( $number, $start, $end ) = @_;
 
-    defined $number or die( 'Missing $number parameter' );
-    defined $start or die( 'Missing $start parameter' );
-    defined $end or die( 'Missing $end parameter' );
+    defined $number or croak( 'Missing $number parameter' );
+    defined $start or croak( 'Missing $start parameter' );
+    defined $end or croak( 'Missing $end parameter' );
 
-    no warnings;
-    return TRUE if defined $number && $number >= $start && $number <= $end;
+    $lastValidationError = '';
+    return TRUE if $number =~ /^[\x30-\x39]+$/ && $number >= $start && $number <= $end;
 
     $lastValidationError = <<"EOF";
 
@@ -366,7 +374,7 @@ sub isStringInList( $@ )
 {
     my ( $string, @stringList ) = @_;
 
-    defined $string or die( 'Missing $string parameter' );
+    defined $string or croak( 'Missing $string parameter' );
 
     $lastValidationError = '';
     return TRUE if grep { $string eq $_ } @stringList;
@@ -397,8 +405,9 @@ sub isStringNotInList( $@ )
 {
     my ( $string, @stringList ) = @_;
 
-    defined $string or die( 'Missing $string parameter' );
+    defined $string or croak( 'Missing $string parameter' );
 
+    $lastValidationError = '';
     return TRUE unless grep { $string eq $_ } @stringList;
 
     my $entries = join ', ', @stringList;
@@ -423,7 +432,7 @@ EOF
 
 =cut
 
-sub isOneOfStringsInList
+sub isOneOfStringsInList( $$ )
 {
     my ( $stringsListL, $stringListR ) = @_;
 
@@ -443,8 +452,9 @@ sub isNotEmpty( $ )
 {
     my ( $string ) = @_;
 
-    defined $string or die( 'Missing $string parameter' );
+    defined $string or croak( 'Missing $string parameter' );
 
+    $lastValidationError = '';
     return TRUE if !$string || $string =~ /[^\s]/;
 
     $lastValidationError = <<"EOF";
@@ -469,21 +479,20 @@ sub isAvailableSqlUser( $ )
 {
     my ( $username ) = @_;
 
-    defined $username or die( 'Missing $username parameter' );
+    defined $username or croak( 'Missing $username parameter' );
 
     my $db = iMSCP::Database->factory();
 
+    local $@;
     my $oldDbName = eval { $db->useDatabase( ::setupGetQuestion( 'DATABASE_NAME' )); };
     if ( $@ ) {
         return TRUE if $@ =~ /unknown database/i; # On fresh installation, there is no database yet
         die;
     }
 
-    my $rdbh = $db->getRawDb();
-    $rdbh->{'RaiseError'} = TRUE;
-    my $row = $rdbh->selectrow_hashref( 'SELECT 1 FROM sql_user WHERE sqlu_name = ? LIMIT 1', undef, $username );
+    my $row = $db->selectrow_hashref( 'SELECT 1 FROM sql_user WHERE sqlu_name = ? LIMIT 1', undef, $username );
 
-    $db->useDatabase( $oldDbName ) if $oldDbName;
+    $db->useDatabase( $oldDbName ) if length $oldDbName;
 
     return TRUE unless $row;
 
