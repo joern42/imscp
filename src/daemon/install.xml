@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <install>
     <command>make clean all</command>
+    <command if="-x '${SBINDIR}/imscp_daemon'">service imscp_daemon stop</command>
     <copy mode="0755">${SBINDIR}/imscp_daemon</copy>
 </install>
