@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<install>
+    <command>make clean all</command>
+    <copy mode="0755">${SBINDIR}/imscp_daemon</copy>
+</install>
