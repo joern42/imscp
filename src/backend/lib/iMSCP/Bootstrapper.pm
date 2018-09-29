@@ -26,27 +26,20 @@ package iMSCP::Bootstrapper;
 use strict;
 use warnings;
 use autouse 'iMSCP::Crypt' => qw/ decryptRijndaelCBC randomStr /;
+use autouse POSIX => 'tzset';
 use Carp 'croak';
 use Class::Autouse qw/ :nostat iMSCP::Database iMSCP::Requirements /;
 use iMSCP::Boolean;
 use iMSCP::Debug 'debug';
-use iMSCP::Config;
 use iMSCP::EventManager;
 use iMSCP::Getopt;
 use iMSCP::Provider::Config::JavaProperties;
 use iMSCP::Compat::HashrefViaHash;
 use iMSCP::Umask '$UMASK';
 use Params::Check qw/ check last_error /;
-use POSIX 'tzset';
-
-
 # Make sure that object destructors are called on HUP, PIPE, INT and TERM signals
 use sigtrap qw/ die normal-signals /;
 use parent 'iMSCP::Common::Singleton';
-
-$SIG{'INT'} = 'IGNORE';
-
-umask 022;
 
 =head1 DESCRIPTION
 
@@ -78,7 +71,9 @@ sub boot
     my $mode = iMSCP::Getopt->context();
     debug( sprintf( 'Booting backend in %s mode....', $mode ));
 
-    $self->loadMasterConfig->();
+    # In distribution installer context, the configuration file
+    # is loaded by the installer itself
+    $self->loadMasterConfig() unless $ENV{'IMSCP_DIST_INSTALLER'};
 
     # Set timezone unless we are in installer or uninstaller context
     # (needed to show current local timezone in setup dialog)
@@ -103,10 +98,6 @@ sub boot
 sub loadMasterConfig
 {
     my ( $self ) = @_;
-
-    # In installer context, the configuration file is loaded by the
-    # installer itself...
-    return if iMSCP::Getopt->context() eq 'installer';
 
     debug( sprintf( 'Loading i-MSCP master configuration (readonly)...' ));
 
