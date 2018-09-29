@@ -68,7 +68,7 @@ sub TIEHASH
     bless [ $hashref->{'HASHREF'} ], $class;
 }
 
-=item( key, value )
+=item STORE( key, value )
 
  Store an element
 
@@ -90,7 +90,7 @@ sub FETCH
     $_[0]->[0]->{ $_[1] };
 }
 
-=item FIRSTKEY()
+=item FIRSTKEY( )
 
  Method will be triggered when the user is going to iterate through the hash,
  such as via a keys(), values(), or each() call.
@@ -103,7 +103,7 @@ sub FIRSTKEY
     each %{ $_[0]->[0] };
 }
 
-=item NEXTKEY()
+=item NEXTKEY( )
 
  Method triggered during a keys(), values(), or each() iteration.
 
@@ -136,7 +136,7 @@ sub DELETE
     delete $_[0]->[0]->{ $_[1] };
 }
 
-=item CLEAR()
+=item CLEAR( )
 
  Clear all elements
 
@@ -147,7 +147,7 @@ sub CLEAR
     %{ $_[0]->[0] } = ();
 }
 
-=item
+=item SCALAR( )
 
  Method called when the tied hash is evaluated in scalar context
 
