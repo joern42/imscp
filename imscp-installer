@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- imscp-installer Install (or reconfigure) i-MSCP
+ imscp-installer Install (or update and/or reconfigure) i-MSCP.
 
 =head1 SYNOPSIS
 
@@ -32,52 +32,77 @@
 
 use strict;
 use warnings;
-use File::Basename ();
 use Cwd ();
-use lib "@{ [ Cwd::realpath( File::Basename::dirname( __FILE__ )) ] }/src/imscp";
+use File::Basename ();
+use lib "@{ [ Cwd::realpath( File::Basename::dirname( __FILE__ )) ] }/src/backend/lib";
 use iMSCP::Boolean;
 use iMSCP::Getopt;
 use iMSCP::Installer::Bootstrapper;
+use iMSCP::LockFile;
 use POSIX 'locale_h';
+
+BEGIN {
+    local $@;
+    # Get iMSCP::Debug or fake it
+    eval { require iMSCP::Debug } or require iMSCP::Faker and $ENV{'IMSCP_FRESH_INSTALL'} = TRUE;
+}
 
 setlocale( LC_MESSAGES, 'C.UTF-8' );
 
 @{ENV}{qw/ LANG IMSCP_INSTALLER IMSCP_DIST_INSTALLER / } = ( 'C.UTF-8', TRUE, TRUE );
 
+$> == 0 or die( "You do not have permission to call this script.\n" );
+
+exit unless iMSCP::LockFile->new( path => '/tmp/imscp-installer.lock', non_blocking => TRUE )->acquire();
+
 {
     local @ARGV = @ARGV;
     iMSCP::Getopt->parse( sprintf( 'Usage: perl %s [OPTION]...', File::Basename::basename( $0 )) . qq{
 
-Install (or reconfigure) i-MSCP.
+Install (or update and/or reconfigure) i-MSCP.
 
-OPTIONS
- -c,    --clean-composer-cache   Cleanup composer cache.
- -f,    --fix-permissions        Fix permissions recursively.
- -l,    --layout  <file>         Distribution layout file
- -n,    --noprompt               Switch to non-interactive mode.
- -p,    --preseed <file>         Path to preseed file.
- -r,    --reconfigure [ITEM]...  Type 'help' for list of available items.
- -s,    --skip-dist-packages     Do not install distribution packages.
- -v,    --verbose                Enable verbose mode.
- -z     --no-ansi                Disable ANSI output},
+OPTIONS:
+ -c,   --clean-composer-cache         Cleanup composer cache.
+ -d,   --debug                        Enable debug mode.
+ -f,   --fix-permissions              Fix permissions recursively.
+ -h,-? --help                         Show this help.
+ -k,   --dist-package-file  <FILE>    Distribution package file.
+ -l,   --layout             <FILE>    Distribution layout file.
+ -n,   --non-interactive              Switch to non-interactive mode.
+ -p,   --preseed <file>               i-MSCP preseeding file.
+ -r,   --reconfigure        [ITEM]... Type 'help' for list of available items.
+ -s,   --skip-dist-packages           Skip distribution packages.
+ -v,   --verbose                      Enable verbose mode.
+ -z,   --no-ansi                      Disable ANSI output.
+},
         'clean-composer-cache|c' => \&iMSCP::Getopt::clearComposerCache,
+        'debug|d'                => \&iMSCP::Getopt::debug,
+        'dist-package-file|k=s'  => \&iMSCP::Getopt::distPackageFile,
         'fix-permissions|f'      => \&iMSCP::Getopt::fixPermissions,
+        'help|?|h'               => \&iMSCP::Getopt::showUsage,
         'layout|l=s'             => \&iMSCP::Getopt::layout,
         'no-ansi|z'              => \&iMSCP::Getopt::noansi,
-        'noprompt|n'             => \&iMSCP::Getopt::noprompt,
+        'non-interactive|n'      => \&iMSCP::Getopt::noninteractive,
         'preseed|p=s'            => \&iMSCP::Getopt::preseed,
-        'reconfigure|r:s'        => \&iMSCP::Getopt::reconfigure,
+        'reconfigure|r:s{,}'     => \&iMSCP::Getopt::reconfigure,
         'skip-composer-update|a' => \&iMSCP::Getopt::skipComposerUpdate,
         'skip-dist-packages|s'   => \&iMSCP::Getopt::skipDistPackages,
         'verbose|v'              => \&iMSCP::Getopt::verbose
     );
 }
 
-chdir $INC[0];
+iMSCP::Debug::newDebug( 'imscp-dist-installer.log' );
 
+chdir $INC[0] . '/../../../' or die $!;
+
+system( 'clear' ) unless iMSCP::Getopt->noninteractive;
+
+# Satisfy i-MSCP installer prerequisites
 iMSCP::Installer::Bootstrapper->new()->bootstrap();
 
-exec 'perl', '../bin/imscp-installer', @ARGV or die $!;
+# Execute the installer from distribution files location as the distribution
+# files were not installed yet
+exec 'perl', '-I', 'src/backend/blib/arch', '-I', 'src/backend/blib/lib', 'src/blib/script/imscp-installer', @ARGV or die $!;
 
 =head1 AUTHOR
 

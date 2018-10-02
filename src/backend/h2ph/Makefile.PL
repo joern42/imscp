@@ -63,10 +63,10 @@ sub MY::postamble
 
 bin/%: %.c h2ph
 	mkdir -p $(@D)
-	$(CC) $(DEFINE) $(CPPFLAGS) $(CCFLAGS) $(OPTIMIZE) $< -o $@
+	$(CC) $(DEFINE) $(CCFLAGS) $(OPTIMIZE) $< -o $@
 
 h2ph:
-	-cd /usr/include; $@ -a -d $(shell pwd)/$(INST_ARCHLIB) linux/fs.h sys/mount.h
+	-cd /usr/include; $@ -a -d $(shell pwd)/$(INST_ARCHLIB) linux/fs.h syscall.h sys/mount.h
 MAKE_FRAG
 }
 
